@@ -1,0 +1,57 @@
+{
+  "rules": {
+    "language-and-i18n-policy": {
+      "description": "Política de idioma e i18n",
+      "applies_to": ["**/*"],
+      "always_apply": true
+    },
+    "stack-boundaries": {
+      "description": "Tecnologías permitidas y restricciones", 
+      "applies_to": ["**/*"],
+      "always_apply": true
+    },
+    "money-handling": {
+      "description": "Dinero en centavos enteros",
+      "applies_to": ["**/*"],
+      "always_apply": true
+    },
+    "calc-engine-first": {
+      "description": "Matemática de negocio en lib/calc con tests antes de UI",
+      "applies_to": ["**/*"],
+      "always_apply": true
+    },
+    "tasks-governance": {
+      "description": "Sistema de tareas tipo Taskmaster",
+      "applies_to": ["**/*"],
+      "always_apply": true
+    },
+    "devlog-step-by-step": {
+      "description": "Devlog tipo tutorial para cada PR o bugfix",
+      "applies_to": ["**/*"],
+      "always_apply": true
+    },
+    "reference-data-location": {
+      "description": "Ubicación y uso de la hoja de referencia",
+      "applies_to": ["**/*"],
+      "always_apply": true
+    },
+    "acceptance-criteria-template": {
+      "description": "Checklist estándar para aprobar cambios",
+      "applies_to": ["**/*"],
+      "always_apply": true
+    }
+  },
+  "project_context": {
+    "name": "Laralis Dental Manager",
+    "description": "Sistema de gestión para consultorios dentales con motor de cálculos financieros",
+    "stack": ["Next.js 14", "TypeScript", "Tailwind", "Supabase", "Vitest"],
+    "architecture": "Next.js App Router + Server Components por defecto",
+    "key_principles": [
+      "Dinero en centavos enteros únicamente",
+      "Tests unitarios para motor de cálculos",
+      "i18n desde el inicio (EN/ES)",
+      "UI estilo Apple limpia y aireada",
+      "Sistema de tareas tipo Taskmaster"
+    ]
+  }
+}

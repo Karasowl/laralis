@@ -1,0 +1,137 @@
+{
+  "common": {
+    "appName": "Gestor de Consultorio Dental",
+    "welcome": "Bienvenido",
+    "loading": "Cargando...",
+    "error": "Error",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "add": "Agregar",
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "export": "Exportar",
+    "import": "Importar",
+    "noData": "No hay datos disponibles",
+    "actions": "Acciones",
+    "currency": "MXN",
+    "yes": "Sí",
+    "no": "No",
+    "confirm": "Confirmar",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "language": "Idioma"
+  },
+  "nav": {
+    "home": "Inicio",
+    "setup": "Configuración",
+    "time": "Configuración de Tiempo",
+    "fixedCosts": "Costos Fijos",
+    "supplies": "Insumos",
+    "services": "Servicios",
+    "tariffs": "Tarifas",
+    "patients": "Pacientes",
+    "treatments": "Tratamientos",
+    "expenses": "Gastos",
+    "reports": "Reportes"
+  },
+  "home": {
+    "title": "Sistema de Gestión de Consultorio Dental",
+    "subtitle": "Administra tu práctica eficientemente",
+    "getStarted": "Comenzar",
+    "quickLinks": "Enlaces Rápidos",
+    "setupDescription": "Configura los ajustes de tu práctica",
+    "patientsDescription": "Administra los registros de pacientes",
+    "treatmentsDescription": "Rastrea tratamientos y procedimientos",
+    "reportsDescription": "Ve reportes financieros y análisis"
+  },
+  "time": {
+    "title": "Configuración de Tiempo",
+    "subtitle": "Configura tu horario de trabajo y calendario",
+    "workDaysPerMonth": "Días de Trabajo por Mes",
+    "hoursPerDay": "Horas por Día",
+    "effectiveWorkPercentage": "Porcentaje de Trabajo Efectivo",
+    "totalMinutesPerMonth": "Minutos Totales por Mes",
+    "effectiveMinutesPerMonth": "Minutos Efectivos por Mes",
+    "formDescription": "Establece tus horas de trabajo mensuales para calcular costos con precisión",
+    "calculate": "Calcular Costos",
+    "calculating": "Calculando...",
+    "results": "Resultados",
+    "preview": "Vista Previa",
+    "fixedCostPerMinute": "Costo Fijo por Minuto",
+    "messages": {
+      "saved": "Configuración de tiempo guardada exitosamente",
+      "saveError": "Error al guardar configuración de tiempo",
+      "loadError": "Error al cargar configuración de tiempo"
+    }
+  },
+  "fixedCosts": {
+    "title": "Costos Fijos",
+    "subtitle": "Administra tus gastos fijos mensuales",
+    "category": "Categoría",
+    "concept": "Concepto",
+    "description": "Descripción",
+    "amount": "Monto",
+    "totalMonthly": "Total Mensual",
+    "addCost": "Agregar Costo Fijo",
+    "editCost": "Editar Costo Fijo",
+    "deleteCost": "Eliminar Costo Fijo",
+    "categories": {
+      "rent": "Renta",
+      "salaries": "Salarios",
+      "utilities": "Servicios",
+      "insurance": "Seguros",
+      "equipment": "Equipo",
+      "other": "Otros"
+    },
+    "placeholders": {
+      "concept": "Ingresa la descripción del costo",
+      "amount": "0.00"
+    },
+    "messages": {
+      "saved": "Costo fijo guardado exitosamente",
+      "deleted": "Costo fijo eliminado exitosamente",
+      "saveError": "Error al guardar costo fijo",
+      "deleteError": "Error al eliminar costo fijo",
+      "loadError": "Error al cargar costos fijos"
+    }
+  },
+  "supplies": {
+    "title": "Insumos",
+    "subtitle": "Administra tu inventario de insumos dentales",
+    "name": "Nombre del Insumo",
+    "category": "Categoría",
+    "unit": "Unidad",
+    "costPerUnit": "Costo por Unidad",
+    "stock": "Inventario",
+    "materials": "Materiales",
+    "instruments": "Instrumentos",
+    "medications": "Medicamentos",
+    "disposables": "Desechables",
+    "addSupply": "Agregar Insumo",
+    "editSupply": "Editar Insumo"
+  },
+  "services": {
+    "title": "Servicios",
+    "subtitle": "Define tus servicios y procedimientos dentales",
+    "name": "Nombre del Servicio",
+    "code": "Código",
+    "duration": "Duración (minutos)",
+    "basePrice": "Precio Base",
+    "addService": "Agregar Servicio",
+    "editService": "Editar Servicio"
+  },
+  "validation": {
+    "required": "Este campo es requerido",
+    "minLength": "Debe tener al menos {min} caracteres",
+    "maxLength": "Debe tener máximo {max} caracteres",
+    "min": "Debe ser al menos {min}",
+    "max": "Debe ser máximo {max}",
+    "email": "Debe ser un correo válido",
+    "number": "Debe ser un número",
+    "positive": "Debe ser un número positivo",
+    "integer": "Debe ser un número entero",
+    "percentage": "Debe estar entre 0 y 100"
+  }
+}

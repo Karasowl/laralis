@@ -1,0 +1,137 @@
+{
+  "common": {
+    "appName": "Dental Practice Manager",
+    "welcome": "Welcome",
+    "loading": "Loading...",
+    "error": "Error",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "import": "Import",
+    "noData": "No data available",
+    "actions": "Actions",
+    "currency": "MXN",
+    "yes": "Yes",
+    "no": "No",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "language": "Language"
+  },
+  "nav": {
+    "home": "Home",
+    "setup": "Setup",
+    "time": "Time Settings",
+    "fixedCosts": "Fixed Costs",
+    "supplies": "Supplies",
+    "services": "Services",
+    "tariffs": "Tariffs",
+    "patients": "Patients",
+    "treatments": "Treatments",
+    "expenses": "Expenses",
+    "reports": "Reports"
+  },
+  "home": {
+    "title": "Dental Practice Management System",
+    "subtitle": "Manage your practice efficiently",
+    "getStarted": "Get Started",
+    "quickLinks": "Quick Links",
+    "setupDescription": "Configure your practice settings",
+    "patientsDescription": "Manage patient records",
+    "treatmentsDescription": "Track treatments and procedures",
+    "reportsDescription": "View financial reports and analytics"
+  },
+  "time": {
+    "title": "Time Settings",
+    "subtitle": "Configure your working hours and calendar",
+    "workDaysPerMonth": "Work Days per Month",
+    "hoursPerDay": "Hours per Day",
+    "effectiveWorkPercentage": "Effective Work Percentage",
+    "totalMinutesPerMonth": "Total Minutes per Month",
+    "effectiveMinutesPerMonth": "Effective Minutes per Month",
+    "formDescription": "Set your monthly working hours to calculate costs accurately",
+    "calculate": "Calculate Costs",
+    "calculating": "Calculating...",
+    "results": "Results",
+    "preview": "Live Preview",
+    "fixedCostPerMinute": "Fixed Cost per Minute",
+    "messages": {
+      "saved": "Time settings saved successfully",
+      "saveError": "Error saving time settings",
+      "loadError": "Error loading time settings"
+    }
+  },
+  "fixedCosts": {
+    "title": "Fixed Costs",
+    "subtitle": "Manage your monthly fixed expenses",
+    "category": "Category",
+    "concept": "Concept",
+    "description": "Description",
+    "amount": "Amount",
+    "totalMonthly": "Total Monthly",
+    "addCost": "Add Fixed Cost",
+    "editCost": "Edit Fixed Cost",
+    "deleteCost": "Delete Fixed Cost",
+    "categories": {
+      "rent": "Rent",
+      "salaries": "Salaries",
+      "utilities": "Utilities",
+      "insurance": "Insurance",
+      "equipment": "Equipment",
+      "other": "Other"
+    },
+    "placeholders": {
+      "concept": "Enter cost description",
+      "amount": "0.00"
+    },
+    "messages": {
+      "saved": "Fixed cost saved successfully",
+      "deleted": "Fixed cost deleted successfully",
+      "saveError": "Error saving fixed cost",
+      "deleteError": "Error deleting fixed cost",
+      "loadError": "Error loading fixed costs"
+    }
+  },
+  "supplies": {
+    "title": "Supplies",
+    "subtitle": "Manage your dental supplies inventory",
+    "name": "Supply Name",
+    "category": "Category",
+    "unit": "Unit",
+    "costPerUnit": "Cost per Unit",
+    "stock": "Stock",
+    "materials": "Materials",
+    "instruments": "Instruments",
+    "medications": "Medications",
+    "disposables": "Disposables",
+    "addSupply": "Add Supply",
+    "editSupply": "Edit Supply"
+  },
+  "services": {
+    "title": "Services",
+    "subtitle": "Define your dental services and procedures",
+    "name": "Service Name",
+    "code": "Code",
+    "duration": "Duration (minutes)",
+    "basePrice": "Base Price",
+    "addService": "Add Service",
+    "editService": "Edit Service"
+  },
+  "validation": {
+    "required": "This field is required",
+    "minLength": "Must be at least {min} characters",
+    "maxLength": "Must be at most {max} characters",
+    "min": "Must be at least {min}",
+    "max": "Must be at most {max}",
+    "email": "Must be a valid email",
+    "number": "Must be a number",
+    "positive": "Must be a positive number",
+    "integer": "Must be a whole number",
+    "percentage": "Must be between 0 and 100"
+  }
+}
