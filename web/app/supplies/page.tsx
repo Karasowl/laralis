@@ -118,7 +118,7 @@ export default function SuppliesPage() {
         name: data.name,
         category: data.category,
         presentation: data.presentation,
-        price_cents: Math.round(data.price_pesos * 100),
+        price_pesos: data.price_pesos, // Enviar como pesos, la API lo convierte
         portions: data.portions
       };
 
@@ -128,19 +128,24 @@ export default function SuppliesPage() {
       
       const method = editingSupply ? 'PUT' : 'POST';
 
+      console.log('Sending to:', url, 'Method:', method, 'Payload:', payload);
+      
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
+      const responseData = await response.json();
+      console.log('Response status:', response.status, 'Data:', responseData);
+
       if (response.ok) {
         await fetchSupplies();
         handleCloseDialog();
         // Aquí podrías agregar un toast de éxito
       } else {
-        const error = await response.json();
-        console.error('Error saving supply:', error);
+        console.error('Error saving supply:', responseData);
+        alert(`Error: ${responseData.error || 'Failed to save'} - ${responseData.message || ''}`);
         // Aquí podrías agregar un toast de error
       }
     } catch (error) {
@@ -152,11 +157,18 @@ export default function SuppliesPage() {
 
   // Edit supply
   const handleEdit = (supply: Supply) => {
+    console.log('Editing supply:', supply);
     setEditingSupply(supply);
+    
+    // Asegurar que la categoría sea válida
+    const validCategory = categories.includes(supply.category as SupplyCategory) 
+      ? supply.category as SupplyCategory 
+      : 'otros';
+    
     reset({
       name: supply.name,
-      category: supply.category as SupplyCategory,
-      presentation: supply.presentation,
+      category: validCategory,
+      presentation: supply.presentation || '',
       price_pesos: supply.price_cents / 100,
       portions: supply.portions
     });

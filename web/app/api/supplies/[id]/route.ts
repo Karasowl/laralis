@@ -70,6 +70,8 @@ export async function PUT(
 ): Promise<NextResponse<ApiResponse<Supply>>> {
   try {
     const body = await request.json();
+    console.log('PUT /api/supplies/[id] - Received body:', body, 'ID:', params.id);
+    
     const cookieStore = cookies();
     const clinicId = await getClinicIdOrDefault(cookieStore);
 
@@ -82,7 +84,7 @@ export async function PUT(
 
     // Si viene con price_pesos, convertir a cents
     let dataToValidate = { ...body };
-    if ('price_pesos' in body && !('price_cents' in body)) {
+    if ('price_pesos' in body) {
       dataToValidate.price_cents = Math.round(body.price_pesos * 100);
       delete dataToValidate.price_pesos;
     }
@@ -95,13 +97,16 @@ export async function PUT(
       dataToValidate.cost_per_portion_cents = Math.round(dataToValidate.price_cents / dataToValidate.portions);
     }
     
+    console.log('Data to validate:', dataToValidate);
+    
     // Validate request body
     const validationResult = zSupply.safeParse(dataToValidate);
     if (!validationResult.success) {
+      console.error('Validation failed:', validationResult.error);
       return NextResponse.json(
         { 
           error: 'Validation failed', 
-          message: validationResult.error.errors.map(e => e.message).join(', ')
+          message: validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')
         },
         { status: 400 }
       );

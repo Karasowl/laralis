@@ -82,11 +82,23 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       );
     }
     
+    // Si viene con price_pesos, convertir a cents
+    let dataToValidate = { ...body };
+    if ('price_pesos' in body) {
+      dataToValidate.price_cents = Math.round(body.price_pesos * 100);
+      delete dataToValidate.price_pesos;
+    }
+    
     // Add clinic_id to body for validation
-    const dataWithClinic = { ...body, clinic_id: clinicId };
+    dataToValidate.clinic_id = clinicId;
+    
+    // Calcular cost_per_portion_cents si no viene
+    if (dataToValidate.price_cents && dataToValidate.portions > 0) {
+      dataToValidate.cost_per_portion_cents = Math.round(dataToValidate.price_cents / dataToValidate.portions);
+    }
     
     // Validate request body
-    const validationResult = zSupply.safeParse(dataWithClinic);
+    const validationResult = zSupply.safeParse(dataToValidate);
     if (!validationResult.success) {
       return NextResponse.json(
         { 
