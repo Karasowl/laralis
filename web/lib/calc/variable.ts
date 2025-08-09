@@ -9,6 +9,11 @@ export interface SupplyUsage {
   unitCostCents: number;
 }
 
+export interface SupplyWithPortions {
+  price_cents: number;
+  portions: number;
+}
+
 /**
  * Calculates total variable cost for a service
  */
@@ -96,4 +101,72 @@ export function calculateAverageVariableCostPercentage(
   }
   
   return totalWeight > 0 ? weightedSum / totalWeight : 0;
+}
+
+/**
+ * Calculates cost per portion for a supply
+ * @param supply Supply with price and portions
+ * @returns Cost per portion in cents (rounded to integer)
+ */
+export function costPerPortion(supply: SupplyWithPortions): number {
+  if (supply.portions <= 0) {
+    throw new Error('Portions must be greater than 0');
+  }
+  return Math.round(supply.price_cents / supply.portions);
+}
+
+/**
+ * Calculates variable cost for a service recipe
+ * @param recipe Array of supplies with quantities
+ * @returns Total variable cost in cents
+ */
+export function variableCostForService(
+  recipe: Array<{
+    qty: number;
+    supply: SupplyWithPortions;
+  }>
+): number {
+  return recipe.reduce((total, item) => {
+    const costPerUnit = costPerPortion(item.supply);
+    return total + Math.round(item.qty * costPerUnit);
+  }, 0);
+}
+
+/**
+ * Calculates total treatment cost including fixed and variable costs
+ * @param estMinutes Service duration in minutes
+ * @param fixedPerMinuteCents Fixed cost per minute in cents
+ * @param variableCostCents Variable cost in cents
+ * @returns Object with cost breakdown
+ */
+export function calculateTreatmentCost(
+  estMinutes: number,
+  fixedPerMinuteCents: number,
+  variableCostCents: number
+): {
+  fixedCostCents: number;
+  variableCostCents: number;
+  baseCostCents: number;
+} {
+  const fixedCostCents = Math.round(estMinutes * fixedPerMinuteCents);
+  const baseCostCents = fixedCostCents + variableCostCents;
+  
+  return {
+    fixedCostCents,
+    variableCostCents,
+    baseCostCents
+  };
+}
+
+/**
+ * Legacy function name for compatibility
+ * Calculates variable cost for a service
+ */
+export function calcularCostoVariable(
+  recipe: Array<{
+    qty: number;
+    supply: SupplyWithPortions;
+  }>
+): number {
+  return variableCostForService(recipe);
 }

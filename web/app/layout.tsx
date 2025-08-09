@@ -2,6 +2,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import "./globals.css";
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { BusinessSwitcher } from '@/components/BusinessSwitcher';
 import Link from 'next/link';
 
 export default async function RootLayout({
@@ -31,13 +32,26 @@ export default async function RootLayout({
                     <Link href="/" className="text-foreground/60 hover:text-foreground transition-colors">
                       Inicio
                     </Link>
-                    <Link href="/setup/time" className="text-foreground/60 hover:text-foreground transition-colors">
-                      Configuración
+                    <Link href="/time" className="text-foreground/60 hover:text-foreground transition-colors">
+                      Tiempo
+                    </Link>
+                    <Link href="/fixed-costs" className="text-foreground/60 hover:text-foreground transition-colors">
+                      Costos Fijos
+                    </Link>
+                    <Link href="/supplies" className="text-foreground/60 hover:text-foreground transition-colors">
+                      Insumos
+                    </Link>
+                    <Link href="/services" className="text-foreground/60 hover:text-foreground transition-colors">
+                      Servicios
+                    </Link>
+                    <Link href="/tariffs" className="text-foreground/60 hover:text-foreground transition-colors">
+                      Tarifario
                     </Link>
                   </nav>
                 </div>
                 
                 <div className="flex items-center gap-4">
+                  <BusinessSwitcher />
                   <LanguageSwitcher />
                 </div>
               </div>

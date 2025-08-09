@@ -1,10 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!supabaseUrl) {
-  throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL environment variable');
+const isConfigured = supabaseUrl !== 'https://placeholder.supabase.co';
+
+if (!isConfigured && typeof window === 'undefined') {
+  console.warn('⚠️ Supabase is not configured. Please add NEXT_PUBLIC_SUPABASE_URL to your .env.local file');
 }
 
 if (!supabaseServiceRoleKey) {

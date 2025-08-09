@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { zFixedCost } from '@/lib/zod';
-import type { FixedCost, ApiResponse } from '@/lib/types';
+import { zSupply } from '@/lib/zod';
+import type { Supply, ApiResponse } from '@/lib/types';
 import { cookies } from 'next/headers';
 import { getClinicIdOrDefault } from '@/lib/clinic';
 
-export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<FixedCost[]>>> {
+export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<Supply[]>>> {
   try {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
     const category = searchParams.get('category');
+    const search = searchParams.get('search');
     
     const cookieStore = cookies();
     const clinicId = searchParams.get('clinicId') || await getClinicIdOrDefault(cookieStore);
@@ -23,14 +24,18 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
     }
 
     let query = supabaseAdmin
-      .from('fixed_costs')
+      .from('supplies')
       .select('*')
       .eq('clinic_id', clinicId)
-      .order('created_at', { ascending: false });
+      .order('name', { ascending: true });
 
-    // Apply category filter if provided
+    // Apply filters
     if (category) {
       query = query.eq('category', category);
+    }
+    
+    if (search) {
+      query = query.ilike('name', `%${search}%`);
     }
 
     // Apply pagination
@@ -41,16 +46,22 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
     const { data, error } = await query;
 
     if (error) {
-      console.error('Error fetching fixed costs:', error);
+      console.error('Error fetching supplies:', error);
       return NextResponse.json(
-        { error: 'Failed to fetch fixed costs', message: error.message },
+        { error: 'Failed to fetch supplies', message: error.message },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({ data: data || [] });
+    // Add calculated cost_per_portion_cents field
+    const suppliesWithCostPerPortion = (data || []).map(supply => ({
+      ...supply,
+      cost_per_portion_cents: Math.round(supply.price_cents / supply.portions)
+    }));
+
+    return NextResponse.json({ data: suppliesWithCostPerPortion });
   } catch (error) {
-    console.error('Unexpected error in GET /api/fixed-costs:', error);
+    console.error('Unexpected error in GET /api/supplies:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -58,7 +69,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
   }
 }
 
-export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse<FixedCost>>> {
+export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse<Supply>>> {
   try {
     const body = await request.json();
     const cookieStore = cookies();
@@ -75,7 +86,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     const dataWithClinic = { ...body, clinic_id: clinicId };
     
     // Validate request body
-    const validationResult = zFixedCost.safeParse(dataWithClinic);
+    const validationResult = zSupply.safeParse(dataWithClinic);
     if (!validationResult.success) {
       return NextResponse.json(
         { 
@@ -86,29 +97,35 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       );
     }
 
-    const { clinic_id, category, concept, amount_cents } = validationResult.data;
+    const { clinic_id, name, category, presentation, price_cents, portions } = validationResult.data;
 
     const { data, error } = await supabaseAdmin
-      .from('fixed_costs')
-      .insert({ clinic_id, category, concept, amount_cents })
+      .from('supplies')
+      .insert({ clinic_id, name, category, presentation, price_cents, portions })
       .select()
       .single();
 
     if (error) {
-      console.error('Error creating fixed cost:', error);
+      console.error('Error creating supply:', error);
       return NextResponse.json(
-        { error: 'Failed to create fixed cost', message: error.message },
+        { error: 'Failed to create supply', message: error.message },
         { status: 500 }
       );
     }
 
+    // Add calculated cost_per_portion_cents field
+    const supplyWithCostPerPortion = {
+      ...data,
+      cost_per_portion_cents: Math.round(data.price_cents / data.portions)
+    };
+
     return NextResponse.json({ 
-      data,
-      message: 'Fixed cost created successfully'
+      data: supplyWithCostPerPortion,
+      message: 'Supply created successfully'
     }, { status: 201 });
 
   } catch (error) {
-    console.error('Unexpected error in POST /api/fixed-costs:', error);
+    console.error('Unexpected error in POST /api/supplies:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

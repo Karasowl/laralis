@@ -108,3 +108,11 @@ export function sumCents(...amounts: number[]): number {
     return sum + amount;
   }, 0);
 }
+
+/**
+ * Legacy function name for compatibility
+ * Rounds to nearest value (in cents)
+ */
+export function redondearA(cents: number, stepCents: number): number {
+  return roundToNearestStepCents(cents, stepCents);
+}

@@ -2,12 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { zSettingsTime } from '@/lib/zod';
 import type { SettingsTime, ApiResponse } from '@/lib/types';
+import { cookies } from 'next/headers';
+import { getClinicIdOrDefault } from '@/lib/clinic';
 
-export async function GET(): Promise<NextResponse<ApiResponse<SettingsTime>>> {
+export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<SettingsTime>>> {
   try {
+    const cookieStore = cookies();
+    const searchParams = request.nextUrl.searchParams;
+    const clinicId = searchParams.get('clinicId') || await getClinicIdOrDefault(cookieStore);
+
+    if (!clinicId) {
+      return NextResponse.json(
+        { error: 'No clinic context available' },
+        { status: 400 }
+      );
+    }
+
     const { data, error } = await supabaseAdmin
       .from('settings_time')
       .select('*')
+      .eq('clinic_id', clinicId)
       .order('updated_at', { ascending: false })
       .limit(1)
       .single();
@@ -38,9 +52,21 @@ export async function GET(): Promise<NextResponse<ApiResponse<SettingsTime>>> {
 export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse<SettingsTime>>> {
   try {
     const body = await request.json();
+    const cookieStore = cookies();
+    const clinicId = body.clinic_id || await getClinicIdOrDefault(cookieStore);
+
+    if (!clinicId) {
+      return NextResponse.json(
+        { error: 'No clinic context available' },
+        { status: 400 }
+      );
+    }
+    
+    // Add clinic_id to body for validation
+    const dataWithClinic = { ...body, clinic_id: clinicId };
     
     // Validate request body
-    const validationResult = zSettingsTime.safeParse(body);
+    const validationResult = zSettingsTime.safeParse(dataWithClinic);
     if (!validationResult.success) {
       return NextResponse.json(
         { 
@@ -51,12 +77,13 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       );
     }
 
-    const { work_days, hours_per_day, real_pct } = validationResult.data;
+    const { work_days, hours_per_day, real_pct, clinic_id } = validationResult.data;
 
-    // Check if a record exists (upsert behavior)
+    // Check if a record exists for this clinic (upsert behavior)
     const { data: existing } = await supabaseAdmin
       .from('settings_time')
       .select('id')
+      .eq('clinic_id', clinic_id)
       .limit(1)
       .single();
 
@@ -79,7 +106,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       // Insert new record
       result = await supabaseAdmin
         .from('settings_time')
-        .insert({ work_days, hours_per_day, real_pct })
+        .insert({ clinic_id, work_days, hours_per_day, real_pct })
         .select()
         .single();
     }

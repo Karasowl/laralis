@@ -65,3 +65,17 @@ export function getCategoryDisplayName(category: string, t: (key: string) => str
   
   return categoryMap[category] || category;
 }
+
+/**
+ * Helper to get display string for supply categories
+ */
+export function getSupplyCategoryLabel(category: string, t: (key: string) => string): string {
+  try {
+    const key = `supplies.categories.${category}`;
+    const translation = t(key);
+    // Si la traducción es igual a la key, significa que no existe
+    return translation === key ? category : translation;
+  } catch {
+    return category;
+  }
+}

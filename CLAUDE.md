@@ -278,6 +278,8 @@ Risks and rollback, Follow ups with TASK ids.
 
 \- When ambiguous, ask one clarifying question, then propose a minimal plan.
 
+\- No modifiques el archivo .env.local
+
 
 
 

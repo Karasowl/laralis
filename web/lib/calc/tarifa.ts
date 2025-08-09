@@ -129,3 +129,16 @@ export function calculateBreakEvenPrice(
 ): number {
   return fixedCostCents + variableCostCents;
 }
+
+/**
+ * Legacy function name for compatibility
+ * Calculates final price from base cost and margin percentage
+ */
+export function calcularPrecioFinal(
+  baseCostCents: number,
+  marginPercentage: number
+): number {
+  const marginDecimal = marginPercentage / 100; // Convert percentage to decimal
+  const marginCents = calculateMargin(baseCostCents, marginDecimal);
+  return calculateFinalPrice(baseCostCents, marginCents);
+}

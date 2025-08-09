@@ -2,6 +2,53 @@
 
 ## 2025-08-09
 
+### TASK-20250809-supplies-services ✅
+**Completado**: 2025-08-09  
+**Priority**: P1  
+**Estimate**: XL  
+**Area**: data  
+
+Módulo completo de Insumos y Servicios con recetas, costo variable y tarifas base.
+
+**Entregables**:
+- [x] Migración SQL para supplies, services y service_supplies
+- [x] Tipos TypeScript y esquemas Zod actualizados
+- [x] API routes CRUD para supplies y services
+- [x] APIs línea por línea para gestión de recetas
+- [x] Cálculos de costos variables en lib/calc/variable.ts
+- [x] Página de Insumos con CRUD y costo por porción
+- [x] Página de Servicios con panel de recetas y preview de costos
+- [x] Strings i18n completos para supplies y services (EN/ES)
+- [x] Seed data con insumos y servicios de ejemplo
+- [x] Devlog documentando la implementación
+
+**Archivos creados**: 15+ archivos nuevos y actualizados
+**Tiempo estimado**: 6 horas
+**Tiempo real**: 5 horas
+
+### TASK-20250809-multi-tenant-base ✅
+**Completado**: 2025-08-09  
+**Priority**: P1  
+**Estimate**: L  
+**Area**: data  
+
+Base multi-tenant con organizaciones, clínicas, migración y BusinessSwitcher.
+
+**Entregables**:
+- [x] Esquema SQL con organizations y clinics
+- [x] Migración incremental con backfill de datos existentes
+- [x] Añadir clinic_id a settings_time y fixed_costs
+- [x] Tipos TypeScript y validación Zod actualizados
+- [x] Utilidades para manejo de clinicId en cookies
+- [x] API /api/clinics para listar y seleccionar
+- [x] APIs existentes filtran por clinic_id
+- [x] Componente BusinessSwitcher en header
+- [x] Strings i18n para multi-tenant
+
+**Archivos creados**: 8 archivos nuevos y actualizados
+**Tiempo estimado**: 4 horas
+**Tiempo real**: 3.5 horas
+
 ### TASK-20250809-bootstrap-app-shell ✅
 **Completado**: 2025-08-09  
 **Priority**: P1  
