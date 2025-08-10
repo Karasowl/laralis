@@ -29,3 +29,10 @@ Ninguna tarea activa actualmente.
 ## Próximo
 
 Ver backlog.md para próximas tareas prioritarias.
+
+## Nueva tarea
+
+- [x] TASK-20250809-fix-cents-formatting - Alinear formateo de moneda en centavos
+  - Corregido formateo en `web/app/services/page.tsx`
+  - Corregido formateo en `web/app/tariffs/page.tsx`
+  - Agregado devlog con contexto y pruebas manuales

@@ -2,76 +2,93 @@
 
 import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { PageHeader } from '@/components/ui/PageHeader';
-import { DataTable } from '@/components/ui/DataTable';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { Card } from '@/components/ui/card';
+import { PageHeader } from '@/components/ui/page-header';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { formatCurrency } from '@/lib/format';
-import { Service, Supply, ServiceSupply, ApiResponse, ServiceWithCost, SettingsTime, FixedCost } from '@/lib/types';
-import { costPerPortion, variableCostForService, calculateTreatmentCost } from '@/lib/calc/variable';
-import { calcularPrecioFinal } from '@/lib/calc/tarifa';
-import { redondearA } from '@/lib/money';
-import { calculateTimeCosts } from '@/lib/calc/tiempo';
-import { Plus, Pencil, Trash2, Search, Calculator, X, ChevronRight } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { DataTable } from '@/components/ui/data-table';
+import { formatCurrency } from '@/lib/money';
+import { Plus, Edit, Trash2, Search, Package } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 
-interface RecipeLine extends ServiceSupply {
+// Schema de validación
+const serviceSchema = z.object({
+  name: z.string().min(1, 'El nombre es requerido'),
+  category: z.string().default('otros').optional(), // Ahora acepta cualquier string
+  est_minutes: z.number().min(5, 'La duración mínima es 5 minutos').max(480, 'La duración máxima es 8 horas'),
+  description: z.string().optional()
+});
+
+type ServiceForm = z.infer<typeof serviceSchema>;
+
+interface Supply {
+  id: string;
+  name: string;
+  presentation: string;
+  cost_per_portion_cents: number;
+}
+
+interface ServiceSupply {
+  id?: string; // ID del registro en service_supplies
+  supply_id: string;
   supply?: Supply;
+  qty: number; // Database uses 'qty' not 'quantity'
+}
+
+interface Category {
+  id: string;
+  name: string;
+  display_name: string;
+  is_system: boolean;
+  display_order: number;
+}
+
+interface Service {
+  id: string;
+  name: string;
+  category: string;
+  duration_minutes: number;
+  description?: string;
+  active: boolean;
+  service_supplies?: ServiceSupply[];
+  variable_cost_cents?: number;
 }
 
 export default function ServicesPage() {
   const t = useTranslations();
   const [services, setServices] = useState<Service[]>([]);
   const [supplies, setSupplies] = useState<Supply[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+  const [isSuppliesOpen, setIsSuppliesOpen] = useState(false);
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
-  const [showRecipePanel, setShowRecipePanel] = useState(false);
-  const [recipe, setRecipe] = useState<RecipeLine[]>([]);
-  const [formData, setFormData] = useState({
-    name: '',
-    est_minutes: 30
-  });
-  const [newRecipeLine, setNewRecipeLine] = useState({
-    supply_id: '',
-    qty: 1
-  });
-  const [costSummary, setCostSummary] = useState({
-    variableCost: 0,
-    fixedPerMinute: 0,
-    fixedCostTreatment: 0,
-    baseCost: 0,
-    marginPct: 40,
-    suggestedPrice: 0
-  });
-  const [timeSettings, setTimeSettings] = useState<SettingsTime | null>(null);
-  const [fixedCosts, setFixedCosts] = useState<FixedCost[]>([]);
+  const [serviceSupplies, setServiceSupplies] = useState<ServiceSupply[]>([]);
 
-  useEffect(() => {
-    fetchServices();
-    fetchSupplies();
-    fetchTimeSettings();
-    fetchFixedCosts();
-  }, []);
-
-  useEffect(() => {
-    if (selectedService && recipe.length > 0) {
-      calculateCosts();
+  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<ServiceForm>({
+    resolver: zodResolver(serviceSchema),
+    defaultValues: {
+      category: 'otros',
+      est_minutes: 30
     }
-  }, [recipe, selectedService, costSummary.marginPct, timeSettings, fixedCosts]);
+  });
 
+  // Cargar servicios
   const fetchServices = async () => {
     try {
-      const response = await fetch('/api/services');
-      const result: ApiResponse<Service[]> = await response.json();
-      
-      if (result.data) {
-        setServices(result.data);
+      const res = await fetch('/api/services');
+      if (res.ok) {
+        const data = await res.json();
+        setServices(data);
       }
     } catch (error) {
       console.error('Error fetching services:', error);
@@ -80,217 +97,111 @@ export default function ServicesPage() {
     }
   };
 
+  // Cargar insumos disponibles
   const fetchSupplies = async () => {
     try {
-      const response = await fetch('/api/supplies');
-      const result: ApiResponse<Supply[]> = await response.json();
-      
-      if (result.data) {
-        setSupplies(result.data);
+      const res = await fetch('/api/supplies');
+      if (res.ok) {
+        const data = await res.json();
+        setSupplies(data);
       }
     } catch (error) {
       console.error('Error fetching supplies:', error);
     }
   };
 
-  const fetchTimeSettings = async () => {
+  // Cargar categorías
+  const fetchCategories = async () => {
     try {
-      const response = await fetch('/api/settings/time');
-      const result: ApiResponse<SettingsTime> = await response.json();
-      if (result.data) {
-        setTimeSettings(result.data);
+      const res = await fetch('/api/categories?entity_type=service');
+      if (res.ok) {
+        const data = await res.json();
+        setCategories(data);
       }
     } catch (error) {
-      console.error('Error fetching time settings:', error);
+      console.error('Error fetching categories:', error);
     }
   };
 
-  const fetchFixedCosts = async () => {
-    try {
-      const response = await fetch('/api/fixed-costs');
-      const result: ApiResponse<FixedCost[]> = await response.json();
-      if (result.data) {
-        setFixedCosts(result.data);
-      }
-    } catch (error) {
-      console.error('Error fetching fixed costs:', error);
-    }
-  };
-
-  const fetchServiceRecipe = async (serviceId: string) => {
-    try {
-      const response = await fetch(`/api/services/${serviceId}/supplies`);
-      const result: ApiResponse<RecipeLine[]> = await response.json();
-      
-      if (result.data) {
-        setRecipe(result.data);
-      }
-    } catch (error) {
-      console.error('Error fetching service recipe:', error);
-    }
-  };
-
-  const calculateCosts = () => {
-    if (!selectedService) return;
-
-    // Calculate variable cost
-    const recipeWithSupplies = recipe.filter(r => r.supply).map(r => ({
-      qty: r.qty,
-      supply: r.supply!
-    }));
-    const variableCostCents = variableCostForService(recipeWithSupplies);
-
-    // Calculate fixed cost per minute
-    let fixedPerMinuteCents = 0;
-    if (timeSettings && fixedCosts.length > 0) {
-      const totalFixedCents = fixedCosts.reduce((sum, fc) => sum + fc.amount_cents, 0);
-      const timeCosts = calculateTimeCosts(
-        {
-          workDaysPerMonth: timeSettings.work_days,
-          hoursPerDay: timeSettings.hours_per_day,
-          effectiveWorkPercentage: timeSettings.real_pct
-        },
-        totalFixedCents
-      );
-      fixedPerMinuteCents = timeCosts.fixedPerMinuteCents;
-    }
-
-    // Calculate treatment costs
-    const treatmentCosts = calculateTreatmentCost(
-      selectedService.est_minutes,
-      fixedPerMinuteCents,
-      variableCostCents
-    );
-
-    // Calculate suggested price with margin
-    const suggestedPriceCents = calcularPrecioFinal(
-      treatmentCosts.baseCostCents,
-      costSummary.marginPct
-    );
-
-    // Round to nearest 10 pesos
-    const roundedPriceCents = redondearA(suggestedPriceCents, 1000);
-
-    setCostSummary({
-      variableCost: variableCostCents / 100,
-      fixedPerMinute: fixedPerMinuteCents / 100,
-      fixedCostTreatment: treatmentCosts.fixedCostCents / 100,
-      baseCost: treatmentCosts.baseCostCents / 100,
-      marginPct: costSummary.marginPct,
-      suggestedPrice: roundedPriceCents / 100
-    });
-  };
-
-  const handleSubmitService = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Crear categoría personalizada
+  const handleCreateCategory = async () => {
+    if (!newCategoryName.trim()) return;
     
     try {
+      const res = await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          entity_type: 'service',
+          name: newCategoryName.toLowerCase().replace(/\s+/g, '_'),
+          display_name: newCategoryName
+        })
+      });
+
+      if (res.ok) {
+        fetchCategories();
+        setNewCategoryName('');
+        setIsCategoryOpen(false);
+      } else {
+        const error = await res.json();
+        alert(error.error || 'Error al crear categoría');
+      }
+    } catch (error) {
+      console.error('Error creating category:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchServices();
+    fetchSupplies();
+    fetchCategories();
+  }, []);
+
+  // Crear o actualizar servicio
+  const onSubmit = async (data: ServiceForm) => {
+    try {
+      // Asegurar que category tenga un valor por defecto
+      const serviceData = {
+        ...data,
+        category: data.category || 'otros'
+      };
+      
       const url = editingService 
         ? `/api/services/${editingService.id}`
         : '/api/services';
       
-      const response = await fetch(url, {
-        method: editingService ? 'PUT' : 'POST',
+      const method = editingService ? 'PUT' : 'POST';
+      
+      console.log('Enviando servicio:', serviceData); // Debug
+      
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(serviceData)
       });
 
-      if (response.ok) {
-        const result = await response.json();
+      if (res.ok) {
         fetchServices();
-        resetForm();
-        
-        // If creating new service, open recipe panel
-        if (!editingService && result.data) {
-          const newService = result.data;
-          setSelectedService(newService);
-          setShowRecipePanel(true);
-        }
+        setIsOpen(false);
+        reset();
+        setEditingService(null);
+      } else {
+        const error = await res.json();
+        console.error('Error del servidor:', error);
+        alert(t('common.error') + ': ' + (error.message || error.error));
       }
     } catch (error) {
       console.error('Error saving service:', error);
     }
   };
 
-  const handleAddRecipeLine = async () => {
-    if (!selectedService || !newRecipeLine.supply_id) return;
-
-    try {
-      const response = await fetch(`/api/services/${selectedService.id}/supplies`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newRecipeLine)
-      });
-
-      if (response.ok) {
-        fetchServiceRecipe(selectedService.id!);
-        setNewRecipeLine({ supply_id: '', qty: 1 });
-      }
-    } catch (error) {
-      console.error('Error adding recipe line:', error);
-    }
-  };
-
-  const handleUpdateQty = async (lineId: string, qty: number) => {
-    if (!selectedService) return;
-
-    try {
-      const response = await fetch(`/api/services/${selectedService.id}/supplies/${lineId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ qty })
-      });
-
-      if (response.ok) {
-        setRecipe(prev => prev.map(r => 
-          r.id === lineId ? { ...r, qty } : r
-        ));
-      }
-    } catch (error) {
-      console.error('Error updating quantity:', error);
-    }
-  };
-
-  const handleDeleteRecipeLine = async (lineId: string) => {
-    if (!selectedService) return;
-
-    try {
-      const response = await fetch(`/api/services/${selectedService.id}/supplies/${lineId}`, {
-        method: 'DELETE'
-      });
-
-      if (response.ok) {
-        setRecipe(prev => prev.filter(r => r.id !== lineId));
-      }
-    } catch (error) {
-      console.error('Error deleting recipe line:', error);
-    }
-  };
-
-  const handleEditService = (service: Service) => {
-    setEditingService(service);
-    setFormData({
-      name: service.name,
-      est_minutes: service.est_minutes
-    });
-    setIsFormOpen(true);
-  };
-
-  const handleEditRecipe = async (service: Service) => {
-    setSelectedService(service);
-    setShowRecipePanel(true);
-    await fetchServiceRecipe(service.id!);
-  };
-
-  const handleDeleteService = async (id: string) => {
+  // Eliminar servicio
+  const handleDelete = async (id: string) => {
     if (!confirm(t('common.confirmDelete'))) return;
     
     try {
-      const response = await fetch(`/api/services/${id}`, {
-        method: 'DELETE'
-      });
-
-      if (response.ok) {
+      const res = await fetch(`/api/services/${id}`, { method: 'DELETE' });
+      if (res.ok) {
         fetchServices();
       }
     } catch (error) {
@@ -298,275 +209,437 @@ export default function ServicesPage() {
     }
   };
 
-  const resetForm = () => {
-    setFormData({ name: '', est_minutes: 30 });
-    setEditingService(null);
-    setIsFormOpen(false);
+  // Abrir modal de edición
+  const handleEdit = (service: Service) => {
+    setEditingService(service);
+    setValue('name', service.name);
+    setValue('category', service.category as any);
+    setValue('duration_minutes', service.duration_minutes);
+    setValue('description', service.description || '');
+    setIsOpen(true);
   };
 
+  // Abrir modal de insumos
+  const handleManageSupplies = async (service: Service) => {
+    setSelectedService(service);
+    setServiceSupplies([]); // Inicializar como array vacío
+    
+    // Cargar insumos del servicio
+    try {
+      const res = await fetch(`/api/services/${service.id}/supplies`);
+      if (res.ok) {
+        const data = await res.json();
+        setServiceSupplies(data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching service supplies:', error);
+      setServiceSupplies([]);
+    }
+    
+    setIsSuppliesOpen(true);
+  };
+
+  // Agregar insumo al servicio
+  const handleAddSupply = async (supplyId: string, qty: number) => {
+    if (!selectedService) return;
+    
+    try {
+      const res = await fetch(`/api/services/${selectedService.id}/supplies`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ supply_id: supplyId, qty })
+      });
+
+      if (res.ok) {
+        // Recargar insumos del servicio
+        const suppliesRes = await fetch(`/api/services/${selectedService.id}/supplies`);
+        if (suppliesRes.ok) {
+          const data = await suppliesRes.json();
+          setServiceSupplies(data);
+        }
+        fetchServices(); // Actualizar costo variable
+      }
+    } catch (error) {
+      console.error('Error adding supply:', error);
+    }
+  };
+
+  // Eliminar insumo del servicio
+  const handleRemoveSupply = async (supplyId: string) => {
+    if (!selectedService) return;
+    
+    try {
+      // Primero necesitamos encontrar el ID del registro service_supplies
+      const serviceSupply = serviceSupplies?.find(ss => ss.supply_id === supplyId);
+      if (!serviceSupply || !serviceSupply.id) {
+        // Si no hay ID, intentamos eliminar por supply_id directamente
+        // mediante un DELETE especial en la API
+        const res = await fetch(`/api/services/${selectedService.id}/supplies`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ supply_id: supplyId })
+        });
+        
+        if (res.ok) {
+          setServiceSupplies(prev => prev.filter(ss => ss.supply_id !== supplyId));
+          fetchServices();
+        }
+        return;
+      }
+      
+      // Si tenemos el ID, usamos la ruta existente
+      const res = await fetch(`/api/services/${selectedService.id}/supplies/${serviceSupply.id}`, {
+        method: 'DELETE'
+      });
+
+      if (res.ok) {
+        setServiceSupplies(prev => prev.filter(ss => ss.supply_id !== supplyId));
+        fetchServices(); // Actualizar costo variable
+      }
+    } catch (error) {
+      console.error('Error removing supply:', error);
+    }
+  };
+
+  // Filtrar servicios
   const filteredServices = services.filter(service =>
-    service.name.toLowerCase().includes(searchTerm.toLowerCase())
+    service.name.toLowerCase().includes(search.toLowerCase()) ||
+    service.category.toLowerCase().includes(search.toLowerCase())
   );
 
+  // Columnas de la tabla
   const columns = [
     { key: 'name', label: t('services.name') },
-    { key: 'est_minutes', label: t('services.estMinutes'), render: (service: Service) =>
-      `${service.est_minutes} ${t('common.minutes')}`
-    },
-    { key: 'actions', label: t('common.actions'), render: (service: Service) => (
-      <div className="flex gap-2">
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => handleEditRecipe(service)}
-          title={t('services.recipe')}
-        >
-          <Calculator className="h-4 w-4" />
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => handleEditService(service)}
-        >
-          <Pencil className="h-4 w-4" />
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => handleDeleteService(service.id!)}
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </div>
-    )}
+    { key: 'category', label: t('services.category'), render: (service: Service) => {
+      const category = categories.find(c => c.name === service.category);
+      return category?.display_name || service.category;
+    }},
+    { key: 'duration_minutes', label: t('services.duration'), render: (service: Service) => `${service.duration_minutes} ${t('common.minutes')}` },
+    { key: 'variable_cost_cents', label: t('services.variableCost') + ' (' + t('common.optional') + ')', render: (service: Service) => formatCurrency(service.variable_cost_cents || 0) },
+    { 
+      key: 'actions', 
+      label: t('common.actions'),
+      render: (service: Service) => (
+        <div className="flex gap-2">
+          <Button 
+            size="sm" 
+            variant="outline" 
+            onClick={() => handleManageSupplies(service)}
+            title={t('services.manageSuppliesHint')}
+          >
+            <Package className="h-4 w-4" />
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => handleEdit(service)}>
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button size="sm" variant="destructive" onClick={() => handleDelete(service.id)}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      )
+    }
   ];
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={t('services.title')}
-        subtitle={t('services.subtitle')}
+      <PageHeader 
+        title={t('services.title')} 
+        subtitle={t('services.subtitle')} 
       />
 
-      <div className="flex gap-6">
-        {/* Main content */}
-        <div className="flex-1 space-y-6">
-          {/* Search and Add */}
-          <div className="flex flex-col sm:flex-row gap-4 items-end">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle>{t('services.listTitle')}</CardTitle>
+              <CardDescription>{t('services.listDescription')}</CardDescription>
+            </div>
+            <Dialog open={isOpen} onOpenChange={setIsOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={() => { reset(); setEditingService(null); }}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  {t('services.addService')}
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingService ? t('services.editService') : t('services.addService')}
+                  </DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                  <div>
+                    <Label htmlFor="name">{t('services.name')}</Label>
+                    <Input 
+                      id="name"
+                      {...register('name')}
+                      placeholder={t('services.namePlaceholder')}
+                    />
+                    {errors.name && <p className="text-sm text-red-500">{errors.name.message}</p>}
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <Label htmlFor="category">{t('services.category')} ({t('common.optional')})</Label>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setIsCategoryOpen(true)}
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        {t('services.addCategory')}
+                      </Button>
+                    </div>
+                    <Select 
+                      onValueChange={(value) => setValue('category', value as any)}
+                      defaultValue={editingService?.category || 'otros'}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={t('services.selectCategory')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {/* Categorías del sistema */}
+                        {categories.filter(c => c.is_system).length > 0 && (
+                          <>
+                            <SelectItem value="" disabled>
+                              <strong>{t('services.systemCategories')}</strong>
+                            </SelectItem>
+                            {categories
+                              .filter(c => c.is_system)
+                              .map(cat => (
+                                <SelectItem key={cat.id} value={cat.name}>
+                                  {cat.display_name}
+                                </SelectItem>
+                              ))}
+                          </>
+                        )}
+                        
+                        {/* Categorías personalizadas */}
+                        {categories.filter(c => !c.is_system).length > 0 && (
+                          <>
+                            <SelectItem value="" disabled>
+                              <strong>{t('services.customCategories')}</strong>
+                            </SelectItem>
+                            {categories
+                              .filter(c => !c.is_system)
+                              .map(cat => (
+                                <SelectItem key={cat.id} value={cat.name}>
+                                  {cat.display_name} •
+                                </SelectItem>
+                              ))}
+                          </>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {errors.category && <p className="text-sm text-red-500">{errors.category.message}</p>}
+                  </div>
+
+                  <div>
+                    <Label htmlFor="duration">{t('services.duration')} ({t('common.minutes')})</Label>
+                    <Input 
+                      id="duration"
+                      type="number"
+                      {...register('duration_minutes', { valueAsNumber: true })}
+                      placeholder="60"
+                    />
+                    {errors.duration_minutes && <p className="text-sm text-red-500">{errors.duration_minutes.message}</p>}
+                  </div>
+
+                  <div>
+                    <Label htmlFor="description">{t('services.description')}</Label>
+                    <Input 
+                      id="description"
+                      {...register('description')}
+                      placeholder={t('services.descriptionPlaceholder')}
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-2">
+                    <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
+                      {t('common.cancel')}
+                    </Button>
+                    <Button type="submit">
+                      {t('common.save')}
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder={t('common.search')}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
                 className="pl-10"
               />
             </div>
-
-            <Button onClick={() => setIsFormOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              {t('services.add')}
-            </Button>
           </div>
 
-          {/* Add/Edit Form */}
-          {isFormOpen && (
-            <Card className="p-6">
-              <h3 className="font-semibold text-lg mb-4">
-                {editingService ? t('services.edit') : t('services.add')}
-              </h3>
-              
-              <form onSubmit={handleSubmitService} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="name">{t('services.name')}</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="duration">{t('services.estMinutes')}</Label>
-                  <Input
-                    id="duration"
-                    type="number"
-                    min="1"
-                    value={formData.est_minutes}
-                    onChange={(e) => setFormData({...formData, est_minutes: parseInt(e.target.value) || 1})}
-                    required
-                  />
-                </div>
-
-                <div className="flex gap-2">
-                  <Button type="submit">
-                    {editingService ? t('common.save') : t('common.add')}
-                  </Button>
-                  <Button type="button" variant="outline" onClick={resetForm}>
-                    {t('common.cancel')}
-                  </Button>
-                </div>
-              </form>
-            </Card>
-          )}
-
-          {/* Services Table */}
           {loading ? (
             <div className="text-center py-8">{t('common.loading')}</div>
           ) : filteredServices.length === 0 ? (
-            <EmptyState
-              title={t('services.empty')}
-              description={t('services.emptyDescription')}
-            />
+            <div className="text-center py-8 text-muted-foreground">
+              {t('services.noServices')}
+            </div>
           ) : (
-            <DataTable
-              columns={columns}
-              data={filteredServices}
-            />
+            <DataTable columns={columns} data={filteredServices} />
           )}
-        </div>
+        </CardContent>
+      </Card>
 
-        {/* Recipe Panel */}
-        {showRecipePanel && selectedService && (
-          <div className="w-96 border-l pl-6 space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="font-semibold text-lg">{t('services.recipe')}</h3>
+      {/* Modal para crear nueva categoría */}
+      <Dialog open={isCategoryOpen} onOpenChange={setIsCategoryOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('services.createCategory')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="newCategory">{t('services.categoryName')}</Label>
+              <Input
+                id="newCategory"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                placeholder={t('services.categoryNamePlaceholder')}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleCreateCategory();
+                  }
+                }}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
               <Button
-                size="sm"
-                variant="ghost"
+                type="button"
+                variant="outline"
                 onClick={() => {
-                  setShowRecipePanel(false);
-                  setSelectedService(null);
-                  setRecipe([]);
+                  setIsCategoryOpen(false);
+                  setNewCategoryName('');
                 }}
               >
-                <X className="h-4 w-4" />
+                {t('common.cancel')}
+              </Button>
+              <Button
+                type="button"
+                onClick={handleCreateCategory}
+                disabled={!newCategoryName.trim()}
+              >
+                {t('common.create')}
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-            <Card className="p-4">
-              <h4 className="font-medium mb-2">{selectedService.name}</h4>
-              <p className="text-sm text-gray-600">
-                {selectedService.est_minutes} {t('common.minutes')}
-              </p>
-            </Card>
-
-            {/* Add Recipe Line */}
-            <Card className="p-4 space-y-3">
-              <Label>{t('services.addLine')}</Label>
+      {/* Modal de gestión de insumos */}
+      <Dialog open={isSuppliesOpen} onOpenChange={setIsSuppliesOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {t('services.manageSupplies')} - {selectedService?.name}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="border rounded-lg p-4">
+              <h4 className="font-medium mb-2">{t('services.addSupply')}</h4>
               <div className="flex gap-2">
-                <Select
-                  value={newRecipeLine.supply_id}
-                  onValueChange={(value) => setNewRecipeLine({...newRecipeLine, supply_id: value})}
-                >
+                <Select onValueChange={(supplyId) => {
+                  const input = document.getElementById('quantity') as HTMLInputElement;
+                  const qty = parseFloat(input?.value || '1');
+                  if (supplyId && qty > 0) {
+                    handleAddSupply(supplyId, qty);
+                    input.value = '1';
+                  }
+                }}>
                   <SelectTrigger className="flex-1">
                     <SelectValue placeholder={t('services.selectSupply')} />
                   </SelectTrigger>
                   <SelectContent>
-                    {supplies.map(supply => (
-                      <SelectItem key={supply.id} value={supply.id!}>
-                        {supply.name} {supply.presentation && `(${supply.presentation})`}
+                    {supplies && supplies.length > 0 ? (
+                      supplies
+                        .filter(s => !serviceSupplies?.some(ss => ss.supply_id === s.id))
+                        .map(supply => (
+                          <SelectItem key={supply.id} value={supply.id}>
+                            {supply.name} - {supply.presentation}
+                          </SelectItem>
+                        ))
+                    ) : (
+                      <SelectItem value="" disabled>
+                        {t('services.noSuppliesAvailable')}
                       </SelectItem>
-                    ))}
+                    )}
                   </SelectContent>
                 </Select>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={newRecipeLine.qty}
-                  onChange={(e) => setNewRecipeLine({...newRecipeLine, qty: parseFloat(e.target.value) || 0})}
-                  className="w-20"
-                  placeholder={t('services.qty')}
+                <Input 
+                  id="quantity"
+                  type="number" 
+                  placeholder={t('services.quantity')}
+                  className="w-24"
+                  defaultValue="1"
+                  step="0.1"
+                  min="0.1"
                 />
-                <Button onClick={handleAddRecipeLine} size="sm">
-                  <Plus className="h-4 w-4" />
-                </Button>
               </div>
-            </Card>
+            </div>
 
-            {/* Recipe Lines */}
-            {recipe.length > 0 && (
-              <Card className="p-4 space-y-2">
-                <Label>{t('services.recipeLines')}</Label>
-                {recipe.map((line) => (
-                  <div key={line.id} className="flex items-center gap-2 text-sm">
-                    <span className="flex-1">
-                      {line.supply?.name} {line.supply?.presentation && `(${line.supply.presentation})`}
-                    </span>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={line.qty}
-                      onChange={(e) => handleUpdateQty(line.id!, parseFloat(e.target.value) || 0)}
-                      className="w-16 h-8"
-                    />
-                    <span className="w-20 text-right">
-                      {line.supply && formatCurrency(
-                        line.qty * costPerPortion(line.supply) / 100
-                      )}
-                    </span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleDeleteRecipeLine(line.id!)}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ))}
-              </Card>
-            )}
-
-            {/* Cost Summary */}
-            {recipe.length > 0 && (
-              <Card className="p-4 space-y-3 bg-blue-50">
-                <h4 className="font-semibold text-blue-900">{t('services.costSummary')}</h4>
-                
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span>{t('services.variableCost')}:</span>
-                    <span className="font-medium">{formatCurrency(costSummary.variableCost)}</span>
-                  </div>
-                  
-                  <div className="flex justify-between">
-                    <span>{t('services.fixedPerMinute')}:</span>
-                    <span>{formatCurrency(costSummary.fixedPerMinute)}</span>
-                  </div>
-                  
-                  <div className="flex justify-between">
-                    <span>{t('services.fixedCostTreatment')}:</span>
-                    <span>{formatCurrency(costSummary.fixedCostTreatment)}</span>
-                  </div>
-                  
-                  <div className="flex justify-between border-t pt-2">
-                    <span className="font-medium">{t('services.baseCost')}:</span>
-                    <span className="font-medium">{formatCurrency(costSummary.baseCost)}</span>
-                  </div>
-                </div>
-
+            <div className="border rounded-lg p-4">
+              <h4 className="font-medium mb-2">{t('services.currentSupplies')}</h4>
+              {!serviceSupplies || serviceSupplies.length === 0 ? (
+                <p className="text-muted-foreground">{t('services.noSupplies')}</p>
+              ) : (
                 <div className="space-y-2">
-                  <Label>{t('services.marginPct')} (%)</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={costSummary.marginPct}
-                    onChange={(e) => setCostSummary({...costSummary, marginPct: parseInt(e.target.value) || 0})}
-                  />
+                  {serviceSupplies?.map(ss => {
+                    const supply = supplies?.find(s => s.id === ss.supply_id);
+                    if (!supply) return null;
+                    const cost = (supply.cost_per_portion_cents * ss.qty) / 100;
+                    
+                    return (
+                      <div key={ss.supply_id} className="flex justify-between items-center p-2 border rounded">
+                        <div>
+                          <span className="font-medium">{supply.name}</span>
+                          <span className="text-muted-foreground ml-2">({supply.presentation})</span>
+                          <span className="ml-4">x {ss.qty}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{formatCurrency(cost * 100)}</span>
+                          <Button 
+                            size="sm" 
+                            variant="destructive"
+                            onClick={() => handleRemoveSupply(ss.supply_id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div className="pt-2 border-t">
+                    <div className="flex justify-between font-medium">
+                      <span>{t('services.totalVariableCost')}</span>
+                      <span>
+                        {formatCurrency(
+                          serviceSupplies?.reduce((total, ss) => {
+                            const supply = supplies?.find(s => s.id === ss.supply_id);
+                            return total + (supply ? supply.cost_per_portion_cents * ss.qty : 0);
+                          }, 0) || 0
+                        )}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-
-                <div className="flex justify-between text-lg font-semibold text-green-700 border-t pt-2">
-                  <span>{t('services.suggestedPrice')}:</span>
-                  <span>{formatCurrency(costSummary.suggestedPrice)}</span>
-                </div>
-              </Card>
-            )}
+              )}
+            </div>
           </div>
-        )}
-      </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -67,6 +67,17 @@ export interface ServiceWithCost extends Service {
   total_cost_cents?: number;
 }
 
+export interface Asset {
+  id?: string;
+  clinic_id: string;
+  name: string;
+  purchase_price_cents: number;
+  depreciation_months: number;
+  purchase_date?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 // API response types
 export interface ApiResponse<T> {
   data?: T | null;

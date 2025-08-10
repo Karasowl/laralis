@@ -1,19 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { zService, zServiceSupply } from '@/lib/zod';
-import type { Service, ServiceSupply, ApiResponse } from '@/lib/types';
+import { supabaseAdmin } from '@/lib/supabase';
 import { cookies } from 'next/headers';
-import { getClinicIdOrDefault } from '@/lib/clinic';
 
-export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<Service[]>>> {
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '50');
     const search = searchParams.get('search');
     
     const cookieStore = cookies();
-    const clinicId = searchParams.get('clinicId') || await getClinicIdOrDefault(cookieStore);
+    const clinicId = cookieStore.get('clinicId')?.value;
 
     if (!clinicId) {
       return NextResponse.json(
@@ -22,21 +17,30 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
       );
     }
 
+    // Get services with their supplies for cost calculation
     let query = supabaseAdmin
       .from('services')
-      .select('*')
+      .select(`
+        *,
+        service_supplies (
+          qty,
+          supply:supplies (
+            id,
+            name,
+            presentation,
+            price_cents,
+            portions
+          )
+        )
+      `)
       .eq('clinic_id', clinicId)
+      .eq('active', true)
       .order('name', { ascending: true });
 
     // Apply search filter
     if (search) {
       query = query.ilike('name', `%${search}%`);
     }
-
-    // Apply pagination
-    const from = (page - 1) * limit;
-    const to = from + limit - 1;
-    query = query.range(from, to);
 
     const { data, error } = await query;
 
@@ -48,7 +52,23 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
       );
     }
 
-    return NextResponse.json({ data: data || [] });
+    // Calculate variable cost for each service
+    const servicesWithCost = (data || []).map(service => {
+      const variableCostCents = service.service_supplies?.reduce((total: number, ss: any) => {
+        if (ss.supply) {
+          const costPerPortion = ss.supply.price_cents / ss.supply.portions;
+          return total + (costPerPortion * ss.qty);
+        }
+        return total;
+      }, 0) || 0;
+
+      return {
+        ...service,
+        variable_cost_cents: Math.round(variableCostCents)
+      };
+    });
+
+    return NextResponse.json(servicesWithCost);
   } catch (error) {
     console.error('Unexpected error in GET /api/services:', error);
     return NextResponse.json(
@@ -58,11 +78,11 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
   }
 }
 
-export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse<Service>>> {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const cookieStore = cookies();
-    const clinicId = body.clinic_id || await getClinicIdOrDefault(cookieStore);
+    const clinicId = body.clinic_id || cookieStore.get('clinicId')?.value;
 
     if (!clinicId) {
       return NextResponse.json(
@@ -77,24 +97,31 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     // Add clinic_id to body for validation
     const dataWithClinic = { ...serviceDataInput, clinic_id: clinicId };
     
-    // Validate service data
-    const validationResult = zService.safeParse(dataWithClinic);
-    if (!validationResult.success) {
+    // Extract the fields we need
+    const { name, category = 'otros', est_minutes, description } = body;
+    
+    // Validate required fields (category is optional with default)
+    if (!name || !est_minutes) {
       return NextResponse.json(
         { 
           error: 'Validation failed', 
-          message: validationResult.error.errors.map(e => e.message).join(', ')
+          message: 'Name and est_minutes are required'
         },
         { status: 400 }
       );
     }
 
-    const { clinic_id, name, est_minutes } = validationResult.data;
-
-    // Start a transaction-like operation
+    // Create the service with new fields
     const { data: serviceData, error: serviceError } = await supabaseAdmin
       .from('services')
-      .insert({ clinic_id, name, est_minutes })
+      .insert({ 
+        clinic_id: clinicId,
+        name,
+        category,
+        est_minutes,
+        description: description || null,
+        active: true
+      })
       .select()
       .single();
 
@@ -109,10 +136,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     // If supplies are provided, add them to the service
     if (supplies && Array.isArray(supplies) && supplies.length > 0) {
       const serviceSupplies = supplies.map((supply: any) => ({
-        clinic_id,
         service_id: serviceData.id,
         supply_id: supply.supply_id,
-        qty: supply.qty
+        qty: supply.qty || supply.quantity || 1
       }));
 
       const { error: suppliesError } = await supabaseAdmin

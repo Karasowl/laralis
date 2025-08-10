@@ -135,13 +135,13 @@ export default function TariffsPage() {
       `${row.est_minutes} min`
     },
     { key: 'fixed_cost', label: t('tariffs.fixedCost'), render: (row: TariffRow) =>
-      formatCurrency((row.fixed_cost_cents || 0) / 100)
+      formatCurrency((row.fixed_cost_cents || 0))
     },
     { key: 'variable_cost', label: t('tariffs.variableCost'), render: (row: TariffRow) =>
-      formatCurrency((row.variable_cost_cents || 0) / 100)
+      formatCurrency((row.variable_cost_cents || 0))
     },
     { key: 'total_cost', label: t('tariffs.totalCost'), render: (row: TariffRow) => {
-      const total = ((row.fixed_cost_cents || 0) + (row.variable_cost_cents || 0)) / 100;
+      const total = ((row.fixed_cost_cents || 0) + (row.variable_cost_cents || 0));
       return formatCurrency(total);
     }},
     { key: 'margin', label: t('tariffs.margin'), render: (row: TariffRow) => (
@@ -158,11 +158,11 @@ export default function TariffsPage() {
       </div>
     )},
     { key: 'final_price', label: t('tariffs.finalPrice'), render: (row: TariffRow) =>
-      formatCurrency(row.final_price / 100)
+      formatCurrency(row.final_price)
     },
     { key: 'rounded_price', label: t('tariffs.roundedPrice'), render: (row: TariffRow) =>
       <span className="font-semibold text-green-600">
-        {formatCurrency(row.rounded_price / 100)}
+        {formatCurrency(row.rounded_price)}
       </span>
     }
   ];
@@ -262,13 +262,13 @@ export default function TariffsPage() {
             <div>
               <span className="text-blue-700">{t('tariffs.minPrice')}:</span>
               <span className="ml-2 font-medium">
-                {formatCurrency(Math.min(...tariffs.map(t => t.rounded_price)) / 100)}
+                {formatCurrency(Math.min(...tariffs.map(t => t.rounded_price)))}
               </span>
             </div>
             <div>
               <span className="text-blue-700">{t('tariffs.maxPrice')}:</span>
               <span className="ml-2 font-medium">
-                {formatCurrency(Math.max(...tariffs.map(t => t.rounded_price)) / 100)}
+                {formatCurrency(Math.max(...tariffs.map(t => t.rounded_price)))}
               </span>
             </div>
           </div>
