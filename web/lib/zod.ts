@@ -114,6 +114,26 @@ export const zSettingsTimeForm = z.object({
   real_pct: z.number().min(0.1, 'Must be at least 10%').max(1, 'Cannot exceed 100%'),
 });
 
+// Validation schema for Asset (server-side)
+export const zAsset = z.object({
+  id: z.string().uuid().optional(),
+  clinic_id: z.string().uuid(),
+  name: z.string().min(1, 'Name is required'),
+  purchase_price_cents: z.number().int().nonnegative('Price must be non-negative'),
+  depreciation_months: z.number().int().positive('Months must be positive'),
+  purchase_date: z.string().optional(),
+  created_at: z.string().optional(),
+  updated_at: z.string().optional(),
+});
+
+// Form schema for Asset (client-side)
+export const zAssetForm = z.object({
+  name: z.string().min(1, 'Name is required'),
+  purchase_price_pesos: z.number().positive('Price must be positive'),
+  depreciation_months: z.number().int().min(1, 'Months must be at least 1'),
+  purchase_date: z.string().optional(),
+});
+
 // API error schema
 export const zApiError = z.object({
   error: z.string(),

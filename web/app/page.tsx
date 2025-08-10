@@ -1,25 +1,42 @@
+"use client";
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { Calculator, Settings, Users, FileText, TrendingUp, Clock } from 'lucide-react';
+import { Calculator, Settings, Users, FileText, TrendingUp, Clock, Building2, Building } from 'lucide-react';
+import { useWorkspace } from '@/contexts/workspace-context';
+import { createClient } from '@/lib/supabase';
 
 export default function HomePage() {
   const t = useTranslations();
+  const router = useRouter();
+  const { workspace, currentClinic, workspaces, clinics, loading: contextLoading } = useWorkspace();
+  const [redirecting, setRedirecting] = useState(false);
+  const supabase = createClient();
+
+  useEffect(() => {
+    // Si no hay workspaces y no estamos cargando, redirigir a onboarding
+    if (!contextLoading && workspaces.length === 0 && !redirecting) {
+      setRedirecting(true);
+      router.push('/onboarding');
+    }
+  }, [contextLoading, workspaces, router, redirecting]);
 
   const quickLinks = [
     {
       title: t('nav.time'),
       description: t('home.setupDescription'),
-      href: '/setup/time',
+      href: '/time',
       icon: Clock,
       color: 'bg-blue-500',
     },
     {
       title: t('nav.fixedCosts'),
-      description: 'Configure your monthly fixed expenses',
-      href: '/setup/fixed-costs',
+      description: t('home.setupDescription'),
+      href: '/fixed-costs',
       icon: Settings,
       color: 'bg-green-500',
     },
@@ -46,6 +63,17 @@ export default function HomePage() {
     },
   ];
 
+  if (contextLoading || redirecting) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">{t('common.loading')}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -53,7 +81,7 @@ export default function HomePage() {
         subtitle={t('home.subtitle')}
         actions={
           <Button asChild>
-            <Link href="/setup/time">
+            <Link href="/onboarding">
               {t('home.getStarted')}
             </Link>
           </Button>
@@ -83,7 +111,7 @@ export default function HomePage() {
                 </CardDescription>
                 <Button variant="outline" asChild>
                   <Link href={link.href}>
-                    Abrir
+                    {t('home.openAction')}
                   </Link>
                 </Button>
               </CardContent>
@@ -98,10 +126,17 @@ export default function HomePage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Configuración</p>
-                <p className="text-2xl font-bold">Inicial</p>
+                <p className="text-sm text-muted-foreground">{t('home.workspaceActive')}</p>
+                <p className="text-lg font-bold truncate">
+                  {workspace ? workspace.name : t('home.noWorkspace')}
+                </p>
+                {workspace && (
+                  <Link href="/settings/workspaces" className="text-xs text-blue-600 hover:underline">
+                    {t('common.switchClinic')}
+                  </Link>
+                )}
               </div>
-              <Settings className="h-8 w-8 text-muted-foreground" />
+              <Building2 className="h-8 w-8 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
@@ -110,10 +145,17 @@ export default function HomePage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Estado Base de Datos</p>
-                <p className="text-2xl font-bold">Lista</p>
+                <p className="text-sm text-muted-foreground">{t('home.clinicActive')}</p>
+                <p className="text-lg font-bold truncate">
+                  {currentClinic ? currentClinic.name : t('home.noClinic')}
+                </p>
+                {currentClinic && (
+                  <Link href="/settings/clinics" className="text-xs text-blue-600 hover:underline">
+                    {t('common.switchClinic')}
+                  </Link>
+                )}
               </div>
-              <FileText className="h-8 w-8 text-muted-foreground" />
+              <Building className="h-8 w-8 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
@@ -122,8 +164,8 @@ export default function HomePage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Motor de Cálculo</p>
-                <p className="text-2xl font-bold text-green-600">Activo</p>
+                <p className="text-sm text-muted-foreground">{t('home.calculationEngine')}</p>
+                <p className="text-2xl font-bold text-green-600">{t('home.calculationActive')}</p>
               </div>
               <Calculator className="h-8 w-8 text-green-600" />
             </div>

@@ -97,15 +97,34 @@ export async function GET(
         .select('amount_cents')
         .eq('clinic_id', clinicId);
 
-      if (!fixedCostsError && fixedCosts) {
-        const totalFixedCostsCents = fixedCosts.reduce((sum, cost) => sum + cost.amount_cents, 0);
-        
+      // Get monthly depreciation from assets
+      const { data: assets, error: assetsError } = await supabaseAdmin
+        .from('assets')
+        .select('purchase_price_cents, depreciation_months')
+        .eq('clinic_id', clinicId);
+
+      if (fixedCostsError) {
+        console.error('Error fetching fixed costs:', fixedCostsError);
+      }
+      if (assetsError) {
+        console.error('Error fetching assets:', assetsError);
+      }
+
+      const totalFixedCostsCents = (fixedCosts || []).reduce((sum, cost) => sum + cost.amount_cents, 0);
+      const assetsMonthlyDepCents = (assets || []).reduce((sum, a) => {
+        if (!a.depreciation_months || a.depreciation_months <= 0) return sum;
+        return sum + Math.round(a.purchase_price_cents / a.depreciation_months);
+      }, 0);
+
+      const monthlyFixedTotal = totalFixedCostsCents + assetsMonthlyDepCents;
+
+      if (monthlyFixedTotal > 0) {
         // Calculate minutes per month
         const minutesPerMonth = settingsTime.work_days * settingsTime.hours_per_day * 60;
         const effectiveMinutes = minutesPerMonth * settingsTime.real_pct;
         
         // Calculate fixed cost per minute
-        const fixedCostPerMinute = totalFixedCostsCents / effectiveMinutes;
+        const fixedCostPerMinute = monthlyFixedTotal / effectiveMinutes;
         
         // Calculate fixed cost for this service
         fixedCostCents = Math.round(fixedCostPerMinute * service.est_minutes);

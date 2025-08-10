@@ -53,9 +53,15 @@ export async function GET(
     }
 
     // Transform the data to match our type
+    // Note: Database uses 'qty' column
     const transformedData = data?.map(item => ({
-      ...item,
-      supply: item.supplies || undefined
+      id: item.id, // Include the record ID
+      supply_id: item.supply_id,
+      qty: item.qty, // Keep original column name
+      supply: item.supplies ? {
+        ...item.supplies,
+        cost_per_portion_cents: Math.round(item.supplies.price_cents / item.supplies.portions)
+      } : undefined
     })) || [];
 
     return NextResponse.json({ data: transformedData });
@@ -119,6 +125,8 @@ export async function POST(
     }
 
     const { clinic_id, service_id, supply_id, qty } = validationResult.data;
+    // Use 'quantity' as our standard name, but the API uses 'qty'
+    const quantity = qty;
 
     // Check if this supply is already in the recipe
     const { data: existing } = await supabaseAdmin
@@ -132,18 +140,18 @@ export async function POST(
     let result;
 
     if (existing) {
-      // Update existing quantity
+      // Update existing quantity (use qty for backward compatibility)
       result = await supabaseAdmin
         .from('service_supplies')
-        .update({ qty })
+        .update({ qty: quantity })
         .eq('id', existing.id)
         .select()
         .single();
     } else {
-      // Insert new recipe line
+      // Insert new recipe line (use qty for backward compatibility)
       result = await supabaseAdmin
         .from('service_supplies')
-        .insert({ clinic_id, service_id, supply_id, qty })
+        .insert({ clinic_id, service_id, supply_id, qty: quantity })
         .select()
         .single();
     }
@@ -163,6 +171,62 @@ export async function POST(
 
   } catch (error) {
     console.error('Unexpected error in POST /api/services/[id]/supplies:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE endpoint for removing supply by supply_id (not row id)
+export async function DELETE(
+  request: NextRequest,
+  { params }: RouteParams
+): Promise<NextResponse<ApiResponse<null>>> {
+  try {
+    const body = await request.json();
+    const cookieStore = cookies();
+    const clinicId = await getClinicIdOrDefault(cookieStore);
+
+    if (!clinicId) {
+      return NextResponse.json(
+        { error: 'No clinic context available' },
+        { status: 400 }
+      );
+    }
+
+    const { supply_id } = body;
+    
+    if (!supply_id) {
+      return NextResponse.json(
+        { error: 'supply_id is required' },
+        { status: 400 }
+      );
+    }
+
+    // Delete the service_supply record
+    const { error } = await supabaseAdmin
+      .from('service_supplies')
+      .delete()
+      .eq('service_id', params.id)
+      .eq('supply_id', supply_id)
+      .eq('clinic_id', clinicId);
+
+    if (error) {
+      console.error('Error deleting service supply:', error);
+      return NextResponse.json(
+        { error: 'Failed to delete service supply', message: error.message },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      data: null,
+      message: 'Supply removed from service'
+    });
+
+  } catch (error) {
+    console.error('Unexpected error in DELETE /api/services/[id]/supplies:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

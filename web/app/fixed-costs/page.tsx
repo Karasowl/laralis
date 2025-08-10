@@ -294,7 +294,7 @@ export default function FixedCostsPage() {
               {formatCurrency(totalCosts, locale as 'en' | 'es')}
             </div>
             <p className="text-sm text-muted-foreground mt-2">
-              Basado en {costs.length} costos fijos configurados
+              {t('fixedCosts.basedOnCosts', { count: costs.length })}
             </p>
           </CardContent>
         </Card>
@@ -302,9 +302,9 @@ export default function FixedCostsPage() {
         {/* Costs Table */}
         <Card>
           <CardHeader>
-            <CardTitle>Lista de Costos Fijos</CardTitle>
+            <CardTitle>{t('fixedCosts.listTitle')}</CardTitle>
             <CardDescription>
-              Administra todos los gastos mensuales recurrentes de tu práctica
+              {t('fixedCosts.listDescription')}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -321,8 +321,8 @@ export default function FixedCostsPage() {
             ) : (
               <EmptyState
                 icon={<Receipt className="h-8 w-8" />}
-                title="No hay costos fijos registrados"
-                description="Agrega tus primeros costos fijos para comenzar a calcular tus tarifas."
+                title={t('fixedCosts.emptyTitle')}
+                description={t('fixedCosts.emptyDescription')}
                 action={
                   <Button onClick={() => setShowForm(true)}>
                     <Plus className="h-4 w-4 mr-2" />
@@ -338,7 +338,7 @@ export default function FixedCostsPage() {
         {costs.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>Desglose por Categoría</CardTitle>
+              <CardTitle>{t('fixedCosts.categoryBreakdown')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">

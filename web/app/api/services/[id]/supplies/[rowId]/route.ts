@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { supabaseAdmin } from '@/lib/supabase';
 import type { ApiResponse } from '@/lib/types';
 import { cookies } from 'next/headers';
-import { getClinicIdOrDefault } from '@/lib/clinic';
 
 interface RouteParams {
   params: {
@@ -17,7 +16,7 @@ export async function DELETE(
 ): Promise<NextResponse<ApiResponse<null>>> {
   try {
     const cookieStore = cookies();
-    const clinicId = await getClinicIdOrDefault(cookieStore);
+    const clinicId = cookieStore.get('clinicId')?.value;
 
     if (!clinicId) {
       return NextResponse.json(
@@ -78,7 +77,7 @@ export async function PUT(
   try {
     const body = await request.json();
     const cookieStore = cookies();
-    const clinicId = await getClinicIdOrDefault(cookieStore);
+    const clinicId = cookieStore.get('clinicId')?.value;
 
     if (!clinicId) {
       return NextResponse.json(

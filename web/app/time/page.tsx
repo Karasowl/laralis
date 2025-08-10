@@ -24,6 +24,7 @@ export default function TimeSettingsPage() {
   const t = useTranslations();
   const [results, setResults] = useState<any>(null);
   const [fixedCosts, setFixedCosts] = useState<FixedCost[]>([]);
+  const [assetsMonthlyDepCents, setAssetsMonthlyDepCents] = useState(0);
   const [totalFixedCents, setTotalFixedCents] = useState(0);
   const [loadingData, setLoadingData] = useState(true);
 
@@ -72,7 +73,20 @@ export default function TimeSettingsPage() {
         const costs = costsData.data || [];
         setFixedCosts(costs);
         const total = costs.reduce((sum: number, cost: FixedCost) => sum + cost.amount_cents, 0);
-        setTotalFixedCents(total);
+        // Load assets monthly depreciation and add to total
+        try {
+          const assetsSummaryRes = await fetch('/api/assets/summary');
+          if (assetsSummaryRes.ok) {
+            const assetsSummary = await assetsSummaryRes.json();
+            const monthlyDep = assetsSummary?.data?.monthly_depreciation_cents || 0;
+            setAssetsMonthlyDepCents(monthlyDep);
+            setTotalFixedCents(total + monthlyDep);
+          } else {
+            setTotalFixedCents(total);
+          }
+        } catch {
+          setTotalFixedCents(total);
+        }
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -126,7 +140,7 @@ export default function TimeSettingsPage() {
         {/* Form */}
         <Card>
           <CardHeader>
-            <CardTitle>Configuración de Tiempo</CardTitle>
+            <CardTitle>{t('time.formTitle')}</CardTitle>
             <CardDescription>
               {t('time.formDescription')}
             </CardDescription>
@@ -165,7 +179,7 @@ export default function TimeSettingsPage() {
 
               <FormField
                 label={t('time.effectiveWorkPercentage')}
-                description="Como decimal (ej: 0.8 = 80%)"
+                description={t('time.percentageHelp')}
                 error={errors.real_pct?.message}
                 required
               >
@@ -193,14 +207,14 @@ export default function TimeSettingsPage() {
             <CardHeader>
               <CardTitle>{t('time.preview')}</CardTitle>
               <CardDescription>
-                Valores calculados en tiempo real
+                {t('time.livePreviewDescription')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {totalFixedCents > 0 && (
                 <div className="mb-4 p-3 bg-blue-50 rounded-lg">
                   <p className="text-sm text-blue-700">
-                    <strong>Costos fijos mensuales:</strong> {formatCurrency(totalFixedCents)}
+                    <strong>{t('time.monthlyFixedCosts')}:</strong> {formatCurrency(totalFixedCents)}
                   </p>
                 </div>
               )}
@@ -232,7 +246,7 @@ export default function TimeSettingsPage() {
               <CardHeader>
                 <CardTitle>{t('time.results')}</CardTitle>
                 <CardDescription>
-                  Basado en costos fijos mensuales de {formatCurrency(results.monthlyFixedCostsCents)}
+                  {t('time.basedOnFixedCosts')} {formatCurrency(results.monthlyFixedCostsCents)}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -246,13 +260,13 @@ export default function TimeSettingsPage() {
                   
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div className="text-center">
-                      <p className="font-medium">Minutos Totales</p>
+                      <p className="font-medium">{t('time.totalMinutes')}</p>
                       <p className="text-2xl font-bold text-muted-foreground">
                         {results.totalMinutesPerMonth.toLocaleString()}
                       </p>
                     </div>
                     <div className="text-center">
-                      <p className="font-medium">Minutos Efectivos</p>
+                      <p className="font-medium">{t('time.effectiveMinutes')}</p>
                       <p className="text-2xl font-bold text-green-600">
                         {results.effectiveMinutesPerMonth.toLocaleString()}
                       </p>

@@ -29,6 +29,8 @@
     "selectClinic": "Select a clinic",
     "noClinicsFound": "No clinics found",
     "select": "Select",
+    "create": "Create",
+    "optional": "Optional",
     "minutes": "minutes"
   },
   "nav": {
@@ -39,10 +41,12 @@
     "supplies": "Supplies",
     "services": "Services",
     "tariffs": "Tariffs",
+    "assets": "Assets",
     "patients": "Patients",
     "treatments": "Treatments",
     "expenses": "Expenses",
-    "reports": "Reports"
+    "reports": "Reports",
+    "settings": "Settings"
   },
   "home": {
     "title": "Dental Practice Management System",
@@ -52,7 +56,14 @@
     "setupDescription": "Configure your practice settings",
     "patientsDescription": "Manage patient records",
     "treatmentsDescription": "Track treatments and procedures",
-    "reportsDescription": "View financial reports and analytics"
+    "reportsDescription": "View financial reports and analytics",
+    "openAction": "Open",
+    "configurationStatus": "Configuration",
+    "databaseStatus": "Database Status",
+    "databaseReady": "Ready",
+    "calculationEngine": "Calculation Engine",
+    "calculationActive": "Active",
+    "initialState": "Initial"
   },
   "time": {
     "title": "Time Settings",
@@ -68,6 +79,13 @@
     "results": "Results",
     "preview": "Live Preview",
     "fixedCostPerMinute": "Fixed Cost per Minute",
+    "formTitle": "Time Configuration",
+    "livePreviewDescription": "Real-time calculated values",
+    "monthlyFixedCosts": "Monthly fixed costs",
+    "basedOnFixedCosts": "Based on monthly fixed costs of",
+    "totalMinutes": "Total Minutes",
+    "effectiveMinutes": "Effective Minutes",
+    "percentageHelp": "As decimal (e.g: 0.8 = 80%)",
     "messages": {
       "saved": "Time settings saved successfully",
       "saveError": "Error saving time settings",
@@ -86,6 +104,12 @@
     "editCost": "Edit Fixed Cost",
     "deleteCost": "Delete Fixed Cost",
     "emptyForClinic": "No fixed costs for this clinic",
+    "listTitle": "Fixed Costs List",
+    "listDescription": "Manage all monthly recurring expenses of your practice",
+    "emptyTitle": "No fixed costs registered",
+    "emptyDescription": "Add your first fixed costs to start calculating your rates.",
+    "categoryBreakdown": "Category Breakdown",
+    "basedOnCosts": "Based on {count} configured fixed costs",
     "categories": {
       "rent": "Rent",
       "salaries": "Salaries",
@@ -177,7 +201,43 @@
     "add": "Add Service",
     "edit": "Edit Service",
     "addService": "Add Service",
-    "editService": "Edit Service"
+    "editService": "Edit Service",
+    "listTitle": "Service Catalog",
+    "listDescription": "Define services with duration and supply requirements",
+    "name": "Service Name",
+    "namePlaceholder": "e.g., Dental Cleaning",
+    "category": "Category",
+    "selectCategory": "Select a category",
+    "duration": "Duration",
+    "description": "Description",
+    "descriptionPlaceholder": "Optional service description",
+    "noServices": "No services found. Create your first service to get started.",
+    "manageSupplies": "Manage Supplies (Optional)",
+    "manageSuppliesHint": "Supplies are optional. Define the recipe of materials used in this service",
+    "addSupply": "Add Supply to Service",
+    "selectSupply": "Select a supply",
+    "quantity": "Quantity",
+    "currentSupplies": "Current Supplies",
+    "noSupplies": "No supplies added yet",
+    "noSuppliesAvailable": "No supplies available",
+    "totalVariableCost": "Total Variable Cost",
+    "addCategory": "New Category",
+    "createCategory": "Create Custom Category",
+    "categoryName": "Category Name",
+    "categoryNamePlaceholder": "e.g., Implantology",
+    "systemCategories": "System Categories",
+    "customCategories": "Custom Categories",
+    "categories": {
+      "preventivo": "Preventive",
+      "restaurativo": "Restorative",
+      "endodoncia": "Endodontics",
+      "cirugia": "Surgery",
+      "estetica": "Cosmetic",
+      "ortodoncia": "Orthodontics",
+      "protesis": "Prosthetics",
+      "periodoncia": "Periodontics",
+      "otros": "Other"
+    }
   },
   "tariffs": {
     "title": "Pricing Tariff",
@@ -201,6 +261,37 @@
     "averageMargin": "Average Margin",
     "minPrice": "Min Price",
     "maxPrice": "Max Price"
+  },
+  "assets": {
+    "title": "Assets",
+    "subtitle": "Equipment and investments with depreciation",
+    "totalMonthlyDep": "Total Monthly Depreciation",
+    "add": "Add Asset",
+    "table": {
+      "name": "Name",
+      "purchasePrice": "Purchase Price",
+      "months": "Months",
+      "monthlyDep": "Monthly Depreciation"
+    },
+    "form": {
+      "name": "Name",
+      "price": "Price (MXN)",
+      "months": "Months to Depreciate",
+      "purchaseDate": "Purchase Date (optional)",
+      "save": "Save",
+      "cancel": "Cancel"
+    },
+    "pageTitle": "Assets",
+    "pageSubtitle": "Equipment and investment with depreciation",
+    "monthlyDepreciationTotal": "Total monthly depreciation",
+    "addAssetButton": "Add Asset",
+    "addAssetDialogTitle": "Add Asset",
+    "formNameLabel": "Name",
+    "formPriceLabel": "Price (MXN)",
+    "formMonthsLabel": "Months to depreciate",
+    "formPurchaseDateLabel": "Purchase date (optional)",
+    "formCancelButton": "Cancel",
+    "formSaveButton": "Save"
   },
   "validation": {
     "required": "This field is required",

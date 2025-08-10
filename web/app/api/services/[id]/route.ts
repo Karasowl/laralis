@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { supabaseAdmin } from '@/lib/supabase';
 import { zService } from '@/lib/zod';
 import type { Service, ServiceSupply, ApiResponse } from '@/lib/types';
 import { cookies } from 'next/headers';
-import { getClinicIdOrDefault } from '@/lib/clinic';
 
 interface RouteParams {
   params: {
@@ -17,7 +16,7 @@ export async function GET(
 ): Promise<NextResponse<ApiResponse<Service & { supplies?: ServiceSupply[] }>>> {
   try {
     const cookieStore = cookies();
-    const clinicId = await getClinicIdOrDefault(cookieStore);
+    const clinicId = cookieStore.get('clinicId')?.value;
 
     if (!clinicId) {
       return NextResponse.json(
@@ -53,8 +52,7 @@ export async function GET(
     const { data: supplies, error: suppliesError } = await supabaseAdmin
       .from('service_supplies')
       .select('*, supplies(*)')
-      .eq('service_id', params.id)
-      .eq('clinic_id', clinicId);
+      .eq('service_id', params.id);
 
     if (suppliesError) {
       console.error('Error fetching service supplies:', suppliesError);
@@ -82,7 +80,7 @@ export async function PUT(
   try {
     const body = await request.json();
     const cookieStore = cookies();
-    const clinicId = await getClinicIdOrDefault(cookieStore);
+    const clinicId = cookieStore.get('clinicId')?.value;
 
     if (!clinicId) {
       return NextResponse.json(
@@ -110,10 +108,18 @@ export async function PUT(
     }
 
     const { name, est_minutes } = validationResult.data;
+    const category = body.category || 'otros';
+    const description = body.description || null;
 
     const { data, error } = await supabaseAdmin
       .from('services')
-      .update({ name, est_minutes })
+      .update({ 
+        name, 
+        est_minutes,
+        category,
+        description,
+        updated_at: new Date().toISOString()
+      })
       .eq('id', params.id)
       .eq('clinic_id', clinicId)
       .select()
@@ -140,13 +146,11 @@ export async function PUT(
       await supabaseAdmin
         .from('service_supplies')
         .delete()
-        .eq('service_id', params.id)
-        .eq('clinic_id', clinicId);
+        .eq('service_id', params.id);
 
       // Add new supplies if any
       if (Array.isArray(supplies) && supplies.length > 0) {
         const serviceSupplies = supplies.map((supply: any) => ({
-          clinic_id: clinicId,
           service_id: params.id,
           supply_id: supply.supply_id,
           qty: supply.qty
@@ -182,7 +186,7 @@ export async function DELETE(
 ): Promise<NextResponse<ApiResponse<null>>> {
   try {
     const cookieStore = cookies();
-    const clinicId = await getClinicIdOrDefault(cookieStore);
+    const clinicId = cookieStore.get('clinicId')?.value;
 
     if (!clinicId) {
       return NextResponse.json(
@@ -191,10 +195,10 @@ export async function DELETE(
       );
     }
 
-    // Service supplies will be deleted automatically by CASCADE
+    // Soft delete - marcar como inactivo si la columna existe
     const { error } = await supabaseAdmin
       .from('services')
-      .delete()
+      .update({ active: false })
       .eq('id', params.id)
       .eq('clinic_id', clinicId);
 

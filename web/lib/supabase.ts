@@ -26,3 +26,6 @@ export function createSupabaseClient() {
 }
 
 export const isSupabaseConfigured = () => isConfigured;
+
+// Re-export supabaseAdmin from the separate file
+export { supabaseAdmin } from './supabaseAdmin';
