@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
 
 export async function GET(request: NextRequest) {
@@ -62,10 +62,12 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { workspaceName, workspaceSlug, clinicName, clinicAddress, ownerEmail } = body;
 
+    console.log('Creating workspace with data:', { workspaceName, workspaceSlug, clinicName });
+
     // Validar datos requeridos
     if (!workspaceName || !workspaceSlug || !clinicName) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Missing required fields', details: { workspaceName: !!workspaceName, workspaceSlug: !!workspaceSlug, clinicName: !!clinicName } },
         { status: 400 }
       );
     }
@@ -92,10 +94,12 @@ export async function POST(request: NextRequest) {
         );
       }
       return NextResponse.json(
-        { error: 'Failed to create workspace' },
+        { error: 'Failed to create workspace', details: workspaceError.message || workspaceError },
         { status: 500 }
       );
     }
+
+    console.log('Workspace created successfully:', workspace.id);
 
     // Crear la primera clínica
     const { data: clinic, error: clinicError } = await supabaseAdmin
@@ -111,6 +115,7 @@ export async function POST(request: NextRequest) {
 
     if (clinicError) {
       console.error('Error creating clinic:', clinicError);
+      
       // Rollback: eliminar workspace si falla la creación de la clínica
       await supabaseAdmin
         .from('workspaces')
@@ -118,7 +123,7 @@ export async function POST(request: NextRequest) {
         .eq('id', workspace.id);
       
       return NextResponse.json(
-        { error: 'Failed to create clinic' },
+        { error: 'Failed to create clinic', details: (clinicError as any).message || clinicError },
         { status: 500 }
       );
     }
@@ -165,7 +170,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Unexpected error in POST /api/workspaces:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: (error as any)?.message },
       { status: 500 }
     );
   }

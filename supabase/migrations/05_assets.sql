@@ -31,3 +31,4 @@ alter table public.assets disable row level security;
 
 
 
+

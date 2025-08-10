@@ -112,7 +112,16 @@ export async function POST(request: NextRequest) {
         break;
 
       case 'all_data':
-        // Eliminar todo en orden para evitar conflictos de FK
+        // Eliminar TODO incluyendo workspaces y clínicas
+        
+        // Obtener workspace_id desde la clínica
+        const { data: clinicData } = await supabaseAdmin
+          .from('clinics')
+          .select('workspace_id')
+          .eq('id', clinicId)
+          .single();
+        
+        const workspaceId = clinicData?.workspace_id;
         
         // 1. Service supplies (relaciones)
         await supabaseAdmin
@@ -144,7 +153,27 @@ export async function POST(request: NextRequest) {
           .delete()
           .eq('clinic_id', clinicId);
 
-        // 6. Custom categories
+        // 6. Settings time
+        await supabaseAdmin
+          .from('settings_time')
+          .delete()
+          .eq('clinic_id', clinicId);
+
+        // 7. Eliminar todas las clínicas del workspace
+        if (workspaceId) {
+          await supabaseAdmin
+            .from('clinics')
+            .delete()
+            .eq('workspace_id', workspaceId);
+          
+          // 8. Eliminar el workspace
+          await supabaseAdmin
+            .from('workspaces')
+            .delete()
+            .eq('id', workspaceId);
+        }
+
+        // 9. Custom categories
         await supabaseAdmin
           .from('categories')
           .delete()

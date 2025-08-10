@@ -50,3 +50,4 @@ select sum(round(purchase_price_cents / depreciation_months)) from assets where 
 
 
 
+

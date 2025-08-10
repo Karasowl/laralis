@@ -16,16 +16,22 @@ export default function HomePage() {
   const [redirecting, setRedirecting] = useState(false);
 
   useEffect(() => {
-    // Si no hay workspaces "completados" o ninguno en absoluto, redirigir a onboarding
-    if (
-      !contextLoading &&
-      !redirecting &&
-      (workspaces.length === 0 || workspaces.every((w: any) => !w.onboarding_completed))
-    ) {
-      setRedirecting(true);
-      router.push('/onboarding');
+    // Si no hay workspaces, redirigir inmediatamente a onboarding
+    if (!contextLoading && !redirecting) {
+      if (!workspace || workspaces.length === 0) {
+        setRedirecting(true);
+        router.push('/onboarding');
+        return;
+      }
+      
+      // Si hay workspaces pero ninguno completado
+      if (workspaces.every((w: any) => !w.onboarding_completed)) {
+        setRedirecting(true);
+        router.push('/onboarding');
+        return;
+      }
     }
-  }, [contextLoading, workspaces, router, redirecting]);
+  }, [contextLoading, workspace, workspaces, router, redirecting]);
 
   const quickLinks = [
     {

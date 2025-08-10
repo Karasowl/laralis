@@ -1,6 +1,6 @@
 {
   "common": {
-    "appName": "Dental Practice Manager",
+    "appName": "Laralis",
     "welcome": "Welcome",
     "loading": "Loading...",
     "error": "Error",
@@ -33,6 +33,71 @@
     "optional": "Optional",
     "minutes": "minutes"
   },
+  "onboarding": {
+    "welcomeTitle": "Welcome to Laralis! 🎉",
+    "welcomeSubtitle": "Complete dental management system",
+    "welcomeBody": "Manage your dental practice professionally",
+    "features": {
+      "calc": { "title": "Automatic Calculation", "desc": "Costs, margins and pricing" },
+      "multi": { "title": "Multi-Clinic", "desc": "Manage multiple branches" },
+      "reports": { "title": "Detailed Reports", "desc": "Metrics and analytics" },
+      "custom": { "title": "Customizable", "desc": "Adapt to your business" }
+    },
+    "workspaceStep": {
+      "title": "Create your Workspace",
+      "subtitle": "Like a brand in Metricool",
+      "nameLabel": "Workspace Name *",
+      "namePlaceholder": "e.g., Garcia Dental Clinics",
+      "nameHelp": "This is the main name of your organization",
+      "descLabel": "Description (optional)",
+      "descPlaceholder": "e.g., Network of specialized dental clinics"
+    },
+    "clinicStep": {
+      "title": "Add your First Clinic",
+      "subtitle": "You can add more later",
+      "nameLabel": "Clinic Name *",
+      "namePlaceholder": "e.g., Downtown Branch",
+      "addressLabel": "Address",
+      "addressPlaceholder": "e.g., Main Ave 123",
+      "phoneLabel": "Phone",
+      "phonePlaceholder": "e.g., +52 555 1234567",
+      "emailPlaceholder": "contact@clinic.com"
+    },
+    "tips": { "title": "Tip:", "workspaceMulti": "A workspace can contain multiple clinics. Think of it as a 'brand' grouping your branches." },
+    "notes": { "title": "Note:", "addMoreClinics": "You can add more clinics later from the settings panel." },
+    "doneStep": {
+      "title": "All Set! 🚀",
+      "subtitle": "Start configuring your business",
+      "doneHeadline": "Initial Setup Completed!",
+      "created": "You created:",
+      "nextSteps": "Next steps:",
+      "todo": {
+        "time": "Configure working time",
+        "fixed": "Add fixed costs",
+        "supplies": "Load supplies",
+        "services": "Create services",
+        "tariffs": "Define pricing"
+      }
+    },
+    "actions": {
+      "prev": "Previous",
+      "next": "Next",
+      "creating": "Creating...",
+      "start": "Start"
+    },
+    "errors": {
+      "requiredTitle": "Required field",
+      "workspaceNameRequired": "Please enter a name for your workspace",
+      "clinicNameRequired": "Please enter a name for your clinic",
+      "createWorkspace": "Failed to create workspace",
+      "genericTitle": "Error",
+      "genericDescription": "There was a problem creating your setup"
+    },
+    "success": {
+      "title": "✅ Setup completed!",
+      "description": "Your workspace and clinic were created successfully"
+    }
+  },
   "nav": {
     "home": "Home",
     "setup": "Setup",
@@ -46,9 +111,14 @@
     "treatments": "Treatments",
     "expenses": "Expenses",
     "reports": "Reports",
-    "settings": "Settings"
+    "settings": "Settings",
+    "workspaces": "Workspaces",
+    "clinics": "Clinics"
   },
   "home": {
+    "workspaceActive": "Active Workspace",
+    "clinicActive": "Active Clinic",
+    "noClinic": "No clinic selected",
     "title": "Dental Practice Management System",
     "subtitle": "Manage your practice efficiently",
     "getStarted": "Get Started",
@@ -292,6 +362,40 @@
     "formPurchaseDateLabel": "Purchase date (optional)",
     "formCancelButton": "Cancel",
     "formSaveButton": "Save"
+  },
+  "settings": {
+    "workspaces": {
+      "title": "Workspaces",
+      "description": "Manage your workspaces and organization settings",
+      "create": "Create Workspace",
+      "createFirst": "Create your first workspace",
+      "edit": "Edit Workspace",
+      "editDesc": "Update workspace information",
+      "createDesc": "Add a new workspace to your organization",
+      "empty": "No workspaces found",
+      "emptyDesc": "Create your first workspace to get started",
+      "name": "Workspace Name",
+      "namePlaceholder": "e.g., Garcia Dental Group",
+      "slug": "Unique Identifier",
+      "slugPlaceholder": "e.g., garcia-dental",
+      "descriptionPlaceholder": "Brief description of the workspace",
+      "configured": "Configured",
+      "pending": "Pending Setup",
+      "updateSuccess": "Workspace Updated",
+      "updateSuccessDesc": "Changes saved successfully",
+      "createSuccess": "Workspace Created",
+      "createSuccessDesc": "New workspace added successfully",
+      "deleteSuccess": "Workspace Deleted",
+      "deleteSuccessDesc": "Workspace removed successfully",
+      "deleteConfirm": "Are you sure you want to delete this workspace?"
+    },
+    "clinics": {
+      "title": "Clinics",
+      "description": "Manage clinic branches",
+      "address": "Address",
+      "phone": "Phone",
+      "email": "Email"
+    }
   },
   "validation": {
     "required": "This field is required",

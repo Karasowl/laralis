@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable jsx-a11y/aria-proptypes */
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
@@ -14,16 +15,13 @@ export const Progress = React.forwardRef<HTMLDivElement, ProgressProps>(
     return (
       <div
         ref={ref}
-        role="progressbar"
-        aria-valuemin={0 as unknown as number}
-        aria-valuemax={100 as unknown as number}
-        aria-valuenow={Math.round(clamped) as unknown as number}
         className={cn("relative h-2 w-full overflow-hidden rounded-full bg-muted", className)}
         {...props}
       >
+        {/* Native progress element for semantics only; no inner text to avoid hydration mismatch */}
+        <progress value={clamped} max={100} className="sr-only" aria-hidden="true" />
         <div
           className="h-full w-full flex-1 rounded-full bg-primary transition-all"
-          data-progress={clamped}
           style={{ transform: `translateX(-${100 - clamped}%)` }}
         />
       </div>
