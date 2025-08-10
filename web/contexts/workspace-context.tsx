@@ -1,7 +1,8 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { createSupabaseClient } from '@/lib/supabase';
+import { getSupabaseBrowserClient } from '@/lib/supabase';
+import { useRouter, usePathname } from 'next/navigation';
 
 interface Workspace {
   id: string;
@@ -57,8 +58,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [clinics, setClinics] = useState<Clinic[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  const pathname = usePathname();
 
-  const supabase = createSupabaseClient();
+  // Reutilizar un singleton del cliente en browser para evitar múltiples GoTrueClient
+  const [supabase] = useState(() => getSupabaseBrowserClient());
 
   const refreshWorkspaces = async () => {
     try {
@@ -66,12 +70,17 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase
         .from('workspaces')
         .select('*')
-        .eq('is_active', true)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
       setWorkspaces(data || []);
+      
+      // Si no hay workspaces y no estamos en onboarding, redirigir
+      if ((!data || data.length === 0) && !pathname?.includes('/onboarding')) {
+        router.push('/onboarding');
+        return;
+      }
       
       // Si no hay workspace seleccionado, seleccionar el primero
       if (!workspace && data && data.length > 0) {

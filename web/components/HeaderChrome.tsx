@@ -26,7 +26,7 @@ export default function HeaderChrome() {
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
               <span className="text-primary-foreground font-bold text-sm">D</span>
             </div>
-            <span className="font-semibold text-lg">Dental Manager</span>
+            <span className="font-semibold text-lg">{t('common.appName')}</span>
           </Link>
           <div className="flex items-center gap-3">
             {!isOnboarding && (
@@ -50,7 +50,7 @@ export default function HeaderChrome() {
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
               <span className="text-primary-foreground font-bold text-sm">D</span>
             </div>
-            <span className="font-semibold text-lg">Dental Manager</span>
+            <span className="font-semibold text-lg">{t('common.appName')}</span>
           </Link>
           <NavigationClient />
         </div>

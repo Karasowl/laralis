@@ -1,6 +1,6 @@
 {
   "common": {
-    "appName": "Gestor de Consultorio Dental",
+    "appName": "Laralis",
     "welcome": "Bienvenido",
     "loading": "Cargando...",
     "error": "Error",
@@ -37,6 +37,71 @@
     "minutes": "minutos",
     "success": "Éxito"
   },
+  "onboarding": {
+    "welcomeTitle": "¡Bienvenido a Laralis! 🎉",
+    "welcomeSubtitle": "Sistema de gestión dental completo",
+    "welcomeBody": "Gestiona tu consultorio dental de manera profesional",
+    "features": {
+      "calc": { "title": "Cálculo Automático", "desc": "Costos, márgenes y tarifas" },
+      "multi": { "title": "Multi-Clínica", "desc": "Gestiona varias sucursales" },
+      "reports": { "title": "Reportes Detallados", "desc": "Métricas y análisis" },
+      "custom": { "title": "Personalizable", "desc": "Adapta a tu negocio" }
+    },
+    "workspaceStep": {
+      "title": "Crea tu Espacio de Trabajo",
+      "subtitle": "Como una marca en Metricool",
+      "nameLabel": "Nombre del Espacio de Trabajo *",
+      "namePlaceholder": "Ej: Clínicas Dentales García",
+      "nameHelp": "Este es el nombre principal de tu organización",
+      "descLabel": "Descripción (opcional)",
+      "descPlaceholder": "Ej: Red de clínicas dentales especializadas"
+    },
+    "clinicStep": {
+      "title": "Agrega tu Primera Clínica",
+      "subtitle": "Puedes agregar más después",
+      "nameLabel": "Nombre de la Clínica *",
+      "namePlaceholder": "Ej: Sucursal Centro",
+      "addressLabel": "Dirección",
+      "addressPlaceholder": "Ej: Av. Principal 123",
+      "phoneLabel": "Teléfono",
+      "phonePlaceholder": "Ej: +52 555 1234567",
+      "emailPlaceholder": "contacto@clinica.com"
+    },
+    "tips": { "title": "Tip:", "workspaceMulti": "Un espacio de trabajo puede contener múltiples clínicas. Es como una 'marca' que agrupa todas tus sucursales." },
+    "notes": { "title": "Nota:", "addMoreClinics": "Podrás agregar más clínicas después desde el panel de configuración." },
+    "doneStep": {
+      "title": "¡Todo Listo! 🚀",
+      "subtitle": "Comienza a configurar tu negocio",
+      "doneHeadline": "¡Configuración Inicial Completada!",
+      "created": "Has creado:",
+      "nextSteps": "Próximos pasos:",
+      "todo": {
+        "time": "Configurar tiempo de trabajo",
+        "fixed": "Agregar costos fijos",
+        "supplies": "Cargar insumos",
+        "services": "Crear servicios",
+        "tariffs": "Definir tarifario"
+      }
+    },
+    "actions": {
+      "prev": "Anterior",
+      "next": "Siguiente",
+      "creating": "Creando...",
+      "start": "Comenzar"
+    },
+    "errors": {
+      "requiredTitle": "Campo requerido",
+      "workspaceNameRequired": "Por favor ingresa un nombre para tu espacio de trabajo",
+      "clinicNameRequired": "Por favor ingresa un nombre para tu clínica",
+      "createWorkspace": "Error creando workspace",
+      "genericTitle": "Error",
+      "genericDescription": "Hubo un problema al crear tu configuración"
+    },
+    "success": {
+      "title": "✅ ¡Configuración completada!",
+      "description": "Tu espacio de trabajo y clínica han sido creados exitosamente"
+    }
+  },
   "nav": {
     "home": "Inicio",
     "setup": "Configuración",
@@ -55,6 +120,9 @@
     "clinics": "Clínicas"
   },
   "home": {
+    "workspaceActive": "Espacio de Trabajo Activo",
+    "clinicActive": "Clínica Activa",
+    "noClinic": "Sin clínica seleccionada",
     "title": "Sistema de Gestión de Consultorio Dental",
     "subtitle": "Administra tu práctica eficientemente",
     "getStarted": "Comenzar",
@@ -304,6 +372,40 @@
     "formPurchaseDateLabel": "Fecha de compra (opcional)",
     "formCancelButton": "Cancelar",
     "formSaveButton": "Guardar"
+  },
+  "settings": {
+    "workspaces": {
+      "title": "Espacios de Trabajo",
+      "description": "Gestiona tus espacios de trabajo y configuración organizacional",
+      "create": "Crear Espacio de Trabajo",
+      "createFirst": "Crea tu primer espacio de trabajo",
+      "edit": "Editar Espacio de Trabajo",
+      "editDesc": "Actualizar información del espacio de trabajo",
+      "createDesc": "Agregar un nuevo espacio de trabajo a tu organización",
+      "empty": "No se encontraron espacios de trabajo",
+      "emptyDesc": "Crea tu primer espacio de trabajo para comenzar",
+      "name": "Nombre del Espacio de Trabajo",
+      "namePlaceholder": "ej., Grupo Dental García",
+      "slug": "Identificador Único",
+      "slugPlaceholder": "ej., garcia-dental",
+      "descriptionPlaceholder": "Breve descripción del espacio de trabajo",
+      "configured": "Configurado",
+      "pending": "Configuración Pendiente",
+      "updateSuccess": "Espacio de Trabajo Actualizado",
+      "updateSuccessDesc": "Cambios guardados exitosamente",
+      "createSuccess": "Espacio de Trabajo Creado",
+      "createSuccessDesc": "Nuevo espacio de trabajo agregado exitosamente",
+      "deleteSuccess": "Espacio de Trabajo Eliminado",
+      "deleteSuccessDesc": "Espacio de trabajo eliminado exitosamente",
+      "deleteConfirm": "¿Estás seguro de que quieres eliminar este espacio de trabajo?"
+    },
+    "clinics": {
+      "title": "Clínicas",
+      "description": "Gestiona las sucursales de clínicas",
+      "address": "Dirección",
+      "phone": "Teléfono",
+      "email": "Correo electrónico"
+    }
   },
   "validation": {
     "required": "Este campo es requerido",

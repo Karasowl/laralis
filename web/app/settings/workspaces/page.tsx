@@ -134,6 +134,13 @@ export default function WorkspacesPage() {
     if (!confirm(t('settings.workspaces.deleteConfirm'))) return;
 
     try {
+      // Primero eliminar todas las clínicas del workspace
+      await supabase
+        .from('clinics')
+        .delete()
+        .eq('workspace_id', id);
+      
+      // Luego eliminar el workspace
       const { error } = await supabase
         .from('workspaces')
         .delete()
@@ -146,7 +153,17 @@ export default function WorkspacesPage() {
         description: t('settings.workspaces.deleteSuccessDesc'),
       });
 
-      loadWorkspaces();
+      // Recargar workspaces
+      const { data: remainingWorkspaces } = await supabase
+        .from('workspaces')
+        .select('*');
+      
+      // Si no quedan workspaces, redirigir al onboarding
+      if (!remainingWorkspaces || remainingWorkspaces.length === 0) {
+        window.location.href = '/onboarding';
+      } else {
+        loadWorkspaces();
+      }
     } catch (error: any) {
       toast({
         title: 'Error',

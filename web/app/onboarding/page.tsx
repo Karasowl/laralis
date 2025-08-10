@@ -15,11 +15,12 @@ import {
   ChevronRight, 
   ChevronLeft,
   Check,
-  Sparkles,
+  Stars,
   Stethoscope,
   Calculator,
   TrendingUp
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 interface OnboardingStep {
   id: number;
@@ -31,6 +32,7 @@ interface OnboardingStep {
 export default function OnboardingPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const t = useTranslations('onboarding');
   const [currentStep, setCurrentStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   
@@ -50,38 +52,64 @@ export default function OnboardingPage() {
   const steps: OnboardingStep[] = [
     {
       id: 0,
-      title: '¡Bienvenido a Laralis! 🎉',
-      description: 'Sistema de gestión dental completo',
-      icon: <Sparkles className="h-8 w-8" />
+      title: t('welcomeTitle'),
+      description: t('welcomeSubtitle'),
+      icon: <Stars className="h-8 w-8" />
     },
     {
       id: 1,
-      title: 'Crea tu Espacio de Trabajo',
-      description: 'Como una marca en Metricool',
+      title: t('workspaceStep.title'),
+      description: t('workspaceStep.subtitle'),
       icon: <Building2 className="h-8 w-8" />
     },
     {
       id: 2,
-      title: 'Agrega tu Primera Clínica',
-      description: 'Puedes agregar más después',
+      title: t('clinicStep.title'),
+      description: t('clinicStep.subtitle'),
       icon: <Stethoscope className="h-8 w-8" />
     },
     {
       id: 3,
-      title: '¡Todo Listo! 🚀',
-      description: 'Comienza a configurar tu negocio',
+      title: t('doneStep.title'),
+      description: t('doneStep.subtitle'),
       icon: <Check className="h-8 w-8" />
     }
   ];
+
+  // Restaurar avances una vez montado (evita desajustes de hidratación)
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const saved = window.sessionStorage.getItem('onboarding.step');
+        if (saved !== null) {
+          const idx = Number.parseInt(saved, 10);
+          if (Number.isFinite(idx)) {
+            setCurrentStep(Math.max(0, Math.min(3, idx)));
+          }
+        }
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persistir avances
+
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem('onboarding.step', String(currentStep));
+      }
+    } catch {}
+  }, [currentStep]);
 
   const handleNext = async () => {
     if (currentStep === 1) {
       // Validar workspace
       if (!workspaceData.name) {
         toast({
-          title: "Campo requerido",
-          description: "Por favor ingresa un nombre para tu espacio de trabajo",
-          variant: "destructive"
+          title: t('errors.requiredTitle'),
+          description: t('errors.workspaceNameRequired'),
+          variant: 'destructive',
         });
         return;
       }
@@ -89,9 +117,9 @@ export default function OnboardingPage() {
       // Validar clínica
       if (!clinicData.name) {
         toast({
-          title: "Campo requerido",
-          description: "Por favor ingresa un nombre para tu clínica",
-          variant: "destructive"
+          title: t('errors.requiredTitle'),
+          description: t('errors.clinicNameRequired'),
+          variant: 'destructive',
         });
         return;
       }
@@ -126,41 +154,38 @@ export default function OnboardingPage() {
           workspaceName: workspaceData.name,
           workspaceSlug: slug,
           clinicName: clinicData.name,
-          clinicAddress: clinicData.address,
-          ownerEmail: ownerData.email
+          clinicAddress: clinicData.address
         })
       });
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Error creando workspace');
+        throw new Error(error.error || t('errors.createWorkspace'));
       }
 
       const result = await response.json();
 
       toast({
-        title: "✅ ¡Configuración completada!",
-        description: "Tu espacio de trabajo y clínica han sido creados exitosamente",
+        title: t('success.title'),
+        description: t('success.description'),
       });
 
-      // Redirigir al dashboard
-      setTimeout(() => {
-        router.push('/');
-      }, 1500);
+      // Forzar recarga completa para actualizar el contexto
+      window.location.href = '/';
 
     } catch (error: any) {
       console.error('Error en onboarding:', error);
       toast({
-        title: "Error",
-        description: error.message || "Hubo un problema al crear tu configuración",
-        variant: "destructive"
+        title: t('errors.genericTitle'),
+        description: error.message || t('errors.genericDescription'),
+        variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const progress = ((currentStep + 1) / steps.length) * 100;
+  const progress = Math.round(((currentStep + 1) / steps.length) * 100);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -183,29 +208,27 @@ export default function OnboardingPage() {
           {currentStep === 0 && (
             <div className="space-y-6">
               <div className="text-center space-y-4">
-                <p className="text-lg">
-                  Gestiona tu consultorio dental de manera profesional
-                </p>
+                <p className="text-lg">{t('welcomeBody')}</p>
                 <div className="grid grid-cols-2 gap-4 mt-6">
                   <FeatureCard
                     icon={<Calculator className="h-6 w-6" />}
-                    title="Cálculo Automático"
-                    description="Costos, márgenes y tarifas"
+                    title={t('features.calc.title')}
+                    description={t('features.calc.desc')}
                   />
                   <FeatureCard
                     icon={<Users className="h-6 w-6" />}
-                    title="Multi-Clínica"
-                    description="Gestiona varias sucursales"
+                    title={t('features.multi.title')}
+                    description={t('features.multi.desc')}
                   />
                   <FeatureCard
                     icon={<TrendingUp className="h-6 w-6" />}
-                    title="Reportes Detallados"
-                    description="Métricas y análisis"
+                    title={t('features.reports.title')}
+                    description={t('features.reports.desc')}
                   />
                   <FeatureCard
                     icon={<Settings className="h-6 w-6" />}
-                    title="Personalizable"
-                    description="Adapta a tu negocio"
+                    title={t('features.custom.title')}
+                    description={t('features.custom.desc')}
                   />
                 </div>
               </div>
@@ -216,30 +239,24 @@ export default function OnboardingPage() {
           {currentStep === 1 && (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="workspace-name">
-                  Nombre del Espacio de Trabajo *
-                </Label>
+                <Label htmlFor="workspace-name">{t('workspaceStep.nameLabel')}</Label>
                 <Input
                   id="workspace-name"
-                  placeholder="Ej: Clínicas Dentales García"
+                  placeholder={t('workspaceStep.namePlaceholder')}
                   value={workspaceData.name}
                   onChange={(e) => setWorkspaceData({
                     ...workspaceData,
                     name: e.target.value
                   })}
                 />
-                <p className="text-sm text-muted-foreground">
-                  Este es el nombre principal de tu organización
-                </p>
+                <p className="text-sm text-muted-foreground">{t('workspaceStep.nameHelp')}</p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="workspace-desc">
-                  Descripción (opcional)
-                </Label>
+                <Label htmlFor="workspace-desc">{t('workspaceStep.descLabel')}</Label>
                 <Input
                   id="workspace-desc"
-                  placeholder="Ej: Red de clínicas dentales especializadas"
+                  placeholder={t('workspaceStep.descPlaceholder')}
                   value={workspaceData.description}
                   onChange={(e) => setWorkspaceData({
                     ...workspaceData,
@@ -250,8 +267,7 @@ export default function OnboardingPage() {
 
               <div className="bg-blue-50 p-4 rounded-lg">
                 <p className="text-sm text-blue-800">
-                  💡 <strong>Tip:</strong> Un espacio de trabajo puede contener múltiples clínicas.
-                  Es como una "marca" que agrupa todas tus sucursales.
+                  💡 <strong>{t('tips.title')}</strong> {t('tips.workspaceMulti')}
                 </p>
               </div>
             </div>
@@ -261,12 +277,10 @@ export default function OnboardingPage() {
           {currentStep === 2 && (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="clinic-name">
-                  Nombre de la Clínica *
-                </Label>
+                <Label htmlFor="clinic-name">{t('clinicStep.nameLabel')}</Label>
                 <Input
                   id="clinic-name"
-                  placeholder="Ej: Sucursal Centro"
+                  placeholder={t('clinicStep.namePlaceholder')}
                   value={clinicData.name}
                   onChange={(e) => setClinicData({
                     ...clinicData,
@@ -276,12 +290,10 @@ export default function OnboardingPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="clinic-address">
-                  Dirección
-                </Label>
+                <Label htmlFor="clinic-address">{t('clinicStep.addressLabel')}</Label>
                 <Input
                   id="clinic-address"
-                  placeholder="Ej: Av. Principal 123"
+                  placeholder={t('clinicStep.addressPlaceholder')}
                   value={clinicData.address}
                   onChange={(e) => setClinicData({
                     ...clinicData,
@@ -293,11 +305,11 @@ export default function OnboardingPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="clinic-phone">
-                    Teléfono
+                    {t('clinicStep.phoneLabel')}
                   </Label>
                   <Input
                     id="clinic-phone"
-                    placeholder="Ej: +52 555 1234567"
+                    placeholder={t('clinicStep.phonePlaceholder')}
                     value={clinicData.phone}
                     onChange={(e) => setClinicData({
                       ...clinicData,
@@ -313,7 +325,7 @@ export default function OnboardingPage() {
                   <Input
                     id="clinic-email"
                     type="email"
-                    placeholder="contacto@clinica.com"
+                    placeholder={t('clinicStep.emailPlaceholder')}
                     value={clinicData.email}
                     onChange={(e) => setClinicData({
                       ...clinicData,
@@ -325,7 +337,7 @@ export default function OnboardingPage() {
 
               <div className="bg-green-50 p-4 rounded-lg">
                 <p className="text-sm text-green-800">
-                  💡 <strong>Nota:</strong> Podrás agregar más clínicas después desde el panel de configuración.
+                  💡 <strong>{t('notes.title')}</strong> {t('notes.addMoreClinics')}
                 </p>
               </div>
             </div>
@@ -342,12 +354,8 @@ export default function OnboardingPage() {
                 </div>
                 
                 <div>
-                  <h3 className="text-lg font-semibold">
-                    ¡Configuración Inicial Completada!
-                  </h3>
-                  <p className="text-muted-foreground mt-2">
-                    Has creado:
-                  </p>
+                  <h3 className="text-lg font-semibold">{t('doneStep.doneHeadline')}</h3>
+                  <p className="text-muted-foreground mt-2">{t('doneStep.created')}</p>
                 </div>
 
                 <div className="bg-gray-50 rounded-lg p-4 text-left space-y-2">
@@ -362,13 +370,13 @@ export default function OnboardingPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <p className="font-medium">Próximos pasos:</p>
+                  <p className="font-medium">{t('doneStep.nextSteps')}</p>
                   <ul className="text-sm text-muted-foreground space-y-1">
-                    <li>✓ Configurar tiempo de trabajo</li>
-                    <li>✓ Agregar costos fijos</li>
-                    <li>✓ Cargar insumos</li>
-                    <li>✓ Crear servicios</li>
-                    <li>✓ Definir tarifario</li>
+                    <li>✓ {t('doneStep.todo.time')}</li>
+                    <li>✓ {t('doneStep.todo.fixed')}</li>
+                    <li>✓ {t('doneStep.todo.supplies')}</li>
+                    <li>✓ {t('doneStep.todo.services')}</li>
+                    <li>✓ {t('doneStep.todo.tariffs')}</li>
                   </ul>
                 </div>
               </div>
@@ -383,12 +391,12 @@ export default function OnboardingPage() {
               disabled={currentStep === 0}
             >
               <ChevronLeft className="h-4 w-4 mr-2" />
-              Anterior
+              {t('actions.prev')}
             </Button>
 
             {currentStep < steps.length - 1 ? (
               <Button onClick={handleNext}>
-                Siguiente
+                {t('actions.next')}
                 <ChevronRight className="h-4 w-4 ml-2" />
               </Button>
             ) : (
@@ -398,10 +406,10 @@ export default function OnboardingPage() {
                 className="bg-green-600 hover:bg-green-700"
               >
                 {isLoading ? (
-                  <>Creando...</>
+                  <>{t('actions.creating')}</>
                 ) : (
                   <>
-                    Comenzar
+                    {t('actions.start')}
                     <ChevronRight className="h-4 w-4 ml-2" />
                   </>
                 )}

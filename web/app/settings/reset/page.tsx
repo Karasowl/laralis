@@ -182,13 +182,20 @@ export default function ResetPage() {
       });
     }
     
-    // Limpiar selección después de completar
-    setTimeout(() => {
-      setSelectedOptions([]);
-      setResetStatus({});
-      setConfirmText('');
-      fetchDataStatus(); // Actualizar el estado
-    }, 3000);
+    // Si se borró todo, redirigir al onboarding
+    if (selectedOptions.includes('all_data') && successCount > 0) {
+      setTimeout(() => {
+        window.location.href = '/onboarding';
+      }, 2000);
+    } else {
+      // Limpiar selección después de completar
+      setTimeout(() => {
+        setSelectedOptions([]);
+        setResetStatus({});
+        setConfirmText('');
+        fetchDataStatus(); // Actualizar el estado
+      }, 3000);
+    }
   };
 
   // Función helper para obtener el label de la opción
