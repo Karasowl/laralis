@@ -8,18 +8,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Calculator, Settings, Users, FileText, TrendingUp, Clock, Building2, Building } from 'lucide-react';
 import { useWorkspace } from '@/contexts/workspace-context';
-import { createClient } from '@/lib/supabase';
 
 export default function HomePage() {
   const t = useTranslations();
   const router = useRouter();
   const { workspace, currentClinic, workspaces, clinics, loading: contextLoading } = useWorkspace();
   const [redirecting, setRedirecting] = useState(false);
-  const supabase = createClient();
 
   useEffect(() => {
-    // Si no hay workspaces y no estamos cargando, redirigir a onboarding
-    if (!contextLoading && workspaces.length === 0 && !redirecting) {
+    // Si no hay workspaces "completados" o ninguno en absoluto, redirigir a onboarding
+    if (
+      !contextLoading &&
+      !redirecting &&
+      (workspaces.length === 0 || workspaces.every((w: any) => !w.onboarding_completed))
+    ) {
       setRedirecting(true);
       router.push('/onboarding');
     }

@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { createSupabaseClient } from '@/lib/supabase';
-import { Plus, Edit2, Trash2, Building2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, Building2, Search } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -38,6 +38,7 @@ export default function WorkspacesPage() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingWorkspace, setEditingWorkspace] = useState<Workspace | null>(null);
+  const [search, setSearch] = useState('');
   
   const [formData, setFormData] = useState({
     name: '',
@@ -171,15 +172,35 @@ export default function WorkspacesPage() {
     setDialogOpen(true);
   };
 
+  const filteredWorkspaces = workspaces.filter((ws) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      ws.name.toLowerCase().includes(q) ||
+      ws.slug.toLowerCase().includes(q) ||
+      (ws.description || '').toLowerCase().includes(q)
+    );
+  });
+
   return (
-    <div className="container mx-auto p-6 max-w-6xl">
+    <div className="container mx-auto p-6 md:py-8 max-w-7xl">
       <PageHeader
         title={t('settings.workspaces.title')}
         description={t('settings.workspaces.description')}
       />
 
-      <div className="mb-6">
-        <Button onClick={openCreateDialog}>
+      <div className="mt-2 mb-8 flex flex-col-reverse sm:flex-row gap-4 sm:items-center sm:justify-between">
+        <div className="relative w-full sm:w-80 md:w-96">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t('common.search')}
+            className="pl-10 h-11"
+            aria-label={t('common.search')}
+          />
+        </div>
+        <Button onClick={openCreateDialog} className="h-11 px-4 self-end sm:self-auto">
           <Plus className="h-4 w-4 mr-2" />
           {t('settings.workspaces.create')}
         </Button>
@@ -195,42 +216,49 @@ export default function WorkspacesPage() {
             </Card>
           ))}
         </div>
-      ) : workspaces.length === 0 ? (
+      ) : filteredWorkspaces.length === 0 ? (
         <Card className="p-12 text-center">
           <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">
-            {t('settings.workspaces.empty')}
+            {search ? t('common.noData') : t('settings.workspaces.empty')}
           </h3>
           <p className="text-gray-500 mb-4">
-            {t('settings.workspaces.emptyDesc')}
+            {search ? '' : t('settings.workspaces.emptyDesc')}
           </p>
-          <Button onClick={openCreateDialog}>
+          {!search && (
+          <Button onClick={openCreateDialog} className="h-11">
             <Plus className="h-4 w-4 mr-2" />
             {t('settings.workspaces.createFirst')}
           </Button>
+          )}
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {workspaces.map((workspace) => (
-            <Card key={workspace.id} className="p-6">
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex-1">
-                  <h3 className="font-semibold text-lg">{workspace.name}</h3>
-                  <p className="text-sm text-gray-500 mt-1">
-                    {workspace.slug}
-                  </p>
+        <div className="grid gap-7 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {filteredWorkspaces.map((workspace) => (
+            <Card
+              key={workspace.id}
+              className="p-6 lg:p-7 rounded-2xl border bg-card shadow-sm hover:shadow-md transition-shadow min-h-[152px]"
+            >
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-base truncate leading-6">{workspace.name}</h3>
+                  <p className="text-xs text-muted-foreground mt-1 truncate">{workspace.slug}</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-1 shrink-0">
                   <Button
-                    size="sm"
+                    size="icon"
                     variant="ghost"
+                    className="h-9 w-9"
+                    aria-label={t('common.edit')}
                     onClick={() => openEditDialog(workspace)}
                   >
                     <Edit2 className="h-4 w-4" />
                   </Button>
                   <Button
-                    size="sm"
+                    size="icon"
                     variant="ghost"
+                    className="h-9 w-9"
+                    aria-label={t('common.delete')}
                     onClick={() => handleDelete(workspace.id)}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -238,17 +266,21 @@ export default function WorkspacesPage() {
                 </div>
               </div>
               {workspace.description && (
-                <p className="text-sm text-gray-600 mb-4">
-                  {workspace.description}
-                </p>
+                <p className="text-sm text-muted-foreground mb-5 line-clamp-2">{workspace.description}</p>
               )}
-              <div className="flex items-center justify-between text-xs text-gray-500">
-                <span>
+              <div className="flex items-center justify-between">
+                <span
+                  className={
+                    workspace.onboarding_completed
+                      ? 'inline-flex items-center rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700'
+                      : 'inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700'
+                  }
+                >
                   {workspace.onboarding_completed
                     ? t('settings.workspaces.configured')
                     : t('settings.workspaces.pending')}
                 </span>
-                <span>
+                <span className="text-xs text-muted-foreground">
                   {new Date(workspace.created_at).toLocaleDateString()}
                 </span>
               </div>
