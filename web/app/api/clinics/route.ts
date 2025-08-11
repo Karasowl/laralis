@@ -3,12 +3,66 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { ApiResponse, Clinic } from '@/lib/types';
 import { cookies } from 'next/headers';
 import { setClinicIdCookie } from '@/lib/clinic';
+import { createServerClient } from '@supabase/ssr';
 
 export async function GET() {
   try {
+    const cookieStore = cookies();
+    
+    // Crear cliente de Supabase para el servidor con el usuario autenticado
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options);
+            });
+          },
+        },
+      }
+    );
+    
+    // Obtener el usuario autenticado
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return NextResponse.json<ApiResponse<Clinic[]>>({
+        error: 'Unauthorized',
+        message: 'User not authenticated'
+      }, { status: 401 });
+    }
+    
+    // Primero obtener los workspaces del usuario
+    const { data: workspaces, error: wsError } = await supabaseAdmin
+      .from('workspaces')
+      .select('id')
+      .eq('owner_id', user.id);
+      
+    if (wsError) {
+      console.error('Error fetching workspaces:', wsError);
+      return NextResponse.json<ApiResponse<Clinic[]>>({
+        error: 'Failed to fetch workspaces',
+        message: wsError.message
+      }, { status: 500 });
+    }
+    
+    if (!workspaces || workspaces.length === 0) {
+      return NextResponse.json<ApiResponse<Clinic[]>>({
+        data: []
+      });
+    }
+    
+    // Obtener solo las clínicas de los workspaces del usuario
+    const workspaceIds = workspaces.map(w => w.id);
     const { data, error } = await supabaseAdmin
       .from('clinics')
       .select('*')
+      .in('workspace_id', workspaceIds)
       .order('name', { ascending: true });
 
     if (error) {

@@ -214,7 +214,7 @@ export default function ServicesPage() {
     setEditingService(service);
     setValue('name', service.name);
     setValue('category', service.category as any);
-    setValue('duration_minutes', service.duration_minutes);
+    setValue('est_minutes', service.duration_minutes);
     setValue('description', service.description || '');
     setIsOpen(true);
   };
@@ -402,7 +402,7 @@ export default function ServicesPage() {
                         {/* Categorías del sistema */}
                         {categories.filter(c => c.is_system).length > 0 && (
                           <>
-                            <SelectItem value="" disabled>
+                            <SelectItem value="_placeholder" disabled>
                               <strong>{t('services.systemCategories')}</strong>
                             </SelectItem>
                             {categories
@@ -418,7 +418,7 @@ export default function ServicesPage() {
                         {/* Categorías personalizadas */}
                         {categories.filter(c => !c.is_system).length > 0 && (
                           <>
-                            <SelectItem value="" disabled>
+                            <SelectItem value="_placeholder" disabled>
                               <strong>{t('services.customCategories')}</strong>
                             </SelectItem>
                             {categories
@@ -440,10 +440,10 @@ export default function ServicesPage() {
                     <Input 
                       id="duration"
                       type="number"
-                      {...register('duration_minutes', { valueAsNumber: true })}
+                      {...register('est_minutes', { valueAsNumber: true })}
                       placeholder="60"
                     />
-                    {errors.duration_minutes && <p className="text-sm text-red-500">{errors.duration_minutes.message}</p>}
+                    {errors.est_minutes && <p className="text-sm text-red-500">{errors.est_minutes.message}</p>}
                   </div>
 
                   <div>
@@ -572,7 +572,7 @@ export default function ServicesPage() {
                           </SelectItem>
                         ))
                     ) : (
-                      <SelectItem value="" disabled>
+                      <SelectItem value="_placeholder" disabled>
                         {t('services.noSuppliesAvailable')}
                       </SelectItem>
                     )}

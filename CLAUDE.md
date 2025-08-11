@@ -280,6 +280,10 @@ Risks and rollback, Follow ups with TASK ids.
 
 \- No modifiques el archivo .env.local
 
+\## Supabase
+
+\- If you need me to do anything in Supabase, just tell me what to do, guide me, create the modification script or whatever needs to be done, and tell me which reference to use to know which one it is so I can copy and paste it and run it in Supabase and give you the errors if they appear.
+
 
 
 

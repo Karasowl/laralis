@@ -92,6 +92,9 @@ export type FixedCostCategory =
   | 'salaries' 
   | 'equipment' 
   | 'insurance' 
+  | 'maintenance'
+  | 'education'
+  | 'advertising'
   | 'other';
 
 // Supply categories

@@ -1,16 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { supabaseAdmin } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 // POST /api/reset - Limpiar datos según el tipo
 export async function POST(request: NextRequest) {
   try {
     const cookieStore = cookies();
-    const clinicId = cookieStore.get('clinicId')?.value;
-
-    if (!clinicId) {
+    const workspaceId = cookieStore.get('workspaceId')?.value;
+    
+    // Si no hay workspace en cookies, buscar cualquier workspace activo
+    let activeWorkspaceId = workspaceId;
+    let clinicId: string | null = null;
+    
+    if (!activeWorkspaceId) {
+      const { data: workspaces } = await supabaseAdmin
+        .from('workspaces')
+        .select('id')
+        .limit(1)
+        .single();
+      
+      if (workspaces) {
+        activeWorkspaceId = workspaces.id;
+      }
+    }
+    
+    // Obtener la primera clínica del workspace
+    if (activeWorkspaceId) {
+      const { data: clinic } = await supabaseAdmin
+        .from('clinics')
+        .select('id')
+        .eq('workspace_id', activeWorkspaceId)
+        .limit(1)
+        .single();
+      
+      if (clinic) {
+        clinicId = clinic.id;
+      }
+    }
+    
+    if (!clinicId && !activeWorkspaceId) {
       return NextResponse.json(
-        { error: 'No clinic selected' },
+        { error: 'No workspace or clinic found' },
         { status: 400 }
       );
     }
@@ -114,84 +144,73 @@ export async function POST(request: NextRequest) {
       case 'all_data':
         // Eliminar TODO incluyendo workspaces y clínicas
         
-        // Obtener workspace_id desde la clínica
-        const { data: clinicData } = await supabaseAdmin
-          .from('clinics')
-          .select('workspace_id')
-          .eq('id', clinicId)
-          .single();
+        // Usar el workspace_id que ya tenemos
+        const workspaceToDelete = activeWorkspaceId;
         
-        const workspaceId = clinicData?.workspace_id;
-        
-        // 1. Service supplies (relaciones)
-        await supabaseAdmin
-          .from('service_supplies')
-          .delete()
-          .eq('clinic_id', clinicId);
+        if (workspaceToDelete) {
+          // Obtener todas las clínicas del workspace
+          const { data: allClinics } = await supabaseAdmin
+            .from('clinics')
+            .select('id')
+            .eq('workspace_id', workspaceToDelete);
+          
+          const clinicIds = allClinics?.map(c => c.id) || [];
+          
+          // Borrar datos de todas las clínicas
+          if (clinicIds.length > 0) {
+            // 1. Service supplies (relaciones)
+            await supabaseAdmin
+              .from('service_supplies')
+              .delete()
+              .in('clinic_id', clinicIds);
 
-        // 2. Services
-        await supabaseAdmin
-          .from('services')
-          .delete()
-          .eq('clinic_id', clinicId);
+            // 2. Services
+            await supabaseAdmin
+              .from('services')
+              .delete()
+              .in('clinic_id', clinicIds);
 
-        // 3. Supplies
-        await supabaseAdmin
-          .from('supplies')
-          .delete()
-          .eq('clinic_id', clinicId);
+            // 3. Supplies
+            await supabaseAdmin
+              .from('supplies')
+              .delete()
+              .in('clinic_id', clinicIds);
 
-        // 4. Fixed costs
-        await supabaseAdmin
-          .from('fixed_costs')
-          .delete()
-          .eq('clinic_id', clinicId);
+            // 4. Fixed costs
+            await supabaseAdmin
+              .from('fixed_costs')
+              .delete()
+              .in('clinic_id', clinicIds);
 
-        // 5. Assets
-        await supabaseAdmin
-          .from('assets')
-          .delete()
-          .eq('clinic_id', clinicId);
+            // 5. Assets
+            await supabaseAdmin
+              .from('assets')
+              .delete()
+              .in('clinic_id', clinicIds);
 
-        // 6. Settings time
-        await supabaseAdmin
-          .from('settings_time')
-          .delete()
-          .eq('clinic_id', clinicId);
+            // 6. Settings time
+            await supabaseAdmin
+              .from('settings_time')
+              .delete()
+              .in('clinic_id', clinicIds);
+          }
+        }
 
         // 7. Eliminar todas las clínicas del workspace
-        if (workspaceId) {
+        if (workspaceToDelete) {
           await supabaseAdmin
             .from('clinics')
             .delete()
-            .eq('workspace_id', workspaceId);
+            .eq('workspace_id', workspaceToDelete);
           
           // 8. Eliminar el workspace
           await supabaseAdmin
             .from('workspaces')
             .delete()
-            .eq('id', workspaceId);
+            .eq('id', workspaceToDelete);
         }
 
-        // 9. Custom categories
-        await supabaseAdmin
-          .from('categories')
-          .delete()
-          .eq('clinic_id', clinicId)
-          .eq('is_system', false);
-
-        // 7. Reset time settings
-        await supabaseAdmin
-          .from('settings_time')
-          .upsert({
-            clinic_id: clinicId,
-            working_days_per_month: 20,
-            hours_per_day: 8,
-            real_hours_percentage: 80,
-            updated_at: new Date().toISOString()
-          });
-
-        result.message = 'Todos los datos eliminados';
+        result.message = 'Todos los datos eliminados exitosamente';
         break;
 
       default:

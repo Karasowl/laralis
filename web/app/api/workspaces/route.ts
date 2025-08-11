@@ -1,18 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = cookies();
+    
+    // Crear cliente de Supabase para el servidor
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options);
+            });
+          },
+        },
+      }
+    );
+
+    // Verificar autenticación
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const workspaceId = cookieStore.get('workspaceId')?.value;
 
     if (workspaceId) {
-      // Verificar que el workspace existe
+      // Verificar que el workspace existe y pertenece al usuario
       const { data: workspace, error } = await supabaseAdmin
         .from('workspaces')
         .select('*')
         .eq('id', workspaceId)
+        .eq('owner_id', user.id)
         .single();
 
       if (!error && workspace) {
@@ -20,10 +51,11 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Buscar cualquier workspace existente
+    // Buscar workspaces del usuario
     const { data: workspaces, error } = await supabaseAdmin
       .from('workspaces')
       .select('*')
+      .eq('owner_id', user.id)
       .order('created_at', { ascending: true })
       .limit(1);
 
@@ -59,10 +91,40 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { workspaceName, workspaceSlug, clinicName, clinicAddress, ownerEmail } = body;
+    const cookieStore = cookies();
+    
+    // Crear cliente de Supabase para el servidor
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options);
+            });
+          },
+        },
+      }
+    );
 
-    console.log('Creating workspace with data:', { workspaceName, workspaceSlug, clinicName });
+    // Verificar autenticación
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    const { workspaceName, workspaceSlug, clinicName, clinicAddress } = body;
+
+    console.log('Creating workspace with data:', { workspaceName, workspaceSlug, clinicName, userId: user.id });
 
     // Validar datos requeridos
     if (!workspaceName || !workspaceSlug || !clinicName) {
@@ -72,13 +134,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Crear el workspace
+    // Crear el workspace asociado al usuario autenticado
     const { data: workspace, error: workspaceError } = await supabaseAdmin
       .from('workspaces')
       .insert({
         name: workspaceName,
         slug: workspaceSlug,
         description: `Workspace de ${workspaceName}`,
+        owner_id: user.id,
         onboarding_completed: true,
         onboarding_step: 3
       })
@@ -133,16 +196,14 @@ export async function POST(request: NextRequest) {
       .from('workspace_members')
       .insert({
         workspace_id: workspace.id,
-        user_id: workspace.id, // Temporal, usar workspace.id como user_id
-        email: ownerEmail || 'owner@example.com',
-        display_name: 'Propietario',
+        user_id: user.id,
         role: 'owner',
-        invitation_status: 'accepted',
-        accepted_at: new Date().toISOString()
+        clinic_ids: []
       });
 
     if (memberError) {
       console.error('Error creating workspace member:', memberError);
+      // No es crítico, continuamos ya que owner_id en workspaces es suficiente
     }
 
     // Establecer cookies para workspace y clinic

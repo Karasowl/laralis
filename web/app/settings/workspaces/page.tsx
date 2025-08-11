@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { createSupabaseClient } from '@/lib/supabase';
+import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { Plus, Edit2, Trash2, Building2, Search } from 'lucide-react';
 import {
   Dialog,
@@ -46,19 +46,36 @@ export default function WorkspacesPage() {
     description: '',
   });
 
-  const supabase = createSupabaseClient();
+  const supabase = createSupabaseBrowserClient();
 
   const loadWorkspaces = async () => {
     try {
       setLoading(true);
+      
+      // Primero obtener el usuario autenticado
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: 'Error',
+          description: 'No se encontró usuario autenticado',
+          variant: 'destructive',
+        });
+        setLoading(false);
+        return;
+      }
+      
+      // Cargar solo los workspaces del usuario actual
       const { data, error } = await supabase
         .from('workspaces')
         .select('*')
+        .eq('owner_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       setWorkspaces(data || []);
     } catch (error: any) {
+      console.error('Error loading workspaces:', error);
       toast({
         title: 'Error',
         description: error.message,
@@ -82,6 +99,18 @@ export default function WorkspacesPage() {
 
   const handleSubmit = async () => {
     try {
+      // Obtener el usuario actual
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: 'Error',
+          description: 'No se encontró usuario autenticado',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
       if (editingWorkspace) {
         const { error } = await supabase
           .from('workspaces')
@@ -90,7 +119,8 @@ export default function WorkspacesPage() {
             description: formData.description,
             updated_at: new Date().toISOString(),
           })
-          .eq('id', editingWorkspace.id);
+          .eq('id', editingWorkspace.id)
+          .eq('owner_id', user.id); // Asegurar que solo edite sus propios workspaces
 
         if (error) throw error;
 
@@ -105,6 +135,7 @@ export default function WorkspacesPage() {
             name: formData.name,
             slug: formData.slug || generateSlug(formData.name),
             description: formData.description,
+            owner_id: user.id,
             onboarding_completed: false,
             onboarding_step: 0,
           });

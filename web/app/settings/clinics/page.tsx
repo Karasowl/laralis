@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { createSupabaseClient } from '@/lib/supabase';
+import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { Plus, Edit2, Trash2, Building, MapPin, Phone, Mail } from 'lucide-react';
 import { useWorkspace } from '@/contexts/workspace-context';
 import {
@@ -57,18 +57,53 @@ export default function ClinicsPage() {
     workspace_id: '',
   });
 
-  const supabase = createSupabaseClient();
+  const supabase = createSupabaseBrowserClient();
 
   const loadClinics = async () => {
     try {
       setLoading(true);
+      
+      // Primero obtener el usuario autenticado
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: 'Error',
+          description: 'No se encontró usuario autenticado',
+          variant: 'destructive',
+        });
+        setLoading(false);
+        return;
+      }
+      
+      // Obtener los workspaces del usuario
+      const { data: userWorkspaces, error: wsError } = await supabase
+        .from('workspaces')
+        .select('id')
+        .eq('owner_id', user.id);
+        
+      if (wsError) throw wsError;
+      
+      if (!userWorkspaces || userWorkspaces.length === 0) {
+        setClinics([]);
+        setLoading(false);
+        return;
+      }
+      
+      // Obtener las clínicas de los workspaces del usuario
+      const workspaceIds = userWorkspaces.map(ws => ws.id);
       let query = supabase
         .from('clinics')
         .select('*')
+        .in('workspace_id', workspaceIds)
         .order('name');
 
-      if (selectedWorkspaceId) {
-        query = query.eq('workspace_id', selectedWorkspaceId);
+      if (selectedWorkspaceId && workspaceIds.includes(selectedWorkspaceId)) {
+        query = supabase
+          .from('clinics')
+          .select('*')
+          .eq('workspace_id', selectedWorkspaceId)
+          .order('name');
       }
 
       const { data, error } = await query;
@@ -76,6 +111,7 @@ export default function ClinicsPage() {
       if (error) throw error;
       setClinics(data || []);
     } catch (error: any) {
+      console.error('Error loading clinics:', error);
       toast({
         title: 'Error',
         description: error.message,
