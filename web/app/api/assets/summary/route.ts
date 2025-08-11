@@ -5,7 +5,12 @@ import { cookies } from 'next/headers';
 import { getClinicIdOrDefault } from '@/lib/clinic';
 import { calculateMonthlyDepreciation } from '@/lib/calc/depreciacion';
 
-export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<{ monthly_depreciation_cents: number }>>> {
+export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<{
+  monthly_depreciation_cents: number;
+  total_investment_cents: number;
+  asset_count: number;
+  average_depreciation_months: number;
+}>>> {
   try {
     const cookieStore = cookies();
     const searchParams = request.nextUrl.searchParams;
@@ -31,15 +36,33 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
       );
     }
 
-    const monthly_depreciation_cents = (data || []).reduce((sum, a) => {
+    const assets = data || [];
+    
+    // Calculate all summary metrics
+    const total_investment_cents = assets.reduce((sum, a) => sum + a.purchase_price_cents, 0);
+    
+    const monthly_depreciation_cents = assets.reduce((sum, a) => {
       try {
         return sum + calculateMonthlyDepreciation(a.purchase_price_cents, a.depreciation_months);
       } catch {
         return sum; // ignore invalid rows gracefully
       }
     }, 0);
+    
+    const asset_count = assets.length;
+    
+    const average_depreciation_months = asset_count > 0 
+      ? Math.round(assets.reduce((sum, a) => sum + (a.depreciation_months || 0), 0) / asset_count)
+      : 0;
 
-    return NextResponse.json({ data: { monthly_depreciation_cents } });
+    return NextResponse.json({ 
+      data: { 
+        monthly_depreciation_cents,
+        total_investment_cents,
+        asset_count,
+        average_depreciation_months
+      } 
+    });
   } catch (error) {
     console.error('Unexpected error in GET /api/assets/summary:', error);
     return NextResponse.json(

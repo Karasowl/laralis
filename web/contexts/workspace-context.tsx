@@ -1,8 +1,9 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { getSupabaseBrowserClient } from '@/lib/supabase';
+import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { useRouter, usePathname } from 'next/navigation';
+import type { User } from '@supabase/supabase-js';
 
 interface Workspace {
   id: string;
@@ -26,6 +27,7 @@ interface Clinic {
 }
 
 interface WorkspaceContextType {
+  user: User | null;
   workspace: Workspace | null;
   workspaces: Workspace[];
   currentClinic: Clinic | null;
@@ -36,9 +38,11 @@ interface WorkspaceContextType {
   setCurrentClinic: (clinic: Clinic) => void;
   refreshWorkspaces: () => Promise<void>;
   refreshClinics: () => Promise<void>;
+  signOut: () => Promise<void>;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextType>({
+  user: null,
   workspace: null,
   workspaces: [],
   currentClinic: null,
@@ -49,9 +53,11 @@ const WorkspaceContext = createContext<WorkspaceContextType>({
   setCurrentClinic: () => {},
   refreshWorkspaces: async () => {},
   refreshClinics: async () => {},
+  signOut: async () => {},
 });
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [currentClinic, setCurrentClinic] = useState<Clinic | null>(null);
@@ -61,23 +67,60 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Reutilizar un singleton del cliente en browser para evitar múltiples GoTrueClient
-  const [supabase] = useState(() => getSupabaseBrowserClient());
+  // Crear cliente de Supabase para el browser
+  const supabase = createSupabaseBrowserClient();
+
+  const signOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      // Limpiar estado local
+      setUser(null);
+      setWorkspace(null);
+      setWorkspaces([]);
+      setCurrentClinic(null);
+      setClinics([]);
+      
+      // Limpiar almacenamiento local
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // Forzar recarga completa para limpiar todo el estado
+      window.location.href = '/auth/login';
+    } catch (err: any) {
+      console.error('Error al cerrar sesión:', err);
+      // Incluso si hay error, intentar limpiar y redirigir
+      localStorage.clear();
+      sessionStorage.clear();
+      window.location.href = '/auth/login';
+    }
+  };
 
   const refreshWorkspaces = async () => {
+    if (!user) {
+      setWorkspaces([]);
+      setLoading(false);
+      return;
+    }
+    
     try {
-      setLoading(true);
       const { data, error } = await supabase
         .from('workspaces')
         .select('*')
+        .eq('owner_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
       setWorkspaces(data || []);
       
-      // Si no hay workspaces y no estamos en onboarding, redirigir
-      if ((!data || data.length === 0) && !pathname?.includes('/onboarding')) {
+      // Si no hay workspaces y no estamos en onboarding o auth, redirigir
+      const isProtectedRoute = !pathname?.includes('/onboarding') && 
+                               !pathname?.includes('/auth') && 
+                               !pathname?.includes('/test-auth');
+      
+      if ((!data || data.length === 0) && isProtectedRoute) {
         router.push('/onboarding');
         return;
       }
@@ -87,6 +130,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setWorkspace(data[0]);
       }
     } catch (err: any) {
+      console.error('Error refreshing workspaces:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -120,14 +164,69 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Manejar autenticación
   useEffect(() => {
-    refreshWorkspaces();
-  }, []);
+    let mounted = true;
+    
+    // Obtener usuario inicial
+    const initAuth = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (mounted) {
+          setUser(user);
+          if (!user) {
+            setLoading(false);
+          }
+        }
+      } catch (error) {
+        console.error('Error getting user:', error);
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+    
+    initAuth();
+
+    // Escuchar cambios de autenticación
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (mounted) {
+          setUser(session?.user ?? null);
+          
+          if (event === 'SIGNED_OUT') {
+            setWorkspace(null);
+            setWorkspaces([]);
+            setCurrentClinic(null);
+            setClinics([]);
+            setLoading(false);
+          } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            // Cuando el usuario se autentica, esperar a que se carguen los workspaces
+            // antes de cambiar el estado de loading
+          }
+        }
+      }
+    );
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  // Cargar workspaces cuando el usuario cambie
+  useEffect(() => {
+    if (user) {
+      refreshWorkspaces();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   useEffect(() => {
     if (workspace) {
       refreshClinics();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspace]);
 
   // Guardar selección en localStorage
@@ -146,6 +245,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   return (
     <WorkspaceContext.Provider
       value={{
+        user,
         workspace,
         workspaces,
         currentClinic,
@@ -156,6 +256,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setCurrentClinic,
         refreshWorkspaces,
         refreshClinics,
+        signOut,
       }}
     >
       {children}

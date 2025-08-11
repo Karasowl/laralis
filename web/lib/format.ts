@@ -12,12 +12,13 @@ export function formatCurrency(
   const pesos = cents / 100;
   const localeCode = locale === 'es' ? 'es-MX' : 'en-US';
   
-  return new Intl.NumberFormat(localeCode, {
-    style: 'currency',
-    currency: 'MXN',
+  // Format as a decimal number with $ prefix (no currency code)
+  const formatted = new Intl.NumberFormat(localeCode, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(pesos);
+  
+  return `$${formatted}`;
 }
 
 /**
@@ -48,6 +49,23 @@ export function formatPercentage(
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   }).format(decimal);
+}
+
+/**
+ * Formats a date string or Date object
+ */
+export function formatDate(
+  date: string | Date,
+  locale: 'en' | 'es' = 'es'
+): string {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  const localeCode = locale === 'es' ? 'es-MX' : 'en-US';
+  
+  return new Intl.DateTimeFormat(localeCode, {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  }).format(dateObj);
 }
 
 /**

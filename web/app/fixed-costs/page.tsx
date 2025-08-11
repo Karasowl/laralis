@@ -20,10 +20,12 @@ import { pesosToCents } from '@/lib/money';
 
 const categories: { value: FixedCostCategory; key: string }[] = [
   { value: 'rent', key: 'rent' },
-  { value: 'salaries', key: 'salaries' },
   { value: 'utilities', key: 'utilities' },
+  { value: 'salaries', key: 'salaries' },
   { value: 'insurance', key: 'insurance' },
-  { value: 'equipment', key: 'equipment' },
+  { value: 'maintenance', key: 'maintenance' },
+  { value: 'education', key: 'education' },
+  { value: 'advertising', key: 'advertising' },
   { value: 'other', key: 'other' },
 ];
 
@@ -37,6 +39,7 @@ export default function FixedCostsPage() {
   const t = useTranslations();
   const locale = useLocale();
   const [costs, setCosts] = useState<FixedCost[]>([]);
+  const [assetsDepreciation, setAssetsDepreciation] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -59,6 +62,7 @@ export default function FixedCostsPage() {
 
   useEffect(() => {
     loadCosts();
+    loadAssetsDepreciation();
   }, []);
 
   const loadCosts = async () => {
@@ -75,6 +79,20 @@ export default function FixedCostsPage() {
       console.error('Error loading fixed costs:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAssetsDepreciation = async () => {
+    try {
+      const response = await fetch('/api/assets/summary');
+      if (response.ok) {
+        const data = await response.json();
+        setAssetsDepreciation(data.data?.monthly_depreciation_cents || 0);
+      } else {
+        console.error('Failed to load assets depreciation');
+      }
+    } catch (error) {
+      console.error('Error loading assets depreciation:', error);
     }
   };
 
@@ -185,7 +203,8 @@ export default function FixedCostsPage() {
     },
   ];
 
-  const totalCosts = costs.reduce((sum, cost) => sum + cost.amount_cents, 0);
+  const totalManualCosts = costs.reduce((sum, cost) => sum + cost.amount_cents, 0);
+  const totalCosts = totalManualCosts + assetsDepreciation;
 
   return (
     <div className="space-y-8">
@@ -281,23 +300,57 @@ export default function FixedCostsPage() {
           </Card>
         )}
 
-        {/* Summary Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Receipt className="h-5 w-5" />
-              {t('fixedCosts.totalMonthly')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-primary">
-              {formatCurrency(totalCosts, locale as 'en' | 'es')}
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              {t('fixedCosts.basedOnCosts', { count: costs.length })}
-            </p>
-          </CardContent>
-        </Card>
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Receipt className="h-5 w-5" />
+                {t('fixedCosts.summary.totalMonthly')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-primary">
+                {formatCurrency(totalCosts, locale as 'en' | 'es')}
+              </div>
+              <p className="text-sm text-muted-foreground mt-2">
+                {t('fixedCosts.summary.breakdown')}
+              </p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">
+                {t('fixedCosts.summary.local')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-semibold">
+                {formatCurrency(totalManualCosts, locale as 'en' | 'es')}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {costs.length} {t('fixedCosts.summary.concepts')}
+              </p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">
+                {t('fixedCosts.summary.depreciation')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-semibold text-blue-600">
+                {formatCurrency(assetsDepreciation, locale as 'en' | 'es')}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {t('fixedCosts.summary.autoAddedNote')}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Costs Table */}
         <Card>
@@ -335,13 +388,14 @@ export default function FixedCostsPage() {
         </Card>
 
         {/* Category Breakdown */}
-        {costs.length > 0 && (
+        {(costs.length > 0 || assetsDepreciation > 0) && (
           <Card>
             <CardHeader>
               <CardTitle>{t('fixedCosts.categoryBreakdown')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
+                {/* Manual Categories */}
                 {categories.map(category => {
                   const categoryTotal = costs
                     .filter(cost => cost.category === category.value)
@@ -373,6 +427,53 @@ export default function FixedCostsPage() {
                     </div>
                   );
                 })}
+                
+                {/* Assets Depreciation */}
+                {assetsDepreciation > 0 && (
+                  <div className="flex items-center justify-between border-t pt-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-4 h-4 rounded-full bg-blue-500" />
+                      <span className="font-medium">
+                        {t('fixedCosts.categories.depreciation')}
+                      </span>
+                      <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                        {t('fixedCosts.items.depreciationFund')}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-medium">
+                        {formatCurrency(assetsDepreciation, locale as 'en' | 'es')}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {totalCosts > 0 ? ((assetsDepreciation / totalCosts) * 100).toFixed(1) : 0}%
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        
+        {/* Business Flow Explanation */}
+        {(costs.length > 0 || assetsDepreciation > 0) && (
+          <Card className="bg-green-50 border-green-200">
+            <CardHeader>
+              <CardTitle className="text-green-800">
+                {t('fixedCosts.businessFlow.title')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 text-sm text-green-700">
+                <p>
+                  <strong>{t('fixedCosts.businessFlow.step1')}:</strong> {t('fixedCosts.businessFlow.step1Description')}
+                </p>
+                <p>
+                  <strong>{t('fixedCosts.businessFlow.step2')}:</strong> {t('fixedCosts.businessFlow.step2Description')}
+                </p>
+                <p>
+                  <strong>{t('fixedCosts.businessFlow.step3')}:</strong> {t('fixedCosts.businessFlow.step3Description')} {formatCurrency(totalCosts, locale as 'en' | 'es')}
+                </p>
               </div>
             </CardContent>
           </Card>

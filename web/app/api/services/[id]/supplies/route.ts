@@ -27,6 +27,7 @@ export async function GET(
     }
 
     // Get service supplies with supply details (join)
+    // Note: service_supplies doesn't have clinic_id, the service itself has it
     const { data, error } = await supabaseAdmin
       .from('service_supplies')
       .select(`
@@ -41,7 +42,6 @@ export async function GET(
         )
       `)
       .eq('service_id', params.id)
-      .eq('clinic_id', clinicId)
       .order('created_at', { ascending: true });
 
     if (error) {
@@ -149,9 +149,10 @@ export async function POST(
         .single();
     } else {
       // Insert new recipe line (use qty for backward compatibility)
+      // Note: service_supplies doesn't have clinic_id
       result = await supabaseAdmin
         .from('service_supplies')
-        .insert({ clinic_id, service_id, supply_id, qty: quantity })
+        .insert({ service_id, supply_id, qty: quantity })
         .select()
         .single();
     }

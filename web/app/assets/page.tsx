@@ -84,11 +84,25 @@ export default function AssetsPage() {
     }
   };
 
-  const monthlyDepreciation = useMemo(() => {
-    return assets.reduce((sum, a) => {
+  const summary = useMemo(() => {
+    const totalInvestmentCents = assets.reduce((sum, a) => sum + a.purchase_price_cents, 0);
+    const monthlyDepreciationCents = assets.reduce((sum, a) => {
       if (!a.depreciation_months || a.depreciation_months <= 0) return sum;
       return sum + Math.round(a.purchase_price_cents / a.depreciation_months);
     }, 0);
+    
+    const totalMonths = assets.length > 0 
+      ? Math.round(assets.reduce((sum, a) => sum + (a.depreciation_months || 0), 0) / assets.length)
+      : 0;
+    const totalYears = Math.round(totalMonths / 12 * 10) / 10;
+    
+    return {
+      totalInvestmentCents,
+      monthlyDepreciationCents,
+      totalMonths,
+      totalYears,
+      assetCount: assets.length
+    };
   }, [assets]);
 
   const columns: Column<Asset>[] = [
@@ -102,10 +116,26 @@ export default function AssetsPage() {
     <div className="space-y-6">
       <PageHeader title={t('assets.pageTitle')} subtitle={t('assets.pageSubtitle')} />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="p-4">
+          <p className="text-sm text-gray-600">{t('businessSetup.assets.totalInvestment')}</p>
+          <p className="text-2xl font-semibold">{formatCurrency(summary.totalInvestmentCents)}</p>
+          <p className="text-xs text-gray-500">{summary.assetCount} {t('businessSetup.assets.assets')}</p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-sm text-gray-600">{t('businessSetup.assets.depreciationPeriod')}</p>
+          <p className="text-2xl font-semibold">{summary.totalYears} {t('businessSetup.assets.years')}</p>
+          <p className="text-xs text-gray-500">{summary.totalMonths} {t('businessSetup.assets.months')}</p>
+        </Card>
         <Card className="p-4">
           <p className="text-sm text-gray-600">{t('assets.monthlyDepreciationTotal')}</p>
-          <p className="text-2xl font-semibold">{formatCurrency(monthlyDepreciation)}</p>
+          <p className="text-2xl font-semibold text-primary">{formatCurrency(summary.monthlyDepreciationCents)}</p>
+          <p className="text-xs text-gray-500">{t('businessSetup.assets.perMonth')}</p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-sm text-gray-600">{t('businessSetup.assets.yearlyDepreciation')}</p>
+          <p className="text-2xl font-semibold">{formatCurrency(summary.monthlyDepreciationCents * 12)}</p>
+          <p className="text-xs text-gray-500">{t('businessSetup.assets.perYear')}</p>
         </Card>
       </div>
 
@@ -114,7 +144,26 @@ export default function AssetsPage() {
         <Button onClick={open}>{t('assets.addAssetButton')}</Button>
       </div>
 
-      <DataTable columns={columns} data={assets} />
+      <Card>
+        <div className="p-6">
+          <h3 className="text-lg font-semibold mb-4">{t('businessSetup.assets.detailBreakdown')}</h3>
+          <DataTable columns={columns} data={assets} />
+        </div>
+      </Card>
+      
+      {assets.length > 0 && (
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold mb-4">{t('businessSetup.assets.depreciationExplanation')}</h3>
+          <div className="bg-blue-50 p-4 rounded-lg space-y-2">
+            <p className="text-sm text-blue-800">
+              <strong>{t('businessSetup.assets.formula')}:</strong> {t('businessSetup.assets.formulaExplanation')}
+            </p>
+            <p className="text-xs text-blue-600">
+              {t('businessSetup.assets.exampleCalculation')} {formatCurrency(100000)} ÷ 36 {t('businessSetup.assets.months')} = {formatCurrency(Math.round(100000 / 36))}/{t('businessSetup.assets.month')}
+            </p>
+          </div>
+        </Card>
+      )}
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
@@ -128,8 +177,9 @@ export default function AssetsPage() {
             </div>
             <div>
               <Label>{t('assets.formPriceLabel')}</Label>
-              <Input type="number" step="0.01" value={form.purchase_price_pesos}
+              <Input type="number" step="0.01" value={form.purchase_price_pesos} placeholder="0.00"
                      onChange={(e) => setForm({ ...form, purchase_price_pesos: parseFloat(e.target.value) || 0 })} />
+              <p className="text-xs text-gray-500 mt-1">{t('businessSetup.assets.priceHelp')}</p>
             </div>
             <div>
               <Label>{t('assets.formMonthsLabel')}</Label>

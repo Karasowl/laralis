@@ -50,6 +50,19 @@ export default function TimeSettingsPage() {
     loadData();
   }, []);
 
+  // Calculate costs whenever values change
+  useEffect(() => {
+    if (totalFixedCents > 0) {
+      const monthlyFixedCostsCents = totalFixedCents;
+      const timeCosts = calculateTimeCosts({
+        workDaysPerMonth: watchedValues.work_days,
+        hoursPerDay: watchedValues.hours_per_day,
+        effectiveWorkPercentage: watchedValues.real_pct,
+      }, monthlyFixedCostsCents);
+      setResults(timeCosts);
+    }
+  }, [watchedValues, totalFixedCents]);
+
   const loadData = async () => {
     setLoadingData(true);
     try {
@@ -194,7 +207,7 @@ export default function TimeSettingsPage() {
               </FormField>
 
               <Button type="submit" disabled={isSubmitting || loadingData} className="w-full">
-                {isSubmitting ? t('time.calculating') : t('time.calculate')}
+                {isSubmitting ? t('common.loading') : t('common.save')}
               </Button>
             </form>
           </CardContent>
@@ -218,22 +231,23 @@ export default function TimeSettingsPage() {
                   </p>
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="space-y-4">
                 <div>
-                  <p className="font-medium">{t('time.totalMinutesPerMonth')}</p>
-                  <p className="text-muted-foreground">
-                    {(watchedValues.work_days * watchedValues.hours_per_day * 60).toLocaleString()} min
+                  <p className="text-sm font-medium text-muted-foreground">{t('time.plannedHoursPerMonth')}</p>
+                  <p className="text-2xl font-bold">
+                    {(watchedValues.work_days * watchedValues.hours_per_day).toFixed(1)} hrs
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {watchedValues.work_days} {t('time.days')} × {watchedValues.hours_per_day} {t('time.hoursPerDayShort')}
                   </p>
                 </div>
                 <div>
-                  <p className="font-medium">{t('time.effectiveMinutesPerMonth')}</p>
-                  <p className="text-muted-foreground">
-                    {Math.round(
-                      watchedValues.work_days * 
-                      watchedValues.hours_per_day * 
-                      60 * 
-                      watchedValues.real_pct
-                    ).toLocaleString()} min
+                  <p className="text-sm font-medium text-muted-foreground">{t('time.realHoursPerMonth')}</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {(watchedValues.work_days * watchedValues.hours_per_day * watchedValues.real_pct).toFixed(1)} hrs
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {(watchedValues.real_pct * 100).toFixed(0)}% {t('time.ofPlannedHours')}
                   </p>
                 </div>
               </div>
@@ -244,33 +258,30 @@ export default function TimeSettingsPage() {
           {results && (
             <Card>
               <CardHeader>
-                <CardTitle>{t('time.results')}</CardTitle>
+                <CardTitle>{t('time.calculatedCosts')}</CardTitle>
                 <CardDescription>
                   {t('time.basedOnFixedCosts')} {formatCurrency(results.monthlyFixedCostsCents)}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-4">
-                  <div className="flex justify-between items-center p-4 bg-muted/50 rounded-lg">
-                    <span className="font-medium">{t('time.fixedCostPerMinute')}</span>
-                    <span className="text-lg font-bold text-primary">
-                      {formatCurrency(results.fixedPerMinuteCents)}
-                    </span>
+                  <div className="p-4 bg-blue-50 rounded-lg space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium">{t('time.fixedCostPerHour')}</span>
+                      <span className="text-lg font-bold">
+                        {formatCurrency(results.fixedPerMinuteCents * 60)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center border-t pt-3">
+                      <span className="text-sm font-medium">{t('time.fixedCostPerMinute')}</span>
+                      <span className="text-lg font-bold text-primary">
+                        {formatCurrency(results.fixedPerMinuteCents)}
+                      </span>
+                    </div>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="text-center">
-                      <p className="font-medium">{t('time.totalMinutes')}</p>
-                      <p className="text-2xl font-bold text-muted-foreground">
-                        {results.totalMinutesPerMonth.toLocaleString()}
-                      </p>
-                    </div>
-                    <div className="text-center">
-                      <p className="font-medium">{t('time.effectiveMinutes')}</p>
-                      <p className="text-2xl font-bold text-green-600">
-                        {results.effectiveMinutesPerMonth.toLocaleString()}
-                      </p>
-                    </div>
+                  <div className="text-xs text-muted-foreground text-center">
+                    {t('time.formula')}: {t('time.monthlyFixedCosts')} ÷ {t('time.realHoursPerMonth')} ÷ 60
                   </div>
                 </div>
               </CardContent>

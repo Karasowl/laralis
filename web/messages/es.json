@@ -35,7 +35,8 @@
     "inactive": "Inactivo",
     "optional": "Opcional",
     "minutes": "minutos",
-    "success": "Éxito"
+    "success": "Éxito",
+    "saving": "Guardando..."
   },
   "onboarding": {
     "welcomeTitle": "¡Bienvenido a Laralis! 🎉",
@@ -104,8 +105,15 @@
   },
   "nav": {
     "home": "Inicio",
-    "setup": "Configuración",
+    "operations": "Operaciones",
+    "dailyOperations": "Operaciones Diarias",
+    "businessSetup": "Configuración",
+    "initialConfig": "Costos Fijos",
+    "variableCosts": "Costos Variables",
+    "pricing": "Tarifas",
+    "resetData": "Reiniciar Datos",
     "time": "Tiempo",
+    "equilibrium": "Punto de Equilibrio",
     "fixedCosts": "Costos Fijos",
     "supplies": "Insumos",
     "services": "Servicios",
@@ -120,24 +128,28 @@
     "clinics": "Clínicas"
   },
   "home": {
-    "workspaceActive": "Espacio de Trabajo Activo",
-    "clinicActive": "Clínica Activa",
-    "noClinic": "Sin clínica seleccionada",
-    "title": "Sistema de Gestión de Consultorio Dental",
-    "subtitle": "Administra tu práctica eficientemente",
+    "dashboard": "Panel de Control",
+    "welcome": "Bienvenido",
     "getStarted": "Comenzar",
-    "workspaceActive": "Espacio de Trabajo Activo",
-    "clinicActive": "Clínica Activa",
-    "noWorkspace": "Sin espacio de trabajo",
     "noClinic": "Sin clínica seleccionada",
-    "selectWorkspace": "Seleccionar Espacio de Trabajo",
-    "selectClinic": "Seleccionar Clínica",
-    "quickLinks": "Enlaces Rápidos",
-    "setupDescription": "Configura los ajustes de tu práctica",
-    "patientsDescription": "Administra los registros de pacientes",
-    "treatmentsDescription": "Rastrea tratamientos y procedimientos",
-    "reportsDescription": "Ve reportes financieros y análisis",
+    "quickActions": "Acciones Rápidas",
+    "patientsDescription": "Gestiona registros de pacientes",
+    "treatmentsDescription": "Registra tratamientos de pacientes",
+    "reportsDescription": "Visualiza análisis financieros",
     "openAction": "Abrir",
+    "recentActivity": "Actividad Reciente",
+    "lastTreatments": "Últimos tratamientos y citas",
+    "noRecentActivity": "No hay actividad reciente para mostrar",
+    "metrics": {
+      "patientsMonth": "Pacientes Este Mes",
+      "treatmentsMonth": "Tratamientos",
+      "revenue": "Ingresos",
+      "occupancy": "Tasa de Ocupación",
+      "newPatients": "Nuevos pacientes registrados",
+      "completed": "Tratamientos completados",
+      "thisMonth": "Este mes",
+      "utilizationRate": "Utilización de sillón"
+    },
     "configurationStatus": "Configuración",
     "databaseStatus": "Estado Base de Datos",
     "databaseReady": "Lista",
@@ -170,7 +182,11 @@
       "saved": "Configuración de tiempo guardada exitosamente",
       "saveError": "Error al guardar configuración de tiempo",
       "loadError": "Error al cargar configuración de tiempo"
-    }
+    },
+    "calculatedCosts": "Costos Calculados",
+    "basedOnFixedCosts": "Basado en costos fijos de",
+    "fixedCostPerHour": "Costo Fijo por Hora",
+    "fixedCostPerMinute": "Costo Fijo por Minuto"
   },
   "fixedCosts": {
     "title": "Costos Fijos",
@@ -367,7 +383,7 @@
     "addAssetButton": "Agregar Activo",
     "addAssetDialogTitle": "Agregar Activo",
     "formNameLabel": "Nombre",
-    "formPriceLabel": "Precio (MXN)",
+    "formPriceLabel": "Precio de Compra",
     "formMonthsLabel": "Meses para depreciar",
     "formPurchaseDateLabel": "Fecha de compra (opcional)",
     "formCancelButton": "Cancelar",
@@ -402,9 +418,92 @@
     "clinics": {
       "title": "Clínicas",
       "description": "Gestiona las sucursales de clínicas",
+      "create": "Crear Clínica",
+      "createFirst": "Crea tu primera clínica",
+      "edit": "Editar Clínica",
+      "editDesc": "Actualizar información de la clínica",
+      "createDesc": "Agregar una nueva clínica a tu espacio de trabajo",
+      "empty": "No se encontraron clínicas",
+      "emptyDesc": "Crea tu primera clínica para comenzar",
+      "name": "Nombre de la Clínica",
+      "namePlaceholder": "ej., Sucursal Centro",
       "address": "Dirección",
+      "addressPlaceholder": "ej., Calle Principal 123",
       "phone": "Teléfono",
-      "email": "Correo electrónico"
+      "phonePlaceholder": "ej., +52 555 1234567",
+      "email": "Correo electrónico",
+      "emailPlaceholder": "contacto@clinica.com",
+      "active": "Activa",
+      "inactive": "Inactiva",
+      "updateSuccess": "Clínica Actualizada",
+      "updateSuccessDesc": "Cambios guardados exitosamente",
+      "createSuccess": "Clínica Creada",
+      "createSuccessDesc": "Nueva clínica agregada exitosamente",
+      "deleteSuccess": "Clínica Eliminada",
+      "deleteSuccessDesc": "Clínica eliminada exitosamente",
+      "deleteConfirm": "¿Estás seguro de que quieres eliminar esta clínica?"
+    }
+  },
+  "auth": {
+    "logout": {
+      "button": "Cerrar Sesión",
+      "confirmTitle": "¿Cerrar sesión?",
+      "confirmMessage": "¿Estás seguro de que quieres cerrar sesión?"
+    },
+    "login": {
+      "title": "Bienvenido de Nuevo",
+      "subtitle": "Inicia sesión en tu cuenta de Laralis",
+      "emailLabel": "Correo Electrónico",
+      "emailPlaceholder": "Ingresa tu correo",
+      "passwordLabel": "Contraseña",
+      "passwordPlaceholder": "Ingresa tu contraseña",
+      "loginButton": "Iniciar Sesión",
+      "loggingIn": "Iniciando sesión...",
+      "noAccount": "¿No tienes cuenta?",
+      "signUpLink": "Regístrate aquí",
+      "forgotPassword": "¿Olvidaste tu contraseña?",
+      "rememberMe": "Recordarme"
+    },
+    "register": {
+      "title": "Comienza Ahora",
+      "subtitle": "Crea tu cuenta de Laralis",
+      "firstNameLabel": "Nombre",
+      "firstNamePlaceholder": "Ingresa tu nombre",
+      "lastNameLabel": "Apellido",
+      "lastNamePlaceholder": "Ingresa tu apellido",
+      "emailLabel": "Correo Electrónico",
+      "emailPlaceholder": "Ingresa tu correo",
+      "passwordLabel": "Contraseña",
+      "passwordPlaceholder": "Elige una contraseña",
+      "confirmPasswordLabel": "Confirmar Contraseña",
+      "confirmPasswordPlaceholder": "Confirma tu contraseña",
+      "registerButton": "Crear Cuenta",
+      "registering": "Creando cuenta...",
+      "hasAccount": "¿Ya tienes cuenta?",
+      "signInLink": "Inicia sesión aquí",
+      "terms": "Al crear una cuenta, aceptas nuestros Términos de Servicio y Política de Privacidad"
+    },
+    "logout": {
+      "button": "Cerrar Sesión",
+      "confirm": "¿Estás seguro de que quieres cerrar sesión?"
+    },
+    "errors": {
+      "invalidCredentials": "Correo o contraseña inválidos",
+      "weakPassword": "La contraseña debe tener al menos 6 caracteres",
+      "emailExists": "Ya existe una cuenta con este correo electrónico",
+      "passwordMismatch": "Las contraseñas no coinciden",
+      "signUpError": "Error al crear cuenta. Por favor intenta de nuevo",
+      "signInError": "Error al iniciar sesión. Por favor intenta de nuevo",
+      "signOutError": "Error al cerrar sesión",
+      "sessionError": "Sesión expirada. Por favor inicia sesión nuevamente",
+      "networkError": "Error de red. Por favor verifica tu conexión",
+      "requiredField": "Este campo es requerido",
+      "invalidEmail": "Por favor ingresa un correo válido"
+    },
+    "success": {
+      "signUp": "¡Cuenta creada exitosamente! Por favor revisa tu correo para verificación",
+      "signIn": "¡Bienvenido de nuevo!",
+      "signOut": "Sesión cerrada exitosamente"
     }
   },
   "validation": {
@@ -480,6 +579,154 @@
       "updateSuccessDesc": "Los cambios se guardaron correctamente",
       "deleteSuccess": "Clínica eliminada",
       "deleteSuccessDesc": "La clínica fue eliminada"
+    }
+  },
+  "patients": {
+    "title": "Pacientes",
+    "subtitle": "Gestiona tus registros de pacientes",
+    "empty": {
+      "title": "No hay pacientes registrados",
+      "description": "Agrega tu primer paciente para comenzar a registrar tratamientos"
+    },
+    "searchPlaceholder": "Buscar por nombre o email...",
+    "addPatient": "Agregar Paciente",
+    "addFirstPatient": "Agregar Primer Paciente",
+    "newPatient": "Nuevo Paciente",
+    "editPatient": "Editar Paciente",
+    "formDescription": "Completa la información del paciente",
+    "firstName": "Nombre",
+    "lastName": "Apellido",
+    "name": "Nombre",
+    "email": "Email",
+    "phone": "Teléfono",
+    "birthDate": "Fecha de Nacimiento",
+    "gender": "Género",
+    "selectGender": "Seleccionar género",
+    "male": "Masculino",
+    "female": "Femenino",
+    "other": "Otro",
+    "address": "Dirección",
+    "city": "Ciudad",
+    "postalCode": "Código Postal",
+    "notes": "Notas",
+    "noPatients": "No hay pacientes registrados",
+    "noPatientDescription": "Agrega tu primer paciente para comenzar",
+    "confirmDelete": "¿Estás seguro de que deseas eliminar este paciente?"
+  },
+  "treatments": {
+    "title": "Tratamientos",
+    "subtitle": "Registra y da seguimiento a los tratamientos de pacientes",
+    "empty": {
+      "title": "No hay tratamientos registrados",
+      "description": "Comienza a registrar tratamientos para tus pacientes"
+    }
+  },
+  "reports": {
+    "title": "Reportes",
+    "subtitle": "Visualiza análisis financieros y operacionales",
+    "empty": {
+      "title": "No hay datos para reportar",
+      "description": "Los reportes estarán disponibles una vez que hayas registrado tratamientos"
+    }
+  },
+  "businessSetup": {
+    "title": "Configuración del Negocio",
+    "subtitle": "Define los fundamentos financieros de tu clínica",
+    "steps": {
+      "assets": "1. Depreciación (Activos)",
+      "fixedCosts": "2. Costos Fijos",
+      "timeCosts": "3. Costos por Tiempo",
+      "equilibrium": "4. Punto de Equilibrio"
+    }
+  },
+  "fixedCosts": {
+    "title": "Costos Fijos",
+    "subtitle": "Gastos mensuales recurrentes de tu clínica",
+    "addCost": "Agregar Costo Fijo",
+    "categories": {
+      "local": "Local",
+      "provisions": "Provisiones",
+      "depreciation": "Depreciación"
+    },
+    "items": {
+      "rent": "Renta",
+      "electricity": "Luz",
+      "water": "Agua",
+      "education": "Educación",
+      "advertising": "Publicidad",
+      "maintenance": "Mantenimiento",
+      "depreciationFund": "Fondo de Depreciación"
+    },
+    "form": {
+      "name": "Concepto",
+      "namePlaceholder": "Ej: Renta del local",
+      "category": "Categoría",
+      "selectCategory": "Selecciona una categoría",
+      "amount": "Monto mensual (MXN)",
+      "amountPlaceholder": "0.00",
+      "description": "Descripción (opcional)",
+      "descriptionPlaceholder": "Detalles adicionales del gasto",
+      "save": "Guardar",
+      "cancel": "Cancelar"
+    },
+    "table": {
+      "concept": "Concepto",
+      "category": "Categoría",
+      "amount": "Monto Mensual",
+      "actions": "Acciones"
+    },
+    "summary": {
+      "totalMonthly": "Total Costos Fijos Mensuales",
+      "breakdown": "Desglose por categoría",
+      "local": "Gastos del Local",
+      "provisions": "Provisiones",
+      "depreciation": "Depreciación de Activos",
+      "autoAddedNote": "Agregado automáticamente desde activos"
+    },
+    "dialogTitle": "Agregar Costo Fijo",
+    "empty": {
+      "title": "No hay costos fijos registrados",
+      "description": "Agrega tus gastos mensuales recurrentes para calcular el punto de equilibrio"
+    }
+  },
+  "equilibrium": {
+    "title": "Punto de Equilibrio",
+    "subtitle": "Cálculo del ingreso mínimo necesario para cubrir costos",
+    "calculation": {
+      "title": "Cálculo del Punto de Equilibrio",
+      "description": "Ingreso mínimo mensual necesario para no tener pérdidas"
+    },
+    "inputs": {
+      "title": "Parámetros del Cálculo",
+      "monthlyFixedCosts": "Costos Fijos Mensuales",
+      "variableCostPercentage": "Costo Variable Promedio (%)",
+      "variableCostHelp": "Porcentaje promedio estimado de costos variables (insumos, materiales)",
+      "contributionMargin": "Margen de Contribución",
+      "contributionMarginHelp": "Porcentaje que queda después de descontar costos variables"
+    },
+    "results": {
+      "title": "Resultados del Punto de Equilibrio",
+      "breakEvenRevenue": "Ingreso Punto de Equilibrio",
+      "breakEvenRevenueHelp": "Ingreso mensual mínimo necesario para cubrir todos los costos",
+      "dailyTarget": "Meta Diaria",
+      "dailyTargetHelp": "Ingreso diario necesario (basado en días laborales)",
+      "safetyMargin": "Margen de Seguridad (20%)",
+      "safetyMarginHelp": "Ingreso recomendado con 20% adicional de seguridad"
+    },
+    "formula": {
+      "title": "Fórmula del Cálculo",
+      "explanation": "Punto de Equilibrio = Costos Fijos ÷ Margen de Contribución",
+      "where": "Donde:",
+      "marginContribution": "Margen de Contribución = 100% - % Costo Variable"
+    },
+    "warning": {
+      "title": "Información Importante",
+      "missingData": "Para obtener cálculos precisos, asegúrate de haber configurado:",
+      "steps": {
+        "assets": "✓ Activos y depreciación",
+        "fixedCosts": "✓ Todos los costos fijos",
+        "timeCosts": "✓ Configuración de tiempo de trabajo"
+      }
     }
   }
 }

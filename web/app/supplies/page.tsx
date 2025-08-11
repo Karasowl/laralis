@@ -276,12 +276,6 @@ export default function SuppliesPage() {
     }
   ];
 
-  // Calculate metrics
-  const totalSupplies = supplies.length;
-  const totalValue = supplies.reduce((sum, s) => sum + s.price_cents, 0);
-  const avgPricePerPortion = supplies.length > 0
-    ? supplies.reduce((sum, s) => sum + s.cost_per_portion_cents, 0) / supplies.length
-    : 0;
 
   return (
     <div className="space-y-6">
@@ -290,36 +284,6 @@ export default function SuppliesPage() {
         subtitle={t('supplies.subtitle')}
       />
 
-      {/* Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">{t('supplies.totalSupplies')}</p>
-              <p className="text-2xl font-semibold">{totalSupplies}</p>
-            </div>
-            <Package className="h-8 w-8 text-gray-400" />
-          </div>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">{t('supplies.totalValue')}</p>
-              <p className="text-2xl font-semibold">{formatCurrency(totalValue)}</p>
-            </div>
-            <Package className="h-8 w-8 text-gray-400" />
-          </div>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">{t('supplies.avgPricePerPortion')}</p>
-              <p className="text-2xl font-semibold">{formatCurrency(avgPricePerPortion)}</p>
-            </div>
-            <Package className="h-8 w-8 text-gray-400" />
-          </div>
-        </Card>
-      </div>
 
       {/* Search and Add Button */}
       <div className="flex flex-col sm:flex-row gap-4 items-end">
@@ -413,7 +377,7 @@ export default function SuppliesPage() {
             </div>
 
             <div>
-              <Label htmlFor="price">{t('supplies.form.price')} (MXN)</Label>
+              <Label htmlFor="price">{t('supplies.form.price')}</Label>
               <Input
                 id="price"
                 type="number"

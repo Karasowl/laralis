@@ -8,11 +8,24 @@ import { BusinessSwitcher } from '@/components/BusinessSwitcher';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { Button } from '@/components/ui/button';
 import { useWorkspace } from '@/contexts/workspace-context';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger,
+  DropdownMenuSeparator 
+} from '@/components/ui/dropdown-menu';
+import { LogOut, User, Settings } from 'lucide-react';
 
 export default function HeaderChrome() {
   const pathname = usePathname();
   const t = useTranslations();
-  const { workspaces } = useWorkspace();
+  const { user, workspaces, signOut } = useWorkspace();
+  const tAuth = useTranslations('auth');
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
 
   const isOnboarding = pathname?.startsWith('/onboarding');
   const hasWorkspaces = workspaces && workspaces.length > 0;
@@ -29,12 +42,44 @@ export default function HeaderChrome() {
             <span className="font-semibold text-lg">{t('common.appName')}</span>
           </Link>
           <div className="flex items-center gap-3">
-            {!isOnboarding && (
+            {!isOnboarding && !user && (
               <Button asChild className="hidden sm:inline-flex">
                 <Link href="/onboarding">{t('home.getStarted')}</Link>
               </Button>
             )}
             <LanguageSwitcher />
+            
+            {/* User Menu - SIEMPRE mostrar si hay usuario */}
+            {user && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                    <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
+                      <User className="h-4 w-4 text-primary-foreground" />
+                    </div>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <div className="flex items-center justify-start gap-2 p-2">
+                    <div className="flex flex-col space-y-1 leading-none">
+                      <p className="font-medium text-sm">
+                        {user.user_metadata?.full_name || 
+                         `${user.user_metadata?.first_name || ''} ${user.user_metadata?.last_name || ''}`.trim() || 
+                         'Usuario'}
+                      </p>
+                      <p className="w-[200px] truncate text-xs text-muted-foreground">
+                        {user.email}
+                      </p>
+                    </div>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-red-600">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>{tAuth('logout.button') || 'Cerrar Sesión'}</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
       </header>
@@ -57,6 +102,45 @@ export default function HeaderChrome() {
         <div className="flex items-center gap-4">
           <BusinessSwitcher />
           <LanguageSwitcher />
+          
+          {/* User Menu */}
+          {user && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                  <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
+                    <User className="h-4 w-4 text-primary-foreground" />
+                  </div>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
+                <div className="flex items-center justify-start gap-2 p-2">
+                  <div className="flex flex-col space-y-1 leading-none">
+                    <p className="font-medium text-sm">
+                      {user.user_metadata?.full_name || 
+                       `${user.user_metadata?.first_name || ''} ${user.user_metadata?.last_name || ''}`.trim() || 
+                       'Usuario'}
+                    </p>
+                    <p className="w-[200px] truncate text-xs text-muted-foreground">
+                      {user.email}
+                    </p>
+                  </div>
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/settings" className="cursor-pointer">
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Configuración</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>{tAuth('logout.button')}</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </div>
     </header>

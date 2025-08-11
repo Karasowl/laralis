@@ -6,72 +6,69 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { Calculator, Settings, Users, FileText, TrendingUp, Clock, Building2, Building } from 'lucide-react';
+import { Users, FileText, TrendingUp, DollarSign, Activity, Calendar } from 'lucide-react';
 import { useWorkspace } from '@/contexts/workspace-context';
+import { formatCurrency } from '@/lib/format';
 
 export default function HomePage() {
   const t = useTranslations();
   const router = useRouter();
   const { workspace, currentClinic, workspaces, clinics, loading: contextLoading } = useWorkspace();
-  const [redirecting, setRedirecting] = useState(false);
+  const [initialized, setInitialized] = useState(false);
+  const [metrics, setMetrics] = useState({
+    patientsThisMonth: 0,
+    treatmentsThisMonth: 0,
+    revenueThisMonth: 0,
+    pendingPayments: 0,
+    averageTicket: 0,
+    occupancyRate: 0
+  });
 
   useEffect(() => {
-    // Si no hay workspaces, redirigir inmediatamente a onboarding
-    if (!contextLoading && !redirecting) {
+    // Solo ejecutar una vez cuando el contexto termine de cargar
+    if (!contextLoading && !initialized) {
+      setInitialized(true);
+      
+      // Si no hay workspaces, redirigir a onboarding
       if (!workspace || workspaces.length === 0) {
-        setRedirecting(true);
         router.push('/onboarding');
         return;
       }
       
       // Si hay workspaces pero ninguno completado
       if (workspaces.every((w: any) => !w.onboarding_completed)) {
-        setRedirecting(true);
         router.push('/onboarding');
         return;
       }
     }
-  }, [contextLoading, workspace, workspaces, router, redirecting]);
+  }, [contextLoading, workspace, workspaces, router, initialized]);
 
-  const quickLinks = [
-    {
-      title: t('nav.time'),
-      description: t('home.setupDescription'),
-      href: '/time',
-      icon: Clock,
-      color: 'bg-blue-500',
-    },
-    {
-      title: t('nav.fixedCosts'),
-      description: t('home.setupDescription'),
-      href: '/fixed-costs',
-      icon: Settings,
-      color: 'bg-green-500',
-    },
+  // Enlaces de operaciones diarias
+  const quickActions = [
     {
       title: t('nav.patients'),
       description: t('home.patientsDescription'),
       href: '/patients',
       icon: Users,
-      color: 'bg-purple-500',
+      color: 'bg-blue-500',
     },
     {
       title: t('nav.treatments'),
       description: t('home.treatmentsDescription'),
       href: '/treatments',
-      icon: Calculator,
-      color: 'bg-orange-500',
+      icon: FileText,
+      color: 'bg-green-500',
     },
     {
       title: t('nav.reports'),
       description: t('home.reportsDescription'),
       href: '/reports',
       icon: TrendingUp,
-      color: 'bg-indigo-500',
+      color: 'bg-purple-500',
     },
   ];
 
-  if (contextLoading || redirecting) {
+  if (contextLoading || !initialized) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <div className="text-center">
@@ -85,101 +82,128 @@ export default function HomePage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title={t('home.title')}
-        subtitle={t('home.subtitle')}
-        actions={
-          <Button asChild>
-            <Link href="/onboarding">
-              {t('home.getStarted')}
-            </Link>
-          </Button>
-        }
+        title={t('home.dashboard')}
+        subtitle={workspace ? `${workspace.name} - ${currentClinic?.name || t('home.noClinic')}` : t('home.welcome')}
       />
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {quickLinks.map((link) => {
-          const Icon = link.icon;
-          return (
-            <Card key={link.href} className="transition-shadow hover:shadow-md">
-              <CardHeader className="pb-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className={`p-2 rounded-lg ${link.color}`}>
-                      <Icon className="h-6 w-6 text-white" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">{link.title}</CardTitle>
-                    </div>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <CardDescription className="mb-4 leading-relaxed">
-                  {link.description}
-                </CardDescription>
-                <Button variant="outline" asChild>
-                  <Link href={link.href}>
-                    {t('home.openAction')}
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-          );
-        })}
+      {/* Métricas principales */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              {t('home.metrics.patientsMonth')}
+            </CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{metrics.patientsThisMonth}</div>
+            <p className="text-xs text-muted-foreground">
+              {t('home.metrics.newPatients')}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              {t('home.metrics.treatmentsMonth')}
+            </CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{metrics.treatmentsThisMonth}</div>
+            <p className="text-xs text-muted-foreground">
+              {t('home.metrics.completed')}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              {t('home.metrics.revenue')}
+            </CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatCurrency(metrics.revenueThisMonth * 100)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {t('home.metrics.thisMonth')}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              {t('home.metrics.occupancy')}
+            </CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{metrics.occupancyRate}%</div>
+            <p className="text-xs text-muted-foreground">
+              {t('home.metrics.utilizationRate')}
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Status Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">{t('home.workspaceActive')}</p>
-                <p className="text-lg font-bold truncate">
-                  {workspace ? workspace.name : t('home.noWorkspace')}
-                </p>
-                {workspace && (
-                  <Link href="/settings/workspaces" className="text-xs text-blue-600 hover:underline">
-                    {t('common.switchClinic')}
-                  </Link>
-                )}
-              </div>
-              <Building2 className="h-8 w-8 text-muted-foreground" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">{t('home.clinicActive')}</p>
-                <p className="text-lg font-bold truncate">
-                  {currentClinic ? currentClinic.name : t('home.noClinic')}
-                </p>
-                {currentClinic && (
-                  <Link href="/settings/clinics" className="text-xs text-blue-600 hover:underline">
-                    {t('common.switchClinic')}
-                  </Link>
-                )}
-              </div>
-              <Building className="h-8 w-8 text-muted-foreground" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">{t('home.calculationEngine')}</p>
-                <p className="text-2xl font-bold text-green-600">{t('home.calculationActive')}</p>
-              </div>
-              <Calculator className="h-8 w-8 text-green-600" />
-            </div>
-          </CardContent>
-        </Card>
+      {/* Acciones rápidas */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold">{t('home.quickActions')}</h2>
+        <div className="grid gap-4 md:grid-cols-3">
+          {quickActions.map((action) => {
+            const Icon = action.icon;
+            return (
+              <Card key={action.href} className="transition-shadow hover:shadow-md">
+                <CardHeader className="pb-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className={`p-2 rounded-lg ${action.color}`}>
+                        <Icon className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-base">{action.title}</CardTitle>
+                      </div>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <CardDescription className="mb-3 text-sm leading-relaxed">
+                    {action.description}
+                  </CardDescription>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={action.href}>
+                      {t('home.openAction')}
+                    </Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       </div>
+
+      {/* Panel de actividad reciente */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            {t('home.recentActivity')}
+          </CardTitle>
+          <CardDescription>
+            {t('home.lastTreatments')}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 text-muted-foreground">
+            {t('home.noRecentActivity')}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

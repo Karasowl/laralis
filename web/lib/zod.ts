@@ -36,7 +36,7 @@ export const zSettingsTime = z.object({
   id: z.string().uuid().optional(),
   clinic_id: z.string().uuid(),
   work_days: z.number().int().min(1, 'Must be at least 1 day').max(31, 'Cannot exceed 31 days'),
-  hours_per_day: z.number().int().min(1, 'Must be at least 1 hour').max(16, 'Cannot exceed 16 hours'),
+  hours_per_day: z.number().min(1, 'Must be at least 1 hour').max(16, 'Cannot exceed 16 hours'),
   real_pct: z.number().min(0, 'Cannot be negative').max(1, 'Cannot exceed 100%'),
   updated_at: z.string().optional(),
 });
@@ -110,7 +110,7 @@ export const zServiceSupplyForm = z.object({
 
 export const zSettingsTimeForm = z.object({
   work_days: z.number().int().min(1, 'Must be at least 1 day').max(31, 'Cannot exceed 31 days'),
-  hours_per_day: z.number().int().min(1, 'Must be at least 1 hour').max(16, 'Cannot exceed 16 hours'),
+  hours_per_day: z.number().min(1, 'Must be at least 1 hour').max(16, 'Cannot exceed 16 hours'),
   real_pct: z.number().min(0.1, 'Must be at least 10%').max(1, 'Cannot exceed 100%'),
 });
 

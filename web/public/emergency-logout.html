@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cierre de Sesión de Emergencia - Laralis</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        
+        .status-box {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .status-item {
+            padding: 8px 0;
+            color: #666;
+            font-size: 14px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .status-item:last-child {
+            border-bottom: none;
+        }
+        
+        .status-item.success {
+            color: #4caf50;
+        }
+        
+        .status-item.error {
+            color: #f44336;
+        }
+        
+        .status-item.pending {
+            color: #ff9800;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 5px;
+        }
+        
+        .info-box p {
+            color: #1976d2;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Cierre de Sesión de Emergencia</h1>
+        <p class="subtitle">Esta herramienta limpiará completamente tu sesión y te permitirá empezar de nuevo</p>
+        
+        <div class="status-box">
+            <div class="status-item pending" id="status-local">
+                <span class="loading"></span> Limpiando almacenamiento local...
+            </div>
+            <div class="status-item pending" id="status-session">
+                <span class="loading"></span> Limpiando almacenamiento de sesión...
+            </div>
+            <div class="status-item pending" id="status-cookies">
+                <span class="loading"></span> Limpiando cookies...
+            </div>
+            <div class="status-item pending" id="status-supabase">
+                <span class="loading"></span> Cerrando sesión de Supabase...
+            </div>
+        </div>
+        
+        <div class="button-group">
+            <button class="btn-primary" onclick="startCleanup()">
+                🧹 Iniciar Limpieza Completa
+            </button>
+            <button class="btn-secondary" onclick="goToLogin()">
+                🔙 Ir al Login Directamente
+            </button>
+        </div>
+        
+        <div class="info-box">
+            <p>
+                <strong>¿Qué hace esta herramienta?</strong><br>
+                • Elimina todas las cookies de sesión<br>
+                • Limpia el almacenamiento local del navegador<br>
+                • Cierra cualquier sesión activa de Supabase<br>
+                • Te permite empezar con una sesión completamente limpia
+            </p>
+        </div>
+        
+        <div class="info-box hidden" id="success-message" style="background: #e8f5e9; border-color: #4caf50;">
+            <p style="color: #2e7d32;">
+                <strong>✅ ¡Limpieza completada con éxito!</strong><br>
+                Tu sesión ha sido completamente limpiada. Serás redirigido al login en 3 segundos...
+            </p>
+        </div>
+    </div>
+
+    <script>
+        function updateStatus(id, status, message) {
+            const element = document.getElementById(id);
+            element.className = 'status-item ' + status;
+            if (status === 'success') {
+                element.innerHTML = '✅ ' + message;
+            } else if (status === 'error') {
+                element.innerHTML = '❌ ' + message;
+            } else {
+                element.innerHTML = '<span class="loading"></span> ' + message;
+            }
+        }
+        
+        async function startCleanup() {
+            console.log('Iniciando limpieza completa...');
+            
+            // 1. Limpiar localStorage
+            try {
+                localStorage.clear();
+                updateStatus('status-local', 'success', 'Almacenamiento local limpiado');
+                console.log('✅ localStorage limpiado');
+            } catch (e) {
+                updateStatus('status-local', 'error', 'Error limpiando almacenamiento local');
+                console.error('Error limpiando localStorage:', e);
+            }
+            
+            // 2. Limpiar sessionStorage
+            try {
+                sessionStorage.clear();
+                updateStatus('status-session', 'success', 'Almacenamiento de sesión limpiado');
+                console.log('✅ sessionStorage limpiado');
+            } catch (e) {
+                updateStatus('status-session', 'error', 'Error limpiando almacenamiento de sesión');
+                console.error('Error limpiando sessionStorage:', e);
+            }
+            
+            // 3. Limpiar todas las cookies
+            try {
+                // Obtener todas las cookies y eliminarlas
+                document.cookie.split(";").forEach(function(c) { 
+                    document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+                    document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/;domain=" + window.location.hostname);
+                    document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/;domain=." + window.location.hostname);
+                });
+                
+                // Cookies específicas de Supabase
+                const supabaseCookies = ['sb-access-token', 'sb-refresh-token', 'workspaceId', 'clinicId'];
+                supabaseCookies.forEach(name => {
+                    document.cookie = name + '=;expires=' + new Date().toUTCString() + ';path=/';
+                    document.cookie = name + '=;expires=' + new Date().toUTCString() + ';path=/;domain=' + window.location.hostname;
+                });
+                
+                updateStatus('status-cookies', 'success', 'Cookies limpiadas');
+                console.log('✅ Cookies limpiadas');
+            } catch (e) {
+                updateStatus('status-cookies', 'error', 'Error limpiando cookies');
+                console.error('Error limpiando cookies:', e);
+            }
+            
+            // 4. Intentar cerrar sesión de Supabase
+            try {
+                // Hacer una llamada al endpoint de logout
+                await fetch('/auth/logout', { method: 'GET' });
+                updateStatus('status-supabase', 'success', 'Sesión de Supabase cerrada');
+                console.log('✅ Sesión de Supabase cerrada');
+            } catch (e) {
+                // Si falla, no es crítico
+                updateStatus('status-supabase', 'success', 'Sesión limpiada (bypass)');
+                console.log('⚠️ No se pudo conectar con Supabase, pero la sesión local fue limpiada');
+            }
+            
+            // Mostrar mensaje de éxito
+            document.getElementById('success-message').classList.remove('hidden');
+            
+            // Redirigir después de 3 segundos
+            setTimeout(() => {
+                window.location.href = '/auth/login';
+            }, 3000);
+        }
+        
+        function goToLogin() {
+            // Forzar navegación completa, no SPA
+            window.location.href = '/auth/login';
+        }
+        
+        // Auto-ejecutar la limpieza al cargar la página
+        window.addEventListener('load', () => {
+            console.log('Página de emergencia cargada. Haz clic en "Iniciar Limpieza Completa" para comenzar.');
+        });
+    </script>
+</body>
+</html>

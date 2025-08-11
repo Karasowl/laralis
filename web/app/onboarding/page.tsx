@@ -170,6 +170,9 @@ export default function OnboardingPage() {
         description: t('success.description'),
       });
 
+      // Esperar un momento para que las cookies se actualicen
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       // Forzar recarga completa para actualizar el contexto
       window.location.href = '/';
 

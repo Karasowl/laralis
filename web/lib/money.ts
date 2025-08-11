@@ -39,21 +39,19 @@ export function roundToNearestStepCents(cents: number, stepCents: number): numbe
  * Formats cents as currency string
  * @param cents Amount in cents
  * @param locale Locale for formatting (default 'es-MX')
- * @param currency Currency code (default 'MXN')
  * @returns Formatted currency string
  */
 export function formatCurrency(
   cents: number,
-  locale: string = 'es-MX',
-  currency: string = 'MXN'
+  locale: string = 'es-MX'
 ): string {
   const pesos = centsToPesos(cents);
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: currency,
+  const formatted = new Intl.NumberFormat(locale, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(pesos);
+  
+  return `$${formatted}`;
 }
 
 /**
