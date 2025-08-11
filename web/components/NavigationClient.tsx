@@ -1,7 +1,6 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import Link from 'next/link';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,9 +16,16 @@ export function NavigationClient() {
   
   return (
     <nav className="hidden md:flex items-center space-x-6 text-sm">
-      <Link href="/" className="text-foreground/60 hover:text-foreground transition-colors">
+      <a 
+        href="/" 
+        className="text-foreground/60 hover:text-foreground transition-colors cursor-pointer"
+        onClick={(e) => {
+          e.preventDefault();
+          window.location.href = '/';
+        }}
+      >
         {t('nav.home')}
-      </Link>
+      </a>
       
       {/* Operaciones Diarias */}
       <DropdownMenu>
@@ -30,20 +36,23 @@ export function NavigationClient() {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
           <DropdownMenuLabel>{t('nav.dailyOperations')}</DropdownMenuLabel>
-          <DropdownMenuItem asChild>
-            <Link href="/patients">
-              {t('nav.patients')}
-            </Link>
+          <DropdownMenuItem 
+            onClick={() => window.location.href = '/patients'}
+            className="cursor-pointer"
+          >
+            {t('nav.patients')}
           </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link href="/treatments">
-              {t('nav.treatments')}
-            </Link>
+          <DropdownMenuItem 
+            onClick={() => window.location.href = '/treatments'}
+            className="cursor-pointer"
+          >
+            {t('nav.treatments')}
           </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link href="/reports">
-              {t('nav.reports')}
-            </Link>
+          <DropdownMenuItem 
+            onClick={() => window.location.href = '/reports'}
+            className="cursor-pointer"
+          >
+            {t('nav.reports')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -57,44 +66,51 @@ export function NavigationClient() {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
           <DropdownMenuLabel>{t('nav.initialConfig')}</DropdownMenuLabel>
-          <DropdownMenuItem asChild>
-            <Link href="/assets">
-              {t('nav.assets')}
-            </Link>
+          <DropdownMenuItem 
+            onClick={() => window.location.href = '/assets'}
+            className="cursor-pointer"
+          >
+            {t('nav.assets')}
           </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link href="/fixed-costs">
-              {t('nav.fixedCosts')}
-            </Link>
+          <DropdownMenuItem 
+            onClick={() => window.location.href = '/fixed-costs'}
+            className="cursor-pointer"
+          >
+            {t('nav.fixedCosts')}
           </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link href="/time">
-              {t('nav.time')}
-            </Link>
+          <DropdownMenuItem 
+            onClick={() => window.location.href = '/time'}
+            className="cursor-pointer"
+          >
+            {t('nav.time')}
           </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link href="/equilibrium">
-              {t('nav.equilibrium')}
-            </Link>
+          <DropdownMenuItem 
+            onClick={() => window.location.href = '/equilibrium'}
+            className="cursor-pointer"
+          >
+            {t('nav.equilibrium')}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuLabel>{t('nav.variableCosts')}</DropdownMenuLabel>
-          <DropdownMenuItem asChild>
-            <Link href="/supplies">
-              {t('nav.supplies')}
-            </Link>
+          <DropdownMenuItem 
+            onClick={() => window.location.href = '/supplies'}
+            className="cursor-pointer"
+          >
+            {t('nav.supplies')}
           </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link href="/services">
-              {t('nav.services')}
-            </Link>
+          <DropdownMenuItem 
+            onClick={() => window.location.href = '/services'}
+            className="cursor-pointer"
+          >
+            {t('nav.services')}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuLabel>{t('nav.pricing')}</DropdownMenuLabel>
-          <DropdownMenuItem asChild>
-            <Link href="/tariffs">
-              {t('nav.tariffs')}
-            </Link>
+          <DropdownMenuItem 
+            onClick={() => window.location.href = '/tariffs'}
+            className="cursor-pointer"
+          >
+            {t('nav.tariffs')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -107,21 +123,24 @@ export function NavigationClient() {
           <ChevronDown className="h-3 w-3" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem asChild>
-            <Link href="/settings/workspaces">
-              {t('nav.workspaces')}
-            </Link>
+          <DropdownMenuItem 
+            onClick={() => window.location.href = '/settings/workspaces'}
+            className="cursor-pointer"
+          >
+            {t('nav.workspaces')}
           </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link href="/settings/clinics">
-              {t('nav.clinics')}
-            </Link>
+          <DropdownMenuItem 
+            onClick={() => window.location.href = '/settings/clinics'}
+            className="cursor-pointer"
+          >
+            {t('nav.clinics')}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem asChild>
-            <Link href="/settings/reset">
-              {t('nav.resetData')}
-            </Link>
+          <DropdownMenuItem 
+            onClick={() => window.location.href = '/settings/reset'}
+            className="cursor-pointer"
+          >
+            {t('nav.resetData')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

@@ -41,7 +41,7 @@ const patientSchema = z.object({
   address: z.string().optional(),
   city: z.string().optional(),
   postal_code: z.string().optional(),
-  notes: z.string().optional(),
+  notes: z.string().optional()
 });
 
 type PatientForm = z.infer<typeof patientSchema>;
@@ -58,7 +58,6 @@ interface Patient {
   city?: string;
   postal_code?: string;
   notes?: string;
-  active: boolean;
   created_at: string;
 }
 
@@ -93,7 +92,9 @@ export default function PatientsPage() {
       const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
-        setPatients(data.data || []);
+        console.log('Patients loaded:', data); // Debug
+        const patientsArray = Array.isArray(data) ? data : (data.data || []);
+        setPatients(patientsArray);
       }
     } catch (error) {
       console.error('Error loading patients:', error);
@@ -115,20 +116,29 @@ export default function PatientsPage() {
       
       const method = editingPatient ? 'PUT' : 'POST';
       
+      console.log('Submitting patient data:', data); // Debug
+      
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
 
+      const result = await response.json();
+      
       if (response.ok) {
-        loadPatients();
+        console.log('Patient saved successfully:', result);
+        await loadPatients();
         reset();
         setIsCreateOpen(false);
         setEditingPatient(null);
+      } else {
+        console.error('Error response from server:', result);
+        alert(result.message || 'Error al guardar paciente');
       }
     } catch (error) {
       console.error('Error saving patient:', error);
+      alert('Error al guardar paciente');
     }
   };
 
@@ -144,7 +154,7 @@ export default function PatientsPage() {
       address: patient.address || '',
       city: patient.city || '',
       postal_code: patient.postal_code || '',
-      notes: patient.notes || '',
+      notes: patient.notes || ''
     });
     setIsCreateOpen(true);
   };
@@ -169,69 +179,86 @@ export default function PatientsPage() {
     {
       key: 'name',
       label: t('patients.name'),
-      render: (patient: Patient) => (
-        <div>
-          <p className="font-medium">{patient.first_name} {patient.last_name}</p>
-          {patient.email && (
-            <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-              <Mail className="h-3 w-3" />
-              {patient.email}
+      render: (patient: Patient) => {
+        if (!patient) return null;
+        return (
+          <div>
+            <p className="font-medium">
+              {patient.first_name || ''} {patient.last_name || ''}
             </p>
-          )}
-        </div>
-      ),
+            {patient.email && (
+              <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                <Mail className="h-3 w-3" />
+                {patient.email}
+              </p>
+            )}
+          </div>
+        );
+      }
     },
     {
       key: 'phone',
       label: t('patients.phone'),
-      render: (patient: Patient) => patient.phone && (
+      render: (patient: Patient) => patient?.phone ? (
         <div className="flex items-center gap-1">
           <Phone className="h-3 w-3" />
           {patient.phone}
         </div>
-      ),
+      ) : null,
     },
     {
       key: 'birth_date',
       label: t('patients.birthDate'),
-      render: (patient: Patient) => patient.birth_date && (
+      render: (patient: Patient) => patient?.birth_date ? (
         <div className="flex items-center gap-1">
           <Calendar className="h-3 w-3" />
           {formatDate(patient.birth_date)}
         </div>
-      ),
+      ) : null,
     },
     {
       key: 'city',
       label: t('patients.city'),
-      render: (patient: Patient) => patient.city && (
+      render: (patient: Patient) => patient?.city ? (
         <div className="flex items-center gap-1">
           <MapPin className="h-3 w-3" />
           {patient.city}
         </div>
-      ),
+      ) : null,
+    },
+    {
+      key: 'notes',
+      label: t('patients.notes'),
+      render: (patient: Patient) => patient?.notes ? (
+        <div className="max-w-xs truncate text-sm text-muted-foreground">
+          {patient.notes}
+        </div>
+      ) : null,
     },
     {
       key: 'actions',
       label: t('common.actions'),
-      render: (patient: Patient) => (
-        <div className="flex gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => handleEdit(patient)}
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => handleDelete(patient.id)}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      ),
+      render: (patient: Patient) => {
+        if (!patient) return null;
+        return (
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleEdit(patient)}
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => patient.id && handleDelete(patient.id)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        );
+      }
     },
   ];
 

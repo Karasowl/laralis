@@ -177,14 +177,19 @@
     "basedOnFixedCosts": "Basado en costos fijos mensuales de",
     "totalMinutes": "Minutos Totales",
     "effectiveMinutes": "Minutos Efectivos",
-    "percentageHelp": "Como decimal (ej: 0.8 = 80%)",
+    "percentageHelp": "Ingresa el porcentaje (ej: 80 para 80%)",
+    "plannedHoursPerMonth": "Horas Planeadas al Mes",
+    "realHoursPerMonth": "Horas Reales al Mes",
+    "days": "días",
+    "hoursPerDayShort": "hrs/día",
+    "ofPlannedHours": "de horas planeadas",
+    "formula": "Fórmula",
     "messages": {
       "saved": "Configuración de tiempo guardada exitosamente",
       "saveError": "Error al guardar configuración de tiempo",
       "loadError": "Error al cargar configuración de tiempo"
     },
     "calculatedCosts": "Costos Calculados",
-    "basedOnFixedCosts": "Basado en costos fijos de",
     "fixedCostPerHour": "Costo Fijo por Hora",
     "fixedCostPerMinute": "Costo Fijo por Minuto"
   },
@@ -212,6 +217,9 @@
       "utilities": "Servicios",
       "insurance": "Seguros",
       "equipment": "Equipo",
+      "maintenance": "Mantenimiento",
+      "education": "Educación",
+      "advertising": "Publicidad",
       "other": "Otros"
     },
     "placeholders": {
@@ -224,6 +232,23 @@
       "saveError": "Error al guardar costo fijo",
       "deleteError": "Error al eliminar costo fijo",
       "loadError": "Error al cargar costos fijos"
+    },
+    "summary": {
+      "totalMonthly": "Total Costos Fijos Mensuales",
+      "breakdown": "Desglose por categoría",
+      "local": "Gastos del Local",
+      "concepts": "conceptos",
+      "depreciation": "Depreciación de Activos",
+      "autoAddedNote": "Agregado automáticamente desde activos"
+    },
+    "businessFlow": {
+      "title": "Flujo de Costos en el Negocio",
+      "step1": "Paso 1",
+      "step1Description": "Registras todos tus costos fijos mensuales aquí",
+      "step2": "Paso 2",
+      "step2Description": "El sistema calcula automáticamente el costo por minuto basado en tu tiempo de trabajo",
+      "step3": "Paso 3",
+      "step3Description": "Este costo se incluye automáticamente en cada cotización de servicio. Total mensual:"
     }
   },
   "supplies": {
@@ -358,11 +383,111 @@
     "minPrice": "Precio Mín",
     "maxPrice": "Precio Máx"
   },
+  "businessSetup": {
+    "assets": {
+      "title": "Activos",
+      "subtitle": "Equipo e inversión con depreciación",
+      "totalInvestment": "Inversión Total",
+      "assets": "activos",
+      "depreciationPeriod": "Período de Depreciación",
+      "years": "años",
+      "months": "meses",
+      "monthlyDepreciation": "Depreciación Mensual Total",
+      "perMonth": "por mes",
+      "yearlyDepreciation": "Depreciación Anual Total",
+      "perYear": "por año",
+      "addAsset": "Agregar Activo",
+      "detailBreakdown": "Desglose Detallado",
+      "empty": {
+        "title": "No hay activos registrados",
+        "description": "Agrega tus equipos e inversiones para calcular la depreciación"
+      },
+      "form": {
+        "name": "Nombre del Activo",
+        "namePlaceholder": "ej. Sillón dental, Compresor, etc.",
+        "purchasePrice": "Precio de Compra",
+        "purchasePricePlaceholder": "ej. 50000",
+        "depreciationMonths": "Meses de Depreciación",
+        "depreciationMonthsPlaceholder": "ej. 60",
+        "purchaseDate": "Fecha de Compra",
+        "save": "Guardar",
+        "cancel": "Cancelar"
+      },
+      "table": {
+        "name": "Activo",
+        "purchasePrice": "Precio",
+        "depreciationPeriod": "Depreciación",
+        "monthlyDepreciation": "Depreciación Mensual",
+        "remainingValue": "Valor Restante",
+        "age": "Antigüedad",
+        "actions": "Acciones"
+      },
+      "depreciationExplanation": "Explicación de la Depreciación",
+      "formula": "Fórmula",
+      "formulaExplanation": "Precio de Compra ÷ Meses de Depreciación = Depreciación Mensual",
+      "exampleCalculation": "Ejemplo:",
+      "month": "mes",
+      "priceHelp": "Ingrese el precio en pesos mexicanos",
+      "depreciationExplanation": "Explicación de la Depreciación",
+      "formula": "Fórmula",
+      "formulaExplanation": "Precio de Compra ÷ Meses de Depreciación = Depreciación Mensual",
+      "exampleCalculation": "Ejemplo:",
+      "month": "mes"
+    }
+  },
+  "fixedCostsSummary": {
+    "summary": {
+      "totalMonthly": "Total Costos Fijos Mensuales",
+      "breakdown": "Desglose por categoría",
+      "local": "Gastos del Local",
+      "concepts": "conceptos",
+      "depreciation": "Depreciación de Activos",
+      "autoAddedNote": "Agregado automáticamente desde activos"
+    },
+    "businessFlow": {
+      "title": "Flujo de Costos en el Negocio",
+      "step1": "Paso 1",
+      "step1Description": "Registras todos tus costos fijos mensuales aquí",
+      "step2": "Paso 2",
+      "step2Description": "El sistema calcula automáticamente el costo por minuto basado en tu tiempo de trabajo",
+      "step3": "Paso 3",
+      "step3Description": "Este costo se incluye automáticamente en cada cotización de servicio. Total mensual:"
+    }
+  },
+  "fixedCosts": {
+    "list": {
+      "title": "Costos Fijos Mensuales",
+      "subtitle": "Gastos recurrentes del consultorio"
+    },
+    "categories": {
+      "rent": "Renta",
+      "utilities": "Servicios",
+      "salaries": "Salarios",
+      "insurance": "Seguros",
+      "admin": "Administración",
+      "marketing": "Marketing",
+      "maintenance": "Mantenimiento",
+      "supplies": "Suministros",
+      "depreciation": "Depreciación",
+      "other": "Otros"
+    }
+  },
   "assets": {
     "title": "Activos",
     "subtitle": "Equipo e inversiones con depreciación",
+    "pageTitle": "Activos",
+    "pageSubtitle": "Gestión de activos fijos y cálculo de depreciación",
     "totalMonthlyDep": "Depreciación mensual total",
+    "monthlyDepreciationTotal": "Depreciación Mensual Total",
     "add": "Agregar Activo",
+    "addAssetButton": "Agregar Activo",
+    "addAssetDialogTitle": "Agregar Nuevo Activo",
+    "formNameLabel": "Nombre del Activo",
+    "formPriceLabel": "Precio de Compra",
+    "formMonthsLabel": "Meses de Depreciación",
+    "formPurchaseDateLabel": "Fecha de Compra",
+    "formCancelButton": "Cancelar",
+    "formSaveButton": "Guardar",
     "table": {
       "name": "Nombre",
       "purchasePrice": "Precio de compra",
@@ -627,16 +752,6 @@
     "empty": {
       "title": "No hay datos para reportar",
       "description": "Los reportes estarán disponibles una vez que hayas registrado tratamientos"
-    }
-  },
-  "businessSetup": {
-    "title": "Configuración del Negocio",
-    "subtitle": "Define los fundamentos financieros de tu clínica",
-    "steps": {
-      "assets": "1. Depreciación (Activos)",
-      "fixedCosts": "2. Costos Fijos",
-      "timeCosts": "3. Costos por Tiempo",
-      "equilibrium": "4. Punto de Equilibrio"
     }
   },
   "fixedCosts": {

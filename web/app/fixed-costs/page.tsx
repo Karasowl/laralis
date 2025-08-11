@@ -16,7 +16,6 @@ import { formatCurrency, getCategoryDisplayName } from '@/lib/format';
 import { zFixedCostForm } from '@/lib/zod';
 import type { FixedCost, FixedCostCategory } from '@/lib/types';
 import { Plus, Receipt, Edit, Trash2, X } from 'lucide-react';
-import { pesosToCents } from '@/lib/money';
 
 const categories: { value: FixedCostCategory; key: string }[] = [
   { value: 'rent', key: 'rent' },
@@ -98,10 +97,14 @@ export default function FixedCostsPage() {
 
   const onSubmit = async (formData: FixedCostFormData) => {
     try {
+      console.log('Form data:', formData);
+      console.log('Amount (already in cents from zod transform):', formData.amount_pesos);
+      
+      // amount_pesos ya está en centavos debido a la transformación de Zod
       const payload = {
         category: formData.category,
         concept: formData.concept,
-        amount_cents: pesosToCents(formData.amount_pesos),
+        amount_cents: formData.amount_pesos, // Ya está en centavos
       };
 
       const url = editingId 

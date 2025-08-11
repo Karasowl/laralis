@@ -4,6 +4,7 @@ import { zAsset } from '@/lib/zod';
 import type { Asset, ApiResponse } from '@/lib/types';
 import { cookies } from 'next/headers';
 import { getClinicIdOrDefault } from '@/lib/clinic';
+import { createServerClient } from '@supabase/ssr';
 
 export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<Asset[]>>> {
   try {
@@ -13,6 +14,34 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
     const search = searchParams.get('search');
 
     const cookieStore = cookies();
+    
+    // Verificar autenticación
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options);
+            });
+          },
+        },
+      }
+    );
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+    
     const clinicId = searchParams.get('clinicId') || await getClinicIdOrDefault(cookieStore);
 
     if (!clinicId) {
@@ -60,6 +89,34 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
   try {
     const body = await request.json();
     const cookieStore = cookies();
+    
+    // Verificar autenticación
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options);
+            });
+          },
+        },
+      }
+    );
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+    
     const clinicId = body.clinic_id || await getClinicIdOrDefault(cookieStore);
 
     if (!clinicId) {
@@ -87,9 +144,13 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       );
     }
 
+    // Remover depreciation_months si existe ya que es una columna generada
+    const dataToInsert = { ...validationResult.data };
+    delete dataToInsert.depreciation_months;
+
     const { data, error } = await supabaseAdmin
       .from('assets')
-      .insert(validationResult.data)
+      .insert(dataToInsert)
       .select()
       .single();
 

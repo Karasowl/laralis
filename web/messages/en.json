@@ -100,6 +100,75 @@
       "description": "Your workspace and clinic were created successfully"
     }
   },
+  "businessSetup": {
+    "assets": {
+      "title": "Assets",
+      "subtitle": "Equipment and investment with depreciation",
+      "totalInvestment": "Total Investment",
+      "assets": "assets",
+      "depreciationPeriod": "Depreciation Period",
+      "years": "years",
+      "months": "months",
+      "monthlyDepreciation": "Total Monthly Depreciation",
+      "perMonth": "per month",
+      "yearlyDepreciation": "Total Annual Depreciation",
+      "perYear": "per year",
+      "addAsset": "Add Asset",
+      "detailBreakdown": "Detailed Breakdown",
+      "empty": {
+        "title": "No assets registered",
+        "description": "Add your equipment and investments to calculate depreciation"
+      },
+      "form": {
+        "name": "Asset Name",
+        "namePlaceholder": "e.g. Dental chair, Compressor, etc.",
+        "purchasePrice": "Purchase Price",
+        "purchasePricePlaceholder": "e.g. 50000",
+        "depreciationMonths": "Depreciation Months",
+        "depreciationMonthsPlaceholder": "e.g. 60",
+        "purchaseDate": "Purchase Date",
+        "save": "Save",
+        "cancel": "Cancel"
+      },
+      "table": {
+        "name": "Asset",
+        "purchasePrice": "Price",
+        "depreciationPeriod": "Depreciation",
+        "monthlyDepreciation": "Monthly Depreciation",
+        "remainingValue": "Remaining Value",
+        "age": "Age",
+        "actions": "Actions"
+      },
+      "depreciationExplanation": "Depreciation Explanation",
+      "formula": "Formula",
+      "formulaExplanation": "Purchase Price ÷ Depreciation Months = Monthly Depreciation",
+      "exampleCalculation": "Example:",
+      "month": "month",
+      "priceHelp": "Enter the price in Mexican pesos",
+      "depreciationExplanation": "Depreciation Explanation",
+      "formula": "Formula",
+      "formulaExplanation": "Purchase Price ÷ Depreciation Months = Monthly Depreciation"
+    }
+  },
+  "fixedCostsSummary": {
+    "summary": {
+      "totalMonthly": "Total Monthly Fixed Costs",
+      "breakdown": "Category breakdown",
+      "local": "Premises Expenses",
+      "concepts": "concepts",
+      "depreciation": "Asset Depreciation",
+      "autoAddedNote": "Automatically added from assets"
+    },
+    "businessFlow": {
+      "title": "Business Cost Flow",
+      "step1": "Step 1",
+      "step1Description": "Register all your monthly fixed costs here",
+      "step2": "Step 2",
+      "step2Description": "The system automatically calculates cost per minute based on your working time",
+      "step3": "Step 3",
+      "step3Description": "This cost is automatically included in every service quote. Monthly total:"
+    }
+  },
   "nav": {
     "home": "Home",
     "operations": "Operations",
@@ -356,6 +425,24 @@
     "averageMargin": "Average Margin",
     "minPrice": "Min Price",
     "maxPrice": "Max Price"
+  },
+  "fixedCosts": {
+    "list": {
+      "title": "Monthly Fixed Costs",
+      "subtitle": "Recurring office expenses"
+    },
+    "categories": {
+      "rent": "Rent",
+      "utilities": "Utilities",
+      "salaries": "Salaries",
+      "insurance": "Insurance",
+      "admin": "Administration",
+      "marketing": "Marketing",
+      "maintenance": "Maintenance",
+      "supplies": "Supplies",
+      "depreciation": "Depreciation",
+      "other": "Other"
+    }
   },
   "assets": {
     "title": "Assets",

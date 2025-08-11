@@ -92,7 +92,7 @@ const DataTable = <T,>({
                       )}
                     >
                       {column.render
-                        ? column.render(value, item, rowIndex)
+                        ? column.render(item, item, rowIndex)
                         : String(value ?? "")}
                     </td>
                   );

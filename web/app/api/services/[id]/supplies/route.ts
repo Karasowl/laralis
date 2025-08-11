@@ -134,7 +134,6 @@ export async function POST(
       .select('id')
       .eq('service_id', service_id)
       .eq('supply_id', supply_id)
-      .eq('clinic_id', clinic_id)
       .single();
 
     let result;
@@ -210,8 +209,7 @@ export async function DELETE(
       .from('service_supplies')
       .delete()
       .eq('service_id', params.id)
-      .eq('supply_id', supply_id)
-      .eq('clinic_id', clinicId);
+      .eq('supply_id', supply_id);
 
     if (error) {
       console.error('Error deleting service supply:', error);
