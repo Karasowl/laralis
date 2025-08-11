@@ -53,8 +53,7 @@ export async function GET(
     const { data: serviceSupplies, error: suppliesError } = await supabaseAdmin
       .from('service_supplies')
       .select('*, supplies(price_cents, portions)')
-      .eq('service_id', params.id)
-      .eq('clinic_id', clinicId);
+      .eq('service_id', params.id);
 
     if (suppliesError) {
       console.error('Error fetching service supplies:', suppliesError);

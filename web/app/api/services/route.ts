@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
           id,
           supply_id,
           qty,
-          supplies (
+          supplies!service_supplies_supply_id_fkey (
             id,
             name,
             price_cents,
@@ -57,9 +57,13 @@ export async function GET(request: NextRequest) {
     // Calculate variable cost for each service
     const servicesWithCost = (data || []).map(service => {
       const variableCostCents = service.service_supplies?.reduce((total: number, ss: any) => {
-        if (ss.supplies) {
-          const costPerPortion = ss.supplies.price_cents / ss.supplies.portions;
-          return total + (costPerPortion * ss.qty);
+        const supply = ss?.supplies;
+        const qty = Number(ss?.qty) || 0;
+        const price = Number(supply?.price_cents) || 0;
+        const portions = Number(supply?.portions) || 0;
+        if (supply && portions > 0 && qty > 0) {
+          const costPerPortion = price / portions;
+          return total + Math.round(costPerPortion * qty);
         }
         return total;
       }, 0) || 0;

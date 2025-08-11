@@ -323,6 +323,8 @@
     "edit": "Editar Servicio",
     "addService": "Agregar Servicio",
     "editService": "Editar Servicio",
+    "addServiceDesc": "Completa los datos del nuevo servicio y, si quieres, agrega insumos.",
+    "editServiceDesc": "Actualiza los datos del servicio y su receta de insumos.",
     "listTitle": "Catálogo de Servicios",
     "listDescription": "Define servicios con duración y requerimientos de insumos",
     "name": "Nombre del Servicio",

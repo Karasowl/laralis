@@ -32,7 +32,7 @@ export async function GET(
       .from('service_supplies')
       .select(`
         *,
-        supplies (
+        supplies!service_supplies_supply_id_fkey (
           id,
           name,
           category,

@@ -8,10 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { DataTable } from '@/components/ui/data-table';
 import { formatCurrency } from '@/lib/money';
-import { Plus, Edit, Trash2, Search, Package } from 'lucide-react';
+import { Plus, Edit, Trash2, Search } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -67,12 +67,9 @@ export default function ServicesPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [isOpen, setIsOpen] = useState(false);
-  const [isSuppliesOpen, setIsSuppliesOpen] = useState(false);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [editingService, setEditingService] = useState<Service | null>(null);
-  const [selectedService, setSelectedService] = useState<Service | null>(null);
-  const [serviceSupplies, setServiceSupplies] = useState<ServiceSupply[]>([]);
   const [formSupplies, setFormSupplies] = useState<ServiceSupply[]>([]);
 
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<ServiceForm>({
@@ -231,12 +228,13 @@ export default function ServicesPage() {
     setValue('est_minutes', service.est_minutes);
     setValue('description', service.description || '');
     
-    // Cargar insumos del servicio existente
+    // Cargar insumos del servicio existente directamente al abrir editar
     try {
       const res = await fetch(`/api/services/${service.id}/supplies`);
       if (res.ok) {
-        const data = await res.json();
-        setFormSupplies(data || []);
+        const payload = await res.json();
+        const arr = Array.isArray(payload) ? payload : (payload.data || []);
+        setFormSupplies(arr);
       }
     } catch (error) {
       console.error('Error fetching service supplies for edit:', error);
@@ -246,87 +244,13 @@ export default function ServicesPage() {
     setIsOpen(true);
   };
 
-  // Abrir modal de insumos
-  const handleManageSupplies = async (service: Service) => {
-    setSelectedService(service);
-    setServiceSupplies([]); // Inicializar como array vacío
-    
-    // Cargar insumos del servicio
-    try {
-      const res = await fetch(`/api/services/${service.id}/supplies`);
-      if (res.ok) {
-        const data = await res.json();
-        setServiceSupplies(data || []);
-      }
-    } catch (error) {
-      console.error('Error fetching service supplies:', error);
-      setServiceSupplies([]);
-    }
-    
-    setIsSuppliesOpen(true);
-  };
+  // Eliminado: gestión separada de insumos; ahora sólo desde el modal de editar
 
   // Agregar insumo al servicio
-  const handleAddSupply = async (supplyId: string, qty: number) => {
-    if (!selectedService) return;
-    
-    try {
-      const res = await fetch(`/api/services/${selectedService.id}/supplies`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ supply_id: supplyId, qty })
-      });
-
-      if (res.ok) {
-        // Recargar insumos del servicio
-        const suppliesRes = await fetch(`/api/services/${selectedService.id}/supplies`);
-        if (suppliesRes.ok) {
-          const data = await suppliesRes.json();
-          setServiceSupplies(data);
-        }
-        fetchServices(); // Actualizar costo variable
-      }
-    } catch (error) {
-      console.error('Error adding supply:', error);
-    }
-  };
+  const handleAddSupply = async (_supplyId: string, _qty: number) => {};
 
   // Eliminar insumo del servicio
-  const handleRemoveSupply = async (supplyId: string) => {
-    if (!selectedService) return;
-    
-    try {
-      // Primero necesitamos encontrar el ID del registro service_supplies
-      const serviceSupply = serviceSupplies?.find(ss => ss.supply_id === supplyId);
-      if (!serviceSupply || !serviceSupply.id) {
-        // Si no hay ID, intentamos eliminar por supply_id directamente
-        // mediante un DELETE especial en la API
-        const res = await fetch(`/api/services/${selectedService.id}/supplies`, {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ supply_id: supplyId })
-        });
-        
-        if (res.ok) {
-          setServiceSupplies(prev => prev.filter(ss => ss.supply_id !== supplyId));
-          fetchServices();
-        }
-        return;
-      }
-      
-      // Si tenemos el ID, usamos la ruta existente
-      const res = await fetch(`/api/services/${selectedService.id}/supplies/${serviceSupply.id}`, {
-        method: 'DELETE'
-      });
-
-      if (res.ok) {
-        setServiceSupplies(prev => prev.filter(ss => ss.supply_id !== supplyId));
-        fetchServices(); // Actualizar costo variable
-      }
-    } catch (error) {
-      console.error('Error removing supply:', error);
-    }
-  };
+  const handleRemoveSupply = async (_supplyId: string) => {};
 
   // Filtrar servicios
   const filteredServices = services.filter(service =>
@@ -348,14 +272,6 @@ export default function ServicesPage() {
       label: t('common.actions'),
       render: (service: Service) => (
         <div className="flex gap-2">
-          <Button 
-            size="sm" 
-            variant="outline" 
-            onClick={() => handleManageSupplies(service)}
-            title={t('services.manageSuppliesHint')}
-          >
-            <Package className="h-4 w-4" />
-          </Button>
           <Button size="sm" variant="outline" onClick={() => handleEdit(service)}>
             <Edit className="h-4 w-4" />
           </Button>
@@ -389,11 +305,14 @@ export default function ServicesPage() {
                 </Button>
               </DialogTrigger>
               <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>
-                    {editingService ? t('services.editService') : t('services.addService')}
-                  </DialogTitle>
-                </DialogHeader>
+                  <DialogHeader>
+                    <DialogTitle>
+                      {editingService ? t('services.editService') : t('services.addService')}
+                    </DialogTitle>
+                    <DialogDescription>
+                      {editingService ? t('services.editServiceDesc') : t('services.addServiceDesc')}
+                    </DialogDescription>
+                  </DialogHeader>
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                   <div>
                     <Label htmlFor="name">{t('services.name')}</Label>
@@ -507,29 +426,25 @@ export default function ServicesPage() {
                             }
                           }
                         }}>
-                          <SelectTrigger className="flex-1">
+                           <SelectTrigger className="flex-1">
                             <SelectValue placeholder={t('services.selectSupply')} />
                           </SelectTrigger>
                           <SelectContent>
-                            {(() => {
-                              console.log('Rendering supplies dropdown, supplies:', supplies);
-                              const availableSupplies = supplies?.filter(s => !formSupplies.some(fs => fs.supply_id === s.id));
-                              console.log('Available supplies after filter:', availableSupplies);
-                              
-                              if (!availableSupplies || availableSupplies.length === 0) {
-                                return (
-                                  <SelectItem value="_placeholder" disabled>
-                                    {t('services.noSuppliesAvailable')}
-                                  </SelectItem>
-                                );
-                              }
-                              
-                              return availableSupplies.map(supply => (
-                                <SelectItem key={supply.id} value={supply.id}>
-                                  {supply.name} - {supply.presentation}
-                                </SelectItem>
-                              ));
-                            })()}
+                             {(() => {
+                               const availableSupplies = supplies?.filter(s => !formSupplies.some(fs => fs.supply_id === s.id));
+                               if (!availableSupplies || availableSupplies.length === 0) {
+                                 return (
+                                   <SelectItem value="_placeholder" disabled>
+                                     {t('services.noSuppliesAvailable')}
+                                   </SelectItem>
+                                 );
+                               }
+                               return availableSupplies.map(supply => (
+                                 <SelectItem key={supply.id} value={supply.id}>
+                                   {supply.name} - {supply.presentation}
+                                 </SelectItem>
+                               ));
+                             })()}
                           </SelectContent>
                         </Select>
                         <Input 
@@ -676,108 +591,7 @@ export default function ServicesPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal de gestión de insumos */}
-      <Dialog open={isSuppliesOpen} onOpenChange={setIsSuppliesOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
-              {t('services.manageSupplies')} - {selectedService?.name}
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            <div className="border rounded-lg p-4">
-              <h4 className="font-medium mb-2">{t('services.addSupply')}</h4>
-              <div className="flex gap-2">
-                <Select onValueChange={(supplyId) => {
-                  const input = document.getElementById('quantity') as HTMLInputElement;
-                  const qty = parseFloat(input?.value || '1');
-                  if (supplyId && qty > 0) {
-                    handleAddSupply(supplyId, qty);
-                    input.value = '1';
-                  }
-                }}>
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder={t('services.selectSupply')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {supplies && supplies.length > 0 ? (
-                      supplies
-                        .filter(s => !serviceSupplies?.some(ss => ss.supply_id === s.id))
-                        .map(supply => (
-                          <SelectItem key={supply.id} value={supply.id}>
-                            {supply.name} - {supply.presentation}
-                          </SelectItem>
-                        ))
-                    ) : (
-                      <SelectItem value="_placeholder" disabled>
-                        {t('services.noSuppliesAvailable')}
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-                <Input 
-                  id="quantity"
-                  type="number" 
-                  placeholder={t('services.quantity')}
-                  className="w-24"
-                  defaultValue="1"
-                  step="0.1"
-                  min="0.1"
-                />
-              </div>
-            </div>
-
-            <div className="border rounded-lg p-4">
-              <h4 className="font-medium mb-2">{t('services.currentSupplies')}</h4>
-              {!serviceSupplies || serviceSupplies.length === 0 ? (
-                <p className="text-muted-foreground">{t('services.noSupplies')}</p>
-              ) : (
-                <div className="space-y-2">
-                  {serviceSupplies?.map(ss => {
-                    const supply = supplies?.find(s => s.id === ss.supply_id);
-                    if (!supply) return null;
-                    const cost = (supply.cost_per_portion_cents * ss.qty) / 100;
-                    
-                    return (
-                      <div key={ss.supply_id} className="flex justify-between items-center p-2 border rounded">
-                        <div>
-                          <span className="font-medium">{supply.name}</span>
-                          <span className="text-muted-foreground ml-2">({supply.presentation})</span>
-                          <span className="ml-4">x {ss.qty}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{formatCurrency(cost * 100)}</span>
-                          <Button 
-                            size="sm" 
-                            variant="destructive"
-                            onClick={() => handleRemoveSupply(ss.supply_id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  <div className="pt-2 border-t">
-                    <div className="flex justify-between font-medium">
-                      <span>{t('services.totalVariableCost')}</span>
-                      <span>
-                        {formatCurrency(
-                          serviceSupplies?.reduce((total, ss) => {
-                            const supply = supplies?.find(s => s.id === ss.supply_id);
-                            return total + (supply ? supply.cost_per_portion_cents * ss.qty : 0);
-                          }, 0) || 0
-                        )}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Eliminado modal independiente de insumos por solicitud UX */}
     </div>
   );
 }
