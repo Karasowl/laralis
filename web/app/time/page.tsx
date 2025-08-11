@@ -1,6 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -22,6 +23,7 @@ type TimeSettingsForm = {
 
 export default function TimeSettingsPage() {
   const t = useTranslations();
+  const router = useRouter();
   const [results, setResults] = useState<any>(null);
   const [fixedCosts, setFixedCosts] = useState<FixedCost[]>([]);
   const [assetsMonthlyDepCents, setAssetsMonthlyDepCents] = useState(0);
@@ -33,13 +35,14 @@ export default function TimeSettingsPage() {
     handleSubmit,
     watch,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<TimeSettingsForm>({
     resolver: zodResolver(zSettingsTimeForm),
     defaultValues: {
       work_days: 20,
       hours_per_day: 7,
-      real_pct: 0.8,
+      real_pct: 80, // Cambiado a porcentaje entero
     },
   });
 
@@ -57,7 +60,7 @@ export default function TimeSettingsPage() {
       const timeCosts = calculateTimeCosts({
         workDaysPerMonth: watchedValues.work_days,
         hoursPerDay: watchedValues.hours_per_day,
-        effectiveWorkPercentage: watchedValues.real_pct,
+        effectiveWorkPercentage: watchedValues.real_pct / 100, // Convertir porcentaje a decimal
       }, monthlyFixedCostsCents);
       setResults(timeCosts);
     }
@@ -74,7 +77,7 @@ export default function TimeSettingsPage() {
           reset({
             work_days: timeData.data.work_days,
             hours_per_day: timeData.data.hours_per_day,
-            real_pct: timeData.data.real_pct,
+            real_pct: timeData.data.real_pct * 100, // Convertir de decimal a porcentaje para mostrar
           });
         }
       }
@@ -110,13 +113,19 @@ export default function TimeSettingsPage() {
 
   const onSubmit = async (data: TimeSettingsForm) => {
     try {
+      // Convertir porcentaje a decimal antes de enviar
+      const dataToSend = {
+        ...data,
+        real_pct: data.real_pct / 100, // Convertir 80 a 0.8
+      };
+      
       // Save to API
       const response = await fetch('/api/settings/time', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(dataToSend),
       });
 
       if (!response.ok) {
@@ -129,13 +138,18 @@ export default function TimeSettingsPage() {
       const timeCosts = calculateTimeCosts({
         workDaysPerMonth: data.work_days,
         hoursPerDay: data.hours_per_day,
-        effectiveWorkPercentage: data.real_pct,
+        effectiveWorkPercentage: data.real_pct / 100, // Convertir porcentaje a decimal
       }, monthlyFixedCostsCents);
       
       setResults(timeCosts);
       
       // Show success message (you could add a toast here)
       console.log('Time settings saved successfully:', timeCosts);
+      
+      // Navigate to home after successful save
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 500);
     } catch (error) {
       console.error('Error saving time settings:', error);
       // Show error message (you could add a toast here)
@@ -192,18 +206,22 @@ export default function TimeSettingsPage() {
 
               <FormField
                 label={t('time.effectiveWorkPercentage')}
-                description={t('time.percentageHelp')}
+                description="Ingresa el porcentaje (ej: 80 para 80%)"
                 error={errors.real_pct?.message}
                 required
               >
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0.1"
-                  max="1"
-                  disabled={loadingData}
-                  {...register('real_pct', { valueAsNumber: true })}
-                />
+                <div className="relative">
+                  <Input
+                    type="number"
+                    step="1"
+                    min="0"
+                    max="100"
+                    disabled={loadingData}
+                    {...register('real_pct', { valueAsNumber: true })}
+                    placeholder="80"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">%</span>
+                </div>
               </FormField>
 
               <Button type="submit" disabled={isSubmitting || loadingData} className="w-full">
@@ -244,10 +262,10 @@ export default function TimeSettingsPage() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">{t('time.realHoursPerMonth')}</p>
                   <p className="text-2xl font-bold text-green-600">
-                    {(watchedValues.work_days * watchedValues.hours_per_day * watchedValues.real_pct).toFixed(1)} hrs
+                    {(watchedValues.work_days * watchedValues.hours_per_day * (watchedValues.real_pct / 100)).toFixed(1)} hrs
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {(watchedValues.real_pct * 100).toFixed(0)}% {t('time.ofPlannedHours')}
+                    {watchedValues.real_pct}% {t('time.ofPlannedHours')}
                   </p>
                 </div>
               </div>

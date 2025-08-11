@@ -17,17 +17,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get services with their supplies for cost calculation
+    // Get services with their supplies relationship
+    // Using explicit relationship hint to avoid ambiguity
     let query = supabaseAdmin
       .from('services')
       .select(`
         *,
-        service_supplies (
+        service_supplies!service_supplies_service_id_fkey (
+          id,
+          supply_id,
           qty,
-          supply:supplies (
+          supplies (
             id,
             name,
-            presentation,
             price_cents,
             portions
           )
@@ -55,8 +57,8 @@ export async function GET(request: NextRequest) {
     // Calculate variable cost for each service
     const servicesWithCost = (data || []).map(service => {
       const variableCostCents = service.service_supplies?.reduce((total: number, ss: any) => {
-        if (ss.supply) {
-          const costPerPortion = ss.supply.price_cents / ss.supply.portions;
+        if (ss.supplies) {
+          const costPerPortion = ss.supplies.price_cents / ss.supplies.portions;
           return total + (costPerPortion * ss.qty);
         }
         return total;
@@ -111,6 +113,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Calculate initial price (can be updated later in tariffs)
+    // For now, use a default calculation based on time and a standard margin
+    const minuteRate = 1000; // Default rate per minute in cents (10 pesos)
+    const basePrice = est_minutes * minuteRate;
+    const defaultMargin = 1.6; // 60% margin
+    const price_cents = Math.round(basePrice * defaultMargin);
+
     // Create the service with new fields
     const { data: serviceData, error: serviceError } = await supabaseAdmin
       .from('services')
@@ -120,6 +129,7 @@ export async function POST(request: NextRequest) {
         category,
         est_minutes,
         description: description || null,
+        price_cents: price_cents,
         active: true
       })
       .select()

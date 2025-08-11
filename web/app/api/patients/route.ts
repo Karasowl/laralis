@@ -7,15 +7,14 @@ import { z } from 'zod';
 const patientSchema = z.object({
   first_name: z.string().min(1, 'First name is required'),
   last_name: z.string().min(1, 'Last name is required'),
-  email: z.string().email().optional().nullable(),
+  email: z.union([z.string().email(), z.literal(''), z.null()]).optional(),
   phone: z.string().optional().nullable(),
   birth_date: z.string().optional().nullable(),
-  gender: z.enum(['male', 'female', 'other']).optional().nullable(),
+  gender: z.union([z.enum(['male', 'female', 'other']), z.literal(''), z.null()]).optional(),
   address: z.string().optional().nullable(),
   city: z.string().optional().nullable(),
   postal_code: z.string().optional().nullable(),
-  notes: z.string().optional().nullable(),
-  active: z.boolean().default(true),
+  notes: z.string().optional().nullable()
 });
 
 export async function GET(request: NextRequest) {
@@ -79,9 +78,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Clean empty strings from body
+    // IMPORTANT: Don't set email to null if empty, leave it undefined to avoid unique constraint issues
+    const cleanedBody = {
+      first_name: body.first_name,
+      last_name: body.last_name,
+      ...(body.email && body.email.trim() && { email: body.email.trim() }),
+      ...(body.phone && { phone: body.phone }),
+      ...(body.birth_date && { birth_date: body.birth_date }),
+      ...(body.gender && { gender: body.gender }),
+      ...(body.address && { address: body.address }),
+      ...(body.city && { city: body.city }),
+      ...(body.postal_code && { postal_code: body.postal_code }),
+      ...(body.notes && { notes: body.notes })
+    };
+
     // Validate request body
-    const validationResult = patientSchema.safeParse(body);
+    const validationResult = patientSchema.safeParse(cleanedBody);
     if (!validationResult.success) {
+      console.error('Validation errors:', validationResult.error.errors);
       return NextResponse.json(
         { 
           error: 'Validation failed', 
@@ -103,7 +118,21 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error('Error creating patient:', error);
+      console.error('Error creating patient - Full error:', JSON.stringify(error, null, 2));
+      console.error('Error message:', error.message);
+      console.error('Patient data attempted:', patientData);
+      
+      // Check for duplicate email error
+      if (error.code === '23505' && error.message.includes('patients_clinic_id_email_key')) {
+        return NextResponse.json(
+          { 
+            error: 'Email duplicado', 
+            message: 'Ya existe un paciente registrado con este email en esta clínica. Puedes dejar el email vacío o usar uno diferente.' 
+          },
+          { status: 400 }
+        );
+      }
+      
       return NextResponse.json(
         { error: 'Failed to create patient', message: error.message },
         { status: 500 }

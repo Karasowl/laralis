@@ -52,7 +52,7 @@ interface Service {
   id: string;
   name: string;
   category: string;
-  duration_minutes: number;
+  est_minutes: number;
   description?: string;
   active: boolean;
   service_supplies?: ServiceSupply[];
@@ -73,6 +73,7 @@ export default function ServicesPage() {
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [serviceSupplies, setServiceSupplies] = useState<ServiceSupply[]>([]);
+  const [formSupplies, setFormSupplies] = useState<ServiceSupply[]>([]);
 
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<ServiceForm>({
     resolver: zodResolver(serviceSchema),
@@ -88,7 +89,13 @@ export default function ServicesPage() {
       const res = await fetch('/api/services');
       if (res.ok) {
         const data = await res.json();
-        setServices(data);
+        console.log('Services response:', data); // Debug
+        // El API puede devolver directamente el array o {data: [...]}
+        const servicesArray = Array.isArray(data) ? data : (data.data || []);
+        setServices(servicesArray);
+      } else {
+        const error = await res.json();
+        console.error('Error response from services API:', error);
       }
     } catch (error) {
       console.error('Error fetching services:', error);
@@ -103,7 +110,10 @@ export default function ServicesPage() {
       const res = await fetch('/api/supplies');
       if (res.ok) {
         const data = await res.json();
-        setSupplies(data);
+        console.log('Supplies loaded:', data); // Debug
+        // El API devuelve {data: [...]} o directamente el array
+        const suppliesArray = data.data || data;
+        setSupplies(suppliesArray);
       }
     } catch (error) {
       console.error('Error fetching supplies:', error);
@@ -163,7 +173,8 @@ export default function ServicesPage() {
       // Asegurar que category tenga un valor por defecto
       const serviceData = {
         ...data,
-        category: data.category || 'otros'
+        category: data.category || 'otros',
+        supplies: formSupplies // Incluir insumos en el formulario
       };
       
       const url = editingService 
@@ -172,7 +183,7 @@ export default function ServicesPage() {
       
       const method = editingService ? 'PUT' : 'POST';
       
-      console.log('Enviando servicio:', serviceData); // Debug
+      console.log('Enviando servicio con insumos:', serviceData); // Debug
       
       const res = await fetch(url, {
         method,
@@ -180,15 +191,18 @@ export default function ServicesPage() {
         body: JSON.stringify(serviceData)
       });
 
+      const result = await res.json();
+      
       if (res.ok) {
-        fetchServices();
+        console.log('Service saved successfully:', result);
+        await fetchServices(); // Esperar a que se recarguen los servicios
         setIsOpen(false);
         reset();
         setEditingService(null);
+        setFormSupplies([]); // Limpiar insumos del formulario
       } else {
-        const error = await res.json();
-        console.error('Error del servidor:', error);
-        alert(t('common.error') + ': ' + (error.message || error.error));
+        console.error('Error del servidor:', result);
+        alert(t('common.error') + ': ' + (result.message || result.error));
       }
     } catch (error) {
       console.error('Error saving service:', error);
@@ -210,12 +224,25 @@ export default function ServicesPage() {
   };
 
   // Abrir modal de edición
-  const handleEdit = (service: Service) => {
+  const handleEdit = async (service: Service) => {
     setEditingService(service);
     setValue('name', service.name);
     setValue('category', service.category as any);
-    setValue('est_minutes', service.duration_minutes);
+    setValue('est_minutes', service.est_minutes);
     setValue('description', service.description || '');
+    
+    // Cargar insumos del servicio existente
+    try {
+      const res = await fetch(`/api/services/${service.id}/supplies`);
+      if (res.ok) {
+        const data = await res.json();
+        setFormSupplies(data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching service supplies for edit:', error);
+      setFormSupplies([]);
+    }
+    
     setIsOpen(true);
   };
 
@@ -314,7 +341,7 @@ export default function ServicesPage() {
       const category = categories.find(c => c.name === service.category);
       return category?.display_name || service.category;
     }},
-    { key: 'duration_minutes', label: t('services.duration'), render: (service: Service) => `${service.duration_minutes} ${t('common.minutes')}` },
+    { key: 'est_minutes', label: t('services.duration'), render: (service: Service) => `${service.est_minutes} ${t('common.minutes')}` },
     { key: 'variable_cost_cents', label: t('services.variableCost') + ' (' + t('common.optional') + ')', render: (service: Service) => formatCurrency(service.variable_cost_cents || 0) },
     { 
       key: 'actions', 
@@ -356,7 +383,7 @@ export default function ServicesPage() {
             </div>
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
               <DialogTrigger asChild>
-                <Button onClick={() => { reset(); setEditingService(null); }}>
+                <Button onClick={() => { reset(); setEditingService(null); setFormSupplies([]); }}>
                   <Plus className="h-4 w-4 mr-2" />
                   {t('services.addService')}
                 </Button>
@@ -455,8 +482,119 @@ export default function ServicesPage() {
                     />
                   </div>
 
+                  {/* Sección de insumos dentro del formulario */}
+                  <div className="border-t pt-4">
+                    <Label>{t('services.recipe')} ({t('common.optional')})</Label>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      {t('services.manageSuppliesHint')}
+                    </p>
+                    
+                    <div className="space-y-3">
+                      {/* Agregar nuevo insumo */}
+                      <div className="flex gap-2">
+                        <Select onValueChange={(supplyId) => {
+                          const qtyInput = document.getElementById('form-supply-qty') as HTMLInputElement;
+                          const qty = parseFloat(qtyInput?.value || '1');
+                          if (supplyId && qty > 0) {
+                            const supply = supplies.find(s => s.id === supplyId);
+                            if (supply && !formSupplies.some(fs => fs.supply_id === supplyId)) {
+                              setFormSupplies([...formSupplies, { 
+                                supply_id: supplyId, 
+                                supply, 
+                                qty 
+                              }]);
+                              qtyInput.value = '1';
+                            }
+                          }
+                        }}>
+                          <SelectTrigger className="flex-1">
+                            <SelectValue placeholder={t('services.selectSupply')} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(() => {
+                              console.log('Rendering supplies dropdown, supplies:', supplies);
+                              const availableSupplies = supplies?.filter(s => !formSupplies.some(fs => fs.supply_id === s.id));
+                              console.log('Available supplies after filter:', availableSupplies);
+                              
+                              if (!availableSupplies || availableSupplies.length === 0) {
+                                return (
+                                  <SelectItem value="_placeholder" disabled>
+                                    {t('services.noSuppliesAvailable')}
+                                  </SelectItem>
+                                );
+                              }
+                              
+                              return availableSupplies.map(supply => (
+                                <SelectItem key={supply.id} value={supply.id}>
+                                  {supply.name} - {supply.presentation}
+                                </SelectItem>
+                              ));
+                            })()}
+                          </SelectContent>
+                        </Select>
+                        <Input 
+                          id="form-supply-qty"
+                          type="number" 
+                          placeholder={t('services.quantity')}
+                          className="w-24"
+                          defaultValue="1"
+                          step="0.1"
+                          min="0.1"
+                        />
+                      </div>
+
+                      {/* Lista de insumos agregados */}
+                      {formSupplies.length > 0 && (
+                        <div className="border rounded-lg p-3 space-y-2">
+                          <p className="text-sm font-medium">{t('services.currentSupplies')}:</p>
+                          {formSupplies.map(fs => {
+                            const supply = supplies.find(s => s.id === fs.supply_id) || fs.supply;
+                            if (!supply) return null;
+                            const cost = (supply.cost_per_portion_cents * fs.qty) / 100;
+                            
+                            return (
+                              <div key={fs.supply_id} className="flex justify-between items-center text-sm">
+                                <div>
+                                  <span>{supply.name}</span>
+                                  <span className="text-muted-foreground ml-2">x {fs.qty}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span>{formatCurrency(cost * 100)}</span>
+                                  <Button 
+                                    type="button"
+                                    size="sm" 
+                                    variant="ghost"
+                                    onClick={() => setFormSupplies(formSupplies.filter(s => s.supply_id !== fs.supply_id))}
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                          <div className="pt-2 border-t">
+                            <div className="flex justify-between text-sm font-medium">
+                              <span>{t('services.totalVariableCost')}</span>
+                              <span>
+                                {formatCurrency(
+                                  formSupplies.reduce((total, fs) => {
+                                    const supply = supplies.find(s => s.id === fs.supply_id) || fs.supply;
+                                    return total + (supply ? supply.cost_per_portion_cents * fs.qty : 0);
+                                  }, 0)
+                                )}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="flex justify-end gap-2">
-                    <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
+                    <Button type="button" variant="outline" onClick={() => {
+                      setIsOpen(false);
+                      setFormSupplies([]);
+                    }}>
                       {t('common.cancel')}
                     </Button>
                     <Button type="submit">
