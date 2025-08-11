@@ -105,17 +105,29 @@ export default function TreatmentsPage() {
       const selectedService = services.find(s => s.id === formData.service_id);
       if (!selectedService) return;
 
-      // Get fixed cost per minute from settings
-      const settingsRes = await fetch('/api/settings/time');
+      // Snapshot-friendly cost resolution
       let fixedPerMinuteCents = 0;
-      if (settingsRes.ok) {
-        const settings = await settingsRes.json();
-        fixedPerMinuteCents = settings.data?.fixed_per_minute_cents || 0;
+      let variableCost = 0;
+
+      if (editingTreatment) {
+        // Use stored snapshot values to avoid recalculation from current config
+        fixedPerMinuteCents = editingTreatment.fixed_per_minute_cents || 0;
+        // If service changed, snapshot variable cost from current selected service; otherwise keep stored
+        variableCost = (formData.service_id !== editingTreatment.service_id)
+          ? (selectedService.variable_cost_cents || 0)
+          : (editingTreatment.variable_cost_cents || 0);
+      } else {
+        // New treatment: snapshot from current settings/service
+        const settingsRes = await fetch('/api/settings/time');
+        if (settingsRes.ok) {
+          const settings = await settingsRes.json();
+          fixedPerMinuteCents = settings.data?.fixed_per_minute_cents || 0;
+        }
+        variableCost = selectedService.variable_cost_cents || 0;
       }
 
-      // Calculate costs and price
+      // Calculate costs and price using resolved snapshot values
       const fixedCost = fixedPerMinuteCents * formData.minutes;
-      const variableCost = selectedService.variable_cost_cents || 0;
       const totalCost = fixedCost + variableCost;
       const price = Math.round(totalCost * (1 + formData.margin_pct / 100));
 

@@ -20,26 +20,35 @@ export async function PUT(
       return NextResponse.json({ error: 'No clinic context available' }, { status: 400 });
     }
 
-    // Map UI payload to possible DB columns
+    // En edición protegemos snapshot: no permitimos cambiar service_id ni recálculo desde config
+    if (body.service_id && typeof body.service_id === 'string') {
+      // Opcional: bloquear cambio de servicio, exige crear uno nuevo
+      if (body._allow_service_change !== true) {
+        delete body.service_id;
+      }
+    }
+
+    // Map UI payload to possible DB columns (no tocar snapshot salvo que venga explícito)
     let payload: any = {
       clinic_id: clinicId,
       patient_id: body.patient_id,
-      service_id: body.service_id,
+      ...(body.service_id ? { service_id: body.service_id } : {}),
       treatment_date: body.treatment_date,
+      // Si cambia minutes, recalculamos con snapshot existente en client y lo mandamos ya resuelto
       duration_minutes: body.minutes,
-      fixed_cost_per_minute_cents: body.fixed_per_minute_cents,
-      variable_cost_cents: body.variable_cost_cents,
-      margin_pct: body.margin_pct,
-      price_cents: body.price_cents,
+      ...(body.fixed_per_minute_cents !== undefined ? { fixed_cost_per_minute_cents: body.fixed_per_minute_cents } : {}),
+      ...(body.variable_cost_cents !== undefined ? { variable_cost_cents: body.variable_cost_cents } : {}),
+      ...(body.margin_pct !== undefined ? { margin_pct: body.margin_pct } : {}),
+      ...(body.price_cents !== undefined ? { price_cents: body.price_cents } : {}),
       status: body.status === 'pending' ? 'scheduled' : body.status,
       notes: body.notes,
-      snapshot_costs: body.snapshot_costs,
+      ...(body.snapshot_costs ? { snapshot_costs: body.snapshot_costs } : {}),
       updated_at: new Date().toISOString()
     };
 
     // Include legacy aliases so we can prune based on errors
-    payload.minutes = body.minutes;
-    payload.fixed_per_minute_cents = body.fixed_per_minute_cents;
+    if (body.minutes !== undefined) payload.minutes = body.minutes;
+    if (body.fixed_per_minute_cents !== undefined) payload.fixed_per_minute_cents = body.fixed_per_minute_cents;
 
     // Attempt update; if a column doesn't exist, remove and retry up to 4 times
     const triedMissing: Set<string> = new Set();
