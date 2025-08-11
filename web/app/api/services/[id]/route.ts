@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { zService } from '@/lib/zod';
 import type { Service, ServiceSupply, ApiResponse } from '@/lib/types';
 import { cookies } from 'next/headers';
@@ -48,10 +48,10 @@ export async function GET(
       );
     }
 
-    // Get service supplies with supply details
+    // Get service supplies with supply details (disambiguated relationship)
     const { data: supplies, error: suppliesError } = await supabaseAdmin
       .from('service_supplies')
-      .select('*, supplies(*)')
+      .select('*, supplies!service_supplies_supply_id_fkey(*)')
       .eq('service_id', params.id);
 
     if (suppliesError) {

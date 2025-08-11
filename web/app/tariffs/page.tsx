@@ -34,46 +34,48 @@ export default function TariffsPage() {
 
   const fetchServicesWithCosts = async () => {
     try {
-      // First get all services
+      // First get all services (API can return array or { data: [...] })
       const servicesResponse = await fetch('/api/services');
-      const servicesResult: ApiResponse<ServiceWithCost[]> = await servicesResponse.json();
-      
-      if (servicesResult.data) {
-        const servicesWithCosts: ServiceWithCost[] = [];
-        
-        // Fetch cost for each service
-        for (const service of servicesResult.data) {
+      const raw = await servicesResponse.json();
+      const servicesArray: ServiceWithCost[] = Array.isArray(raw) ? raw : (raw.data || []);
+
+      if (!servicesArray || servicesArray.length === 0) {
+        setServices([]);
+        setTariffs([]);
+        return;
+      }
+
+      // Fetch cost for each service in parallel
+      const servicesWithCosts: ServiceWithCost[] = await Promise.all(
+        servicesArray.map(async (service) => {
           try {
             const costResponse = await fetch(`/api/services/${service.id}/cost`);
             const costResult = await costResponse.json();
-            
-            if (costResult.data) {
-              servicesWithCosts.push(costResult.data);
-            }
+            return costResult?.data ?? service;
           } catch (error) {
             console.error(`Error fetching cost for service ${service.id}:`, error);
-            servicesWithCosts.push(service);
+            return service;
           }
-        }
-        
-        setServices(servicesWithCosts);
-        
-        // Initialize tariffs with default margin
-        const initialTariffs = servicesWithCosts.map(service => {
-          const totalCost = (service.fixed_cost_cents || 0) + (service.variable_cost_cents || 0);
-          const finalPrice = calcularPrecioFinal(totalCost, defaultMargin);
-          const roundedPrice = redondearA(finalPrice, roundTo * 100);
-          
-          return {
-            ...service,
-            margin_pct: defaultMargin,
-            final_price: finalPrice,
-            rounded_price: roundedPrice
-          };
-        });
-        
-        setTariffs(initialTariffs);
-      }
+        })
+      );
+
+      setServices(servicesWithCosts);
+
+      // Initialize tariffs with default margin
+      const initialTariffs = servicesWithCosts.map(service => {
+        const totalCost = (service.fixed_cost_cents || 0) + (service.variable_cost_cents || 0);
+        const finalPrice = calcularPrecioFinal(totalCost, defaultMargin);
+        const roundedPrice = redondearA(finalPrice, roundTo * 100);
+
+        return {
+          ...service,
+          margin_pct: defaultMargin,
+          final_price: finalPrice,
+          rounded_price: roundedPrice
+        };
+      });
+
+      setTariffs(initialTariffs);
     } catch (error) {
       console.error('Error fetching services:', error);
     } finally {

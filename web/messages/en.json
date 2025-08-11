@@ -366,6 +366,8 @@
     "edit": "Edit Service",
     "addService": "Add Service",
     "editService": "Edit Service",
+    "addServiceDesc": "Fill out the new service data and optionally add supplies.",
+    "editServiceDesc": "Update the service information and its supplies recipe.",
     "listTitle": "Service Catalog",
     "listDescription": "Define services with duration and supply requirements",
     "name": "Service Name",
