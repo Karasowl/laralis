@@ -15,7 +15,11 @@ const patientSchema = z.object({
   address: z.string().optional().nullable(),
   city: z.string().optional().nullable(),
   postal_code: z.string().optional().nullable(),
-  notes: z.string().optional().nullable()
+  notes: z.string().optional().nullable(),
+  source_id: z.string().optional().nullable(),
+  referred_by_patient_id: z.string().optional().nullable(),
+  campaign_name: z.string().optional().nullable(),
+  is_recurring: z.boolean().optional()
 });
 
 export async function GET(request: NextRequest) {
@@ -92,7 +96,11 @@ export async function POST(request: NextRequest) {
       ...(body.address && { address: body.address }),
       ...(body.city && { city: body.city }),
       ...(body.postal_code && { postal_code: body.postal_code }),
-      ...(body.notes && { notes: body.notes })
+      ...(body.notes && { notes: body.notes }),
+      ...(body.source_id && { source_id: body.source_id }),
+      ...(body.referred_by_patient_id && { referred_by_patient_id: body.referred_by_patient_id }),
+      ...(body.campaign_name && { campaign_name: body.campaign_name }),
+      ...(body.is_recurring !== undefined && { is_recurring: body.is_recurring })
     };
 
     // Validate request body

@@ -704,7 +704,15 @@
     "notes": "Notas",
     "noPatients": "No hay pacientes registrados",
     "noPatientDescription": "Agrega tu primer paciente para comenzar",
-    "confirmDelete": "¿Estás seguro de que deseas eliminar este paciente?"
+    "confirmDelete": "¿Estás seguro de que deseas eliminar este paciente?",
+    "source": "Vía de llegada",
+    "selectSource": "Selecciona una vía",
+    "referredBy": "Referido por",
+    "selectReferrer": "Selecciona quién lo refirió",
+    "noReferrer": "Ninguno",
+    "campaignName": "Campaña",
+    "campaignNamePlaceholder": "Ej: Descuento Navidad 2024",
+    "isRecurring": "Paciente recurrente"
   },
   "treatments": {
     "title": "Tratamientos",
