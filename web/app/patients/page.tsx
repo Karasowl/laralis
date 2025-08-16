@@ -37,6 +37,7 @@ const patientSchema = z.object({
   email: z.string().email('Invalid email').optional().or(z.literal('')),
   phone: z.string().optional(),
   birth_date: z.string().optional(),
+  first_visit_date: z.string().optional(),
   gender: z.enum(['male', 'female', 'other', '']).optional(),
   address: z.string().optional(),
   city: z.string().optional(),
@@ -53,6 +54,7 @@ interface Patient {
   email?: string;
   phone?: string;
   birth_date?: string;
+  first_visit_date?: string;
   gender?: string;
   address?: string;
   city?: string;
@@ -150,6 +152,7 @@ export default function PatientsPage() {
       email: patient.email || '',
       phone: patient.phone || '',
       birth_date: patient.birth_date || '',
+      first_visit_date: patient.first_visit_date || '',
       gender: patient.gender as any || '',
       address: patient.address || '',
       city: patient.city || '',
@@ -179,7 +182,7 @@ export default function PatientsPage() {
     {
       key: 'name',
       label: t('patients.name'),
-      render: (patient: Patient) => {
+      render: (_value: any, patient: Patient) => {
         if (!patient) return null;
         return (
           <div>
@@ -199,7 +202,7 @@ export default function PatientsPage() {
     {
       key: 'phone',
       label: t('patients.phone'),
-      render: (patient: Patient) => patient?.phone ? (
+      render: (_value: any, patient: Patient) => patient?.phone ? (
         <div className="flex items-center gap-1">
           <Phone className="h-3 w-3" />
           {patient.phone}
@@ -207,19 +210,19 @@ export default function PatientsPage() {
       ) : null,
     },
     {
-      key: 'birth_date',
-      label: t('patients.birthDate'),
-      render: (patient: Patient) => patient?.birth_date ? (
+      key: 'first_visit_date',
+      label: t('patients.firstVisitDate'),
+      render: (_value: any, patient: Patient) => patient?.first_visit_date ? (
         <div className="flex items-center gap-1">
           <Calendar className="h-3 w-3" />
-          {formatDate(patient.birth_date)}
+          {formatDate(patient.first_visit_date)}
         </div>
       ) : null,
     },
     {
       key: 'city',
       label: t('patients.city'),
-      render: (patient: Patient) => patient?.city ? (
+      render: (_value: any, patient: Patient) => patient?.city ? (
         <div className="flex items-center gap-1">
           <MapPin className="h-3 w-3" />
           {patient.city}
@@ -229,7 +232,7 @@ export default function PatientsPage() {
     {
       key: 'notes',
       label: t('patients.notes'),
-      render: (patient: Patient) => patient?.notes ? (
+      render: (_value: any, patient: Patient) => patient?.notes ? (
         <div className="max-w-xs truncate text-sm text-muted-foreground">
           {patient.notes}
         </div>
@@ -238,7 +241,7 @@ export default function PatientsPage() {
     {
       key: 'actions',
       label: t('common.actions'),
-      render: (patient: Patient) => {
+      render: (_value: any, patient: Patient) => {
         if (!patient) return null;
         return (
           <div className="flex gap-2">
@@ -357,6 +360,17 @@ export default function PatientsPage() {
                   />
                 </div>
                 
+                <div className="space-y-2">
+                  <Label htmlFor="first_visit_date">{t('patients.firstVisitDate')}</Label>
+                  <Input
+                    id="first_visit_date"
+                    type="date"
+                    {...register('first_visit_date')}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="gender">{t('patients.gender')}</Label>
                   <Select 

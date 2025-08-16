@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { PageHeader } from '@/components/ui/page-header';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
