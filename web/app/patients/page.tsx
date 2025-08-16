@@ -25,8 +25,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useTranslations } from 'next-intl';
-import { Plus, Search, Edit, Trash2, Phone, Mail, Calendar, MapPin, Users, UserCheck, Megaphone } from 'lucide-react';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Plus, Search, Edit, Trash2, Phone, Mail, Calendar, MapPin, Users } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -45,9 +44,7 @@ const patientSchema = z.object({
   postal_code: z.string().optional(),
   notes: z.string().optional(),
   source_id: z.string().optional(),
-  referred_by_patient_id: z.string().optional(),
-  campaign_name: z.string().optional(),
-  is_recurring: z.boolean().optional()
+  referred_by_patient_id: z.string().optional()
 });
 
 type PatientForm = z.infer<typeof patientSchema>;
@@ -67,8 +64,6 @@ interface Patient {
   notes?: string;
   source_id?: string;
   referred_by_patient_id?: string;
-  campaign_name?: string;
-  is_recurring?: boolean;
   created_at: string;
 }
 
@@ -196,9 +191,7 @@ export default function PatientsPage() {
       postal_code: patient.postal_code || '',
       notes: patient.notes || '',
       source_id: patient.source_id || '',
-      referred_by_patient_id: patient.referred_by_patient_id || '',
-      campaign_name: patient.campaign_name || '',
-      is_recurring: patient.is_recurring || false
+      referred_by_patient_id: patient.referred_by_patient_id || ''
     });
     setIsCreateOpen(true);
   };
@@ -451,54 +444,28 @@ export default function PatientsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="referred_by_patient_id">{t('patients.referredBy')}</Label>
-                  <Select 
-                    onValueChange={(value) => setValue('referred_by_patient_id', value === 'none' ? '' : value)}
-                    defaultValue={editingPatient?.referred_by_patient_id || 'none'}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('patients.selectReferrer')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">
-                        {t('patients.noReferrer')}
-                      </SelectItem>
-                      {allPatients
-                        .filter(p => p.id !== editingPatient?.id)
-                        .map((patient) => (
-                          <SelectItem key={patient.id} value={patient.id}>
-                            {patient.first_name} {patient.last_name}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="campaign_name">{t('patients.campaignName')}</Label>
-                  <Input
-                    id="campaign_name"
-                    placeholder={t('patients.campaignNamePlaceholder')}
-                    {...register('campaign_name')}
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="is_recurring"
-                  {...register('is_recurring')}
-                  defaultChecked={editingPatient?.is_recurring || false}
-                  onCheckedChange={(checked) => setValue('is_recurring', checked as boolean)}
-                />
-                <Label 
-                  htmlFor="is_recurring" 
-                  className="text-sm font-normal cursor-pointer"
+              <div className="space-y-2">
+                <Label htmlFor="referred_by_patient_id">{t('patients.referredBy')}</Label>
+                <Select 
+                  onValueChange={(value) => setValue('referred_by_patient_id', value === 'none' ? '' : value)}
+                  defaultValue={editingPatient?.referred_by_patient_id || 'none'}
                 >
-                  {t('patients.isRecurring')}
-                </Label>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('patients.selectReferrer')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">
+                      {t('patients.noReferrer')}
+                    </SelectItem>
+                    {allPatients
+                      .filter(p => p.id !== editingPatient?.id)
+                      .map((patient) => (
+                        <SelectItem key={patient.id} value={patient.id}>
+                          {patient.first_name} {patient.last_name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
               </div>
               
               <div className="space-y-2">
