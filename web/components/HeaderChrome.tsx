@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { NavigationClient } from '@/components/NavigationClient';
 import { BusinessSwitcher } from '@/components/BusinessSwitcher';
@@ -19,6 +19,7 @@ import { LogOut, User, Settings } from 'lucide-react';
 
 export default function HeaderChrome() {
   const pathname = usePathname();
+  const router = useRouter();
   const t = useTranslations();
   const { user, workspaces, signOut } = useWorkspace();
   const tAuth = useTranslations('auth');
@@ -38,10 +39,6 @@ export default function HeaderChrome() {
           <Link 
             href="/" 
             className="flex items-center space-x-2"
-            onClick={(e) => {
-              e.preventDefault();
-              window.location.href = '/';
-            }}
           >
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
               <span className="text-primary-foreground font-bold text-sm">D</span>
@@ -101,10 +98,6 @@ export default function HeaderChrome() {
           <Link 
             href="/" 
             className="flex items-center space-x-2"
-            onClick={(e) => {
-              e.preventDefault();
-              window.location.href = '/';
-            }}
           >
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
               <span className="text-primary-foreground font-bold text-sm">D</span>
@@ -142,7 +135,7 @@ export default function HeaderChrome() {
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem 
-                  onClick={() => window.location.href = '/settings'}
+                  onClick={() => router.push('/settings')}
                   className="cursor-pointer"
                 >
                   <Settings className="mr-2 h-4 w-4" />

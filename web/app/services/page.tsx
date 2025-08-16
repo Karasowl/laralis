@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { PageHeader } from '@/components/ui/page-header';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
-import { DataTable } from '@/components/ui/data-table';
+import { DataTable } from '@/components/ui/DataTable';
 import { formatCurrency } from '@/lib/money';
 import { Plus, Edit, Trash2, Search } from 'lucide-react';
 import { useForm } from 'react-hook-form';
@@ -261,16 +261,16 @@ export default function ServicesPage() {
   // Columnas de la tabla
   const columns = [
     { key: 'name', label: t('services.name') },
-    { key: 'category', label: t('services.category'), render: (service: Service) => {
+    { key: 'category', label: t('services.category'), render: (_value: any, service: Service) => {
       const category = categories.find(c => c.name === service.category);
       return category?.display_name || service.category;
     }},
-    { key: 'est_minutes', label: t('services.duration'), render: (service: Service) => `${service.est_minutes} ${t('common.minutes')}` },
-    { key: 'variable_cost_cents', label: t('services.variableCost') + ' (' + t('common.optional') + ')', render: (service: Service) => formatCurrency(service.variable_cost_cents || 0) },
+    { key: 'est_minutes', label: t('services.duration'), render: (_value: any, service: Service) => `${service.est_minutes} ${t('common.minutes')}` },
+    { key: 'variable_cost_cents', label: t('services.variableCost') + ' (' + t('common.optional') + ')', render: (_value: any, service: Service) => formatCurrency(service.variable_cost_cents || 0) },
     { 
       key: 'actions', 
       label: t('common.actions'),
-      render: (service: Service) => (
+      render: (_value: any, service: Service) => (
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={() => handleEdit(service)}>
             <Edit className="h-4 w-4" />

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertTriangle, Trash2, RefreshCw, CheckCircle, XCircle } from 'lucide-react';
-import { PageHeader } from '@/components/ui/page-header';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { useToast } from '@/hooks/use-toast';
 
 interface ResetOption {

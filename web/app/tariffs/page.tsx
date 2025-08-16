@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatCurrency } from '@/lib/format';
 import { ServiceWithCost, ApiResponse } from '@/lib/types';
 import { calcularPrecioFinal } from '@/lib/calc/tarifa';
@@ -133,20 +134,20 @@ export default function TariffsPage() {
 
   const columns = [
     { key: 'name', label: t('tariffs.service') },
-    { key: 'est_minutes', label: t('tariffs.duration'), render: (row: TariffRow) =>
+    { key: 'est_minutes', label: t('tariffs.duration'), render: (_value: any, row: TariffRow) =>
       `${row.est_minutes} min`
     },
-    { key: 'fixed_cost', label: t('tariffs.fixedCost'), render: (row: TariffRow) =>
+    { key: 'fixed_cost_cents', label: t('tariffs.fixedCost'), render: (_value: any, row: TariffRow) =>
       formatCurrency((row.fixed_cost_cents || 0))
     },
-    { key: 'variable_cost', label: t('tariffs.variableCost'), render: (row: TariffRow) =>
+    { key: 'variable_cost_cents', label: t('tariffs.variableCost'), render: (_value: any, row: TariffRow) =>
       formatCurrency((row.variable_cost_cents || 0))
     },
-    { key: 'total_cost', label: t('tariffs.totalCost'), render: (row: TariffRow) => {
+    { key: 'total_cost', label: t('tariffs.totalCost'), render: (_value: any, row: TariffRow) => {
       const total = ((row.fixed_cost_cents || 0) + (row.variable_cost_cents || 0));
       return formatCurrency(total);
     }},
-    { key: 'margin', label: t('tariffs.margin'), render: (row: TariffRow) => (
+    { key: 'margin_pct', label: t('tariffs.margin'), render: (_value: any, row: TariffRow) => (
       <div className="flex items-center gap-1">
         <Input
           type="number"
@@ -159,10 +160,10 @@ export default function TariffsPage() {
         <span className="text-sm">%</span>
       </div>
     )},
-    { key: 'final_price', label: t('tariffs.finalPrice'), render: (row: TariffRow) =>
+    { key: 'final_price', label: t('tariffs.finalPrice'), render: (_value: any, row: TariffRow) =>
       formatCurrency(row.final_price)
     },
-    { key: 'rounded_price', label: t('tariffs.roundedPrice'), render: (row: TariffRow) =>
+    { key: 'rounded_price', label: t('tariffs.roundedPrice'), render: (_value: any, row: TariffRow) =>
       <span className="font-semibold text-green-600">
         {formatCurrency(row.rounded_price)}
       </span>
@@ -279,6 +280,3 @@ export default function TariffsPage() {
     </div>
   );
 }
-
-// Add missing import for Select
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';

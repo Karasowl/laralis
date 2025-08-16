@@ -5,10 +5,11 @@ import { z } from 'zod';
 const updatePatientSchema = z.object({
   first_name: z.string().min(1).optional(),
   last_name: z.string().min(1).optional(),
-  email: z.string().email().optional().nullable(),
+  email: z.union([z.string().email(), z.literal(''), z.null()]).optional(),
   phone: z.string().optional().nullable(),
   birth_date: z.string().optional().nullable(),
-  gender: z.enum(['male', 'female', 'other']).optional().nullable(),
+  first_visit_date: z.string().optional().nullable(),
+  gender: z.union([z.enum(['male', 'female', 'other']), z.literal(''), z.null()]).optional(),
   address: z.string().optional().nullable(),
   city: z.string().optional().nullable(),
   postal_code: z.string().optional().nullable(),
@@ -58,8 +59,24 @@ export async function PUT(
   try {
     const body = await request.json();
 
+    // Clean empty strings from body - similar to POST
+    const cleanedBody = {
+      ...(body.first_name && { first_name: body.first_name }),
+      ...(body.last_name && { last_name: body.last_name }),
+      ...(body.email && body.email.trim() && { email: body.email.trim() }),
+      ...(body.phone && { phone: body.phone }),
+      ...(body.birth_date && { birth_date: body.birth_date }),
+      ...(body.first_visit_date && { first_visit_date: body.first_visit_date }),
+      ...(body.gender && { gender: body.gender }),
+      ...(body.address && { address: body.address }),
+      ...(body.city && { city: body.city }),
+      ...(body.postal_code && { postal_code: body.postal_code }),
+      ...(body.notes && { notes: body.notes }),
+      ...(body.active !== undefined && { active: body.active })
+    };
+
     // Validate request body
-    const validationResult = updatePatientSchema.safeParse(body);
+    const validationResult = updatePatientSchema.safeParse(cleanedBody);
     if (!validationResult.success) {
       return NextResponse.json(
         { 

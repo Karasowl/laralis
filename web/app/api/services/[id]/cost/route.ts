@@ -52,7 +52,7 @@ export async function GET(
     // Get service supplies with supply details for variable cost calculation
     const { data: serviceSupplies, error: suppliesError } = await supabaseAdmin
       .from('service_supplies')
-      .select('*, supplies(price_cents, portions)')
+      .select('*, supplies!service_supplies_supply_id_fkey(price_cents, portions)')
       .eq('service_id', params.id);
 
     if (suppliesError) {

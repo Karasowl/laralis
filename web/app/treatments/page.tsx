@@ -40,6 +40,7 @@ interface Treatment {
   variable_cost_cents: number;
   margin_pct: number;
   price_cents: number;
+  tariff_version?: number;
   status: 'pending' | 'completed' | 'cancelled';
   notes?: string;
   created_at: string;
@@ -136,12 +137,14 @@ export default function TreatmentsPage() {
         fixed_per_minute_cents: fixedPerMinuteCents,
         variable_cost_cents: variableCost,
         price_cents: price,
+        tariff_version: editingTreatment?.tariff_version || 1, // Por defecto versión 1
         snapshot_costs: {
           fixed_cost_cents: fixedCost,
           variable_cost_cents: variableCost,
           total_cost_cents: totalCost,
           margin_pct: formData.margin_pct,
-          price_cents: price
+          price_cents: price,
+          tariff_version: editingTreatment?.tariff_version || 1
         }
       };
 
@@ -213,7 +216,7 @@ export default function TreatmentsPage() {
     {
       key: 'date',
       label: 'Fecha',
-      render: (treatment: Treatment) => (
+      render: (_value: any, treatment: Treatment) => (
         <div className="flex items-center gap-2">
           <Calendar className="h-4 w-4 text-muted-foreground" />
           {formatDate(treatment.treatment_date)}
@@ -223,7 +226,7 @@ export default function TreatmentsPage() {
     {
       key: 'patient',
       label: 'Paciente',
-      render: (treatment: Treatment) => (
+      render: (_value: any, treatment: Treatment) => (
         <div className="flex items-center gap-2">
           <User className="h-4 w-4 text-muted-foreground" />
           {treatment.patient ? 
@@ -235,17 +238,17 @@ export default function TreatmentsPage() {
     {
       key: 'service',
       label: 'Servicio',
-      render: (treatment: Treatment) => treatment.service?.name || 'N/A'
+      render: (_value: any, treatment: Treatment) => treatment.service?.name || 'N/A'
     },
     {
       key: 'duration',
       label: 'Duración',
-      render: (treatment: Treatment) => `${treatment.minutes} min`
+      render: (_value: any, treatment: Treatment) => `${treatment.minutes} min`
     },
     {
       key: 'price',
       label: 'Precio',
-      render: (treatment: Treatment) => (
+      render: (_value: any, treatment: Treatment) => (
         <div className="flex items-center gap-2">
           <DollarSign className="h-4 w-4 text-muted-foreground" />
           {formatCurrency(treatment.price_cents)}
@@ -255,7 +258,7 @@ export default function TreatmentsPage() {
     {
       key: 'status',
       label: 'Estado',
-      render: (treatment: Treatment) => {
+      render: (_value: any, treatment: Treatment) => {
         const statusColors = {
           pending: 'bg-yellow-100 text-yellow-800',
           completed: 'bg-green-100 text-green-800',
@@ -276,7 +279,7 @@ export default function TreatmentsPage() {
     {
       key: 'actions',
       label: 'Acciones',
-      render: (treatment: Treatment) => (
+      render: (_value: any, treatment: Treatment) => (
         <div className="flex gap-2">
           <Button size="sm" variant="ghost" onClick={() => handleEdit(treatment)}>
             <Edit className="h-4 w-4" />

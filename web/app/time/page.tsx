@@ -46,7 +46,10 @@ export default function TimeSettingsPage() {
     },
   });
 
-  const watchedValues = watch();
+  // Watch specific values instead of the entire form
+  const workDays = watch('work_days');
+  const hoursPerDay = watch('hours_per_day');
+  const realPct = watch('real_pct');
 
   // Load existing data on mount
   useEffect(() => {
@@ -58,13 +61,13 @@ export default function TimeSettingsPage() {
     if (totalFixedCents > 0) {
       const monthlyFixedCostsCents = totalFixedCents;
       const timeCosts = calculateTimeCosts({
-        workDaysPerMonth: watchedValues.work_days,
-        hoursPerDay: watchedValues.hours_per_day,
-        effectiveWorkPercentage: watchedValues.real_pct / 100, // Convertir porcentaje a decimal
+        workDaysPerMonth: workDays,
+        hoursPerDay: hoursPerDay,
+        effectiveWorkPercentage: realPct / 100, // Convertir porcentaje a decimal
       }, monthlyFixedCostsCents);
       setResults(timeCosts);
     }
-  }, [watchedValues, totalFixedCents]);
+  }, [workDays, hoursPerDay, realPct, totalFixedCents]);
 
   const loadData = async () => {
     setLoadingData(true);
@@ -253,19 +256,19 @@ export default function TimeSettingsPage() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">{t('time.plannedHoursPerMonth')}</p>
                   <p className="text-2xl font-bold">
-                    {(watchedValues.work_days * watchedValues.hours_per_day).toFixed(1)} hrs
+                    {(workDays * hoursPerDay).toFixed(1)} hrs
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {watchedValues.work_days} {t('time.days')} × {watchedValues.hours_per_day} {t('time.hoursPerDayShort')}
+                    {workDays} {t('time.days')} × {hoursPerDay} {t('time.hoursPerDayShort')}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">{t('time.realHoursPerMonth')}</p>
                   <p className="text-2xl font-bold text-green-600">
-                    {(watchedValues.work_days * watchedValues.hours_per_day * (watchedValues.real_pct / 100)).toFixed(1)} hrs
+                    {(workDays * hoursPerDay * (realPct / 100)).toFixed(1)} hrs
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {watchedValues.real_pct}% {t('time.ofPlannedHours')}
+                    {realPct}% {t('time.ofPlannedHours')}
                   </p>
                 </div>
               </div>

@@ -78,6 +78,9 @@ export function getCategoryDisplayName(category: string, t: (key: string) => str
     'salaries': t('fixedCosts.categories.salaries'),
     'equipment': t('fixedCosts.categories.equipment'),
     'insurance': t('fixedCosts.categories.insurance'),
+    'maintenance': t('fixedCosts.categories.maintenance'),
+    'education': t('fixedCosts.categories.education'),
+    'advertising': t('fixedCosts.categories.advertising'),
     'other': t('fixedCosts.categories.other'),
   };
   
