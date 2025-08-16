@@ -646,7 +646,15 @@
     "notes": "Notes",
     "noPatients": "No patients registered",
     "noPatientDescription": "Add your first patient to get started",
-    "confirmDelete": "Are you sure you want to delete this patient?"
+    "confirmDelete": "Are you sure you want to delete this patient?",
+    "source": "Source",
+    "selectSource": "Select a source",
+    "referredBy": "Referred by",
+    "selectReferrer": "Select who referred them",
+    "noReferrer": "None",
+    "campaignName": "Campaign",
+    "campaignNamePlaceholder": "E.g: Christmas Discount 2024",
+    "isRecurring": "Recurring patient"
   },
   "treatments": {
     "title": "Treatments",

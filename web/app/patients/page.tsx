@@ -25,7 +25,8 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useTranslations } from 'next-intl';
-import { Plus, Search, Edit, Trash2, Phone, Mail, Calendar, MapPin, Users } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Phone, Mail, Calendar, MapPin, Users, UserCheck, Megaphone } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -42,7 +43,11 @@ const patientSchema = z.object({
   address: z.string().optional(),
   city: z.string().optional(),
   postal_code: z.string().optional(),
-  notes: z.string().optional()
+  notes: z.string().optional(),
+  source_id: z.string().optional(),
+  referred_by_patient_id: z.string().optional(),
+  campaign_name: z.string().optional(),
+  is_recurring: z.boolean().optional()
 });
 
 type PatientForm = z.infer<typeof patientSchema>;
@@ -60,7 +65,21 @@ interface Patient {
   city?: string;
   postal_code?: string;
   notes?: string;
+  source_id?: string;
+  referred_by_patient_id?: string;
+  campaign_name?: string;
+  is_recurring?: boolean;
   created_at: string;
+}
+
+interface PatientSource {
+  id: string;
+  name: string;
+  description?: string;
+  color?: string;
+  icon?: string;
+  is_active: boolean;
+  is_system: boolean;
 }
 
 export default function PatientsPage() {
@@ -70,6 +89,8 @@ export default function PatientsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
+  const [patientSources, setPatientSources] = useState<PatientSource[]>([]);
+  const [allPatients, setAllPatients] = useState<Patient[]>([]);
   
   const {
     register,
@@ -83,6 +104,7 @@ export default function PatientsPage() {
 
   useEffect(() => {
     loadPatients();
+    loadPatientSources();
   }, []);
 
   const loadPatients = async (search?: string) => {
@@ -97,11 +119,26 @@ export default function PatientsPage() {
         console.log('Patients loaded:', data); // Debug
         const patientsArray = Array.isArray(data) ? data : (data.data || []);
         setPatients(patientsArray);
+        if (!search) {
+          setAllPatients(patientsArray); // Guardar todos los pacientes para el selector de referidos
+        }
       }
     } catch (error) {
       console.error('Error loading patients:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadPatientSources = async () => {
+    try {
+      const response = await fetch('/api/patient-sources?active=true');
+      if (response.ok) {
+        const data = await response.json();
+        setPatientSources(data.data || []);
+      }
+    } catch (error) {
+      console.error('Error loading patient sources:', error);
     }
   };
 
@@ -157,7 +194,11 @@ export default function PatientsPage() {
       address: patient.address || '',
       city: patient.city || '',
       postal_code: patient.postal_code || '',
-      notes: patient.notes || ''
+      notes: patient.notes || '',
+      source_id: patient.source_id || '',
+      referred_by_patient_id: patient.referred_by_patient_id || '',
+      campaign_name: patient.campaign_name || '',
+      is_recurring: patient.is_recurring || false
     });
     setIsCreateOpen(true);
   };
@@ -374,18 +415,90 @@ export default function PatientsPage() {
                 <div className="space-y-2">
                   <Label htmlFor="gender">{t('patients.gender')}</Label>
                   <Select 
-                    onValueChange={(value) => setValue('gender', value as any)}
+                    onValueChange={(value) => setValue('gender', value === 'none' ? '' : value as any)}
+                    defaultValue={editingPatient?.gender || 'none'}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder={t('patients.selectGender')} />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="none">{t('common.select')}</SelectItem>
                       <SelectItem value="male">{t('patients.male')}</SelectItem>
                       <SelectItem value="female">{t('patients.female')}</SelectItem>
                       <SelectItem value="other">{t('patients.other')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="source_id">{t('patients.source')}</Label>
+                  <Select 
+                    onValueChange={(value) => setValue('source_id', value === 'none' ? '' : value)}
+                    defaultValue={editingPatient?.source_id || 'none'}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('patients.selectSource')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">{t('common.select')}</SelectItem>
+                      {patientSources.map((source) => (
+                        <SelectItem key={source.id} value={source.id}>
+                          {source.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="referred_by_patient_id">{t('patients.referredBy')}</Label>
+                  <Select 
+                    onValueChange={(value) => setValue('referred_by_patient_id', value === 'none' ? '' : value)}
+                    defaultValue={editingPatient?.referred_by_patient_id || 'none'}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('patients.selectReferrer')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">
+                        {t('patients.noReferrer')}
+                      </SelectItem>
+                      {allPatients
+                        .filter(p => p.id !== editingPatient?.id)
+                        .map((patient) => (
+                          <SelectItem key={patient.id} value={patient.id}>
+                            {patient.first_name} {patient.last_name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="campaign_name">{t('patients.campaignName')}</Label>
+                  <Input
+                    id="campaign_name"
+                    placeholder={t('patients.campaignNamePlaceholder')}
+                    {...register('campaign_name')}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="is_recurring"
+                  {...register('is_recurring')}
+                  defaultChecked={editingPatient?.is_recurring || false}
+                  onCheckedChange={(checked) => setValue('is_recurring', checked as boolean)}
+                />
+                <Label 
+                  htmlFor="is_recurring" 
+                  className="text-sm font-normal cursor-pointer"
+                >
+                  {t('patients.isRecurring')}
+                </Label>
               </div>
               
               <div className="space-y-2">
