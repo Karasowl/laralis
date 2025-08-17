@@ -14,7 +14,8 @@ import {
   RefreshCw,
   ChevronRight,
   Download,
-  Upload
+  Upload,
+  Megaphone
 } from 'lucide-react';
 import { DeleteAccountSection } from './SettingsClient';
 import { createSupabaseClient } from '@/lib/supabase';
@@ -257,6 +258,23 @@ export default async function SettingsPage() {
                     <div>
                       <p className="font-medium">{t('nav.tariffs')}</p>
                       <p className="text-sm text-muted-foreground">{t('settings.tariffsDesc')}</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link href="/settings/marketing" className="block" prefetch={true}>
+              <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                <CardContent className="flex items-center justify-between p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg bg-fuchsia-50 flex items-center justify-center">
+                      <Megaphone className="h-5 w-5 text-fuchsia-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium">{t('settings.marketing.title')}</p>
+                      <p className="text-sm text-muted-foreground">{t('settings.marketing.subtitle')}</p>
                     </div>
                   </div>
                   <ChevronRight className="h-5 w-5 text-muted-foreground" />

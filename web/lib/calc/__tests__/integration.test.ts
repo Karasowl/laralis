@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { calculateMonthlyDepreciation } from '../depreciacion';
 import { calculateTimeCosts } from '../tiempo';
 import { calculateVariableCost, SupplyUsage } from '../variable';
-import { calculateServicePrice } from '../tarifa';
+import { calculateTariff } from '../tarifa';
 
 describe('Full Business Flow Integration', () => {
   describe('Complete workflow from depreciation to final price', () => {
@@ -64,11 +64,11 @@ describe('Full Business Flow Integration', () => {
 
       // Step 5: Tariff calculation
       // Example: Dental cleaning - 60 minutes, 40% margin
-      const tariff = calculateServicePrice({
-        estMinutes: 60,
+      const tariff = calculateTariff({
+        durationMinutes: 60,
         fixedPerMinuteCents: timeCosts.fixedPerMinuteCents,
         variableCostCents: variableCostCents,
-        desiredMarginPct: 40
+        marginPercentage: 0.4  // 40% as decimal
       });
       
       // Fixed cost: 276 * 60 = 16,560 cents
@@ -81,33 +81,33 @@ describe('Full Business Flow Integration', () => {
       expect(tariff.marginCents).toBe(7_164);
       
       // Final price: 17,910 + 7,164 = 25,074 cents (250.74 MXN)
-      expect(tariff.priceCents).toBe(25_074);
+      expect(tariff.finalPriceCents).toBe(25_074);
       
-      // Rounded price (to nearest 50 MXN) = 250 MXN = 25,000 cents
-      expect(tariff.roundedCents).toBe(25_000);
+      // No rounding was requested, so roundedPriceCents should be undefined
+      expect(tariff.roundedPriceCents).toBeUndefined();
     });
 
     it('should handle different margin scenarios', () => {
       const baseParams = {
-        estMinutes: 45,
+        durationMinutes: 45,
         fixedPerMinuteCents: 300,
         variableCostCents: 2_000,
-        desiredMarginPct: 0
+        marginPercentage: 0
       };
 
       // 0% margin
-      const noMargin = calculateServicePrice(baseParams);
+      const noMargin = calculateTariff(baseParams);
       expect(noMargin.marginCents).toBe(0);
-      expect(noMargin.priceCents).toBe(noMargin.baseCostCents);
+      expect(noMargin.finalPriceCents).toBe(noMargin.baseCostCents);
 
       // 50% margin
-      const halfMargin = calculateServicePrice({ ...baseParams, desiredMarginPct: 50 });
+      const halfMargin = calculateTariff({ ...baseParams, marginPercentage: 0.5 });
       expect(halfMargin.marginCents).toBe(Math.round(halfMargin.baseCostCents * 0.5));
 
       // 100% margin
-      const fullMargin = calculateServicePrice({ ...baseParams, desiredMarginPct: 100 });
+      const fullMargin = calculateTariff({ ...baseParams, marginPercentage: 1.0 });
       expect(fullMargin.marginCents).toBe(fullMargin.baseCostCents);
-      expect(fullMargin.priceCents).toBe(fullMargin.baseCostCents * 2);
+      expect(fullMargin.finalPriceCents).toBe(fullMargin.baseCostCents * 2);
     });
   });
 
@@ -216,7 +216,7 @@ describe('Full Business Flow Integration', () => {
         fixedPerMinuteCents: 276,
         serviceMinutes: 60,
         variableCostCents: 1_350,
-        marginPercentage: 40,
+        marginPercentage: 0.4,
         totalCostCents: 17_910,
         profitCents: 7_164,
         finalPriceCents: 25_074,
@@ -225,8 +225,18 @@ describe('Full Business Flow Integration', () => {
         timestamp: new Date().toISOString()
       };
 
-      // All snapshot values should be preserved
-      Object.values(treatmentSnapshot).forEach(value => {
+      // All monetary values should be integers (cents)
+      const monetaryFields = [
+        'fixedPerMinuteCents',
+        'variableCostCents', 
+        'totalCostCents',
+        'profitCents',
+        'finalPriceCents',
+        'roundedPriceCents'
+      ];
+      
+      monetaryFields.forEach(field => {
+        const value = treatmentSnapshot[field as keyof typeof treatmentSnapshot];
         if (typeof value === 'number') {
           expect(Number.isInteger(value)).toBe(true);
         }

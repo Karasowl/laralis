@@ -36,6 +36,7 @@ interface FixedCostFormData {
 
 export default function FixedCostsPage() {
   const t = useTranslations();
+  const { currentClinic } = useWorkspace(); // ✅ Obtener clínica actual
   const locale = useLocale();
   const [costs, setCosts] = useState<FixedCost[]>([]);
   const [assetsDepreciation, setAssetsDepreciation] = useState(0);
@@ -67,7 +68,7 @@ export default function FixedCostsPage() {
   const loadCosts = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/fixed-costs');
+      const response = await fetch(`/api/fixed-costs?clinicId=${currentClinic.id}`);
       if (response.ok) {
         const data = await response.json();
         setCosts(data.data || []);

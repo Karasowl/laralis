@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { zService } from '@/lib/zod';
-import type { Service, ServiceSupply, ApiResponse } from '@/lib/types';
 import { cookies } from 'next/headers';
+import { getClinicIdOrDefault } from '@/lib/clinic';
+import type { Service, ServiceSupply, ApiResponse } from '@/lib/types';
 
 interface RouteParams {
   params: {
@@ -16,7 +17,7 @@ export async function GET(
 ): Promise<NextResponse<ApiResponse<Service & { supplies?: ServiceSupply[] }>>> {
   try {
     const cookieStore = cookies();
-    const clinicId = cookieStore.get('clinicId')?.value;
+    const clinicId = await getClinicIdOrDefault(cookieStore);
 
     if (!clinicId) {
       return NextResponse.json(
@@ -80,7 +81,7 @@ export async function PUT(
   try {
     const body = await request.json();
     const cookieStore = cookies();
-    const clinicId = cookieStore.get('clinicId')?.value;
+    const clinicId = await getClinicIdOrDefault(cookieStore);
 
     if (!clinicId) {
       return NextResponse.json(
@@ -196,7 +197,7 @@ export async function DELETE(
 ): Promise<NextResponse<ApiResponse<null>>> {
   try {
     const cookieStore = cookies();
-    const clinicId = cookieStore.get('clinicId')?.value;
+    const clinicId = await getClinicIdOrDefault(cookieStore);
 
     if (!clinicId) {
       return NextResponse.json(

@@ -17,8 +17,8 @@ const updatePatientSchema = z.object({
   active: z.boolean().optional(),
   source_id: z.string().optional().nullable(),
   referred_by_patient_id: z.string().optional().nullable(),
-  campaign_name: z.string().optional().nullable(),
-  is_recurring: z.boolean().optional()
+  campaign_id: z.string().optional().nullable(),
+  acquisition_date: z.string().optional().nullable()
 });
 
 export async function GET(
@@ -79,8 +79,12 @@ export async function PUT(
       ...(body.active !== undefined && { active: body.active }),
       ...(body.source_id && { source_id: body.source_id }),
       ...(body.referred_by_patient_id && { referred_by_patient_id: body.referred_by_patient_id }),
-      ...(body.campaign_name && { campaign_name: body.campaign_name }),
-      ...(body.is_recurring !== undefined && { is_recurring: body.is_recurring })
+      ...(body.campaign_id && { campaign_id: body.campaign_id }),
+      ...(
+        (body.acquisition_date || body.first_visit_date)
+          ? { acquisition_date: (body.acquisition_date || body.first_visit_date) }
+          : {}
+      )
     };
 
     // Validate request body

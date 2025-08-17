@@ -26,6 +26,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useTranslations } from 'next-intl';
 import { Plus, Search, Edit, Trash2, Phone, Mail, Calendar, MapPin, Users } from 'lucide-react';
+import { useWorkspace } from '@/contexts/workspace-context';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -44,7 +45,8 @@ const patientSchema = z.object({
   postal_code: z.string().optional(),
   notes: z.string().optional(),
   source_id: z.string().optional(),
-  referred_by_patient_id: z.string().optional()
+  referred_by_patient_id: z.string().optional(),
+  campaign_id: z.string().optional()
 });
 
 type PatientForm = z.infer<typeof patientSchema>;
@@ -64,6 +66,7 @@ interface Patient {
   notes?: string;
   source_id?: string;
   referred_by_patient_id?: string;
+  campaign_id?: string;
   created_at: string;
 }
 
@@ -79,6 +82,7 @@ interface PatientSource {
 
 export default function PatientsPage() {
   const t = useTranslations();
+  const { currentClinic } = useWorkspace(); // ✅ Obtener clínica actual
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -86,6 +90,9 @@ export default function PatientsPage() {
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [patientSources, setPatientSources] = useState<PatientSource[]>([]);
   const [allPatients, setAllPatients] = useState<Patient[]>([]);
+  const [platforms, setPlatforms] = useState<any[]>([]);
+  const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [selectedPlatformId, setSelectedPlatformId] = useState<string>('none');
   
   const {
     register,
@@ -97,10 +104,15 @@ export default function PatientsPage() {
     resolver: zodResolver(patientSchema),
   });
 
+  // ✅ Recargar cuando cambie la clínica
   useEffect(() => {
-    loadPatients();
-    loadPatientSources();
-  }, []);
+    if (currentClinic?.id) {
+      loadPatients();
+      loadPatientSources();
+      loadMarketingPlatforms();
+      loadCampaigns();
+    }
+  }, [currentClinic?.id]);
 
   const loadPatients = async (search?: string) => {
     try {
@@ -134,6 +146,30 @@ export default function PatientsPage() {
       }
     } catch (error) {
       console.error('Error loading patient sources:', error);
+    }
+  };
+
+  const loadMarketingPlatforms = async () => {
+    try {
+      const response = await fetch('/api/marketing/platforms?active=true');
+      if (response.ok) {
+        const data = await response.json();
+        setPlatforms(data.data || []);
+      }
+    } catch (error) {
+      console.error('Error loading marketing platforms:', error);
+    }
+  };
+
+  const loadCampaigns = async () => {
+    try {
+      const response = await fetch(`/api/marketing/campaigns?active=true&includeArchived=false`);
+      if (response.ok) {
+        const data = await response.json();
+        setCampaigns(data.data || []);
+      }
+    } catch (error) {
+      console.error('Error loading campaigns:', error);
     }
   };
 
@@ -191,7 +227,8 @@ export default function PatientsPage() {
       postal_code: patient.postal_code || '',
       notes: patient.notes || '',
       source_id: patient.source_id || '',
-      referred_by_patient_id: patient.referred_by_patient_id || ''
+      referred_by_patient_id: patient.referred_by_patient_id || '',
+      campaign_id: patient.campaign_id || ''
     });
     setIsCreateOpen(true);
   };
@@ -443,6 +480,31 @@ export default function PatientsPage() {
                   </Select>
                 </div>
               </div>
+
+              {/* Platform/Campaign selection visible only if source is "Campaña" */}
+              {(() => {
+                const currentSourceId = (editingPatient?.source_id) || '';
+                const selectedSource = patientSources.find(s => s.id === currentSourceId);
+                const showCampaign = selectedSource?.name?.toLowerCase() === 'campaña';
+                return showCampaign ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="campaign_id">{t('patients.campaign')}</Label>
+                    <Select onValueChange={(value) => setValue('campaign_id', value === 'none' ? '' : value)} defaultValue={editingPatient?.campaign_id || 'none'}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={t('patients.campaignPlaceholder')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">{t('common.select')}</SelectItem>
+                        {campaigns.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.name} ({c.platform_name})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : null;
+              })()}
 
               <div className="space-y-2">
                 <Label htmlFor="referred_by_patient_id">{t('patients.referredBy')}</Label>

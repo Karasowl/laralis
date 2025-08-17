@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
 import { getClinicIdOrDefault } from '@/lib/clinic';
+import { createSupabaseClient } from '@/lib/supabase';
 import { z } from 'zod';
 
 const patientSchema = z.object({
@@ -18,13 +19,21 @@ const patientSchema = z.object({
   notes: z.string().optional().nullable(),
   source_id: z.string().optional().nullable(),
   referred_by_patient_id: z.string().optional().nullable(),
-  campaign_name: z.string().optional().nullable(),
-  is_recurring: z.boolean().optional()
+  campaign_id: z.string().optional().nullable(),
+  acquisition_date: z.string().optional().nullable()
 });
 
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = cookies();
+    const supabase = createSupabaseClient(cookieStore);
+    
+    // ✅ Validar usuario autenticado
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const clinicId = searchParams.get('clinicId') || await getClinicIdOrDefault(cookieStore);
     const search = searchParams.get('search');
@@ -73,6 +82,14 @@ export async function POST(request: NextRequest) {
     console.log('POST /api/patients - Body received:', body);
     
     const cookieStore = cookies();
+    const supabase = createSupabaseClient(cookieStore);
+    
+    // ✅ Validar usuario autenticado
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const clinicId = await getClinicIdOrDefault(cookieStore);
     console.log('POST /api/patients - Clinic ID:', clinicId);
 
@@ -99,8 +116,13 @@ export async function POST(request: NextRequest) {
       ...(body.notes && { notes: body.notes }),
       ...(body.source_id && { source_id: body.source_id }),
       ...(body.referred_by_patient_id && { referred_by_patient_id: body.referred_by_patient_id }),
-      ...(body.campaign_name && { campaign_name: body.campaign_name }),
-      ...(body.is_recurring !== undefined && { is_recurring: body.is_recurring })
+      ...(body.campaign_id && { campaign_id: body.campaign_id }),
+      // Si no viene acquisition_date, usar first_visit_date como respaldo
+      ...(
+        (body.acquisition_date || body.first_visit_date)
+          ? { acquisition_date: (body.acquisition_date || body.first_visit_date) }
+          : {}
+      )
     };
 
     // Validate request body

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
+import { useWorkspace } from '@/contexts/workspace-context';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -48,6 +49,7 @@ interface Treatment {
 
 export default function TreatmentsPage() {
   const t = useTranslations();
+  const { currentClinic } = useWorkspace(); // ✅ Obtener clínica actual
   const [treatments, setTreatments] = useState<Treatment[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -66,28 +68,33 @@ export default function TreatmentsPage() {
     status: 'pending' as const
   });
 
+  // ✅ Recargar cuando cambie la clínica
   useEffect(() => {
-    loadData();
-  }, []);
+    if (currentClinic?.id) {
+      loadData();
+    }
+  }, [currentClinic?.id]);
 
   const loadData = async () => {
+    if (!currentClinic?.id) return; // ✅ No cargar sin clínica
+    
     try {
-      // Load treatments
-      const treatmentsRes = await fetch('/api/treatments');
+      // Load treatments for current clinic
+      const treatmentsRes = await fetch(`/api/treatments?clinicId=${currentClinic.id}`);
       if (treatmentsRes.ok) {
         const data = await treatmentsRes.json();
         setTreatments(data.data || []);
       }
 
-      // Load patients
-      const patientsRes = await fetch('/api/patients');
+      // Load patients for current clinic
+      const patientsRes = await fetch(`/api/patients?clinicId=${currentClinic.id}`);
       if (patientsRes.ok) {
         const data = await patientsRes.json();
         setPatients(data.data || []);
       }
 
-      // Load services
-      const servicesRes = await fetch('/api/services');
+      // Load services for current clinic
+      const servicesRes = await fetch(`/api/services?clinicId=${currentClinic.id}`);
       if (servicesRes.ok) {
         const data = await servicesRes.json();
         setServices(data || []);

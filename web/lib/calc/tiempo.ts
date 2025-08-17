@@ -42,9 +42,9 @@ export function calculateFixedCostPerMinute(
   monthlyFixedCostsCents: number,
   effectiveMinutesPerMonth: number
 ): number {
-  // Si no hay minutos efectivos, el costo por minuto es 0
+  // Validar que los minutos efectivos sean positivos
   if (effectiveMinutesPerMonth <= 0) {
-    return 0;
+    throw new Error('Effective minutes must be positive');
   }
   return Math.round(monthlyFixedCostsCents / effectiveMinutesPerMonth);
 }

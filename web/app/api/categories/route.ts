@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { cookies } from 'next/headers';
+import { getClinicIdOrDefault } from '@/lib/clinic';
+import { createSupabaseClient } from '@/lib/supabase';
 import { z } from 'zod';
 
 const categorySchema = z.object({
@@ -17,43 +20,38 @@ const categorySchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const cookieStore = cookies();
+    const supabase = createSupabaseClient(cookieStore);
     const { searchParams } = new URL(request.url);
     
+    // ✅ Validar usuario autenticado
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const clinicId = searchParams.get('clinicId') || await getClinicIdOrDefault(cookieStore);
+    if (!clinicId) {
+      return NextResponse.json({ error: 'No clinic context available' }, { status: 400 });
+    }
+
     const typeCode = searchParams.get('type');
     const active = searchParams.get('active');
     const withType = searchParams.get('withType') === 'true';
     
-    // Get clinic_id from the current user
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    if (userError || !userData?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    // Get clinic member
-    const { data: member } = await supabase
-      .from('clinic_members')
-      .select('clinic_id')
-      .eq('user_id', userData.user.id)
-      .single();
-    
-    if (!member) {
-      return NextResponse.json({ error: 'No clinic found' }, { status: 404 });
-    }
-    
-    let query = supabase
+    let query = supabaseAdmin
       .from(withType ? 'v_categories_with_type' : 'categories')
       .select('*')
-      .eq('clinic_id', member.clinic_id)
+      .eq('clinic_id', clinicId)
       .order('display_order', { ascending: true });
     
     // Filter by type if specified
     if (typeCode) {
       // First get the category_type_id
-      const { data: typeData } = await supabase
+      const { data: typeData } = await supabaseAdmin
         .from('category_types')
         .select('id')
-        .eq('clinic_id', member.clinic_id)
+        .eq('clinic_id', clinicId)
         .eq('code', typeCode)
         .single();
       
@@ -88,39 +86,30 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
     const body = await request.json();
+    const cookieStore = cookies();
+    const supabase = createSupabaseClient(cookieStore);
+    
+    // ✅ Validar usuario autenticado
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const clinicId = await getClinicIdOrDefault(cookieStore);
+    if (!clinicId) {
+      return NextResponse.json({ error: 'No clinic context available' }, { status: 400 });
+    }
     
     // Validate input
     const validatedData = categorySchema.parse(body);
     
-    // Get clinic_id from the current user
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    if (userError || !userData?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    // Get clinic member and check permissions
-    const { data: member } = await supabase
-      .from('clinic_members')
-      .select('clinic_id, role')
-      .eq('user_id', userData.user.id)
-      .single();
-    
-    if (!member) {
-      return NextResponse.json({ error: 'No clinic found' }, { status: 404 });
-    }
-    
-    if (member.role !== 'owner' && member.role !== 'admin') {
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
-    }
-    
     // Create category
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('categories')
       .insert({
         ...validatedData,
-        clinic_id: member.clinic_id,
+        clinic_id: clinicId,
         is_system: false // User-created categories are never system categories
       })
       .select()

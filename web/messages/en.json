@@ -532,6 +532,25 @@
       "deleteSuccessDesc": "Workspace removed successfully",
       "deleteConfirm": "Are you sure you want to delete this workspace?"
     },
+    "marketing": {
+      "title": "Marketing",
+      "subtitle": "Platforms and campaigns for attribution",
+      "platformsTitle": "Platforms",
+      "platformName": "Platform name",
+      "platformNamePlaceholder": "e.g., Meta Ads",
+      "addPlatform": "Add Platform",
+      "activate": "Activate",
+      "deactivate": "Deactivate",
+      "campaignsTitle": "Campaigns",
+      "selectPlatform": "Select platform",
+      "campaignName": "Campaign name",
+      "campaignNamePlaceholder": "e.g., February Promos",
+      "addCampaign": "Add Campaign",
+      "archive": "Archive",
+      "unarchive": "Unarchive",
+      "archived": "Archived",
+      "live": "Live"
+    },
     "clinics": {
       "title": "Clinics",
       "description": "Manage clinic branches",
@@ -652,8 +671,10 @@
     "referredBy": "Referred by",
     "selectReferrer": "Select who referred them",
     "noReferrer": "None",
-    "campaignName": "Campaign",
-    "campaignNamePlaceholder": "E.g: Christmas Discount 2024",
+    "campaign": "Campaign",
+    "campaignPlaceholder": "Select campaign",
+    "platform": "Platform",
+    "selectPlatform": "Select platform",
     "isRecurring": "Recurring patient"
   },
   "treatments": {
