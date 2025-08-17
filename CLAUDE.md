@@ -124,6 +124,28 @@ If present, link to devlog index: @docs/devlog/INDEX.md
 
 
 
+\## Testing \& TDD
+
+\### Usuario de prueba
+\- Email: isamelguimarais@gmail.com
+\- Password: test123456
+\- Guardado en: `cypress.env.json`
+
+\### Prácticas TDD establecidas
+\- Escribir tests ANTES de implementar features
+\- Red-Green-Refactor: Fallar → Pasar → Mejorar
+\- Ejecutar `npm test` antes de commits
+\- Ejecutar `npm run lint` y `npm run typecheck` antes de PRs
+\- Actualizar tests cuando se modifica código existente
+\- Tests E2E para flujos críticos
+
+\### Notas importantes
+\- Registro y eliminación de cuenta no se pueden probar automáticamente (requieren email)
+\- Usuario debe completar onboarding (workspace + clínica) después del registro
+\- Multi-tenancy debe verificarse en cada módulo nuevo
+
+
+
 \## Prompting discipline for the agent
 
 \- Always specify target files and exact diff scope.

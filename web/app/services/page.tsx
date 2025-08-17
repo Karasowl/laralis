@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
+import { useWorkspace } from '@/contexts/workspace-context';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -61,6 +62,7 @@ interface Service {
 
 export default function ServicesPage() {
   const t = useTranslations();
+  const { currentClinic } = useWorkspace(); // ✅ Obtener clínica actual
   const [services, setServices] = useState<Service[]>([]);
   const [supplies, setSupplies] = useState<Supply[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -83,7 +85,7 @@ export default function ServicesPage() {
   // Cargar servicios
   const fetchServices = async () => {
     try {
-      const res = await fetch('/api/services');
+      const res = await fetch(`/api/services?clinicId=${currentClinic.id}`);
       if (res.ok) {
         const data = await res.json();
         console.log('Services response:', data); // Debug
@@ -104,7 +106,7 @@ export default function ServicesPage() {
   // Cargar insumos disponibles
   const fetchSupplies = async () => {
     try {
-      const res = await fetch('/api/supplies');
+      const res = await fetch(`/api/supplies?clinicId=${currentClinic.id}`);
       if (res.ok) {
         const data = await res.json();
         console.log('Supplies loaded:', data); // Debug

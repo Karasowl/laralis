@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
+import { useWorkspace } from '@/contexts/workspace-context';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { DataTable } from '@/components/ui/DataTable';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -23,6 +24,7 @@ interface TariffRow extends ServiceWithCost {
 
 export default function TariffsPage() {
   const t = useTranslations();
+  const { currentClinic } = useWorkspace(); // ✅ Obtener clínica actual
   const [services, setServices] = useState<ServiceWithCost[]>([]);
   const [tariffs, setTariffs] = useState<TariffRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,7 +38,7 @@ export default function TariffsPage() {
   const fetchServicesWithCosts = async () => {
     try {
       // First get all services (API can return array or { data: [...] })
-      const servicesResponse = await fetch('/api/services');
+      const servicesResponse = await fetch(`/api/services?clinicId=${currentClinic.id}`);
       const raw = await servicesResponse.json();
       const servicesArray: ServiceWithCost[] = Array.isArray(raw) ? raw : (raw.data || []);
 

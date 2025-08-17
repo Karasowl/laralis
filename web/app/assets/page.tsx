@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { useWorkspace } from '@/contexts/workspace-context';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,7 @@ type AssetFormData = z.infer<typeof zAssetForm>;
 
 export default function AssetsPage() {
   const t = useTranslations();
+  const { currentClinic } = useWorkspace(); // ✅ Obtener clínica actual
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -35,7 +37,7 @@ export default function AssetsPage() {
 
   const fetchAssets = async () => {
     try {
-      const res = await fetch('/api/assets');
+      const res = await fetch(`/api/assets?clinicId=${currentClinic.id}`);
       const result: ApiResponse<Asset[]> = await res.json();
       if (result.data) setAssets(result.data);
     } catch (e) {

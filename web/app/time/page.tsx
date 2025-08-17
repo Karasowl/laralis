@@ -12,6 +12,7 @@ import { FormField } from '@/components/ui/FormField';
 import { calculateTimeCosts } from '@/lib/calc/tiempo';
 import { formatCurrency } from '@/lib/format';
 import { zSettingsTimeForm } from '@/lib/zod';
+import { useWorkspace } from '@/contexts/workspace-context';
 import type { SettingsTime, FixedCost } from '@/lib/types';
 import { useState, useEffect } from 'react';
 
@@ -24,6 +25,7 @@ type TimeSettingsForm = {
 export default function TimeSettingsPage() {
   const t = useTranslations();
   const router = useRouter();
+  const { currentClinic } = useWorkspace(); // ✅ Obtener clínica actual
   const [results, setResults] = useState<any>(null);
   const [fixedCosts, setFixedCosts] = useState<FixedCost[]>([]);
   const [assetsMonthlyDepCents, setAssetsMonthlyDepCents] = useState(0);
@@ -52,9 +54,12 @@ export default function TimeSettingsPage() {
   const realPct = watch('real_pct');
 
   // Load existing data on mount
+  // ✅ Recargar cuando cambie la clínica
   useEffect(() => {
-    loadData();
-  }, []);
+    if (currentClinic?.id) {
+      loadData();
+    }
+  }, [currentClinic?.id]);
 
   // Calculate costs whenever values change
   useEffect(() => {
@@ -70,10 +75,12 @@ export default function TimeSettingsPage() {
   }, [workDays, hoursPerDay, realPct, totalFixedCents]);
 
   const loadData = async () => {
+    if (!currentClinic?.id) return; // ✅ No cargar sin clínica
+    
     setLoadingData(true);
     try {
-      // Load time settings
-      const timeResponse = await fetch('/api/settings/time');
+      // Load time settings for current clinic
+      const timeResponse = await fetch(`/api/settings/time?clinicId=${currentClinic.id}`);
       if (timeResponse.ok) {
         const timeData = await timeResponse.json();
         if (timeData.data) {
@@ -85,8 +92,8 @@ export default function TimeSettingsPage() {
         }
       }
 
-      // Load fixed costs to get total
-      const costsResponse = await fetch('/api/fixed-costs');
+      // Load fixed costs to get total for current clinic
+      const costsResponse = await fetch(`/api/fixed-costs?clinicId=${currentClinic.id}`);
       if (costsResponse.ok) {
         const costsData = await costsResponse.json();
         const costs = costsData.data || [];
@@ -94,7 +101,7 @@ export default function TimeSettingsPage() {
         const total = costs.reduce((sum: number, cost: FixedCost) => sum + cost.amount_cents, 0);
         // Load assets monthly depreciation and add to total
         try {
-          const assetsSummaryRes = await fetch('/api/assets/summary');
+          const assetsSummaryRes = await fetch(`/api/assets/summary?clinicId=${currentClinic.id}`);
           if (assetsSummaryRes.ok) {
             const assetsSummary = await assetsSummaryRes.json();
             const monthlyDep = assetsSummary?.data?.monthly_depreciation_cents || 0;

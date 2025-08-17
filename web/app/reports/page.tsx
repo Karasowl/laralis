@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
+import { useWorkspace } from '@/contexts/workspace-context';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
@@ -27,6 +28,7 @@ interface DashboardData {
 
 export default function ReportsPage() {
   const t = useTranslations();
+  const { currentClinic } = useWorkspace(); // ✅ Obtener clínica actual
   const [data, setData] = useState<DashboardData>({
     patientsMonth: 0,
     treatmentsMonth: 0,
@@ -37,9 +39,12 @@ export default function ReportsPage() {
   });
   const [loading, setLoading] = useState(true);
 
+  // ✅ Recargar cuando cambie la clínica
   useEffect(() => {
-    loadDashboardData();
-  }, []);
+    if (currentClinic?.id) {
+      loadData();
+    }
+  }, [currentClinic?.id]);
 
   const loadDashboardData = async () => {
     try {

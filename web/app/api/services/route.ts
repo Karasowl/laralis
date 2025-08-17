@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
+import { getClinicIdOrDefault } from '@/lib/clinic';
+import { createSupabaseClient } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,7 +10,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     
     const cookieStore = cookies();
-    const clinicId = cookieStore.get('clinicId')?.value;
+    const clinicId = searchParams.get('clinicId') || await getClinicIdOrDefault(cookieStore);
 
     if (!clinicId) {
       return NextResponse.json(
@@ -87,6 +89,16 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+
+    const cookieStore = cookies();
+    const supabase = createSupabaseClient(cookieStore);
+    
+    // ✅ Validar usuario autenticado
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const cookieStore = cookies();
     const clinicId = body.clinic_id || cookieStore.get('clinicId')?.value;
 

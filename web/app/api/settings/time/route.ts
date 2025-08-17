@@ -4,9 +4,19 @@ import { zSettingsTime } from '@/lib/zod';
 import type { SettingsTime, ApiResponse } from '@/lib/types';
 import { cookies } from 'next/headers';
 import { getClinicIdOrDefault } from '@/lib/clinic';
+import { createSupabaseClient } from '@/lib/supabase';
 
 export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<SettingsTime>>> {
   try {
+    const cookieStore = cookies();
+    const supabase = createSupabaseClient(cookieStore);
+    
+    // ✅ Validar usuario autenticado
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const cookieStore = cookies();
     const searchParams = request.nextUrl.searchParams;
     const clinicId = searchParams.get('clinicId') || await getClinicIdOrDefault(cookieStore);
@@ -52,6 +62,16 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
 export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse<SettingsTime>>> {
   try {
     const body = await request.json();
+
+    const cookieStore = cookies();
+    const supabase = createSupabaseClient(cookieStore);
+    
+    // ✅ Validar usuario autenticado
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const cookieStore = cookies();
     const clinicId = body.clinic_id || await getClinicIdOrDefault(cookieStore);
 

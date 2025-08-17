@@ -4,6 +4,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { useState, useEffect, useMemo } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useWorkspace } from '@/contexts/workspace-context';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { formatCurrency } from '@/lib/format';
@@ -22,23 +23,29 @@ interface EquilibriumData {
 export default function EquilibriumPage() {
   const t = useTranslations();
   const locale = useLocale();
+  const { currentClinic } = useWorkspace(); // ✅ Obtener clínica actual
   const [loading, setLoading] = useState(true);
   const [fixedCostsCents, setFixedCostsCents] = useState(0);
   const [workDays, setWorkDays] = useState(20);
   const [variableCostPercentage, setVariableCostPercentage] = useState(35);
 
+  // ✅ Recargar cuando cambie la clínica
   useEffect(() => {
-    loadData();
-  }, []);
+    if (currentClinic?.id) {
+      loadData();
+    }
+  }, [currentClinic?.id]);
 
   const loadData = async () => {
+    if (!currentClinic?.id) return; // ✅ No cargar sin clínica
+    
     setLoading(true);
     try {
-      // Load fixed costs total
+      // Load fixed costs total for current clinic
       const [fixedCostsResponse, assetsResponse, timeResponse] = await Promise.all([
-        fetch('/api/fixed-costs'),
-        fetch('/api/assets/summary'),
-        fetch('/api/settings/time')
+        fetch(`/api/fixed-costs?clinicId=${currentClinic.id}`),
+        fetch(`/api/assets/summary?clinicId=${currentClinic.id}`),
+        fetch(`/api/settings/time?clinicId=${currentClinic.id}`)
       ]);
 
       let totalFixedCents = 0;

@@ -4,6 +4,7 @@ import { zSupply } from '@/lib/zod';
 import type { Supply, ApiResponse } from '@/lib/types';
 import { cookies } from 'next/headers';
 import { getClinicIdOrDefault } from '@/lib/clinic';
+import { createSupabaseClient } from '@/lib/supabase';
 
 export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<Supply[]>>> {
   try {
@@ -72,6 +73,16 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
 export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse<Supply>>> {
   try {
     const body = await request.json();
+
+    const cookieStore = cookies();
+    const supabase = createSupabaseClient(cookieStore);
+    
+    // ✅ Validar usuario autenticado
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const cookieStore = cookies();
     const clinicId = body.clinic_id || await getClinicIdOrDefault(cookieStore);
 
