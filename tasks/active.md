@@ -2,7 +2,11 @@
 
 ## En Progreso
 
-Ninguna tarea activa actualmente.
+- [ ] TASK-20250817-pr-template-upgrade - Alinear `docs/memories/PR.md` con memorias y reglas
+  - Incorporar cadena de dependencias (Depreciación → Fijos → Tiempo → Equilibrio → Insumos → Servicios → Tarifas → Tratamientos)
+  - Contexto multi-tenant (Workspaces/Clinics) y snapshots en tratamientos
+  - Criterios de aceptación reforzados (i18n EN/ES, AA, Zod, dinero en centavos)
+  - Gobernanza: sección Tasks/Devlog y i18n keys para navegación
 
 ## Completado Hoy - 2025-08-09
 
