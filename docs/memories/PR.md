@@ -2,10 +2,23 @@ Perfecto, Isma. Metí el “look and feel” tipo Apple en el PR. Minimal, airea
 
 ```
 PR TITLE
-feat: Apple-style clean UI shell, i18n EN default + ES toggle, calc engine, Supabase setup
+feat: Apple-style clean UI shell, i18n EN/ES, calc engine with tests, multi-tenant shell, sources/referrals groundwork
 
 CONTEXT
 La app debe sentirse premium y sobria. Interfaz limpia, moderna y con mucho aire. Estilo Apple sin adornos innecesarios. Tipografía clara, jerarquías correctas, foco en contenido y datos. Inglés por defecto con opción de español desde un selector.
+
+BUSINESS FOUNDATIONS (FROM MVP DOCS)
+El sistema se sostiene en una cadena de dependencias inmutable para cálculos y precios:
+
+```
+Depreciación → Costos Fijos → Costos por Tiempo → Punto de Equilibrio
+                                ↓
+                            Insumos → Servicios → Tarifas
+                                         ↓
+                                     Tratamientos
+```
+
+Además, la arquitectura es multi-tenant: un Workspace (marca) agrupa múltiples Clínicas (ubicaciones) con métricas agregadas y configuración heredable. El motor financiero calcula costo real por minuto, manteniendo snapshots históricos para no reescribir el pasado.
 
 STACK AND CONSTRAINTS
 - Next.js 14 App Router + TypeScript
@@ -20,17 +33,19 @@ STACK AND CONSTRAINTS
 
 SCOPE OF THIS PR
 1) Bootstrap del proyecto y theme base Apple-like
-2) Cliente Supabase y env vars
-3) Librería de cálculos con tests alineados a la hoja
-4) i18n básico con switch EN ES
-5) Shell de navegación y páginas mínimas de Setup
-6) README con guías de estilo y uso
+2) Cliente Supabase y env vars (sin exponer service role en cliente)
+3) Librería de cálculos con tests alineados a la hoja (depreciación, costos fijos, tiempo, punto de equilibrio, tarifa, redondeo múltiplo)
+4) i18n EN por defecto y ES alterno con selector
+5) Shell de navegación y páginas mínimas de Setup + estructura multi-tenant (Workspace/Clinics) a nivel UI
+6) Groundwork de "Patient Sources & Referrals" (modelo y endpoints base o placeholders de UI, sin lógica avanzada)
+7) README con guías de estilo, money en centavos, y gobernanza de tareas/devlog
 
 OUT OF SCOPE
 - Auth
 - Prisma o Drizzle
 - CRUD real contra DB
 - Dashboard con gráficas
+- Lógica avanzada de tracking de campañas, ROI y referidos multinivel
 
 FILES TO ADD OR MODIFY
 - package.json scripts dev build start lint test
@@ -57,6 +72,7 @@ FILES TO ADD OR MODIFY
   - FormField.tsx  label helper text error
   - DataTable.tsx  tabla base con TanStack Table
   - Skeleton.tsx
+  - (Opcional) Empty shell para Workspaces/Clinics y Sources en navegación
 
 DESIGN SYSTEM
 
@@ -117,6 +133,7 @@ app/layout.tsx
 - Contenido centrado con max-w 1280 y padding 24 32
 - PageHeader con título y descripción breve
 - Contenedor Card para cada sección con padding 24 y radius 16
+- Agrupar navegación por áreas: Setup (Depreciación, Costos fijos, Tiempo, Punto de equilibrio), Inventario (Insumos), Servicios (Recetas/variables), Precios (Tarifas), Operación (Pacientes, Tratamientos), Reportes
 
 COMPONENTS UX
 
@@ -157,6 +174,16 @@ messages/en.json
   "nav.setup": "Setup",
   "nav.setup.time": "Working time",
   "nav.setup.fixed": "Fixed costs",
+  "nav.setup.depreciation": "Depreciation",
+  "nav.setup.breakEven": "Break-even",
+  "nav.inventory": "Inventory",
+  "nav.inventory.supplies": "Supplies",
+  "nav.services": "Services",
+  "nav.pricing": "Pricing",
+  "nav.patients": "Patients",
+  "nav.treatments": "Treatments",
+  "nav.workspaces": "Workspaces",
+  "nav.clinics": "Clinics",
   "ui.save": "Save",
   "ui.cancel": "Cancel",
   "ui.language": "Language",
@@ -166,7 +193,9 @@ messages/en.json
   "empty.title": "Nothing here yet",
   "empty.desc": "Start by adding your first item",
   "setup.time.title": "Working time settings",
-  "setup.fixed.title": "Fixed costs"
+  "setup.fixed.title": "Fixed costs",
+  "sources.title": "Patient sources",
+  "sources.referrals": "Referrals"
 }
 
 messages/es.json
@@ -175,6 +204,16 @@ messages/es.json
   "nav.setup": "Configuración",
   "nav.setup.time": "Tiempo laboral",
   "nav.setup.fixed": "Costos fijos",
+  "nav.setup.depreciation": "Depreciación",
+  "nav.setup.breakEven": "Punto de equilibrio",
+  "nav.inventory": "Inventario",
+  "nav.inventory.supplies": "Insumos",
+  "nav.services": "Servicios",
+  "nav.pricing": "Precios",
+  "nav.patients": "Pacientes",
+  "nav.treatments": "Tratamientos",
+  "nav.workspaces": "Espacios de trabajo",
+  "nav.clinics": "Clínicas",
   "ui.save": "Guardar",
   "ui.cancel": "Cancelar",
   "ui.language": "Idioma",
@@ -184,7 +223,9 @@ messages/es.json
   "empty.title": "Aún no hay nada",
   "empty.desc": "Comienza agregando tu primer elemento",
   "setup.time.title": "Ajustes de tiempo laboral",
-  "setup.fixed.title": "Costos fijos"
+  "setup.fixed.title": "Costos fijos",
+  "sources.title": "Fuentes de pacientes",
+  "sources.referrals": "Referidos"
 }
 
 INTERACCIONES Y DETALLES UI
@@ -207,23 +248,44 @@ Mantener los casos definidos previamente
 - puntoEquilibrio.test.ts
 - redondeoMultiplo.test.ts
 
+DATA MODEL NOTES (SUMMARIZED)
+- Multi-tenant: workspaces → clinics → operational data (patients, treatments, services)
+- Categorías editables: insumos, servicios, costos fijos, fuentes/vías
+- Snapshots en tratamientos: fixedPerMinuteCents, minutes, variableCostCents, marginPct, priceCents, tariffVersion
+- RLS activo y claves desde variables de entorno (no exponer service role en cliente)
+
 ACCEPTANCE CRITERIA
 
 - npm i y npm run dev sin errores
-- npm test verde en todos los módulos de cálculo
-- La app arranca en inglés y se puede alternar a español
-- Lighthouse Performance y Best Practices por encima de 90 en la shell
-- Focus states visibles en todos los controles interactivos
+- npm test verde en todos los módulos de cálculo (lib/calc/__tests__)
+- Todas las cantidades monetarias en centavos enteros, usando helpers de lib/money.ts
+- La app arranca en inglés y se puede alternar a español; todas las cadenas en messages/en.json y messages/es.json
+- WCAG AA: contraste, focus visible, targets ≥ 44px, no depender solo de color
+- Validación con Zod en formularios y mensajes de error amigables
 - Layout con max-w 1280, sidebar 280, padding horizontal 32 en desktop
-- PageHeader presente en pages de Setup
+- PageHeader presente en páginas de Setup y navegación agrupada por áreas
 - EmptyState y Skeleton visibles donde aplique
 - Sombras suaves y radios como en tokens, sin sombras duras
+- Sin nuevas dependencias no aprobadas
+- Sin cambios fuera del alcance indicado
+
+TASKS AND DEVLOG
+- Antes de abrir PR: crear/actualizar entradas en `tasks/` (active/backlog) con ids y checklist
+- En el PR y tras merge: documentar en `docs/devlog/YYYY-MM-DD-<slug>.md` con contexto, problema, root cause, cambios, archivos tocados, before/after, cómo probar, riesgos y follow-ups
 
 DELIVERY
 
 - Entregar diff completo de archivos nuevos o modificados
 - Al final, un resumen de qué se agregó y cómo seguir
 - No proponer features fuera de alcance
+
+HOW TO TEST (MANUAL)
+1) Instalar dependencias: `npm i`
+2) Ejecutar unit tests de cálculo: `npm test`
+3) Levantar entorno: `npm run dev`
+4) Verificar navegación y i18n (EN ↔ ES)
+5) Revisar accesibilidad básica (focus visible, contraste) y tamaño de targets
+6) Revisar que el dinero se muestre formateado con Intl y se maneje en centavos internamente
 
 Now create the complete patch following these instructions
 ```
