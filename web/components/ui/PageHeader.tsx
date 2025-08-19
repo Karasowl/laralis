@@ -4,11 +4,12 @@ import { cn } from "@/lib/utils";
 export interface PageHeaderProps extends React.HTMLAttributes<HTMLDivElement> {
   title: string;
   subtitle?: string;
+  description?: string;
   actions?: React.ReactNode;
 }
 
 const PageHeader = React.forwardRef<HTMLDivElement, PageHeaderProps>(
-  ({ className, title, subtitle, actions, children, ...props }, ref) => {
+  ({ className, title, subtitle, description, actions, children, ...props }, ref) => {
     return (
       <div
         ref={ref}
@@ -23,9 +24,9 @@ const PageHeader = React.forwardRef<HTMLDivElement, PageHeaderProps>(
             <h1 className="text-3xl font-semibold tracking-tight text-foreground">
               {title}
             </h1>
-            {subtitle && (
+            {(subtitle || description) && (
               <p className="text-base text-muted-foreground leading-relaxed">
-                {subtitle}
+                {subtitle || description}
               </p>
             )}
           </div>

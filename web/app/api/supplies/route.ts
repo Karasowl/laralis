@@ -83,7 +83,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const cookieStore = cookies();
     const clinicId = body.clinic_id || await getClinicIdOrDefault(cookieStore);
 
     if (!clinicId) {

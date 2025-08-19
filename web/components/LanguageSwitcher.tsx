@@ -10,7 +10,6 @@ const locales = [
 ];
 
 export function LanguageSwitcher() {
-  const t = useTranslations('common');
   const locale = useLocale();
 
   const handleLocaleChange = (newLocale: string) => {

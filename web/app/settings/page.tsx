@@ -17,7 +17,6 @@ import {
   Upload,
   Megaphone
 } from 'lucide-react';
-import { DeleteAccountSection } from './SettingsClient';
 import { createSupabaseClient } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/format';
 
@@ -73,23 +72,23 @@ export default async function SettingsPage() {
   const fixedPerMinute = effectiveMinutes > 0 ? totalFixedCosts / effectiveMinutes : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <PageHeader
-        title={t('settings.title')}
-        subtitle={t('settings.subtitle')}
+        title="Configuración del Negocio"
+        subtitle="Configura los parámetros fundamentales de tu clínica dental"
       />
 
       {/* Grid de opciones de configuración */}
-      <div className="grid gap-6">
+      <div className="grid gap-4 sm:gap-6">
         {/* Sección: Organización */}
         <div>
-          <h2 className="text-lg font-semibold mb-3">{t('settings.organization')}</h2>
+          <h2 className="text-base sm:text-lg font-semibold mb-3">Organización</h2>
           <div className="grid gap-3">
             <Link href="/settings/workspaces" className="block" prefetch={true}>
               <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                <CardContent className="flex items-center justify-between p-4">
+                <CardContent className="flex items-center justify-between p-3 sm:p-4 touch-target">
                   <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center">
+                    <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-blue-50 flex items-center justify-center">
                       <Building className="h-5 w-5 text-blue-600" />
                     </div>
                     <div>
@@ -104,7 +103,7 @@ export default async function SettingsPage() {
 
             <Link href="/settings/clinics" className="block" prefetch={true}>
               <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                <CardContent className="flex items-center justify-between p-4">
+                <CardContent className="flex items-center justify-between p-3 sm:p-4 touch-target">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-lg bg-purple-50 flex items-center justify-center">
                       <Building2 className="h-5 w-5 text-purple-600" />
@@ -123,11 +122,11 @@ export default async function SettingsPage() {
 
         {/* Sección: Configuración del Negocio */}
         <div>
-          <h2 className="text-lg font-semibold mb-3">{t('settings.businessSetup')}</h2>
+          <h2 className="text-lg font-semibold mb-3">Configuración Financiera</h2>
           <div className="grid gap-3">
             <Link href="/assets" className="block" prefetch={true}>
               <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                <CardContent className="flex items-center justify-between p-4">
+                <CardContent className="flex items-center justify-between p-3 sm:p-4 touch-target">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-lg bg-green-50 flex items-center justify-center">
                       <Package className="h-5 w-5 text-green-600" />
@@ -149,7 +148,7 @@ export default async function SettingsPage() {
 
             <Link href="/fixed-costs" className="block" prefetch={true}>
               <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                <CardContent className="flex items-center justify-between p-4">
+                <CardContent className="flex items-center justify-between p-3 sm:p-4 touch-target">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-lg bg-orange-50 flex items-center justify-center">
                       <DollarSign className="h-5 w-5 text-orange-600" />
@@ -171,7 +170,7 @@ export default async function SettingsPage() {
 
             <Link href="/time" className="block" prefetch={true}>
               <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                <CardContent className="flex items-center justify-between p-4">
+                <CardContent className="flex items-center justify-between p-3 sm:p-4 touch-target">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-lg bg-cyan-50 flex items-center justify-center">
                       <Clock className="h-5 w-5 text-cyan-600" />
@@ -193,7 +192,7 @@ export default async function SettingsPage() {
 
             <Link href="/equilibrium" className="block" prefetch={true}>
               <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                <CardContent className="flex items-center justify-between p-4">
+                <CardContent className="flex items-center justify-between p-3 sm:p-4 touch-target">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-lg bg-indigo-50 flex items-center justify-center">
                       <TrendingUp className="h-5 w-5 text-indigo-600" />
@@ -212,11 +211,11 @@ export default async function SettingsPage() {
 
         {/* Sección: Costos Variables */}
         <div>
-          <h2 className="text-lg font-semibold mb-3">{t('settings.variableCosts')}</h2>
+          <h2 className="text-lg font-semibold mb-3">Servicios y Costos Variables</h2>
           <div className="grid gap-3">
             <Link href="/supplies" className="block" prefetch={true}>
               <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                <CardContent className="flex items-center justify-between p-4">
+                <CardContent className="flex items-center justify-between p-3 sm:p-4 touch-target">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-lg bg-teal-50 flex items-center justify-center">
                       <Package className="h-5 w-5 text-teal-600" />
@@ -233,7 +232,7 @@ export default async function SettingsPage() {
 
             <Link href="/services" className="block" prefetch={true}>
               <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                <CardContent className="flex items-center justify-between p-4">
+                <CardContent className="flex items-center justify-between p-3 sm:p-4 touch-target">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-lg bg-pink-50 flex items-center justify-center">
                       <Wrench className="h-5 w-5 text-pink-600" />
@@ -250,7 +249,7 @@ export default async function SettingsPage() {
 
             <Link href="/tariffs" className="block" prefetch={true}>
               <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                <CardContent className="flex items-center justify-between p-4">
+                <CardContent className="flex items-center justify-between p-3 sm:p-4 touch-target">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-lg bg-amber-50 flex items-center justify-center">
                       <Calculator className="h-5 w-5 text-amber-600" />
@@ -267,7 +266,7 @@ export default async function SettingsPage() {
 
             <Link href="/settings/marketing" className="block" prefetch={true}>
               <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                <CardContent className="flex items-center justify-between p-4">
+                <CardContent className="flex items-center justify-between p-3 sm:p-4 touch-target">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-lg bg-fuchsia-50 flex items-center justify-center">
                       <Megaphone className="h-5 w-5 text-fuchsia-600" />
@@ -286,7 +285,7 @@ export default async function SettingsPage() {
 
         {/* Sección: Datos y Respaldo */}
         <div>
-          <h2 className="text-lg font-semibold mb-3">{t('settings.dataBackup')}</h2>
+          <h2 className="text-lg font-semibold mb-3">Gestión de Datos</h2>
           <div className="grid gap-3">
             <Card className="hover:shadow-md transition-shadow cursor-pointer opacity-50">
               <CardContent className="flex items-center justify-between p-4">
@@ -320,7 +319,7 @@ export default async function SettingsPage() {
 
             <Link href="/settings/reset" className="block" prefetch={true}>
               <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                <CardContent className="flex items-center justify-between p-4">
+                <CardContent className="flex items-center justify-between p-3 sm:p-4 touch-target">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-lg bg-red-50 flex items-center justify-center">
                       <RefreshCw className="h-5 w-5 text-red-600" />
@@ -337,13 +336,6 @@ export default async function SettingsPage() {
           </div>
         </div>
 
-        {/* Sección: Cuenta y Seguridad */}
-        <div>
-          <h2 className="text-lg font-semibold mb-3">{t('settings.accountSecurity')}</h2>
-          <div className="grid gap-3">
-            <DeleteAccountSection />
-          </div>
-        </div>
       </div>
     </div>
   );

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
 import { getClinicIdOrDefault } from '@/lib/clinic';
+import { createSupabaseClient } from '@/lib/supabase';
 import { z } from 'zod';
 
 const createCampaignSchema = z.object({
@@ -13,6 +14,14 @@ const createCampaignSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = cookies();
+    const supabase = createSupabaseClient(cookieStore);
+    
+    // ✅ Validar usuario autenticado
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const clinicId = searchParams.get('clinicId') || await getClinicIdOrDefault(cookieStore);
     const activeOnly = searchParams.get('active') === 'true';
@@ -81,6 +90,14 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const cookieStore = cookies();
+    const supabase = createSupabaseClient(cookieStore);
+    
+    // ✅ Validar usuario autenticado
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const clinicId = await getClinicIdOrDefault(cookieStore);
 
     if (!clinicId) {

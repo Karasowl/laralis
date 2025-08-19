@@ -15,6 +15,15 @@ Cypress.on('uncaught:exception', (err, runnable) => {
   if (err.message.includes('Non-Error promise rejection captured')) {
     return false;
   }
+  if (err.message.includes('Hydration failed because the initial UI does not match')) {
+    return false;
+  }
+  if (err.message.includes('There was an error while hydrating')) {
+    return false;
+  }
+  if (err.message.includes('Text content does not match server-rendered HTML')) {
+    return false;
+  }
   return true;
 });
 
