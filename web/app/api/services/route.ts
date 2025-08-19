@@ -99,7 +99,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const cookieStore = cookies();
     const clinicId = body.clinic_id || cookieStore.get('clinicId')?.value;
 
     if (!clinicId) {

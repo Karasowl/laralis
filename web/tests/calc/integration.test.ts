@@ -4,7 +4,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { calculateTimeCosts } from '@/lib/calc/tiempo';
-import { calculateBreakeven } from '@/lib/calc/puntoEquilibrio';
+import { calculateBreakEvenPoint, calculateRequiredServices } from '@/lib/calc/puntoEquilibrio';
 import { calculateTariff } from '@/lib/calc/tarifa';
 import { calculateVariableCost } from '@/lib/calc/variable';
 
@@ -21,24 +21,25 @@ describe('Motor de Cálculos - Integración Completa', () => {
       name: 'Limpieza Dental',
       durationMinutes: 30,
       supplies: [
-        { name: 'Pasta profiláctica', costCents: 50, quantity: 1 },
-        { name: 'Guantes', costCents: 25, quantity: 2 },
-        { name: 'Agua destilada', costCents: 10, quantity: 0.5 }
+        { supplyId: '1', name: 'Pasta profiláctica', unitCostCents: 50, quantity: 1 },
+        { supplyId: '2', name: 'Guantes', unitCostCents: 25, quantity: 2 },
+        { supplyId: '3', name: 'Agua destilada', unitCostCents: 10, quantity: 0.5 }
       ]
     },
     marginPct: 65 // 65% de margen
   };
 
   it('debe calcular el costo por minuto correctamente', () => {
-    const timeCosts = calculateTimeCosts(
-      scenario.workDays,
-      scenario.hoursPerDay,
-      scenario.realPct,
-      scenario.fixedCostsCents
-    );
+    const timeSettings = {
+      workDaysPerMonth: scenario.workDays,
+      hoursPerDay: scenario.hoursPerDay,
+      effectiveWorkPercentage: scenario.realPct / 100
+    };
+    
+    const timeCosts = calculateTimeCosts(timeSettings, scenario.fixedCostsCents);
 
     expect(timeCosts.fixedPerMinuteCents).toBeGreaterThan(0);
-    expect(timeCosts.realMinutesPerMonth).toBe(
+    expect(timeCosts.effectiveMinutesPerMonth).toBe(
       scenario.workDays * scenario.hoursPerDay * 60 * (scenario.realPct / 100)
     );
     
@@ -55,12 +56,13 @@ describe('Motor de Cálculos - Integración Completa', () => {
   });
 
   it('debe calcular el precio final de un servicio con margen', () => {
-    const timeCosts = calculateTimeCosts(
-      scenario.workDays,
-      scenario.hoursPerDay,
-      scenario.realPct,
-      scenario.fixedCostsCents
-    );
+    const timeSettings = {
+      workDaysPerMonth: scenario.workDays,
+      hoursPerDay: scenario.hoursPerDay,
+      effectiveWorkPercentage: scenario.realPct / 100
+    };
+    
+    const timeCosts = calculateTimeCosts(timeSettings, scenario.fixedCostsCents);
     
     const variableCostCents = calculateVariableCost(scenario.service.supplies);
     
@@ -80,12 +82,13 @@ describe('Motor de Cálculos - Integración Completa', () => {
   });
 
   it('debe calcular el punto de equilibrio correctamente', () => {
-    const timeCosts = calculateTimeCosts(
-      scenario.workDays,
-      scenario.hoursPerDay,
-      scenario.realPct,
-      scenario.fixedCostsCents
-    );
+    const timeSettings = {
+      workDaysPerMonth: scenario.workDays,
+      hoursPerDay: scenario.hoursPerDay,
+      effectiveWorkPercentage: scenario.realPct / 100
+    };
+    
+    const timeCosts = calculateTimeCosts(timeSettings, scenario.fixedCostsCents);
     
     const variableCostCents = calculateVariableCost(scenario.service.supplies);
     
@@ -96,32 +99,37 @@ describe('Motor de Cálculos - Integración Completa', () => {
       marginPercentage: scenario.marginPct / 100
     });
 
-    const breakeven = calculateBreakeven(
-      scenario.fixedCostsCents,
-      tariffResult.finalPriceCents,
-      variableCostCents
+    const contributionPerUnit = tariffResult.finalPriceCents - variableCostCents;
+    const variablePercentage = variableCostCents / tariffResult.finalPriceCents;
+    
+    const breakeven = calculateBreakEvenPoint({
+      monthlyFixedCostsCents: scenario.fixedCostsCents,
+      averageVariablePercentage: variablePercentage
+    });
+    
+    const unitsToBreakeven = calculateRequiredServices(
+      breakeven.breakEvenRevenueCents,
+      tariffResult.finalPriceCents
     );
 
-    expect(breakeven.unitsToBreakeven).toBeGreaterThan(0);
-    expect(breakeven.dailyTarget).toBeGreaterThan(0);
-    expect(breakeven.revenueToBreakeven).toBe(
-      breakeven.unitsToBreakeven * tariffResult.finalPriceCents
-    );
+    expect(unitsToBreakeven).toBeGreaterThan(0);
+    expect(breakeven.breakEvenRevenueCents).toBeGreaterThan(0);
     
-    console.log('🎯 Punto de equilibrio:', breakeven.unitsToBreakeven, 'servicios/mes');
-    console.log('📅 Meta diaria:', breakeven.dailyTarget, 'servicios/día');
+    console.log('🎯 Punto de equilibrio:', unitsToBreakeven, 'servicios/mes');
+    console.log('📅 Meta diaria:', Math.ceil(unitsToBreakeven / scenario.workDays), 'servicios/día');
   });
 
   it('debe mantener consistencia en el flujo completo de cálculos', () => {
     // Simular el flujo completo como en la aplicación real
     
     // 1. Calcular costos de tiempo
-    const timeCosts = calculateTimeCosts(
-      scenario.workDays,
-      scenario.hoursPerDay,
-      scenario.realPct,
-      scenario.fixedCostsCents
-    );
+    const timeSettings = {
+      workDaysPerMonth: scenario.workDays,
+      hoursPerDay: scenario.hoursPerDay,
+      effectiveWorkPercentage: scenario.realPct / 100
+    };
+    
+    const timeCosts = calculateTimeCosts(timeSettings, scenario.fixedCostsCents);
 
     // 2. Calcular costo variable
     const variableCostCents = calculateVariableCost(scenario.service.supplies);
@@ -135,10 +143,16 @@ describe('Motor de Cálculos - Integración Completa', () => {
     });
 
     // 4. Calcular punto de equilibrio
-    const breakeven = calculateBreakeven(
-      scenario.fixedCostsCents,
-      tariffResult.finalPriceCents,
-      variableCostCents
+    const variablePercentage = variableCostCents / tariffResult.finalPriceCents;
+    
+    const breakeven = calculateBreakEvenPoint({
+      monthlyFixedCostsCents: scenario.fixedCostsCents,
+      averageVariablePercentage: variablePercentage
+    });
+    
+    const unitsToBreakeven = calculateRequiredServices(
+      breakeven.breakEvenRevenueCents,
+      tariffResult.finalPriceCents
     );
 
     // Verificaciones de consistencia
@@ -148,7 +162,7 @@ describe('Motor de Cálculos - Integración Completa', () => {
     // El ingreso del punto de equilibrio debe cubrir exactamente los costos fijos
     const contributionPerUnit = tariffResult.finalPriceCents - variableCostCents;
     const expectedUnits = Math.ceil(scenario.fixedCostsCents / contributionPerUnit);
-    expect(breakeven.unitsToBreakeven).toBe(expectedUnits);
+    expect(unitsToBreakeven).toBe(expectedUnits);
 
     console.log('\n🔗 FLUJO COMPLETO DE CÁLCULOS:');
     console.log('═══════════════════════════════');
@@ -157,7 +171,7 @@ describe('Motor de Cálculos - Integración Completa', () => {
     console.log('🧪 Costo variable:', variableCostCents / 100, 'pesos');
     console.log('🔧 Costo fijo del servicio:', tariffResult.fixedCostCents / 100, 'pesos');
     console.log('💵 Precio final:', tariffResult.finalPriceCents / 100, 'pesos');
-    console.log('🎯 Punto de equilibrio:', breakeven.unitsToBreakeven, 'servicios');
-    console.log('📈 Ingreso necesario:', breakeven.revenueToBreakeven / 100, 'pesos');
+    console.log('🎯 Punto de equilibrio:', unitsToBreakeven, 'servicios');
+    console.log('📈 Ingreso necesario:', breakeven.breakEvenRevenueCents / 100, 'pesos');
   });
 });

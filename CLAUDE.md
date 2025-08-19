@@ -127,7 +127,7 @@ If present, link to devlog index: @docs/devlog/INDEX.md
 \## Testing \& TDD
 
 \### Usuario de prueba
-\- Email: isamelguimarais@gmail.com
+\- Email: ismaelguimarais@gmail.com
 \- Password: test123456
 \- Guardado en: `cypress.env.json`
 

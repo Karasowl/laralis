@@ -58,3 +58,51 @@
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
+
+/* Mobile First Responsive Utilities */
+@layer utilities {
+  /* Touch targets for mobile */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Responsive container with proper mobile margins */
+  .container-mobile {
+    @apply px-4 sm:px-6 lg:px-8;
+  }
+  
+  /* Mobile-optimized spacing */
+  .space-mobile {
+    @apply space-y-4 sm:space-y-6;
+  }
+  
+  /* Mobile-friendly grid */
+  .grid-mobile {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4;
+  }
+  
+  /* Mobile text sizing */
+  .text-mobile-lg {
+    @apply text-lg sm:text-xl lg:text-2xl;
+  }
+  
+  .text-mobile-base {
+    @apply text-sm sm:text-base;
+  }
+  
+  /* Mobile-friendly cards */
+  .card-mobile {
+    @apply p-4 sm:p-6;
+  }
+  
+  /* Hide on mobile */
+  .hidden-mobile {
+    @apply hidden sm:block;
+  }
+  
+  /* Show only on mobile */
+  .mobile-only {
+    @apply block sm:hidden;
+  }
+}

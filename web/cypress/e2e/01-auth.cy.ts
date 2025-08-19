@@ -2,22 +2,25 @@ describe('Authentication System', () => {
   describe('Login', () => {
     it('should show login form', () => {
       cy.visit('/auth/login');
+      cy.wait(1000); // Esperar a que cargue completamente
       cy.get('input[type="email"]').should('be.visible');
       cy.get('input[type="password"]').should('be.visible');
-      cy.contains('button', 'Iniciar').should('be.visible');
+      cy.get('button[type="submit"]').should('be.visible');
     });
 
     it('should validate required fields', () => {
       cy.visit('/auth/login');
-      cy.contains('button', 'Iniciar').click();
+      cy.wait(1000);
+      cy.get('button[type="submit"]').click();
       cy.contains('correo').should('be.visible');
     });
 
     it('should show error for invalid credentials', () => {
       cy.visit('/auth/login');
+      cy.wait(1000);
       cy.get('input[type="email"]').type('invalid@example.com');
       cy.get('input[type="password"]').type('wrongpassword');
-      cy.contains('button', 'Iniciar').click();
+      cy.get('button[type="submit"]').click();
       cy.contains('Invalid').should('be.visible');
     });
 
@@ -25,7 +28,7 @@ describe('Authentication System', () => {
       cy.visit('/auth/login');
       cy.get('input[type="email"]').type(Cypress.env('TEST_EMAIL'));
       cy.get('input[type="password"]').type(Cypress.env('TEST_PASSWORD'));
-      cy.contains('button', 'Iniciar').click();
+      cy.get('button[type="submit"]').click();
       cy.url().should('not.include', '/auth/login');
       cy.url().should('include', '/');
     });
@@ -38,7 +41,7 @@ describe('Authentication System', () => {
       cy.visit('/auth/register');
       cy.get('input[type="email"]').should('be.visible');
       cy.get('input[type="password"]').should('be.visible');
-      cy.contains('button', 'Crear').should('be.visible');
+      cy.get('button[type="submit"]').should('be.visible');
     });
 
     it('should validate password requirements', () => {

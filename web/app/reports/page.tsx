@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useWorkspace } from '@/contexts/workspace-context';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   TrendingUp, 
   Users, 
@@ -13,9 +14,12 @@ import {
   Activity,
   FileText,
   Package,
-  Clock
+  Clock,
+  Brain,
+  BarChart3
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/money';
+import { ReportsAdvanced } from './ReportsAdvanced';
 
 interface DashboardData {
   patientsMonth: number;
@@ -42,7 +46,7 @@ export default function ReportsPage() {
   // ✅ Recargar cuando cambie la clínica
   useEffect(() => {
     if (currentClinic?.id) {
-      loadData();
+      loadDashboardData();
     }
   }, [currentClinic?.id]);
 
@@ -142,12 +146,25 @@ export default function ReportsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={t('reports.title')}
-        subtitle={t('reports.subtitle')}
+        title="Reportes y Análisis"
+        subtitle="Análisis completo del rendimiento de tu clínica con predicciones inteligentes"
       />
 
-      {/* Métricas principales */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="overview" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Resumen General
+          </TabsTrigger>
+          <TabsTrigger value="advanced" className="flex items-center gap-2">
+            <Brain className="h-4 w-4" />
+            Análisis Avanzado
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+          {/* Métricas principales */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {metricCards.map((metric, index) => {
           const Icon = metric.icon;
           return (
@@ -230,6 +247,12 @@ export default function ReportsPage() {
           </CardContent>
         </Card>
       </div>
+      </TabsContent>
+
+      <TabsContent value="advanced">
+        <ReportsAdvanced />
+      </TabsContent>
+      </Tabs>
     </div>
   );
 }

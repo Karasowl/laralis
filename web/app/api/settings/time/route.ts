@@ -17,7 +17,6 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const cookieStore = cookies();
     const searchParams = request.nextUrl.searchParams;
     const clinicId = searchParams.get('clinicId') || await getClinicIdOrDefault(cookieStore);
 
@@ -72,7 +71,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const cookieStore = cookies();
     const clinicId = body.clinic_id || await getClinicIdOrDefault(cookieStore);
 
     if (!clinicId) {

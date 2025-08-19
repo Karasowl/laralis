@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { NavigationClient } from '@/components/NavigationClient';
 import { BusinessSwitcher } from '@/components/BusinessSwitcher';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { useWorkspace } from '@/contexts/workspace-context';
 import { 
@@ -35,31 +36,33 @@ export default function HeaderChrome() {
   if (isOnboarding || !hasWorkspaces) {
     return (
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container max-w-7xl flex h-16 items-center justify-between">
+        <div className="container max-w-7xl flex h-14 sm:h-16 items-center justify-between px-4 sm:px-6">
           <Link 
             href="/" 
             className="flex items-center space-x-2"
           >
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">D</span>
+            <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-primary flex items-center justify-center">
+              <span className="text-primary-foreground font-bold text-xs sm:text-sm">D</span>
             </div>
-            <span className="font-semibold text-lg">{t('common.appName')}</span>
+            <span className="font-semibold text-base sm:text-lg hidden sm:block">{t('common.appName')}</span>
+            <span className="font-semibold text-base sm:hidden">Dental</span>
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {!isOnboarding && !user && (
-              <Button asChild className="hidden sm:inline-flex">
+              <Button asChild className="hidden sm:inline-flex text-sm">
                 <Link href="/onboarding">{t('home.getStarted')}</Link>
               </Button>
             )}
+            <ThemeToggle />
             <LanguageSwitcher />
             
             {/* User Menu - SIEMPRE mostrar si hay usuario */}
             {user && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                    <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
-                      <User className="h-4 w-4 text-primary-foreground" />
+                  <Button variant="ghost" className="relative h-8 w-8 rounded-full touch-target">
+                    <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-primary flex items-center justify-center">
+                      <User className="h-3 w-3 sm:h-4 sm:w-4 text-primary-foreground" />
                     </div>
                   </Button>
                 </DropdownMenuTrigger>
@@ -93,30 +96,32 @@ export default function HeaderChrome() {
   // Full header cuando sí hay workspaces
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container max-w-7xl flex h-16 items-center justify-between">
-        <div className="flex items-center gap-8">
+      <div className="container max-w-7xl flex h-14 sm:h-16 items-center justify-between px-4 sm:px-6">
+        <div className="flex items-center gap-4 sm:gap-8">
           <Link 
             href="/" 
             className="flex items-center space-x-2"
           >
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">D</span>
+            <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-primary flex items-center justify-center">
+              <span className="text-primary-foreground font-bold text-xs sm:text-sm">D</span>
             </div>
-            <span className="font-semibold text-lg">{t('common.appName')}</span>
+            <span className="font-semibold text-base sm:text-lg hidden sm:block">{t('common.appName')}</span>
+            <span className="font-semibold text-base sm:hidden">Dental</span>
           </Link>
           <NavigationClient />
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           <BusinessSwitcher />
+          <ThemeToggle />
           <LanguageSwitcher />
           
           {/* User Menu */}
           {user && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
-                    <User className="h-4 w-4 text-primary-foreground" />
+                <Button variant="ghost" className="relative h-8 w-8 rounded-full touch-target">
+                  <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-primary flex items-center justify-center">
+                    <User className="h-3 w-3 sm:h-4 sm:w-4 text-primary-foreground" />
                   </div>
                 </Button>
               </DropdownMenuTrigger>
@@ -135,11 +140,11 @@ export default function HeaderChrome() {
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem 
-                  onClick={() => router.push('/settings')}
+                  onClick={() => router.push('/profile')}
                   className="cursor-pointer"
                 >
                   <Settings className="mr-2 h-4 w-4" />
-                  <span>Configuración</span>
+                  <span>Mi Perfil</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
