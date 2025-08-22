@@ -114,3 +114,26 @@ export function sumCents(...amounts: number[]): number {
 export function redondearA(cents: number, stepCents: number): number {
   return roundToNearestStepCents(cents, stepCents);
 }
+
+/**
+ * Alias for formatCurrency for backward compatibility
+ */
+export function formatMoney(cents: number, locale: string = 'es-MX'): string {
+  return formatCurrency(cents, locale);
+}
+
+/**
+ * Parses a money string or number to cents
+ * @param value String or number representing money amount
+ * @returns Amount in cents
+ */
+export function parseMoney(value: string | number): number {
+  if (typeof value === 'number') {
+    return pesosToCents(value);
+  }
+  
+  // Remove currency symbols and parse as float
+  const cleanValue = value.replace(/[^0-9.-]/g, '');
+  const pesos = parseFloat(cleanValue) || 0;
+  return pesosToCents(pesos);
+}

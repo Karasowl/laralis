@@ -10,10 +10,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DataTable, Column } from '@/components/ui/DataTable';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ActionDropdown, createEditAction, createDeleteAction } from '@/components/ui/ActionDropdown';
+import { ConfirmDialog, createDeleteConfirm } from '@/components/ui/ConfirmDialog';
 import { formatCurrency } from '@/lib/format';
 import type { Asset, ApiResponse } from '@/lib/types';
 import { zAssetForm } from '@/lib/zod';
 import { z } from 'zod';
+import { Package } from 'lucide-react';
+import { toast } from 'sonner';
 
 type AssetFormData = z.infer<typeof zAssetForm>;
 
@@ -24,6 +29,9 @@ export default function AssetsPage() {
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deletingAsset, setDeletingAsset] = useState<Asset | null>(null);
   const [form, setForm] = useState<AssetFormData>({
     name: '',
     purchase_price_pesos: 0,
@@ -47,8 +55,68 @@ export default function AssetsPage() {
     }
   };
 
-  const open = () => setIsDialogOpen(true);
-  const close = () => setIsDialogOpen(false);
+  const open = () => {
+    setEditingAsset(null);
+    setForm({
+      name: '',
+      purchase_price_pesos: 0,
+      depreciation_months: 36,
+      purchase_date: ''
+    });
+    setIsDialogOpen(true);
+  };
+  
+  const close = () => {
+    setIsDialogOpen(false);
+    setEditingAsset(null);
+    setForm({
+      name: '',
+      purchase_price_pesos: 0,
+      depreciation_months: 36,
+      purchase_date: ''
+    });
+  };
+
+  const handleEdit = (asset: Asset) => {
+    setEditingAsset(asset);
+    setForm({
+      name: asset.name,
+      purchase_price_pesos: asset.purchase_price_cents / 100,
+      depreciation_months: asset.depreciation_months,
+      purchase_date: asset.purchase_date || ''
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleDeleteClick = (asset: Asset) => {
+    setDeletingAsset(asset);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingAsset) return;
+    
+    try {
+      const res = await fetch(`/api/assets/${deletingAsset.id}`, {
+        method: 'DELETE'
+      });
+      
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data.error || t('assets.deleteError'));
+        return;
+      }
+      
+      toast.success(t('assets.deleteSuccess'));
+      fetchAssets();
+    } catch (error) {
+      console.error('Error deleting asset:', error);
+      toast.error(t('assets.deleteError'));
+    } finally {
+      setDeleteConfirmOpen(false);
+      setDeletingAsset(null);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,7 +124,8 @@ export default function AssetsPage() {
     try {
       const parsed = zAssetForm.safeParse(form);
       if (!parsed.success) {
-        alert(parsed.error.errors.map(er => er.message).join(', '));
+        toast.error(parsed.error.errors.map(er => er.message).join(', '));
+        setIsSubmitting(false);
         return;
       }
       const payload = {
@@ -65,18 +134,23 @@ export default function AssetsPage() {
         depreciation_months: form.depreciation_months,
         purchase_date: form.purchase_date || undefined,
       };
-      const res = await fetch('/api/assets', {
-        method: 'POST',
+      
+      const url = editingAsset ? `/api/assets/${editingAsset.id}` : '/api/assets';
+      const method = editingAsset ? 'PUT' : 'POST';
+      
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (!res.ok) {
         console.error('Save error', data);
-        alert(`Error: ${data.error || 'Failed to save'}`);
+        toast.error(data.error || t('assets.saveError'));
         return;
       }
-      setForm({ name: '', purchase_price_pesos: 0, depreciation_months: 36, purchase_date: '' });
+      
+      toast.success(editingAsset ? t('assets.updateSuccess') : t('assets.createSuccess'));
       close();
       fetchAssets();
     } catch (e) {
@@ -112,6 +186,18 @@ export default function AssetsPage() {
     { key: 'purchase_price_cents', label: t('assets.table.purchasePrice'), render: (_v, row) => formatCurrency(row.purchase_price_cents) },
     { key: 'depreciation_months', label: t('assets.table.months') },
     { key: 'monthly_dep', label: t('assets.table.monthlyDep'), render: (_v, row) => formatCurrency(Math.round(row.purchase_price_cents / row.depreciation_months)) },
+    {
+      key: 'actions',
+      label: t('assets.table.actions'),
+      render: (_v, row) => (
+        <ActionDropdown
+          actions={[
+            createEditAction(() => handleEdit(row), t('assets.edit')),
+            createDeleteAction(() => handleDeleteClick(row), t('assets.delete'))
+          ]}
+        />
+      )
+    }
   ];
 
   return (
@@ -149,7 +235,20 @@ export default function AssetsPage() {
       <Card>
         <div className="p-6">
           <h3 className="text-lg font-semibold mb-4">{t('businessSetup.assets.detailBreakdown')}</h3>
-          <DataTable columns={columns} data={assets} />
+          {assets.length === 0 ? (
+            <EmptyState
+              icon={<Package className="h-8 w-8" />}
+              title={t('assets.emptyTitle')}
+              description={t('assets.emptyDescription')}
+              action={
+                <Button onClick={open}>
+                  {t('assets.addAssetButton')}
+                </Button>
+              }
+            />
+          ) : (
+            <DataTable columns={columns} data={assets} />
+          )}
         </div>
       </Card>
       
@@ -170,7 +269,9 @@ export default function AssetsPage() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t('assets.addAssetDialogTitle')}</DialogTitle>
+            <DialogTitle>
+              {editingAsset ? t('assets.editAssetDialogTitle') : t('assets.addAssetDialogTitle')}
+            </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -195,11 +296,20 @@ export default function AssetsPage() {
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={close}>{t('assets.formCancelButton')}</Button>
-              <Button type="submit" disabled={isSubmitting}>{t('assets.formSaveButton')}</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {editingAsset ? t('assets.formUpdateButton') : t('assets.formSaveButton')}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        {...createDeleteConfirm(handleDeleteConfirm, deletingAsset?.name)}
+      />
     </div>
   );
 }

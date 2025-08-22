@@ -11,12 +11,16 @@ import { Button } from '@/components/ui/button';
 import { DataTable, Column } from '@/components/ui/DataTable';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/input';
-import { FormField } from '@/components/ui/FormField';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ActionDropdown, createEditAction, createDeleteAction } from '@/components/ui/ActionDropdown';
+import { ConfirmDialog, createDeleteConfirm } from '@/components/ui/ConfirmDialog';
 import { formatCurrency, getCategoryDisplayName } from '@/lib/format';
 import { zFixedCostForm } from '@/lib/zod';
 import type { FixedCost, FixedCostCategory } from '@/lib/types';
-import { Plus, Receipt, Edit, Trash2, X } from 'lucide-react';
+import { Plus, Receipt, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 const categories: { value: FixedCostCategory; key: string }[] = [
   { value: 'rent', key: 'rent' },
@@ -37,13 +41,16 @@ interface FixedCostFormData {
 
 export default function FixedCostsPage() {
   const t = useTranslations();
-  const { currentClinic } = useWorkspace(); // ✅ Obtener clínica actual
+  const { currentClinic } = useWorkspace();
   const locale = useLocale();
   const [costs, setCosts] = useState<FixedCost[]>([]);
   const [assetsDepreciation, setAssetsDepreciation] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingCost, setEditingCost] = useState<FixedCost | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deletingCost, setDeletingCost] = useState<FixedCost | null>(null);
 
   const {
     register,
@@ -51,7 +58,7 @@ export default function FixedCostsPage() {
     reset,
     setValue,
     watch,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<FixedCostFormData>({
     resolver: zodResolver(zFixedCostForm),
     defaultValues: {
@@ -98,22 +105,19 @@ export default function FixedCostsPage() {
   };
 
   const onSubmit = async (formData: FixedCostFormData) => {
+    setIsSubmitting(true);
     try {
-      console.log('Form data:', formData);
-      console.log('Amount (already in cents from zod transform):', formData.amount_pesos);
-      
-      // amount_pesos ya está en centavos debido a la transformación de Zod
       const payload = {
         category: formData.category,
         concept: formData.concept,
         amount_cents: formData.amount_pesos, // Ya está en centavos
       };
 
-      const url = editingId 
-        ? `/api/fixed-costs/${editingId}`
+      const url = editingCost 
+        ? `/api/fixed-costs/${editingCost.id}`
         : '/api/fixed-costs';
       
-      const method = editingId ? 'PUT' : 'POST';
+      const method = editingCost ? 'PUT' : 'POST';
 
       const response = await fetch(url, {
         method,
@@ -122,49 +126,72 @@ export default function FixedCostsPage() {
       });
 
       if (response.ok) {
+        toast.success(editingCost ? t('fixedCosts.updateSuccess') : t('fixedCosts.createSuccess'));
         await loadCosts();
-        resetForm();
-        console.log(editingId ? 'Fixed cost updated' : 'Fixed cost created');
+        handleCloseDialog();
       } else {
         const error = await response.json();
-        console.error('Error saving fixed cost:', error);
+        toast.error(error.message || t('fixedCosts.saveError'));
       }
     } catch (error) {
       console.error('Error submitting form:', error);
+      toast.error(t('fixedCosts.saveError'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleEdit = (cost: FixedCost) => {
-    setEditingId(cost.id || null);
+    setEditingCost(cost);
     setValue('category', cost.category as FixedCostCategory);
     setValue('concept', cost.concept);
     setValue('amount_pesos', cost.amount_cents / 100);
-    setShowForm(true);
+    setIsDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm(t('fixedCosts.deleteCost'))) return;
+  const handleDeleteClick = (cost: FixedCost) => {
+    setDeletingCost(cost);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingCost) return;
 
     try {
-      const response = await fetch(`/api/fixed-costs/${id}`, {
+      const response = await fetch(`/api/fixed-costs/${deletingCost.id}`, {
         method: 'DELETE',
       });
 
       if (response.ok) {
+        toast.success(t('fixedCosts.deleteSuccess'));
         await loadCosts();
-        console.log('Fixed cost deleted');
       } else {
-        console.error('Failed to delete fixed cost');
+        const error = await response.json();
+        toast.error(error.message || t('fixedCosts.deleteError'));
       }
     } catch (error) {
       console.error('Error deleting fixed cost:', error);
+      toast.error(t('fixedCosts.deleteError'));
+    } finally {
+      setDeleteConfirmOpen(false);
+      setDeletingCost(null);
     }
   };
 
-  const resetForm = () => {
+  const handleOpenDialog = () => {
+    setEditingCost(null);
+    reset({
+      category: 'other',
+      concept: '',
+      amount_pesos: 0,
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setIsDialogOpen(false);
+    setEditingCost(null);
     reset();
-    setEditingId(null);
-    setShowForm(false);
   };
 
   const columns: Column<FixedCost>[] = [
@@ -187,22 +214,12 @@ export default function FixedCostsPage() {
       key: 'actions',
       label: t('common.actions'),
       render: (_, item) => (
-        <div className="flex gap-2 justify-end">
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => handleEdit(item)}
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => handleDelete(item.id!)}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
+        <ActionDropdown
+          actions={[
+            createEditAction(() => handleEdit(item), t('fixedCosts.edit')),
+            createDeleteAction(() => handleDeleteClick(item), t('fixedCosts.delete'))
+          ]}
+        />
       ),
       className: 'text-right',
     },
@@ -217,7 +234,7 @@ export default function FixedCostsPage() {
         title={t('fixedCosts.title')}
         subtitle={t('fixedCosts.subtitle')}
         actions={
-          <Button onClick={() => setShowForm(true)}>
+          <Button onClick={handleOpenDialog}>
             <Plus className="h-4 w-4 mr-2" />
             {t('fixedCosts.addCost')}
           </Button>
@@ -225,86 +242,6 @@ export default function FixedCostsPage() {
       />
 
       <div className="grid gap-6">
-        {/* Add/Edit Form */}
-        {showForm && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                {editingId ? t('fixedCosts.editCost') : t('fixedCosts.addCost')}
-                <Button variant="ghost" size="sm" onClick={resetForm}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <FormField
-                    label={t('fixedCosts.category')}
-                    error={errors.category?.message}
-                    required
-                  >
-                    <Select
-                      value={watch('category')}
-                      onValueChange={(value) => setValue('category', value as FixedCostCategory)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map(category => (
-                          <SelectItem key={category.value} value={category.value}>
-                            {t(`fixedCosts.categories.${category.key}`)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FormField>
-
-                  <FormField
-                    label={t('fixedCosts.concept')}
-                    error={errors.concept?.message}
-                    required
-                  >
-                    <Input
-                      {...register('concept')}
-                      placeholder={t('fixedCosts.placeholders.concept')}
-                    />
-                  </FormField>
-
-                  <FormField
-                    label={t('fixedCosts.amount')}
-                    error={errors.amount_pesos?.message}
-                    required
-                  >
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      {...register('amount_pesos', { valueAsNumber: true })}
-                      placeholder={t('fixedCosts.placeholders.amount')}
-                    />
-                  </FormField>
-                </div>
-
-                <div className="flex gap-2 pt-2">
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting 
-                      ? t('common.loading') 
-                      : editingId 
-                        ? t('common.save') 
-                        : t('common.add')
-                    }
-                  </Button>
-                  <Button type="button" variant="outline" onClick={resetForm}>
-                    {t('common.cancel')}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>
@@ -382,7 +319,7 @@ export default function FixedCostsPage() {
                 title={t('fixedCosts.emptyTitle')}
                 description={t('fixedCosts.emptyDescription')}
                 action={
-                  <Button onClick={() => setShowForm(true)}>
+                  <Button onClick={handleOpenDialog}>
                     <Plus className="h-4 w-4 mr-2" />
                     {t('fixedCosts.addCost')}
                   </Button>
@@ -484,6 +421,99 @@ export default function FixedCostsPage() {
           </Card>
         )}
       </div>
+
+      {/* Add/Edit Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>
+              {editingCost ? t('fixedCosts.editCost') : t('fixedCosts.addCost')}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div>
+              <Label htmlFor="category">{t('fixedCosts.category')}</Label>
+              <Select
+                value={watch('category')}
+                onValueChange={(value) => setValue('category', value as FixedCostCategory)}
+                disabled={isSubmitting}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map(category => (
+                    <SelectItem key={category.value} value={category.value}>
+                      {t(`fixedCosts.categories.${category.key}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.category && (
+                <p className="text-sm text-red-600 mt-1">{errors.category.message}</p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="concept">{t('fixedCosts.concept')}</Label>
+              <Input
+                id="concept"
+                {...register('concept')}
+                placeholder={t('fixedCosts.placeholders.concept')}
+                disabled={isSubmitting}
+              />
+              {errors.concept && (
+                <p className="text-sm text-red-600 mt-1">{errors.concept.message}</p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="amount">{t('fixedCosts.amount')}</Label>
+              <Input
+                id="amount"
+                type="number"
+                step="0.01"
+                min="0"
+                {...register('amount_pesos', { valueAsNumber: true })}
+                placeholder={t('fixedCosts.placeholders.amount')}
+                disabled={isSubmitting}
+              />
+              {errors.amount_pesos && (
+                <p className="text-sm text-red-600 mt-1">{errors.amount_pesos.message}</p>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCloseDialog}
+                disabled={isSubmitting}
+              >
+                {t('common.cancel')}
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    {t('common.loading')}
+                  </>
+                ) : (
+                  editingCost ? t('common.save') : t('common.add')
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        {...createDeleteConfirm(handleDeleteConfirm, deletingCost?.concept)}
+      />
     </div>
   );
 }

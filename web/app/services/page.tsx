@@ -12,10 +12,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { DataTable } from '@/components/ui/DataTable';
 import { formatCurrency } from '@/lib/money';
-import { Plus, Edit, Trash2, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Package, Loader2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { toast } from 'sonner';
+import { ActionDropdown, createEditAction, createDeleteAction } from '@/components/ui/ActionDropdown';
+import { ConfirmDialog, createDeleteConfirm } from '@/components/ui/ConfirmDialog';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 // Schema de validación
 const serviceSchema = z.object({
@@ -73,6 +77,9 @@ export default function ServicesPage() {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [formSupplies, setFormSupplies] = useState<ServiceSupply[]>([]);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deletingService, setDeletingService] = useState<Service | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<ServiceForm>({
     resolver: zodResolver(serviceSchema),
@@ -88,7 +95,6 @@ export default function ServicesPage() {
       const res = await fetch(`/api/services?clinicId=${currentClinic.id}`);
       if (res.ok) {
         const data = await res.json();
-        console.log('Services response:', data); // Debug
         // El API puede devolver directamente el array o {data: [...]}
         const servicesArray = Array.isArray(data) ? data : (data.data || []);
         setServices(servicesArray);
@@ -109,7 +115,6 @@ export default function ServicesPage() {
       const res = await fetch(`/api/supplies?clinicId=${currentClinic.id}`);
       if (res.ok) {
         const data = await res.json();
-        console.log('Supplies loaded:', data); // Debug
         // El API devuelve {data: [...]} o directamente el array
         const suppliesArray = data.data || data;
         setSupplies(suppliesArray);
@@ -151,12 +156,13 @@ export default function ServicesPage() {
         fetchCategories();
         setNewCategoryName('');
         setIsCategoryOpen(false);
+        toast.success(t('services.categoryCreated'));
       } else {
         const error = await res.json();
-        alert(error.error || 'Error al crear categoría');
+        toast.error(error.error || t('services.categoryError'));
       }
     } catch (error) {
-      console.error('Error creating category:', error);
+      toast.error(t('services.categoryError'));
     }
   };
 
@@ -168,6 +174,7 @@ export default function ServicesPage() {
 
   // Crear o actualizar servicio
   const onSubmit = async (data: ServiceForm) => {
+    setIsSubmitting(true);
     try {
       // Asegurar que category tenga un valor por defecto
       const serviceData = {
@@ -182,8 +189,6 @@ export default function ServicesPage() {
       
       const method = editingService ? 'PUT' : 'POST';
       
-      console.log('Enviando servicio con insumos:', serviceData); // Debug
-      
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -193,7 +198,7 @@ export default function ServicesPage() {
       const result = await res.json();
       
       if (res.ok) {
-        console.log('Service saved successfully:', result);
+        toast.success(editingService ? t('services.updateSuccess') : t('services.createSuccess'));
         await fetchServices(); // Esperar a que se recarguen los servicios
         setIsOpen(false);
         reset();
@@ -201,24 +206,40 @@ export default function ServicesPage() {
         setFormSupplies([]); // Limpiar insumos del formulario
       } else {
         console.error('Error del servidor:', result);
-        alert(t('common.error') + ': ' + (result.message || result.error));
+        toast.error(result.message || result.error || t('services.saveError'));
       }
     } catch (error) {
       console.error('Error saving service:', error);
+      toast.error(t('services.saveError'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   // Eliminar servicio
-  const handleDelete = async (id: string) => {
-    if (!confirm(t('common.confirmDelete'))) return;
+  const handleDeleteClick = (service: Service) => {
+    setDeletingService(service);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingService) return;
     
     try {
-      const res = await fetch(`/api/services/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/services/${deletingService.id}`, { method: 'DELETE' });
       if (res.ok) {
+        toast.success(t('services.deleteSuccess'));
         fetchServices();
+      } else {
+        const error = await res.json();
+        toast.error(error.message || t('services.deleteError'));
       }
     } catch (error) {
       console.error('Error deleting service:', error);
+      toast.error(t('services.deleteError'));
+    } finally {
+      setDeleteConfirmOpen(false);
+      setDeletingService(null);
     }
   };
 
@@ -273,14 +294,12 @@ export default function ServicesPage() {
       key: 'actions', 
       label: t('common.actions'),
       render: (_value: any, service: Service) => (
-        <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={() => handleEdit(service)}>
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button size="sm" variant="destructive" onClick={() => handleDelete(service.id)}>
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
+        <ActionDropdown
+          actions={[
+            createEditAction(() => handleEdit(service), t('services.edit')),
+            createDeleteAction(() => handleDeleteClick(service), t('services.delete'))
+          ]}
+        />
       )
     }
   ];
@@ -511,11 +530,18 @@ export default function ServicesPage() {
                     <Button type="button" variant="outline" onClick={() => {
                       setIsOpen(false);
                       setFormSupplies([]);
-                    }}>
+                    }} disabled={isSubmitting}>
                       {t('common.cancel')}
                     </Button>
-                    <Button type="submit">
-                      {t('common.save')}
+                    <Button type="submit" disabled={isSubmitting}>
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          {t('common.loading')}
+                        </>
+                      ) : (
+                        t('common.save')
+                      )}
                     </Button>
                   </div>
                 </form>
@@ -539,9 +565,17 @@ export default function ServicesPage() {
           {loading ? (
             <div className="text-center py-8">{t('common.loading')}</div>
           ) : filteredServices.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              {t('services.noServices')}
-            </div>
+            <EmptyState
+              icon={<Package className="h-8 w-8" />}
+              title={search ? t('services.noSearchResults') : t('services.emptyTitle')}
+              description={search ? t('services.tryDifferentSearch') : t('services.emptyDescription')}
+              action={!search && (
+                <Button onClick={() => { reset(); setEditingService(null); setFormSupplies([]); setIsOpen(true); }}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  {t('services.addService')}
+                </Button>
+              )}
+            />
           ) : (
             <DataTable columns={columns} data={filteredServices} />
           )}
@@ -593,7 +627,12 @@ export default function ServicesPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Eliminado modal independiente de insumos por solicitud UX */}
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        {...createDeleteConfirm(handleDeleteConfirm, deletingService?.name)}
+      />
     </div>
   );
 }
