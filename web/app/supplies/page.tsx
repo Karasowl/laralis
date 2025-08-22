@@ -29,8 +29,11 @@ import {
 import { formatCurrency, getSupplyCategoryLabel } from '@/lib/format';
 import { Supply, ApiResponse, SupplyCategory } from '@/lib/types';
 import { zSupplyForm } from '@/lib/zod';
-import { Plus, Pencil, Trash2, Search, Package, Loader2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Package, Loader2 } from 'lucide-react';
 import { z } from 'zod';
+import { toast } from 'sonner';
+import { ActionDropdown, createEditAction, createDeleteAction } from '@/components/ui/ActionDropdown';
+import { ConfirmDialog, createDeleteConfirm } from '@/components/ui/ConfirmDialog';
 
 type SupplyFormData = z.infer<typeof zSupplyForm>;
 
@@ -44,6 +47,8 @@ export default function SuppliesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSupply, setEditingSupply] = useState<Supply | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deletingSupply, setDeletingSupply] = useState<Supply | null>(null);
 
   const categories: SupplyCategory[] = [
     'insumo', 
@@ -142,16 +147,16 @@ export default function SuppliesPage() {
       console.log('Response status:', response.status, 'Data:', responseData);
 
       if (response.ok) {
+        toast.success(editingSupply ? t('supplies.updateSuccess') : t('supplies.createSuccess'));
         await fetchSupplies();
         handleCloseDialog();
-        // Aquí podrías agregar un toast de éxito
       } else {
         console.error('Error saving supply:', responseData);
-        alert(`Error: ${responseData.error || 'Failed to save'} - ${responseData.message || ''}`);
-        // Aquí podrías agregar un toast de error
+        toast.error(`${responseData.error || t('supplies.saveError')}: ${responseData.message || ''}`);
       }
     } catch (error) {
       console.error('Error submitting form:', error);
+      toast.error(t('supplies.saveError'));
     } finally {
       setIsSubmitting(false);
     }
@@ -178,23 +183,32 @@ export default function SuppliesPage() {
   };
 
   // Delete supply
-  const handleDelete = async (id: string) => {
-    if (!confirm(t('supplies.confirmDelete'))) return;
+  const handleDeleteClick = (supply: Supply) => {
+    setDeletingSupply(supply);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingSupply) return;
     
     try {
-      const response = await fetch(`/api/supplies/${id}`, {
+      const response = await fetch(`/api/supplies/${deletingSupply.id}`, {
         method: 'DELETE'
       });
 
       if (response.ok) {
+        toast.success(t('supplies.deleteSuccess'));
         await fetchSupplies();
-        // Aquí podrías agregar un toast de éxito
       } else {
-        console.error('Error deleting supply');
-        // Aquí podrías agregar un toast de error
+        const error = await response.json();
+        toast.error(error.message || t('supplies.deleteError'));
       }
     } catch (error) {
       console.error('Error deleting supply:', error);
+      toast.error(t('supplies.deleteError'));
+    } finally {
+      setDeleteConfirmOpen(false);
+      setDeletingSupply(null);
     }
   };
 
@@ -258,22 +272,12 @@ export default function SuppliesPage() {
       key: 'actions', 
       label: t('common.actions'), 
       render: (_value, supply: Supply) => (
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => handleEdit(supply)}
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => handleDelete(supply.id!)}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
+        <ActionDropdown
+          actions={[
+            createEditAction(() => handleEdit(supply), t('supplies.edit')),
+            createDeleteAction(() => handleDeleteClick(supply), t('supplies.delete'))
+          ]}
+        />
       )
     }
   ];
@@ -306,19 +310,31 @@ export default function SuppliesPage() {
       </div>
 
       {/* Data Table */}
-      {loading ? (
-        <div className="text-center py-8">{t('common.loading')}</div>
-      ) : supplies.length === 0 ? (
-        <EmptyState
-          title={t('supplies.empty')}
-          description={t('supplies.emptyDescription')}
-        />
-      ) : (
-        <DataTable
-          columns={columns}
-          data={supplies}
-        />
-      )}
+      <Card>
+        <div className="p-6">
+          <h3 className="text-lg font-semibold mb-4">{t('supplies.listTitle')}</h3>
+          {loading ? (
+            <div className="text-center py-8">{t('common.loading')}</div>
+          ) : supplies.length === 0 ? (
+            <EmptyState
+              icon={<Package className="h-8 w-8" />}
+              title={searchTerm ? t('supplies.noSearchResults') : t('supplies.emptyTitle')}
+              description={searchTerm ? t('supplies.tryDifferentSearch') : t('supplies.emptyDescription')}
+              action={!searchTerm && (
+                <Button onClick={handleOpenDialog}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  {t('supplies.add')}
+                </Button>
+              )}
+            />
+          ) : (
+            <DataTable
+              columns={columns}
+              data={supplies}
+            />
+          )}
+        </div>
+      </Card>
 
       {/* Add/Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -441,6 +457,13 @@ export default function SuppliesPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        {...createDeleteConfirm(handleDeleteConfirm, deletingSupply?.name)}
+      />
     </div>
   );
 }

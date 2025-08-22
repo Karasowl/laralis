@@ -46,6 +46,11 @@ export function NavigationClient() {
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
+            <Link href="/expenses" className="cursor-pointer">
+              {t('nav.expenses')}
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
             <Link href="/reports" className="cursor-pointer">
               {t('nav.reports')}
             </Link>
