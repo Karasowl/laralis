@@ -1,209 +1,368 @@
-"use client";
-import { useTranslations } from 'next-intl';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { PageHeader } from '@/components/ui/PageHeader';
-import { Users, FileText, TrendingUp, DollarSign, Activity, Calendar } from 'lucide-react';
-import { useWorkspace } from '@/contexts/workspace-context';
-import { formatCurrency } from '@/lib/format';
+'use client'
 
-export default function HomePage() {
-  const t = useTranslations();
-  const router = useRouter();
-  const { workspace, currentClinic, workspaces, clinics, loading: contextLoading } = useWorkspace();
-  const [initialized, setInitialized] = useState(false);
-  const [metrics, setMetrics] = useState({
-    patientsThisMonth: 0,
-    treatmentsThisMonth: 0,
-    revenueThisMonth: 0,
-    pendingPayments: 0,
-    averageTicket: 0,
-    occupancyRate: 0
-  });
+import { useTranslations } from 'next-intl'
+import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
+import { AppLayout } from '@/components/layouts/AppLayout'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { MetricCard } from '@/components/dashboard/MetricCard'
+import { RevenueChart } from '@/components/dashboard/RevenueChart'
+import { CategoryBreakdown } from '@/components/dashboard/CategoryBreakdown'
+import { RecentActivity } from '@/components/dashboard/RecentActivity'
+import { useWorkspace } from '@/contexts/workspace-context'
+import { useDashboard } from '@/hooks/use-dashboard'
+import { formatCurrency } from '@/lib/format'
+import { 
+  Users, 
+  DollarSign, 
+  TrendingUp, 
+  Receipt,
+  Activity,
+  Package,
+  ShoppingCart,
+  AlertCircle,
+  Calendar,
+  RefreshCw
+} from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Progress } from '@/components/ui/progress'
+import { Skeleton } from '@/components/ui/skeleton'
 
-  useEffect(() => {
-    // Solo ejecutar una vez cuando el contexto termine de cargar
-    if (!contextLoading && !initialized) {
-      setInitialized(true);
-      
-      // Si no hay workspaces, redirigir a onboarding
-      if (!workspace || workspaces.length === 0) {
-        router.push('/onboarding');
-        return;
-      }
-      
-      // Si hay workspaces pero ninguno completado
-      if (workspaces.every((w: any) => !w.onboarding_completed)) {
-        router.push('/onboarding');
-        return;
-      }
-    }
-  }, [contextLoading, workspace, workspaces, router, initialized]);
-
-  // Enlaces de operaciones diarias
-  const quickActions = [
-    {
-      title: t('nav.patients'),
-      description: t('home.patientsDescription'),
-      href: '/patients',
-      icon: Users,
-      color: 'bg-blue-500',
-    },
-    {
-      title: t('nav.treatments'),
-      description: t('home.treatmentsDescription'),
-      href: '/treatments',
-      icon: FileText,
-      color: 'bg-green-500',
-    },
-    {
-      title: t('nav.reports'),
-      description: t('home.reportsDescription'),
-      href: '/reports',
-      icon: TrendingUp,
-      color: 'bg-purple-500',
-    },
-  ];
-
-  if (contextLoading || !initialized) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">{t('common.loading')}</p>
-        </div>
+// Loading skeleton component
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {[1, 2, 3, 4].map(i => (
+          <Card key={i}>
+            <CardHeader className="space-y-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-6 w-32" />
+            </CardHeader>
+          </Card>
+        ))}
       </div>
-    );
+      <div className="grid gap-4 md:grid-cols-2">
+        <Skeleton className="h-96" />
+        <Skeleton className="h-96" />
+      </div>
+    </div>
+  )
+}
+
+// Quick actions component
+function QuickActions({ onRefresh }: { onRefresh: () => void }) {
+  const t = useTranslations('dashboard')
+  const router = useRouter()
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t('quick_actions')}</CardTitle>
+        <CardDescription>{t('common_tasks')}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            variant="outline"
+            className="justify-start"
+            onClick={() => router.push('/treatments/new')}
+          >
+            <Activity className="h-4 w-4 mr-2" />
+            {t('new_treatment')}
+          </Button>
+          <Button
+            variant="outline"
+            className="justify-start"
+            onClick={() => router.push('/patients/new')}
+          >
+            <Users className="h-4 w-4 mr-2" />
+            {t('new_patient')}
+          </Button>
+          <Button
+            variant="outline"
+            className="justify-start"
+            onClick={() => router.push('/expenses/new')}
+          >
+            <Receipt className="h-4 w-4 mr-2" />
+            {t('record_expense')}
+          </Button>
+          <Button
+            variant="outline"
+            className="justify-start"
+            onClick={onRefresh}
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            {t('refresh_data')}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// Alerts component
+function AlertsSection({ lowStockCount }: { lowStockCount: number }) {
+  const t = useTranslations('dashboard')
+  const router = useRouter()
+
+  if (lowStockCount === 0) return null
+
+  return (
+    <Card className="border-yellow-200 bg-yellow-50">
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <AlertCircle className="h-5 w-5 text-yellow-600" />
+          <CardTitle className="text-yellow-900">{t('alerts')}</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-yellow-800">
+              {t('low_stock_items', { count: lowStockCount })}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.push('/supplies')}
+              className="text-yellow-700 border-yellow-300 hover:bg-yellow-100"
+            >
+              {t('view_supplies')}
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+export default function DashboardPage() {
+  const t = useTranslations('dashboard')
+  const router = useRouter()
+  const { currentClinic, currentWorkspace } = useWorkspace()
+  
+  // Dashboard data
+  const { metrics, charts, activities, loading, error } = useDashboard({
+    clinicId: currentClinic?.id,
+    period: 'month'
+  })
+
+  // Redirect if no workspace
+  useEffect(() => {
+    if (!currentWorkspace && !loading) {
+      router.push('/onboarding')
+    }
+  }, [currentWorkspace, loading, router])
+
+  // Mock data for charts (replace with actual data from API)
+  const revenueData = charts.revenue.length > 0 ? charts.revenue : [
+    { month: 'Ene', revenue: 45000, expenses: 32000 },
+    { month: 'Feb', revenue: 52000, expenses: 35000 },
+    { month: 'Mar', revenue: 48000, expenses: 33000 },
+    { month: 'Abr', revenue: 61000, expenses: 38000 },
+    { month: 'May', revenue: 58000, expenses: 36000 },
+    { month: 'Jun', revenue: 65000, expenses: 40000 }
+  ]
+
+  const categoryData = charts.categories.length > 0 ? charts.categories : [
+    { name: 'Ortodoncia', value: 350 },
+    { name: 'Limpieza', value: 280 },
+    { name: 'Endodoncia', value: 180 },
+    { name: 'Cirugía', value: 120 },
+    { name: 'Otros', value: 70 }
+  ]
+
+  // Mock activities (replace with actual data)
+  const recentActivities = activities.length > 0 ? activities : [
+    {
+      id: '1',
+      type: 'treatment' as const,
+      title: 'Tratamiento completado',
+      description: 'Limpieza dental - Juan Pérez',
+      amount: 85000,
+      timestamp: new Date(Date.now() - 1000 * 60 * 30),
+      user: 'Dr. García'
+    },
+    {
+      id: '2',
+      type: 'patient' as const,
+      title: 'Nuevo paciente',
+      description: 'María López',
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
+      user: 'Recepción'
+    },
+    {
+      id: '3',
+      type: 'expense' as const,
+      title: 'Gasto registrado',
+      description: 'Compra de insumos',
+      amount: 45000,
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5),
+      user: 'Admin'
+    }
+  ]
+
+  const handleRefresh = () => {
+    window.location.reload()
+  }
+
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="p-4 lg:p-8 max-w-7xl mx-auto">
+          <PageHeader
+            title={t('title')}
+            subtitle={t('subtitle', { clinic: currentClinic?.name || '' })}
+          />
+          <DashboardSkeleton />
+        </div>
+      </AppLayout>
+    )
+  }
+
+  if (error) {
+    return (
+      <AppLayout>
+        <div className="p-4 lg:p-8 max-w-7xl mx-auto">
+          <Card className="border-red-200">
+            <CardContent className="pt-6">
+              <div className="flex flex-col items-center justify-center py-8">
+                <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+                <p className="text-lg font-medium">{t('error_loading')}</p>
+                <p className="text-sm text-muted-foreground mt-2">{error}</p>
+                <Button onClick={handleRefresh} className="mt-4">
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  {t('retry')}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </AppLayout>
+    )
   }
 
   return (
-    <div className="space-y-8">
-      <PageHeader
-        title={t('home.dashboard')}
-        subtitle={workspace ? `${workspace.name} - ${currentClinic?.name || t('home.noClinic')}` : t('home.welcome')}
-      />
+    <AppLayout>
+      <div className="p-4 lg:p-8 max-w-7xl mx-auto space-y-6">
+        <PageHeader
+          title={t('title')}
+          subtitle={t('subtitle', { clinic: currentClinic?.name || '' })}
+          actions={
+            <Button onClick={handleRefresh} variant="outline">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              {t('refresh')}
+            </Button>
+          }
+        />
 
-      {/* Métricas principales */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              {t('home.metrics.patientsMonth')}
-            </CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{metrics.patientsThisMonth}</div>
-            <p className="text-xs text-muted-foreground">
-              {t('home.metrics.newPatients')}
-            </p>
-          </CardContent>
-        </Card>
+        {/* Alerts */}
+        {metrics.supplies.lowStock > 0 && (
+          <AlertsSection lowStockCount={metrics.supplies.lowStock} />
+        )}
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              {t('home.metrics.treatmentsMonth')}
-            </CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{metrics.treatmentsThisMonth}</div>
-            <p className="text-xs text-muted-foreground">
-              {t('home.metrics.completed')}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              {t('home.metrics.revenue')}
-            </CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(metrics.revenueThisMonth * 100)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {t('home.metrics.thisMonth')}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              {t('home.metrics.occupancy')}
-            </CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{metrics.occupancyRate}%</div>
-            <p className="text-xs text-muted-foreground">
-              {t('home.metrics.utilizationRate')}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Acciones rápidas */}
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold">{t('home.quickActions')}</h2>
-        <div className="grid gap-4 md:grid-cols-3">
-          {quickActions.map((action) => {
-            const Icon = action.icon;
-            return (
-              <Card key={action.href} className="transition-shadow hover:shadow-md">
-                <CardHeader className="pb-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className={`p-2 rounded-lg ${action.color}`}>
-                        <Icon className="h-5 w-5 text-white" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-base">{action.title}</CardTitle>
-                      </div>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <CardDescription className="mb-3 text-sm leading-relaxed">
-                    {action.description}
-                  </CardDescription>
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={action.href}>
-                      {t('home.openAction')}
-                    </Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            );
-          })}
+        {/* Key Metrics */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <MetricCard
+            title={t('monthly_revenue')}
+            value={formatCurrency(metrics.revenue.current)}
+            change={metrics.revenue.change}
+            changeType={metrics.revenue.change > 0 ? 'increase' : 'decrease'}
+            icon={DollarSign}
+            color="text-green-600"
+            subtitle={t('vs_previous_month')}
+          />
+          
+          <MetricCard
+            title={t('monthly_expenses')}
+            value={formatCurrency(metrics.expenses.current)}
+            change={metrics.expenses.change}
+            changeType={metrics.expenses.change > 0 ? 'increase' : 'decrease'}
+            icon={Receipt}
+            color="text-red-600"
+            subtitle={t('vs_previous_month')}
+          />
+          
+          <MetricCard
+            title={t('active_patients')}
+            value={metrics.patients.total}
+            change={metrics.patients.change}
+            changeType="increase"
+            icon={Users}
+            color="text-blue-600"
+            subtitle={`${metrics.patients.new} ${t('new_this_month')}`}
+          />
+          
+          <MetricCard
+            title={t('treatments')}
+            value={metrics.treatments.total}
+            icon={Activity}
+            color="text-purple-600"
+            subtitle={`${metrics.treatments.completed} ${t('completed')}`}
+          />
         </div>
-      </div>
 
-      {/* Panel de actividad reciente */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            {t('home.recentActivity')}
-          </CardTitle>
-          <CardDescription>
-            {t('home.lastTreatments')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8 text-muted-foreground">
-            {t('home.noRecentActivity')}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
+        {/* Charts Row */}
+        <div className="grid gap-4 md:grid-cols-2">
+          <RevenueChart
+            data={revenueData}
+            title={t('revenue_vs_expenses')}
+            description={t('monthly_comparison')}
+          />
+          
+          <CategoryBreakdown
+            data={categoryData}
+            title={t('services_breakdown')}
+            description={t('by_category')}
+          />
+        </div>
+
+        {/* Bottom Row */}
+        <div className="grid gap-4 md:grid-cols-2">
+          <RecentActivity
+            activities={recentActivities}
+            title={t('recent_activity')}
+            description={t('latest_clinic_actions')}
+          />
+          
+          <QuickActions onRefresh={handleRefresh} />
+        </div>
+
+        {/* Appointments Summary */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>{t('appointments')}</CardTitle>
+                <CardDescription>
+                  {t('upcoming_appointments')}
+                </CardDescription>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => router.push('/appointments')}
+              >
+                <Calendar className="h-4 w-4 mr-2" />
+                {t('view_calendar')}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">{t('today')}</p>
+                <p className="text-2xl font-bold">{metrics.appointments.today}</p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">{t('this_week')}</p>
+                <p className="text-2xl font-bold">{metrics.appointments.week}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </AppLayout>
+  )
 }

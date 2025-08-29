@@ -1,278 +1,349 @@
-'use client';
+'use client'
 
-import { useTranslations, useLocale } from 'next-intl';
-import { useState, useEffect, useMemo } from 'react';
-import { PageHeader } from '@/components/ui/PageHeader';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useWorkspace } from '@/contexts/workspace-context';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { formatCurrency } from '@/lib/format';
-import { Calculator, TrendingUp, AlertTriangle, Target, DollarSign } from 'lucide-react';
+import { useTranslations } from 'next-intl'
+import { useState } from 'react'
+import { useWorkspace } from '@/contexts/workspace-context'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { FormModal } from '@/components/ui/form-modal'
+import { FormSection, FormGrid, InputField } from '@/components/ui/form-field'
+import { Button } from '@/components/ui/button'
+import { Progress } from '@/components/ui/progress'
+import { formatCurrency } from '@/lib/format'
+import { 
+  Calculator, 
+  TrendingUp, 
+  AlertTriangle, 
+  Target, 
+  DollarSign,
+  Settings,
+  RefreshCw,
+  Save
+} from 'lucide-react'
+import { useEquilibrium } from '@/hooks/use-equilibrium'
+import { Form } from '@/components/ui/form'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import { AppLayout } from '@/components/layouts/AppLayout'
 
-interface EquilibriumData {
-  fixedCostsCents: number;
-  variableCostPercentage: number;
-  contributionMargin: number;
-  breakEvenRevenueCents: number;
-  dailyTargetCents: number;
-  safetyMarginCents: number;
-  workDays: number;
+// Schema for settings
+const settingsSchema = z.object({
+  workDays: z.number().min(1).max(31),
+  variableCostPercentage: z.number().min(0).max(100)
+})
+
+// Component for metric cards
+function MetricCard({ 
+  icon: Icon, 
+  title, 
+  value, 
+  description, 
+  variant = 'default' 
+}: {
+  icon: any
+  title: string
+  value: string
+  description?: string
+  variant?: 'default' | 'success' | 'warning' | 'danger'
+}) {
+  const variantStyles = {
+    default: 'text-blue-600 bg-blue-50',
+    success: 'text-green-600 bg-green-50',
+    warning: 'text-yellow-600 bg-yellow-50',
+    danger: 'text-red-600 bg-red-50'
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <div className={`p-2 rounded-lg ${variantStyles[variant]}`}>
+          <Icon className="h-4 w-4" />
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">{value}</div>
+        {description && (
+          <p className="text-xs text-muted-foreground mt-1">{description}</p>
+        )}
+      </CardContent>
+    </Card>
+  )
 }
 
 export default function EquilibriumPage() {
-  const t = useTranslations();
-  const locale = useLocale();
-  const { currentClinic } = useWorkspace(); // ✅ Obtener clínica actual
-  const [loading, setLoading] = useState(true);
-  const [fixedCostsCents, setFixedCostsCents] = useState(0);
-  const [workDays, setWorkDays] = useState(20);
-  const [variableCostPercentage, setVariableCostPercentage] = useState(35);
+  const t = useTranslations('equilibrium')
+  const { currentClinic } = useWorkspace()
+  
+  // Equilibrium management
+  const {
+    data,
+    loading,
+    error,
+    updateWorkDays,
+    updateVariableCostPercentage,
+    refreshData,
+    saveSettings
+  } = useEquilibrium({
+    clinicId: currentClinic?.id,
+    defaultWorkDays: 20,
+    defaultVariableCostPercentage: 35,
+    safetyMarginPercentage: 20
+  })
 
-  // ✅ Recargar cuando cambie la clínica
-  useEffect(() => {
-    if (currentClinic?.id) {
-      loadData();
+  // Modal state
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  // Form
+  const settingsForm = useForm({
+    resolver: zodResolver(settingsSchema),
+    defaultValues: {
+      workDays: data.workDays,
+      variableCostPercentage: data.variableCostPercentage
     }
-  }, [currentClinic?.id]);
+  })
 
-  const loadData = async () => {
-    if (!currentClinic?.id) return; // ✅ No cargar sin clínica
+  // Handlers
+  const handleUpdateSettings = async (formData: z.infer<typeof settingsSchema>) => {
+    updateWorkDays(formData.workDays)
+    updateVariableCostPercentage(formData.variableCostPercentage)
     
-    setLoading(true);
+    setSaving(true)
     try {
-      // Load fixed costs total for current clinic
-      const [fixedCostsResponse, assetsResponse, timeResponse] = await Promise.all([
-        fetch(`/api/fixed-costs?clinicId=${currentClinic.id}`),
-        fetch(`/api/assets/summary?clinicId=${currentClinic.id}`),
-        fetch(`/api/settings/time?clinicId=${currentClinic.id}`)
-      ]);
-
-      let totalFixedCents = 0;
-
-      // Get manual fixed costs
-      if (fixedCostsResponse.ok) {
-        const fixedData = await fixedCostsResponse.json();
-        const costs = fixedData.data || [];
-        totalFixedCents = costs.reduce((sum: number, cost: any) => sum + cost.amount_cents, 0);
-      }
-
-      // Add assets depreciation
-      if (assetsResponse.ok) {
-        const assetsData = await assetsResponse.json();
-        const depreciation = assetsData.data?.monthly_depreciation_cents || 0;
-        totalFixedCents += depreciation;
-      }
-
-      setFixedCostsCents(totalFixedCents);
-
-      // Get work days from time settings
-      if (timeResponse.ok) {
-        const timeData = await timeResponse.json();
-        if (timeData.data?.work_days) {
-          setWorkDays(timeData.data.work_days);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading equilibrium data:', error);
+      await saveSettings()
+      setSettingsModalOpen(false)
     } finally {
-      setLoading(false);
+      setSaving(false)
     }
-  };
+  }
 
-  const equilibriumData = useMemo((): EquilibriumData => {
-    const contributionMargin = (100 - variableCostPercentage) / 100;
-    const breakEvenRevenueCents = contributionMargin > 0 ? Math.round(fixedCostsCents / contributionMargin) : 0;
-    const dailyTargetCents = workDays > 0 ? Math.round(breakEvenRevenueCents / workDays) : 0;
-    const safetyMarginCents = Math.round(breakEvenRevenueCents * 1.2); // 20% safety margin
+  // Calculate progress percentage
+  const progressPercentage = data.monthlyTargetCents > 0
+    ? Math.min(100, (data.currentRevenueCents / data.monthlyTargetCents) * 100)
+    : 0
 
-    return {
-      fixedCostsCents,
-      variableCostPercentage,
-      contributionMargin: contributionMargin * 100,
-      breakEvenRevenueCents,
-      dailyTargetCents,
-      safetyMarginCents,
-      workDays
-    };
-  }, [fixedCostsCents, variableCostPercentage, workDays]);
+  // Determine status variant
+  const getStatusVariant = () => {
+    if (progressPercentage >= 100) return 'success'
+    if (progressPercentage >= 80) return 'warning'
+    return 'danger'
+  }
+
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="p-4 lg:p-8 max-w-7xl mx-auto">
+          <PageHeader
+            title={t('title')}
+            subtitle={t('subtitle')}
+          />
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mt-6">
+            {[1, 2, 3, 4].map(i => (
+              <Card key={i}>
+                <CardHeader className="space-y-2">
+                  <div className="h-4 bg-muted animate-pulse rounded" />
+                  <div className="h-6 bg-muted animate-pulse rounded" />
+                </CardHeader>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </AppLayout>
+    )
+  }
 
   return (
-    <div className="space-y-8">
-      <PageHeader
-        title={t('equilibrium.title')}
-        subtitle={t('equilibrium.subtitle')}
-      />
+    <AppLayout>
+      <div className="p-4 lg:p-8 max-w-7xl mx-auto space-y-6">
+        <PageHeader
+          title={t('title')}
+          subtitle={t('subtitle')}
+          actions={
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setSettingsModalOpen(true)}
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                {t('settings')}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={refreshData}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                {t('refresh')}
+              </Button>
+            </div>
+          }
+        />
 
-      {loading ? (
-        <div className="text-center p-8">
-          <p className="text-muted-foreground">{t('common.loading')}</p>
+        {/* Key Metrics */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <MetricCard
+            icon={DollarSign}
+            title={t('fixed_costs')}
+            value={formatCurrency(data.fixedCostsCents)}
+            description={t('monthly_fixed')}
+          />
+          
+          <MetricCard
+            icon={Target}
+            title={t('break_even')}
+            value={formatCurrency(data.breakEvenRevenueCents)}
+            description={t('minimum_revenue')}
+            variant="warning"
+          />
+          
+          <MetricCard
+            icon={TrendingUp}
+            title={t('monthly_target')}
+            value={formatCurrency(data.monthlyTargetCents)}
+            description={t('with_safety_margin')}
+            variant="success"
+          />
+          
+          <MetricCard
+            icon={Calculator}
+            title={t('daily_target')}
+            value={formatCurrency(data.dailyTargetCents)}
+            description={`${data.workDays} ${t('work_days')}`}
+          />
         </div>
-      ) : (
-        <div className="grid gap-8 lg:grid-cols-2">
-          {/* Input Parameters */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calculator className="h-5 w-5" />
-                  {t('equilibrium.inputs.title')}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <Label>{t('equilibrium.inputs.monthlyFixedCosts')}</Label>
-                  <Input
-                    type="text"
-                    value={formatCurrency(fixedCostsCents, locale as 'en' | 'es')}
-                    disabled
-                    className="bg-gray-50"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    {fixedCostsCents === 0 && t('equilibrium.warning.missingData')}
-                  </p>
-                </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="variable-cost">
-                    {t('equilibrium.inputs.variableCostPercentage')}
-                  </Label>
-                  <Input
-                    id="variable-cost"
-                    type="number"
-                    min="0"
-                    max="90"
-                    step="1"
-                    value={variableCostPercentage}
-                    onChange={(e) => setVariableCostPercentage(Number(e.target.value) || 0)}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    {t('equilibrium.inputs.variableCostHelp')}
-                  </p>
-                </div>
+        {/* Progress Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('monthly_progress')}</CardTitle>
+            <CardDescription>
+              {t('current_vs_target')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>{t('current_revenue')}</span>
+                <span className="font-medium">
+                  {formatCurrency(data.currentRevenueCents)}
+                </span>
+              </div>
+              <Progress value={progressPercentage} className="h-3" />
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>{progressPercentage.toFixed(1)}% {t('completed')}</span>
+                <span>{t('target')}: {formatCurrency(data.monthlyTargetCents)}</span>
+              </div>
+            </div>
 
-                <div className="space-y-2">
-                  <Label>{t('equilibrium.inputs.contributionMargin')}</Label>
-                  <Input
-                    type="text"
-                    value={`${equilibriumData.contributionMargin.toFixed(1)}%`}
-                    disabled
-                    className="bg-blue-50"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    {t('equilibrium.inputs.contributionMarginHelp')}
-                  </p>
+            {data.revenueGapCents > 0 && (
+              <div className="p-4 bg-muted rounded-lg space-y-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                  <span className="font-medium">{t('revenue_gap')}</span>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Formula Explanation */}
-            <Card className="bg-slate-50 border-slate-200">
-              <CardHeader>
-                <CardTitle className="text-slate-800">
-                  {t('equilibrium.formula.title')}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3 text-sm text-slate-700">
-                  <p>
-                    <strong>{t('equilibrium.formula.explanation')}</strong>
-                  </p>
-                  <p className="text-xs">
-                    <strong>{t('equilibrium.formula.where')}</strong><br />
-                    {t('equilibrium.formula.marginContribution')}
-                  </p>
-                  <div className="bg-white p-3 rounded border text-xs font-mono">
-                    {formatCurrency(fixedCostsCents, locale as 'en' | 'es')} ÷ {equilibriumData.contributionMargin.toFixed(1)}% = {formatCurrency(equilibriumData.breakEvenRevenueCents, locale as 'en' | 'es')}
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">{t('amount_needed')}:</span>
+                    <p className="font-medium">{formatCurrency(data.revenueGapCents)}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">{t('days_to_achieve')}:</span>
+                    <p className="font-medium">{data.daysToBreakEven} {t('days')}</p>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Results */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-green-600" />
-                  {t('equilibrium.results.title')}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <Target className="h-5 w-5 text-green-600" />
-                      <h3 className="font-semibold text-green-800">
-                        {t('equilibrium.results.breakEvenRevenue')}
-                      </h3>
-                    </div>
-                  </div>
-                  <div className="text-3xl font-bold text-green-700 mb-1">
-                    {formatCurrency(equilibriumData.breakEvenRevenueCents, locale as 'en' | 'es')}
-                  </div>
-                  <p className="text-sm text-green-600">
-                    {t('equilibrium.results.breakEvenRevenueHelp')}
-                  </p>
-                </div>
-
-                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <DollarSign className="h-5 w-5 text-blue-600" />
-                    <h3 className="font-semibold text-blue-800">
-                      {t('equilibrium.results.dailyTarget')}
-                    </h3>
-                  </div>
-                  <div className="text-2xl font-bold text-blue-700 mb-1">
-                    {formatCurrency(equilibriumData.dailyTargetCents, locale as 'en' | 'es')}
-                  </div>
-                  <p className="text-sm text-blue-600">
-                    {t('equilibrium.results.dailyTargetHelp')}
-                  </p>
-                </div>
-
-                <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <AlertTriangle className="h-5 w-5 text-orange-600" />
-                    <h3 className="font-semibold text-orange-800">
-                      {t('equilibrium.results.safetyMargin')}
-                    </h3>
-                  </div>
-                  <div className="text-2xl font-bold text-orange-700 mb-1">
-                    {formatCurrency(equilibriumData.safetyMarginCents, locale as 'en' | 'es')}
-                  </div>
-                  <p className="text-sm text-orange-600">
-                    {t('equilibrium.results.safetyMarginHelp')}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Warning Card */}
-            {fixedCostsCents === 0 && (
-              <Card className="border-amber-200 bg-amber-50">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-amber-800">
-                    <AlertTriangle className="h-5 w-5" />
-                    {t('equilibrium.warning.title')}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-amber-700 mb-3">
-                    {t('equilibrium.warning.missingData')}
-                  </p>
-                  <ul className="space-y-1 text-sm text-amber-600">
-                    <li>{t('equilibrium.warning.steps.assets')}</li>
-                    <li>{t('equilibrium.warning.steps.fixedCosts')}</li>
-                    <li>{t('equilibrium.warning.steps.timeCosts')}</li>
-                  </ul>
-                </CardContent>
-              </Card>
+              </div>
             )}
-          </div>
+          </CardContent>
+        </Card>
+
+        {/* Analysis Cards */}
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('contribution_analysis')}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-sm">{t('variable_costs')}</span>
+                <span className="font-medium">{data.variableCostPercentage}%</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm">{t('contribution_margin')}</span>
+                <span className="font-medium text-green-600">
+                  {data.contributionMargin}%
+                </span>
+              </div>
+              <div className="pt-3 border-t">
+                <p className="text-sm text-muted-foreground">
+                  {t('contribution_explanation', { margin: data.contributionMargin })}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('safety_margin')}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-sm">{t('safety_amount')}</span>
+                <span className="font-medium">
+                  {formatCurrency(data.safetyMarginCents)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm">{t('safety_percentage')}</span>
+                <span className="font-medium">20%</span>
+              </div>
+              <div className="pt-3 border-t">
+                <p className="text-sm text-muted-foreground">
+                  {t('safety_explanation')}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
-      )}
-    </div>
-  );
+
+        {/* Settings Modal */}
+        <FormModal
+          open={settingsModalOpen}
+          onOpenChange={setSettingsModalOpen}
+          title={t('equilibrium_settings')}
+          onSubmit={settingsForm.handleSubmit(handleUpdateSettings)}
+          isSubmitting={saving}
+          maxWidth="sm"
+        >
+          <Form {...settingsForm}>
+            <FormSection title={t('parameters')}>
+              <FormGrid columns={2}>
+                <InputField
+                  type="number"
+                  label={t('work_days')}
+                  value={settingsForm.watch('workDays')}
+                  onChange={(value) => settingsForm.setValue('workDays', parseInt(value as string))}
+                  placeholder="20"
+                  min={1}
+                  max={31}
+                  error={settingsForm.formState.errors.workDays?.message}
+                />
+                
+                <InputField
+                  type="number"
+                  label={t('variable_cost_percentage')}
+                  value={settingsForm.watch('variableCostPercentage')}
+                  onChange={(value) => settingsForm.setValue('variableCostPercentage', parseInt(value as string))}
+                  placeholder="35"
+                  min={0}
+                  max={100}
+                  error={settingsForm.formState.errors.variableCostPercentage?.message}
+                />
+              </FormGrid>
+            </FormSection>
+          </Form>
+        </FormModal>
+      </div>
+    </AppLayout>
+  )
 }

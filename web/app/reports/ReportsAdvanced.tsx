@@ -1,10 +1,9 @@
-'use client';
+'use client'
 
-import { useState, useEffect } from 'react';
-import { useWorkspace } from '@/contexts/workspace-context';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
+import { useTranslations } from 'next-intl'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -22,58 +21,15 @@ import {
   Star,
   AlertCircle,
   Lightbulb
-} from 'lucide-react';
-import { formatCurrency } from '@/lib/money';
-import { 
-  generateBusinessInsights, 
-  calculateKPIs, 
-  TreatmentData, 
-  PatientData,
-  BusinessInsights 
-} from '@/lib/analytics';
+} from 'lucide-react'
+import { formatCurrency } from '@/lib/money'
+import { useCurrentClinic } from '@/hooks/use-current-clinic'
+import { useReports } from '@/hooks/use-reports'
 
 export function ReportsAdvanced() {
-  const { currentClinic } = useWorkspace();
-  const [insights, setInsights] = useState<BusinessInsights | null>(null);
-  const [kpis, setKPIs] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (currentClinic?.id) {
-      loadAdvancedData();
-    }
-  }, [currentClinic?.id]);
-
-  const loadAdvancedData = async () => {
-    try {
-      setLoading(true);
-      
-      // Load treatments and patients data
-      const [treatmentsRes, patientsRes] = await Promise.all([
-        fetch('/api/treatments'),
-        fetch('/api/patients')
-      ]);
-
-      if (treatmentsRes.ok && patientsRes.ok) {
-        const treatmentsData = await treatmentsRes.json();
-        const patientsData = await patientsRes.json();
-        
-        const treatments: TreatmentData[] = treatmentsData.data || [];
-        const patients: PatientData[] = patientsData.data || [];
-        
-        // Generate insights
-        const businessInsights = generateBusinessInsights(treatments, patients);
-        const keyPerformanceIndicators = calculateKPIs(treatments, patients);
-        
-        setInsights(businessInsights);
-        setKPIs(keyPerformanceIndicators);
-      }
-    } catch (error) {
-      console.error('Error loading advanced analytics:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const t = useTranslations('reports')
+  const { currentClinic } = useCurrentClinic()
+  const { insights, kpis, loading } = useReports({ clinicId: currentClinic?.id })
 
   if (loading) {
     return (
@@ -89,7 +45,7 @@ export function ReportsAdvanced() {
           ))}
         </div>
       </div>
-    );
+    )
   }
 
   if (!insights || !kpis) {
@@ -97,33 +53,25 @@ export function ReportsAdvanced() {
       <Card>
         <CardContent className="p-6 text-center">
           <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-          <p className="text-muted-foreground">No hay suficientes datos para generar análisis avanzado</p>
+          <p className="text-muted-foreground">{t('advanced.noData')}</p>
         </CardContent>
       </Card>
-    );
+    )
   }
 
   const getTrendIcon = (trend: string) => {
     switch (trend) {
-      case 'increasing': return <ArrowUpRight className="h-4 w-4 text-green-600" />;
-      case 'decreasing': return <ArrowDownRight className="h-4 w-4 text-red-600" />;
-      default: return <Minus className="h-4 w-4 text-gray-600" />;
+      case 'increasing': return <ArrowUpRight className="h-4 w-4 text-green-600" />
+      case 'decreasing': return <ArrowDownRight className="h-4 w-4 text-red-600" />
+      default: return <Minus className="h-4 w-4 text-gray-600" />
     }
-  };
-
-  const getTrendColor = (trend: string) => {
-    switch (trend) {
-      case 'increasing': return 'text-green-600';
-      case 'decreasing': return 'text-red-600';
-      default: return 'text-gray-600';
-    }
-  };
+  }
 
   const getConfidenceLevel = (confidence: number) => {
-    if (confidence >= 0.8) return { label: 'Alta', color: 'bg-green-500' };
-    if (confidence >= 0.6) return { label: 'Media', color: 'bg-yellow-500' };
-    return { label: 'Baja', color: 'bg-red-500' };
-  };
+    if (confidence >= 0.8) return { label: t('advanced.confidence.high'), color: 'bg-green-500' }
+    if (confidence >= 0.6) return { label: t('advanced.confidence.medium'), color: 'bg-yellow-500' }
+    return { label: t('advanced.confidence.low'), color: 'bg-red-500' }
+  }
 
   return (
     <div className="space-y-6">
@@ -132,19 +80,19 @@ export function ReportsAdvanced() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Brain className="h-5 w-5 text-purple-600" />
-            Predicciones de Ingresos con IA
+            {t('advanced.revenuePredictions.title')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[
-              { key: 'next_month', label: 'Próximo Mes', icon: Calendar },
-              { key: 'next_quarter', label: 'Próximo Trimestre', icon: Target },
-              { key: 'year_end', label: 'Fin de Año', icon: Zap }
+              { key: 'next_month', label: t('advanced.revenuePredictions.nextMonth'), icon: Calendar },
+              { key: 'next_quarter', label: t('advanced.revenuePredictions.nextQuarter'), icon: Target },
+              { key: 'year_end', label: t('advanced.revenuePredictions.yearEnd'), icon: Zap }
             ].map(period => {
-              const prediction = insights.revenue_predictions[period.key as keyof typeof insights.revenue_predictions];
-              const Icon = period.icon;
-              const confidence = getConfidenceLevel(prediction.confidence);
+              const prediction = insights.revenue_predictions[period.key as keyof typeof insights.revenue_predictions]
+              const Icon = period.icon
+              const confidence = getConfidenceLevel(prediction.confidence)
               
               return (
                 <div key={period.key} className="p-4 border rounded-lg">
@@ -163,7 +111,7 @@ export function ReportsAdvanced() {
                     
                     <div className="flex items-center gap-2">
                       <Badge variant="outline" className={confidence.color + ' text-white'}>
-                        Confianza {confidence.label}
+                        {confidence.label}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
                         {Math.round(prediction.confidence * 100)}%
@@ -171,11 +119,11 @@ export function ReportsAdvanced() {
                     </div>
                     
                     <div className="text-xs text-muted-foreground">
-                      Rango: {formatCurrency(prediction.confidence_interval[0])} - {formatCurrency(prediction.confidence_interval[1])}
+                      {t('advanced.revenuePredictions.range')}: {formatCurrency(prediction.confidence_interval[0])} - {formatCurrency(prediction.confidence_interval[1])}
                     </div>
                   </div>
                 </div>
-              );
+              )
             })}
           </div>
         </CardContent>
@@ -187,7 +135,7 @@ export function ReportsAdvanced() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Star className="h-5 w-5 text-yellow-600" />
-              Servicios Más Rentables
+              {t('advanced.services.mostProfitable')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -199,13 +147,13 @@ export function ReportsAdvanced() {
                       <span className="text-xs font-bold text-yellow-600">#{index + 1}</span>
                     </div>
                     <div>
-                      <p className="font-medium">Servicio {service.service_id}</p>
-                      <p className="text-xs text-muted-foreground">{service.frequency} tratamientos</p>
+                      <p className="font-medium">{t('advanced.services.serviceId', { id: service.service_id })}</p>
+                      <p className="text-xs text-muted-foreground">{service.frequency} {t('advanced.services.treatments')}</p>
                     </div>
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-green-600">{service.roi.toFixed(1)}% ROI</p>
-                    <Progress value={service.roi} className="w-16 h-2" />
+                    <Progress value={Math.min(service.roi, 100)} className="w-16 h-2" />
                   </div>
                 </div>
               ))}
@@ -217,7 +165,7 @@ export function ReportsAdvanced() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Lightbulb className="h-5 w-5 text-blue-600" />
-              Oportunidades de Crecimiento
+              {t('advanced.services.growthOpportunities')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -229,15 +177,15 @@ export function ReportsAdvanced() {
                       <TrendingUp className="h-4 w-4 text-blue-600" />
                     </div>
                     <div>
-                      <p className="font-medium">Servicio {opportunity.service_id}</p>
-                      <p className="text-xs text-muted-foreground">Alto potencial de crecimiento</p>
+                      <p className="font-medium">{t('advanced.services.serviceId', { id: opportunity.service_id })}</p>
+                      <p className="text-xs text-muted-foreground">{t('advanced.services.highPotential')}</p>
                     </div>
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-blue-600">
                       {formatCurrency(opportunity.potential_revenue)}
                     </p>
-                    <p className="text-xs text-muted-foreground">Potencial</p>
+                    <p className="text-xs text-muted-foreground">{t('advanced.services.potential')}</p>
                   </div>
                 </div>
               ))}
@@ -251,7 +199,7 @@ export function ReportsAdvanced() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5 text-green-600" />
-            Análisis de Pacientes
+            {t('advanced.patients.title')}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -261,7 +209,7 @@ export function ReportsAdvanced() {
                 <DollarSign className="h-8 w-8 text-green-600" />
               </div>
               <p className="text-2xl font-bold">{formatCurrency(insights.patient_insights.lifetime_value)}</p>
-              <p className="text-sm text-muted-foreground">Valor de Vida del Paciente</p>
+              <p className="text-sm text-muted-foreground">{t('advanced.patients.lifetimeValue')}</p>
             </div>
             
             <div className="text-center">
@@ -269,7 +217,7 @@ export function ReportsAdvanced() {
                 <Activity className="h-8 w-8 text-blue-600" />
               </div>
               <p className="text-2xl font-bold">{(insights.patient_insights.retention_rate * 100).toFixed(0)}%</p>
-              <p className="text-sm text-muted-foreground">Tasa de Retención</p>
+              <p className="text-sm text-muted-foreground">{t('advanced.patients.retentionRate')}</p>
             </div>
             
             <div className="text-center">
@@ -277,7 +225,7 @@ export function ReportsAdvanced() {
                 <TrendingUp className="h-8 w-8 text-purple-600" />
               </div>
               <p className="text-2xl font-bold">{insights.patient_insights.acquisition_rate}</p>
-              <p className="text-sm text-muted-foreground">Pacientes Nuevos/Mes</p>
+              <p className="text-sm text-muted-foreground">{t('advanced.patients.newPerMonth')}</p>
             </div>
             
             <div className="text-center">
@@ -285,7 +233,7 @@ export function ReportsAdvanced() {
                 <Target className="h-8 w-8 text-orange-600" />
               </div>
               <p className="text-2xl font-bold">{(insights.operational_metrics.capacity_utilization * 100).toFixed(0)}%</p>
-              <p className="text-sm text-muted-foreground">Utilización de Capacidad</p>
+              <p className="text-sm text-muted-foreground">{t('advanced.patients.capacityUtilization')}</p>
             </div>
           </div>
         </CardContent>
@@ -297,7 +245,7 @@ export function ReportsAdvanced() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-orange-600">
               <AlertTriangle className="h-5 w-5" />
-              Servicios en Declive - Acción Requerida
+              {t('advanced.alerts.decliningServices')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -307,15 +255,15 @@ export function ReportsAdvanced() {
                   <div className="flex items-center gap-3">
                     <TrendingDown className="h-5 w-5 text-orange-600" />
                     <div>
-                      <p className="font-medium">Servicio {service.service_id}</p>
-                      <p className="text-xs text-muted-foreground">Requiere atención inmediata</p>
+                      <p className="font-medium">{t('advanced.services.serviceId', { id: service.service_id })}</p>
+                      <p className="text-xs text-muted-foreground">{t('advanced.alerts.requiresAttention')}</p>
                     </div>
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-orange-600">
                       -{(service.decline_rate * 100).toFixed(1)}%
                     </p>
-                    <p className="text-xs text-muted-foreground">Declive mensual</p>
+                    <p className="text-xs text-muted-foreground">{t('advanced.alerts.monthlyDecline')}</p>
                   </div>
                 </div>
               ))}
@@ -329,30 +277,30 @@ export function ReportsAdvanced() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Activity className="h-5 w-5 text-indigo-600" />
-            Indicadores Clave de Rendimiento (KPIs)
+            {t('advanced.kpis.title')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg">
-              <p className="text-sm text-blue-600 font-medium">Promedio por Tratamiento</p>
+              <p className="text-sm text-blue-600 font-medium">{t('advanced.kpis.avgTreatmentValue')}</p>
               <p className="text-xl font-bold text-blue-700">{formatCurrency(kpis.avgTreatmentValue)}</p>
             </div>
             <div className="text-center p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-lg">
-              <p className="text-sm text-green-600 font-medium">Margen Promedio</p>
+              <p className="text-sm text-green-600 font-medium">{t('advanced.kpis.avgMargin')}</p>
               <p className="text-xl font-bold text-green-700">{kpis.avgMargin.toFixed(1)}%</p>
             </div>
             <div className="text-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg">
-              <p className="text-sm text-purple-600 font-medium">Pacientes/Día</p>
+              <p className="text-sm text-purple-600 font-medium">{t('advanced.kpis.patientsPerDay')}</p>
               <p className="text-xl font-bold text-purple-700">{kpis.avgPatientsPerDay.toFixed(1)}</p>
             </div>
             <div className="text-center p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg">
-              <p className="text-sm text-orange-600 font-medium">Tratamientos (30d)</p>
+              <p className="text-sm text-orange-600 font-medium">{t('advanced.kpis.treatmentsLast30')}</p>
               <p className="text-xl font-bold text-orange-700">{kpis.treatmentCount}</p>
             </div>
           </div>
         </CardContent>
       </Card>
     </div>
-  );
+  )
 }

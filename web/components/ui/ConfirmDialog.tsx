@@ -63,8 +63,14 @@ export function ConfirmDialog({
   const displayIcon = icon || config.icon
 
   const handleConfirm = async () => {
-    await onConfirm()
-    onOpenChange(false)
+    try {
+      await onConfirm()
+      // Don't close here - let the parent component handle it
+      // This prevents double closing which can cause issues on mobile
+    } catch (error) {
+      console.error('Error in confirm action:', error)
+      // Still don't close on error - let parent handle it
+    }
   }
 
   const handleCancel = () => {

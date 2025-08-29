@@ -72,7 +72,7 @@ export default function HeaderChrome() {
                       <p className="font-medium text-sm">
                         {user.user_metadata?.full_name || 
                          `${user.user_metadata?.first_name || ''} ${user.user_metadata?.last_name || ''}`.trim() || 
-                         'Usuario'}
+                         t('profile.defaultUser')}
                       </p>
                       <p className="w-[200px] truncate text-xs text-muted-foreground">
                         {user.email}
@@ -131,7 +131,7 @@ export default function HeaderChrome() {
                     <p className="font-medium text-sm">
                       {user.user_metadata?.full_name || 
                        `${user.user_metadata?.first_name || ''} ${user.user_metadata?.last_name || ''}`.trim() || 
-                       'Usuario'}
+                       t('profile.defaultUser')}
                     </p>
                     <p className="w-[200px] truncate text-xs text-muted-foreground">
                       {user.email}

@@ -5,7 +5,14 @@
       "Bash(mkdir:*)",
       "Bash(rm:*)",
       "Bash(npx shadcn@latest add:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(npm run dev:*)",
+      "Read(/c:\\Users\\adven\\Downloads/**)",
+      "WebSearch",
+      "Bash(curl:*)",
+      "Bash(nslookup:*)",
+      "Bash(ping:*)",
+      "Bash(tracert:*)"
     ],
     "deny": []
   }

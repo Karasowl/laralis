@@ -1,0 +1,124 @@
+/* Component styles - Mobile optimized */
+
+/* Mobile-optimized scrollbars */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Mobile touch targets */
+.touch-target {
+  min-height: var(--touch-target);
+  min-width: var(--touch-target);
+  @apply flex items-center justify-center;
+}
+
+/* Mobile-optimized form inputs */
+.mobile-input {
+  @apply h-12 px-4 text-base;
+  font-size: 16px; /* Prevents zoom on iOS */
+}
+
+/* Mobile drawer */
+.mobile-drawer {
+  @apply fixed inset-x-0 bottom-0 z-50 rounded-t-2xl bg-background shadow-2xl;
+  max-height: 90vh;
+  padding-bottom: var(--safe-area-bottom);
+}
+
+/* Mobile modal */
+.mobile-modal {
+  @apply fixed inset-0 z-50 flex items-end sm:items-center justify-center;
+}
+
+.mobile-modal-content {
+  @apply w-full max-w-lg bg-background rounded-t-2xl sm:rounded-2xl shadow-2xl;
+  padding-bottom: var(--safe-area-bottom);
+}
+
+/* Mobile navigation */
+.mobile-nav {
+  @apply fixed bottom-0 left-0 right-0 z-40 bg-background border-t;
+  padding-bottom: var(--safe-area-bottom);
+}
+
+/* Responsive container */
+.responsive-container {
+  @apply container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl;
+}
+
+/* Card hover effects */
+.card-hover {
+  @apply transition-all duration-200 hover:shadow-lg hover:scale-[1.02];
+}
+
+/* Loading skeleton */
+.skeleton {
+  @apply animate-pulse bg-muted;
+}
+
+/* Mobile list item */
+.mobile-list-item {
+  @apply flex items-center justify-between p-4 border-b last:border-0;
+  min-height: var(--touch-target);
+}
+
+/* Floating action button */
+.fab {
+  @apply fixed bottom-20 right-4 z-30 rounded-full shadow-lg;
+  @apply w-14 h-14 flex items-center justify-center;
+  padding-bottom: var(--safe-area-bottom);
+}
+
+/* Safe area padding */
+.safe-top {
+  padding-top: var(--safe-area-top);
+}
+
+.safe-bottom {
+  padding-bottom: var(--safe-area-bottom);
+}
+
+/* Mobile table */
+.mobile-table {
+  @apply block sm:table;
+}
+
+.mobile-table thead {
+  @apply hidden sm:table-header-group;
+}
+
+.mobile-table tbody {
+  @apply block sm:table-row-group;
+}
+
+.mobile-table tr {
+  @apply block border-b sm:table-row sm:border-0;
+}
+
+.mobile-table td {
+  @apply block sm:table-cell p-2 sm:p-4;
+}
+
+.mobile-table td:before {
+  @apply font-semibold sm:hidden;
+  content: attr(data-label);
+}

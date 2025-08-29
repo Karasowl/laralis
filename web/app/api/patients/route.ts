@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
 import { getClinicIdOrDefault } from '@/lib/clinic';
-import { createSupabaseClient } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 
 const patientSchema = z.object({
@@ -25,8 +25,7 @@ const patientSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    const cookieStore = cookies();
-    const supabase = createSupabaseClient(cookieStore);
+    const supabase = createClient();
     
     // ✅ Validar usuario autenticado
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -34,6 +33,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const cookieStore = await cookies();
     const searchParams = request.nextUrl.searchParams;
     const clinicId = searchParams.get('clinicId') || await getClinicIdOrDefault(cookieStore);
     const search = searchParams.get('search');
@@ -81,8 +81,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     console.log('POST /api/patients - Body received:', body);
     
-    const cookieStore = cookies();
-    const supabase = createSupabaseClient(cookieStore);
+    const supabase = createClient();
     
     // ✅ Validar usuario autenticado
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -90,6 +89,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const cookieStore = await cookies();
     const clinicId = await getClinicIdOrDefault(cookieStore);
     console.log('POST /api/patients - Clinic ID:', clinicId);
 

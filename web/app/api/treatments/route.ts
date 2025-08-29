@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
 import { getClinicIdOrDefault } from '@/lib/clinic';
-import { createSupabaseClient } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/server';
 
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = cookies();
-    const supabase = createSupabaseClient(cookieStore);
+    const supabase = createClient();
     
     // ✅ Validar usuario autenticado
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const cookieStore = cookies();
-    const supabase = createSupabaseClient(cookieStore);
+    const supabase = createClient();
     
     // ✅ Validar usuario autenticado
     const { data: { user }, error: authError } = await supabase.auth.getUser();

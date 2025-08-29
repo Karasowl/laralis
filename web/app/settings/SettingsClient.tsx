@@ -7,7 +7,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { 
+  MobileModal, 
+  MobileModalContent, 
+  MobileModalHeader, 
+  MobileModalTitle, 
+  MobileModalDescription,
+  MobileModalTrigger, 
+  MobileModalFooter,
+  MobileModalBody 
+} from '@/components/ui/mobile-modal';
 import { Loader2, Trash2, AlertTriangle, Mail, Shield, CheckCircle2, XCircle, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -42,7 +51,7 @@ export function DeleteAccountSection() {
   const sendDeleteCode = async () => {
     if (!deleteEmail) {
       toast({
-        title: "Email requerido",
+        title: t('validation.required'),
         description: t('settings.enterEmail'),
         variant: "destructive",
       });
@@ -62,21 +71,21 @@ export function DeleteAccountSection() {
       if (res.ok) {
         setCodeSent(true);
         toast({
-          title: "✅ Código enviado",
+          title: t('settings.codeSent'),
           description: t('settings.codeSent'),
           className: "bg-green-50 border-green-200",
         });
       } else if (res.status === 429 && data.error === 'rate_limit') {
         // Mostrar mensaje de rate limit con tiempo restante
         toast({
-          title: "⏱️ Espera un momento",
+          title: t('common.loading'),
           description: data.message,
           variant: "default",
           className: "bg-yellow-50 border-yellow-200",
         });
       } else {
         toast({
-          title: "❌ Error",
+          title: t('common.error'),
           description: data.message || t('settings.codeError'),
           variant: "destructive",
         });
@@ -84,7 +93,7 @@ export function DeleteAccountSection() {
     } catch (error) {
       console.error('Error sending delete code:', error);
       toast({
-        title: "❌ Error",
+        title: t('common.error'),
         description: t('settings.codeError'),
         variant: "destructive",
       });
@@ -96,7 +105,7 @@ export function DeleteAccountSection() {
   const handleDeleteClick = () => {
     if (!deleteEmail || !deleteCode) {
       toast({
-        title: "Campos incompletos",
+        title: t('validation.required'),
         description: t('settings.fillAllFields'),
         variant: "destructive",
       });
@@ -122,7 +131,7 @@ export function DeleteAccountSection() {
 
       if (res.ok) {
         toast({
-          title: "✅ Cuenta eliminada",
+          title: t('settings.accountDeleted'),
           description: t('settings.accountDeleted'),
           className: "bg-green-50 border-green-200",
         });
@@ -133,7 +142,7 @@ export function DeleteAccountSection() {
       } else {
         const error = await res.json();
         toast({
-          title: "❌ Error al eliminar cuenta",
+          title: t('common.error'),
           description: error.message || t('settings.deleteError'),
           variant: "destructive",
         });
@@ -141,7 +150,7 @@ export function DeleteAccountSection() {
     } catch (error) {
       console.error('Error deleting account:', error);
       toast({
-        title: "❌ Error",
+        title: t('common.error'),
         description: t('settings.deleteError'),
         variant: "destructive",
       });
@@ -164,24 +173,25 @@ export function DeleteAccountSection() {
           <CardTitle className="text-red-600 text-base">{t('settings.dangerZone')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <Dialog open={deleteDialogOpen} onOpenChange={handleDialogChange}>
-            <DialogTrigger asChild>
+          <MobileModal open={deleteDialogOpen} onOpenChange={handleDialogChange}>
+            <MobileModalTrigger asChild>
               <Button variant="destructive" className="w-full">
                 <Trash2 className="h-4 w-4 mr-2" />
                 {t('settings.deleteAccount')}
               </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle className="text-red-600">
+            </MobileModalTrigger>
+            <MobileModalContent className="sm:max-w-md">
+              <MobileModalHeader>
+                <MobileModalTitle className="text-red-600">
                   {t('settings.deleteAccountTitle')}
-                </DialogTitle>
-                <DialogDescription>
+                </MobileModalTitle>
+                <MobileModalDescription>
                   {t('settings.deleteAccountWarning')}
-                </DialogDescription>
-              </DialogHeader>
+                </MobileModalDescription>
+              </MobileModalHeader>
 
-              <div className="space-y-4">
+              <MobileModalBody>
+                <div className="space-y-4">
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertTitle>{t('settings.irreversible')}</AlertTitle>
@@ -229,44 +239,44 @@ export function DeleteAccountSection() {
                         onChange={(e) => setDeleteCode(e.target.value)}
                       />
                     </div>
-
-                    <DialogFooter>
-                      <Button
-                        variant="outline"
-                        onClick={() => handleDialogChange(false)}
-                      >
-                        {t('common.cancel')}
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        onClick={handleDeleteClick}
-                        disabled={deleteLoading}
-                      >
-                        {deleteLoading ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            {t('common.deleting')}
-                          </>
-                        ) : (
-                          t('settings.confirmDelete')
-                        )}
-                      </Button>
-                    </DialogFooter>
                   </>
                 )}
-              </div>
-            </DialogContent>
-          </Dialog>
+                </div>
+              </MobileModalBody>
+              <MobileModalFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => handleDialogChange(false)}
+                >
+                  {t('common.cancel')}
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleDeleteClick}
+                  disabled={deleteLoading}
+                >
+                  {deleteLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      {t('common.deleting')}
+                    </>
+                  ) : (
+                    t('settings.confirmDelete')
+                  )}
+                </Button>
+              </MobileModalFooter>
+            </MobileModalContent>
+          </MobileModal>
 
           {/* Diálogo de confirmación final */}
-          <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle className="text-red-600 flex items-center gap-2">
+          <MobileModal open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+            <MobileModalContent className="sm:max-w-md">
+              <MobileModalHeader>
+                <MobileModalTitle className="text-red-600 flex items-center gap-2">
                   <AlertTriangle className="h-5 w-5" />
                   {t('settings.finalConfirmation')}
-                </DialogTitle>
-                <DialogDescription className="space-y-3 pt-2">
+                </MobileModalTitle>
+                <MobileModalDescription className="space-y-3 pt-2">
                   <p className="font-medium">{t('settings.deleteConfirm')}</p>
                   <Alert variant="destructive" className="mt-3">
                     <AlertTriangle className="h-4 w-4" />
@@ -274,9 +284,9 @@ export function DeleteAccountSection() {
                       {t('settings.deleteAccountFinalWarning')}
                     </AlertDescription>
                   </Alert>
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter className="gap-2 sm:gap-0">
+                </MobileModalDescription>
+              </MobileModalHeader>
+              <MobileModalFooter className="gap-2 sm:gap-0">
                 <Button
                   variant="outline"
                   onClick={() => setConfirmDialogOpen(false)}
@@ -300,9 +310,9 @@ export function DeleteAccountSection() {
                     </>
                   )}
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              </MobileModalFooter>
+            </MobileModalContent>
+          </MobileModal>
         </CardContent>
       </Card>
     </>

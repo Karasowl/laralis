@@ -3,6 +3,7 @@
 Reference spreadsheet lives under docs/reference/Consultorio-PoDent.xlsx.
  The spreadsheet is reference for calculations, not a runtime dependency.
 
+Iconography system documented at @docs/ICONOGRAPHY.md - Always use these icons consistently.
 
 See @README.md for overview and @PR.md for PR prompts.
 
@@ -12,15 +13,34 @@ If present, link to devlog index: @docs/devlog/INDEX.md
 
 
 
-\## Language and i18n
+\## Language and i18n (CRITICAL - ZERO TOLERANCE)
 
 \- Reply to the human in Spanish. Code, identifiers and comments in English.
 
-\- All visible UI strings come from next-intl messages. No hardcoded text.
+\- **ALL visible UI strings MUST use next-intl**. ZERO hardcoded text allowed.
 
-\- Provide keys in `messages/en.json` and translations in `messages/es.json`.
+\- **BEFORE adding ANY text**: Check if translation key exists first, then add to BOTH `messages/en.json` AND `messages/es.json`.
+
+\- **FORBIDDEN patterns** (will fail PR):
+  - Hardcoded strings: `"Save"`, `"Cancel"`, `"Usuario"`, etc.
+  - Hardcoded placeholders: `"mm/dd/yyyy"`, `"Enter text..."`, etc.
+  - Fallback text without t(): `user?.name || "Usuario"` ❌
+  - Required asterisks in keys: `t('field.name*')` ❌
+  
+\- **REQUIRED patterns**:
+  - All text via t(): `t('common.save')` ✅
+  - Fallbacks with t(): `user?.name || t('common.defaultUser')` ✅
+  - Separate asterisks: `{t('field.name')}{required && <span>*</span>}` ✅
+  - Date inputs: Use HTML5 type="date", no placeholder needed ✅
 
 \- Use next-intl number and currency formatting for the active locale.
+
+\- **Verification checklist**:
+  1. Search for quotes in JSX: Any `"text"` or `'text'` should be t('key')
+  2. Search for Spanish text: "Usuario", "Guardar", "Cancelar", etc.
+  3. Search for English text: "Save", "Cancel", "Loading", etc.
+  4. Check all placeholders use t()
+  5. Verify both en.json and es.json have ALL keys
 
 
 
@@ -86,6 +106,14 @@ If present, link to devlog index: @docs/devlog/INDEX.md
 
 \- Use local wrappers: PageHeader, Card, DataTable, FormField, EmptyState, Skeleton.
 
+\- **REUSE EXISTING COMPONENTS**: 
+  - **UI Components** (`components/ui/`): PageHeader, DataTable, FormModal, Card, Button, Badge, Skeleton, EmptyState, ConfirmDialog, ActionDropdown, SummaryCards
+  - **Form Components** (`components/ui/form-field.tsx`): FormSection, FormGrid, InputField, SelectField, TextareaField, CheckboxField
+  - **Layout Components** (`components/layouts/`): AppLayout, DashboardLayout, CrudPageLayout
+  - **Hooks** (`hooks/`): useApi, useCrudOperations, useCurrentClinic, useWorkspace
+  - **NEVER create new components** if existing ones can be composed/extended
+  - **Search first**, create only if absolutely necessary
+
 \- Accessibility AA, visible focus, 44px targets, labels and aria for errors.
 
 
@@ -114,6 +142,20 @@ If present, link to devlog index: @docs/devlog/INDEX.md
 
 
 
+\## Coding Standards (MANDATORY)
+
+See @docs/CODING-STANDARDS.md for complete rules. Key points:
+\- **MAX 400 lines per file** (ideal <300). Split if exceeded.
+\- **MAX 100 lines for CSS files**. Use modular imports for larger styles.
+\- **NO direct fetch()** in domain hooks. Use useApi/useCrudOperations.
+\- **Money in integer cents ONLY**. Never floats.
+\- **All UI strings via useTranslations()**. No hardcoded text.
+\- **Business logic in lib/calc/** with tests, never in components.
+\- **Extract forms >200 lines** to separate components.
+\- **useMemo for expensive calcs**, useCallback for prop functions.
+\- **Type safety strict**: No `any` without justification.
+\- **COMPONENTIZATION RULE**: All UI elements must be componentized. Never hardcode in layouts. If something needs editing, edit its component or create a new component. Everything must be modular and reusable.
+
 \## Git \& PR discipline
 
 \- Small PRs, one feature or file group. Conventional commits.
@@ -121,6 +163,7 @@ If present, link to devlog index: @docs/devlog/INDEX.md
 \- PR must list Acceptance Criteria and link TASK ids.
 
 \- Touching `lib/calc` => update/add tests.
+\- Files >400 lines must be split before merge.
 
 
 

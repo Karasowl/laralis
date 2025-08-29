@@ -1,0 +1,49 @@
+/* Mobile scroll fix for modals and tables */
+
+/* Prevent iOS bounce scrolling issues */
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* Ensure table containers scroll properly on mobile */
+.table-container {
+  -webkit-overflow-scrolling: touch;
+  overflow-x: auto;
+  overflow-y: visible;
+  touch-action: pan-x pan-y;
+}
+
+/* Fix for modal body scroll lock cleanup */
+body:not([data-scroll-locked]) {
+  overflow: visible !important;
+  pointer-events: auto !important;
+  touch-action: auto !important;
+}
+
+/* Prevent scroll lock persistence on mobile */
+@media (max-width: 768px) {
+  body {
+    position: relative !important;
+  }
+  
+  /* Force scrollable on table containers */
+  .overflow-x-auto {
+    will-change: scroll-position;
+  }
+}
+
+/* Fix for Radix UI modal cleanup issues */
+[data-radix-portal] {
+  pointer-events: none;
+}
+
+[data-radix-portal] > * {
+  pointer-events: auto;
+}
+
+/* Ensure proper cleanup when modals close */
+body:not([data-scroll-locked="true"]) {
+  overflow: visible !important;
+}

@@ -1,108 +1,75 @@
+/* Tailwind directives - MUST be in main file */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Import modular styles */
+@import './styles/base.css';
+@import './styles/components.css';
+@import './styles/utilities.css';
+@import './styles/delete-account.css';
+@import './styles/mobile-scroll-fix.css';
+
+/* Essential global styles only */
 @layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 221 83% 53%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221 83% 53%;
-    --radius: 1rem;
+  html {
+    scroll-behavior: smooth;
   }
 
-  .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 221 83% 53%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 221 83% 53%;
-  }
-}
-
-@layer base {
-  * {
-    @apply border-border;
-  }
   body {
-    @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-feature-settings: "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scrollbar-gutter: stable;
+  }
+
+  /* Focus visible styles */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary;
+  }
+
+  /* Selection styles */
+  ::selection {
+    @apply bg-primary/20 text-primary-foreground;
+  }
+
+  /* Input autofill styles */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-text-fill-color: inherit;
+    -webkit-box-shadow: 0 0 0px 1000px transparent inset;
+    transition: background-color 5000s ease-in-out 0s;
+  }
+
+  /* Hide native password reveal button (Edge/Chrome) */
+  input[type="password"]::-ms-reveal {
+    display: none;
+  }
+  
+  /* Hide Chrome's password reveal button */
+  input::-webkit-credentials-auto-fill-button,
+  input::-webkit-clear-button {
+    display: none !important;
+  }
+
+  /* Print styles */
+  @media print {
+    body {
+      @apply text-black bg-white;
+    }
+    
+    .no-print {
+      display: none !important;
+    }
   }
 }
 
-/* Mobile First Responsive Utilities */
-@layer utilities {
-  /* Touch targets for mobile */
-  .touch-target {
-    min-height: 44px;
-    min-width: 44px;
-  }
-  
-  /* Responsive container with proper mobile margins */
-  .container-mobile {
-    @apply px-4 sm:px-6 lg:px-8;
-  }
-  
-  /* Mobile-optimized spacing */
-  .space-mobile {
-    @apply space-y-4 sm:space-y-6;
-  }
-  
-  /* Mobile-friendly grid */
-  .grid-mobile {
-    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4;
-  }
-  
-  /* Mobile text sizing */
-  .text-mobile-lg {
-    @apply text-lg sm:text-xl lg:text-2xl;
-  }
-  
-  .text-mobile-base {
-    @apply text-sm sm:text-base;
-  }
-  
-  /* Mobile-friendly cards */
-  .card-mobile {
-    @apply p-4 sm:p-6;
-  }
-  
-  /* Hide on mobile */
-  .hidden-mobile {
-    @apply hidden sm:block;
-  }
-  
-  /* Show only on mobile */
-  .mobile-only {
-    @apply block sm:hidden;
-  }
+/* Chart styles (kept here as they're specific) */
+.recharts-text {
+  @apply fill-current;
+}
+
+.recharts-layer {
+  @apply fill-current;
 }
