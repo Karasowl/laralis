@@ -134,6 +134,49 @@ export const zAssetForm = z.object({
   purchase_date: z.string().optional(),
 });
 
+// Validation schema for Patient
+export const zPatient = z.object({
+  id: z.string().uuid().optional(),
+  clinic_id: z.string().uuid(),
+  first_name: z.string().min(1, 'First name is required'),
+  last_name: z.string().min(1, 'Last name is required'),
+  email: z.string().email('Invalid email').optional().or(z.literal('')),
+  phone: z.string().optional(),
+  birth_date: z.string().optional(),
+  first_visit_date: z.string().optional(),
+  gender: z.enum(['male', 'female', 'other']).optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  postal_code: z.string().optional(),
+  notes: z.string().optional(),
+  source_id: z.string().optional(),
+  referred_by_patient_id: z.string().optional(),
+  campaign_id: z.string().optional(),
+  created_at: z.string().optional(),
+  updated_at: z.string().optional(),
+});
+
+// Form schema for Patient (client-side)
+export const zPatientForm = z.object({
+  first_name: z.string().min(1, 'First name is required'),
+  last_name: z.string().min(1, 'Last name is required'),
+  email: z.string().email('Invalid email').optional().or(z.literal('')),
+  phone: z.string().optional(),
+  birth_date: z.string().optional(),
+  first_visit_date: z.string().optional(),
+  gender: z.enum(['male', 'female', 'other', '']).optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  postal_code: z.string().optional(),
+  notes: z.string().optional(),
+  source_id: z.string().optional(),
+  referred_by_patient_id: z.string().optional(),
+  campaign_id: z.string().optional(),
+});
+
+export type ZPatient = z.infer<typeof zPatient>;
+export type ZPatientForm = z.infer<typeof zPatientForm>;
+
 // API error schema
 export const zApiError = z.object({
   error: z.string(),

@@ -1,519 +1,355 @@
-'use client';
+'use client'
 
-import { useTranslations, useLocale } from 'next-intl';
-import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useWorkspace } from '@/contexts/workspace-context';
-import { PageHeader } from '@/components/ui/PageHeader';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { DataTable, Column } from '@/components/ui/DataTable';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ActionDropdown, createEditAction, createDeleteAction } from '@/components/ui/ActionDropdown';
-import { ConfirmDialog, createDeleteConfirm } from '@/components/ui/ConfirmDialog';
-import { formatCurrency, getCategoryDisplayName } from '@/lib/format';
-import { zFixedCostForm } from '@/lib/zod';
-import type { FixedCost, FixedCostCategory } from '@/lib/types';
-import { Plus, Receipt, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { useState } from 'react'
+import { useTranslations, useLocale } from 'next-intl'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { AppLayout } from '@/components/layouts/AppLayout'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { DataTable } from '@/components/ui/DataTable'
+import { FormModal } from '@/components/ui/form-modal'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { ActionDropdown, createEditAction, createDeleteAction } from '@/components/ui/ActionDropdown'
+import { InputField, SelectField, FormGrid, FormSection } from '@/components/ui/form-field'
+import { SummaryCards } from '@/components/ui/summary-cards'
+import { useCurrentClinic } from '@/hooks/use-current-clinic'
+import { useFixedCosts } from '@/hooks/use-fixed-costs'
+import { formatCurrency } from '@/lib/money'
+import { getCategoryDisplayName } from '@/lib/format'
+import { zFixedCostForm } from '@/lib/zod'
+import { FixedCostCategory } from '@/lib/types'
+import { Receipt, TrendingUp, Calculator, DollarSign, Plus } from 'lucide-react'
+import { z } from 'zod'
 
-const categories: { value: FixedCostCategory; key: string }[] = [
-  { value: 'rent', key: 'rent' },
-  { value: 'utilities', key: 'utilities' },
-  { value: 'salaries', key: 'salaries' },
-  { value: 'insurance', key: 'insurance' },
-  { value: 'maintenance', key: 'maintenance' },
-  { value: 'education', key: 'education' },
-  { value: 'advertising', key: 'advertising' },
-  { value: 'other', key: 'other' },
-];
+type FixedCostFormData = z.infer<typeof zFixedCostForm>
 
-interface FixedCostFormData {
-  category: FixedCostCategory;
-  concept: string;
-  amount_pesos: number;
-}
+const categories: { value: FixedCostCategory; label: string }[] = [
+  { value: 'rent', label: 'fixedCosts.categories.rent' },
+  { value: 'utilities', label: 'fixedCosts.categories.utilities' },
+  { value: 'salaries', label: 'fixedCosts.categories.salaries' },
+  { value: 'insurance', label: 'fixedCosts.categories.insurance' },
+  { value: 'maintenance', label: 'fixedCosts.categories.maintenance' },
+  { value: 'education', label: 'fixedCosts.categories.education' },
+  { value: 'advertising', label: 'fixedCosts.categories.advertising' },
+  { value: 'other', label: 'fixedCosts.categories.other' },
+]
 
 export default function FixedCostsPage() {
-  const t = useTranslations();
-  const { currentClinic } = useWorkspace();
-  const locale = useLocale();
-  const [costs, setCosts] = useState<FixedCost[]>([]);
-  const [assetsDepreciation, setAssetsDepreciation] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingCost, setEditingCost] = useState<FixedCost | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [deletingCost, setDeletingCost] = useState<FixedCost | null>(null);
-
+  const t = useTranslations()
+  const locale = useLocale()
+  const { currentClinic } = useCurrentClinic()
   const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    watch,
-    formState: { errors },
-  } = useForm<FixedCostFormData>({
+    fixedCosts,
+    loading,
+    summary,
+    createFixedCost,
+    updateFixedCost,
+    deleteFixedCost
+  } = useFixedCosts({ clinicId: currentClinic?.id })
+
+  // Modal states
+  const [createOpen, setCreateOpen] = useState(false)
+  const [editCost, setEditCost] = useState<any>(null)
+  const [deleteCost, setDeleteCost] = useState<any>(null)
+
+  // Form
+  const form = useForm<FixedCostFormData>({
     resolver: zodResolver(zFixedCostForm),
     defaultValues: {
       category: 'other',
       concept: '',
       amount_pesos: 0,
     },
-  });
+  })
 
-  useEffect(() => {
-    loadCosts();
-    loadAssetsDepreciation();
-  }, []);
-
-  const loadCosts = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/fixed-costs?clinicId=${currentClinic.id}`);
-      if (response.ok) {
-        const data = await response.json();
-        setCosts(data.data || []);
-      } else {
-        console.error('Failed to load fixed costs');
-      }
-    } catch (error) {
-      console.error('Error loading fixed costs:', error);
-    } finally {
-      setLoading(false);
+  // Submit handlers
+  const handleCreate = async (data: FixedCostFormData) => {
+    const success = await createFixedCost({
+      category: data.category,
+      concept: data.concept,
+      amount_cents: data.amount_pesos * 100
+    })
+    if (success) {
+      setCreateOpen(false)
+      form.reset()
     }
-  };
+  }
 
-  const loadAssetsDepreciation = async () => {
-    try {
-      const response = await fetch('/api/assets/summary');
-      if (response.ok) {
-        const data = await response.json();
-        setAssetsDepreciation(data.data?.monthly_depreciation_cents || 0);
-      } else {
-        console.error('Failed to load assets depreciation');
-      }
-    } catch (error) {
-      console.error('Error loading assets depreciation:', error);
+  const handleEdit = async (data: FixedCostFormData) => {
+    if (!editCost) return
+    const success = await updateFixedCost(editCost.id, {
+      category: data.category,
+      concept: data.concept,
+      amount_cents: data.amount_pesos * 100
+    })
+    if (success) {
+      setEditCost(null)
+      form.reset()
     }
-  };
+  }
 
-  const onSubmit = async (formData: FixedCostFormData) => {
-    setIsSubmitting(true);
-    try {
-      const payload = {
-        category: formData.category,
-        concept: formData.concept,
-        amount_cents: formData.amount_pesos, // Ya está en centavos
-      };
-
-      const url = editingCost 
-        ? `/api/fixed-costs/${editingCost.id}`
-        : '/api/fixed-costs';
-      
-      const method = editingCost ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (response.ok) {
-        toast.success(editingCost ? t('fixedCosts.updateSuccess') : t('fixedCosts.createSuccess'));
-        await loadCosts();
-        handleCloseDialog();
-      } else {
-        const error = await response.json();
-        toast.error(error.message || t('fixedCosts.saveError'));
-      }
-    } catch (error) {
-      console.error('Error submitting form:', error);
-      toast.error(t('fixedCosts.saveError'));
-    } finally {
-      setIsSubmitting(false);
+  const handleDelete = async () => {
+    if (!deleteCost) return
+    const success = await deleteFixedCost(deleteCost.id)
+    if (success) {
+      setDeleteCost(null)
     }
-  };
+  }
 
-  const handleEdit = (cost: FixedCost) => {
-    setEditingCost(cost);
-    setValue('category', cost.category as FixedCostCategory);
-    setValue('concept', cost.concept);
-    setValue('amount_pesos', cost.amount_cents / 100);
-    setIsDialogOpen(true);
-  };
-
-  const handleDeleteClick = (cost: FixedCost) => {
-    setDeletingCost(cost);
-    setDeleteConfirmOpen(true);
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!deletingCost) return;
-
-    try {
-      const response = await fetch(`/api/fixed-costs/${deletingCost.id}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        toast.success(t('fixedCosts.deleteSuccess'));
-        await loadCosts();
-      } else {
-        const error = await response.json();
-        toast.error(error.message || t('fixedCosts.deleteError'));
-      }
-    } catch (error) {
-      console.error('Error deleting fixed cost:', error);
-      toast.error(t('fixedCosts.deleteError'));
-    } finally {
-      setDeleteConfirmOpen(false);
-      setDeletingCost(null);
-    }
-  };
-
-  const handleOpenDialog = () => {
-    setEditingCost(null);
-    reset({
-      category: 'other',
-      concept: '',
-      amount_pesos: 0,
-    });
-    setIsDialogOpen(true);
-  };
-
-  const handleCloseDialog = () => {
-    setIsDialogOpen(false);
-    setEditingCost(null);
-    reset();
-  };
-
-  const columns: Column<FixedCost>[] = [
+  // Table columns
+  const columns = [
     {
       key: 'category',
       label: t('fixedCosts.category'),
-      render: (value) => getCategoryDisplayName(value, t),
+      render: (cost: any) => (
+        <Badge variant="outline">
+          {getCategoryDisplayName(cost.category, t)}
+        </Badge>
+      )
     },
     {
       key: 'concept',
       label: t('fixedCosts.concept'),
+      render: (cost: any) => (
+        <div className="font-medium">{cost.concept}</div>
+      )
     },
     {
-      key: 'amount_cents',
+      key: 'amount',
       label: t('fixedCosts.amount'),
-      render: (value) => formatCurrency(value, locale as 'en' | 'es'),
-      className: 'text-right',
+      render: (cost: any) => (
+        <div className="text-right font-semibold">
+          {formatCurrency(cost.amount_cents)}
+        </div>
+      )
     },
     {
       key: 'actions',
-      label: t('common.actions'),
-      render: (_, item) => (
+      label: t('actions'),
+      render: (cost: any) => (
         <ActionDropdown
           actions={[
-            createEditAction(() => handleEdit(item), t('fixedCosts.edit')),
-            createDeleteAction(() => handleDeleteClick(item), t('fixedCosts.delete'))
+            createEditAction(() => {
+              form.reset({
+                category: cost.category as FixedCostCategory,
+                concept: cost.concept,
+                amount_pesos: cost.amount_cents / 100,
+              })
+              setEditCost(cost)
+            }),
+            createDeleteAction(() => setDeleteCost(cost))
           ]}
         />
-      ),
-      className: 'text-right',
-    },
-  ];
+      )
+    }
+  ]
 
-  const totalManualCosts = costs.reduce((sum, cost) => sum + cost.amount_cents, 0);
-  const totalCosts = totalManualCosts + assetsDepreciation;
+  // Category breakdown
+  const getCategoryBreakdown = () => {
+    const breakdown = categories.map(category => {
+      const categoryTotal = fixedCosts
+        .filter(cost => cost.category === category.value)
+        .reduce((sum, cost) => sum + cost.amount_cents, 0)
+      
+      const percentage = summary.totalCosts > 0 ? (categoryTotal / summary.totalCosts) * 100 : 0
+      
+      return {
+        category: category.value,
+        label: t(category.label),
+        total: categoryTotal,
+        percentage
+      }
+    }).filter(item => item.total > 0)
+
+    // Add depreciation
+    if (summary.monthlyDepreciation > 0) {
+      breakdown.push({
+        category: 'depreciation',
+        label: t('fixedCosts.categories.depreciation'),
+        total: summary.monthlyDepreciation,
+        percentage: (summary.monthlyDepreciation / summary.totalCosts) * 100
+      })
+    }
+
+    return breakdown
+  }
+
+  const categoryColors: Record<string, string> = {
+    rent: 'bg-green-500',
+    salaries: 'bg-purple-500',
+    utilities: 'bg-yellow-500',
+    insurance: 'bg-red-500',
+    maintenance: 'bg-orange-500',
+    education: 'bg-indigo-500',
+    advertising: 'bg-pink-500',
+    other: 'bg-gray-500',
+    depreciation: 'bg-blue-500'
+  }
 
   return (
-    <div className="space-y-8">
-      <PageHeader
-        title={t('fixedCosts.title')}
-        subtitle={t('fixedCosts.subtitle')}
-        actions={
-          <Button onClick={handleOpenDialog}>
-            <Plus className="h-4 w-4 mr-2" />
-            {t('fixedCosts.addCost')}
-          </Button>
-        }
-      />
+    <AppLayout>
+      <div className="container mx-auto p-6 max-w-7xl space-y-6">
+        <PageHeader
+          title={t('fixedCosts.title')}
+          subtitle={t('fixedCosts.subtitle')}
+          actions={
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              {t('fixedCosts.add')}
+            </Button>
+          }
+        />
 
-      <div className="grid gap-6">
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Receipt className="h-5 w-5" />
-                {t('fixedCosts.summary.totalMonthly')}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-primary">
-                {formatCurrency(totalCosts, locale as 'en' | 'es')}
-              </div>
-              <p className="text-sm text-muted-foreground mt-2">
-                {t('fixedCosts.summary.breakdown')}
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                {t('fixedCosts.summary.local')}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-semibold">
-                {formatCurrency(totalManualCosts, locale as 'en' | 'es')}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {costs.length} {t('fixedCosts.summary.concepts')}
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                {t('fixedCosts.summary.depreciation')}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-semibold text-blue-600">
-                {formatCurrency(assetsDepreciation, locale as 'en' | 'es')}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {t('fixedCosts.summary.autoAddedNote')}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+        <SummaryCards
+          cards={[
+            {
+              label: t('fixedCosts.summary.totalMonthly'),
+              value: formatCurrency(summary.totalCosts),
+              subtitle: t('fixedCosts.summary.breakdown'),
+              icon: Receipt,
+              color: 'primary'
+            },
+            {
+              label: t('fixedCosts.summary.local'),
+              value: formatCurrency(summary.totalManualCosts),
+              subtitle: `${summary.manualCount} ${t('fixedCosts.summary.concepts')}`,
+              icon: DollarSign,
+              color: 'success'
+            },
+            {
+              label: t('fixedCosts.summary.depreciation'),
+              value: formatCurrency(summary.monthlyDepreciation),
+              subtitle: t('fixedCosts.summary.autoAddedNote'),
+              icon: TrendingUp,
+              color: 'info'
+            },
+          ]}
+          columns={3}
+        />
 
-        {/* Costs Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('fixedCosts.listTitle')}</CardTitle>
-            <CardDescription>
-              {t('fixedCosts.listDescription')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="text-center p-8">
-                <p className="text-muted-foreground">{t('common.loading')}</p>
-              </div>
-            ) : costs.length > 0 ? (
-              <DataTable
-                data={costs}
-                columns={columns}
-                loading={loading}
-              />
-            ) : (
-              <EmptyState
-                icon={<Receipt className="h-8 w-8" />}
-                title={t('fixedCosts.emptyTitle')}
-                description={t('fixedCosts.emptyDescription')}
-                action={
-                  <Button onClick={handleOpenDialog}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    {t('fixedCosts.addCost')}
-                  </Button>
-                }
-              />
-            )}
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <DataTable
+              columns={columns}
+              data={fixedCosts}
+              loading={loading}
+              emptyState={{
+                icon: Calculator,
+                title: t('fixedCosts.noFixedCosts'),
+                description: t('fixedCosts.noFixedCostsDescription')
+              }}
+            />
+          </div>
 
-        {/* Category Breakdown */}
-        {(costs.length > 0 || assetsDepreciation > 0) && (
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('fixedCosts.categoryBreakdown')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {/* Manual Categories */}
-                {categories.map(category => {
-                  const categoryTotal = costs
-                    .filter(cost => cost.category === category.value)
-                    .reduce((sum, cost) => sum + cost.amount_cents, 0);
-                  
-                  const percentage = totalCosts > 0 ? (categoryTotal / totalCosts) * 100 : 0;
-                  
-                  if (categoryTotal === 0) return null;
-                  
-                  return (
-                    <div key={category.value} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div 
-                          className="w-4 h-4 rounded-full"
-                          style={{ backgroundColor: `hsl(${category.value.length * 60}, 60%, 50%)` }}
-                        />
-                        <span className="font-medium">
-                          {t(`fixedCosts.categories.${category.key}`)}
+          <div>
+            <Card>
+              <div className="p-6">
+                <h3 className="text-lg font-semibold mb-4">{t('fixedCosts.categoryBreakdown')}</h3>
+                <div className="space-y-4">
+                  {getCategoryBreakdown().map(item => (
+                    <div key={item.category} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-4 h-4 rounded-full ${categoryColors[item.category]}`} />
+                          <span className="text-sm font-medium">{item.label}</span>
+                        </div>
+                        <span className="text-sm font-semibold">
+                          {formatCurrency(item.total)}
                         </span>
                       </div>
-                      <div className="text-right">
-                        <div className="font-medium">
-                          {formatCurrency(categoryTotal, locale as 'en' | 'es')}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {percentage.toFixed(1)}%
-                        </div>
+                      <div className="w-full bg-muted rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full ${categoryColors[item.category]}`}
+                          style={{ width: `${Math.min(item.percentage, 100)}%` }}
+                        />
+                      </div>
+                      <div className="text-xs text-muted-foreground text-right">
+                        {item.percentage.toFixed(1)}%
                       </div>
                     </div>
-                  );
-                })}
-                
-                {/* Assets Depreciation */}
-                {assetsDepreciation > 0 && (
-                  <div className="flex items-center justify-between border-t pt-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-4 h-4 rounded-full bg-blue-500" />
-                      <span className="font-medium">
-                        {t('fixedCosts.categories.depreciation')}
-                      </span>
-                      <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                        {t('fixedCosts.items.depreciationFund')}
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-medium">
-                        {formatCurrency(assetsDepreciation, locale as 'en' | 'es')}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {totalCosts > 0 ? ((assetsDepreciation / totalCosts) * 100).toFixed(1) : 0}%
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-        
-        {/* Business Flow Explanation */}
-        {(costs.length > 0 || assetsDepreciation > 0) && (
-          <Card className="bg-green-50 border-green-200">
-            <CardHeader>
-              <CardTitle className="text-green-800">
-                {t('fixedCosts.businessFlow.title')}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3 text-sm text-green-700">
-                <p>
-                  <strong>{t('fixedCosts.businessFlow.step1')}:</strong> {t('fixedCosts.businessFlow.step1Description')}
-                </p>
-                <p>
-                  <strong>{t('fixedCosts.businessFlow.step2')}:</strong> {t('fixedCosts.businessFlow.step2Description')}
-                </p>
-                <p>
-                  <strong>{t('fixedCosts.businessFlow.step3')}:</strong> {t('fixedCosts.businessFlow.step3Description')} {formatCurrency(totalCosts, locale as 'en' | 'es')}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
-      {/* Add/Edit Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>
-              {editingCost ? t('fixedCosts.editCost') : t('fixedCosts.addCost')}
-            </DialogTitle>
-          </DialogHeader>
-          
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div>
-              <Label htmlFor="category">{t('fixedCosts.category')}</Label>
-              <Select
-                value={watch('category')}
-                onValueChange={(value) => setValue('category', value as FixedCostCategory)}
-                disabled={isSubmitting}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map(category => (
-                    <SelectItem key={category.value} value={category.value}>
-                      {t(`fixedCosts.categories.${category.key}`)}
-                    </SelectItem>
                   ))}
-                </SelectContent>
-              </Select>
-              {errors.category && (
-                <p className="text-sm text-red-600 mt-1">{errors.category.message}</p>
-              )}
-            </div>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </div>
 
-            <div>
-              <Label htmlFor="concept">{t('fixedCosts.concept')}</Label>
-              <Input
-                id="concept"
-                {...register('concept')}
-                placeholder={t('fixedCosts.placeholders.concept')}
-                disabled={isSubmitting}
-              />
-              {errors.concept && (
-                <p className="text-sm text-red-600 mt-1">{errors.concept.message}</p>
-              )}
-            </div>
+        {/* Create Modal */}
+        <FormModal
+          open={createOpen}
+          onOpenChange={setCreateOpen}
+          title={t('fixedCosts.create')}
+          onSubmit={form.handleSubmit(handleCreate)}
+        >
+          <FixedCostForm form={form} categories={categories} t={t} />
+        </FormModal>
 
-            <div>
-              <Label htmlFor="amount">{t('fixedCosts.amount')}</Label>
-              <Input
-                id="amount"
-                type="number"
-                step="0.01"
-                min="0"
-                {...register('amount_pesos', { valueAsNumber: true })}
-                placeholder={t('fixedCosts.placeholders.amount')}
-                disabled={isSubmitting}
-              />
-              {errors.amount_pesos && (
-                <p className="text-sm text-red-600 mt-1">{errors.amount_pesos.message}</p>
-              )}
-            </div>
+        {/* Edit Modal */}
+        <FormModal
+          open={!!editCost}
+          onOpenChange={(open) => !open && setEditCost(null)}
+          title={t('fixedCosts.edit')}
+          onSubmit={form.handleSubmit(handleEdit)}
+        >
+          <FixedCostForm form={form} categories={categories} t={t} />
+        </FormModal>
 
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleCloseDialog}
-                disabled={isSubmitting}
-              >
-                {t('common.cancel')}
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    {t('common.loading')}
-                  </>
-                ) : (
-                  editingCost ? t('common.save') : t('common.add')
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+        {/* Delete Confirmation */}
+        <ConfirmDialog
+          open={!!deleteCost}
+          onOpenChange={(open) => !open && setDeleteCost(null)}
+          title={t('fixedCosts.delete')}
+          description={t('fixedCosts.deleteConfirm', {
+            concept: deleteCost?.concept || ''
+          })}
+          onConfirm={handleDelete}
+          variant="destructive"
+        />
+      </div>
+    </AppLayout>
+  )
+}
 
-      {/* Delete Confirmation Dialog */}
-      <ConfirmDialog
-        open={deleteConfirmOpen}
-        onOpenChange={setDeleteConfirmOpen}
-        {...createDeleteConfirm(handleDeleteConfirm, deletingCost?.concept)}
-      />
-    </div>
-  );
+// Fixed Cost Form Component
+function FixedCostForm({ form, categories, t }: any) {
+  return (
+    <FormSection>
+      <FormGrid columns={1}>
+        <SelectField
+          label={t('fixedCosts.category')}
+          value={form.watch('category')}
+          onChange={(value) => form.setValue('category', value)}
+          options={categories.map((cat: any) => ({
+            value: cat.value,
+            label: t(cat.label)
+          }))}
+          error={form.formState.errors.category?.message}
+          required
+        />
+        
+        <InputField
+          label={t('fixedCosts.concept')}
+          value={form.watch('concept')}
+          onChange={(value) => form.setValue('concept', value)}
+          placeholder={t('fixedCosts.conceptPlaceholder')}
+          error={form.formState.errors.concept?.message}
+          required
+        />
+        
+        <InputField
+          type="number"
+          step="0.01"
+          label={t('fixedCosts.amount')}
+          value={form.watch('amount_pesos')}
+          onChange={(value) => form.setValue('amount_pesos', parseFloat(value as string) || 0)}
+          placeholder="0.00"
+          error={form.formState.errors.amount_pesos?.message}
+          required
+        />
+      </FormGrid>
+    </FormSection>
+  )
 }

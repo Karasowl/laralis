@@ -1,284 +1,351 @@
-'use client';
+'use client'
 
-import { useState, useEffect } from 'react';
-import { useTranslations } from 'next-intl';
-import { useWorkspace } from '@/contexts/workspace-context';
-import { PageHeader } from '@/components/ui/PageHeader';
-import { DataTable } from '@/components/ui/DataTable';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { formatCurrency } from '@/lib/format';
-import { ServiceWithCost, ApiResponse } from '@/lib/types';
-import { calcularPrecioFinal } from '@/lib/calc/tarifa';
-import { redondearA } from '@/lib/money';
-import { Calculator, RefreshCw } from 'lucide-react';
+import { useState } from 'react'
+import { useTranslations } from 'next-intl'
+import { useCurrentClinic } from '@/hooks/use-current-clinic'
+import { CrudPageLayout } from '@/components/ui/crud-page-layout'
+import { FormModal } from '@/components/ui/form-modal'
+import { FormSection, FormGrid, InputField, SelectField } from '@/components/ui/form-field'
+import { Button } from '@/components/ui/button'
+import { formatCurrency } from '@/lib/format'
+import { Calculator, RefreshCw, Save } from 'lucide-react'
+import { useTariffs, TariffRow } from '@/hooks/use-tariffs'
+import { Form } from '@/components/ui/form'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 
-interface TariffRow extends ServiceWithCost {
-  margin_pct: number;
-  final_price: number;
-  rounded_price: number;
-}
+// Schema for bulk operations
+const bulkOperationSchema = z.object({
+  margin: z.number().min(0).max(100),
+  roundTo: z.number().min(1)
+})
+
+// Schema for individual tariff edit
+const tariffEditSchema = z.object({
+  serviceId: z.string(),
+  margin: z.number().min(0).max(100)
+})
 
 export default function TariffsPage() {
-  const t = useTranslations();
-  const { currentClinic } = useWorkspace(); // ✅ Obtener clínica actual
-  const [services, setServices] = useState<ServiceWithCost[]>([]);
-  const [tariffs, setTariffs] = useState<TariffRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [defaultMargin, setDefaultMargin] = useState(30);
-  const [roundTo, setRoundTo] = useState(10);
+  const t = useTranslations('tariffs')
+  const { currentClinic } = useCurrentClinic()
+  
+  // Tariff management hook
+  const {
+    tariffs,
+    loading,
+    error,
+    updateMargin,
+    updateAllMargins,
+    updateRounding,
+    saveTariffs,
+    refreshTariffs
+  } = useTariffs({
+    clinicId: currentClinic?.id,
+    defaultMargin: 30,
+    defaultRoundTo: 10
+  })
 
-  useEffect(() => {
-    fetchServicesWithCosts();
-  }, []);
+  // Modal states
+  const [bulkModalOpen, setBulkModalOpen] = useState(false)
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [selectedTariff, setSelectedTariff] = useState<TariffRow | null>(null)
+  const [saving, setSaving] = useState(false)
 
-  const fetchServicesWithCosts = async () => {
+  // Forms
+  const bulkForm = useForm({
+    resolver: zodResolver(bulkOperationSchema),
+    defaultValues: {
+      margin: 30,
+      roundTo: 10
+    }
+  })
+
+  const editForm = useForm({
+    resolver: zodResolver(tariffEditSchema),
+    defaultValues: {
+      serviceId: '',
+      margin: 30
+    }
+  })
+
+  // Handlers
+  const handleBulkUpdate = (data: z.infer<typeof bulkOperationSchema>) => {
+    updateAllMargins(data.margin)
+    updateRounding(data.roundTo)
+    setBulkModalOpen(false)
+    bulkForm.reset()
+  }
+
+  const handleIndividualEdit = (data: z.infer<typeof tariffEditSchema>) => {
+    updateMargin(data.serviceId, data.margin)
+    setEditModalOpen(false)
+    editForm.reset()
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
     try {
-      // First get all services (API can return array or { data: [...] })
-      const servicesResponse = await fetch(`/api/services?clinicId=${currentClinic.id}`);
-      const raw = await servicesResponse.json();
-      const servicesArray: ServiceWithCost[] = Array.isArray(raw) ? raw : (raw.data || []);
-
-      if (!servicesArray || servicesArray.length === 0) {
-        setServices([]);
-        setTariffs([]);
-        return;
-      }
-
-      // Fetch cost for each service in parallel
-      const servicesWithCosts: ServiceWithCost[] = await Promise.all(
-        servicesArray.map(async (service) => {
-          try {
-            const costResponse = await fetch(`/api/services/${service.id}/cost`);
-            const costResult = await costResponse.json();
-            return costResult?.data ?? service;
-          } catch (error) {
-            console.error(`Error fetching cost for service ${service.id}:`, error);
-            return service;
-          }
-        })
-      );
-
-      setServices(servicesWithCosts);
-
-      // Initialize tariffs with default margin
-      const initialTariffs = servicesWithCosts.map(service => {
-        const totalCost = (service.fixed_cost_cents || 0) + (service.variable_cost_cents || 0);
-        const finalPrice = calcularPrecioFinal(totalCost, defaultMargin);
-        const roundedPrice = redondearA(finalPrice, roundTo * 100);
-
-        return {
-          ...service,
-          margin_pct: defaultMargin,
-          final_price: finalPrice,
-          rounded_price: roundedPrice
-        };
-      });
-
-      setTariffs(initialTariffs);
-    } catch (error) {
-      console.error('Error fetching services:', error);
+      await saveTariffs()
     } finally {
-      setLoading(false);
+      setSaving(false)
     }
-  };
+  }
 
-  const handleMarginChange = (serviceId: string, margin: number) => {
-    setTariffs(prevTariffs => 
-      prevTariffs.map(tariff => {
-        if (tariff.id === serviceId) {
-          const totalCost = (tariff.fixed_cost_cents || 0) + (tariff.variable_cost_cents || 0);
-          const finalPrice = calcularPrecioFinal(totalCost, margin);
-          const roundedPrice = redondearA(finalPrice, roundTo * 100);
-          
-          return {
-            ...tariff,
-            margin_pct: margin,
-            final_price: finalPrice,
-            rounded_price: roundedPrice
-          };
-        }
-        return tariff;
-      })
-    );
-  };
+  const openEditModal = (tariff: TariffRow) => {
+    setSelectedTariff(tariff)
+    editForm.setValue('serviceId', tariff.id)
+    editForm.setValue('margin', tariff.margin_pct)
+    setEditModalOpen(true)
+  }
 
-  const handleApplyDefaultMargin = () => {
-    setTariffs(prevTariffs =>
-      prevTariffs.map(tariff => {
-        const totalCost = (tariff.fixed_cost_cents || 0) + (tariff.variable_cost_cents || 0);
-        const finalPrice = calcularPrecioFinal(totalCost, defaultMargin);
-        const roundedPrice = redondearA(finalPrice, roundTo * 100);
-        
-        return {
-          ...tariff,
-          margin_pct: defaultMargin,
-          final_price: finalPrice,
-          rounded_price: roundedPrice
-        };
-      })
-    );
-  };
+  // Summary cards data
+  const summaryCards = [
+    {
+      title: t('total_services'),
+      value: tariffs.length.toString(),
+      description: t('active_services')
+    },
+    {
+      title: t('average_margin'),
+      value: tariffs.length > 0 
+        ? `${Math.round(tariffs.reduce((acc, t) => acc + t.margin_pct, 0) / tariffs.length)}%`
+        : '0%',
+      description: t('across_all_services')
+    },
+    {
+      title: t('total_revenue'),
+      value: formatCurrency(
+        tariffs.reduce((acc, t) => acc + t.rounded_price, 0)
+      ),
+      description: t('if_all_sold_once')
+    }
+  ]
 
-  const handleRoundingChange = (newRoundTo: number) => {
-    setRoundTo(newRoundTo);
-    
-    setTariffs(prevTariffs =>
-      prevTariffs.map(tariff => ({
-        ...tariff,
-        rounded_price: redondearA(tariff.final_price, newRoundTo * 100)
-      }))
-    );
-  };
-
+  // Table columns
   const columns = [
-    { key: 'name', label: t('tariffs.service') },
-    { key: 'est_minutes', label: t('tariffs.duration'), render: (_value: any, row: TariffRow) =>
-      `${row.est_minutes} min`
+    {
+      key: 'name',
+      label: t('service'),
+      render: (tariff: TariffRow) => (
+        <div>
+          <div className="font-medium">{tariff.name}</div>
+          <div className="text-sm text-muted-foreground">
+            {tariff.category}
+          </div>
+        </div>
+      )
     },
-    { key: 'fixed_cost_cents', label: t('tariffs.fixedCost'), render: (_value: any, row: TariffRow) =>
-      formatCurrency((row.fixed_cost_cents || 0))
+    {
+      key: 'costs',
+      label: t('costs'),
+      render: (tariff: TariffRow) => {
+        const totalCost = (tariff.fixed_cost_cents || 0) + (tariff.variable_cost_cents || 0)
+        return (
+          <div className="text-right">
+            <div>{formatCurrency(totalCost)}</div>
+            <div className="text-xs text-muted-foreground">
+              {t('fixed')}: {formatCurrency(tariff.fixed_cost_cents || 0)}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {t('variable')}: {formatCurrency(tariff.variable_cost_cents || 0)}
+            </div>
+          </div>
+        )
+      }
     },
-    { key: 'variable_cost_cents', label: t('tariffs.variableCost'), render: (_value: any, row: TariffRow) =>
-      formatCurrency((row.variable_cost_cents || 0))
+    {
+      key: 'margin',
+      label: t('margin'),
+      render: (tariff: TariffRow) => (
+        <div className="text-center">
+          <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-sm font-medium">
+            {tariff.margin_pct}%
+          </span>
+        </div>
+      )
     },
-    { key: 'total_cost', label: t('tariffs.totalCost'), render: (_value: any, row: TariffRow) => {
-      const total = ((row.fixed_cost_cents || 0) + (row.variable_cost_cents || 0));
-      return formatCurrency(total);
-    }},
-    { key: 'margin_pct', label: t('tariffs.margin'), render: (_value: any, row: TariffRow) => (
-      <div className="flex items-center gap-1">
-        <Input
-          type="number"
-          min="0"
-          max="100"
-          value={row.margin_pct}
-          onChange={(e) => handleMarginChange(row.id!, parseInt(e.target.value) || 0)}
-          className="w-16 h-8 text-sm"
-        />
-        <span className="text-sm">%</span>
-      </div>
-    )},
-    { key: 'final_price', label: t('tariffs.finalPrice'), render: (_value: any, row: TariffRow) =>
-      formatCurrency(row.final_price)
+    {
+      key: 'price',
+      label: t('final_price'),
+      render: (tariff: TariffRow) => (
+        <div className="text-right">
+          <div className="font-semibold text-lg">
+            {formatCurrency(tariff.rounded_price)}
+          </div>
+          {tariff.rounded_price !== tariff.final_price && (
+            <div className="text-xs text-muted-foreground line-through">
+              {formatCurrency(tariff.final_price)}
+            </div>
+          )}
+        </div>
+      )
     },
-    { key: 'rounded_price', label: t('tariffs.roundedPrice'), render: (_value: any, row: TariffRow) =>
-      <span className="font-semibold text-green-600">
-        {formatCurrency(row.rounded_price)}
-      </span>
+    {
+      key: 'actions',
+      label: t('actions'),
+      render: (tariff: TariffRow) => (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => openEditModal(tariff)}
+        >
+          <Calculator className="h-4 w-4 mr-2" />
+          {t('adjust')}
+        </Button>
+      )
     }
-  ];
+  ]
+
+  // Actions for the page
+  const actions = (
+    <div className="flex gap-2">
+      <Button
+        variant="outline"
+        onClick={() => setBulkModalOpen(true)}
+      >
+        <Calculator className="h-4 w-4 mr-2" />
+        {t('bulk_adjust')}
+      </Button>
+      <Button
+        variant="outline"
+        onClick={refreshTariffs}
+      >
+        <RefreshCw className="h-4 w-4 mr-2" />
+        {t('refresh')}
+      </Button>
+      <Button
+        onClick={handleSave}
+        disabled={saving}
+      >
+        <Save className="h-4 w-4 mr-2" />
+        {saving ? t('saving') : t('save_tariffs')}
+      </Button>
+    </div>
+  )
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title={t('tariffs.title')}
-        subtitle={t('tariffs.subtitle')}
+    <>
+      <CrudPageLayout
+        title={t('title')}
+        subtitle={t('subtitle')}
+        items={tariffs}
+        loading={loading}
+        columns={columns}
+        searchable={true}
+        searchPlaceholder={t('search_services')}
+        emptyTitle={t('no_services')}
+        emptyDescription={t('no_services_description')}
+        additionalContent={
+          <div className="flex gap-2 mb-6">
+            {actions}
+          </div>
+        }
+        summaryCards={
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            {summaryCards.map((card, index) => (
+              <div key={index} className="bg-white rounded-lg border p-6">
+                <h3 className="text-sm font-medium text-muted-foreground">{card.title}</h3>
+                <p className="text-2xl font-bold">{card.value}</p>
+                <p className="text-xs text-muted-foreground">{card.description}</p>
+              </div>
+            ))}
+          </div>
+        }
       />
 
-      {/* Controls */}
-      <div className="bg-gray-50 rounded-lg p-4 space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <Label htmlFor="defaultMargin">{t('tariffs.defaultMargin')}</Label>
-            <div className="flex gap-2">
-              <Input
-                id="defaultMargin"
+      {/* Bulk Operations Modal */}
+      <FormModal
+        open={bulkModalOpen}
+        onOpenChange={setBulkModalOpen}
+        title={t('bulk_operations')}
+        onSubmit={bulkForm.handleSubmit(handleBulkUpdate)}
+        maxWidth="sm"
+      >
+        <Form {...bulkForm}>
+          <FormSection title={t('adjustment_settings')}>
+            <FormGrid columns={2}>
+              <InputField
                 type="number"
-                min="0"
-                max="100"
-                value={defaultMargin}
-                onChange={(e) => setDefaultMargin(parseInt(e.target.value) || 0)}
-                className="flex-1"
+                label={t('default_margin')}
+                value={bulkForm.watch('margin')}
+                onChange={(value) => bulkForm.setValue('margin', parseInt(value as string))}
+                placeholder="30"
+                min={0}
+                max={100}
+                error={bulkForm.formState.errors.margin?.message}
               />
-              <Button onClick={handleApplyDefaultMargin} size="sm">
-                <RefreshCw className="h-4 w-4 mr-1" />
-                {t('tariffs.apply')}
-              </Button>
-            </div>
-          </div>
+              
+              <SelectField
+                label={t('round_to')}
+                value={bulkForm.watch('roundTo').toString()}
+                onChange={(value) => bulkForm.setValue('roundTo', parseInt(value))}
+                options={[
+                  { value: '1', label: '$1' },
+                  { value: '5', label: '$5' },
+                  { value: '10', label: '$10' },
+                  { value: '50', label: '$50' },
+                  { value: '100', label: '$100' }
+                ]}
+                error={bulkForm.formState.errors.roundTo?.message}
+              />
+            </FormGrid>
+          </FormSection>
+        </Form>
+      </FormModal>
 
-          <div>
-            <Label htmlFor="roundTo">{t('tariffs.roundTo')}</Label>
-            <Select
-              value={roundTo.toString()}
-              onValueChange={(value) => handleRoundingChange(parseInt(value))}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">{formatCurrency(1)}</SelectItem>
-                <SelectItem value="5">{formatCurrency(5)}</SelectItem>
-                <SelectItem value="10">{formatCurrency(10)}</SelectItem>
-                <SelectItem value="50">{formatCurrency(50)}</SelectItem>
-                <SelectItem value="100">{formatCurrency(100)}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex items-end">
-            <Button onClick={() => window.print()} variant="outline">
-              {t('common.export')}
-            </Button>
-          </div>
-        </div>
-
-        <div className="text-sm text-gray-600">
-          <p>{t('tariffs.instructions')}</p>
-        </div>
-      </div>
-
-      {/* Data Table */}
-      {loading ? (
-        <div className="text-center py-8">{t('common.loading')}</div>
-      ) : tariffs.length === 0 ? (
-        <EmptyState
-          title={t('tariffs.empty')}
-          description={t('tariffs.emptyDescription')}
-        />
-      ) : (
-        <div className="overflow-x-auto">
-          <DataTable
-            columns={columns}
-            data={tariffs}
-          />
-        </div>
-      )}
-
-      {/* Summary */}
-      {tariffs.length > 0 && (
-        <div className="bg-blue-50 rounded-lg p-4">
-          <h3 className="font-semibold text-blue-900 mb-2">{t('tariffs.summary')}</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div>
-              <span className="text-blue-700">{t('tariffs.totalServices')}:</span>
-              <span className="ml-2 font-medium">{tariffs.length}</span>
-            </div>
-            <div>
-              <span className="text-blue-700">{t('tariffs.averageMargin')}:</span>
-              <span className="ml-2 font-medium">
-                {(tariffs.reduce((sum, t) => sum + t.margin_pct, 0) / tariffs.length).toFixed(1)}%
-              </span>
-            </div>
-            <div>
-              <span className="text-blue-700">{t('tariffs.minPrice')}:</span>
-              <span className="ml-2 font-medium">
-                {formatCurrency(Math.min(...tariffs.map(t => t.rounded_price)))}
-              </span>
-            </div>
-            <div>
-              <span className="text-blue-700">{t('tariffs.maxPrice')}:</span>
-              <span className="ml-2 font-medium">
-                {formatCurrency(Math.max(...tariffs.map(t => t.rounded_price)))}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+      {/* Individual Edit Modal */}
+      <FormModal
+        open={editModalOpen}
+        onOpenChange={setEditModalOpen}
+        title={selectedTariff ? `${t('adjust_tariff')}: ${selectedTariff.name}` : t('adjust_tariff')}
+        onSubmit={editForm.handleSubmit(handleIndividualEdit)}
+        maxWidth="sm"
+      >
+        <Form {...editForm}>
+          <FormSection>
+            <InputField
+              type="number"
+              label={t('margin_percentage')}
+              value={editForm.watch('margin')}
+              onChange={(value) => editForm.setValue('margin', parseInt(value as string))}
+              placeholder="30"
+              min={0}
+              max={100}
+              error={editForm.formState.errors.margin?.message}
+            />
+            
+            {selectedTariff && (
+              <div className="mt-4 p-4 bg-muted rounded-lg">
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>{t('total_cost')}:</span>
+                    <span className="font-medium">
+                      {formatCurrency(
+                        (selectedTariff.fixed_cost_cents || 0) + 
+                        (selectedTariff.variable_cost_cents || 0)
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>{t('with_margin')} {editForm.watch('margin')}%:</span>
+                    <span className="font-medium">
+                      {formatCurrency(
+                        Math.round(
+                          ((selectedTariff.fixed_cost_cents || 0) + 
+                           (selectedTariff.variable_cost_cents || 0)) * 
+                          (1 + editForm.watch('margin') / 100)
+                        )
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </FormSection>
+        </Form>
+      </FormModal>
+    </>
+  )
 }

@@ -1,232 +1,145 @@
-'use client';
+'use client'
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { useTranslations } from 'next-intl';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
-import { useToast } from '@/hooks/use-toast';
-import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
-import { Eye, EyeOff, LogIn, Mail, Lock } from 'lucide-react';
+import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
+import { useRouter } from 'next/navigation'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import { AuthLayout } from '@/components/auth/AuthLayout'
+import { AuthForm } from '@/components/auth/AuthForm'
+import { InputField } from '@/components/ui/form-field'
+import { useAuth } from '@/hooks/use-auth'
+import { Mail, Lock, Eye, EyeOff } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+
+// Schema for login form
+const loginSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters')
+})
+
+type LoginFormData = z.infer<typeof loginSchema>
 
 export default function LoginPage() {
-  const router = useRouter();
-  const { toast } = useToast();
-  const t = useTranslations('auth.login');
-  const tErrors = useTranslations('auth.errors');
-  const tSuccess = useTranslations('auth.success');
-  
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  
-  const supabase = createSupabaseBrowserClient();
+  const t = useTranslations('auth.login')
+  const router = useRouter()
+  const { login, loading, error, clearError } = useAuth()
+  const [showPassword, setShowPassword] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!email || !password) {
-      toast({
-        title: tErrors('requiredField'),
-        description: tErrors('requiredField'),
-        variant: 'destructive',
-      });
-      return;
+  const form = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: '',
+      password: ''
     }
+  })
 
-    setIsLoading(true);
-    
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+  // Clear error when form values change
+  useEffect(() => {
+    const subscription = form.watch(() => clearError())
+    return () => subscription.unsubscribe()
+  }, [form, clearError])
 
-      if (error) {
-        let errorMessage = tErrors('signInError');
-        
-        if (error.message.includes('Invalid login credentials')) {
-          errorMessage = tErrors('invalidCredentials');
-        } else if (error.message.includes('Email not confirmed')) {
-          errorMessage = 'Por favor confirma tu correo electrónico antes de iniciar sesión';
-        }
-        
-        toast({
-          title: 'Error',
-          description: errorMessage,
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      if (data.user) {
-        toast({
-          title: tSuccess('signIn'),
-          description: `Bienvenido, ${data.user.email}`,
-        });
-        
-        // Verificar si tiene workspace
-        try {
-          const res = await fetch('/api/workspaces');
-          const wsData = await res.json();
-          
-          // Forzar navegación con recarga completa
-          setTimeout(() => {
-            if (!wsData.workspace) {
-              window.location.href = '/onboarding';
-            } else {
-              window.location.href = '/';
-            }
-          }, 500);
-        } catch (error) {
-          // En caso de error, ir al home por defecto
-          setTimeout(() => {
-            window.location.href = '/';
-          }, 500);
-        }
-      }
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: tErrors('networkError'),
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
+  const onSubmit = async (data: LoginFormData) => {
+    const success = await login(data)
+    if (success) {
+      router.push('/')
     }
-  };
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <div className="flex items-center justify-center mb-4">
-            <div className="h-12 w-12 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-xl">D</span>
+    <AuthLayout>
+      <AuthForm
+        title={t('title')}
+        description={t('description')}
+        form={form}
+        onSubmit={onSubmit}
+        isSubmitting={loading}
+        submitLabel={t('submit')}
+        footer={{
+          text: t('noAccount'),
+          linkText: t('signUp'),
+          linkHref: '/auth/register'
+        }}
+        error={error}
+      >
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              {t('email')}
+              <span className="text-red-500 ml-1">*</span>
+            </label>
+            <div className="relative">
+              <input
+                type="email"
+                placeholder={t('emailPlaceholder')}
+                value={form.watch('email')}
+                onChange={(e) => form.setValue('email', e.target.value)}
+                className="flex h-12 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 pl-10 mt-1 bg-white/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 focus:border-blue-500 dark:focus:border-blue-400 transition-all"
+                required
+              />
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             </div>
+            {form.formState.errors.email && (
+              <p className="text-sm text-red-600 mt-1">{form.formState.errors.email.message}</p>
+            )}
           </div>
-          <CardTitle className="text-2xl text-center">
-            {t('title')}
-          </CardTitle>
-          <CardDescription className="text-center">
-            {t('subtitle')}
-          </CardDescription>
-        </CardHeader>
-        
-        <CardContent>
-          {/* Botón de emergencia para cerrar sesión */}
-          <div className="text-center mb-4">
-            <a 
-              href="/auth/logout" 
-              className="text-xs text-muted-foreground hover:underline"
-              title="Si estás atrapado en esta página, haz clic aquí para cerrar sesión"
-            >
-              ¿Problemas para acceder? Cerrar sesión actual
-            </a>
-          </div>
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">{t('emailLabel')}</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder={t('emailPlaceholder')}
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10"
-                  required
-                />
-              </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">{t('passwordLabel')}</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder={t('passwordPlaceholder')}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 pr-10"
-                  required
-                />
-                <button
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              {t('password')}
+              <span className="text-red-500 ml-1">*</span>
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                placeholder={t('passwordPlaceholder')}
+                value={form.watch('password')}
+                onChange={(e) => form.setValue('password', e.target.value)}
+                className="flex h-12 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 pl-10 pr-12 mt-1 bg-white/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 focus:border-blue-500 dark:focus:border-blue-400 transition-all"
+                required
+              />
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              {form.watch('password') && form.watch('password').length > 0 && (
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-1/2 -translate-y-1/2 h-10 px-3 py-2 hover:bg-transparent"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
                 >
                   {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
+                    <EyeOff className="h-4 w-4 text-gray-500" />
                   ) : (
-                    <Eye className="h-4 w-4" />
+                    <Eye className="h-4 w-4 text-gray-500" />
                   )}
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="remember"
-                  checked={rememberMe}
-                  onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-                />
-                <Label
-                  htmlFor="remember"
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  {t('rememberMe')}
-                </Label>
-              </div>
-              <Link
-                href="/auth/forgot-password"
-                className="text-sm text-primary hover:underline"
-              >
-                {t('forgotPassword')}
-              </Link>
-            </div>
-
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-r-transparent" />
-                  {t('loggingIn')}
-                </>
-              ) : (
-                <>
-                  <LogIn className="mr-2 h-4 w-4" />
-                  {t('loginButton')}
-                </>
+                  <span className="sr-only">
+                    {showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  </span>
+                </Button>
               )}
-            </Button>
-          </form>
-
-          <div className="mt-6 text-center text-sm">
-            <span className="text-muted-foreground">{t('noAccount')} </span>
-            <Link
-              href="/auth/register"
-              className="text-primary font-medium hover:underline"
-            >
-              {t('signUpLink')}
-            </Link>
+            </div>
+            {form.formState.errors.password && (
+              <p className="text-sm text-red-600 mt-1">{form.formState.errors.password.message}</p>
+            )}
           </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
+
+          <div className="flex items-center justify-between">
+            <label className="flex items-center space-x-2">
+              <input type="checkbox" className="rounded" />
+              <span className="text-sm text-muted-foreground">{t('rememberMe')}</span>
+            </label>
+            
+            <a 
+              href="/auth/forgot-password" 
+              className="text-sm text-primary hover:underline"
+            >
+              {t('forgotPassword')}
+            </a>
+          </div>
+        </div>
+      </AuthForm>
+    </AuthLayout>
+  )
 }

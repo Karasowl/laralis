@@ -1,621 +1,384 @@
-'use client';
+'use client'
 
-import { useState, useEffect } from 'react';
-import { PageHeader } from '@/components/ui/PageHeader';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { DataTable } from '@/components/ui/DataTable';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { 
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { useTranslations } from 'next-intl';
-import { Plus, Search, Edit, Trash2, Phone, Mail, Calendar, MapPin, Users } from 'lucide-react';
-import { useWorkspace } from '@/contexts/workspace-context';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { formatDate } from '@/lib/format';
-
-const patientSchema = z.object({
-  first_name: z.string().min(1, 'First name is required'),
-  last_name: z.string().min(1, 'Last name is required'),
-  email: z.string().email('Invalid email').optional().or(z.literal('')),
-  phone: z.string().optional(),
-  birth_date: z.string().optional(),
-  first_visit_date: z.string().optional(),
-  gender: z.enum(['male', 'female', 'other', '']).optional(),
-  address: z.string().optional(),
-  city: z.string().optional(),
-  postal_code: z.string().optional(),
-  notes: z.string().optional(),
-  source_id: z.string().optional(),
-  referred_by_patient_id: z.string().optional(),
-  campaign_id: z.string().optional()
-});
-
-type PatientForm = z.infer<typeof patientSchema>;
-
-interface Patient {
-  id: string;
-  first_name: string;
-  last_name: string;
-  email?: string;
-  phone?: string;
-  birth_date?: string;
-  first_visit_date?: string;
-  gender?: string;
-  address?: string;
-  city?: string;
-  postal_code?: string;
-  notes?: string;
-  source_id?: string;
-  referred_by_patient_id?: string;
-  campaign_id?: string;
-  created_at: string;
-}
-
-interface PatientSource {
-  id: string;
-  name: string;
-  description?: string;
-  color?: string;
-  icon?: string;
-  is_active: boolean;
-  is_system: boolean;
-}
+import { useState } from 'react'
+import { useTranslations } from 'next-intl'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { AppLayout } from '@/components/layouts/AppLayout'
+import { useModalCleanup } from '@/hooks/use-modal-cleanup'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { DataTable } from '@/components/ui/DataTable'
+import { FormModal } from '@/components/ui/form-modal'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { ActionDropdown, createEditAction, createDeleteAction } from '@/components/ui/ActionDropdown'
+import { PatientForm } from './components/PatientForm'
+import { PatientDetails } from './components/PatientDetails'
+import { useCurrentClinic } from '@/hooks/use-current-clinic'
+import { usePatients } from '@/hooks/use-patients'
+import { formatDate } from '@/lib/format'
+import { zPatientForm, ZPatientForm } from '@/lib/zod'
+import { Patient } from '@/lib/types'
+import { Users, Phone, Mail, Calendar, MapPin, Plus, User, Eye } from 'lucide-react'
 
 export default function PatientsPage() {
-  const t = useTranslations();
-  const { currentClinic } = useWorkspace(); // ✅ Obtener clínica actual
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
-  const [patientSources, setPatientSources] = useState<PatientSource[]>([]);
-  const [allPatients, setAllPatients] = useState<Patient[]>([]);
-  const [platforms, setPlatforms] = useState<any[]>([]);
-  const [campaigns, setCampaigns] = useState<any[]>([]);
-  const [selectedPlatformId, setSelectedPlatformId] = useState<string>('none');
-  
+  const t = useTranslations('patients')
+  const { currentClinic } = useCurrentClinic()
   const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    formState: { errors, isSubmitting },
-  } = useForm<PatientForm>({
-    resolver: zodResolver(patientSchema),
-  });
+    patients,
+    patientSources,
+    campaigns,
+    loading,
+    searchTerm,
+    createPatient,
+    updatePatient,
+    deletePatient,
+    searchPatients
+  } = usePatients({ clinicId: currentClinic?.id })
 
-  // ✅ Recargar cuando cambie la clínica
-  useEffect(() => {
-    if (currentClinic?.id) {
-      loadPatients();
-      loadPatientSources();
-      loadMarketingPlatforms();
-      loadCampaigns();
+  // Helper function to get patient initials
+  const getInitials = (firstName: string | null | undefined, lastName: string | null | undefined) => {
+    const firstInitial = firstName && firstName.length > 0 ? firstName.charAt(0) : ''
+    const lastInitial = lastName && lastName.length > 0 ? lastName.charAt(0) : ''
+    return firstInitial + lastInitial
+  }
+
+  // Modal states
+  const [createOpen, setCreateOpen] = useState(false)
+  const [editPatient, setEditPatient] = useState<Patient | null>(null)
+  const [viewPatient, setViewPatient] = useState<Patient | null>(null)
+  const [deletePatientData, setDeletePatientData] = useState<Patient | null>(null)
+  
+  // Use modal cleanup hook for all modals to prevent scroll lock on mobile
+  useModalCleanup(createOpen)
+  useModalCleanup(!!editPatient)
+  useModalCleanup(!!viewPatient)
+  useModalCleanup(!!deletePatientData)
+
+  // Form
+  const form = useForm<ZPatientForm>({
+    resolver: zodResolver(zPatientForm),
+    defaultValues: {
+      first_name: '',
+      last_name: '',
+      email: '',
+      phone: '',
+      birth_date: '',
+      first_visit_date: '',
+      gender: '',
+      address: '',
+      city: '',
+      postal_code: '',
+      notes: '',
+      source_id: '',
+      referred_by_patient_id: '',
+      campaign_id: ''
     }
-  }, [currentClinic?.id]);
+  })
 
-  const loadPatients = async (search?: string) => {
-    try {
-      const url = search 
-        ? `/api/patients?search=${encodeURIComponent(search)}`
-        : '/api/patients';
-      
-      const response = await fetch(url);
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Patients loaded:', data); // Debug
-        const patientsArray = Array.isArray(data) ? data : (data.data || []);
-        setPatients(patientsArray);
-        if (!search) {
-          setAllPatients(patientsArray); // Guardar todos los pacientes para el selector de referidos
+  // Submit handlers
+  const handleCreate = async (data: ZPatientForm) => {
+    const success = await createPatient(data)
+    if (success) {
+      setCreateOpen(false)
+      form.reset()
+    }
+  }
+
+  const handleEdit = async (data: ZPatientForm) => {
+    if (!editPatient) return
+    const success = await updatePatient(editPatient.id, data)
+    if (success) {
+      setEditPatient(null)
+      form.reset()
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deletePatientData) return
+    const success = await deletePatient(deletePatientData.id)
+    if (success) {
+      // Use setTimeout to ensure modal cleanup completes before resetting state
+      setTimeout(() => {
+        setDeletePatientData(null)
+        // Force cleanup of any stuck body styles on mobile
+        if (typeof document !== 'undefined') {
+          document.body.style.removeProperty('overflow')
+          document.body.style.removeProperty('pointer-events')
+          document.documentElement.style.removeProperty('overflow')
         }
-      }
-    } catch (error) {
-      console.error('Error loading patients:', error);
-    } finally {
-      setLoading(false);
+      }, 100)
     }
-  };
+  }
 
-  const loadPatientSources = async () => {
+  // Handler para crear nueva fuente de paciente
+  const handleCreatePatientSource = async (data: any) => {
     try {
-      const response = await fetch('/api/patient-sources?active=true');
-      if (response.ok) {
-        const data = await response.json();
-        setPatientSources(data.data || []);
-      }
-    } catch (error) {
-      console.error('Error loading patient sources:', error);
-    }
-  };
-
-  const loadMarketingPlatforms = async () => {
-    try {
-      const response = await fetch('/api/marketing/platforms?active=true');
-      if (response.ok) {
-        const data = await response.json();
-        setPlatforms(data.data || []);
-      }
-    } catch (error) {
-      console.error('Error loading marketing platforms:', error);
-    }
-  };
-
-  const loadCampaigns = async () => {
-    try {
-      const response = await fetch(`/api/marketing/campaigns?active=true&includeArchived=false`);
-      if (response.ok) {
-        const data = await response.json();
-        setCampaigns(data.data || []);
-      }
-    } catch (error) {
-      console.error('Error loading campaigns:', error);
-    }
-  };
-
-  const handleSearch = (value: string) => {
-    setSearchTerm(value);
-    loadPatients(value);
-  };
-
-  const onSubmit = async (data: PatientForm) => {
-    try {
-      const url = editingPatient 
-        ? `/api/patients/${editingPatient.id}`
-        : '/api/patients';
-      
-      const method = editingPatient ? 'PUT' : 'POST';
-      
-      console.log('Submitting patient data:', data); // Debug
-      
-      const response = await fetch(url, {
-        method,
+      const response = await fetch('/api/patient-sources', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-
-      const result = await response.json();
+        body: JSON.stringify({
+          ...data,
+          clinic_id: currentClinic?.id
+        })
+      })
       
-      if (response.ok) {
-        console.log('Patient saved successfully:', result);
-        await loadPatients();
-        reset();
-        setIsCreateOpen(false);
-        setEditingPatient(null);
-      } else {
-        console.error('Error response from server:', result);
-        alert(result.message || 'Error al guardar paciente');
+      if (!response.ok) throw new Error('Failed to create patient source')
+      
+      const newSource = await response.json()
+      
+      // Actualizar la lista de fuentes
+      setPatientSources([...patientSources, newSource])
+      
+      return {
+        value: newSource.id,
+        label: newSource.name
       }
     } catch (error) {
-      console.error('Error saving patient:', error);
-      alert('Error al guardar paciente');
+      console.error('Error creating patient source:', error)
+      throw error
     }
-  };
+  }
 
-  const handleEdit = (patient: Patient) => {
-    setEditingPatient(patient);
-    reset({
-      first_name: patient.first_name,
-      last_name: patient.last_name,
-      email: patient.email || '',
-      phone: patient.phone || '',
-      birth_date: patient.birth_date || '',
-      first_visit_date: patient.first_visit_date || '',
-      gender: patient.gender as any || '',
-      address: patient.address || '',
-      city: patient.city || '',
-      postal_code: patient.postal_code || '',
-      notes: patient.notes || '',
-      source_id: patient.source_id || '',
-      referred_by_patient_id: patient.referred_by_patient_id || '',
-      campaign_id: patient.campaign_id || ''
-    });
-    setIsCreateOpen(true);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm(t('patients.confirmDelete'))) return;
-    
+  // Handler para crear nueva campaña
+  const handleCreateCampaign = async (data: any) => {
     try {
-      const response = await fetch(`/api/patients/${id}`, {
-        method: 'DELETE',
-      });
+      const response = await fetch('/api/marketing/campaigns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...data,
+          clinic_id: currentClinic?.id,
+          budget_cents: Math.round((parseFloat(data.budget_cents) || 0) * 100)
+        })
+      })
       
-      if (response.ok) {
-        loadPatients();
+      if (!response.ok) throw new Error('Failed to create campaign')
+      
+      const newCampaign = await response.json()
+      
+      // Actualizar la lista de campañas
+      setCampaigns([...campaigns, newCampaign])
+      
+      return {
+        value: newCampaign.id,
+        label: newCampaign.name
       }
     } catch (error) {
-      console.error('Error deleting patient:', error);
+      console.error('Error creating campaign:', error)
+      throw error
     }
-  };
+  }
 
+  // Table columns
   const columns = [
     {
-      key: 'name',
-      label: t('patients.name'),
+      key: '_patient_info', // Use underscore prefix for custom columns
+      label: t('fields.name'),
       render: (_value: any, patient: Patient) => {
         if (!patient) return null;
         return (
-          <div>
-            <p className="font-medium">
-              {patient.first_name || ''} {patient.last_name || ''}
-            </p>
-            {patient.email && (
-              <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                <Mail className="h-3 w-3" />
-                {patient.email}
-              </p>
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-medium">
+              {getInitials(patient.first_name, patient.last_name)}
+            </div>
+            <div>
+              <div className="font-medium">
+                {patient.first_name} {patient.last_name}
+              </div>
+              {patient.email && (
+                <div className="text-sm text-muted-foreground">{patient.email}</div>
+              )}
+            </div>
+          </div>
+        )
+      }
+    },
+    {
+      key: '_contact_info', // Use underscore prefix for custom columns
+      label: t('fields.contact'),
+      render: (_value: any, patient: Patient) => {
+        if (!patient) return null;
+        return (
+          <div className="space-y-1">
+            {patient.phone && (
+              <div className="flex items-center gap-2 text-sm">
+                <Phone className="h-3 w-3 text-muted-foreground" />
+                {patient.phone}
+              </div>
+            )}
+            {patient.city && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <MapPin className="h-3 w-3" />
+                {patient.city}
+              </div>
             )}
           </div>
-        );
+        )
       }
     },
     {
-      key: 'phone',
-      label: t('patients.phone'),
-      render: (_value: any, patient: Patient) => patient?.phone ? (
-        <div className="flex items-center gap-1">
-          <Phone className="h-3 w-3" />
-          {patient.phone}
-        </div>
-      ) : null,
-    },
-    {
-      key: 'first_visit_date',
-      label: t('patients.firstVisitDate'),
-      render: (_value: any, patient: Patient) => patient?.first_visit_date ? (
-        <div className="flex items-center gap-1">
-          <Calendar className="h-3 w-3" />
-          {formatDate(patient.first_visit_date)}
-        </div>
-      ) : null,
-    },
-    {
-      key: 'city',
-      label: t('patients.city'),
-      render: (_value: any, patient: Patient) => patient?.city ? (
-        <div className="flex items-center gap-1">
-          <MapPin className="h-3 w-3" />
-          {patient.city}
-        </div>
-      ) : null,
-    },
-    {
-      key: 'notes',
-      label: t('patients.notes'),
-      render: (_value: any, patient: Patient) => patient?.notes ? (
-        <div className="max-w-xs truncate text-sm text-muted-foreground">
-          {patient.notes}
-        </div>
-      ) : null,
-    },
-    {
-      key: 'actions',
-      label: t('common.actions'),
+      key: '_dates_info', // Use underscore prefix for custom columns
+      label: t('fields.dates'),
       render: (_value: any, patient: Patient) => {
         if (!patient) return null;
         return (
-          <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleEdit(patient)}
-            >
-              <Edit className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => patient.id && handleDelete(patient.id)}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+          <div className="space-y-1 text-sm">
+            {patient.first_visit_date && (
+              <div>
+                <span className="text-muted-foreground">{t('fields.first_visit')}:</span>{' '}
+                {formatDate(patient.first_visit_date)}
+              </div>
+            )}
+            {patient.birth_date && (
+              <div className="text-muted-foreground">
+                {t('fields.birth_date')}: {formatDate(patient.birth_date)}
+              </div>
+            )}
           </div>
-        );
+        )
       }
     },
-  ];
+    {
+      key: '_source_info', // Use underscore prefix for custom columns
+      label: t('fields.source'),
+      render: (_value: any, patient: Patient) => {
+        if (!patient) return null;
+        if (patient.source) {
+          return <Badge variant="outline">{patient.source.name}</Badge>
+        }
+        return null
+      }
+    },
+    {
+      key: '_actions', // Use underscore prefix for custom columns
+      label: t('actions'),
+      render: (_value: any, patient: Patient) => {
+        if (!patient) return null;
+        return (
+          <ActionDropdown
+            actions={[
+              {
+                label: t('view'),
+                icon: <Eye className="h-4 w-4" />,
+                onClick: () => setViewPatient(patient)
+              },
+              createEditAction(() => {
+                form.reset({
+                  first_name: patient.first_name,
+                  last_name: patient.last_name,
+                  email: patient.email || '',
+                  phone: patient.phone || '',
+                  birth_date: patient.birth_date || '',
+                  first_visit_date: patient.first_visit_date || '',
+                  gender: patient.gender || '',
+                  address: patient.address || '',
+                  city: patient.city || '',
+                  postal_code: patient.postal_code || '',
+                  notes: patient.notes || '',
+                  source_id: patient.source_id || '',
+                  referred_by_patient_id: patient.referred_by_patient_id || '',
+                  campaign_id: patient.campaign_id || ''
+                })
+                setEditPatient(patient)
+              }),
+              createDeleteAction(() => setDeletePatientData(patient))
+            ]}
+          />
+        )
+      }
+    }
+  ]
 
   return (
-    <div className="space-y-8">
-      <PageHeader
-        title={t('patients.title')}
-        subtitle={t('patients.subtitle')}
-      />
-      
-      <div className="flex justify-between items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <Input
-            placeholder={t('patients.searchPlaceholder')}
-            value={searchTerm}
-            onChange={(e) => handleSearch(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        
-        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => {
-              setEditingPatient(null);
-              reset();
-            }}>
+    <AppLayout>
+      <div className="container mx-auto p-6 max-w-7xl space-y-6">
+        <PageHeader
+          title={t('title')}
+          subtitle={t('subtitle')}
+          actions={
+            <Button onClick={() => setCreateOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
-              {t('patients.addPatient')}
+              {t('add_patient')}
             </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>
-                {editingPatient ? t('patients.editPatient') : t('patients.newPatient')}
-              </DialogTitle>
-              <DialogDescription>
-                {t('patients.formDescription')}
-              </DialogDescription>
-            </DialogHeader>
-            
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="first_name">{t('patients.firstName')} *</Label>
-                  <Input
-                    id="first_name"
-                    {...register('first_name')}
-                  />
-                  {errors.first_name && (
-                    <p className="text-sm text-red-500">{errors.first_name.message}</p>
-                  )}
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="last_name">{t('patients.lastName')} *</Label>
-                  <Input
-                    id="last_name"
-                    {...register('last_name')}
-                  />
-                  {errors.last_name && (
-                    <p className="text-sm text-red-500">{errors.last_name.message}</p>
-                  )}
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">{t('patients.email')}</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    {...register('email')}
-                  />
-                  {errors.email && (
-                    <p className="text-sm text-red-500">{errors.email.message}</p>
-                  )}
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="phone">{t('patients.phone')}</Label>
-                  <Input
-                    id="phone"
-                    {...register('phone')}
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="birth_date">{t('patients.birthDate')}</Label>
-                  <Input
-                    id="birth_date"
-                    type="date"
-                    {...register('birth_date')}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="first_visit_date">{t('patients.firstVisitDate')}</Label>
-                  <Input
-                    id="first_visit_date"
-                    type="date"
-                    {...register('first_visit_date')}
-                  />
-                </div>
-              </div>
+          }
+        />
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="gender">{t('patients.gender')}</Label>
-                  <Select 
-                    onValueChange={(value) => setValue('gender', value === 'none' ? '' : value as any)}
-                    defaultValue={editingPatient?.gender || 'none'}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('patients.selectGender')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">{t('common.select')}</SelectItem>
-                      <SelectItem value="male">{t('patients.male')}</SelectItem>
-                      <SelectItem value="female">{t('patients.female')}</SelectItem>
-                      <SelectItem value="other">{t('patients.other')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="source_id">{t('patients.source')}</Label>
-                  <Select 
-                    onValueChange={(value) => setValue('source_id', value === 'none' ? '' : value)}
-                    defaultValue={editingPatient?.source_id || 'none'}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('patients.selectSource')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">{t('common.select')}</SelectItem>
-                      {patientSources.map((source) => (
-                        <SelectItem key={source.id} value={source.id}>
-                          {source.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+        <DataTable
+          columns={columns}
+          data={patients || []}
+          loading={loading}
+          searchPlaceholder={t('search_patients')}
+          onSearch={searchPatients}
+          emptyState={{
+            icon: Users,
+            title: t('no_patients'),
+            description: t('no_patients_description')
+          }}
+        />
 
-              {/* Platform/Campaign selection visible only if source is "Campaña" */}
-              {(() => {
-                const currentSourceId = (editingPatient?.source_id) || '';
-                const selectedSource = patientSources.find(s => s.id === currentSourceId);
-                const showCampaign = selectedSource?.name?.toLowerCase() === 'campaña';
-                return showCampaign ? (
-                  <div className="space-y-2">
-                    <Label htmlFor="campaign_id">{t('patients.campaign')}</Label>
-                    <Select onValueChange={(value) => setValue('campaign_id', value === 'none' ? '' : value)} defaultValue={editingPatient?.campaign_id || 'none'}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={t('patients.campaignPlaceholder')} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">{t('common.select')}</SelectItem>
-                        {campaigns.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.name} ({c.platform_name})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                ) : null;
-              })()}
+        {/* Create Modal */}
+        <FormModal
+          open={createOpen}
+          onOpenChange={setCreateOpen}
+          title={t('create_patient')}
+          onSubmit={form.handleSubmit(handleCreate)}
+          maxWidth="2xl"
+        >
+          <PatientForm
+            form={form}
+            patientSources={patientSources}
+            campaigns={campaigns}
+            patients={patients}
+            t={t}
+            onCreatePatientSource={handleCreatePatientSource}
+            onCreateCampaign={handleCreateCampaign}
+          />
+        </FormModal>
 
-              <div className="space-y-2">
-                <Label htmlFor="referred_by_patient_id">{t('patients.referredBy')}</Label>
-                <Select 
-                  onValueChange={(value) => setValue('referred_by_patient_id', value === 'none' ? '' : value)}
-                  defaultValue={editingPatient?.referred_by_patient_id || 'none'}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={t('patients.selectReferrer')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">
-                      {t('patients.noReferrer')}
-                    </SelectItem>
-                    {allPatients
-                      .filter(p => p.id !== editingPatient?.id)
-                      .map((patient) => (
-                        <SelectItem key={patient.id} value={patient.id}>
-                          {patient.first_name} {patient.last_name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="address">{t('patients.address')}</Label>
-                <Input
-                  id="address"
-                  {...register('address')}
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="city">{t('patients.city')}</Label>
-                  <Input
-                    id="city"
-                    {...register('city')}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="postal_code">{t('patients.postalCode')}</Label>
-                  <Input
-                    id="postal_code"
-                    {...register('postal_code')}
-                  />
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="notes">{t('patients.notes')}</Label>
-                <Textarea
-                  id="notes"
-                  rows={3}
-                  {...register('notes')}
-                />
-              </div>
-              
-              <div className="flex justify-end gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setIsCreateOpen(false);
-                    setEditingPatient(null);
-                    reset();
-                  }}
-                >
-                  {t('common.cancel')}
-                </Button>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? t('common.saving') : t('common.save')}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+        {/* Edit Modal */}
+        <FormModal
+          open={!!editPatient}
+          onOpenChange={(open) => !open && setEditPatient(null)}
+          title={t('edit_patient')}
+          onSubmit={form.handleSubmit(handleEdit)}
+          maxWidth="2xl"
+        >
+          <PatientForm
+            form={form}
+            patientSources={patientSources}
+            campaigns={campaigns}
+            patients={patients}
+            t={t}
+            onCreatePatientSource={handleCreatePatientSource}
+            onCreateCampaign={handleCreateCampaign}
+          />
+        </FormModal>
+
+        {/* View Modal */}
+        <FormModal
+          open={!!viewPatient}
+          onOpenChange={(open) => !open && setViewPatient(null)}
+          title={t('patient_details')}
+          showFooter={false}
+          maxWidth="lg"
+        >
+          {viewPatient && <PatientDetails patient={viewPatient} t={t} />}
+        </FormModal>
+
+        {/* Delete Confirmation */}
+        <ConfirmDialog
+          open={!!deletePatientData}
+          onOpenChange={(open) => !open && setDeletePatientData(null)}
+          title={t('delete_patient')}
+          description={deletePatientData ? t('delete_patient_confirm', {
+            name: `${deletePatientData.first_name} ${deletePatientData.last_name}`
+          }) : ''}
+          onConfirm={handleDelete}
+          variant="destructive"
+        />
       </div>
-      
-      <Card>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="p-8 text-center">
-              <p>{t('common.loading')}</p>
-            </div>
-          ) : patients.length === 0 ? (
-            <EmptyState
-              icon={<Users className="h-8 w-8" />}
-              title={t('patients.noPatients')}
-              description={t('patients.noPatientDescription')}
-              action={
-                <Button onClick={() => {
-                  setEditingPatient(null);
-                  reset();
-                  setIsCreateOpen(true);
-                }}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  {t('patients.addFirstPatient')}
-                </Button>
-              }
-            />
-          ) : (
-            <DataTable
-              columns={columns}
-              data={patients}
-            />
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
+    </AppLayout>
+  )
 }

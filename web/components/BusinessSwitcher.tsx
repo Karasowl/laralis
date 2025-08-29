@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
@@ -10,37 +10,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ApiResponse, Clinic } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Clinic } from '@/lib/types';
+import { useApi } from '@/hooks/use-api';
 
 export function BusinessSwitcher() {
   const t = useTranslations('common');
   const router = useRouter();
-  const [clinics, setClinics] = useState<Clinic[]>([]);
   const [selectedClinicId, setSelectedClinicId] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(true);
+  
+  // Use useApi hook for fetching clinics
+  const { data: clinicsData, loading, error } = useApi<{ data: Clinic[] }>(
+    '/api/clinics',
+    { autoFetch: true }
+  );
+  
+  const clinics = clinicsData?.data || [];
 
+  // Set initial selected clinic
   useEffect(() => {
-    fetchClinics();
-  }, []);
-
-  const fetchClinics = async () => {
-    try {
-      const response = await fetch('/api/clinics');
-      const result: ApiResponse<Clinic[]> = await response.json();
-      
-      if (result.data) {
-        setClinics(result.data);
-        
-        // Get current clinic from cookie or use first one
-        const currentClinicId = getCookieValue('clinicId') || result.data[0]?.id || '';
-        setSelectedClinicId(currentClinicId);
-      }
-    } catch (error) {
-      console.error('Failed to fetch clinics:', error);
-    } finally {
-      setIsLoading(false);
+    if (clinics.length > 0 && !selectedClinicId) {
+      // Get current clinic from cookie or use first one
+      const currentClinicId = getCookieValue('clinicId') || clinics[0]?.id || '';
+      setSelectedClinicId(currentClinicId);
     }
-  };
+  }, [clinics, selectedClinicId]);
 
   const getCookieValue = (name: string): string | null => {
     const value = `; ${document.cookie}`;
@@ -51,7 +45,7 @@ export function BusinessSwitcher() {
     return null;
   };
 
-  const handleClinicChange = async (clinicId: string) => {
+  const handleClinicChange = useCallback(async (clinicId: string) => {
     try {
       const response = await fetch('/api/clinics', {
         method: 'POST',
@@ -69,12 +63,10 @@ export function BusinessSwitcher() {
     } catch (error) {
       console.error('Failed to switch clinic:', error);
     }
-  };
+  }, [router]);
 
-  if (isLoading) {
-    return (
-      <div className="w-[200px] h-10 bg-gray-100 rounded-md animate-pulse" />
-    );
+  if (loading) {
+    return <Skeleton className="w-[200px] h-10" />;
   }
 
   if (clinics.length === 0) {

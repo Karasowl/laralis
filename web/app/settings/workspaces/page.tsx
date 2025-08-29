@@ -1,24 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslations } from 'next-intl';
-import { PageHeader } from '@/components/ui/PageHeader';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
-import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
-import { Plus, Edit2, Trash2, Building2, Search } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { z } from 'zod';
+import { SimpleCrudPage } from '@/components/ui/crud-page-layout';
+import { FormModal } from '@/components/ui/form-modal';
+import { InputField, TextareaField } from '@/components/ui/form-field';
+import { useCrudOperations } from '@/hooks/use-crud-operations';
+import { Building2 } from 'lucide-react';
 
 interface Workspace {
   id: string;
@@ -31,65 +21,43 @@ interface Workspace {
   updated_at: string;
 }
 
+const workspaceFormSchema = z.object({
+  name: z.string().min(1, 'Nombre es requerido'),
+  slug: z.string().optional(),
+  description: z.string().optional()
+});
+
+type WorkspaceFormData = z.infer<typeof workspaceFormSchema>;
+
 export default function WorkspacesPage() {
   const t = useTranslations();
-  const { toast } = useToast();
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingWorkspace, setEditingWorkspace] = useState<Workspace | null>(null);
-  const [search, setSearch] = useState('');
   
-  const [formData, setFormData] = useState({
-    name: '',
-    slug: '',
-    description: '',
+  // Use the centralized CRUD hook
+  const crud = useCrudOperations<Workspace>({
+    endpoint: '/api/workspaces',
+    entityName: t('settings.workspaces.entity', 'Workspace'),
+    includeClinicId: false,
+    searchParam: 'search',
   });
 
-  const supabase = createSupabaseBrowserClient();
-
-  const loadWorkspaces = async () => {
-    try {
-      setLoading(true);
-      
-      // Primero obtener el usuario autenticado
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        toast({
-          title: 'Error',
-          description: 'No se encontró usuario autenticado',
-          variant: 'destructive',
-        });
-        setLoading(false);
-        return;
-      }
-      
-      // Cargar solo los workspaces del usuario actual
-      const { data, error } = await supabase
-        .from('workspaces')
-        .select('*')
-        .eq('owner_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setWorkspaces(data || []);
-    } catch (error: any) {
-      console.error('Error loading workspaces:', error);
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
+  // Form handling
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    formState: { errors }
+  } = useForm<WorkspaceFormData>({
+    resolver: zodResolver(workspaceFormSchema),
+    defaultValues: {
+      name: '',
+      slug: '',
+      description: ''
     }
-  };
+  });
 
-  useEffect(() => {
-    loadWorkspaces();
-  }, []);
-
+  // Generate slug from name
   const generateSlug = (name: string) => {
     return name
       .toLowerCase()
@@ -97,310 +65,151 @@ export default function WorkspacesPage() {
       .replace(/^-+|-+$/g, '');
   };
 
-  const handleSubmit = async () => {
-    try {
-      // Obtener el usuario actual
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        toast({
-          title: 'Error',
-          description: 'No se encontró usuario autenticado',
-          variant: 'destructive',
-        });
-        return;
-      }
-      
-      if (editingWorkspace) {
-        const { error } = await supabase
-          .from('workspaces')
-          .update({
-            name: formData.name,
-            description: formData.description,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', editingWorkspace.id)
-          .eq('owner_id', user.id); // Asegurar que solo edite sus propios workspaces
+  // Form submission
+  const onSubmit = async (data: WorkspaceFormData) => {
+    const payload = {
+      name: data.name,
+      slug: data.slug || generateSlug(data.name),
+      description: data.description,
+      onboarding_completed: false,
+      onboarding_step: 0
+    };
 
-        if (error) throw error;
+    const success = crud.editingItem
+      ? await crud.handleUpdate(crud.editingItem.id, {
+          name: data.name,
+          description: data.description
+        })
+      : await crud.handleCreate(payload);
 
-        toast({
-          title: t('settings.workspaces.updateSuccess'),
-          description: t('settings.workspaces.updateSuccessDesc'),
-        });
-      } else {
-        const { error } = await supabase
-          .from('workspaces')
-          .insert({
-            name: formData.name,
-            slug: formData.slug || generateSlug(formData.name),
-            description: formData.description,
-            owner_id: user.id,
-            onboarding_completed: false,
-            onboarding_step: 0,
-          });
-
-        if (error) throw error;
-
-        toast({
-          title: t('settings.workspaces.createSuccess'),
-          description: t('settings.workspaces.createSuccessDesc'),
-        });
-      }
-
-      setDialogOpen(false);
-      setEditingWorkspace(null);
-      setFormData({ name: '', slug: '', description: '' });
-      loadWorkspaces();
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
+    if (success) {
+      crud.closeDialog();
+      reset();
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm(t('settings.workspaces.deleteConfirm'))) return;
-
-    try {
-      // Primero eliminar todas las clínicas del workspace
-      await supabase
-        .from('clinics')
-        .delete()
-        .eq('workspace_id', id);
-      
-      // Luego eliminar el workspace
-      const { error } = await supabase
-        .from('workspaces')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      toast({
-        title: t('settings.workspaces.deleteSuccess'),
-        description: t('settings.workspaces.deleteSuccessDesc'),
-      });
-
-      // Recargar workspaces
-      const { data: remainingWorkspaces } = await supabase
-        .from('workspaces')
-        .select('*');
-      
-      // Si no quedan workspaces, redirigir al onboarding
-      if (!remainingWorkspaces || remainingWorkspaces.length === 0) {
-        window.location.href = '/onboarding';
-      } else {
-        loadWorkspaces();
-      }
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const openEditDialog = (workspace: Workspace) => {
-    setEditingWorkspace(workspace);
-    setFormData({
+  // Handle edit
+  const handleEdit = (workspace: Workspace) => {
+    crud.handleEdit(workspace);
+    
+    reset({
       name: workspace.name,
       slug: workspace.slug,
-      description: workspace.description || '',
+      description: workspace.description || ''
     });
-    setDialogOpen(true);
   };
 
-  const openCreateDialog = () => {
-    setEditingWorkspace(null);
-    setFormData({ name: '', slug: '', description: '' });
-    setDialogOpen(true);
+  // Handle dialog open
+  const handleOpenDialog = () => {
+    reset({
+      name: '',
+      slug: '',
+      description: ''
+    });
+    crud.openDialog();
   };
 
-  const filteredWorkspaces = workspaces.filter((ws) => {
-    const q = search.trim().toLowerCase();
-    if (!q) return true;
-    return (
-      ws.name.toLowerCase().includes(q) ||
-      ws.slug.toLowerCase().includes(q) ||
-      (ws.description || '').toLowerCase().includes(q)
-    );
-  });
+  // Table columns
+  const columns = [
+    { 
+      key: 'name', 
+      label: t('settings.workspaces.name') 
+    },
+    { 
+      key: 'slug', 
+      label: t('settings.workspaces.slug'),
+      render: (_value: any, workspace: Workspace) =>
+        <code className="text-xs bg-gray-100 px-2 py-1 rounded">{workspace.slug}</code>
+    },
+    { 
+      key: 'description', 
+      label: t('settings.workspaces.description'), 
+      render: (_value: any, workspace: Workspace) => 
+        workspace.description || '-'
+    },
+    { 
+      key: 'onboarding_completed', 
+      label: t('common.status'), 
+      render: (_value: any, workspace: Workspace) => 
+        <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
+          workspace.onboarding_completed
+            ? 'bg-green-100 text-green-700'
+            : 'bg-amber-100 text-amber-700'
+        }`}>
+          {workspace.onboarding_completed
+            ? t('settings.workspaces.configured')
+            : t('settings.workspaces.pending')}
+        </span>
+    },
+    { 
+      key: 'created_at', 
+      label: t('common.created'), 
+      render: (_value: any, workspace: Workspace) => 
+        new Date(workspace.created_at).toLocaleDateString()
+    }
+  ];
 
   return (
-    <div className="container mx-auto p-6 md:py-8 max-w-7xl">
-      <PageHeader
-        title={t('settings.workspaces.title')}
-        description={t('settings.workspaces.description')}
-      />
+    <SimpleCrudPage
+      title={t('settings.workspaces.title')}
+      subtitle={t('settings.workspaces.description')}
+      entityName={t('settings.workspaces.entity', 'Workspace')}
+      data={{
+        items: crud.items || [],
+        loading: crud.loading,
+        searchTerm: crud.searchTerm,
+        onSearchChange: crud.setSearchTerm,
+        onAdd: handleOpenDialog,
+        onEdit: handleEdit,
+        onDelete: crud.handleDeleteClick,
+        deleteConfirmOpen: crud.deleteConfirmOpen,
+        onDeleteConfirmChange: (open) => open ? null : crud.closeDialog(),
+        deletingItem: crud.deletingItem,
+        onDeleteConfirm: crud.handleDeleteConfirm,
+      }}
+      columns={columns}
+      emptyIcon={<Building2 className="h-8 w-8" />}
+      searchable={true}
+    >
+      <FormModal
+        open={crud.isDialogOpen}
+        onOpenChange={crud.closeDialog}
+        title={crud.editingItem ? t('settings.workspaces.edit') : t('settings.workspaces.create')}
+        onSubmit={handleSubmit(onSubmit)}
+        isSubmitting={crud.isSubmitting}
+        cancelLabel={t('common.cancel')}
+        submitLabel={crud.editingItem ? t('common.update') : t('common.create')}
+      >
+        <div className="space-y-4">
+          <InputField
+            label={t('settings.workspaces.name')}
+            value={watch('name')}
+            onChange={(v) => setValue('name', v as string)}
+            error={errors.name?.message}
+            required
+            placeholder={t('settings.workspaces.namePlaceholder')}
+          />
 
-      <div className="mt-2 mb-8 flex flex-col-reverse sm:flex-row gap-4 sm:items-center sm:justify-between">
-        <div className="relative w-full sm:w-80 md:w-96">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t('common.search')}
-            className="pl-10 h-11"
-            aria-label={t('common.search')}
+          {!crud.editingItem && (
+            <InputField
+              label={t('settings.workspaces.slug')}
+              value={watch('slug') || generateSlug(watch('name'))}
+              onChange={(v) => setValue('slug', v as string)}
+              error={errors.slug?.message}
+              placeholder={t('settings.workspaces.slugPlaceholder')}
+            />
+          )}
+
+          <TextareaField
+            label={t('settings.workspaces.description')}
+            value={watch('description')}
+            onChange={(v) => setValue('description', v as string)}
+            error={errors.description?.message}
+            placeholder={t('settings.workspaces.descriptionPlaceholder')}
+            rows={3}
           />
         </div>
-        <Button onClick={openCreateDialog} className="h-11 px-4 self-end sm:self-auto">
-          <Plus className="h-4 w-4 mr-2" />
-          {t('settings.workspaces.create')}
-        </Button>
-      </div>
-
-      {loading ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <Card key={i} className="p-6 animate-pulse">
-              <div className="h-6 bg-gray-200 rounded w-3/4 mb-2"></div>
-              <div className="h-4 bg-gray-200 rounded w-full mb-4"></div>
-              <div className="h-8 bg-gray-200 rounded w-1/2"></div>
-            </Card>
-          ))}
-        </div>
-      ) : filteredWorkspaces.length === 0 ? (
-        <Card className="p-12 text-center">
-          <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">
-            {search ? t('common.noData') : t('settings.workspaces.empty')}
-          </h3>
-          <p className="text-gray-500 mb-4">
-            {search ? '' : t('settings.workspaces.emptyDesc')}
-          </p>
-          {!search && (
-          <Button onClick={openCreateDialog} className="h-11">
-            <Plus className="h-4 w-4 mr-2" />
-            {t('settings.workspaces.createFirst')}
-          </Button>
-          )}
-        </Card>
-      ) : (
-        <div className="grid gap-7 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filteredWorkspaces.map((workspace) => (
-            <Card
-              key={workspace.id}
-              className="p-6 lg:p-7 rounded-2xl border bg-card shadow-sm hover:shadow-md transition-shadow min-h-[152px]"
-            >
-              <div className="flex items-start justify-between gap-3 mb-3">
-                <div className="min-w-0">
-                  <h3 className="font-semibold text-base truncate leading-6">{workspace.name}</h3>
-                  <p className="text-xs text-muted-foreground mt-1 truncate">{workspace.slug}</p>
-                </div>
-                <div className="flex gap-1 shrink-0">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-9 w-9"
-                    aria-label={t('common.edit')}
-                    onClick={() => openEditDialog(workspace)}
-                  >
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-9 w-9"
-                    aria-label={t('common.delete')}
-                    onClick={() => handleDelete(workspace.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              {workspace.description && (
-                <p className="text-sm text-muted-foreground mb-5 line-clamp-2">{workspace.description}</p>
-              )}
-              <div className="flex items-center justify-between">
-                <span
-                  className={
-                    workspace.onboarding_completed
-                      ? 'inline-flex items-center rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700'
-                      : 'inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700'
-                  }
-                >
-                  {workspace.onboarding_completed
-                    ? t('settings.workspaces.configured')
-                    : t('settings.workspaces.pending')}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {new Date(workspace.created_at).toLocaleDateString()}
-                </span>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>
-              {editingWorkspace
-                ? t('settings.workspaces.edit')
-                : t('settings.workspaces.create')}
-            </DialogTitle>
-            <DialogDescription>
-              {editingWorkspace
-                ? t('settings.workspaces.editDesc')
-                : t('settings.workspaces.createDesc')}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="name">{t('settings.workspaces.name')}</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-                placeholder={t('settings.workspaces.namePlaceholder')}
-              />
-            </div>
-            {!editingWorkspace && (
-              <div className="grid gap-2">
-                <Label htmlFor="slug">{t('settings.workspaces.slug')}</Label>
-                <Input
-                  id="slug"
-                  value={formData.slug || generateSlug(formData.name)}
-                  onChange={(e) =>
-                    setFormData({ ...formData, slug: e.target.value })
-                  }
-                  placeholder={t('settings.workspaces.slugPlaceholder')}
-                />
-              </div>
-            )}
-            <div className="grid gap-2">
-              <Label htmlFor="description">
-                {t('settings.workspaces.description')}
-              </Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) =>
-                  setFormData({ ...formData, description: e.target.value })
-                }
-                placeholder={t('settings.workspaces.descriptionPlaceholder')}
-                rows={3}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              {t('common.cancel')}
-            </Button>
-            <Button onClick={handleSubmit}>
-              {editingWorkspace ? t('common.update') : t('common.create')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+      </FormModal>
+    </SimpleCrudPage>
   );
 }

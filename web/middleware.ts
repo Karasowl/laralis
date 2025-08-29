@@ -91,8 +91,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
-  // If has user and trying to access auth pages (except logout/callback)
-  if (user && isPublicPath && !pathname.includes('/logout') && !pathname.includes('/callback')) {
+  // If has user and trying to access auth pages (except logout/callback/reset-password)
+  if (user && isPublicPath && 
+      !pathname.includes('/logout') && 
+      !pathname.includes('/callback') && 
+      !pathname.includes('/reset-password')) {
     // Check if user has workspace
     const { data: workspaces } = await supabase
       .from('workspaces')

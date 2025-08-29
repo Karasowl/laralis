@@ -1,174 +1,60 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { useWorkspace } from '@/contexts/workspace-context';
-import { PageHeader } from '@/components/ui/PageHeader';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { CrudPageLayout } from '@/components/ui/crud-page-layout';
+import { FormModal } from '@/components/ui/form-modal';
+import { InputField, FormGrid } from '@/components/ui/form-field';
+import { SummaryCards } from '@/components/ui/summary-cards';
 import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { DataTable, Column } from '@/components/ui/DataTable';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { ActionDropdown, createEditAction, createDeleteAction } from '@/components/ui/ActionDropdown';
-import { ConfirmDialog, createDeleteConfirm } from '@/components/ui/ConfirmDialog';
-import { formatCurrency } from '@/lib/format';
-import type { Asset, ApiResponse } from '@/lib/types';
+import { useCrudOperations } from '@/hooks/use-crud-operations';
+import { formatCurrency } from '@/lib/money';
+import { Asset } from '@/lib/types';
 import { zAssetForm } from '@/lib/zod';
+import { Package, TrendingDown, Calendar, DollarSign } from 'lucide-react';
 import { z } from 'zod';
-import { Package } from 'lucide-react';
-import { toast } from 'sonner';
 
 type AssetFormData = z.infer<typeof zAssetForm>;
 
 export default function AssetsPage() {
   const t = useTranslations();
-  const { currentClinic } = useWorkspace(); // ✅ Obtener clínica actual
-  const [assets, setAssets] = useState<Asset[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [deletingAsset, setDeletingAsset] = useState<Asset | null>(null);
-  const [form, setForm] = useState<AssetFormData>({
-    name: '',
-    purchase_price_pesos: 0,
-    depreciation_months: 36,
-    purchase_date: ''
+  
+  // CRUD operations
+  const crud = useCrudOperations<Asset>({
+    endpoint: '/api/assets',
+    entityName: t('assets.entity'),
+    includeClinicId: true,
   });
 
-  useEffect(() => {
-    fetchAssets();
-  }, []);
-
-  const fetchAssets = async () => {
-    try {
-      const res = await fetch(`/api/assets?clinicId=${currentClinic.id}`);
-      const result: ApiResponse<Asset[]> = await res.json();
-      if (result.data) setAssets(result.data);
-    } catch (e) {
-      console.error('Error fetching assets', e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const open = () => {
-    setEditingAsset(null);
-    setForm({
+  // Form handling
+  const {
+    setValue,
+    watch,
+    reset,
+    handleSubmit,
+    formState: { errors }
+  } = useForm<AssetFormData>({
+    resolver: zodResolver(zAssetForm),
+    defaultValues: {
       name: '',
       purchase_price_pesos: 0,
       depreciation_months: 36,
       purchase_date: ''
-    });
-    setIsDialogOpen(true);
-  };
-  
-  const close = () => {
-    setIsDialogOpen(false);
-    setEditingAsset(null);
-    setForm({
-      name: '',
-      purchase_price_pesos: 0,
-      depreciation_months: 36,
-      purchase_date: ''
-    });
-  };
-
-  const handleEdit = (asset: Asset) => {
-    setEditingAsset(asset);
-    setForm({
-      name: asset.name,
-      purchase_price_pesos: asset.purchase_price_cents / 100,
-      depreciation_months: asset.depreciation_months,
-      purchase_date: asset.purchase_date || ''
-    });
-    setIsDialogOpen(true);
-  };
-
-  const handleDeleteClick = (asset: Asset) => {
-    setDeletingAsset(asset);
-    setDeleteConfirmOpen(true);
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!deletingAsset) return;
-    
-    try {
-      const res = await fetch(`/api/assets/${deletingAsset.id}`, {
-        method: 'DELETE'
-      });
-      
-      if (!res.ok) {
-        const data = await res.json();
-        toast.error(data.error || t('assets.deleteError'));
-        return;
-      }
-      
-      toast.success(t('assets.deleteSuccess'));
-      fetchAssets();
-    } catch (error) {
-      console.error('Error deleting asset:', error);
-      toast.error(t('assets.deleteError'));
-    } finally {
-      setDeleteConfirmOpen(false);
-      setDeletingAsset(null);
     }
-  };
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    try {
-      const parsed = zAssetForm.safeParse(form);
-      if (!parsed.success) {
-        toast.error(parsed.error.errors.map(er => er.message).join(', '));
-        setIsSubmitting(false);
-        return;
-      }
-      const payload = {
-        name: form.name,
-        purchase_price_pesos: form.purchase_price_pesos,
-        depreciation_months: form.depreciation_months,
-        purchase_date: form.purchase_date || undefined,
-      };
-      
-      const url = editingAsset ? `/api/assets/${editingAsset.id}` : '/api/assets';
-      const method = editingAsset ? 'PUT' : 'POST';
-      
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        console.error('Save error', data);
-        toast.error(data.error || t('assets.saveError'));
-        return;
-      }
-      
-      toast.success(editingAsset ? t('assets.updateSuccess') : t('assets.createSuccess'));
-      close();
-      fetchAssets();
-    } catch (e) {
-      console.error('Error saving asset', e);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
+  // Calculate summary statistics
   const summary = useMemo(() => {
-    const totalInvestmentCents = assets.reduce((sum, a) => sum + a.purchase_price_cents, 0);
-    const monthlyDepreciationCents = assets.reduce((sum, a) => {
+    const totalInvestmentCents = crud.items.reduce((sum, a) => sum + a.purchase_price_cents, 0);
+    const monthlyDepreciationCents = crud.items.reduce((sum, a) => {
       if (!a.depreciation_months || a.depreciation_months <= 0) return sum;
       return sum + Math.round(a.purchase_price_cents / a.depreciation_months);
     }, 0);
     
-    const totalMonths = assets.length > 0 
-      ? Math.round(assets.reduce((sum, a) => sum + (a.depreciation_months || 0), 0) / assets.length)
+    const totalMonths = crud.items.length > 0 
+      ? Math.round(crud.items.reduce((sum, a) => sum + (a.depreciation_months || 0), 0) / crud.items.length)
       : 0;
     const totalYears = Math.round(totalMonths / 12 * 10) / 10;
     
@@ -177,144 +63,200 @@ export default function AssetsPage() {
       monthlyDepreciationCents,
       totalMonths,
       totalYears,
-      assetCount: assets.length
+      assetCount: crud.items.length
     };
-  }, [assets]);
+  }, [crud.items]);
 
-  const columns: Column<Asset>[] = [
-    { key: 'name', label: t('assets.table.name') },
-    { key: 'purchase_price_cents', label: t('assets.table.purchasePrice'), render: (_v, row) => formatCurrency(row.purchase_price_cents) },
-    { key: 'depreciation_months', label: t('assets.table.months') },
-    { key: 'monthly_dep', label: t('assets.table.monthlyDep'), render: (_v, row) => formatCurrency(Math.round(row.purchase_price_cents / row.depreciation_months)) },
-    {
-      key: 'actions',
-      label: t('assets.table.actions'),
-      render: (_v, row) => (
-        <ActionDropdown
-          actions={[
-            createEditAction(() => handleEdit(row), t('assets.edit')),
-            createDeleteAction(() => handleDeleteClick(row), t('assets.delete'))
-          ]}
-        />
-      )
+  // Form submission
+  const onSubmit = async (data: AssetFormData) => {
+    const payload = {
+      name: data.name,
+      purchase_price_pesos: data.purchase_price_pesos,
+      depreciation_months: data.depreciation_months,
+      purchase_date: data.purchase_date || undefined,
+    };
+    
+    const success = crud.editingItem
+      ? await crud.handleUpdate(crud.editingItem.id, payload)
+      : await crud.handleCreate(payload);
+    
+    if (success) {
+      crud.closeDialog();
+      reset();
+    }
+  };
+
+  // Handle edit
+  const handleEdit = (asset: Asset) => {
+    crud.handleEdit(asset);
+    reset({
+      name: asset.name,
+      purchase_price_pesos: asset.purchase_price_cents / 100,
+      depreciation_months: asset.depreciation_months,
+      purchase_date: asset.purchase_date || ''
+    });
+  };
+
+  // Handle dialog open
+  const handleOpenDialog = () => {
+    reset({
+      name: '',
+      purchase_price_pesos: 0,
+      depreciation_months: 36,
+      purchase_date: ''
+    });
+    crud.openDialog();
+  };
+
+  // Table columns
+  const columns = [
+    { 
+      key: 'name', 
+      label: t('assets.table.name') 
+    },
+    { 
+      key: 'purchase_price_cents', 
+      label: t('assets.table.purchasePrice'), 
+      render: (_v: any, row: Asset) => formatCurrency(row.purchase_price_cents) 
+    },
+    { 
+      key: 'depreciation_months', 
+      label: t('assets.table.months') 
+    },
+    { 
+      key: 'monthly_dep', 
+      label: t('assets.table.monthlyDep'), 
+      render: (_v: any, row: Asset) => 
+        formatCurrency(Math.round(row.purchase_price_cents / row.depreciation_months)) 
     }
   ];
 
+  // Summary cards
+  const summaryCards = (
+    <SummaryCards
+      cards={[
+        {
+          label: t('businessSetup.assets.totalInvestment'),
+          value: formatCurrency(summary.totalInvestmentCents),
+          subtitle: `${summary.assetCount} ${t('businessSetup.assets.assets')}`,
+          icon: DollarSign,
+          color: 'primary'
+        },
+        {
+          label: t('businessSetup.assets.depreciationPeriod'),
+          value: `${summary.totalYears} ${t('businessSetup.assets.years')}`,
+          subtitle: `${summary.totalMonths} ${t('businessSetup.assets.months')}`,
+          icon: Calendar,
+          color: 'info'
+        },
+        {
+          label: t('assets.monthlyDepreciationTotal'),
+          value: formatCurrency(summary.monthlyDepreciationCents),
+          subtitle: t('businessSetup.assets.perMonth'),
+          icon: TrendingDown,
+          color: 'success'
+        },
+        {
+          label: t('businessSetup.assets.yearlyDepreciation'),
+          value: formatCurrency(summary.monthlyDepreciationCents * 12),
+          subtitle: t('businessSetup.assets.perYear'),
+          icon: TrendingDown,
+          color: 'warning'
+        }
+      ]}
+      columns={4}
+    />
+  );
+
+  // Additional content - depreciation explanation
+  const additionalContent = crud.items.length > 0 && (
+    <Card className="p-6">
+      <h3 className="text-lg font-semibold mb-4">{t('businessSetup.assets.depreciationExplanation')}</h3>
+      <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-lg space-y-2">
+        <p className="text-sm text-blue-800 dark:text-blue-200">
+          <strong>{t('businessSetup.assets.formula')}:</strong> {t('businessSetup.assets.formulaExplanation')}
+        </p>
+        <p className="text-xs text-blue-600 dark:text-blue-400">
+          {t('businessSetup.assets.exampleCalculation')} {formatCurrency(100000)} ÷ 36 {t('businessSetup.assets.months')} = {formatCurrency(Math.round(100000 / 36))}/{t('businessSetup.assets.month')}
+        </p>
+      </div>
+    </Card>
+  );
+
   return (
-    <div className="space-y-6">
-      <PageHeader title={t('assets.pageTitle')} subtitle={t('assets.pageSubtitle')} />
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="p-4">
-          <p className="text-sm text-gray-600">{t('businessSetup.assets.totalInvestment')}</p>
-          <p className="text-2xl font-semibold">{formatCurrency(summary.totalInvestmentCents)}</p>
-          <p className="text-xs text-gray-500">{summary.assetCount} {t('businessSetup.assets.assets')}</p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-sm text-gray-600">{t('businessSetup.assets.depreciationPeriod')}</p>
-          <p className="text-2xl font-semibold">{summary.totalYears} {t('businessSetup.assets.years')}</p>
-          <p className="text-xs text-gray-500">{summary.totalMonths} {t('businessSetup.assets.months')}</p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-sm text-gray-600">{t('assets.monthlyDepreciationTotal')}</p>
-          <p className="text-2xl font-semibold text-primary">{formatCurrency(summary.monthlyDepreciationCents)}</p>
-          <p className="text-xs text-gray-500">{t('businessSetup.assets.perMonth')}</p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-sm text-gray-600">{t('businessSetup.assets.yearlyDepreciation')}</p>
-          <p className="text-2xl font-semibold">{formatCurrency(summary.monthlyDepreciationCents * 12)}</p>
-          <p className="text-xs text-gray-500">{t('businessSetup.assets.perYear')}</p>
-        </Card>
-      </div>
-
-      <div className="flex justify-between">
-        <div />
-        <Button onClick={open}>{t('assets.addAssetButton')}</Button>
-      </div>
-
-      <Card>
-        <div className="p-6">
-          <h3 className="text-lg font-semibold mb-4">{t('businessSetup.assets.detailBreakdown')}</h3>
-          {assets.length === 0 ? (
-            <EmptyState
-              icon={<Package className="h-8 w-8" />}
-              title={t('assets.emptyTitle')}
-              description={t('assets.emptyDescription')}
-              action={
-                <Button onClick={open}>
-                  {t('assets.addAssetButton')}
-                </Button>
-              }
+    <>
+      <CrudPageLayout
+        title={t('assets.pageTitle')}
+        subtitle={t('assets.pageSubtitle')}
+        items={crud.items}
+        loading={crud.loading}
+        columns={columns}
+        onAdd={handleOpenDialog}
+        onEdit={handleEdit}
+        onDelete={crud.handleDeleteClick}
+        addButtonLabel={t('assets.addAssetButton')}
+        emptyIcon={<Package className="h-8 w-8" />}
+        emptyTitle={t('assets.emptyTitle')}
+        emptyDescription={t('assets.emptyDescription')}
+        deleteConfirmOpen={crud.deleteConfirmOpen}
+        onDeleteConfirmChange={(open) => { if (!open) crud.closeDialog() }}
+        deletingItem={crud.deletingItem}
+        onDeleteConfirm={crud.handleDeleteConfirm}
+        summaryCards={summaryCards}
+        additionalContent={additionalContent}
+      >
+        <FormModal
+          open={crud.isDialogOpen}
+          onOpenChange={crud.closeDialog}
+          title={crud.editingItem ? t('assets.editAssetDialogTitle') : t('assets.addAssetDialogTitle')}
+          onSubmit={handleSubmit(onSubmit)}
+          isSubmitting={crud.isSubmitting}
+          cancelLabel={t('assets.formCancelButton')}
+          submitLabel={crud.editingItem ? t('assets.formUpdateButton') : t('assets.formSaveButton')}
+          maxWidth="md"
+        >
+          <div className="space-y-4">
+            <InputField
+              label={t('assets.formNameLabel')}
+              value={watch('name')}
+              onChange={(v) => setValue('name', v as string)}
+              error={errors.name?.message}
+              required
             />
-          ) : (
-            <DataTable columns={columns} data={assets} />
-          )}
-        </div>
-      </Card>
-      
-      {assets.length > 0 && (
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">{t('businessSetup.assets.depreciationExplanation')}</h3>
-          <div className="bg-blue-50 p-4 rounded-lg space-y-2">
-            <p className="text-sm text-blue-800">
-              <strong>{t('businessSetup.assets.formula')}:</strong> {t('businessSetup.assets.formulaExplanation')}
-            </p>
-            <p className="text-xs text-blue-600">
-              {t('businessSetup.assets.exampleCalculation')} {formatCurrency(100000)} ÷ 36 {t('businessSetup.assets.months')} = {formatCurrency(Math.round(100000 / 36))}/{t('businessSetup.assets.month')}
-            </p>
+            
+            <FormGrid columns={2}>
+              <InputField
+                label={t('assets.formPriceLabel')}
+                type="number"
+                value={watch('purchase_price_pesos')}
+                onChange={(v) => setValue('purchase_price_pesos', v as number)}
+                placeholder="0.00"
+                step="0.01"
+                error={errors.purchase_price_pesos?.message}
+                helperText={t('businessSetup.assets.priceHelp')}
+                required
+              />
+              
+              <InputField
+                label={t('assets.formMonthsLabel')}
+                type="number"
+                value={watch('depreciation_months')}
+                onChange={(v) => setValue('depreciation_months', v as number)}
+                error={errors.depreciation_months?.message}
+                required
+              />
+            </FormGrid>
+            
+            <InputField
+              label={t('assets.formPurchaseDateLabel')}
+              type="date"
+              value={watch('purchase_date')}
+              onChange={(v) => setValue('purchase_date', v as string)}
+              error={errors.purchase_date?.message}
+            />
           </div>
-        </Card>
-      )}
-
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {editingAsset ? t('assets.editAssetDialogTitle') : t('assets.addAssetDialogTitle')}
-            </DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label>{t('assets.formNameLabel')}</Label>
-              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            </div>
-            <div>
-              <Label>{t('assets.formPriceLabel')}</Label>
-              <Input type="number" step="0.01" value={form.purchase_price_pesos} placeholder="0.00"
-                     onChange={(e) => setForm({ ...form, purchase_price_pesos: parseFloat(e.target.value) || 0 })} />
-              <p className="text-xs text-gray-500 mt-1">{t('businessSetup.assets.priceHelp')}</p>
-            </div>
-            <div>
-              <Label>{t('assets.formMonthsLabel')}</Label>
-              <Input type="number" value={form.depreciation_months}
-                     onChange={(e) => setForm({ ...form, depreciation_months: parseInt(e.target.value) || 1 })} />
-            </div>
-            <div>
-              <Label>{t('assets.formPurchaseDateLabel')}</Label>
-              <Input type="date" value={form.purchase_date}
-                     onChange={(e) => setForm({ ...form, purchase_date: e.target.value })} />
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={close}>{t('assets.formCancelButton')}</Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {editingAsset ? t('assets.formUpdateButton') : t('assets.formSaveButton')}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <ConfirmDialog
-        open={deleteConfirmOpen}
-        onOpenChange={setDeleteConfirmOpen}
-        {...createDeleteConfirm(handleDeleteConfirm, deletingAsset?.name)}
-      />
-    </div>
+        </FormModal>
+      </CrudPageLayout>
+    </>
   );
 }
-
-
-
-
-

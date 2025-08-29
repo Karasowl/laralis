@@ -106,3 +106,38 @@ export type SupplyCategory =
   | 'medicamentos'
   | 'equipos'
   | 'otros';
+
+// Patient interface
+export interface Patient {
+  id: string;
+  clinic_id: string;
+  first_name: string;
+  last_name: string;
+  email?: string;
+  phone?: string;
+  birth_date?: string;
+  first_visit_date?: string;
+  gender?: 'male' | 'female' | 'other';
+  address?: string;
+  city?: string;
+  postal_code?: string;
+  notes?: string;
+  source_id?: string;
+  referred_by_patient_id?: string;
+  campaign_id?: string;
+  created_at: string;
+  updated_at?: string;
+  // Relations (populated via joins)
+  source?: PatientSource;
+}
+
+// Patient source interface
+export interface PatientSource {
+  id: string;
+  name: string;
+  description?: string;
+  color?: string;
+  icon?: string;
+  is_active: boolean;
+  is_system: boolean;
+}

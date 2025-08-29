@@ -1,201 +1,337 @@
-'use client';
+'use client'
 
-import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useTranslations } from 'next-intl';
-import { useWorkspace } from '@/contexts/workspace-context';
+import { useState, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
+import { CrudPageLayout } from '@/components/ui/crud-page-layout'
+import { FormModal } from '@/components/ui/form-modal'
+import { FormGrid, FormSection, InputField } from '@/components/ui/form-field'
+import { Button } from '@/components/ui/button'
+import { Archive, Trash2, RotateCcw } from 'lucide-react'
+import { useCrudOperations } from '@/hooks/use-crud-operations'
+import { useWorkspace } from '@/contexts/workspace-context'
+import { formatMoney } from '@/lib/money'
+import { Form } from '@/components/ui/form'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 
-export default function MarketingSettingsClient() {
-  const t = useTranslations();
-  const { currentClinic } = useWorkspace(); // ✅ Obtener clínica actual
-  const [platforms, setPlatforms] = useState<any[]>([]);
-  const [campaigns, setCampaigns] = useState<any[]>([]);
-  const [selectedPlatformId, setSelectedPlatformId] = useState<string>('none');
-  const [newPlatformName, setNewPlatformName] = useState('');
-  const [newCampaignName, setNewCampaignName] = useState('');
+// Schemas
+const platformSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  clinic_id: z.string()
+})
 
-  const loadPlatforms = async () => {
-    if (!currentClinic?.id) return; // ✅ No cargar sin clínica
-    
-    const res = await fetch(`/api/marketing/platforms?clinicId=${currentClinic.id}`);
-    if (res.ok) {
-      const json = await res.json();
-      setPlatforms(json.data || []);
-    }
-  };
+const campaignSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  platform_id: z.string(),
+  budget_cents: z.number().min(0).optional(),
+  is_active: z.boolean().default(true)
+})
 
-  const loadCampaigns = async (platformId: string) => {
-    if (!platformId || platformId === 'none') { setCampaigns([]); return; }
-    const res = await fetch(`/api/marketing/campaigns?platformId=${platformId}&includeArchived=true`);
-    if (res.ok) {
-      const json = await res.json();
-      setCampaigns(json.data || []);
-    }
-  };
-
-  // ✅ Recargar cuando cambie la clínica
-  useEffect(() => {
-    loadPlatforms();
-  }, [currentClinic?.id]);
-
-  useEffect(() => {
-    loadCampaigns(selectedPlatformId);
-  }, [selectedPlatformId]);
-
-  const createPlatform = async () => {
-    if (!newPlatformName.trim()) return;
-    const res = await fetch('/api/marketing/platforms', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ display_name: newPlatformName })
-    });
-    if (res.ok) {
-      setNewPlatformName('');
-      await loadPlatforms();
-    }
-  };
-
-  const editPlatform = async (id: string, newName: string) => {
-    const res = await fetch('/api/marketing/platforms', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, display_name: newName })
-    });
-    if (res.ok) await loadPlatforms();
-  };
-
-  const deletePlatform = async (id: string) => {
-    if (!confirm('¿Eliminar esta plataforma? Se eliminarán también sus campañas.')) return;
-    const res = await fetch('/api/marketing/platforms', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id })
-    });
-    if (res.ok) await loadPlatforms();
-  };
-
-  const createCampaign = async () => {
-    if (!newCampaignName.trim() || selectedPlatformId === 'none') return;
-    const res = await fetch('/api/marketing/campaigns', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ platform_id: selectedPlatformId, name: newCampaignName })
-    });
-    if (res.ok) {
-      setNewCampaignName('');
-      await loadCampaigns(selectedPlatformId);
-    }
-  };
-
-  const updateCampaign = async (id: string, patch: any) => {
-    const res = await fetch('/api/marketing/campaigns', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, ...patch })
-    });
-    if (res.ok) await loadCampaigns(selectedPlatformId);
-  };
-
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('settings.marketing.platformsTitle', { default: 'Plataformas' })}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-end gap-2">
-            <div className="flex-1 space-y-2">
-              <Label>{t('settings.marketing.platformName', { default: 'Nombre de plataforma' })}</Label>
-              <Input value={newPlatformName} onChange={e => setNewPlatformName(e.target.value)} placeholder={t('settings.marketing.platformNamePlaceholder', { default: 'ej. Meta Ads' })} />
-            </div>
-            <Button onClick={createPlatform}>{t('settings.marketing.addPlatform', { default: 'Agregar' })}</Button>
-          </div>
-          <div className="space-y-2">
-            {platforms.map((p) => (
-              <div key={p.id} className="flex items-center justify-between rounded-md border p-3">
-                <div>
-                  <div className="font-medium">{p.display_name || p.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {p.is_system ? 'Sistema' : 'Personalizada'}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {!p.is_system && (
-                    <>
-                      <Button variant="outline" onClick={() => {
-                        const newName = prompt('Nuevo nombre:', p.display_name || p.name);
-                        if (newName && newName.trim()) editPlatform(p.id, newName.trim());
-                      }}>
-                        Editar
-                      </Button>
-                      <Button variant="outline" onClick={() => deletePlatform(p.id)}>
-                        Eliminar
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('settings.marketing.campaignsTitle', { default: 'Campañas' })}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>{t('settings.marketing.selectPlatform', { default: 'Selecciona plataforma' })}</Label>
-            <Select onValueChange={(v) => setSelectedPlatformId(v)} defaultValue={selectedPlatformId}>
-              <SelectTrigger>
-                <SelectValue placeholder={t('settings.marketing.selectPlatform', { default: 'Selecciona plataforma' })} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">{t('common.select')}</SelectItem>
-                {platforms.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>{p.display_name || p.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex items-end gap-2">
-            <div className="flex-1 space-y-2">
-              <Label>{t('settings.marketing.campaignName', { default: 'Nombre de campaña' })}</Label>
-              <Input value={newCampaignName} onChange={e => setNewCampaignName(e.target.value)} placeholder={t('settings.marketing.campaignNamePlaceholder', { default: 'ej. Promos Febrero' })} />
-            </div>
-            <Button onClick={createCampaign} disabled={selectedPlatformId==='none'}>{t('settings.marketing.addCampaign', { default: 'Agregar' })}</Button>
-          </div>
-
-          <div className="space-y-2">
-            {campaigns.map((c) => (
-              <div key={c.id} className="flex items-center justify-between rounded-md border p-3">
-                <div>
-                  <div className="font-medium">{c.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {c.is_active ? t('common.active') : t('common.inactive')} · {c.is_archived ? t('settings.marketing.archived', { default: 'Archivada' }) : t('settings.marketing.live', { default: 'Vigente' })}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" onClick={() => updateCampaign(c.id, { is_active: !c.is_active })}>
-                    {c.is_active ? t('settings.marketing.deactivate', { default: 'Desactivar' }) : t('settings.marketing.activate', { default: 'Activar' })}
-                  </Button>
-                  <Button variant="outline" onClick={() => updateCampaign(c.id, { is_archived: !c.is_archived })}>
-                    {c.is_archived ? t('settings.marketing.unarchive', { default: 'Desarchivar' }) : t('settings.marketing.archive', { default: 'Archivar' })}
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
+type Platform = z.infer<typeof platformSchema> & { id: string }
+type Campaign = z.infer<typeof campaignSchema> & { 
+  id: string
+  platform?: Platform
+  archived_at?: string | null
 }
 
+export default function MarketingSettingsClient() {
+  const t = useTranslations()
+  const { currentClinic } = useWorkspace()
+  
+  // Platform CRUD
+  const platforms = useCrudOperations<Platform>({
+    endpoint: '/api/marketing/platforms',
+    queryParams: currentClinic?.id ? `clinicId=${currentClinic.id}` : '',
+    entityName: 'platform',
+    autoLoad: true
+  })
 
+  // Campaign CRUD
+  const [selectedPlatformId, setSelectedPlatformId] = useState<string>('')
+  const campaigns = useCrudOperations<Campaign>({
+    endpoint: '/api/marketing/campaigns',
+    queryParams: selectedPlatformId ? `platformId=${selectedPlatformId}&includeArchived=true` : '',
+    entityName: 'campaign',
+    autoLoad: false
+  })
+
+  // Load campaigns when platform changes
+  useEffect(() => {
+    if (selectedPlatformId) {
+      campaigns.fetchItems()
+    }
+  }, [selectedPlatformId])
+
+  // Forms
+  const [platformModalOpen, setPlatformModalOpen] = useState(false)
+  const [campaignModalOpen, setCampaignModalOpen] = useState(false)
+  
+  const platformForm = useForm<z.infer<typeof platformSchema>>({
+    resolver: zodResolver(platformSchema),
+    defaultValues: {
+      name: '',
+      clinic_id: currentClinic?.id || ''
+    }
+  })
+
+  const campaignForm = useForm<z.infer<typeof campaignSchema>>({
+    resolver: zodResolver(campaignSchema),
+    defaultValues: {
+      name: '',
+      platform_id: '',
+      budget_cents: 0,
+      is_active: true
+    }
+  })
+
+  // Reset campaign form when selected platform changes
+  useEffect(() => {
+    campaignForm.setValue('platform_id', selectedPlatformId)
+  }, [selectedPlatformId, campaignForm])
+
+  // Platform handlers
+  const handleCreatePlatform = async (data: z.infer<typeof platformSchema>) => {
+    if (!currentClinic?.id) {
+      return
+    }
+
+    const result = await platforms.create({
+      ...data,
+      clinic_id: currentClinic.id
+    })
+
+    if (result.success) {
+      setPlatformModalOpen(false)
+      platformForm.reset()
+    }
+  }
+
+  // Campaign handlers
+  const handleCreateCampaign = async (data: z.infer<typeof campaignSchema>) => {
+    const result = await campaigns.create({
+      ...data,
+      platform_id: selectedPlatformId
+    })
+
+    if (result.success) {
+      setCampaignModalOpen(false)
+      campaignForm.reset()
+    }
+  }
+
+  const handleArchiveCampaign = async (campaign: Campaign) => {
+    const isArchived = !!campaign.archived_at
+    const endpoint = `/api/marketing/campaigns/${campaign.id}/${isArchived ? 'unarchive' : 'archive'}`
+    
+    const res = await fetch(endpoint, { method: 'PATCH' })
+    if (res.ok) {
+      campaigns.fetchItems()
+    }
+  }
+
+  // Platform columns
+  const platformColumns = [
+    {
+      key: 'name',
+      label: t('settings.marketing.platformName'),
+      render: (platform: Platform) => (
+        <div className="font-medium">{platform.name}</div>
+      )
+    },
+    {
+      key: 'actions',
+      label: t('common.actions'),
+      render: (platform: Platform) => (
+        <div className="flex gap-2">
+          <Button
+            variant={selectedPlatformId === platform.id ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setSelectedPlatformId(platform.id)}
+          >
+            {t('settings.marketing.viewCampaigns')}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => platforms.handleDelete(platform.id)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      )
+    }
+  ]
+
+  // Campaign columns
+  const campaignColumns = [
+    {
+      key: 'name',
+      label: t('settings.marketing.campaignName'),
+      render: (campaign: Campaign) => (
+        <div className="flex items-center gap-2">
+          <span className={campaign.archived_at ? 'line-through opacity-50' : ''}>
+            {campaign.name}
+          </span>
+          {campaign.archived_at && (
+            <span className="text-xs text-muted-foreground">
+              ({t('settings.marketing.archived')})
+            </span>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'budget',
+      label: t('settings.marketing.budget'),
+      render: (campaign: Campaign) => 
+        campaign.budget_cents ? formatMoney(campaign.budget_cents) : '-'
+    },
+    {
+      key: 'status',
+      label: t('settings.marketing.status'),
+      render: (campaign: Campaign) => (
+        <span className={`px-2 py-1 rounded text-xs ${
+          campaign.archived_at ? 'bg-gray-100 text-gray-600' :
+          campaign.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+        }`}>
+          {campaign.archived_at ? t('settings.marketing.archived') : 
+           campaign.is_active ? t('settings.marketing.active') : t('settings.marketing.inactive')}
+        </span>
+      )
+    },
+    {
+      key: 'actions',
+      label: t('common.actions'),
+      render: (campaign: Campaign) => (
+        <div className="flex gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleArchiveCampaign(campaign)}
+            title={campaign.archived_at ? t('settings.marketing.restore') : t('settings.marketing.archive')}
+          >
+            {campaign.archived_at ? 
+              <RotateCcw className="h-4 w-4" /> : 
+              <Archive className="h-4 w-4" />
+            }
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => campaigns.handleDelete(campaign.id)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      )
+    }
+  ]
+
+  const selectedPlatform = platforms.items.find(p => p.id === selectedPlatformId)
+
+  return (
+    <div className="space-y-6">
+      {/* Platforms Section */}
+      <CrudPageLayout
+        title={t('settings.marketing.platforms')}
+        subtitle={t('settings.marketing.platformsSubtitle')}
+        items={platforms.items}
+        loading={platforms.loading}
+        columns={platformColumns}
+        onAdd={() => setPlatformModalOpen(true)}
+        searchPlaceholder={t('settings.marketing.searchPlatforms')}
+        addButtonLabel={t('settings.marketing.addPlatform')}
+        emptyState={{
+          title: t('settings.marketing.noPlatforms'),
+          description: t('settings.marketing.noPlatformsDescription'),
+          action: {
+            label: t('settings.marketing.addFirstPlatform'),
+            onClick: () => setPlatformModalOpen(true)
+          }
+        }}
+      />
+
+      {/* Campaigns Section */}
+      {selectedPlatformId && selectedPlatform && (
+        <CrudPageLayout
+          title={t('settings.marketing.campaigns')}
+          subtitle={`${t('settings.marketing.campaignsFor')} ${selectedPlatform.name}`}
+          items={campaigns.items}
+          loading={campaigns.loading}
+          columns={campaignColumns}
+          onAdd={() => setCampaignModalOpen(true)}
+          searchPlaceholder={t('settings.marketing.searchCampaigns')}
+          addButtonLabel={t('settings.marketing.addCampaign')}
+          emptyState={{
+            title: t('settings.marketing.noCampaigns'),
+            description: t('settings.marketing.noCampaignsDescription'),
+            action: {
+              label: t('settings.marketing.addFirstCampaign'),
+              onClick: () => setCampaignModalOpen(true)
+            }
+          }}
+        />
+      )}
+
+      {/* Platform Modal */}
+      <FormModal
+        open={platformModalOpen}
+        onOpenChange={setPlatformModalOpen}
+        title={t('settings.marketing.addPlatform')}
+        onSubmit={platformForm.handleSubmit(handleCreatePlatform)}
+        isSubmitting={platforms.isSubmitting}
+        maxWidth="sm"
+      >
+        <Form {...platformForm}>
+          <FormSection>
+            <InputField
+              label={t('settings.marketing.platformName')}
+              value={platformForm.watch('name')}
+              onChange={(value) => platformForm.setValue('name', value as string)}
+              placeholder={t('settings.marketing.platformNamePlaceholder')}
+              error={platformForm.formState.errors.name?.message}
+              required
+            />
+          </FormSection>
+        </Form>
+      </FormModal>
+
+      {/* Campaign Modal */}
+      <FormModal
+        open={campaignModalOpen}
+        onOpenChange={setCampaignModalOpen}
+        title={t('settings.marketing.addCampaign')}
+        onSubmit={campaignForm.handleSubmit(handleCreateCampaign)}
+        isSubmitting={campaigns.isSubmitting}
+        maxWidth="md"
+      >
+        <Form {...campaignForm}>
+          <FormSection>
+            <FormGrid columns={2}>
+              <InputField
+                label={t('settings.marketing.campaignName')}
+                value={campaignForm.watch('name')}
+                onChange={(value) => campaignForm.setValue('name', value as string)}
+                placeholder={t('settings.marketing.campaignNamePlaceholder')}
+                error={campaignForm.formState.errors.name?.message}
+                required
+              />
+              
+              <InputField
+                type="number"
+                label={t('settings.marketing.budget')}
+                value={campaignForm.watch('budget_cents') ? 
+                  (campaignForm.watch('budget_cents')! / 100).toFixed(2) : ''}
+                onChange={(value) => 
+                  campaignForm.setValue('budget_cents', parseFloat(value as string) * 100)}
+                placeholder="0.00"
+                error={campaignForm.formState.errors.budget_cents?.message}
+              />
+            </FormGrid>
+          </FormSection>
+        </Form>
+      </FormModal>
+    </div>
+  )
+}

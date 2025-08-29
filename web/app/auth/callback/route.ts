@@ -5,7 +5,22 @@ import { cookies } from 'next/headers';
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
+  const type = requestUrl.searchParams.get('type');
+  const error = requestUrl.searchParams.get('error');
+  const error_description = requestUrl.searchParams.get('error_description');
   const origin = requestUrl.origin;
+
+  // Handle Supabase errors
+  if (error) {
+    // For password recovery errors, redirect to reset-password with error
+    if (error === 'access_denied' || error_description?.includes('expired')) {
+      return NextResponse.redirect(
+        `${origin}/auth/reset-password?error=${error}&error_description=${encodeURIComponent(error_description || '')}`
+      );
+    }
+    // Other errors go to login
+    return NextResponse.redirect(`${origin}/auth/login?error=${error}`);
+  }
 
   if (code) {
     const cookieStore = cookies();
@@ -26,14 +41,40 @@ export async function GET(request: NextRequest) {
       }
     );
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
 
-    if (!error) {
-      // Redirigir al usuario a la página principal después de la autenticación exitosa
+    if (!sessionError) {
+      // Check if this is a password recovery flow
+      if (type === 'recovery') {
+        // Redirect to reset password page to set new password
+        return NextResponse.redirect(`${origin}/auth/reset-password?recovery=true`);
+      }
+
+      // Check if user needs onboarding
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        const { data: workspaces } = await supabase
+          .from('workspaces')
+          .select('id')
+          .eq('owner_id', user.id)
+          .limit(1);
+
+        if (!workspaces || workspaces.length === 0) {
+          return NextResponse.redirect(`${origin}/onboarding`);
+        }
+      }
+
+      // Default redirect to home
       return NextResponse.redirect(`${origin}/`);
+    } else {
+      // Session exchange failed
+      return NextResponse.redirect(
+        `${origin}/auth/reset-password?error=invalid_code&error_description=${encodeURIComponent(sessionError.message)}`
+      );
     }
   }
 
-  // Si hay un error, redirigir al login
-  return NextResponse.redirect(`${origin}/auth/login?error=auth_error`);
+  // No code provided
+  return NextResponse.redirect(`${origin}/auth/login`);
 }
