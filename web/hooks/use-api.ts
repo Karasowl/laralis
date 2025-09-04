@@ -45,6 +45,7 @@ export function useApi<T = any>(endpoint: string) {
     try {
       const response = await fetch(endpoint, {
         method,
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           ...headers

@@ -230,7 +230,7 @@ export default function AssetsPage() {
                 type="number"
                 value={watch('purchase_price_pesos')}
                 onChange={(v) => setValue('purchase_price_pesos', v as number)}
-                placeholder="0.00"
+                placeholder={t('validation.placeholders.amount')}
                 step="0.01"
                 error={errors.purchase_price_pesos?.message}
                 helperText={t('businessSetup.assets.priceHelp')}

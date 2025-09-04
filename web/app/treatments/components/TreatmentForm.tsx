@@ -1,6 +1,7 @@
 'use client'
 
 import { InputField, SelectField, TextareaField, FormGrid, FormSection } from '@/components/ui/form-field'
+import { SelectWithCreate } from '@/components/ui/select-with-create'
 
 interface TreatmentFormProps {
   form: any
@@ -8,6 +9,8 @@ interface TreatmentFormProps {
   services: Array<{ value: string; label: string }>
   statusOptions: Array<{ value: string; label: string }>
   onServiceChange: (serviceId: string) => void
+  onCreatePatient?: (data: any) => Promise<any>
+  onCreateService?: (data: any) => Promise<any>
   t: (key: string) => string
 }
 
@@ -16,32 +19,91 @@ export function TreatmentForm({
   patients, 
   services, 
   statusOptions, 
-  onServiceChange, 
+  onServiceChange,
+  onCreatePatient,
+  onCreateService,
   t 
 }: TreatmentFormProps) {
   return (
     <div className="space-y-6">
       <FormSection title={t('treatments.patientAndService')}>
         <FormGrid columns={2}>
-          <SelectField
-            label={t('treatments.fields.patient')}
-            value={form.watch('patient_id')}
-            onChange={(value) => form.setValue('patient_id', value)}
-            options={patients}
-            placeholder={t('treatments.selectPatient')}
-            error={form.formState.errors.patient_id?.message}
-            required
-          />
+          <div>
+            <label className="text-sm font-medium">
+              {t('treatments.fields.patient')}
+              <span className="text-red-500 ml-1">*</span>
+            </label>
+            <SelectWithCreate
+              value={form.watch('patient_id')}
+              onValueChange={(value) => form.setValue('patient_id', value)}
+              options={patients}
+              placeholder={t('treatments.selectPatient')}
+              canCreate={true}
+              entityName={t('entities.patient')}
+              createDialogTitle={t('patients.create_title')}
+              createDialogDescription={t('patients.create_quick_description')}
+              createFields={[
+                {
+                  name: 'first_name',
+                  label: t('fields.first_name'),
+                  type: 'text',
+                  required: true
+                },
+                {
+                  name: 'last_name',
+                  label: t('fields.last_name'),
+                  type: 'text',
+                  required: true
+                },
+                {
+                  name: 'phone',
+                  label: t('fields.phone'),
+                  type: 'tel',
+                  required: false
+                }
+              ]}
+              onCreateSubmit={onCreatePatient}
+            />
+            {form.formState.errors.patient_id?.message && (
+              <p className="text-sm text-red-500 mt-1">{form.formState.errors.patient_id?.message}</p>
+            )}
+          </div>
           
-          <SelectField
-            label={t('treatments.fields.service')}
-            value={form.watch('service_id')}
-            onChange={onServiceChange}
-            options={services}
-            placeholder={t('treatments.selectService')}
-            error={form.formState.errors.service_id?.message}
-            required
-          />
+          <div>
+            <label className="text-sm font-medium">
+              {t('treatments.fields.service')}
+              <span className="text-red-500 ml-1">*</span>
+            </label>
+            <SelectWithCreate
+              value={form.watch('service_id')}
+              onValueChange={onServiceChange}
+              options={services}
+              placeholder={t('treatments.selectService')}
+              canCreate={true}
+              entityName={t('entities.service')}
+              createDialogTitle={t('services.create_title')}
+              createDialogDescription={t('services.create_quick_description')}
+              createFields={[
+                {
+                  name: 'name',
+                  label: t('fields.name'),
+                  type: 'text',
+                  required: true
+                },
+                {
+                  name: 'duration_minutes',
+                  label: t('fields.duration'),
+                  type: 'number',
+                  placeholder: '30',
+                  required: true
+                }
+              ]}
+              onCreateSubmit={onCreateService}
+            />
+            {form.formState.errors.service_id?.message && (
+              <p className="text-sm text-red-500 mt-1">{form.formState.errors.service_id?.message}</p>
+            )}
+          </div>
         </FormGrid>
       </FormSection>
 

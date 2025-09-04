@@ -64,7 +64,7 @@ export default function ExpensesPage() {
   // CRUD operations
   const crud = useCrudOperations<ExpenseWithRelations>({
     endpoint: '/api/expenses',
-    entityName: t('entity'),
+    entityName: t('expenses.entity'),
     includeClinicId: true,
   })
   
@@ -236,8 +236,8 @@ export default function ExpensesPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
-            <p className="text-muted-foreground">{t('description')}</p>
+            <h1 className="text-3xl font-bold tracking-tight">{t('expenses.title')}</h1>
+            <p className="text-muted-foreground">{t('expenses.description')}</p>
           </div>
         </div>
 
@@ -283,9 +283,9 @@ export default function ExpensesPage() {
           {/* Alerts Tab */}
           <TabsContent value="alerts" className="space-y-4">
             <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4">{t('expense_alerts')}</h3>
+              <h3 className="text-lg font-semibold mb-4">{t('expenses.alerts_title')}</h3>
               <p className="text-muted-foreground">
-                {t('alerts_coming_soon')}
+                {t('expenses.alerts_coming_soon')}
               </p>
             </Card>
           </TabsContent>
@@ -295,11 +295,11 @@ export default function ExpensesPage() {
         <FormModal
           open={crud.isDialogOpen}
           onOpenChange={crud.closeDialog}
-          title={crud.editingItem ? t('edit_expense') : t('create_expense')}
+          title={crud.editingItem ? t('expenses.edit_expense') : t('expenses.create_expense')}
           onSubmit={handleSubmit(onSubmit)}
           isSubmitting={crud.isSubmitting}
-          cancelLabel={t('cancel')}
-          submitLabel={crud.editingItem ? t('save') : t('create')}
+          cancelLabel={t('common.cancel')}
+          submitLabel={crud.editingItem ? t('common.save') : t('common.create')}
           maxWidth="2xl"
         >
           <ExpenseForm 

@@ -154,7 +154,33 @@ export function AppLayout({ children }: AppLayoutProps) {
           
           {/* Mobile User Info - Above bottom navigation space */}
           <div className="p-4 border-t bg-card mb-16">
-            <UserMenu user={userData} showLabel={true} />
+            <div className="space-y-3">
+              {/* Language Switcher for Mobile */}
+              <div className="flex items-center justify-between px-2">
+                <span className="text-sm text-muted-foreground">{t('settings.language')}</span>
+                <LanguageSwitcher compact={true} />
+              </div>
+              
+              {/* Theme Switcher for Mobile */}
+              <div className="flex items-center justify-between px-2">
+                <span className="text-sm text-muted-foreground">{t('settings.theme')}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                  className="gap-2"
+                >
+                  {theme === 'dark' ? (
+                    <><Sun className="h-4 w-4" /><span>Light</span></>
+                  ) : (
+                    <><Moon className="h-4 w-4" /><span>Dark</span></>
+                  )}
+                </Button>
+              </div>
+              
+              {/* User Menu */}
+              <UserMenu user={userData} showLabel={true} />
+            </div>
           </div>
         </div>
       </div>

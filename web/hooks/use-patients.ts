@@ -35,6 +35,7 @@ export function usePatients(options: UsePatientsOptions = {}) {
   // Use API hooks for related data
   const sourcesApi = useApi<PatientSource[]>('/api/patient-sources')
   const campaignsApi = useApi<Campaign[]>('/api/campaigns')
+  const platformsApi = useApi<any[]>('/api/marketing/platforms')
 
   // Patient-specific: Create patient source
   const createPatientSource = useCallback(async (name: string): Promise<boolean> => {
@@ -74,11 +75,39 @@ export function usePatients(options: UsePatientsOptions = {}) {
 
   // Load related data
   const loadRelatedData = useCallback(async () => {
-    await Promise.all([
-      sourcesApi.get(),
-      campaignsApi.get()
-    ])
-  }, [sourcesApi, campaignsApi])
+    console.log('[usePatients] Loading patient related data...')
+    try {
+      const results = await Promise.all([
+        sourcesApi.get(),
+        campaignsApi.get(),
+        platformsApi.get()
+      ])
+      console.log('[usePatients] API Results:', {
+        sources: results[0],
+        campaigns: results[1],
+        platforms: results[2]
+      })
+      console.log('[usePatients] platformsApi.data after get():', platformsApi.data)
+      
+      // Hacer una llamada directa para debug
+      const directResponse = await fetch('/api/marketing/platforms', {
+        credentials: 'include'
+      })
+      const directData = await directResponse.json()
+      console.log('[usePatients] Direct fetch result:', directData)
+      
+    } catch (error) {
+      console.error('[usePatients] Error in loadRelatedData:', error)
+    }
+  }, [sourcesApi, campaignsApi, platformsApi])
+
+  // Debug log antes de retornar
+  console.log('[usePatients] Current state:', {
+    platformsApiData: platformsApi.data,
+    platformsApiLoading: platformsApi.loading,
+    sourcesApiData: sourcesApi.data,
+    campaignsApiData: campaignsApi.data
+  })
 
   return {
     // From CRUD operations
@@ -91,6 +120,7 @@ export function usePatients(options: UsePatientsOptions = {}) {
     // From API hooks
     patientSources: sourcesApi.data || [],
     campaigns: campaignsApi.data || [],
+    platforms: platformsApi.data || [],
     
     // Patient operations
     fetchPatients: crud.fetchItems,

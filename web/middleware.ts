@@ -15,8 +15,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Create a Supabase client configured for middleware
-  let response = NextResponse.next({
+  // Create a single response object that will be modified and returned
+  const response = NextResponse.next({
     request: {
       headers: request.headers,
     },
@@ -28,18 +28,16 @@ export async function middleware(request: NextRequest) {
     {
       cookies: {
         get(name: string) {
-          return request.cookies.get(name)?.value;
+          // Get cookie value from request
+          const cookie = request.cookies.get(name);
+          return cookie?.value;
         },
         set(name: string, value: string, options: CookieOptions) {
+          // Set cookie on both request and response
           request.cookies.set({
             name,
             value,
             ...options,
-          });
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
           });
           response.cookies.set({
             name,
@@ -48,15 +46,11 @@ export async function middleware(request: NextRequest) {
           });
         },
         remove(name: string, options: CookieOptions) {
+          // Remove cookie from both request and response
           request.cookies.set({
             name,
             value: '',
             ...options,
-          });
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
           });
           response.cookies.set({
             name,
@@ -68,8 +62,24 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Get user - más seguro que getSession
-  const { data: { user } } = await supabase.auth.getUser();
+  // Refresh session and get user
+  const { data: { user }, error } = await supabase.auth.getUser()
+  
+  // Also try to refresh the session if there's an error
+  if (error && !pathname.startsWith('/auth')) {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session) {
+      await supabase.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token
+      })
+    }
+  }
+  
+  // Temporary debug log for authentication issues
+  if (pathname === '/' || pathname.startsWith('/auth')) {
+    console.log(`[Middleware] Path: ${pathname}, User: ${user?.email || 'none'}, Error: ${error?.message || 'none'}`)
+  }
 
   // Public paths that don't require authentication
   const publicPaths = [

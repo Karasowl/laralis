@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
 import { getClinicIdOrDefault } from '@/lib/clinic';
-import { createSupabaseClient } from '@/lib/supabase';
 import { z } from 'zod';
 
 const createCampaignSchema = z.object({
@@ -14,14 +13,7 @@ const createCampaignSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = cookies();
-    const supabase = createSupabaseClient(cookieStore);
     
-    // ✅ Validar usuario autenticado
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const searchParams = request.nextUrl.searchParams;
     const clinicId = searchParams.get('clinicId') || await getClinicIdOrDefault(cookieStore);
     const activeOnly = searchParams.get('active') === 'true';
@@ -39,7 +31,7 @@ export async function GET(request: NextRequest) {
       .from('marketing_campaigns')
       .select(`
         *,
-        platform:platform_id (
+        platform:platform_category_id (
           id,
           display_name,
           name
@@ -57,7 +49,7 @@ export async function GET(request: NextRequest) {
       query = query.eq('is_archived', false);
     }
     if (platformId) {
-      query = query.eq('platform_id', platformId);
+      query = query.eq('platform_category_id', platformId);
     }
 
     const { data, error } = await query;
@@ -88,19 +80,17 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const cookieStore = cookies();
-    const supabase = createSupabaseClient(cookieStore);
+    console.log('[POST /api/marketing/campaigns] Starting...');
     
-    // ✅ Validar usuario autenticado
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const clinicId = await getClinicIdOrDefault(cookieStore);
+    const body = await request.json();
+    console.log('[POST /api/marketing/campaigns] Request body:', JSON.stringify(body, null, 2));
+    
+    const cookieStore = cookies();
+    const clinicId = body.clinic_id || await getClinicIdOrDefault(cookieStore);
+    console.log('[POST /api/marketing/campaigns] Clinic ID:', clinicId);
 
     if (!clinicId) {
+      console.error('[POST /api/marketing/campaigns] No clinic context available');
       return NextResponse.json(
         { error: 'No clinic context available' },
         { status: 400 }
@@ -109,36 +99,78 @@ export async function POST(request: NextRequest) {
 
     const validation = createCampaignSchema.safeParse(body);
     if (!validation.success) {
+      console.error('[POST /api/marketing/campaigns] Validation failed:', validation.error.errors);
       return NextResponse.json(
         { error: 'Validation failed', message: validation.error.errors.map(e => e.message).join(', ') },
         { status: 400 }
       );
     }
 
+    // Verificar que el platform_id existe antes de insertar
+    console.log('[POST /api/marketing/campaigns] Checking platform_id:', validation.data.platform_id);
+    const { data: platformCheck, error: platformError } = await supabaseAdmin
+      .from('categories')
+      .select('id, name, display_name')
+      .eq('id', validation.data.platform_id)
+      .eq('entity_type', 'marketing_platform')
+      .single();
+
+    if (platformError || !platformCheck) {
+      console.error('[POST /api/marketing/campaigns] Platform not found:', platformError);
+      return NextResponse.json(
+        { 
+          error: 'Invalid platform_id', 
+          message: `Platform with ID ${validation.data.platform_id} not found`,
+          hint: 'Please ensure the platform exists in the categories table'
+        },
+        { status: 400 }
+      );
+    }
+
+    console.log('[POST /api/marketing/campaigns] Platform verified:', platformCheck.display_name || platformCheck.name);
+
+    const insertData = {
+      clinic_id: clinicId,
+      platform_category_id: validation.data.platform_id,  // La columna en la DB es platform_category_id
+      name: validation.data.name,
+      code: validation.data.code || null,
+    };
+
+    console.log('[POST /api/marketing/campaigns] Inserting:', JSON.stringify(insertData, null, 2));
+
     const { data, error } = await supabaseAdmin
       .from('marketing_campaigns')
-      .insert({
-        clinic_id: clinicId,
-        platform_id: validation.data.platform_id,
-        name: validation.data.name,
-        code: validation.data.code || null,
-      })
+      .insert(insertData)
       .select()
       .single();
 
     if (error) {
-      console.error('Error creating marketing campaign:', error);
+      console.error('[POST /api/marketing/campaigns] Insert error:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
       return NextResponse.json(
-        { error: 'Failed to create marketing campaign', message: error.message },
+        { 
+          error: 'Failed to create marketing campaign', 
+          message: error.message,
+          details: error.details,
+          hint: error.hint 
+        },
         { status: 500 }
       );
     }
 
+    console.log('[POST /api/marketing/campaigns] Campaign created successfully:', data.id);
     return NextResponse.json({ data });
   } catch (error) {
-    console.error('Unexpected error in POST /api/marketing/campaigns:', error);
+    console.error('[POST /api/marketing/campaigns] Unexpected error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }

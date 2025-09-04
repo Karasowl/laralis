@@ -13,6 +13,7 @@ export interface Column<T> {
 export interface DataTableProps<T> extends React.HTMLAttributes<HTMLDivElement> {
   data: T[];
   columns: Column<T>[];
+  mobileColumns?: Column<T>[]; // optional set for small screens
   emptyMessage?: string;
   loading?: boolean;
   searchPlaceholder?: string;
@@ -35,6 +36,7 @@ function DataTable<T extends { id?: string | number }>({
   className,
   data,
   columns,
+  mobileColumns,
   emptyMessage = "No data available",
   loading = false,
   searchPlaceholder,
@@ -152,7 +154,31 @@ function DataTable<T extends { id?: string | number }>({
         </div>
       ) : (
         <div className={cn("rounded-xl border bg-card shadow-sm overflow-hidden", className)} {...props}>
-          <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x pan-y' }}>
+          {/* Mobile cards */}
+          <div className="md:hidden divide-y">
+            {sortedData.map((item, rowIndex) => {
+              const cols = mobileColumns && mobileColumns.length > 0 ? mobileColumns : columns.slice(0, Math.min(2, columns.length));
+              return (
+                <div key={(item as any).id ?? rowIndex} className="p-4">
+                  {cols.map((column, colIndex) => {
+                    const value = getValue(item, column.key);
+                    return (
+                      <div key={colIndex} className={cn("py-1")}> 
+                        {column.render ? (
+                          <div>{column.render(value, item, rowIndex)}</div>
+                        ) : (
+                          <div className="text-sm">{String(value ?? "")}</div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x pan-y' }}>
         <table className="w-full">
           <thead>
             <tr className="border-b bg-gradient-to-r from-muted/30 to-muted/10">
@@ -234,7 +260,7 @@ function DataTable<T extends { id?: string | number }>({
             ))}
           </tbody>
         </table>
-      </div>
+          </div>
         </div>
       )}
     </div>
