@@ -3,6 +3,7 @@
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InputField, SelectField, TextareaField, FormGrid, FormSection } from '@/components/ui/form-field'
+import { SelectWithCreate } from '@/components/ui/select-with-create'
 import { formatCurrency } from '@/lib/money'
 
 interface ServiceFormProps {
@@ -11,6 +12,8 @@ interface ServiceFormProps {
   supplies: any[]
   serviceSupplies: Array<{ supply_id: string; quantity: number }>
   onSuppliesChange: (supplies: Array<{ supply_id: string; quantity: number }>) => void
+  onCreateCategory?: (data: any) => Promise<any>
+  onCreateSupply?: (data: any) => Promise<any>
   t: (key: string) => string
 }
 
@@ -19,7 +22,9 @@ export function ServiceForm({
   categories, 
   supplies, 
   serviceSupplies, 
-  onSuppliesChange, 
+  onSuppliesChange,
+  onCreateCategory,
+  onCreateSupply,
   t 
 }: ServiceFormProps) {
   return (
@@ -33,16 +38,42 @@ export function ServiceForm({
             error={form.formState.errors.name?.message}
             required
           />
-          <SelectField
-            label={t('fields.category')}
-            value={form.watch('category')}
-            onChange={(value) => form.setValue('category', value)}
-            options={categories.map((cat: any) => ({
-              value: cat.id,
-              label: cat.name
-            }))}
-            error={form.formState.errors.category?.message}
-          />
+          <div>
+            <label className="text-sm font-medium">
+              {t('fields.category')}
+            </label>
+            <SelectWithCreate
+              value={form.watch('category')}
+              onValueChange={(value) => form.setValue('category', value)}
+              options={categories.map((cat: any) => ({
+                value: cat.id,
+                label: cat.name
+              }))}
+              placeholder={t('select_category')}
+              canCreate={true}
+              entityName={t('entities.category')}
+              createDialogTitle={t('categories.create_title')}
+              createDialogDescription={t('categories.create_description')}
+              createFields={[
+                {
+                  name: 'name',
+                  label: t('fields.name'),
+                  type: 'text',
+                  required: true
+                },
+                {
+                  name: 'description',
+                  label: t('fields.description'),
+                  type: 'textarea',
+                  required: false
+                }
+              ]}
+              onCreateSubmit={onCreateCategory}
+            />
+            {form.formState.errors.category?.message && (
+              <p className="text-sm text-red-500 mt-1">{form.formState.errors.category?.message}</p>
+            )}
+          </div>
           <InputField
             type="number"
             label={t('fields.duration')}
@@ -76,20 +107,54 @@ export function ServiceForm({
           {serviceSupplies.map((ss: any, index: number) => (
             <div key={index} className="flex gap-2 items-end">
               <div className="flex-1">
-                <SelectField
-                  label={index === 0 ? t('fields.supply') : ''}
-                  value={ss.supply_id}
-                  onChange={(value) => {
-                    const updated = [...serviceSupplies]
-                    updated[index].supply_id = value
-                    onSuppliesChange(updated)
-                  }}
-                  options={supplies.map((supply: any) => ({
-                    value: supply.id,
-                    label: `${supply.name} - ${formatCurrency(supply.cost_per_unit_cents)}`
-                  }))}
-                  placeholder={t('select_supply')}
-                />
+                <div>
+                  {index === 0 && (
+                    <label className="text-sm font-medium mb-2 block">
+                      {t('fields.supply')}
+                    </label>
+                  )}
+                  <SelectWithCreate
+                    value={ss.supply_id}
+                    onValueChange={(value) => {
+                      const updated = [...serviceSupplies]
+                      updated[index].supply_id = value
+                      onSuppliesChange(updated)
+                    }}
+                    options={supplies.map((supply: any) => ({
+                      value: supply.id,
+                      label: `${supply.name} - ${formatCurrency(supply.cost_per_unit_cents)}`
+                    }))}
+                    placeholder={t('select_supply')}
+                    canCreate={true}
+                    entityName={t('entities.supply')}
+                    createDialogTitle={t('supplies.create_title')}
+                    createDialogDescription={t('supplies.create_quick_description')}
+                    createFields={[
+                      {
+                        name: 'name',
+                        label: t('fields.name'),
+                        type: 'text',
+                        required: true
+                      },
+                      {
+                        name: 'unit',
+                        label: t('fields.unit'),
+                        type: 'text',
+                        placeholder: 'pza, ml, gr',
+                        required: true
+                      },
+                      {
+                        name: 'cost_per_unit',
+                        label: t('fields.cost_per_unit'),
+                        type: 'number',
+                        step: '0.01',
+                        placeholder: '0.00',
+                        required: true
+                      }
+                    ]}
+                    onCreateSubmit={onCreateSupply}
+                  />
+                </div>
               </div>
               <div className="w-32">
                 <InputField

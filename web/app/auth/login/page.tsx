@@ -44,7 +44,7 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormData) => {
     const success = await login(data)
     if (success) {
-      router.push('/')
+      // Login successful, will redirect via window.location
     }
   }
 
@@ -74,10 +74,8 @@ export default function LoginPage() {
               <input
                 type="email"
                 placeholder={t('emailPlaceholder')}
-                value={form.watch('email')}
-                onChange={(e) => form.setValue('email', e.target.value)}
+                {...form.register('email')}
                 className="flex h-12 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 pl-10 mt-1 bg-white/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 focus:border-blue-500 dark:focus:border-blue-400 transition-all"
-                required
               />
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             </div>
@@ -95,30 +93,26 @@ export default function LoginPage() {
               <input
                 type={showPassword ? 'text' : 'password'}
                 placeholder={t('passwordPlaceholder')}
-                value={form.watch('password')}
-                onChange={(e) => form.setValue('password', e.target.value)}
+                {...form.register('password')}
                 className="flex h-12 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 pl-10 pr-12 mt-1 bg-white/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 focus:border-blue-500 dark:focus:border-blue-400 transition-all"
-                required
               />
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-              {form.watch('password') && form.watch('password').length > 0 && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-1/2 -translate-y-1/2 h-10 px-3 py-2 hover:bg-transparent"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4 text-gray-500" />
-                  ) : (
-                    <Eye className="h-4 w-4 text-gray-500" />
-                  )}
-                  <span className="sr-only">
-                    {showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                  </span>
-                </Button>
-              )}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="absolute right-0 top-1/2 -translate-y-1/2 h-10 px-3 py-2 hover:bg-transparent"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4 text-gray-500" />
+                ) : (
+                  <Eye className="h-4 w-4 text-gray-500" />
+                )}
+                <span className="sr-only">
+                  {showPassword ? t('hidePassword') : t('showPassword')}
+                </span>
+              </Button>
             </div>
             {form.formState.errors.password && (
               <p className="text-sm text-red-600 mt-1">{form.formState.errors.password.message}</p>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { ActionDropdown, createEditAction, createDeleteAction } from '@/components/ui/ActionDropdown'
-import { PatientForm } from './components/PatientForm'
+import { PatientFormUnified } from './components/PatientFormUnified'
 import { PatientDetails } from './components/PatientDetails'
 import { useCurrentClinic } from '@/hooks/use-current-clinic'
 import { usePatients } from '@/hooks/use-patients'
@@ -29,12 +29,14 @@ export default function PatientsPage() {
     patients,
     patientSources,
     campaigns,
+    platforms,
     loading,
     searchTerm,
     createPatient,
     updatePatient,
     deletePatient,
-    searchPatients
+    searchPatients,
+    loadRelatedData
   } = usePatients({ clinicId: currentClinic?.id })
 
   // Helper function to get patient initials
@@ -71,11 +73,47 @@ export default function PatientsPage() {
       city: '',
       postal_code: '',
       notes: '',
-      source_id: '',
       referred_by_patient_id: '',
-      campaign_id: ''
+      campaign_id: '',
+      platform_id: ''
     }
   })
+
+  // Load related data (sources, campaigns, platforms) on mount
+  useEffect(() => {
+    console.log('useEffect triggered. Clinic:', currentClinic)
+    if (currentClinic?.id) {
+      console.log('Loading related data for clinic:', currentClinic.id)
+      
+      // Test direct API call
+      fetch('/api/marketing/platforms', {
+        credentials: 'include'
+      })
+        .then(res => res.json())
+        .then(data => {
+          console.log('Direct API call result:', data)
+        })
+        .catch(err => {
+          console.error('Direct API call error:', err)
+        })
+      
+      loadRelatedData().then(() => {
+        console.log('loadRelatedData completed')
+      }).catch(err => {
+        console.error('Error loading related data:', err)
+      })
+    } else {
+      console.log('No clinic ID, skipping loadRelatedData')
+    }
+  }, [currentClinic?.id])
+  
+  // Debug platforms
+  useEffect(() => {
+    console.log('=== PLATFORMS DEBUG ===')
+    console.log('Current platforms:', platforms)
+    console.log('Platforms length:', platforms?.length)
+    console.log('======================')
+  }, [platforms])
 
   // Submit handlers
   const handleCreate = async (data: ZPatientForm) => {
@@ -128,8 +166,8 @@ export default function PatientsPage() {
       
       const newSource = await response.json()
       
-      // Actualizar la lista de fuentes
-      setPatientSources([...patientSources, newSource])
+      // Refrescar la lista de fuentes
+      await loadRelatedData()
       
       return {
         value: newSource.id,
@@ -147,19 +185,20 @@ export default function PatientsPage() {
       const response = await fetch('/api/marketing/campaigns', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
-          ...data,
-          clinic_id: currentClinic?.id,
-          budget_cents: Math.round((parseFloat(data.budget_cents) || 0) * 100)
+          name: data.name,
+          platform_id: data.platform_id,
+          code: data.code || null
         })
       })
       
       if (!response.ok) throw new Error('Failed to create campaign')
       
-      const newCampaign = await response.json()
+      const { data: newCampaign } = await response.json()
       
-      // Actualizar la lista de campañas
-      setCampaigns([...campaigns, newCampaign])
+      // Refrescar la lista de campañas
+      await loadRelatedData()
       
       return {
         value: newCampaign.id,
@@ -277,9 +316,9 @@ export default function PatientsPage() {
                   city: patient.city || '',
                   postal_code: patient.postal_code || '',
                   notes: patient.notes || '',
-                  source_id: patient.source_id || '',
                   referred_by_patient_id: patient.referred_by_patient_id || '',
-                  campaign_id: patient.campaign_id || ''
+                  campaign_id: patient.campaign_id || '',
+                  platform_id: patient.platform_id || ''
                 })
                 setEditPatient(patient)
               }),
@@ -307,6 +346,7 @@ export default function PatientsPage() {
 
         <DataTable
           columns={columns}
+          mobileColumns={[columns[0], columns[1], columns[4]]}
           data={patients || []}
           loading={loading}
           searchPlaceholder={t('search_patients')}
@@ -326,13 +366,12 @@ export default function PatientsPage() {
           onSubmit={form.handleSubmit(handleCreate)}
           maxWidth="2xl"
         >
-          <PatientForm
+          <PatientFormUnified
             form={form}
-            patientSources={patientSources}
             campaigns={campaigns}
+            platforms={platforms}
             patients={patients}
             t={t}
-            onCreatePatientSource={handleCreatePatientSource}
             onCreateCampaign={handleCreateCampaign}
           />
         </FormModal>
@@ -345,13 +384,12 @@ export default function PatientsPage() {
           onSubmit={form.handleSubmit(handleEdit)}
           maxWidth="2xl"
         >
-          <PatientForm
+          <PatientFormUnified
             form={form}
-            patientSources={patientSources}
             campaigns={campaigns}
+            platforms={platforms}
             patients={patients}
             t={t}
-            onCreatePatientSource={handleCreatePatientSource}
             onCreateCampaign={handleCreateCampaign}
           />
         </FormModal>

@@ -53,6 +53,57 @@
     display: none !important;
   }
 
+  /* Ensure date input calendar button is visible */
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 1;
+    filter: invert(0.5);
+    padding: 8px;
+    margin-right: 4px;
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    filter: invert(0.3);
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+  }
+
+  /* Dark mode adjustments for date input */
+  .dark input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.8);
+  }
+
+  .dark input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    filter: invert(1);
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  /* Mobile specific date input styles */
+  @media (max-width: 640px) {
+    input[type="date"] {
+      min-height: 48px;
+      font-size: 16px; /* Prevents zoom on iOS */
+      -webkit-appearance: none;
+      appearance: none;
+      position: relative;
+    }
+    
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 32px;
+      height: 32px;
+      padding: 4px;
+    }
+
+    /* Ensure touch target is large enough */
+    .date-input {
+      padding-right: 48px !important;
+    }
+  }
+
   /* Print styles */
   @media print {
     body {

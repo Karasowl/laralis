@@ -8,6 +8,7 @@ interface PatientFormProps {
   form: any
   patientSources: any[]
   campaigns: any[]
+  platforms: any[]
   patients: any[]
   t: (key: string) => string
   onCreatePatientSource?: (data: any) => Promise<any>
@@ -18,7 +19,8 @@ export function PatientForm({
   form, 
   patientSources, 
   campaigns, 
-  patients, 
+  patients,
+  platforms,
   t, 
   onCreatePatientSource,
   onCreateCampaign 
@@ -152,7 +154,8 @@ export function PatientForm({
             label={t('fields.referred_by')}
             value={form.watch('referred_by_patient_id')}
             onChange={(value) => form.setValue('referred_by_patient_id', value)}
-            options={patients.map((p: any) => ({
+            placeholder={patients.length === 0 ? t('no_patients_for_referral') : t('select_referrer')}
+            options={patients.length === 0 ? [] : patients.map((p: any) => ({
               value: p.id,
               label: `${p.first_name} ${p.last_name}`
             }))}
@@ -184,17 +187,10 @@ export function PatientForm({
                 },
                 {
                   name: 'platform_id',
-                  label: t('fields.platform'),
+                  label: t('settings.marketing.selectPlatform') || 'Platform',
                   type: 'select',
                   required: true,
-                  options: [] // Esto se llenará desde el componente padre
-                },
-                {
-                  name: 'budget_cents',
-                  label: t('fields.budget'),
-                  type: 'number',
-                  placeholder: '0.00',
-                  required: false
+                  options: platforms.map((p: any) => ({ value: p.id, label: p.display_name || p.name }))
                 }
               ]}
               onCreateSubmit={onCreateCampaign}

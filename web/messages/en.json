@@ -63,7 +63,8 @@
     "systemTheme": "System",
     "status": "Status",
     "created": "Created",
-    "more": "More"
+    "more": "More",
+    "srClose": "Close"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -485,6 +486,7 @@
   "fixedCosts": {
     "title": "Fixed Costs",
     "subtitle": "Manage your monthly fixed expenses",
+    "add": "Add Fixed Cost",
     "category": "Category",
     "concept": "Concept",
     "description": "Description",
@@ -1045,8 +1047,23 @@
     "source": "Source",
     "select_source": "Select a source",
     "selectSource": "Select a source",
+    "acquisition_source": "How did they find the clinic?",
+    "select_acquisition_source": "Select how the patient arrived",
+    "acquisition_source_help": "Identify the main channel through which the patient learned about your clinic",
+    "campaign_help": "Select the advertising campaign that brought this patient",
+    "referral_help": "Select the patient who recommended your clinic",
+    "organic_platform_help": "Which social network or website did they find you on?",
+    "direct_acquisition_info": "Patient arrived directly by walk-in visit or phone call",
+    "acquisition_summary": "Acquisition summary",
+    "patient_from_campaign": "Patient came from advertising campaign",
+    "patient_from_referral": "Patient referred by another patient",
+    "patient_from_organic": "Patient came from organic search",
+    "patient_from_direct": "Patient came directly",
+    "select_platform": "Select platform",
     "referredBy": "Referred by",
     "selectReferrer": "Select who referred them",
+    "select_referrer": "Select who referred them",
+    "no_patients_for_referral": "No other patients available",
     "noReferrer": "None",
     "campaign": "Campaign",
     "select_campaign": "Select a campaign",
@@ -1099,6 +1116,9 @@
       "dates": "Dates",
       "description": "Description",
       "platform": "Platform",
+      "acquisition_source": "Patient Source",
+      "select_referrer": "Select who referred",
+      "start_date": "Start date",
       "budget": "Budget"
     },
     "gender": {
@@ -1106,7 +1126,28 @@
       "female": "Female", 
       "other": "Other"
     },
-    "select_gender": "Select gender"
+    "settings": {
+      "marketing": {
+        "selectPlatform": "Select Platform"
+      }
+    },
+    "select_gender": "Select gender",
+    "select_acquisition_source": "Select source",
+    "acquisition_information": "Acquisition Information",
+    "acquisition": {
+      "campaigns": "Advertising Campaigns",
+      "referrals": "Referrals",
+      "organic": "Organic",
+      "other": "Other",
+      "direct_visit": "Direct Visit",
+      "referred_by_patient": "Referred by Patient",
+      "campaign_selected": "Patient from advertising campaign",
+      "referral_selected": "Patient referred by another patient",
+      "organic_selected": "Patient from organic channels"
+    },
+    "no_active_campaigns": "No active campaigns",
+    "create_new_campaign": "Create new campaign",
+    "select_referrer_patient": "Select the referring patient"
   },
   "treatments": {
     "title": "Treatments",
@@ -1155,6 +1196,8 @@
       "passwordPlaceholder": "Enter your password",
       "submit": "Sign In",
       "loginButton": "Sign In",
+      "hidePassword": "Hide password",
+      "showPassword": "Show password",
       "loggingIn": "Signing in...",
       "noAccount": "Don't have an account?",
       "signUp": "Sign up here",
@@ -1267,6 +1310,13 @@
   },
   "validation": {
     "required": "This field is required",
+    "passwordMinLength6": "Password must be at least 6 characters",
+    "passwordMinLength8": "Password must be at least 8 characters",
+    "passwordUppercase": "Password must contain at least one uppercase letter",
+    "passwordLowercase": "Password must contain at least one lowercase letter",
+    "passwordNumber": "Password must contain at least one number",
+    "passwordsNoMatch": "Passwords don't match",
+    "acceptTerms": "You must accept the terms and conditions",
     "minLength": "Must be at least {min} characters",
     "maxLength": "Must be at most {max} characters",
     "min": "Must be at least {min}",
@@ -1275,7 +1325,18 @@
     "number": "Must be a number",
     "positive": "Must be a positive number",
     "integer": "Must be a whole number",
-    "percentage": "Must be between 0 and 100"
+    "percentage": "Must be between 0 and 100",
+    "placeholders": {
+      "amount": "0.00",
+      "defaultPercentage20": "20",
+      "defaultPercentage35": "35",
+      "defaultMinutes30": "30",
+      "defaultMinutes60": "60",
+      "defaultDays20": "20",
+      "defaultHours7": "7",
+      "defaultPercentage80": "80",
+      "deleteConfirm": "DELETE"
+    }
   },
   "businessSetup": {
     "title": "Business Setup",
@@ -1504,6 +1565,8 @@
     "delete_confirmation": "Are you sure you want to delete this expense?",
     "fetch_error": "Error loading expenses",
     "no_stats_available": "No stats available",
+    "entity": "Expense",
+    "alerts_coming_soon": "Alerts coming soon",
     "view_expense": "View Expense Details",
     "edit_expense": "Edit Expense",
     "close": "Close",
@@ -1522,6 +1585,8 @@
   "settings": {
     "title": "Settings",
     "subtitle": "Manage all your business configuration",
+    "language": "Language",
+    "theme": "Theme",
     "workspaces": {
       "title": "Workspaces",
       "description": "Manage your workspaces and companies"

@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface BaseFieldProps {
@@ -56,6 +56,7 @@ export function InputField({
 }: InputFieldProps) {
   const fieldId = id || label?.toLowerCase().replace(/\s+/g, '-');
   const [showPassword, setShowPassword] = useState(false);
+  const dateInputRef = useRef<HTMLInputElement>(null);
   
   // Determinar el tipo real del input basado en si es password y si se debe mostrar
   const inputType = type === 'password' ? (showPassword ? 'text' : 'password') : type;
@@ -70,9 +71,10 @@ export function InputField({
       )}
       <div className="relative">
         <Input
+          ref={dateInputRef}
           id={fieldId}
           type={inputType}
-          value={value}
+          value={value || ''}
           onChange={(e) => {
             if (type === 'number') {
               onChange(e.target.valueAsNumber || 0);
@@ -80,7 +82,7 @@ export function InputField({
               onChange(e.target.value);
             }
           }}
-          placeholder={placeholder}
+          placeholder={type === 'date' ? undefined : placeholder}
           disabled={disabled}
           min={min}
           max={max}
@@ -88,10 +90,29 @@ export function InputField({
           className={cn(
             'mt-1 h-12 bg-white/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 focus:border-blue-500 dark:focus:border-blue-400 transition-all',
             type === 'password' && 'pr-12',
+            type === 'date' && 'cursor-pointer pr-12 date-input',
             error && 'border-red-500 focus:ring-red-500',
             className
           )}
         />
+        {type === 'date' && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="absolute right-0 top-1 h-10 px-3 py-2 hover:bg-transparent"
+            onClick={() => {
+              // Trigger the native date picker
+              dateInputRef.current?.showPicker?.();
+              dateInputRef.current?.click();
+              dateInputRef.current?.focus();
+            }}
+            disabled={disabled}
+          >
+            <Calendar className="h-4 w-4 text-gray-500" />
+            <span className="sr-only">Open calendar</span>
+          </Button>
+        )}
         {type === 'password' && value && String(value).length > 0 && (
           <Button
             type="button"
@@ -224,11 +245,17 @@ export function SelectField({
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>
-          {options.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
+          {options.length === 0 ? (
+            <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+              {placeholder || 'No options available'}
+            </div>
+          ) : (
+            options.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))
+          )}
         </SelectContent>
       </Select>
       {error && (

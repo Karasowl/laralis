@@ -2,6 +2,7 @@
 
 import { Button } from '@/components/ui/button'
 import { Menu, X } from 'lucide-react'
+import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { cn } from '@/lib/utils'
 
 interface MobileHeaderProps {
@@ -28,19 +29,21 @@ export function MobileHeader({
             {logo}
           </div>
         )}
-        
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onToggle}
-          aria-label={isOpen ? "Close menu" : "Open menu"}
-        >
-          {isOpen ? (
-            <X className="h-6 w-6" />
-          ) : (
-            <Menu className="h-6 w-6" />
-          )}
-        </Button>
+        <div className="flex items-center gap-1">
+          <LanguageSwitcher compact={true} />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onToggle}
+            aria-label={isOpen ? "Close menu" : "Open menu"}
+          >
+            {isOpen ? (
+              <X className="h-6 w-6" />
+            ) : (
+              <Menu className="h-6 w-6" />
+            )}
+          </Button>
+        </div>
       </div>
     </header>
   )

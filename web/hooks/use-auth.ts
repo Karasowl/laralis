@@ -56,14 +56,22 @@ export function useAuth(): UseAuthReturn {
         return false
       }
 
+      if (!data.user) {
+        setError('Login failed - no user returned')
+        toast.error('Login failed - no user returned')
+        return false
+      }
+
       toast.success(t('login_success'))
       
-      // Check if user has completed onboarding
-      const { data: session } = await supabase.auth.getSession()
-      if (session?.session?.user) {
-        // Redirect based on onboarding status
-        router.push('/') // Dashboard
-      }
+      // Refresh the router to update the session in middleware
+      // Then do a hard navigation to ensure everything is updated
+      router.refresh()
+      
+      // Small delay to ensure cookies are set
+      setTimeout(() => {
+        window.location.href = '/'
+      }, 500)
       
       return true
     } catch (err) {
@@ -74,7 +82,7 @@ export function useAuth(): UseAuthReturn {
     } finally {
       setLoading(false)
     }
-  }, [supabase, router, t])
+  }, [supabase, t, router])
 
   const register = useCallback(async (credentials: RegisterCredentials): Promise<boolean> => {
     setLoading(true)

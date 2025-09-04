@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from 'sonner';
 import { WorkspaceProvider } from '@/contexts/workspace-context';
 import { ThemeProvider } from '@/components/providers/theme-provider';
+import { BrowserExtensionsCleanup } from '@/components/providers/browser-extensions-cleanup';
 
 export default async function RootLayout({
   children,
@@ -14,7 +15,8 @@ export default async function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="font-sans antialiased">
+      <body className="font-sans antialiased" suppressHydrationWarning>
+        <BrowserExtensionsCleanup />
         <ThemeProvider 
           attribute="class"
           defaultTheme="dark"

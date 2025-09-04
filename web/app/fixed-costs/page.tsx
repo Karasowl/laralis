@@ -128,7 +128,7 @@ export default function FixedCostsPage() {
     },
     {
       key: 'actions',
-      label: t('actions'),
+      label: t('common.actions'),
       render: (cost: any) => (
         <ActionDropdown
           actions={[
@@ -198,7 +198,7 @@ export default function FixedCostsPage() {
           actions={
             <Button onClick={() => setCreateOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
-              {t('fixedCosts.add')}
+              {t('fixedCosts.addCost')}
             </Button>
           }
         />

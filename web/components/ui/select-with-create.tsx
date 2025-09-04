@@ -17,14 +17,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { ResponsiveModal } from '@/components/ui/responsive-modal';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useTranslations } from 'next-intl';
@@ -100,11 +93,25 @@ export function SelectWithCreate({
     );
   }, [options, search]);
 
-  const handleCreateClick = () => {
-    setOpen(false);
+  const handleCreateClick = React.useCallback(() => {
+    // Abre primero el modal de creación y luego cierra el popover.
+    // Esto evita que los manejadores de cierre del popover/diálogo padre
+    // “consuman” el click antes de que podamos abrir el modal.
     setCreateModalOpen(true);
     setFormData({});
-  };
+    setSearch('');
+    // Cierra el popover con un pequeño retraso para evitar carreras.
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        setOpen(false);
+      }, 100);
+    });
+    if (process.env.NODE_ENV !== 'production') {
+      // Debug visual en desarrollo
+      try { console.debug('[SelectWithCreate] New click → open modal'); } catch {}
+      try { toast.info(`Opening new ${entityName}…`); } catch {}
+    }
+  }, []);
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -142,7 +149,7 @@ export function SelectWithCreate({
 
   return (
     <>
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover modal open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
@@ -159,7 +166,7 @@ export function SelectWithCreate({
             <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-full p-0" align="start">
+        <PopoverContent className="w-full p-0" align="start" onInteractOutside={(e) => e.preventDefault()}>
           <Command>
             <CommandInput 
               placeholder={searchPlaceholder || t('common.search')}
@@ -189,100 +196,146 @@ export function SelectWithCreate({
                     {option.label}
                   </CommandItem>
                 ))}
-                
-                {/* Opción para crear nuevo */}
-                {canCreate && onCreateSubmit && (
-                  <CommandItem
-                    value="__create_new__"
-                    onSelect={handleCreateClick}
-                    className="text-primary cursor-pointer"
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    {createLabel || t('common.createNew', { entity: entityName })}
-                  </CommandItem>
-                )}
               </CommandGroup>
             </CommandList>
           </Command>
+          
+          {/* Opción para crear nuevo - Fuera del Command para evitar el cierre automático */
+          }
+          {canCreate && onCreateSubmit && (
+            <div className="border-t p-1">
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-primary font-medium hover:bg-accent hover:text-primary-foreground active:bg-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors cursor-pointer select-none"
+                data-cy="select-create-new"
+                title={createLabel || t('common.createNew', { entity: entityName })}
+                onPointerDown={(e) => {
+                  // Evita que Radix Dialog/MobileModal interprete como click fuera
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onPointerUp={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onMouseUp={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onTouchStart={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleCreateClick();
+                }}
+                onMouseEnter={() => {
+                  if (process.env.NODE_ENV !== 'production') {
+                    try { console.debug('[SelectWithCreate] Hover on create-new'); } catch {}
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleCreateClick();
+                  }
+                }}
+              >
+                <Plus className="h-4 w-4" />
+                {createLabel || t('common.createNew', { entity: entityName })}
+              </button>
+            </div>
+          )}
         </PopoverContent>
       </Popover>
 
-      {/* Modal de creación */}
-      <Dialog open={createModalOpen} onOpenChange={setCreateModalOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <form onSubmit={handleCreateSubmit}>
-            <DialogHeader>
-              <DialogTitle>
-                {createDialogTitle || t('common.createNewTitle', { entity: entityName })}
-              </DialogTitle>
-              <DialogDescription>
-                {createDialogDescription || t('common.createNewDescription', { entity: entityName })}
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="grid gap-4 py-4">
-              {createFields.map((field) => (
-                <div key={field.name} className="grid gap-2">
-                  <Label htmlFor={field.name}>
-                    {field.label}
-                    {field.required && <span className="text-red-500 ml-1">*</span>}
-                  </Label>
-                  
-                  {field.type === 'textarea' ? (
-                    <textarea
-                      id={field.name}
-                      className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      placeholder={field.placeholder}
-                      value={formData[field.name] || ''}
-                      onChange={(e) => handleFieldChange(field.name, e.target.value)}
-                      disabled={creating}
-                    />
-                  ) : field.type === 'select' && field.options ? (
-                    <select
-                      id={field.name}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      value={formData[field.name] || ''}
-                      onChange={(e) => handleFieldChange(field.name, e.target.value)}
-                      disabled={creating}
-                    >
-                      <option value="">{t('common.select')}</option>
-                      {field.options.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <Input
-                      id={field.name}
-                      type={field.type || 'text'}
-                      placeholder={field.placeholder}
-                      value={formData[field.name] || ''}
-                      onChange={(e) => handleFieldChange(field.name, e.target.value)}
-                      disabled={creating}
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-            
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setCreateModalOpen(false)}
-                disabled={creating}
-              >
-                {t('common.cancel')}
-              </Button>
-              <Button type="submit" disabled={creating}>
-                {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {t('common.create')}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {/* Modal de creación (responsive: Drawer en móvil, Dialog en desktop) */}
+      <ResponsiveModal
+        open={createModalOpen}
+        onOpenChange={(open) => {
+          setCreateModalOpen(open);
+          if (process.env.NODE_ENV !== 'production') {
+            try { console.debug('[SelectWithCreate] createModalOpen =', open); } catch {}
+            try { toast.message(`Modal ${open ? 'opened' : 'closed'}`); } catch {}
+          }
+        }}
+        title={createDialogTitle || t('common.createNewTitle', { entity: entityName })}
+        description={createDialogDescription || t('common.createNewDescription', { entity: entityName })}
+      >
+        <form onSubmit={handleCreateSubmit}>
+          <div className="grid gap-4 py-2 sm:py-4">
+            {createFields.map((field) => (
+              <div key={field.name} className="grid gap-2">
+                <Label htmlFor={field.name}>
+                  {field.label}
+                  {field.required && <span className="text-red-500 ml-1">*</span>}
+                </Label>
+
+                {field.type === 'textarea' ? (
+                  <textarea
+                    id={field.name}
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    placeholder={field.placeholder}
+                    value={formData[field.name] || ''}
+                    onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                    disabled={creating}
+                  />
+                ) : field.type === 'select' && field.options ? (
+                  <select
+                    id={field.name}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={formData[field.name] || ''}
+                    onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                    disabled={creating}
+                  >
+                    <option value="">{t('common.select')}</option>
+                    {field.options.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <Input
+                    id={field.name}
+                    type={field.type || 'text'}
+                    placeholder={field.placeholder}
+                    value={formData[field.name] || ''}
+                    onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                    disabled={creating}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 flex justify-end gap-2 sm:mt-6">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setCreateModalOpen(false)}
+              disabled={creating}
+            >
+              {t('common.cancel')}
+            </Button>
+            <Button type="submit" disabled={creating}>
+              {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t('common.create')}
+            </Button>
+          </div>
+        </form>
+      </ResponsiveModal>
     </>
   );
 }

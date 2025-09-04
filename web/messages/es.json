@@ -67,7 +67,8 @@
     "darkTheme": "Oscuro",
     "systemTheme": "Sistema",
     "status": "Estado",
-    "created": "Creado"
+    "created": "Creado",
+    "srClose": "Cerrar"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -99,6 +100,7 @@
   "dark_mode": "Modo Oscuro",
   "toggle_theme": "Cambiar Tema",
   "select_clinic": "Seleccionar Clínica",
+  "expand_sidebar": "Expandir Barra Lateral",
   "collapse_sidebar": "Colapsar Barra Lateral",
   "profile": {
     "title": "Perfil",
@@ -924,6 +926,8 @@
       "loggingIn": "Iniciando sesión...",
       "noAccount": "¿No tienes cuenta?",
       "signUp": "Regístrate aquí",
+      "hidePassword": "Ocultar contraseña",
+      "showPassword": "Mostrar contraseña",
       "forgotPassword": "¿Olvidaste tu contraseña?",
       "rememberMe": "Recordarme",
       "subtitle": "Inicia sesión en tu cuenta de Laralis",
@@ -1032,6 +1036,13 @@
   },
   "validation": {
     "required": "Este campo es requerido",
+    "passwordMinLength6": "La contraseña debe tener al menos 6 caracteres",
+    "passwordMinLength8": "La contraseña debe tener al menos 8 caracteres",
+    "passwordUppercase": "La contraseña debe contener al menos una letra mayúscula",
+    "passwordLowercase": "La contraseña debe contener al menos una letra minúscula",
+    "passwordNumber": "La contraseña debe contener al menos un número",
+    "passwordsNoMatch": "Las contraseñas no coinciden",
+    "acceptTerms": "Debes aceptar los términos y condiciones",
     "minLength": "Debe tener al menos {min} caracteres",
     "maxLength": "Debe tener máximo {max} caracteres",
     "min": "Debe ser al menos {min}",
@@ -1040,7 +1051,18 @@
     "number": "Debe ser un número",
     "positive": "Debe ser un número positivo",
     "integer": "Debe ser un número entero",
-    "percentage": "Debe estar entre 0 y 100"
+    "percentage": "Debe estar entre 0 y 100",
+    "placeholders": {
+      "amount": "0.00",
+      "defaultPercentage20": "20",
+      "defaultPercentage35": "35",
+      "defaultMinutes30": "30",
+      "defaultMinutes60": "60",
+      "defaultDays20": "20",
+      "defaultHours7": "7",
+      "defaultPercentage80": "80",
+      "deleteConfirm": "DELETE"
+    }
   },
   "settings": {
     "title": "Configuración",
@@ -1140,6 +1162,11 @@
   "patients": {
     "title": "Pacientes",
     "subtitle": "Gestiona tus registros de pacientes",
+    "settings": {
+      "marketing": {
+        "selectPlatform": "Seleccionar Plataforma"
+      }
+    },
     "empty": {
       "title": "No hay pacientes registrados",
       "description": "Agrega tu primer paciente para comenzar a registrar tratamientos"
@@ -1174,8 +1201,23 @@
     "confirmDelete": "¿Estás seguro de que deseas eliminar este paciente?",
     "source": "Vía de llegada",
     "selectSource": "Selecciona una vía",
+    "acquisition_source": "¿Cómo conoció la clínica?",
+    "select_acquisition_source": "Selecciona cómo llegó el paciente",
+    "acquisition_source_help": "Identifica el canal principal por el cual el paciente conoció tu clínica",
+    "campaign_help": "Selecciona la campaña publicitaria que trajo a este paciente",
+    "referral_help": "Selecciona el paciente que recomendó tu clínica",
+    "organic_platform_help": "¿En qué red social o sitio web te encontró?",
+    "direct_acquisition_info": "El paciente llegó directamente por visita espontánea o llamada telefónica",
+    "acquisition_summary": "Resumen de adquisición",
+    "patient_from_campaign": "Paciente llegó por campaña publicitaria",
+    "patient_from_referral": "Paciente referido por otro paciente",
+    "patient_from_organic": "Paciente llegó por búsqueda orgánica",
+    "patient_from_direct": "Paciente llegó directamente",
+    "select_platform": "Selecciona la plataforma",
     "referredBy": "Referido por",
     "selectReferrer": "Selecciona quién lo refirió",
+    "select_referrer": "Selecciona quién lo refirió",
+    "no_patients_for_referral": "No hay otros pacientes disponibles",
     "noReferrer": "Ninguno",
     "campaign": "Campaña",
     "campaignPlaceholder": "Seleccionar campaña",
@@ -1226,6 +1268,9 @@
       "dates": "Fechas",
       "description": "Descripción",
       "platform": "Plataforma",
+      "acquisition_source": "Origen del Paciente",
+      "select_referrer": "Selecciona quién lo refirió",
+      "start_date": "Fecha de inicio",
       "budget": "Presupuesto"
     },
     "gender": {
@@ -1235,6 +1280,7 @@
     },
     "select_gender": "Seleccionar género",
     "select_source": "Seleccionar vía de llegada",
+    "select_acquisition_source": "Selecciona el origen",
     "select_campaign": "Seleccionar campaña",
     "create_new_source": "Nueva vía de llegada",
     "create_source_title": "Crear Nueva Vía de Llegada",
@@ -1245,6 +1291,22 @@
     "create_campaign_title": "Crear Nueva Campaña",
     "create_campaign_description": "Ingresa la información de la nueva campaña de marketing",
     "campaign_name_placeholder": "Ej: Campaña Navidad 2024",
+    "acquisition_information": "Información de Origen",
+    "acquisition": {
+      "campaigns": "Campañas Publicitarias",
+      "referrals": "Referencias",
+      "organic": "Orgánico",
+      "direct": "Directo",
+      "other": "Otros",
+      "direct_visit": "Visita Directa",
+      "referred_by_patient": "Referido por Paciente",
+      "campaign_selected": "Paciente viene de campaña publicitaria",
+      "referral_selected": "Paciente referido por otro paciente",
+      "organic_selected": "Paciente llegó por medios orgánicos"
+    },
+    "no_active_campaigns": "No hay campañas activas",
+    "create_new_campaign": "Crear nueva campaña",
+    "select_referrer_patient": "Selecciona el paciente que lo refirió",
     "entities": {
       "source": "vía de llegada",
       "campaign": "campaña"
@@ -1269,6 +1331,7 @@
   "fixedCosts": {
     "title": "Costos Fijos",
     "subtitle": "Gastos mensuales recurrentes de tu clínica",
+    "add": "Agregar Costo Fijo",
     "category": "Categoría",
     "concept": "Concepto",
     "amount": "Monto",
@@ -1572,6 +1635,8 @@
     "delete_confirmation": "¿Estás seguro de que deseas eliminar este gasto?",
     "fetch_error": "Error al cargar los gastos",
     "no_stats_available": "No hay estadísticas disponibles",
+    "entity": "Gasto",
+    "alerts_coming_soon": "Alertas próximamente",
     "view_expense": "Ver Detalle del Gasto",
     "edit_expense": "Editar Gasto",
     "close": "Cerrar",
@@ -1590,6 +1655,8 @@
   "settings": {
     "title": "Configuración",
     "subtitle": "Administra toda la configuración de tu negocio",
+    "language": "Idioma",
+    "theme": "Tema",
     "workspaces": {
       "title": "Espacios de Trabajo",
       "description": "Gestiona tus espacios de trabajo y empresas"

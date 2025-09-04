@@ -217,6 +217,64 @@ export default function TreatmentsPage() {
     label: t(status.label)
   }))
 
+  // Handlers para crear paciente y servicio rápido
+  const handleCreatePatient = async (data: any) => {
+    try {
+      const response = await fetch('/api/patients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...data,
+          clinic_id: currentClinic?.id
+        })
+      })
+      
+      if (!response.ok) throw new Error('Failed to create patient')
+      
+      const newPatient = await response.json()
+      
+      // Refrescar la lista de pacientes
+      await loadRelatedData()
+      
+      return { 
+        value: newPatient.id, 
+        label: `${newPatient.first_name} ${newPatient.last_name}` 
+      }
+    } catch (error) {
+      console.error('Error creating patient:', error)
+      throw error
+    }
+  }
+
+  const handleCreateService = async (data: any) => {
+    try {
+      const response = await fetch('/api/services', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...data,
+          clinic_id: currentClinic?.id,
+          base_price_cents: 0 // Por defecto
+        })
+      })
+      
+      if (!response.ok) throw new Error('Failed to create service')
+      
+      const newService = await response.json()
+      
+      // Refrescar la lista de servicios
+      await loadRelatedData()
+      
+      return { 
+        value: newService.id, 
+        label: newService.name 
+      }
+    } catch (error) {
+      console.error('Error creating service:', error)
+      throw error
+    }
+  }
+
   return (
     <AppLayout>
       <div className="container mx-auto p-6 max-w-7xl space-y-6">
@@ -291,6 +349,8 @@ export default function TreatmentsPage() {
             services={serviceOptions}
             statusOptions={statusFormOptions}
             onServiceChange={handleServiceChange}
+            onCreatePatient={handleCreatePatient}
+            onCreateService={handleCreateService}
             t={t}
           />
         </FormModal>
@@ -309,6 +369,8 @@ export default function TreatmentsPage() {
             services={serviceOptions}
             statusOptions={statusFormOptions}
             onServiceChange={handleServiceChange}
+            onCreatePatient={handleCreatePatient}
+            onCreateService={handleCreateService}
             t={t}
           />
         </FormModal>
