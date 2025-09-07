@@ -59,24 +59,26 @@ export default function PatientsPage() {
   useModalCleanup(!!deletePatientData)
 
   // Form
+  const initialValues: ZPatientForm = {
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    birth_date: '',
+    first_visit_date: '',
+    gender: '',
+    address: '',
+    city: '',
+    postal_code: '',
+    notes: '',
+    referred_by_patient_id: '',
+    campaign_id: '',
+    platform_id: ''
+  }
+
   const form = useForm<ZPatientForm>({
     resolver: zodResolver(zPatientForm),
-    defaultValues: {
-      first_name: '',
-      last_name: '',
-      email: '',
-      phone: '',
-      birth_date: '',
-      first_visit_date: '',
-      gender: '',
-      address: '',
-      city: '',
-      postal_code: '',
-      notes: '',
-      referred_by_patient_id: '',
-      campaign_id: '',
-      platform_id: ''
-    }
+    defaultValues: initialValues
   })
 
   // Load related data (sources, campaigns, platforms) on mount
@@ -296,8 +298,9 @@ export default function PatientsPage() {
       render: (_value: any, patient: Patient) => {
         if (!patient) return null;
         return (
-          <ActionDropdown
-            actions={[
+          <div className="md:flex md:justify-end">
+            <ActionDropdown
+              actions={[
               {
                 label: t('view'),
                 icon: <Eye className="h-4 w-4" />,
@@ -324,7 +327,8 @@ export default function PatientsPage() {
               }),
               createDeleteAction(() => setDeletePatientData(patient))
             ]}
-          />
+            />
+          </div>
         )
       }
     }
@@ -337,7 +341,7 @@ export default function PatientsPage() {
           title={t('title')}
           subtitle={t('subtitle')}
           actions={
-            <Button onClick={() => setCreateOpen(true)}>
+            <Button onClick={() => { form.reset(initialValues); setCreateOpen(true) }}>
               <Plus className="h-4 w-4 mr-2" />
               {t('add_patient')}
             </Button>
@@ -361,7 +365,10 @@ export default function PatientsPage() {
         {/* Create Modal */}
         <FormModal
           open={createOpen}
-          onOpenChange={setCreateOpen}
+          onOpenChange={(open) => { 
+            setCreateOpen(open); 
+            if (!open) form.reset(initialValues);
+          }}
           title={t('create_patient')}
           onSubmit={form.handleSubmit(handleCreate)}
           maxWidth="2xl"

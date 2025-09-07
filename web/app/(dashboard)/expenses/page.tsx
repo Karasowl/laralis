@@ -88,6 +88,16 @@ export default function ExpensesPage() {
     },
   })
 
+  const expenseInitialValues: ExpenseFormData = {
+    expense_date: new Date().toISOString().split('T')[0],
+    category: '',
+    subcategory: '',
+    description: '',
+    vendor: '',
+    amount_pesos: 0,
+    notes: '',
+  }
+
   // Load expense statistics
   useEffect(() => {
     loadStats()
@@ -155,15 +165,7 @@ export default function ExpensesPage() {
 
   // Handle dialog open
   const handleOpenDialog = () => {
-    reset({
-      expense_date: new Date().toISOString().split('T')[0],
-      category: '',
-      subcategory: '',
-      description: '',
-      vendor: '',
-      amount_pesos: 0,
-      notes: '',
-    })
+    reset(expenseInitialValues)
     crud.openDialog()
   }
 
@@ -294,7 +296,7 @@ export default function ExpensesPage() {
         {/* Add/Edit Modal */}
         <FormModal
           open={crud.isDialogOpen}
-          onOpenChange={crud.closeDialog}
+          onOpenChange={(open) => { crud.closeDialog(); if (!open) reset(expenseInitialValues) }}
           title={crud.editingItem ? t('expenses.edit_expense') : t('expenses.create_expense')}
           onSubmit={handleSubmit(onSubmit)}
           isSubmitting={crud.isSubmitting}

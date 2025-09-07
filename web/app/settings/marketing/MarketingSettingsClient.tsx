@@ -2,37 +2,44 @@
 
 import { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
-import { CrudPageLayout } from '@/components/ui/crud-page-layout'
+import { Card } from '@/components/ui/card'
 import { FormModal } from '@/components/ui/form-modal'
 import { FormGrid, FormSection, InputField } from '@/components/ui/form-field'
 import { Button } from '@/components/ui/button'
-import { Archive, Trash2, RotateCcw } from 'lucide-react'
+import { DataTable } from '@/components/ui/DataTable'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { Archive, Trash2, RotateCcw, Megaphone, Plus, ChevronRight, Edit, ArrowLeft } from 'lucide-react'
+import { ActionDropdown, ActionItem } from '@/components/ui/ActionDropdown'
 import { useCrudOperations } from '@/hooks/use-crud-operations'
 import { useWorkspace } from '@/contexts/workspace-context'
-import { formatMoney } from '@/lib/money'
-import { Form } from '@/components/ui/form'
+import { formatCurrency } from '@/lib/money'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 
-// Schemas
+// Schemas - validation messages will be handled by form field components
 const platformSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
+  display_name: z.string().min(1),
   clinic_id: z.string()
 })
 
 const campaignSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  platform_id: z.string(),
-  budget_cents: z.number().min(0).optional(),
-  is_active: z.boolean().default(true)
+  name: z.string().min(1),
+  platform_id: z.string()
 })
 
-type Platform = z.infer<typeof platformSchema> & { id: string }
+type Platform = z.infer<typeof platformSchema> & { 
+  id: string
+  campaigns_count?: number
+}
 type Campaign = z.infer<typeof campaignSchema> & { 
   id: string
   platform?: Platform
   archived_at?: string | null
+  patients_count?: number
 }
 
 export default function MarketingSettingsClient() {
@@ -42,35 +49,137 @@ export default function MarketingSettingsClient() {
   // Platform CRUD
   const platforms = useCrudOperations<Platform>({
     endpoint: '/api/marketing/platforms',
-    queryParams: currentClinic?.id ? `clinicId=${currentClinic.id}` : '',
-    entityName: 'platform',
-    autoLoad: true
+    entityName: t('settings.marketing.platform'),
+    includeClinicId: true
   })
+  
+  // Load platforms on mount
+  useEffect(() => {
+    platforms.fetchItems()
+  }, [])
 
-  // Campaign CRUD
+  // Campaign CRUD - Using custom implementation for campaigns
   const [selectedPlatformId, setSelectedPlatformId] = useState<string>('')
-  const campaigns = useCrudOperations<Campaign>({
-    endpoint: '/api/marketing/campaigns',
-    queryParams: selectedPlatformId ? `platformId=${selectedPlatformId}&includeArchived=true` : '',
-    entityName: 'campaign',
-    autoLoad: false
-  })
-
+  const [campaignsData, setCampaignsData] = useState<Campaign[]>([])
+  const [campaignsLoading, setCampaignsLoading] = useState(false)
+  
+  // Fetch campaigns for selected platform
+  const fetchCampaigns = async () => {
+    if (!selectedPlatformId) {
+      setCampaignsData([])
+      return
+    }
+    
+    try {
+      setCampaignsLoading(true)
+      const response = await fetch(
+        `/api/marketing/campaigns?platformId=${selectedPlatformId}&includeArchived=true`
+      )
+      if (response.ok) {
+        const result = await response.json()
+        const data = result.data || result || []
+        setCampaignsData(data)
+      }
+    } catch (error) {
+      console.error('Error fetching campaigns:', error)
+      setCampaignsData([])
+    } finally {
+      setCampaignsLoading(false)
+    }
+  }
+  
   // Load campaigns when platform changes
   useEffect(() => {
-    if (selectedPlatformId) {
-      campaigns.fetchItems()
-    }
+    fetchCampaigns()
   }, [selectedPlatformId])
+  
+  // Campaign delete handler
+  const handleDeleteCampaign = async (campaignId: string) => {
+    try {
+      const response = await fetch(`/api/marketing/campaigns/${campaignId}`, {
+        method: 'DELETE'
+      })
+      
+      if (response.ok) {
+        await fetchCampaigns() // Refresh campaigns
+        toast.success(t('common.deleteSuccess', { entity: t('settings.marketing.campaign') }))
+        return true
+      } else {
+        const error = await response.json()
+        // Show specific error message based on error code or message
+        const errorMessage = error.error || error.message || ''
+        if (errorMessage.toLowerCase().includes('patient')) {
+          toast.error(t('settings.marketing.cannotDeleteCampaignWithPatients'))
+        } else {
+          toast.error(t('common.deleteError', { entity: t('settings.marketing.campaign') }))
+        }
+        console.error('Failed to delete campaign:', error)
+        return false
+      }
+    } catch (error) {
+      console.error('Error deleting campaign:', error)
+      toast.error(t('common.deleteError', { entity: t('settings.marketing.campaign') }))
+      return false
+    }
+  }
+  
+  // Campaign create handler
+  const handleCreateCampaign = async (data: any) => {
+    try {
+      const response = await fetch('/api/marketing/campaigns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...data, platform_id: selectedPlatformId })
+      })
+      
+      if (response.ok) {
+        await fetchCampaigns()
+        toast.success(t('common.createSuccess', { entity: t('settings.marketing.campaign') }))
+        return true
+      }
+      toast.error(t('common.createError', { entity: t('settings.marketing.campaign') }))
+      return false
+    } catch (error) {
+      console.error('Error creating campaign:', error)
+      toast.error(t('common.createError', { entity: t('settings.marketing.campaign') }))
+      return false
+    }
+  }
+  
+  // Campaign update handler
+  const handleUpdateCampaign = async (campaignId: string, data: any) => {
+    try {
+      const response = await fetch(`/api/marketing/campaigns/${campaignId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      })
+      
+      if (response.ok) {
+        await fetchCampaigns()
+        toast.success(t('common.updateSuccess', { entity: t('settings.marketing.campaign') }))
+        return true
+      }
+      toast.error(t('common.updateError', { entity: t('settings.marketing.campaign') }))
+      return false
+    } catch (error) {
+      console.error('Error updating campaign:', error)
+      toast.error(t('common.updateError', { entity: t('settings.marketing.campaign') }))
+      return false
+    }
+  }
 
   // Forms
   const [platformModalOpen, setPlatformModalOpen] = useState(false)
   const [campaignModalOpen, setCampaignModalOpen] = useState(false)
+  const [editingPlatform, setEditingPlatform] = useState<Platform | null>(null)
+  const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null)
+  const [campaignSubmitting, setCampaignSubmitting] = useState(false)
   
   const platformForm = useForm<z.infer<typeof platformSchema>>({
     resolver: zodResolver(platformSchema),
     defaultValues: {
-      name: '',
+      display_name: '',
       clinic_id: currentClinic?.id || ''
     }
   })
@@ -79,9 +188,7 @@ export default function MarketingSettingsClient() {
     resolver: zodResolver(campaignSchema),
     defaultValues: {
       name: '',
-      platform_id: '',
-      budget_cents: 0,
-      is_active: true
+      platform_id: ''
     }
   })
 
@@ -91,246 +198,415 @@ export default function MarketingSettingsClient() {
   }, [selectedPlatformId, campaignForm])
 
   // Platform handlers
-  const handleCreatePlatform = async (data: z.infer<typeof platformSchema>) => {
-    if (!currentClinic?.id) {
-      return
+  const handleOpenPlatformModal = (platform?: Platform) => {
+    if (platform) {
+      setEditingPlatform(platform)
+      platformForm.setValue('display_name', platform.display_name)
+    } else {
+      setEditingPlatform(null)
+      platformForm.reset()
     }
+    setPlatformModalOpen(true)
+  }
 
-    const result = await platforms.create({
-      ...data,
-      clinic_id: currentClinic.id
-    })
+  const handleSavePlatform = async (data: z.infer<typeof platformSchema>) => {
+    if (!currentClinic?.id) return
 
-    if (result.success) {
+    const payload = { ...data, clinic_id: currentClinic.id }
+    
+    const success = editingPlatform
+      ? await platforms.handleUpdate(editingPlatform.id, payload)
+      : await platforms.handleCreate(payload)
+
+    if (success) {
       setPlatformModalOpen(false)
       platformForm.reset()
+      setEditingPlatform(null)
+    }
+  }
+
+  const handleDeletePlatform = async (platformId: string) => {
+    const success = await platforms.handleDelete(platformId)
+    if (success && selectedPlatformId === platformId) {
+      setSelectedPlatformId('')
+      setCampaignsData([])
     }
   }
 
   // Campaign handlers
-  const handleCreateCampaign = async (data: z.infer<typeof campaignSchema>) => {
-    const result = await campaigns.create({
-      ...data,
-      platform_id: selectedPlatformId
-    })
+  const handleOpenCampaignModal = (campaign?: Campaign) => {
+    if (campaign) {
+      setEditingCampaign(campaign)
+      campaignForm.reset({
+        name: campaign.name,
+        platform_id: campaign.platform_id || campaign.platform?.id || ''
+      })
+    } else {
+      setEditingCampaign(null)
+      campaignForm.reset({
+        name: '',
+        platform_id: selectedPlatformId
+      })
+    }
+    setCampaignModalOpen(true)
+  }
 
-    if (result.success) {
-      setCampaignModalOpen(false)
-      campaignForm.reset()
+  const handleSaveCampaign = async (data: z.infer<typeof campaignSchema>) => {
+    setCampaignSubmitting(true)
+    try {
+      const success = editingCampaign
+        ? await handleUpdateCampaign(editingCampaign.id, data)
+        : await handleCreateCampaign(data)
+
+      if (success) {
+        setCampaignModalOpen(false)
+        campaignForm.reset()
+        setEditingCampaign(null)
+      }
+    } finally {
+      setCampaignSubmitting(false)
     }
   }
 
   const handleArchiveCampaign = async (campaign: Campaign) => {
     const isArchived = !!campaign.archived_at
-    const endpoint = `/api/marketing/campaigns/${campaign.id}/${isArchived ? 'unarchive' : 'archive'}`
     
-    const res = await fetch(endpoint, { method: 'PATCH' })
-    if (res.ok) {
-      campaigns.fetchItems()
+    try {
+      // Hacer la petición al backend
+      const endpoint = `/api/marketing/campaigns/${campaign.id}`
+      const res = await fetch(endpoint, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          archived_at: isArchived ? null : new Date().toISOString()
+        })
+      })
+      
+      if (res.ok) {
+        // Recargar las campañas
+        await fetchCampaigns()
+        toast.success(
+          isArchived 
+            ? t('settings.marketing.campaignRestored') 
+            : t('settings.marketing.campaignArchived')
+        )
+      } else {
+        console.error('Error archiving campaign:', await res.text())
+        toast.error(
+          isArchived 
+            ? t('settings.marketing.restoreError')
+            : t('settings.marketing.archiveError')
+        )
+      }
+    } catch (error) {
+      console.error('Error archiving campaign:', error)
+      toast.error(
+        isArchived 
+          ? t('settings.marketing.restoreError')
+          : t('settings.marketing.archiveError')
+      )
     }
   }
 
-  // Platform columns
-  const platformColumns = [
-    {
-      key: 'name',
-      label: t('settings.marketing.platformName'),
-      render: (platform: Platform) => (
-        <div className="font-medium">{platform.name}</div>
-      )
-    },
-    {
-      key: 'actions',
-      label: t('common.actions'),
-      render: (platform: Platform) => (
-        <div className="flex gap-2">
-          <Button
-            variant={selectedPlatformId === platform.id ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setSelectedPlatformId(platform.id)}
-          >
-            {t('settings.marketing.viewCampaigns')}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => platforms.handleDelete(platform.id)}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      )
-    }
-  ]
+  // Get active campaigns count for statistics
+  const activeCampaigns = campaignsData.filter(c => !c.archived_at)
+  const selectedPlatform = platforms.items.find(p => p.id === selectedPlatformId)
 
   // Campaign columns
   const campaignColumns = [
     {
       key: 'name',
       label: t('settings.marketing.campaignName'),
-      render: (campaign: Campaign) => (
+      sortable: true,
+      render: (_value: any, campaign: Campaign) => (
         <div className="flex items-center gap-2">
-          <span className={campaign.archived_at ? 'line-through opacity-50' : ''}>
+          <span className={campaign.archived_at ? 'text-muted-foreground line-through' : 'font-medium'}>
             {campaign.name}
           </span>
           {campaign.archived_at && (
-            <span className="text-xs text-muted-foreground">
-              ({t('settings.marketing.archived')})
-            </span>
+            <Badge variant="outline" className="text-xs">
+              {t('settings.marketing.archived')}
+            </Badge>
           )}
         </div>
       )
     },
     {
-      key: 'budget',
-      label: t('settings.marketing.budget'),
-      render: (campaign: Campaign) => 
-        campaign.budget_cents ? formatMoney(campaign.budget_cents) : '-'
-    },
-    {
-      key: 'status',
-      label: t('settings.marketing.status'),
-      render: (campaign: Campaign) => (
-        <span className={`px-2 py-1 rounded text-xs ${
-          campaign.archived_at ? 'bg-gray-100 text-gray-600' :
-          campaign.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-        }`}>
-          {campaign.archived_at ? t('settings.marketing.archived') : 
-           campaign.is_active ? t('settings.marketing.active') : t('settings.marketing.inactive')}
-        </span>
+      key: 'patients',
+      label: t('settings.marketing.patients'),
+      sortable: true,
+      render: (_value: any, campaign: Campaign) => (
+        <div className="font-medium">
+          {campaign.patients_count || 0}
+        </div>
       )
     },
     {
       key: 'actions',
-      label: t('common.actions'),
-      render: (campaign: Campaign) => (
-        <div className="flex gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleArchiveCampaign(campaign)}
-            title={campaign.archived_at ? t('settings.marketing.restore') : t('settings.marketing.archive')}
-          >
-            {campaign.archived_at ? 
-              <RotateCcw className="h-4 w-4" /> : 
-              <Archive className="h-4 w-4" />
-            }
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => campaigns.handleDelete(campaign.id)}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      )
+      label: '',
+      sortable: false,
+      render: (_value: any, campaign: Campaign) => {
+        const actions: ActionItem[] = []
+        
+        // Edit action (only for non-archived campaigns)
+        if (!campaign.archived_at) {
+          actions.push({
+            label: t('common.edit'),
+            icon: <Edit className="h-4 w-4" />,
+            onClick: () => handleOpenCampaignModal(campaign)
+          })
+        }
+        
+        // Archive/Restore action
+        actions.push({
+          label: campaign.archived_at ? t('settings.marketing.restore') : t('settings.marketing.archive'),
+          icon: campaign.archived_at ? 
+            <RotateCcw className="h-4 w-4" /> : 
+            <Archive className="h-4 w-4" />,
+          onClick: () => handleArchiveCampaign(campaign)
+        })
+        
+        // Delete action
+        actions.push({
+          label: t('common.delete'),
+          icon: <Trash2 className="h-4 w-4" />,
+          onClick: () => handleDeleteCampaign(campaign.id),
+          variant: 'destructive',
+          separator: true
+        })
+        
+        return (
+          <div className="md:flex md:justify-end">
+            <ActionDropdown actions={actions} />
+          </div>
+        )
+      }
     }
   ]
 
-  const selectedPlatform = platforms.items.find(p => p.id === selectedPlatformId)
+  // Mobile: Show campaigns view, Desktop: Show split view
+  const showCampaignsView = selectedPlatformId !== ''
 
   return (
-    <div className="space-y-6">
-      {/* Platforms Section */}
-      <CrudPageLayout
-        title={t('settings.marketing.platforms')}
-        subtitle={t('settings.marketing.platformsSubtitle')}
-        items={platforms.items}
-        loading={platforms.loading}
-        columns={platformColumns}
-        onAdd={() => setPlatformModalOpen(true)}
-        searchPlaceholder={t('settings.marketing.searchPlatforms')}
-        addButtonLabel={t('settings.marketing.addPlatform')}
-        emptyState={{
-          title: t('settings.marketing.noPlatforms'),
-          description: t('settings.marketing.noPlatformsDescription'),
-          action: {
-            label: t('settings.marketing.addFirstPlatform'),
-            onClick: () => setPlatformModalOpen(true)
-          }
-        }}
-      />
-
-      {/* Campaigns Section */}
-      {selectedPlatformId && selectedPlatform && (
-        <CrudPageLayout
-          title={t('settings.marketing.campaigns')}
-          subtitle={`${t('settings.marketing.campaignsFor')} ${selectedPlatform.name}`}
-          items={campaigns.items}
-          loading={campaigns.loading}
-          columns={campaignColumns}
-          onAdd={() => setCampaignModalOpen(true)}
-          searchPlaceholder={t('settings.marketing.searchCampaigns')}
-          addButtonLabel={t('settings.marketing.addCampaign')}
-          emptyState={{
-            title: t('settings.marketing.noCampaigns'),
-            description: t('settings.marketing.noCampaignsDescription'),
-            action: {
-              label: t('settings.marketing.addFirstCampaign'),
-              onClick: () => setCampaignModalOpen(true)
-            }
-          }}
-        />
+    <div className="space-y-4">
+      {/* Mobile Navigation for campaigns view */}
+      {showCampaignsView && (
+        <div className="lg:hidden">
+          <Button
+            variant="ghost"
+            onClick={() => setSelectedPlatformId('')}
+            className="mb-4"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            {t('common.back')}
+          </Button>
+        </div>
       )}
+
+      {/* Main Content */}
+      <div className={cn(
+        "grid gap-6",
+        "grid-cols-1",
+        "lg:grid-cols-3"
+      )}>
+        {/* Platforms Section - Hidden on mobile when campaign selected */}
+        <div className={cn(
+          "lg:col-span-1",
+          showCampaignsView && "hidden lg:block"
+        )}>
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-lg font-semibold">{t('settings.marketing.platforms')}</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {t('settings.marketing.platformsSubtitle')}
+                </p>
+              </div>
+              <Button
+                size="icon"
+                onClick={() => handleOpenPlatformModal()}
+                title={t('settings.marketing.addPlatform')}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {platforms.loading ? (
+              <div className="space-y-2">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="h-16 bg-muted animate-pulse rounded-lg" />
+                ))}
+              </div>
+            ) : platforms.items.length === 0 ? (
+              <EmptyState
+                icon={<Megaphone className="h-8 w-8" />}
+                title={t('settings.marketing.noPlatforms')}
+                description={t('settings.marketing.noPlatformsDescription')}
+              />
+            ) : (
+              <div className="space-y-2">
+                {platforms.items.map((platform) => (
+                  <div
+                    key={platform.id}
+                    className={cn(
+                      "p-4 rounded-lg cursor-pointer transition-all",
+                      "border hover:shadow-sm",
+                      selectedPlatformId === platform.id
+                        ? "bg-primary/5 border-primary/20 shadow-sm"
+                        : "hover:bg-muted/50 border-border"
+                    )}
+                    onClick={() => setSelectedPlatformId(platform.id)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-primary/10 rounded-lg">
+                          <Megaphone className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{platform.display_name}</p>
+                          {platform.campaigns_count !== undefined && (
+                            <p className="text-xs text-muted-foreground">
+                              {platform.campaigns_count} {t('settings.marketing.campaigns').toLowerCase()}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <ChevronRight className={cn(
+                        "h-4 w-4 transition-transform",
+                        "text-muted-foreground",
+                        selectedPlatformId === platform.id && "text-primary"
+                      )} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
+
+        {/* Campaigns Section - Full width on mobile when selected */}
+        <div className={cn(
+          "lg:col-span-2",
+          !showCampaignsView && "hidden lg:block"
+        )}>
+          {!selectedPlatformId && !showCampaignsView ? (
+            <Card className="p-12">
+              <EmptyState
+                icon={<Megaphone className="h-12 w-12" />}
+                title={t('settings.marketing.selectPlatform')}
+                description={t('settings.marketing.selectPlatformDescription')}
+              />
+            </Card>
+          ) : selectedPlatform && (
+            <Card className="p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div>
+                  <h2 className="text-lg font-semibold">
+                    {t('settings.marketing.campaigns')}
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {selectedPlatform?.display_name} • {activeCampaigns.length} {t('settings.marketing.activeCampaigns')}
+                  </p>
+                </div>
+                <Button onClick={() => handleOpenCampaignModal()}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  <span className="hidden sm:inline">{t('settings.marketing.addCampaign')}</span>
+                  <span className="sm:hidden">{t('settings.marketing.campaign')}</span>
+                </Button>
+              </div>
+
+              {campaignsLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="h-16 bg-muted animate-pulse rounded" />
+                  ))}
+                </div>
+              ) : campaignsData.length === 0 ? (
+                <EmptyState
+                  icon={<Megaphone className="h-8 w-8" />}
+                  title={t('settings.marketing.noCampaigns')}
+                  description={t('settings.marketing.noCampaignsDescription')}
+                />
+              ) : (
+                <DataTable
+                  columns={campaignColumns}
+                  mobileColumns={[campaignColumns[0], campaignColumns[2]]} // Name and Actions
+                  data={campaignsData}
+                  searchKey="name"
+                  searchPlaceholder={t('settings.marketing.searchCampaigns')}
+                />
+              )}
+            </Card>
+          )}
+        </div>
+      </div>
 
       {/* Platform Modal */}
       <FormModal
         open={platformModalOpen}
-        onOpenChange={setPlatformModalOpen}
-        title={t('settings.marketing.addPlatform')}
-        onSubmit={platformForm.handleSubmit(handleCreatePlatform)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPlatformModalOpen(false)
+            setEditingPlatform(null)
+            platformForm.reset()
+          } else {
+            setPlatformModalOpen(true)
+          }
+        }}
+        title={editingPlatform ? t('settings.marketing.editPlatform') : t('settings.marketing.addPlatform')}
+        onSubmit={platformForm.handleSubmit(handleSavePlatform)}
         isSubmitting={platforms.isSubmitting}
         maxWidth="sm"
       >
-        <Form {...platformForm}>
-          <FormSection>
-            <InputField
-              label={t('settings.marketing.platformName')}
-              value={platformForm.watch('name')}
-              onChange={(value) => platformForm.setValue('name', value as string)}
-              placeholder={t('settings.marketing.platformNamePlaceholder')}
-              error={platformForm.formState.errors.name?.message}
-              required
-            />
-          </FormSection>
-        </Form>
+        <FormSection>
+          <InputField
+            label={t('settings.marketing.platformName')}
+            value={platformForm.watch('display_name')}
+            onChange={(value) => platformForm.setValue('display_name', value as string)}
+            placeholder={t('settings.marketing.platformNamePlaceholder')}
+            error={platformForm.formState.errors.display_name?.message || 
+                   (platformForm.formState.isSubmitted && !platformForm.watch('display_name') ? t('validation.required') : undefined)}
+            required
+          />
+        </FormSection>
       </FormModal>
 
       {/* Campaign Modal */}
       <FormModal
         open={campaignModalOpen}
-        onOpenChange={setCampaignModalOpen}
-        title={t('settings.marketing.addCampaign')}
-        onSubmit={campaignForm.handleSubmit(handleCreateCampaign)}
-        isSubmitting={campaigns.isSubmitting}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCampaignModalOpen(false)
+            setEditingCampaign(null)
+            campaignForm.reset()
+          } else {
+            setCampaignModalOpen(true)
+          }
+        }}
+        title={editingCampaign ? t('settings.marketing.editCampaign') : t('settings.marketing.addCampaign')}
+        onSubmit={campaignForm.handleSubmit(handleSaveCampaign)}
+        isSubmitting={campaignSubmitting}
         maxWidth="md"
       >
-        <Form {...campaignForm}>
-          <FormSection>
-            <FormGrid columns={2}>
-              <InputField
-                label={t('settings.marketing.campaignName')}
-                value={campaignForm.watch('name')}
-                onChange={(value) => campaignForm.setValue('name', value as string)}
-                placeholder={t('settings.marketing.campaignNamePlaceholder')}
-                error={campaignForm.formState.errors.name?.message}
-                required
-              />
-              
-              <InputField
-                type="number"
-                label={t('settings.marketing.budget')}
-                value={campaignForm.watch('budget_cents') ? 
-                  (campaignForm.watch('budget_cents')! / 100).toFixed(2) : ''}
-                onChange={(value) => 
-                  campaignForm.setValue('budget_cents', parseFloat(value as string) * 100)}
-                placeholder="0.00"
-                error={campaignForm.formState.errors.budget_cents?.message}
-              />
-            </FormGrid>
-          </FormSection>
-        </Form>
+        <FormSection>
+          <InputField
+            label={t('settings.marketing.campaignName')}
+            value={campaignForm.watch('name')}
+            onChange={(value) => campaignForm.setValue('name', value as string)}
+            placeholder={t('settings.marketing.campaignNamePlaceholder')}
+            error={campaignForm.formState.errors.name?.message || 
+                   (campaignForm.formState.isSubmitted && !campaignForm.watch('name') ? t('validation.required') : undefined)}
+            required
+          />
+          {/* Hidden field for platform_id - usando setValue para asegurar el valor */}
+          <input
+            type="hidden"
+            value={campaignForm.watch('platform_id') || ''}
+            {...campaignForm.register('platform_id')}
+          />
+        </FormSection>
       </FormModal>
     </div>
   )

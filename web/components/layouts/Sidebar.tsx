@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { useTranslations } from 'next-intl'
+import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft } from 'lucide-react'
@@ -34,7 +34,7 @@ export function Sidebar({
   className 
 }: SidebarProps) {
   const pathname = usePathname()
-  const t = useTranslations()
+  const t = useT()
 
   return (
     <aside className={cn(
@@ -49,7 +49,9 @@ export function Sidebar({
           size="icon"
           onClick={onToggleCollapse}
           className="ml-auto"
-          aria-label={isCollapsed ? t('expand_sidebar') : t('collapse_sidebar')}
+          aria-label={isCollapsed 
+            ? t('expand_sidebar', { fallback: 'Expand Sidebar' }) 
+            : t('collapse_sidebar', { fallback: 'Collapse Sidebar' })}
         >
           <ChevronLeft className={cn(
             "h-4 w-4 transition-transform",

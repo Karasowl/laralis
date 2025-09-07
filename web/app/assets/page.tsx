@@ -45,6 +45,13 @@ export default function AssetsPage() {
     }
   });
 
+  const assetInitialValues: AssetFormData = {
+    name: '',
+    purchase_price_pesos: 0,
+    depreciation_months: 36,
+    purchase_date: ''
+  }
+
   // Calculate summary statistics
   const summary = useMemo(() => {
     const totalInvestmentCents = crud.items.reduce((sum, a) => sum + a.purchase_price_cents, 0);
@@ -99,12 +106,7 @@ export default function AssetsPage() {
 
   // Handle dialog open
   const handleOpenDialog = () => {
-    reset({
-      name: '',
-      purchase_price_pesos: 0,
-      depreciation_months: 36,
-      purchase_date: ''
-    });
+    reset(assetInitialValues);
     crud.openDialog();
   };
 
@@ -207,7 +209,7 @@ export default function AssetsPage() {
       >
         <FormModal
           open={crud.isDialogOpen}
-          onOpenChange={crud.closeDialog}
+          onOpenChange={() => { crud.closeDialog(); reset(assetInitialValues); }}
           title={crud.editingItem ? t('assets.editAssetDialogTitle') : t('assets.addAssetDialogTitle')}
           onSubmit={handleSubmit(onSubmit)}
           isSubmitting={crud.isSubmitting}

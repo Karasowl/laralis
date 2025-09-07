@@ -52,6 +52,14 @@ export default function SuppliesPage() {
     }
   });
 
+  const supplyInitialValues: SupplyFormData = {
+    name: '',
+    category: 'insumo',
+    presentation: '',
+    price_pesos: 0,
+    portions: 1
+  }
+
   // Live preview calculation
   const watchedValues = watch();
   const costPerPortionPreview = watchedValues.price_pesos > 0 && watchedValues.portions > 0
@@ -97,13 +105,7 @@ export default function SuppliesPage() {
 
   // Handle dialog open
   const handleOpenDialog = () => {
-    reset({
-      name: '',
-      category: 'insumo',
-      presentation: '',
-      price_pesos: 0,
-      portions: 1
-    });
+    reset(supplyInitialValues);
     crud.openDialog();
   };
 
@@ -175,7 +177,7 @@ export default function SuppliesPage() {
     >
       <FormModal
         open={crud.isDialogOpen}
-        onOpenChange={crud.closeDialog}
+        onOpenChange={() => { crud.closeDialog(); reset(supplyInitialValues); }}
         title={crud.editingItem ? t('supplies.edit') : t('supplies.add')}
         onSubmit={handleSubmit(onSubmit)}
         isSubmitting={crud.isSubmitting}

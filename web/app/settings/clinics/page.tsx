@@ -68,6 +68,14 @@ export default function ClinicsPage() {
     }
   });
 
+  const clinicInitialValues: ClinicFormData = {
+    name: '',
+    address: '',
+    phone: '',
+    email: '',
+    workspace_id: workspace?.id || ''
+  };
+
   // Form submission
   const onSubmit = async (data: ClinicFormData) => {
     const payload = {
@@ -104,13 +112,7 @@ export default function ClinicsPage() {
 
   // Handle dialog open
   const handleOpenDialog = () => {
-    reset({
-      name: '',
-      address: '',
-      phone: '',
-      email: '',
-      workspace_id: workspace?.id || ''
-    });
+    reset(clinicInitialValues);
     crud.openDialog();
   };
 
@@ -207,7 +209,7 @@ export default function ClinicsPage() {
     >
       <FormModal
         open={crud.isDialogOpen}
-        onOpenChange={crud.closeDialog}
+        onOpenChange={() => { crud.closeDialog(); reset(clinicInitialValues); }}
         title={crud.editingItem ? t('settings.clinics.edit') : t('settings.clinics.create')}
         onSubmit={handleSubmit(onSubmit)}
         isSubmitting={crud.isSubmitting}
