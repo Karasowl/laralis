@@ -56,13 +56,15 @@ export default function FixedCostsPage() {
   const [deleteCost, setDeleteCost] = useState<any>(null)
 
   // Form
+  const fixedCostInitialValues: FixedCostFormData = {
+    category: 'other',
+    concept: '',
+    amount_pesos: 0,
+  }
+
   const form = useForm<FixedCostFormData>({
     resolver: zodResolver(zFixedCostForm),
-    defaultValues: {
-      category: 'other',
-      concept: '',
-      amount_pesos: 0,
-    },
+    defaultValues: fixedCostInitialValues,
   })
 
   // Submit handlers
@@ -196,7 +198,7 @@ export default function FixedCostsPage() {
           title={t('fixedCosts.title')}
           subtitle={t('fixedCosts.subtitle')}
           actions={
-            <Button onClick={() => setCreateOpen(true)}>
+            <Button onClick={() => { form.reset(fixedCostInitialValues); setCreateOpen(true) }}>
               <Plus className="h-4 w-4 mr-2" />
               {t('fixedCosts.addCost')}
             </Button>
@@ -280,7 +282,7 @@ export default function FixedCostsPage() {
         {/* Create Modal */}
         <FormModal
           open={createOpen}
-          onOpenChange={setCreateOpen}
+          onOpenChange={(open) => { setCreateOpen(open); if (!open) form.reset(fixedCostInitialValues) }}
           title={t('fixedCosts.create')}
           onSubmit={form.handleSubmit(handleCreate)}
         >

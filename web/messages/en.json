@@ -64,7 +64,10 @@
     "status": "Status",
     "created": "Created",
     "more": "More",
-    "srClose": "Close"
+    "srClose": "Close",
+    "active": "Active",
+    "inactive": "Inactive",
+    "success": "Success"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -96,7 +99,24 @@
   "dark_mode": "Dark Mode",
   "toggle_theme": "Toggle Theme",
   "select_clinic": "Select Clinic",
+  "expand_sidebar": "Expand Sidebar",
   "collapse_sidebar": "Collapse Sidebar",
+  "entities": {
+    "patient": "Patient",
+    "service": "Service",
+    "treatment": "Treatment"
+  },
+  "home": {
+    "configurationStatus": "Configuration",
+    "databaseStatus": "Database Status",
+    "databaseReady": "Ready",
+    "calculationEngine": "Calculation Engine",
+    "calculationActive": "Active",
+    "initialState": "Initial"
+  },
+  "fields": {
+    "duration": "Duration"
+  },
   "profile": {
     "title": "Profile",
     "personalInformation": "Personal Information",
@@ -579,7 +599,16 @@
       "otros": "Other"
     },
     "addSupply": "Add Supply",
-    "editSupply": "Edit Supply"
+    "editSupply": "Edit Supply",
+    "createSuccess": "Supply created successfully",
+    "updateSuccess": "Supply updated successfully",
+    "deleteSuccess": "Supply deleted successfully",
+    "deleteError": "Error deleting supply",
+    "saveError": "Error saving supply",
+    "noSearchResults": "No results found",
+    "tryDifferentSearch": "Try different search terms",
+    "emptyTitle": "No supplies registered",
+    "listTitle": "Supplies List"
   },
   "tariffs": {
     "title": "Tariffs & Pricing",
@@ -618,6 +647,8 @@
   "services": {
     "title": "Services",
     "subtitle": "Define your dental services and procedures",
+    "create_title": "Create Service",
+    "create_quick_description": "Add a new service with its duration in minutes",
     "basicInfo": "Basic Information",
     "basic_information": "Basic Information",
     "supplies_section": "Service Supplies",
@@ -892,7 +923,13 @@
       "addFirstPlatform": "Add First Platform", 
       "noCampaigns": "No campaigns found",
       "noCampaignsDescription": "Add your first campaign for this platform",
-      "addFirstCampaign": "Add First Campaign"
+      "addFirstCampaign": "Add First Campaign",
+      "editPlatform": "Edit Platform",
+      "editCampaign": "Edit Campaign",
+      "selectPlatformDescription": "Select a platform from the list to view and manage its campaigns",
+      "activeCampaigns": "active campaigns",
+      "platform": "platform",
+      "campaign": "campaign"
     },
     "clinics": {
       "title": "Clinics",
@@ -1012,6 +1049,8 @@
   "patients": {
     "title": "Patients",
     "subtitle": "Manage your patient records",
+    "create_title": "Create Patient",
+    "create_quick_description": "Enter name and basic info to register a new patient",
     "empty": {
       "title": "No patients registered",
       "description": "Add your first patient to start recording treatments"
@@ -1082,6 +1121,9 @@
       "source": "Source",
       "campaign": "Campaign"
     },
+    "acquisition": {
+      "direct": "Direct"
+    },
     "create_source_title": "Add New Source",
     "create_source_description": "Enter the name of the new referral source",
     "source_name_placeholder": "e.g., Instagram, Friend Referral",
@@ -1093,6 +1135,8 @@
     "actions": "Actions",
     "personal_information": "Personal Information",
     "address_information": "Address Information",
+    "contact_information": "Contact Information",
+    "important_dates": "Important Dates",
     "clinic_information": "Clinic Information",
     "notes_placeholder": "Additional notes about the patient...",
     "fields": {
@@ -1605,7 +1649,54 @@
     },
     "marketing": {
       "title": "Marketing",
-      "description": "Configure patient sources and campaigns"
+      "description": "Configure patient sources and campaigns",
+      "subtitle": "Platforms and campaigns for attribution",
+      "platformsTitle": "Platforms",
+      "platforms": "Platforms",
+      "platformName": "Platform name",
+      "platformNamePlaceholder": "e.g., Meta Ads",
+      "addPlatform": "Add Platform",
+      "activate": "Activate",
+      "deactivate": "Deactivate",
+      "campaignsTitle": "Campaigns",
+      "campaigns": "Campaigns",
+      "selectPlatform": "Select platform",
+      "campaignName": "Campaign name",
+      "campaignNamePlaceholder": "e.g., February Promo",
+      "addCampaign": "Add Campaign",
+      "patients": "Patients",
+      "archive": "Archive",
+      "unarchive": "Unarchive", 
+      "archived": "Archived",
+      "live": "Live",
+      "active": "Active",
+      "inactive": "Inactive",
+      "restore": "Restore",
+      "budget": "Budget",
+      "status": "Status",
+      "viewCampaigns": "View Campaigns",
+      "platformsSubtitle": "Manage advertising platforms",
+      "campaignsFor": "Campaigns for",
+      "searchPlatforms": "Search platforms...",
+      "searchCampaigns": "Search campaigns...",
+      "noPlatforms": "No platforms found",
+      "noPlatformsDescription": "Add your first marketing platform",
+      "addFirstPlatform": "Add First Platform",
+      "noCampaigns": "No campaigns found", 
+      "noCampaignsDescription": "Add your first campaign for this platform",
+      "addFirstCampaign": "Add First Campaign",
+      "editPlatform": "Edit Platform",
+      "editCampaign": "Edit Campaign",
+      "selectPlatformDescription": "Select a platform from the list to view and manage its campaigns",
+      "activeCampaigns": "active campaigns",
+      "platform": "platform",
+      "campaign": "campaign",
+      "cannotDeleteCampaignWithPatients": "Cannot delete a campaign that has associated patients",
+      "cannotDeletePlatformWithCampaigns": "Cannot delete a platform that has campaigns",
+      "campaignArchived": "Campaign archived successfully",
+      "campaignRestored": "Campaign restored successfully",
+      "archiveError": "Error archiving campaign",
+      "restoreError": "Error restoring campaign"
     },
     "fixedCosts": {
       "title": "Fixed Costs",
@@ -1800,6 +1891,46 @@
       "completed": "Completed",
       "pending": "Pending", 
       "cancelled": "Cancelled"
+    }
+  },
+  "assets": {
+    "entity": "asset",
+    "pageTitle": "Assets",
+    "pageSubtitle": "Manage clinic fixed assets",
+    "addAssetButton": "Add Asset",
+    "monthlyDepreciationTotal": "Total Monthly Depreciation",
+    "table": {
+      "name": "Name",
+      "purchasePrice": "Purchase Price",
+      "months": "Months",
+      "monthlyDep": "Monthly Dep."
+    },
+    "form": {
+      "nameLabel": "Asset name",
+      "namePlaceholder": "e.g., Dental chair",
+      "purchasePriceLabel": "Purchase price (pesos)",
+      "purchasePricePlaceholder": "0.00",
+      "depreciationMonthsLabel": "Depreciation months",
+      "depreciationMonthsPlaceholder": "36",
+      "purchaseDateLabel": "Purchase date",
+      "purchaseDatePlaceholder": "Select a date"
+    }
+  },
+  "businessSetup": {
+    "assets": {
+      "totalInvestment": "Total Investment",
+      "assets": "assets",
+      "depreciationPeriod": "Depreciation Period",
+      "years": "years",
+      "months": "months",
+      "perMonth": "per month",
+      "yearlyDepreciation": "Yearly Depreciation",
+      "perYear": "per year",
+      "depreciationExplanation": "Depreciation Explanation",
+      "formula": "Formula",
+      "formulaExplanation": "Purchase price ÷ Depreciation months = Monthly depreciation",
+      "exampleCalculation": "Example:",
+      "month": "month"
     }
   },
   "fixedCosts": {

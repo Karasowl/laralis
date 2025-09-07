@@ -34,7 +34,8 @@
     "test:full": "npm run test:unit && npm run test:integration && npm run test:api && npm run test:e2e",
     "dev:preview": "concurrently \"npm run dev\" \"echo 'Abre Browser Preview en VSCode con Ctrl+Shift+P'\"",
     "dev:mobile": "next dev -H 0.0.0.0",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "i18n:check": "node scripts/check-i18n.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

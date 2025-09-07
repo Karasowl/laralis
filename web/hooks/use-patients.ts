@@ -34,7 +34,8 @@ export function usePatients(options: UsePatientsOptions = {}) {
 
   // Use API hooks for related data
   const sourcesApi = useApi<PatientSource[]>('/api/patient-sources')
-  const campaignsApi = useApi<Campaign[]>('/api/campaigns')
+  // Use marketing endpoint which handles clinic context and does not require user session
+  const campaignsApi = useApi<Campaign[]>('/api/marketing/campaigns')
   const platformsApi = useApi<any[]>('/api/marketing/platforms')
 
   // Patient-specific: Create patient source

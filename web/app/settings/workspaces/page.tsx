@@ -57,6 +57,12 @@ export default function WorkspacesPage() {
     }
   });
 
+  const workspaceInitialValues: WorkspaceFormData = {
+    name: '',
+    slug: '',
+    description: ''
+  };
+
   // Generate slug from name
   const generateSlug = (name: string) => {
     return name
@@ -101,11 +107,7 @@ export default function WorkspacesPage() {
 
   // Handle dialog open
   const handleOpenDialog = () => {
-    reset({
-      name: '',
-      slug: '',
-      description: ''
-    });
+    reset(workspaceInitialValues);
     crud.openDialog();
   };
 
@@ -173,7 +175,7 @@ export default function WorkspacesPage() {
     >
       <FormModal
         open={crud.isDialogOpen}
-        onOpenChange={crud.closeDialog}
+        onOpenChange={() => { crud.closeDialog(); reset(workspaceInitialValues); }}
         title={crud.editingItem ? t('settings.workspaces.edit') : t('settings.workspaces.create')}
         onSubmit={handleSubmit(onSubmit)}
         isSubmitting={crud.isSubmitting}

@@ -102,6 +102,14 @@
   "select_clinic": "Seleccionar Clínica",
   "expand_sidebar": "Expandir Barra Lateral",
   "collapse_sidebar": "Colapsar Barra Lateral",
+  "auth": {
+    "passwords_dont_match": "Las contraseñas no coinciden"
+  },
+  "entities": {
+    "patient": "Paciente",
+    "service": "Servicio",
+    "treatment": "Tratamiento"
+  },
   "profile": {
     "title": "Perfil",
     "personalInformation": "Información Personal",
@@ -344,6 +352,7 @@
     "workspace": "Espacio de Trabajo",
     "profile": "Perfil",
     "sections": {
+      "operations": "Operaciones",
       "finance": "Finanzas",
       "inventory": "Inventario",
       "configuration": "Configuración"
@@ -507,6 +516,8 @@
   "services": {
     "title": "Servicios",
     "subtitle": "Define tus servicios y procedimientos dentales",
+    "create_title": "Crear Servicio",
+    "create_quick_description": "Agrega un nuevo servicio con su duración en minutos",
     "basicInfo": "Información Básica",
     "basic_information": "Información Básica",
     "supplies_section": "Insumos del Servicio",
@@ -864,7 +875,13 @@
       "addFirstPlatform": "Agregar Primera Plataforma",
       "noCampaigns": "No se encontraron campañas", 
       "noCampaignsDescription": "Agrega tu primera campaña para esta plataforma",
-      "addFirstCampaign": "Agregar Primera Campaña"
+      "addFirstCampaign": "Agregar Primera Campaña",
+      "editPlatform": "Editar Plataforma",
+      "editCampaign": "Editar Campaña",
+      "selectPlatformDescription": "Selecciona una plataforma de la lista para ver y gestionar sus campañas",
+      "activeCampaigns": "campañas activas",
+      "platform": "plataforma",
+      "campaign": "campaña"
     },
     "clinics": {
       "title": "Clínicas",
@@ -1162,6 +1179,8 @@
   "patients": {
     "title": "Pacientes",
     "subtitle": "Gestiona tus registros de pacientes",
+    "create_title": "Crear Paciente",
+    "create_quick_description": "Ingresa nombre y datos básicos para registrar un nuevo paciente",
     "settings": {
       "marketing": {
         "selectPlatform": "Seleccionar Plataforma"
@@ -1221,6 +1240,7 @@
     "noReferrer": "Ninguno",
     "campaign": "Campaña",
     "campaignPlaceholder": "Seleccionar campaña",
+    "selectCampaign": "Seleccionar campaña",
     "platform": "Plataforma",
     "selectPlatform": "Selecciona plataforma",
     "isRecurring": "Paciente recurrente",
@@ -1245,6 +1265,8 @@
     "actions": "Acciones",
     "personal_information": "Información Personal",
     "address_information": "Información de Dirección",
+    "contact_information": "Información de Contacto",
+    "important_dates": "Fechas Importantes",
     "clinic_information": "Información Clínica",
     "notes_placeholder": "Notas adicionales sobre el paciente...",
     "fields": {
@@ -1564,6 +1586,7 @@
       "category": "Categoría",
       "subcategory": "Subcategoría",
       "description": "Descripción",
+      "notes": "Notas",
       "amount": "Monto",
       "vendor": "Proveedor",
       "invoice_number": "Número de Factura",
@@ -1675,7 +1698,54 @@
     },
     "marketing": {
       "title": "Marketing",
-      "description": "Configura fuentes de pacientes y campañas"
+      "description": "Configura fuentes de pacientes y campañas",
+      "subtitle": "Plataformas y campañas para atribución",
+      "platformsTitle": "Plataformas",
+      "platforms": "Plataformas",
+      "platformName": "Nombre de plataforma",
+      "platformNamePlaceholder": "Ej: Meta Ads",
+      "addPlatform": "Agregar Plataforma",
+      "activate": "Activar",
+      "deactivate": "Desactivar",
+      "campaignsTitle": "Campañas",
+      "campaigns": "Campañas",
+      "selectPlatform": "Selecciona plataforma",
+      "campaignName": "Nombre de campaña",
+      "campaignNamePlaceholder": "Ej: Promos Febrero",
+      "addCampaign": "Agregar Campaña",
+      "patients": "Pacientes",
+      "archive": "Archivar",
+      "unarchive": "Desarchivar", 
+      "archived": "Archivada",
+      "live": "Vigente",
+      "active": "Activa",
+      "inactive": "Inactiva",
+      "restore": "Restaurar",
+      "budget": "Presupuesto",
+      "status": "Estado",
+      "viewCampaigns": "Ver Campañas",
+      "platformsSubtitle": "Gestiona plataformas publicitarias",
+      "campaignsFor": "Campañas para",
+      "searchPlatforms": "Buscar plataformas...",
+      "searchCampaigns": "Buscar campañas...",
+      "noPlatforms": "No se encontraron plataformas",
+      "noPlatformsDescription": "Agrega tu primera plataforma de marketing",
+      "addFirstPlatform": "Agregar Primera Plataforma",
+      "noCampaigns": "No se encontraron campañas", 
+      "noCampaignsDescription": "Agrega tu primera campaña para esta plataforma",
+      "addFirstCampaign": "Agregar Primera Campaña",
+      "editPlatform": "Editar Plataforma",
+      "editCampaign": "Editar Campaña",
+      "selectPlatformDescription": "Selecciona una plataforma de la lista para ver y gestionar sus campañas",
+      "activeCampaigns": "campañas activas",
+      "platform": "plataforma",
+      "campaign": "campaña",
+      "cannotDeleteCampaignWithPatients": "No se puede eliminar una campaña que tiene pacientes asociados",
+      "cannotDeletePlatformWithCampaigns": "No se puede eliminar una plataforma que tiene campañas",
+      "campaignArchived": "Campaña archivada exitosamente",
+      "campaignRestored": "Campaña restaurada exitosamente",
+      "archiveError": "Error al archivar la campaña",
+      "restoreError": "Error al restaurar la campaña"
     },
     "fixedCosts": {
       "title": "Costos Fijos",
@@ -1792,6 +1862,7 @@
     "description": "Descripción",
     "amount": "Monto",
     "name": "Nombre",
+    "duration": "Duración",
     "contact": "Contacto",
     "dates": "Fechas",
     "first_name": "Nombre",
@@ -1871,6 +1942,46 @@
       "completed": "Completado",
       "pending": "Pendiente",
       "cancelled": "Cancelado"
+    }
+  },
+  "assets": {
+    "entity": "activo",
+    "pageTitle": "Activos",
+    "pageSubtitle": "Administra los activos fijos del consultorio",
+    "addAssetButton": "Agregar Activo",
+    "monthlyDepreciationTotal": "Depreciación Mensual Total",
+    "table": {
+      "name": "Nombre",
+      "purchasePrice": "Precio de Compra",
+      "months": "Meses",
+      "monthlyDep": "Dep. Mensual"
+    },
+    "form": {
+      "nameLabel": "Nombre del activo",
+      "namePlaceholder": "ej., Sillón dental",
+      "purchasePriceLabel": "Precio de compra (pesos)",
+      "purchasePricePlaceholder": "0.00",
+      "depreciationMonthsLabel": "Meses de depreciación",
+      "depreciationMonthsPlaceholder": "36",
+      "purchaseDateLabel": "Fecha de compra",
+      "purchaseDatePlaceholder": "Selecciona una fecha"
+    }
+  },
+  "businessSetup": {
+    "assets": {
+      "totalInvestment": "Inversión Total",
+      "assets": "activos",
+      "depreciationPeriod": "Periodo de Depreciación",
+      "years": "años",
+      "months": "meses",
+      "perMonth": "por mes",
+      "yearlyDepreciation": "Depreciación Anual",
+      "perYear": "por año",
+      "depreciationExplanation": "Explicación de la Depreciación",
+      "formula": "Fórmula",
+      "formulaExplanation": "Precio de compra ÷ Meses de depreciación = Depreciación mensual",
+      "exampleCalculation": "Ejemplo:",
+      "month": "mes"
     }
   },
   "fixedCosts": {

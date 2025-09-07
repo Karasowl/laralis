@@ -258,7 +258,7 @@ export default function TariffsPage() {
       {/* Bulk Operations Modal */}
       <FormModal
         open={bulkModalOpen}
-        onOpenChange={setBulkModalOpen}
+        onOpenChange={(open) => { setBulkModalOpen(open); if (!open) bulkForm.reset({ margin: 30, roundTo: 10 }) }}
         title={t('bulk_operations')}
         onSubmit={bulkForm.handleSubmit(handleBulkUpdate)}
         maxWidth="sm"
@@ -298,7 +298,7 @@ export default function TariffsPage() {
       {/* Individual Edit Modal */}
       <FormModal
         open={editModalOpen}
-        onOpenChange={setEditModalOpen}
+        onOpenChange={(open) => { setEditModalOpen(open); if (!open) { editForm.reset({ serviceId: '', margin: 30 }); setSelectedTariff(null) } }}
         title={selectedTariff ? `${t('adjust_tariff')}: ${selectedTariff.name}` : t('adjust_tariff')}
         onSubmit={editForm.handleSubmit(handleIndividualEdit)}
         maxWidth="sm"

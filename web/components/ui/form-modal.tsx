@@ -28,12 +28,13 @@ interface FormModalProps {
   
   // Form
   children: React.ReactNode;
-  onSubmit: (e: React.FormEvent) => void | Promise<void>;
+  onSubmit?: (e: React.FormEvent) => void | Promise<void>;
   
   // Footer actions
   cancelLabel?: string;
   submitLabel?: string;
   isSubmitting?: boolean;
+  showFooter?: boolean;
   
   // Styling
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
@@ -51,12 +52,15 @@ export function FormModal({
   cancelLabel = 'Cancel',
   submitLabel = 'Save',
   isSubmitting = false,
+  showFooter = true,
   maxWidth = 'lg',
   className,
 }: FormModalProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await onSubmit(e);
+    if (onSubmit) {
+      await onSubmit(e);
+    }
   };
 
   const maxWidthClass = {
@@ -80,31 +84,35 @@ export function FormModal({
         )}
       </MobileModalHeader>
       
-      <form onSubmit={handleSubmit} id="form-modal">
+      {showFooter ? (
+        <form onSubmit={handleSubmit} id="form-modal">
+          <MobileModalBody>{children}</MobileModalBody>
+          
+          <MobileModalFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isSubmitting}
+              className="w-full sm:w-auto"
+            >
+              {cancelLabel}
+            </Button>
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full sm:w-auto"
+            >
+              {isSubmitting && (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              )}
+              {submitLabel}
+            </Button>
+          </MobileModalFooter>
+        </form>
+      ) : (
         <MobileModalBody>{children}</MobileModalBody>
-        
-        <MobileModalFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={isSubmitting}
-            className="w-full sm:w-auto"
-          >
-            {cancelLabel}
-          </Button>
-          <Button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full sm:w-auto"
-          >
-            {isSubmitting && (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            )}
-            {submitLabel}
-          </Button>
-        </MobileModalFooter>
-      </form>
+      )}
     </MobileModalContent>
   );
 

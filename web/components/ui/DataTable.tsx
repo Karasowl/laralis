@@ -18,6 +18,8 @@ export interface DataTableProps<T> extends React.HTMLAttributes<HTMLDivElement> 
   loading?: boolean;
   searchPlaceholder?: string;
   onSearch?: (value: string) => void;
+  // Local search by key if provided (supports dot notation)
+  searchKey?: string;
   emptyState?: {
     icon?: React.ComponentType<{ className?: string }>;
     title?: string;
@@ -40,6 +42,7 @@ function DataTable<T extends { id?: string | number }>({
   emptyMessage = "No data available",
   loading = false,
   searchPlaceholder,
+  searchKey,
   onSearch,
   emptyState,
   ...props
@@ -69,11 +72,23 @@ function DataTable<T extends { id?: string | number }>({
     });
   };
 
+  // Local filter when searchKey is provided and no external handler
+  const filteredData = React.useMemo(() => {
+    const dataArray = Array.isArray(data) ? data : [];
+    if (!searchKey || !searchValue) return dataArray;
+    const q = String(searchValue).toLowerCase();
+    return dataArray.filter((item) => {
+      const val = getValue(item, searchKey);
+      return String(val ?? "").toLowerCase().includes(q);
+    });
+  }, [data, searchKey, searchValue]);
+
   // Sort data if sortConfig is set
   const sortedData = React.useMemo(() => {
-    if (!sortConfig) return data;
+    const source = Array.isArray(filteredData) ? filteredData : [];
+    if (!sortConfig) return source;
     
-    return [...data].sort((a, b) => {
+    return [...source].sort((a, b) => {
       const aVal = getValue(a, sortConfig.key);
       const bVal = getValue(b, sortConfig.key);
       
@@ -84,19 +99,19 @@ function DataTable<T extends { id?: string | number }>({
       if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [data, sortConfig]);
+  }, [filteredData, sortConfig]);
   
   return (
     <div className="space-y-4">
       {/* Search Bar with animation */}
-      {onSearch && (
+      {(onSearch || searchKey) && (
         <div className="relative group">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
           <input
             type="text"
             placeholder={searchPlaceholder || "Search..."}
             value={searchValue}
-            onChange={handleSearch}
+            onChange={onSearch ? handleSearch : (e) => setSearchValue(e.target.value)}
             className="w-full rounded-lg border border-input bg-background px-10 py-2.5 text-sm shadow-sm transition-all duration-200 placeholder:text-muted-foreground hover:border-primary/50 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
           />
           {searchValue && (
@@ -182,6 +197,8 @@ function DataTable<T extends { id?: string | number }>({
         <table className="w-full">
           <thead>
             <tr className="border-b bg-gradient-to-r from-muted/30 to-muted/10">
+              {/* Placeholder header cell for hover indicator column to keep alignment */}
+              <th className="w-1 p-0" aria-hidden="true"></th>
               {columns.map((column, index) => {
                 const isSortable = column.sortable !== false;
                 const isSorted = sortConfig?.key === column.key;
@@ -196,10 +213,10 @@ function DataTable<T extends { id?: string | number }>({
                     )}
                     onClick={() => isSortable && handleSort(column.key as string)}
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="inline-flex items-center gap-1">
                       <span>{column.label}</span>
-                      {isSortable && (
-                        <span className="ml-auto">
+                      {isSortable && column.label && (
+                        <span className="inline-flex">
                           {!isSorted ? (
                             <ArrowUpDown className="h-3 w-3 text-muted-foreground/50" />
                           ) : sortConfig?.direction === 'asc' ? (

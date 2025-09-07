@@ -24,6 +24,7 @@ interface CrudPageLayoutProps<T extends { id: string; name?: string }> {
   
   // Table
   columns: Column<T>[];
+  mobileColumns?: Column<T>[]; // optional simplified set for mobile
   
   // Actions
   onAdd?: () => void;
@@ -64,6 +65,7 @@ export function CrudPageLayout<T extends { id: string; name?: string }>({
   items,
   loading,
   columns,
+  mobileColumns,
   onAdd,
   onEdit,
   onDelete,
@@ -164,7 +166,7 @@ export function CrudPageLayout<T extends { id: string; name?: string }>({
                 }
               />
             ) : (
-              <DataTable columns={tableColumns} data={items} />
+              <DataTable columns={tableColumns} mobileColumns={mobileColumns} data={items} />
             )}
           </div>
         </Card>
@@ -207,6 +209,7 @@ interface SimpleCrudPageProps<T extends { id: string; name?: string }> {
     onDeleteConfirm: () => void;
   };
   columns: Column<T>[];
+  mobileColumns?: Column<T>[];
   emptyIcon?: React.ReactNode;
   searchable?: boolean;
   children?: React.ReactNode;
@@ -218,6 +221,7 @@ export function SimpleCrudPage<T extends { id: string; name?: string }>({
   entityName,
   data,
   columns,
+  mobileColumns,
   emptyIcon,
   searchable = true,
   children,
@@ -229,6 +233,7 @@ export function SimpleCrudPage<T extends { id: string; name?: string }>({
       items={data.items}
       loading={data.loading}
       columns={columns}
+      mobileColumns={mobileColumns}
       onAdd={data.onAdd}
       onEdit={data.onEdit}
       onDelete={data.onDelete}

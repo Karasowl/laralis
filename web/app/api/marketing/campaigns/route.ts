@@ -62,10 +62,29 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Mapear los datos para incluir platform_name
+    // Enriquecer con conteo de pacientes por campaña
+    let patientsCounts: Record<string, number> = {};
+    const campaignIds = (data || []).map(c => c.id).filter(Boolean);
+    if (campaignIds.length > 0) {
+      const { data: patientRows, error: patientsError } = await supabaseAdmin
+        .from('patients')
+        .select('campaign_id')
+        .eq('clinic_id', clinicId)
+        .in('campaign_id', campaignIds as string[]);
+
+      if (!patientsError && patientRows) {
+        for (const row of patientRows) {
+          if (!row.campaign_id) continue;
+          patientsCounts[row.campaign_id] = (patientsCounts[row.campaign_id] || 0) + 1;
+        }
+      }
+    }
+
+    // Mapear los datos para incluir platform_name y patients_count
     const mappedData = (data || []).map(campaign => ({
       ...campaign,
-      platform_name: campaign.platform?.display_name || campaign.platform?.name || 'Desconocida'
+      platform_name: campaign.platform?.display_name || campaign.platform?.name || 'Desconocida',
+      patients_count: patientsCounts[campaign.id] || 0,
     }));
 
     return NextResponse.json({ data: mappedData });

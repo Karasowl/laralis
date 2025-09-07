@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useEffect } from 'react'
 import { useCrudOperations } from './use-crud-operations'
 import { useApi } from './use-api'
 import { useParallelApi } from './use-api'
@@ -55,12 +55,23 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
   })
 
   // Use API hooks for related data
-  const patientsApi = useApi<{ data: Patient[] }>('/api/patients')
+  // Note: useApi unwraps {data} responses, so the generic should be Patient[]
+  const patientsApi = useApi<Patient[]>('/api/patients')
   const servicesApi = useApi<Service[]>('/api/services')
   const timeSettingsApi = useApi<{ data: { fixed_per_minute_cents: number } }>('/api/settings/time')
 
   // Use parallel API for initial load
   const { fetchAll } = useParallelApi()
+
+  // Auto-load related lists on mount if requested
+  useEffect(() => {
+    if (autoLoad) {
+      patientsApi.get()
+      servicesApi.get()
+      timeSettingsApi.get()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoLoad])
 
   // Calculate summary statistics using memoization
   const summary = useMemo(() => {
@@ -185,7 +196,7 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
     error: null,
     
     // Related data
-    patients: patientsApi.data?.data || [],
+    patients: patientsApi.data || [],
     services: servicesApi.data || [],
     timeSettings: timeSettingsApi.data?.data || { fixed_per_minute_cents: 0 },
     

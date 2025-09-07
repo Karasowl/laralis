@@ -60,17 +60,19 @@ export default function TreatmentsPage() {
   const [deleteTreatmentData, setDeleteTreatmentData] = useState<any>(null)
 
   // Form
+  const treatmentInitialValues: TreatmentFormData = {
+    patient_id: '',
+    service_id: '',
+    treatment_date: new Date().toISOString().split('T')[0],
+    minutes: 30,
+    margin_pct: 60,
+    status: 'pending',
+    notes: '',
+  }
+
   const form = useForm<TreatmentFormData>({
     resolver: zodResolver(treatmentFormSchema),
-    defaultValues: {
-      patient_id: '',
-      service_id: '',
-      treatment_date: new Date().toISOString().split('T')[0],
-      minutes: 30,
-      margin_pct: 60,
-      status: 'pending',
-      notes: '',
-    },
+    defaultValues: treatmentInitialValues,
   })
 
   // Submit handlers
@@ -180,8 +182,9 @@ export default function TreatmentsPage() {
       key: 'actions',
       label: t('common.actions'),
       render: (treatment: any) => (
-        <ActionDropdown
-          actions={[
+        <div className="md:flex md:justify-end">
+          <ActionDropdown
+            actions={[
             createEditAction(() => {
               form.reset({
                 patient_id: treatment.patient_id,
@@ -196,7 +199,8 @@ export default function TreatmentsPage() {
             }),
             createDeleteAction(() => setDeleteTreatmentData(treatment))
           ]}
-        />
+          />
+        </div>
       )
     }
   ]
@@ -282,7 +286,7 @@ export default function TreatmentsPage() {
           title={t('treatments.title')}
           subtitle={t('treatments.subtitle')}
           actions={
-            <Button onClick={() => setCreateOpen(true)}>
+            <Button onClick={() => { form.reset(treatmentInitialValues); setCreateOpen(true) }}>
               <Plus className="h-4 w-4 mr-2" />
               {t('treatments.addTreatment')}
             </Button>
@@ -325,6 +329,7 @@ export default function TreatmentsPage() {
 
         <DataTable
           columns={columns}
+          mobileColumns={[columns[0], columns[1], columns[5], columns[6]]}
           data={treatments}
           loading={loading}
           searchPlaceholder={t('treatments.searchPlaceholder')}
@@ -338,7 +343,7 @@ export default function TreatmentsPage() {
         {/* Create Modal */}
         <FormModal
           open={createOpen}
-          onOpenChange={setCreateOpen}
+          onOpenChange={(open) => { setCreateOpen(open); if (!open) form.reset(treatmentInitialValues) }}
           title={t('treatments.newTreatment')}
           onSubmit={form.handleSubmit(handleCreate)}
           maxWidth="2xl"

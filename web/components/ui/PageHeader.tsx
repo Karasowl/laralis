@@ -19,7 +19,7 @@ const PageHeader = React.forwardRef<HTMLDivElement, PageHeaderProps>(
         )}
         {...props}
       >
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col min-[400px]:flex-row min-[400px]:items-start min-[400px]:justify-between gap-4">
           <div className="space-y-2">
             <h1 className="text-3xl font-semibold tracking-tight text-foreground">
               {title}
@@ -31,7 +31,7 @@ const PageHeader = React.forwardRef<HTMLDivElement, PageHeaderProps>(
             )}
           </div>
           {actions && (
-            <div className="flex items-center gap-2 ml-4">
+            <div className="flex items-center gap-2 min-[400px]:ml-4">
               {actions}
             </div>
           )}
