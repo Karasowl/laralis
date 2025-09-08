@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
     }
 
     const typeCode = searchParams.get('type');
+    const entityType = searchParams.get('entity_type');
     const active = searchParams.get('active');
     const withType = searchParams.get('withType') === 'true';
     
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
       .eq('clinic_id', clinicId)
       .order('display_order', { ascending: true });
     
-    // Filter by type if specified
+    // Filter by type (preferred) or entity_type (compat)
     if (typeCode) {
       // First get the category_type_id
       const { data: typeData } = await supabaseAdmin
@@ -58,6 +59,9 @@ export async function GET(request: NextRequest) {
       if (typeData) {
         query = query.eq('category_type_id', typeData.id);
       }
+    } else if (entityType) {
+      // Backward compatibility: filter directly by categories.entity_type when provided
+      query = query.eq('entity_type', entityType);
     }
     
     // Filter by active status

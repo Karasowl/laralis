@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
+import { useTranslations } from 'next-intl'
 import { SummaryCards } from '@/components/ui/summary-cards'
 import { DollarSign, Receipt, Target, AlertTriangle } from 'lucide-react'
 import { formatMoney } from '@/lib/money'
@@ -33,6 +34,7 @@ interface ExpenseStatsProps {
 }
 
 export function ExpenseStats({ stats, t }: ExpenseStatsProps) {
+  const tg = useTranslations()
   const summary = useMemo(() => {
     if (!stats) return null
     
@@ -57,7 +59,7 @@ export function ExpenseStats({ stats, t }: ExpenseStatsProps) {
         {
           label: t('total_expenses'),
           value: formatMoney(summary.totalAmount),
-          subtitle: `${summary.totalCount} ${t('expenses')}`,
+          subtitle: `${summary.totalCount} ${tg('expenses.title')}`,
           icon: DollarSign,
           color: 'primary'
         },

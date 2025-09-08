@@ -117,14 +117,30 @@ export async function POST(request: NextRequest) {
       create_asset,
       asset_name,
       asset_useful_life_years,
+      category_id,
       ...expenseData
-    } = validationResult.data
+    } = validationResult.data as any
+
+    // If category_id provided but category string missing, try to resolve name
+    let resolvedCategory = expenseData.category
+    if (!resolvedCategory && category_id) {
+      const { data: cat } = await supabase
+        .from('categories')
+        .select('name, display_name')
+        .eq('id', category_id)
+        .single()
+      if (cat) {
+        resolvedCategory = (cat as any).display_name || (cat as any).name
+      }
+    }
 
     // Create expense record
     const { data: expense, error: expenseError } = await supabase
       .from('expenses')
       .insert({
         ...expenseData,
+        category: resolvedCategory || expenseData.category,
+        category_id: category_id || null,
         clinic_id: body.clinic_id
       })
       .select()

@@ -17,6 +17,7 @@ interface ExpenseDetailsModalProps {
 
 export function ExpenseDetailsModal({ expense, open, onClose }: ExpenseDetailsModalProps) {
   const t = useTranslations('expenses')
+  const tFields = useTranslations('fields')
   
   if (!expense) return null
 
@@ -32,20 +33,20 @@ export function ExpenseDetailsModal({ expense, open, onClose }: ExpenseDetailsMo
         <FormSection title={t('basic_information')}>
           <FormGrid columns={2}>
             <div>
-              <p className="text-sm text-muted-foreground">{t('fields.date')}</p>
+              <p className="text-sm text-muted-foreground">{tFields('date')}</p>
               <p className="font-medium">{formatDate(expense.expense_date)}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">{t('fields.amount')}</p>
+              <p className="text-sm text-muted-foreground">{tFields('amount')}</p>
               <p className="font-medium text-lg">{formatMoney(expense.amount_cents)}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">{t('fields.category')}</p>
+              <p className="text-sm text-muted-foreground">{tFields('category')}</p>
               <Badge variant="outline">{expense.category}</Badge>
             </div>
             {expense.subcategory && (
               <div>
-                <p className="text-sm text-muted-foreground">{t('fields.subcategory')}</p>
+                <p className="text-sm text-muted-foreground">{tFields('subcategory')}</p>
                 <p className="font-medium">{expense.subcategory}</p>
               </div>
             )}
@@ -57,13 +58,13 @@ export function ExpenseDetailsModal({ expense, open, onClose }: ExpenseDetailsMo
             <FormGrid columns={2}>
               {expense.vendor && (
                 <div>
-                  <p className="text-sm text-muted-foreground">{t('fields.vendor')}</p>
+                  <p className="text-sm text-muted-foreground">{tFields('vendor')}</p>
                   <p className="font-medium">{expense.vendor}</p>
                 </div>
               )}
               {expense.invoice_number && (
                 <div>
-                  <p className="text-sm text-muted-foreground">{t('fields.invoice_number')}</p>
+                  <p className="text-sm text-muted-foreground">{tFields('invoice_number')}</p>
                   <p className="font-medium">{expense.invoice_number}</p>
                 </div>
               )}
@@ -72,7 +73,7 @@ export function ExpenseDetailsModal({ expense, open, onClose }: ExpenseDetailsMo
         )}
 
         {expense.description && (
-          <FormSection title={t('fields.description')}>
+          <FormSection title={tFields('description')}>
             <p className="text-sm">{expense.description}</p>
           </FormSection>
         )}

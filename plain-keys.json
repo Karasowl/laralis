@@ -1,0 +1,50 @@
+[
+  {
+    "file": "E:\\dev-projects\\laralis\\web\\app\\(dashboard)\\expenses\\components\\CategoryBreakdown.tsx",
+    "line": 32,
+    "key": "expenses",
+    "snippet": "{category.count} {t('expenses')}"
+  },
+  {
+    "file": "E:\\dev-projects\\laralis\\web\\app\\(dashboard)\\expenses\\components\\ExpenseStats.tsx",
+    "line": 60,
+    "key": "expenses",
+    "snippet": "subtitle: `${summary.totalCount} ${t('expenses')}`,"
+  },
+  {
+    "file": "E:\\dev-projects\\laralis\\web\\app\\equilibrium\\page.tsx",
+    "line": 170,
+    "key": "settings",
+    "snippet": "{t('settings')}"
+  },
+  {
+    "file": "E:\\dev-projects\\laralis\\web\\app\\page.tsx",
+    "line": 299,
+    "key": "treatments",
+    "snippet": "title={t('treatments')}"
+  },
+  {
+    "file": "E:\\dev-projects\\laralis\\web\\components\\expenses\\expense-stats.tsx",
+    "line": 103,
+    "key": "expenses",
+    "snippet": "{stats.total_count} {t('expenses')}"
+  },
+  {
+    "file": "E:\\dev-projects\\laralis\\web\\components\\expenses\\expense-stats.tsx",
+    "line": 168,
+    "key": "expenses",
+    "snippet": "{category.count} {t('expenses')}"
+  },
+  {
+    "file": "E:\\dev-projects\\laralis\\web\\components\\expenses\\expense-stats.tsx",
+    "line": 235,
+    "key": "expenses",
+    "snippet": "{month.count} {t('expenses')}"
+  },
+  {
+    "file": "E:\\dev-projects\\laralis\\web\\components\\layouts\\UserMenu.tsx",
+    "line": 66,
+    "key": "settings",
+    "snippet": "label: t('settings'),"
+  }
+]

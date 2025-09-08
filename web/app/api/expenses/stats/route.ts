@@ -1,141 +1,123 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { type ExpenseStats } from '@/lib/types/expenses'
+
+interface StatsByCategory {
+  category: string
+  amount: number
+  count: number
+  percentage: number
+}
+
+interface StatsByMonth {
+  month: string
+  amount: number
+  count: number
+}
 
 export async function GET(request: NextRequest) {
   try {
     const supabase = createClient()
     const { searchParams } = new URL(request.url)
-    
-    // Get user session
+
+    const clinicId = searchParams.get('clinic_id')
+    const startDate = searchParams.get('start_date')
+    const endDate = searchParams.get('end_date')
+
+    // Require session like other endpoints
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
     if (sessionError || !session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get clinic_id from query params
-    const clinicId = searchParams.get('clinic_id')
     if (!clinicId) {
       return NextResponse.json({ error: 'clinic_id is required' }, { status: 400 })
     }
 
-    // Get date range for analysis
-    const startDate = searchParams.get('start_date') || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
-    const endDate = searchParams.get('end_date') || new Date().toISOString().split('T')[0]
-
-    // Get total expenses for the period
-    const { data: totalExpenses, error: totalError } = await supabase
+    // Build expenses query within date range
+    let q = supabase
       .from('expenses')
-      .select('amount_cents')
+      .select('expense_date, category, amount_cents')
       .eq('clinic_id', clinicId)
-      .gte('expense_date', startDate)
-      .lte('expense_date', endDate)
 
-    if (totalError) {
-      console.error('Error fetching total expenses:', totalError)
-      return NextResponse.json({ error: 'Failed to fetch expense stats' }, { status: 500 })
+    if (startDate) q = q.gte('expense_date', startDate)
+    if (endDate) q = q.lte('expense_date', endDate)
+
+    const { data: expenses, error } = await q
+    if (error) {
+      console.error('Error fetching expenses for stats:', error)
+      return NextResponse.json({ error: 'Failed to fetch expenses' }, { status: 500 })
     }
 
-    const totalAmount = totalExpenses.reduce((sum, expense) => sum + expense.amount_cents, 0)
-    const totalCount = totalExpenses.length
-
-    // Get expenses by category
-    const { data: categoryExpenses, error: categoryError } = await supabase
-      .from('expenses')
-      .select('category, amount_cents')
-      .eq('clinic_id', clinicId)
-      .gte('expense_date', startDate)
-      .lte('expense_date', endDate)
-
-    if (categoryError) {
-      console.error('Error fetching category expenses:', categoryError)
-      return NextResponse.json({ error: 'Failed to fetch category stats' }, { status: 500 })
-    }
+    const totalCents = (expenses || []).reduce((sum, e) => sum + (e.amount_cents || 0), 0)
+    const totalCount = expenses?.length || 0
 
     // Group by category
-    const categoryStats = categoryExpenses.reduce((acc, expense) => {
-      const category = expense.category
-      if (!acc[category]) {
-        acc[category] = { amount: 0, count: 0 }
-      }
-      acc[category].amount += expense.amount_cents
-      acc[category].count += 1
-      return acc
-    }, {} as Record<string, { amount: number; count: number }>)
-
-    const byCategory = Object.entries(categoryStats).map(([category, stats]) => ({
-      category,
-      amount: stats.amount,
-      count: stats.count,
-      percentage: totalAmount > 0 ? Math.round((stats.amount / totalAmount) * 100) : 0
-    }))
-
-    // Get expenses by month (for trends)
-    const { data: monthlyExpenses, error: monthlyError } = await supabase
-      .from('expenses')
-      .select('expense_date, amount_cents')
-      .eq('clinic_id', clinicId)
-      .gte('expense_date', startDate)
-      .lte('expense_date', endDate)
-      .order('expense_date')
-
-    if (monthlyError) {
-      console.error('Error fetching monthly expenses:', monthlyError)
-      return NextResponse.json({ error: 'Failed to fetch monthly stats' }, { status: 500 })
+    const byCategoryMap = new Map<string, { amount: number; count: number }>()
+    for (const e of expenses || []) {
+      const cat = e.category || 'Otros'
+      const prev = byCategoryMap.get(cat) || { amount: 0, count: 0 }
+      prev.amount += e.amount_cents || 0
+      prev.count += 1
+      byCategoryMap.set(cat, prev)
     }
 
-    // Group by month
-    const monthlyStats = monthlyExpenses.reduce((acc, expense) => {
-      const month = expense.expense_date.substring(0, 7) // YYYY-MM format
-      if (!acc[month]) {
-        acc[month] = { amount: 0, count: 0 }
-      }
-      acc[month].amount += expense.amount_cents
-      acc[month].count += 1
-      return acc
-    }, {} as Record<string, { amount: number; count: number }>)
+    const byCategory: StatsByCategory[] = Array.from(byCategoryMap.entries())
+      .map(([category, v]) => ({
+        category,
+        amount: Math.round(v.amount),
+        count: v.count,
+        percentage: totalCents > 0 ? Math.round((v.amount / totalCents) * 100) : 0
+      }))
+      .sort((a, b) => b.amount - a.amount)
 
-    const byMonth = Object.entries(monthlyStats).map(([month, stats]) => ({
-      month,
-      amount: stats.amount,
-      count: stats.count
-    }))
+    // Group by month (YYYY-MM)
+    const byMonthMap = new Map<string, { amount: number; count: number }>()
+    for (const e of expenses || []) {
+      const month = (e.expense_date || '').toString().slice(0, 7) // YYYY-MM
+      const prev = byMonthMap.get(month) || { amount: 0, count: 0 }
+      prev.amount += e.amount_cents || 0
+      prev.count += 1
+      byMonthMap.set(month, prev)
+    }
+    const by_month: StatsByMonth[] = Array.from(byMonthMap.entries())
+      .map(([month, v]) => ({ month, amount: Math.round(v.amount), count: v.count }))
+      .sort((a, b) => a.month.localeCompare(b.month))
 
-    // Get fixed costs for comparison
-    const { data: fixedCosts, error: fixedCostsError } = await supabase
+    // Planned (fixed costs for clinic)
+    const { data: fixedCosts, error: fcError } = await supabase
       .from('fixed_costs')
-      .select('monthly_amount_cents')
+      .select('amount_cents')
       .eq('clinic_id', clinicId)
-
-    if (fixedCostsError) {
-      console.error('Error fetching fixed costs:', fixedCostsError)
+    if (fcError) {
+      console.warn('Warning: failed fetching fixed_costs for stats:', fcError.message)
     }
+    const plannedCents = (fixedCosts || []).reduce((sum, f) => sum + (f.amount_cents || 0), 0)
 
-    const plannedFixedCosts = fixedCosts?.reduce((sum, cost) => sum + cost.monthly_amount_cents, 0) || 0
-    
-    // Calculate variance vs fixed costs
-    const monthsInPeriod = Math.max(1, Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24 * 30)))
-    const expectedFixedCosts = plannedFixedCosts * monthsInPeriod
-    const variance = totalAmount - expectedFixedCosts
-    const variancePercentage = expectedFixedCosts > 0 ? Math.round((variance / expectedFixedCosts) * 100) : 0
+    const varianceCents = totalCents - plannedCents
+    const variancePct = plannedCents > 0 ? (varianceCents / plannedCents) * 100 : 0
 
-    const stats: ExpenseStats = {
-      total_amount: totalAmount,
-      total_count: totalCount,
-      by_category: byCategory.sort((a, b) => b.amount - a.amount),
-      by_month: byMonth.sort((a, b) => a.month.localeCompare(b.month)),
-      vs_fixed_costs: {
-        planned: expectedFixedCosts,
-        actual: totalAmount,
-        variance,
-        variance_percentage: variancePercentage
-      }
-    }
-
-    return NextResponse.json({ data: stats })
-
+    return NextResponse.json({
+      data: {
+        total_amount: Math.round(totalCents),
+        total_count: totalCount,
+        by_category: byCategory.map(c => ({
+          category: c.category,
+          amount: Math.round(c.amount),
+          count: c.count,
+          percentage: c.percentage,
+        })),
+        by_month,
+        vs_fixed_costs: {
+          planned: Math.round(plannedCents),
+          actual: Math.round(totalCents),
+          variance: Math.round(varianceCents),
+          variance_percentage: Math.round(variancePct),
+        },
+      },
+    })
   } catch (error) {
-    console.error('Unexpected error:', error)
+    console.error('Unexpected error in GET /api/expenses/stats:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+

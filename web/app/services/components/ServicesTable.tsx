@@ -23,12 +23,13 @@ export function ServicesTable({
   onDelete 
 }: ServicesTableProps) {
   const t = useTranslations('services')
-  const tCommon = useTranslations('common')
+  const tRoot = useTranslations()
+  const tFields = useTranslations('fields')
 
   const columns = [
     {
       key: 'name',
-      label: t('fields.name'),
+      label: tFields('name'),
       render: (service: any) => (
         <div>
           <div className="font-medium">{service.name}</div>
@@ -40,27 +41,27 @@ export function ServicesTable({
     },
     {
       key: 'category',
-      label: t('fields.category'),
+      label: tFields('category'),
       render: (service: any) => (
         <Badge variant="outline">{service.category || t('no_category')}</Badge>
       )
     },
     {
       key: 'duration',
-      label: t('fields.duration'),
+      label: tFields('duration'),
       render: (service: any) => {
         const minutes = service?.est_minutes || service?.duration_minutes || 0;
         return (
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-muted-foreground" />
-            <span>{minutes} {tCommon('minutes')}</span>
+            <span>{minutes} {tRoot('minutes')}</span>
           </div>
         )
       }
     },
     {
       key: 'price',
-      label: t('fields.price'),
+      label: tFields('price'),
       render: (service: any) => {
         const price = service?.base_price_cents || service?.price_cents || 0;
         return (
@@ -72,7 +73,7 @@ export function ServicesTable({
     },
     {
       key: 'actions',
-      label: t('actions'),
+      label: tRoot('common.actions'),
       render: (service: any) => {
         if (!service) return null;
         
@@ -84,8 +85,8 @@ export function ServicesTable({
                 icon: <Package className="h-4 w-4" />,
                 onClick: () => service && onManageSupplies(service)
               },
-              createEditAction(() => service && onEdit(service)),
-              createDeleteAction(() => service && onDelete(service))
+              createEditAction(() => service && onEdit(service), tRoot('common.edit')),
+              createDeleteAction(() => service && onDelete(service), tRoot('common.delete'))
             ]}
           />
         )
@@ -96,6 +97,7 @@ export function ServicesTable({
   return (
     <DataTable
       columns={columns}
+      mobileColumns={[columns[0], columns[4]]}
       data={services || []}
       loading={loading}
       searchPlaceholder={t('search_services')}

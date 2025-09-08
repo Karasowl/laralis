@@ -5,12 +5,15 @@ export interface Expense {
   id: string
   clinic_id: string
   expense_date: string
+  category_id?: string
   category: string
   subcategory?: string
   description?: string
   amount_cents: number
   vendor?: string
   invoice_number?: string
+  // Optional free-text notes for the expense
+  notes?: string
   is_recurring: boolean
   related_asset_id?: string
   related_supply_id?: string
@@ -79,9 +82,11 @@ export type ExpenseSubcategory = keyof typeof EXPENSE_SUBCATEGORIES
 // Form validation schemas
 export const expenseFormSchema = z.object({
   expense_date: z.string().min(1, 'La fecha es requerida'),
+  category_id: z.string().uuid().optional(),
   category: z.string().min(1, 'La categoría es requerida'),
   subcategory: z.string().optional(),
   description: z.string().optional(),
+  notes: z.string().optional(),
   amount_cents: z.number().int().positive('El monto debe ser mayor a 0'),
   vendor: z.string().optional(),
   invoice_number: z.string().optional(),

@@ -34,7 +34,7 @@ interface UserMenuProps {
 }
 
 export function UserMenu({ user, showLabel = true }: UserMenuProps) {
-  const t = useTranslations('navigation')
+  const t = useTranslations()
   const router = useRouter()
   const { logout } = useAuth()
   const [open, setOpen] = useState(false)
@@ -48,27 +48,27 @@ export function UserMenu({ user, showLabel = true }: UserMenuProps) {
   const menuItems = [
     {
       icon: User,
-      label: t('profile'),
+      label: t('navigation.profile'),
       onClick: () => router.push('/profile')
     },
     {
       icon: Building,
-      label: t('workspaces'),
+      label: t('navigation.workspaces'),
       onClick: () => router.push('/settings/workspaces')
     },
     {
       icon: CreditCard,
-      label: t('billing'),
+      label: t('navigation.billing'),
       onClick: () => router.push('/billing')
     },
     {
       icon: Settings,
-      label: t('settings'),
+      label: t('navigation.settings'),
       onClick: () => router.push('/settings')
     },
     {
       icon: HelpCircle,
-      label: t('help'),
+      label: t('navigation.help'),
       onClick: () => router.push('/help')
     }
   ]
@@ -88,7 +88,7 @@ export function UserMenu({ user, showLabel = true }: UserMenuProps) {
           {showLabel && (
             <>
               <div className="flex flex-col items-start">
-                <span className="text-sm font-medium">{user?.name || t('user')}</span>
+                <span className="text-sm font-medium">{user?.name || t('navigation.profile')}</span>
                 <span className="text-xs text-muted-foreground">{user?.email}</span>
               </div>
               <ChevronDown className="h-4 w-4 ml-2 opacity-50" />
@@ -100,7 +100,7 @@ export function UserMenu({ user, showLabel = true }: UserMenuProps) {
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel>
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium">{user?.name || t('user')}</p>
+            <p className="text-sm font-medium">{user?.name || t('navigation.profile')}</p>
             <p className="text-xs text-muted-foreground">{user?.email}</p>
           </div>
         </DropdownMenuLabel>

@@ -34,7 +34,7 @@ export function Sidebar({
   className 
 }: SidebarProps) {
   const pathname = usePathname()
-  const t = useT()
+  const tRoot = useT()
 
   return (
     <aside className={cn(
@@ -50,8 +50,8 @@ export function Sidebar({
           onClick={onToggleCollapse}
           className="ml-auto"
           aria-label={isCollapsed 
-            ? t('expand_sidebar', { fallback: 'Expand Sidebar' }) 
-            : t('collapse_sidebar', { fallback: 'Collapse Sidebar' })}
+            ? tRoot('expand_sidebar', { fallback: 'Expand Sidebar' }) 
+            : tRoot('collapse_sidebar', { fallback: 'Collapse Sidebar' })}
         >
           <ChevronLeft className={cn(
             "h-4 w-4 transition-transform",

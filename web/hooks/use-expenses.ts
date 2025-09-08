@@ -23,28 +23,30 @@ interface ExpenseStats {
 export function useExpenses(options: UseExpensesOptions = {}) {
   const { clinicId, filters, limit, autoLoad = true } = options
   const [localFilters, setLocalFilters] = useState<ExpenseFilters>(filters || {})
-  
-  // Build query string with filters
+
+  // Build query string with filters (excluding clinic_id; it will be appended by useCrudOperations)
   const queryString = useMemo(() => {
     const params = new URLSearchParams()
-    if (clinicId) params.append('clinic_id', clinicId)
     if (localFilters.category) params.append('category', localFilters.category)
     if (localFilters.vendor) params.append('vendor', localFilters.vendor)
     if (localFilters.start_date) params.append('start_date', localFilters.start_date)
     if (localFilters.end_date) params.append('end_date', localFilters.end_date)
     if (limit) params.append('limit', limit.toString())
     return params.toString()
-  }, [clinicId, localFilters, limit])
-  
-  // Use generic CRUD with dynamic endpoint
+  }, [localFilters, limit])
+
+  // Use generic CRUD with dynamic endpoint and automatic clinic id
   const crud = useCrudOperations<ExpenseWithRelations>({
     endpoint: `/api/expenses${queryString ? `?${queryString}` : ''}`,
     entityName: 'Expense',
-    includeClinicId: false // Already in query string
+    includeClinicId: true
   })
 
   // Use API hooks for related data
-  const categoriesApi = useApi<{ data: any[] }>('/api/expense-categories')
+  const categoriesApi = useApi<{ data: any[] }>(
+    '/api/categories?type=expenses&active=true',
+    { autoFetch: true }
+  )
   const vendorsApi = useApi<{ data: any[] }>('/api/vendors')
   const paymentMethodsApi = useApi<{ data: any[] }>('/api/payment-methods')
 

@@ -21,7 +21,7 @@ import { CreateExpenseForm } from './CreateExpenseForm'
 export default function CreateExpenseDialog() {
   const t = useTranslations('expenses')
   const { currentClinic } = useCurrentClinic()
-  const { createExpense } = useExpenses({ clinicId: currentClinic?.id })
+  const { createExpense, categories } = useExpenses({ clinicId: currentClinic?.id })
   const { supplies } = useSupplies({ clinicId: currentClinic?.id })
   
   const [open, setOpen] = useState(false)
@@ -93,6 +93,7 @@ export default function CreateExpenseDialog() {
       <CreateExpenseForm 
         form={form} 
         supplies={supplies} 
+        categories={categories}
         showAssetFields={showAssetFields}
         setShowAssetFields={setShowAssetFields}
       />

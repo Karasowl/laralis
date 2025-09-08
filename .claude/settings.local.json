@@ -12,7 +12,10 @@
       "Bash(curl:*)",
       "Bash(nslookup:*)",
       "Bash(ping:*)",
-      "Bash(tracert:*)"
+      "Bash(tracert:*)",
+      "Bash(dir:*)",
+      "Bash(node:*)",
+      "Bash(sed:*)"
     ],
     "deny": []
   }

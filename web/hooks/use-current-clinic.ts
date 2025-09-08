@@ -1,73 +1,58 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useApi } from '@/hooks/use-api'
 import { Clinic } from '@/lib/types'
 
 export function useCurrentClinic() {
   const [clinicId, setClinicId] = useState<string | null>(null)
-  
-  // Get clinic ID from cookie or use default
+
+  // Read initial clinic from cookie (if set by navigation/UI)
   useEffect(() => {
-    let id = getCookieValue('clinicId')
-    console.log('[useCurrentClinic] Cookie clinicId:', id)
-    
-    // If no clinicId cookie, try to get from user metadata
-    if (!id) {
-      // Hardcode the default clinic for now (from your user metadata)
-      id = '0fd9b635-9297-401b-b092-6452621b31e1'
-      console.log('[useCurrentClinic] Using hardcoded default clinic:', id)
-      // Set the cookie for future use
-      document.cookie = `clinicId=${id}; path=/; max-age=31536000`
-    }
-    
-    setClinicId(id)
+    const id = getCookie('clinicId')
+    if (id) setClinicId(id)
   }, [])
-  
-  // Use API hook to fetch clinics
+
+  // Fetch clinics for the authenticated user
   const { data, loading, error } = useApi<{ data: Clinic[] }>(
     '/api/clinics',
     { autoFetch: true }
   )
-  
-  // Find current clinic from the list
+
+  // Choose clinic consistently: cookie > first available
+  useEffect(() => {
+    const clinics = data?.data || []
+    if (clinics.length === 0) return
+
+    // Prefer cookie if valid; otherwise pick first and persist
+    const cookieId = clinicId
+    const exists = cookieId && clinics.some(c => c.id === cookieId)
+    const selected = exists ? cookieId! : clinics[0].id
+    if (!exists || clinicId !== selected) {
+      setClinicId(selected)
+      setCookie('clinicId', selected)
+    }
+  }, [data?.data, clinicId])
+
   const currentClinic = useMemo(() => {
-    console.log('[useCurrentClinic] Finding clinic. Data:', data, 'ClinicId:', clinicId)
-    
-    // TEMPORAL: Forzar la clínica mientras arreglamos el API
-    if (clinicId === '0fd9b635-9297-401b-b092-6452621b31e1') {
-      console.log('[useCurrentClinic] Using hardcoded clinic object')
-      return {
-        id: '0fd9b635-9297-401b-b092-6452621b31e1',
-        name: 'Clínica Principal',
-        workspace_id: '82c2ea8b-5661-45b6-a66f-2fa03264d9f4'
-      } as Clinic
-    }
-    
-    if (!data?.data || !clinicId) {
-      console.log('[useCurrentClinic] No data or clinicId, returning null')
-      return null
-    }
-    const found = data.data.find((c: Clinic) => c.id === clinicId) || null
-    console.log('[useCurrentClinic] Found clinic:', found)
-    return found
-  }, [data, clinicId])
-  
-  return { 
-    currentClinic, 
-    loading,
-    error 
-  }
+    const clinics = data?.data || []
+    if (clinics.length === 0) return null
+    if (!clinicId) return clinics[0]
+    return clinics.find(c => c.id === clinicId) || clinics[0]
+  }, [data?.data, clinicId])
+
+  return { currentClinic, loading, error }
 }
 
-// Helper function to get cookie value
-function getCookieValue(name: string): string | null {
+function getCookie(name: string): string | null {
   if (typeof document === 'undefined') return null
-  
   const value = `; ${document.cookie}`
   const parts = value.split(`; ${name}=`)
-  if (parts.length === 2) {
-    return parts.pop()?.split(';').shift() || null
-  }
+  if (parts.length === 2) return parts.pop()?.split(';').shift() || null
   return null
+}
+
+function setCookie(name: string, value: string) {
+  if (typeof document === 'undefined') return
+  document.cookie = `${name}=${value}; path=/; max-age=31536000`
 }

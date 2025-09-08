@@ -5,12 +5,14 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { useWorkspace } from '@/contexts/workspace-context';
+import { useCurrentClinic } from '@/hooks/use-current-clinic';
 
 interface CrudConfig<T> {
   endpoint: string;
   entityName: string; // Para mensajes de toast
   includeClinicId?: boolean;
   searchParam?: string;
+  staticParams?: Record<string, string>; // Parámetros estáticos para todas las solicitudes GET
   transformData?: (data: any) => T;
 }
 
@@ -45,6 +47,8 @@ export function useCrudOperations<T extends { id: string; name?: string }>(
 ): CrudState<T> & CrudActions<T> {
   const t = useTranslations();
   const { currentClinic } = useWorkspace();
+  // Fallback to cookie/default clinic when Workspace context is not ready
+  const { currentClinic: fallbackClinic } = useCurrentClinic();
   
   // State
   const [items, setItems] = useState<T[]>([]);
@@ -70,14 +74,40 @@ export function useCrudOperations<T extends { id: string; name?: string }>(
     try {
       setLoading(true);
       
-      const params = new URLSearchParams();
-      // Don't send clinicId - let backend get it from cookies
-      if (searchDebounce && config.searchParam) {
-        params.append(config.searchParam, searchDebounce);
+      // Construir URL combinando parámetros existentes + estáticos + búsqueda
+      let urlString = config.endpoint;
+      const base = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+      const urlObj = new URL(urlString, base);
+
+      // Incluir clinic id si está configurado
+      if (config.includeClinicId) {
+        const clinicIdToUse = (currentClinic?.id) || (fallbackClinic?.id);
+        if (clinicIdToUse) {
+          // Set both naming variants to be compatible with all API routes
+          urlObj.searchParams.set('clinic_id', clinicIdToUse);
+          urlObj.searchParams.set('clinicId', clinicIdToUse);
+        } else {
+          // Evitar disparar peticiones 400 cuando aún no hay clínica resuelta
+          setItems([]);
+          setLoading(false);
+          return;
+        }
       }
-      
-      const url = `${config.endpoint}${params.toString() ? '?' + params.toString() : ''}`;
-      const response = await fetch(url);
+
+      // Parámetros estáticos (por ejemplo, list=true)
+      if (config.staticParams) {
+        for (const [k, v] of Object.entries(config.staticParams)) {
+          urlObj.searchParams.set(k, v);
+        }
+      }
+
+      // Parámetro de búsqueda
+      if (searchDebounce && config.searchParam) {
+        urlObj.searchParams.set(config.searchParam, searchDebounce);
+      }
+
+      const url = urlObj.pathname + (urlObj.search ? urlObj.search : '');
+      const response = await fetch(url, { credentials: 'include' });
       
       if (!response.ok) {
         throw new Error(`Failed to fetch ${config.entityName}`);
@@ -98,19 +128,24 @@ export function useCrudOperations<T extends { id: string; name?: string }>(
     } finally {
       setLoading(false);
     }
-  }, [config.endpoint, config.entityName, config.searchParam, config.transformData, searchDebounce, t]);
+  }, [config.endpoint, config.entityName, config.searchParam, config.transformData, config.includeClinicId, currentClinic?.id, fallbackClinic?.id, searchDebounce, t]);
 
   // Initial load and search updates
   useEffect(() => {
+    // Siempre intentamos cargar. Si no hay clínica en Workspace,
+    // se usa la de cookie/fallback y, si tampoco existe, el fetch 
+    // seguirá pero sin el parámetro, evitando quedar en loading eterno.
     fetchItems();
-  }, [config.endpoint, config.entityName, searchDebounce]);
+  }, [config.endpoint, config.entityName, config.includeClinicId, currentClinic?.id, fallbackClinic?.id, searchDebounce, fetchItems]);
 
   // Create handler
   const handleCreate = async (data: any): Promise<boolean> => {
     setIsSubmitting(true);
     try {
-      // Don't include clinic_id in payload - backend gets it from cookies
-      const payload = data;
+      // Include clinic_id if configured
+      const payload = config.includeClinicId && currentClinic?.id 
+        ? { ...data, clinic_id: currentClinic.id }
+        : data;
       
       const response = await fetch(config.endpoint, {
         method: 'POST',

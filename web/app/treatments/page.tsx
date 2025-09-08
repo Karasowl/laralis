@@ -42,6 +42,7 @@ const statusOptions = [
 
 export default function TreatmentsPage() {
   const t = useTranslations()
+  const tCommon = useTranslations('common')
   const { currentClinic } = useCurrentClinic()
   const {
     treatments,
@@ -196,8 +197,8 @@ export default function TreatmentsPage() {
                 notes: treatment.notes || '',
               })
               setEditTreatment(treatment)
-            }),
-            createDeleteAction(() => setDeleteTreatmentData(treatment))
+            }, tCommon('edit')),
+            createDeleteAction(() => setDeleteTreatmentData(treatment), tCommon('delete'))
           ]}
           />
         </div>

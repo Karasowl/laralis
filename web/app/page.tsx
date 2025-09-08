@@ -54,6 +54,7 @@ function DashboardSkeleton() {
 // Quick actions component
 function QuickActions({ onRefresh }: { onRefresh: () => void }) {
   const t = useTranslations('dashboard')
+  const tNav = useTranslations('navigation')
   const router = useRouter()
 
   return (
@@ -140,6 +141,7 @@ function AlertsSection({ lowStockCount }: { lowStockCount: number }) {
 
 export default function DashboardPage() {
   const t = useTranslations('dashboard')
+  const tNav = useTranslations('navigation')
   const router = useRouter()
   const { currentClinic, currentWorkspace } = useWorkspace()
   
@@ -296,7 +298,7 @@ export default function DashboardPage() {
           />
           
           <MetricCard
-            title={t('treatments')}
+            title={tNav('treatments')}
             value={metrics.treatments.total}
             icon={Activity}
             color="text-purple-600"

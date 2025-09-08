@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
     // Mapear los datos para incluir platform_name y patients_count
     const mappedData = (data || []).map(campaign => ({
       ...campaign,
-      platform_name: campaign.platform?.display_name || campaign.platform?.name || 'Desconocida',
+      platform_name: campaign.platform?.display_name || campaign.platform?.name || 'Unknown',
       patients_count: patientsCounts[campaign.id] || 0,
     }));
 

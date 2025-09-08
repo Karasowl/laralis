@@ -74,6 +74,7 @@ function MetricCard({
 
 export default function EquilibriumPage() {
   const t = useTranslations('equilibrium')
+  const tNav = useTranslations('navigation')
   const { currentClinic } = useWorkspace()
   
   // Equilibrium management
@@ -167,7 +168,7 @@ export default function EquilibriumPage() {
                 onClick={() => setSettingsModalOpen(true)}
               >
                 <Settings className="h-4 w-4 mr-2" />
-                {t('settings')}
+                {tNav('settings')}
               </Button>
               <Button
                 variant="outline"

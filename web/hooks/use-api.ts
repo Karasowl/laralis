@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import { useTranslations } from 'next-intl'
 
@@ -20,7 +20,11 @@ interface ApiState<T> {
   error: string | null
 }
 
-export function useApi<T = any>(endpoint: string) {
+type UseApiOptions = {
+  autoFetch?: boolean
+}
+
+export function useApi<T = any>(endpoint: string, opts: UseApiOptions = {}) {
   const [state, setState] = useState<ApiState<T>>({
     data: null,
     loading: false,
@@ -99,6 +103,16 @@ export function useApi<T = any>(endpoint: string) {
   const del = useCallback((options?: Omit<ApiOptions, 'method'>) => 
     execute({ method: 'DELETE', ...options }), [execute])
 
+  // Optional auto-fetch on mount
+  // Only for GET requests and valid endpoints
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (opts.autoFetch && endpoint) {
+      // fire-and-forget; state updates handled inside execute
+      execute({ method: 'GET' })
+    }
+  }, [opts.autoFetch, endpoint, execute])
+
   return {
     ...state,
     execute,
@@ -129,6 +143,7 @@ export function useParallelApi() {
             'Content-Type': 'application/json',
             ...(options.headers || {})
           },
+          credentials: 'include',
           ...(options.body && { body: JSON.stringify(options.body) })
         }).then(res => res.json())
       )
