@@ -27,6 +27,8 @@ export default function ExpensesTable({
   onFiltersChange 
 }: ExpensesTableProps) {
   const t = useTranslations('expenses')
+  const tCommon = useTranslations('common')
+  const tFields = useTranslations('fields')
   const { currentClinic } = useCurrentClinic()
   
   // State management
@@ -44,7 +46,8 @@ export default function ExpensesTable({
     updateExpense,
     deleteExpense,
     searchTerm,
-    setSearchTerm
+    setSearchTerm,
+    categories
   } = useExpenses({
     clinicId: currentClinic?.id,
     filters: externalFilters,
@@ -70,7 +73,7 @@ export default function ExpensesTable({
   const columns = [
     {
       key: 'expense_date',
-      label: t('fields.date'),
+      label: tFields('date'),
       render: (expense: ExpenseWithRelations) => (
         <div className="flex items-center gap-2">
           <Receipt className="h-4 w-4 text-muted-foreground" />
@@ -80,7 +83,7 @@ export default function ExpensesTable({
     },
     {
       key: 'category',
-      label: t('fields.category'),
+      label: tFields('category'),
       render: (expense: ExpenseWithRelations) => (
         <div className="space-y-1">
           <Badge variant="outline">{expense.category}</Badge>
@@ -92,7 +95,7 @@ export default function ExpensesTable({
     },
     {
       key: 'description',
-      label: t('fields.description'),
+      label: tFields('description'),
       render: (expense: ExpenseWithRelations) => (
         <div className="max-w-xs">
           <p className="font-medium truncate">{expense.description || '-'}</p>
@@ -104,7 +107,7 @@ export default function ExpensesTable({
     },
     {
       key: 'amount',
-      label: t('fields.amount'),
+      label: tFields('amount'),
       render: (expense: ExpenseWithRelations) => (
         <div className="text-right font-mono">
           {formatMoney(expense.amount_cents)}
@@ -114,7 +117,7 @@ export default function ExpensesTable({
     },
     {
       key: 'status',
-      label: t('fields.status'),
+      label: tFields('status'),
       render: (expense: ExpenseWithRelations) => {
         const isPaid = expense.payment_status === 'paid'
         return (
@@ -126,7 +129,7 @@ export default function ExpensesTable({
     },
     {
       key: 'actions',
-      label: t('actions'),
+      label: tCommon('actions'),
       render: (expense: ExpenseWithRelations) => (
         <ActionDropdown
           actions={[
@@ -135,8 +138,8 @@ export default function ExpensesTable({
               icon: <Eye className="h-4 w-4" />,
               onClick: () => setViewingExpense(expense)
             },
-            createEditAction(() => setEditingExpense(expense)),
-            createDeleteAction(() => setDeletingExpense(expense))
+            createEditAction(() => setEditingExpense(expense), tCommon('edit')),
+            createDeleteAction(() => setDeletingExpense(expense), tCommon('delete'))
           ]}
         />
       )
@@ -147,10 +150,10 @@ export default function ExpensesTable({
     <>
       <DataTable
         columns={columns}
+        mobileColumns={[columns[2], columns[5]]}
         data={expenses}
         loading={loading}
         searchPlaceholder={t('search_expenses')}
-        searchValue={searchTerm}
         onSearch={setSearchTerm}
         emptyState={{
           icon: Receipt,
@@ -172,6 +175,7 @@ export default function ExpensesTable({
         open={!!editingExpense}
         onClose={() => setEditingExpense(null)}
         onSave={handleEdit}
+        categories={categories}
       />
 
       {/* Delete Confirmation */}

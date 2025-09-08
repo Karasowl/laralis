@@ -8,7 +8,7 @@ import { z } from 'zod'
 import { FormModal } from '@/components/ui/form-modal'
 import { FormSection, FormGrid, InputField, SelectField, TextareaField } from '@/components/ui/form-field'
 import { Form } from '@/components/ui/form'
-import { ExpenseWithRelations, ExpenseFormData, EXPENSE_CATEGORIES, EXPENSE_SUBCATEGORIES } from '@/lib/types/expenses'
+import { ExpenseWithRelations, ExpenseFormData, EXPENSE_SUBCATEGORIES } from '@/lib/types/expenses'
 
 // Schema for expense form
 const expenseSchema = z.object({
@@ -27,10 +27,12 @@ interface EditExpenseModalProps {
   open: boolean
   onClose: () => void
   onSave: (id: string, data: Partial<ExpenseFormData>) => Promise<boolean>
+  categories?: any[]
 }
 
-export function EditExpenseModal({ expense, open, onClose, onSave }: EditExpenseModalProps) {
+export function EditExpenseModal({ expense, open, onClose, onSave, categories = [] }: EditExpenseModalProps) {
   const t = useTranslations('expenses')
+  const tFields = useTranslations('fields')
   const [saving, setSaving] = useState(false)
   
   const form = useForm({
@@ -90,7 +92,7 @@ export function EditExpenseModal({ expense, open, onClose, onSave }: EditExpense
             <FormGrid columns={2}>
               <InputField
                 type="date"
-                label={t('fields.date')}
+                label={tFields('date')}
                 value={form.watch('expense_date')}
                 onChange={(value) => form.setValue('expense_date', value as string)}
                 error={form.formState.errors.expense_date?.message}
@@ -100,7 +102,7 @@ export function EditExpenseModal({ expense, open, onClose, onSave }: EditExpense
               <InputField
                 type="number"
                 step="0.01"
-                label={t('fields.amount')}
+                label={tFields('amount')}
                 value={(form.watch('amount_cents') / 100).toFixed(2)}
                 onChange={(value) => form.setValue('amount_cents', parseFloat(value as string) * 100)}
                 error={form.formState.errors.amount_cents?.message}
@@ -112,19 +114,35 @@ export function EditExpenseModal({ expense, open, onClose, onSave }: EditExpense
           <FormSection title={t('categorization')}>
             <FormGrid columns={2}>
               <SelectField
-                label={t('fields.category')}
+                label={tFields('category')}
                 value={form.watch('category')}
-                onChange={(value) => form.setValue('category', value)}
-                options={Object.entries(EXPENSE_CATEGORIES).map(([key, label]) => ({
-                  value: label,
-                  label: label
-                }))}
+                onChange={(value) => {
+                  form.setValue('category', value)
+                  // Attempt to map to category_id if list provided
+                  const match = (categories || []).find((c: any) => (c.display_name || c.name) === value)
+                  if (match) {
+                    // @ts-ignore: category_id exists in schema (optional)
+                    form.setValue('category_id', match.id)
+                  }
+                }}
+                options={(categories && categories.length > 0
+                  ? categories.map((c: any) => ({ value: c.display_name || c.name, label: c.display_name || c.name }))
+                  : [
+                    { value: 'Equipos', label: 'Equipos' },
+                    { value: 'Insumos', label: 'Insumos' },
+                    { value: 'Servicios', label: 'Servicios' },
+                    { value: 'Mantenimiento', label: 'Mantenimiento' },
+                    { value: 'Marketing', label: 'Marketing' },
+                    { value: 'Administrativos', label: 'Administrativos' },
+                    { value: 'Personal', label: 'Personal' },
+                    { value: 'Otros', label: 'Otros' }
+                  ])}
                 error={form.formState.errors.category?.message}
                 required
               />
               
               <SelectField
-                label={t('fields.subcategory')}
+                label={tFields('subcategory')}
                 value={form.watch('subcategory') || ''}
                 onChange={(value) => form.setValue('subcategory', value)}
                 options={getSubcategoryOptions(form.watch('category')).map((subcat) => ({
@@ -138,7 +156,7 @@ export function EditExpenseModal({ expense, open, onClose, onSave }: EditExpense
 
           <FormSection title={t('details')}>
             <TextareaField
-              label={t('fields.description')}
+              label={tFields('description')}
               value={form.watch('description') || ''}
               onChange={(value) => form.setValue('description', value)}
               placeholder={t('description_placeholder')}
@@ -147,7 +165,7 @@ export function EditExpenseModal({ expense, open, onClose, onSave }: EditExpense
             
             <FormGrid columns={2}>
               <InputField
-                label={t('fields.vendor')}
+                label={tFields('vendor')}
                 value={form.watch('vendor') || ''}
                 onChange={(value) => form.setValue('vendor', value as string)}
                 placeholder={t('vendor_placeholder')}
@@ -155,7 +173,7 @@ export function EditExpenseModal({ expense, open, onClose, onSave }: EditExpense
               />
               
               <InputField
-                label={t('fields.invoice_number')}
+                label={tFields('invoice_number')}
                 value={form.watch('invoice_number') || ''}
                 onChange={(value) => form.setValue('invoice_number', value as string)}
                 placeholder={t('invoice_placeholder')}

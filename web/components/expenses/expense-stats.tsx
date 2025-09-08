@@ -19,6 +19,7 @@ interface ExpenseStatsProps {
 
 export default function ExpenseStats({ detailed = false }: ExpenseStatsProps) {
   const t = useTranslations('expenses')
+  const tRoot = useTranslations()
   const { currentClinic } = useCurrentClinic()
   
   const [stats, setStats] = useState<ExpenseStats | null>(null)
@@ -29,7 +30,12 @@ export default function ExpenseStats({ detailed = false }: ExpenseStatsProps) {
   })
 
   const fetchStats = async () => {
-    if (!currentClinic?.id) return
+    if (!currentClinic?.id) {
+      // No clinic context available yet; show empty state (not skeleton)
+      setStats(null)
+      setLoading(false)
+      return
+    }
 
     try {
       setLoading(true)
@@ -100,7 +106,7 @@ export default function ExpenseStats({ detailed = false }: ExpenseStatsProps) {
           </div>
           <div className="text-2xl font-bold">{formatMoney(stats.total_amount)}</div>
           <p className="text-xs text-muted-foreground">
-            {stats.total_count} {t('expenses')}
+            {stats.total_count} {tRoot('expenses.title')}
           </p>
         </Card>
 
@@ -165,7 +171,7 @@ export default function ExpenseStats({ detailed = false }: ExpenseStatsProps) {
                     <div className="flex items-center gap-2">
                       <Badge variant="outline">{category.category}</Badge>
                       <span className="text-sm text-muted-foreground">
-                        {category.count} {t('expenses')}
+                        {category.count} {tRoot('expenses.title')}
                       </span>
                     </div>
                     <div className="text-right">
@@ -232,7 +238,7 @@ export default function ExpenseStats({ detailed = false }: ExpenseStatsProps) {
                         {formatMoney(month.amount)}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {month.count} {t('expenses')}
+                        {month.count} {tRoot('expenses.title')}
                       </div>
                     </div>
                   </div>

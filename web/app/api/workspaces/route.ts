@@ -6,6 +6,8 @@ import { cookies } from 'next/headers';
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = cookies();
+    const { searchParams } = new URL(request.url);
+    const listAll = searchParams.get('list') === 'true';
     
     // Crear cliente de Supabase para el servidor
     const supabase = createServerClient(
@@ -35,6 +37,26 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Si se solicita listar todos los workspaces
+    if (listAll) {
+      const { data: workspaces, error } = await supabaseAdmin
+        .from('workspaces')
+        .select('*')
+        .eq('owner_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching workspaces:', error);
+        return NextResponse.json(
+          { error: 'Failed to fetch workspaces' },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json(workspaces || []);
+    }
+
+    // Comportamiento original para obtener workspace actual
     const workspaceId = cookieStore.get('workspaceId')?.value;
 
     if (workspaceId) {
@@ -122,14 +144,22 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { workspaceName, workspaceSlug, clinicName, clinicAddress } = body;
+    
+    // Support both formats: onboarding (with clinic) and regular creation (without clinic)
+    const workspaceName = body.workspaceName || body.name;
+    const workspaceSlug = body.workspaceSlug || body.slug;
+    const clinicName = body.clinicName;
+    const clinicAddress = body.clinicAddress;
+    const description = body.description;
+    const onboardingCompleted = body.onboarding_completed !== undefined ? body.onboarding_completed : !!clinicName;
+    const onboardingStep = body.onboarding_step !== undefined ? body.onboarding_step : (clinicName ? 3 : 0);
 
     console.log('Creating workspace with data:', { workspaceName, workspaceSlug, clinicName, userId: user.id });
 
     // Validar datos requeridos
-    if (!workspaceName || !workspaceSlug || !clinicName) {
+    if (!workspaceName || !workspaceSlug) {
       return NextResponse.json(
-        { error: 'Missing required fields', details: { workspaceName: !!workspaceName, workspaceSlug: !!workspaceSlug, clinicName: !!clinicName } },
+        { error: 'Missing required fields', details: { workspaceName: !!workspaceName, workspaceSlug: !!workspaceSlug } },
         { status: 400 }
       );
     }
@@ -140,10 +170,10 @@ export async function POST(request: NextRequest) {
       .insert({
         name: workspaceName,
         slug: workspaceSlug,
-        description: `Workspace de ${workspaceName}`,
+        description: description || `Workspace de ${workspaceName}`,
         owner_id: user.id,
-        onboarding_completed: true,
-        onboarding_step: 3
+        onboarding_completed: onboardingCompleted,
+        onboarding_step: onboardingStep
       })
       .select()
       .single();
@@ -164,31 +194,37 @@ export async function POST(request: NextRequest) {
 
     console.log('Workspace created successfully:', workspace.id);
 
-    // Crear la primera clínica
-    const { data: clinic, error: clinicError } = await supabaseAdmin
-      .from('clinics')
-      .insert({
-        workspace_id: workspace.id,
-        name: clinicName,
-        address: clinicAddress || null,
-        is_active: true
-      })
-      .select()
-      .single();
+    let clinic = null;
+    
+    // Solo crear la clínica si se proporciona clinicName (durante onboarding)
+    if (clinicName) {
+      const { data: clinicData, error: clinicError } = await supabaseAdmin
+        .from('clinics')
+        .insert({
+          workspace_id: workspace.id,
+          name: clinicName,
+          address: clinicAddress || null,
+          is_active: true
+        })
+        .select()
+        .single();
 
-    if (clinicError) {
-      console.error('Error creating clinic:', clinicError);
+      if (clinicError) {
+        console.error('Error creating clinic:', clinicError);
+        
+        // Rollback: eliminar workspace si falla la creación de la clínica
+        await supabaseAdmin
+          .from('workspaces')
+          .delete()
+          .eq('id', workspace.id);
+        
+        return NextResponse.json(
+          { error: 'Failed to create clinic', details: (clinicError as any).message || clinicError },
+          { status: 500 }
+        );
+      }
       
-      // Rollback: eliminar workspace si falla la creación de la clínica
-      await supabaseAdmin
-        .from('workspaces')
-        .delete()
-        .eq('id', workspace.id);
-      
-      return NextResponse.json(
-        { error: 'Failed to create clinic', details: (clinicError as any).message || clinicError },
-        { status: 500 }
-      );
+      clinic = clinicData;
     }
 
     // Crear el miembro owner del workspace
@@ -206,12 +242,17 @@ export async function POST(request: NextRequest) {
       // No es crítico, continuamos ya que owner_id en workspaces es suficiente
     }
 
-    // Establecer cookies para workspace y clinic
-    const response = NextResponse.json({ 
+    // Establecer cookies para workspace y clinic (si existe)
+    const responseData: any = { 
       workspace,
-      clinic,
       success: true
-    });
+    };
+    
+    if (clinic) {
+      responseData.clinic = clinic;
+    }
+    
+    const response = NextResponse.json(responseData);
 
     response.cookies.set('workspaceId', workspace.id, {
       httpOnly: true,
@@ -220,12 +261,14 @@ export async function POST(request: NextRequest) {
       maxAge: 60 * 60 * 24 * 30 // 30 días
     });
 
-    response.cookies.set('clinicId', clinic.id, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30 // 30 días
-    });
+    if (clinic) {
+      response.cookies.set('clinicId', clinic.id, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 30 // 30 días
+      });
+    }
 
     return response;
   } catch (error) {

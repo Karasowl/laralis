@@ -39,6 +39,7 @@ const categories: { value: FixedCostCategory; label: string }[] = [
 
 export default function FixedCostsPage() {
   const t = useTranslations()
+  const tCommon = useTranslations('common')
   const locale = useLocale()
   const { currentClinic } = useCurrentClinic()
   const {
@@ -141,8 +142,8 @@ export default function FixedCostsPage() {
                 amount_pesos: cost.amount_cents / 100,
               })
               setEditCost(cost)
-            }),
-            createDeleteAction(() => setDeleteCost(cost))
+            }, tCommon('edit')),
+            createDeleteAction(() => setDeleteCost(cost), tCommon('delete'))
           ]}
         />
       )
@@ -236,6 +237,7 @@ export default function FixedCostsPage() {
           <div className="lg:col-span-2">
             <DataTable
               columns={columns}
+              mobileColumns={[columns[1], columns[3]]}
               data={fixedCosts}
               loading={loading}
               emptyState={{

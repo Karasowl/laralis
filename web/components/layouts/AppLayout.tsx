@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useTranslations } from 'next-intl'
+import { useT } from '@/lib/i18n'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { useWorkspace } from '@/contexts/workspace-context'
@@ -20,7 +20,7 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
-  const t = useTranslations()
+  const t = useT()
   const pathname = usePathname()
   const router = useRouter()
   const { workspace, currentClinic, user, signOut } = useWorkspace()

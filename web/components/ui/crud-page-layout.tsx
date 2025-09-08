@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useT } from '@/lib/i18n';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card } from '@/components/ui/card';
@@ -87,29 +88,43 @@ export function CrudPageLayout<T extends { id: string; name?: string }>({
   className,
   containerClassName,
 }: CrudPageLayoutProps<T>) {
-  // Add action column if edit/delete actions are provided
-  const tableColumns = React.useMemo(() => {
-    if (!onEdit && !onDelete) return columns;
-    
-    const actionColumn: Column<T> = {
-      key: 'actions',
-      label: 'Actions',
-      render: (_value, item) => {
-        const actions = [];
-        if (onEdit) {
-          actions.push(createEditAction(() => onEdit(item), 'Edit'));
-        }
-        if (onDelete) {
-          actions.push(createDeleteAction(() => onDelete(item), 'Delete'));
-        }
-        return <ActionDropdown actions={actions} />;
-      },
-    };
-    
-    // Check if actions column already exists
+  const t = useT();
+  // Build columns, auto-adding an actions column when handlers are provided.
+  const { tableColumns, mobileTableColumns } = React.useMemo(() => {
+    // Base columns as provided
+    let base = columns;
+
+    // Create an actions column only if edit/delete handlers are present
+    const shouldAddActions = !!onEdit || !!onDelete;
     const hasActionsColumn = columns.some(col => col.key === 'actions');
-    return hasActionsColumn ? columns : [...columns, actionColumn];
-  }, [columns, onEdit, onDelete]);
+
+    const actionColumn: Column<T> | null = shouldAddActions
+      ? {
+          key: 'actions',
+          label: t('common.actions', { fallback: 'Actions' }),
+          render: (_value, item) => {
+            const actions: any[] = [];
+            if (onEdit) actions.push(createEditAction(() => onEdit(item), t('common.edit', { fallback: 'Edit' })));
+            if (onDelete) actions.push(createDeleteAction(() => onDelete(item), t('common.delete', { fallback: 'Delete' })));
+            return <ActionDropdown actions={actions} />;
+          },
+        }
+      : null;
+
+    // Table columns include actions if not already present
+    const tableCols = hasActionsColumn || !actionColumn ? base : [...base, actionColumn];
+
+    // Mobile columns: if not provided, use first two plus actions (when available)
+    let mobileCols = mobileColumns;
+    if (!mobileCols) {
+      const firstTwo = base.slice(0, Math.min(2, base.length));
+      mobileCols = (actionColumn && !hasActionsColumn)
+        ? ([...firstTwo, actionColumn] as Column<T>[])
+        : firstTwo;
+    }
+
+    return { tableColumns: tableCols, mobileTableColumns: mobileCols };
+  }, [columns, mobileColumns, onEdit, onDelete, t]);
 
   return (
     <AppLayout>
@@ -149,7 +164,7 @@ export function CrudPageLayout<T extends { id: string; name?: string }>({
             {loading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                <span className="ml-2 text-muted-foreground">Loading...</span>
+                <span className="ml-2 text-muted-foreground">{t('common.loading', { fallback: 'Loading...' })}</span>
               </div>
             ) : items.length === 0 ? (
               <EmptyState
@@ -166,7 +181,7 @@ export function CrudPageLayout<T extends { id: string; name?: string }>({
                 }
               />
             ) : (
-              <DataTable columns={tableColumns} mobileColumns={mobileColumns} data={items} />
+              <DataTable columns={tableColumns} mobileColumns={mobileTableColumns} data={items} />
             )}
           </div>
         </Card>
@@ -226,6 +241,14 @@ export function SimpleCrudPage<T extends { id: string; name?: string }>({
   searchable = true,
   children,
 }: SimpleCrudPageProps<T>) {
+  // Localized common strings
+  // We avoid hardcoded English in composed labels
+  const t = useT();
+  const addLabel = `${t('common.add', { fallback: 'Add' })} ${entityName}`;
+  const searchLabel = `${t('common.search', { fallback: 'Search' })} ${entityName.toLowerCase()}...`;
+  const emptyTitle = t('common.noData', { fallback: `No ${entityName.toLowerCase()} found` });
+  const emptyDesc = t('common.createNewDescription', { entity: entityName.toLowerCase(), fallback: `Get started by adding your first ${entityName.toLowerCase()}.` });
+
   return (
     <CrudPageLayout
       title={title}
@@ -237,14 +260,14 @@ export function SimpleCrudPage<T extends { id: string; name?: string }>({
       onAdd={data.onAdd}
       onEdit={data.onEdit}
       onDelete={data.onDelete}
-      addButtonLabel={`Add ${entityName}`}
+      addButtonLabel={addLabel}
       searchable={searchable}
       searchValue={data.searchTerm}
       onSearchChange={data.onSearchChange}
-      searchPlaceholder={`Search ${entityName.toLowerCase()}...`}
+      searchPlaceholder={searchLabel}
       emptyIcon={emptyIcon}
-      emptyTitle={`No ${entityName.toLowerCase()} found`}
-      emptyDescription={`Get started by adding your first ${entityName.toLowerCase()}.`}
+      emptyTitle={emptyTitle}
+      emptyDescription={emptyDesc}
       deleteConfirmOpen={data.deleteConfirmOpen}
       onDeleteConfirmChange={data.onDeleteConfirmChange}
       deletingItem={data.deletingItem}

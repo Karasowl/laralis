@@ -80,7 +80,19 @@ export async function PUT(
       return NextResponse.json({ error: 'Failed to fetch expense' }, { status: 500 })
     }
 
-    const updateData = validationResult.data
+    const updateData = validationResult.data as any
+
+    // If category_id provided but category string not provided, resolve category name for compatibility
+    if (updateData.category_id && !updateData.category) {
+      const { data: cat } = await supabase
+        .from('categories')
+        .select('name, display_name')
+        .eq('id', updateData.category_id)
+        .single()
+      if (cat) {
+        updateData.category = (cat as any).display_name || (cat as any).name
+      }
+    }
 
     // Update expense
     const { data: updatedExpense, error: updateError } = await supabase

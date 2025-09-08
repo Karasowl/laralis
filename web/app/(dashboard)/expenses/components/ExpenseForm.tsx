@@ -7,10 +7,11 @@ interface ExpenseFormProps {
   watch: any
   setValue: any
   errors: any
-  t: (key: string) => string
+  t: (key: string) => string // namespaced: 'expenses'
+  tFields: (key: string) => string // namespaced: 'fields'
 }
 
-export function ExpenseForm({ watch, setValue, errors, t }: ExpenseFormProps) {
+export function ExpenseForm({ watch, setValue, errors, t, tFields }: ExpenseFormProps) {
   const watchCategory = watch('category')
   
   // Form options
@@ -41,7 +42,7 @@ export function ExpenseForm({ watch, setValue, errors, t }: ExpenseFormProps) {
     <div className="space-y-4">
       <FormGrid columns={2}>
         <InputField
-          label={t('fields.date')}
+          label={tFields('date')}
           type="date"
           value={watch('expense_date')}
           onChange={(v) => setValue('expense_date', v as string)}
@@ -50,7 +51,7 @@ export function ExpenseForm({ watch, setValue, errors, t }: ExpenseFormProps) {
         />
         
         <InputField
-          label={t('fields.amount')}
+          label={tFields('amount')}
           type="number"
           value={watch('amount_pesos')}
           onChange={(v) => setValue('amount_pesos', v as number)}
@@ -63,7 +64,7 @@ export function ExpenseForm({ watch, setValue, errors, t }: ExpenseFormProps) {
       
       <FormGrid columns={2}>
         <SelectField
-          label={t('fields.category')}
+          label={tFields('category')}
           value={watch('category')}
           onChange={(value) => {
             setValue('category', value)
@@ -76,7 +77,7 @@ export function ExpenseForm({ watch, setValue, errors, t }: ExpenseFormProps) {
         />
         
         <SelectField
-          label={t('fields.subcategory')}
+          label={tFields('subcategory')}
           value={watch('subcategory')}
           onChange={(value) => setValue('subcategory', value)}
           options={getSubcategoryOptions(watchCategory)}
@@ -87,7 +88,7 @@ export function ExpenseForm({ watch, setValue, errors, t }: ExpenseFormProps) {
       </FormGrid>
       
       <InputField
-        label={t('fields.vendor')}
+        label={tFields('vendor')}
         value={watch('vendor')}
         onChange={(v) => setValue('vendor', v as string)}
         placeholder={t('vendor_placeholder')}
@@ -95,7 +96,7 @@ export function ExpenseForm({ watch, setValue, errors, t }: ExpenseFormProps) {
       />
       
       <InputField
-        label={t('fields.description')}
+        label={tFields('description')}
         value={watch('description')}
         onChange={(v) => setValue('description', v as string)}
         placeholder={t('description_placeholder')}
@@ -103,7 +104,7 @@ export function ExpenseForm({ watch, setValue, errors, t }: ExpenseFormProps) {
       />
       
       <TextareaField
-        label={t('fields.notes')}
+        label={tFields('notes')}
         value={watch('notes')}
         onChange={(v) => setValue('notes', v)}
         placeholder={t('notes_placeholder')}

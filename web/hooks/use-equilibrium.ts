@@ -110,7 +110,7 @@ export function useEquilibrium(options: UseEquilibriumOptions = {}): IEquilibriu
   // Load all data
   const loadData = useCallback(async () => {
     if (!clinicId) {
-      setError('No clinic selected')
+      setError('common.noClinicContext') // Translation key for error messages
       setLoading(false)
       return
     }

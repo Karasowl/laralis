@@ -35,7 +35,12 @@
     "dev:preview": "concurrently \"npm run dev\" \"echo 'Abre Browser Preview en VSCode con Ctrl+Shift+P'\"",
     "dev:mobile": "next dev -H 0.0.0.0",
     "typecheck": "tsc --noEmit",
-    "i18n:check": "node scripts/check-i18n.mjs"
+    "i18n:check": "node scripts/check-i18n.mjs",
+    "i18n:fill": "node scripts/fill-i18n-missing.mjs",
+    "i18n:collect": "node scripts/collect-used-i18n.mjs",
+    "i18n:scan": "node scripts/scan-i18n-usage.mjs",
+    "i18n:lint": "node scripts/collect-used-i18n.mjs && node scripts/missing-used-i18n.mjs && node scripts/scan-i18n-usage.mjs",
+    "i18n:fix-es": "node scripts/fix-es-encoding.mjs && node scripts/scan-i18n-usage.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

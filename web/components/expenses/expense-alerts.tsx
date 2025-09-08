@@ -62,7 +62,11 @@ export default function ExpenseAlerts() {
   const [dismissed, setDismissed] = useState<Set<string>>(new Set())
 
   const fetchAlerts = async () => {
-    if (!currentClinic?.id) return
+    if (!currentClinic?.id) {
+      setAlerts(null)
+      setLoading(false)
+      return
+    }
 
     try {
       setLoading(true)

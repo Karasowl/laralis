@@ -29,6 +29,7 @@ const tariffEditSchema = z.object({
 
 export default function TariffsPage() {
   const t = useTranslations('tariffs')
+  const tRoot = useTranslations()
   const { currentClinic } = useCurrentClinic()
   
   // Tariff management hook
@@ -184,7 +185,7 @@ export default function TariffsPage() {
     },
     {
       key: 'actions',
-      label: t('actions'),
+      label: tRoot('common.actions'),
       render: (tariff: TariffRow) => (
         <Button
           variant="outline"

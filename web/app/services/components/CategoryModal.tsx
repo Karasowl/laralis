@@ -21,6 +21,7 @@ export function CategoryModal({
 }: CategoryModalProps) {
   const t = useTranslations('services')
   const tCommon = useTranslations('common')
+  const tRoot = useTranslations()
   const [newCategoryName, setNewCategoryName] = useState('')
 
   const handleSubmit = async () => {
@@ -38,18 +39,18 @@ export function CategoryModal({
       onOpenChange={onOpenChange}
       title={t('manage_categories')}
       onSubmit={handleSubmit}
-      submitLabel={t('add_category')}
-      cancelLabel={tCommon('cancel')}
+      submitLabel={t('addCategory')}
+      cancelLabel={tRoot('cancel')}
     >
       <FormSection>
         <InputField
-          label={t('category_name')}
+          label={t('categoryName')}
           value={newCategoryName}
           onChange={setNewCategoryName}
-          placeholder={t('category_placeholder')}
+          placeholder={t('categoryNamePlaceholder')}
         />
         <div className="mt-4 space-y-2">
-          <p className="text-sm font-medium text-muted-foreground">{t('existing_categories')}</p>
+          <p className="text-sm font-medium text-muted-foreground">{tRoot('existing_categories')}</p>
           <div className="flex flex-wrap gap-2">
             {categories.map(cat => (
               <Badge key={cat.id} variant="secondary">{cat.name}</Badge>

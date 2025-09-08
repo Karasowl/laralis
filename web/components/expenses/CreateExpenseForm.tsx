@@ -20,7 +20,6 @@ import {
 } from '@/components/ui/form-field'
 import { 
   ExpenseFormData,
-  EXPENSE_CATEGORIES,
   EXPENSE_SUBCATEGORIES 
 } from '@/lib/types/expenses'
 
@@ -33,6 +32,7 @@ interface Supply {
 interface CreateExpenseFormProps {
   form: UseFormReturn<ExpenseFormData>
   supplies: Supply[]
+  categories?: any[]
   showAssetFields: boolean
   setShowAssetFields: (show: boolean) => void
 }
@@ -40,10 +40,12 @@ interface CreateExpenseFormProps {
 export function CreateExpenseForm({ 
   form, 
   supplies, 
+  categories = [],
   showAssetFields, 
   setShowAssetFields 
 }: CreateExpenseFormProps) {
   const t = useTranslations('expenses')
+  const tFields = useTranslations('fields')
   
   const watchCategory = form.watch('category')
   const watchCreateAsset = form.watch('create_asset')
@@ -86,7 +88,7 @@ export function CreateExpenseForm({
               render={({ field, fieldState }) => (
                 <InputField
                   type="date"
-                  label={t('fields.date')}
+                  label={tFields('date')}
                   value={field.value}
                   onChange={field.onChange}
                   error={fieldState.error?.message}
@@ -102,7 +104,7 @@ export function CreateExpenseForm({
                 <InputField
                   type="number"
                   step="0.01"
-                  label={t('fields.amount')}
+                  label={tFields('amount')}
                   placeholder="0.00"
                   value={field.value ? (field.value / 100).toFixed(2) : ''}
                   onChange={(value) => field.onChange(parseFloat(value.toString()) * 100)}
@@ -122,13 +124,20 @@ export function CreateExpenseForm({
               name="category"
               render={({ field, fieldState }) => (
                 <SelectField
-                  label={t('fields.category')}
+                  label={tFields('category')}
                   placeholder={t('select_category')}
                   value={field.value}
-                  onChange={field.onChange}
-                  options={Object.entries(EXPENSE_CATEGORIES).map(([key, label]) => ({
-                    value: label,
-                    label: label
+                  onChange={(val) => {
+                    // Update both display string and category_id
+                    field.onChange(val)
+                    const match = categories.find((c: any) => (c.display_name || c.name) === val)
+                    if (match) {
+                      form.setValue('category_id', match.id)
+                    }
+                  }}
+                  options={(categories || []).map((c: any) => ({
+                    value: c.display_name || c.name,
+                    label: c.display_name || c.name
                   }))}
                   error={fieldState.error?.message}
                   required
@@ -141,7 +150,7 @@ export function CreateExpenseForm({
               name="subcategory"
               render={({ field, fieldState }) => (
                 <SelectField
-                  label={t('fields.subcategory')}
+                  label={tFields('subcategory')}
                   placeholder={t('select_subcategory')}
                   value={field.value}
                   onChange={field.onChange}
@@ -163,7 +172,7 @@ export function CreateExpenseForm({
             name="description"
             render={({ field, fieldState }) => (
               <TextareaField
-                label={t('fields.description')}
+                label={tFields('description')}
                 placeholder={t('description_placeholder')}
                 value={field.value}
                 onChange={field.onChange}
@@ -178,7 +187,7 @@ export function CreateExpenseForm({
               name="vendor"
               render={({ field, fieldState }) => (
                 <InputField
-                  label={t('fields.vendor')}
+                  label={tFields('vendor')}
                   placeholder={t('vendor_placeholder')}
                   value={field.value}
                   onChange={field.onChange}
@@ -192,7 +201,7 @@ export function CreateExpenseForm({
               name="invoice_number"
               render={({ field, fieldState }) => (
                 <InputField
-                  label={t('fields.invoice_number')}
+                  label={tFields('invoice_number')}
                   placeholder={t('invoice_placeholder')}
                   value={field.value}
                   onChange={field.onChange}
@@ -215,7 +224,7 @@ export function CreateExpenseForm({
                 name="related_supply_id"
                 render={({ field, fieldState }) => (
                   <SelectField
-                    label={t('fields.supply')}
+                    label={tFields('supply')}
                     placeholder={t('select_supply')}
                     value={field.value || ''}
                     onChange={field.onChange}
@@ -234,7 +243,7 @@ export function CreateExpenseForm({
                 render={({ field, fieldState }) => (
                   <InputField
                     type="number"
-                    label={t('fields.quantity')}
+                    label={tFields('quantity')}
                     placeholder={t('quantity_placeholder')}
                     value={field.value || 0}
                     onChange={(value) => field.onChange(parseInt(value.toString()) || undefined)}
@@ -277,7 +286,7 @@ export function CreateExpenseForm({
                   name="asset_name"
                   render={({ field, fieldState }) => (
                     <InputField
-                      label={t('fields.asset_name')}
+                      label={tFields('asset_name')}
                       placeholder={t('asset_name_placeholder')}
                       value={field.value}
                       onChange={field.onChange}
@@ -292,7 +301,7 @@ export function CreateExpenseForm({
                   render={({ field, fieldState }) => (
                     <InputField
                       type="number"
-                      label={t('fields.useful_life')}
+                      label={tFields('useful_life')}
                       placeholder={t('useful_life_placeholder')}
                       value={field.value || 0}
                       onChange={(value) => field.onChange(parseInt(value.toString()) || undefined)}
@@ -319,7 +328,7 @@ export function CreateExpenseForm({
                   />
                 </FormControl>
                 <div className="space-y-1 leading-none">
-                  <FormLabel>{t('fields.recurring')}</FormLabel>
+                  <FormLabel>{tFields('recurring')}</FormLabel>
                 </div>
               </FormItem>
             )}

@@ -16,7 +16,10 @@ interface CategoryBreakdownProps {
   t: (key: string) => string
 }
 
+import { useTranslations } from 'next-intl'
+
 export function CategoryBreakdown({ categories, t }: CategoryBreakdownProps) {
+  const tg = useTranslations()
   if (!categories || categories.length === 0) return null
   
   return (
@@ -29,7 +32,7 @@ export function CategoryBreakdown({ categories, t }: CategoryBreakdownProps) {
               <div className="flex items-center gap-2">
                 <Badge variant="outline">{category.category}</Badge>
                 <span className="text-sm text-muted-foreground">
-                  {category.count} {t('expenses')}
+                  {category.count} {tg('expenses.title')}
                 </span>
               </div>
               <div className="text-right">
