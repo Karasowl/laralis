@@ -100,7 +100,7 @@
     },
     "workspaces": {
       "title": "Espacios de trabajo",
-      "description": "Administra tus espacios de trabajo y configuracion",
+      "subtitle": "Administra tus espacios de trabajo y configuracion",
       "emptyTitle": "No hay espacios de trabajo",
       "nameRequired": "El nombre del espacio es obligatorio",
       "slugHelp": "Minusculas, letras y guiones",

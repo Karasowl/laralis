@@ -99,15 +99,18 @@ export function CreateExpenseForm({
 
             <FormField
               control={form.control}
-              name="amount_cents"
+              name="amount_pesos"
               render={({ field, fieldState }) => (
                 <InputField
                   type="number"
                   step="0.01"
                   label={tFields('amount')}
                   placeholder="0.00"
-                  value={field.value ? (field.value / 100).toFixed(2) : ''}
-                  onChange={(value) => field.onChange(parseFloat(value.toString()) * 100)}
+                  value={field.value ?? ''}
+                  onChange={(value) => {
+                    const num = typeof value === 'number' ? value : parseFloat(String(value))
+                    field.onChange(Number.isFinite(num) ? num : undefined)
+                  }}
                   error={fieldState.error?.message}
                   required
                 />

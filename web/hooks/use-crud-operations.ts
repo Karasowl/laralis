@@ -61,6 +61,9 @@ export function useCrudOperations<T extends { id: string; name?: string }>(
   const [searchTerm, setSearchTerm] = useState('');
   const [searchDebounce, setSearchDebounce] = useState('');
 
+  // Stringified key for static params to use in effect deps
+  const staticParamsKey = JSON.stringify(config.staticParams || {});
+
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -79,18 +82,14 @@ export function useCrudOperations<T extends { id: string; name?: string }>(
       const base = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
       const urlObj = new URL(urlString, base);
 
-      // Incluir clinic id si está configurado
+      // Incluir clinic id si está configurado y disponible. Si aún no está
+      // resuelto en el cliente, dejamos que el backend determine la clínica
+      // a partir de la cookie o de un valor por defecto.
       if (config.includeClinicId) {
         const clinicIdToUse = (currentClinic?.id) || (fallbackClinic?.id);
         if (clinicIdToUse) {
-          // Set both naming variants to be compatible with all API routes
           urlObj.searchParams.set('clinic_id', clinicIdToUse);
           urlObj.searchParams.set('clinicId', clinicIdToUse);
-        } else {
-          // Evitar disparar peticiones 400 cuando aún no hay clínica resuelta
-          setItems([]);
-          setLoading(false);
-          return;
         }
       }
 
@@ -128,7 +127,7 @@ export function useCrudOperations<T extends { id: string; name?: string }>(
     } finally {
       setLoading(false);
     }
-  }, [config.endpoint, config.entityName, config.searchParam, config.transformData, config.includeClinicId, currentClinic?.id, fallbackClinic?.id, searchDebounce, t]);
+  }, [config.endpoint, config.entityName, config.searchParam, config.transformData, config.includeClinicId, currentClinic?.id, fallbackClinic?.id, searchDebounce, t, staticParamsKey]);
 
   // Initial load and search updates
   useEffect(() => {
@@ -136,20 +135,22 @@ export function useCrudOperations<T extends { id: string; name?: string }>(
     // se usa la de cookie/fallback y, si tampoco existe, el fetch 
     // seguirá pero sin el parámetro, evitando quedar en loading eterno.
     fetchItems();
-  }, [config.endpoint, config.entityName, config.includeClinicId, currentClinic?.id, fallbackClinic?.id, searchDebounce, fetchItems]);
+  }, [config.endpoint, config.entityName, config.includeClinicId, currentClinic?.id, fallbackClinic?.id, searchDebounce, fetchItems, staticParamsKey]);
 
   // Create handler
   const handleCreate = async (data: any): Promise<boolean> => {
     setIsSubmitting(true);
     try {
-      // Include clinic_id if configured
-      const payload = config.includeClinicId && currentClinic?.id 
-        ? { ...data, clinic_id: currentClinic.id }
+      // Include clinic_id if configured (use fallback if workspace not ready)
+      const clinicIdToUse = currentClinic?.id || fallbackClinic?.id;
+      const payload = config.includeClinicId && clinicIdToUse
+        ? { ...data, clinic_id: clinicIdToUse }
         : data;
       
       const response = await fetch(config.endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
       
@@ -177,6 +178,7 @@ export function useCrudOperations<T extends { id: string; name?: string }>(
       const response = await fetch(`${config.endpoint}/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(data),
       });
       
@@ -202,6 +204,7 @@ export function useCrudOperations<T extends { id: string; name?: string }>(
     try {
       const response = await fetch(`${config.endpoint}/${id}`, {
         method: 'DELETE',
+        credentials: 'include',
       });
       
       if (!response.ok) {

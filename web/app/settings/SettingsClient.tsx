@@ -22,6 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 
 export function DeleteAccountSection() {
   const t = useTranslations();
+  const tCommon = useTranslations('common');
   const { toast } = useToast();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteEmail, setDeleteEmail] = useState('');
@@ -248,7 +249,7 @@ export function DeleteAccountSection() {
                   variant="outline"
                   onClick={() => handleDialogChange(false)}
                 >
-                  {t('common.cancel')}
+                  {tCommon('cancel')}
                 </Button>
                 <Button
                   variant="destructive"
@@ -291,7 +292,7 @@ export function DeleteAccountSection() {
                   variant="outline"
                   onClick={() => setConfirmDialogOpen(false)}
                 >
-                  {t('common.cancel')}
+                  {tCommon('cancel')}
                 </Button>
                 <Button
                   variant="destructive"

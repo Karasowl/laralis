@@ -2,6 +2,7 @@
 
 import { CheckCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useTranslations } from 'next-intl'
 
 interface ChecklistItemProps {
   label: string
@@ -10,6 +11,8 @@ interface ChecklistItemProps {
 }
 
 export function ChecklistItem({ label, completed, count }: ChecklistItemProps) {
+  const t = useTranslations('common')
+  
   return (
     <div className="flex items-center justify-between py-2">
       <div className="flex items-center space-x-3">
@@ -27,7 +30,7 @@ export function ChecklistItem({ label, completed, count }: ChecklistItemProps) {
       </div>
       {count !== null && count !== undefined && (
         <span className="text-xs text-muted-foreground">
-          ({count} {count === 1 ? 'registro' : 'registros'})
+          ({count} {count === 1 ? t('record') : t('records')})
         </span>
       )}
     </div>

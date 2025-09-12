@@ -90,9 +90,14 @@ export function ConfirmDialog({
               <AlertDialogTitle className="text-lg">
                 {title}
               </AlertDialogTitle>
-              {description && (
+              {description ? (
                 <AlertDialogDescription className="mt-2">
                   {description}
+                </AlertDialogDescription>
+              ) : (
+                // Provide an accessible description even when visually hidden
+                <AlertDialogDescription className="sr-only">
+                  Dialog confirmation
                 </AlertDialogDescription>
               )}
             </div>

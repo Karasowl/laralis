@@ -37,6 +37,8 @@
     "clinic": "Clínica",
     "notAvailable": "N/D",
     "minutes": "minutos",
+    "record": "registro",
+    "records": "registros",
     "loadError": "Error al cargar {entity}",
     "updateSuccess": "{entity} actualizado exitosamente",
     "updateError": "Error al actualizar {entity}",
@@ -1025,7 +1027,53 @@
     },
     "reset": {
       "title": "Reiniciar Datos",
-      "description": "Borra todos los datos y comienza de nuevo"
+      "description": "Borra todos los datos y comienza de nuevo",
+      "subtitle": "Limpia o reinicia los datos de tu negocio",
+      "patients": "Pacientes",
+      "patients_desc": "Eliminar todos los registros de pacientes y sus tratamientos",
+      "treatments": "Tratamientos",
+      "treatments_desc": "Eliminar todos los registros de tratamientos",
+      "expenses": "Gastos",
+      "expenses_desc": "Eliminar todos los registros de gastos",
+      "supplies": "Insumos",
+      "supplies_desc": "Eliminar todos los insumos y recetas de servicios",
+      "services": "Servicios",
+      "services_desc": "Eliminar todos los servicios y sus recetas",
+      "assets": "Activos",
+      "assets_desc": "Eliminar todos los equipos y activos",
+      "all_data": "Todos los Datos",
+      "all_data_desc": "Eliminar TODOS los datos del negocio (pacientes, tratamientos, gastos, insumos, servicios, activos)",
+      "warning": "Advertencia",
+      "warning_description": "Esta acción no se puede deshacer. Todos los datos seleccionados se eliminarán permanentemente.",
+      "clean_data": "Limpiar Datos",
+      "clean_data_description": "Selecciona los datos que deseas eliminar. Ten cuidado, esta acción no se puede deshacer.",
+      "options_selected": "opciones seleccionadas",
+      "clean_selected": "Limpiar Seleccionados",
+      "cleaning": "Limpiando...",
+      "status_title": "Estado de Datos",
+      "status_description": "Estado actual de los datos de tu negocio",
+      "checklist": {
+        "time_config": "Configuración de Tiempo",
+        "assets": "Activos",
+        "fixed_costs": "Costos Fijos",
+        "supplies": "Insumos",
+        "services": "Servicios",
+        "custom_categories": "Categorías Personalizadas"
+      },
+      "confirm_delete_all": "Escribe 'BORRAR TODO' para confirmar la eliminación de todos los datos:",
+      "delete_all_placeholder": "Escribe BORRAR TODO",
+      "delete_all_confirmation_text": "BORRAR TODO",
+      "no_clinic": "Primero selecciona o crea una clínica",
+      "select_options": "Por favor selecciona al menos una opción",
+      "confirm_required": "Por favor escribe 'BORRAR TODO' para confirmar",
+      "confirm_message": "¿Estás seguro de que quieres eliminar los datos seleccionados? Esta acción no se puede deshacer.",
+      "success": "Datos limpiados exitosamente",
+      "partial_success": "Algunas operaciones se completaron con errores",
+      "error": "Error al limpiar datos",
+      "has_data_warning": "Tienes datos existentes. Ten cuidado al realizar operaciones de reinicio.",
+      "completed": "Completado",
+      "unknown_error": "Error desconocido",
+      "partial_success_detail": "{success} exitosos, {errors} con errores"
     },
     "backup": {
       "title": "Respaldo y Restauración",
@@ -1035,6 +1083,7 @@
   "patients": {
     "title": "Pacientes",
     "subtitle": "Gestiona tus registros de pacientes",
+    "patientsDescription": "Gestiona registros de pacientes",
     "create_title": "Crear Paciente",
     "create_quick_description": "Ingresa nombre y datos básicos para registrar un nuevo paciente",
     "empty": {
@@ -1148,7 +1197,13 @@
       "acquisition_source": "Origen del Paciente",
       "select_referrer": "Selecciona quién lo refirió",
       "start_date": "Fecha de inicio",
-      "budget": "Presupuesto"
+      "budget": "Presupuesto",
+      "activity": "Actividad"
+    },
+    "activity": {
+      "visits": "Visitas",
+      "treatments": "Trat.",
+      "spent": "Gastado"
     },
     "select_gender": "Seleccionar género",
     "select_source": "Seleccionar vía de llegada",
@@ -1405,7 +1460,7 @@
       "asset_name": "Nombre del equipo/activo",
       "useful_life": "Años de vida útil"
     },
-    
+
     "description_placeholder": "Describe el gasto...",
     "vendor_placeholder": "Nombre del proveedor",
     "invoice_placeholder": "Número de factura",
@@ -1438,6 +1493,7 @@
     "units_remaining": "unidades restantes",
     "actions": {
       "view": "Ver",
+      "call": "Llamar",
       "edit": "Editar",
       "delete": "Eliminar"
     },
@@ -1484,8 +1540,7 @@
     "categorization": "Categorización",
     "details": "Detalles",
     "options": "Opciones",
-    "asset_creation": "Creación de Activos"
-    ,
+    "asset_creation": "Creación de Activos",
     "status": {
       "paid": "Pagado",
       "pending": "Pendiente"
@@ -1660,6 +1715,7 @@
   },
   "actions": {
     "view": "Ver",
+    "call": "Llamar",
     "edit": "Editar",
     "delete": "Eliminar"
   },

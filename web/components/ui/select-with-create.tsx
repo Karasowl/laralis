@@ -76,11 +76,17 @@ export function SelectWithCreate({
   entityName = 'item',
 }: SelectWithCreateProps) {
   const t = useTranslations();
+  const tCommon = useTranslations('common');
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
   const [createModalOpen, setCreateModalOpen] = React.useState(false);
   const [creating, setCreating] = React.useState(false);
   const [formData, setFormData] = React.useState<Record<string, any>>({});
+
+  // Debug/version marker
+  React.useEffect(() => {
+    try { console.log('[SelectWithCreate] loaded v3 - canCreate:', canCreate, 'entity:', entityName) } catch {}
+  }, [])
 
   const selectedOption = options.find((option) => option.value === value);
 
@@ -94,24 +100,16 @@ export function SelectWithCreate({
   }, [options, search]);
 
   const handleCreateClick = React.useCallback(() => {
-    // Abre primero el modal de creación y luego cierra el popover.
-    // Esto evita que los manejadores de cierre del popover/diálogo padre
-    // “consuman” el click antes de que podamos abrir el modal.
-    setCreateModalOpen(true);
-    setFormData({});
-    setSearch('');
-    // Cierra el popover con un pequeño retraso para evitar carreras.
-    requestAnimationFrame(() => {
-      setTimeout(() => {
-        setOpen(false);
-      }, 100);
-    });
-    if (process.env.NODE_ENV !== 'production') {
-      // Debug visual en desarrollo
-      try { console.debug('[SelectWithCreate] New click → open modal'); } catch {}
-      try { toast.info(`Opening new ${entityName}…`); } catch {}
-    }
-  }, []);
+    // Cerrar popover primero para evitar superposición Popover+Dialog
+    setOpen(false)
+    setFormData({})
+    setSearch('')
+    // Abrir modal en el siguiente tick para que Radix haga unmount limpio
+    setTimeout(() => {
+      try { console.log('[SelectWithCreate] opening create modal for', entityName) } catch {}
+      setCreateModalOpen(true)
+    }, 0)
+  }, [])
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,10 +132,10 @@ export function SelectWithCreate({
       // Seleccionar automáticamente la nueva opción
       onValueChange(newOption.value);
       setCreateModalOpen(false);
-      toast.success(t('common.createSuccess', { entity: entityName }));
+      toast.success(tCommon('createSuccess', { entity: entityName }));
     } catch (error) {
       console.error('Error creating item:', error);
-      toast.error(t('common.createError', { entity: entityName }));
+      toast.error(tCommon('createError', { entity: entityName }));
     } finally {
       setCreating(false);
     }
@@ -149,7 +147,8 @@ export function SelectWithCreate({
 
   return (
     <>
-      <Popover modal open={open} onOpenChange={setOpen}>
+      {!createModalOpen && (
+      <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
@@ -162,20 +161,20 @@ export function SelectWithCreate({
             )}
             disabled={disabled}
           >
-            {selectedOption ? selectedOption.label : placeholder || t('common.select')}
+            {selectedOption ? selectedOption.label : placeholder || tCommon('select')}
             <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-full p-0" align="start" onInteractOutside={(e) => e.preventDefault()}>
+        <PopoverContent className="w-full p-0" align="start">
           <Command>
             <CommandInput 
-              placeholder={searchPlaceholder || t('common.search')}
+              placeholder={searchPlaceholder || tCommon('search')}
               value={search}
               onValueChange={setSearch}
             />
             <CommandList>
               <CommandEmpty>
-                {emptyText || t('common.noResults')}
+                {emptyText || tCommon('noResults')}
               </CommandEmpty>
               <CommandGroup>
                 {filteredOptions.map((option) => (
@@ -209,41 +208,21 @@ export function SelectWithCreate({
                 role="menuitem"
                 className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-primary font-medium hover:bg-accent hover:text-primary-foreground active:bg-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors cursor-pointer select-none"
                 data-cy="select-create-new"
-                title={createLabel || t('common.createNew', { entity: entityName })}
+                title={createLabel || tCommon('createNew', { entity: entityName })}
                 onPointerDown={(e) => {
-                  // Evita que Radix Dialog/MobileModal interprete como click fuera
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-                onPointerUp={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-                onMouseUp={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-                onTouchStart={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-                onTouchEnd={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-                onClick={(e) => {
+                  // Evita que el click cierre el modal padre y abre el diálogo explícitamente
                   e.preventDefault();
                   e.stopPropagation();
                   handleCreateClick();
                 }}
-                onMouseEnter={() => {
-                  if (process.env.NODE_ENV !== 'production') {
-                    try { console.debug('[SelectWithCreate] Hover on create-new'); } catch {}
-                  }
+                onTouchStart={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleCreateClick();
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -254,25 +233,23 @@ export function SelectWithCreate({
                 }}
               >
                 <Plus className="h-4 w-4" />
-                {createLabel || t('common.createNew', { entity: entityName })}
+                {createLabel || tCommon('createNew', { entity: entityName })}
               </button>
             </div>
           )}
         </PopoverContent>
       </Popover>
+      )}
 
       {/* Modal de creación (responsive: Drawer en móvil, Dialog en desktop) */}
       <ResponsiveModal
         open={createModalOpen}
         onOpenChange={(open) => {
+          try { console.log('[SelectWithCreate] create modal onOpenChange:', open) } catch {}
           setCreateModalOpen(open);
-          if (process.env.NODE_ENV !== 'production') {
-            try { console.debug('[SelectWithCreate] createModalOpen =', open); } catch {}
-            try { toast.message(`Modal ${open ? 'opened' : 'closed'}`); } catch {}
-          }
         }}
-        title={createDialogTitle || t('common.createNewTitle', { entity: entityName })}
-        description={createDialogDescription || t('common.createNewDescription', { entity: entityName })}
+        title={createDialogTitle || tCommon('createNewTitle', { entity: entityName })}
+        description={createDialogDescription || tCommon('createNewDescription', { entity: entityName })}
       >
         <form onSubmit={handleCreateSubmit}>
           <div className="grid gap-4 py-2 sm:py-4">
@@ -300,7 +277,7 @@ export function SelectWithCreate({
                     onChange={(e) => handleFieldChange(field.name, e.target.value)}
                     disabled={creating}
                   >
-                    <option value="">{t('common.select')}</option>
+                    <option value="">{tCommon('select')}</option>
                     {field.options.map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
@@ -327,11 +304,11 @@ export function SelectWithCreate({
               onClick={() => setCreateModalOpen(false)}
               disabled={creating}
             >
-              {t('common.cancel')}
+              {tCommon('cancel')}
             </Button>
             <Button type="submit" disabled={creating}>
               {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {t('common.create')}
+              {tCommon('create')}
             </Button>
           </div>
         </form>

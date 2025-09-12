@@ -87,8 +87,11 @@ export function ServiceForm({
             type="number"
             step="0.01"
             label={t('fields.base_price')}
-            value={(form.watch('base_price_cents') / 100).toFixed(2)}
-            onChange={(value) => form.setValue('base_price_cents', parseFloat(value as string) * 100 || 0)}
+            value={((form.watch('base_price_cents') || 0) / 100)}
+            onChange={(value) => {
+              const num = typeof value === 'number' ? value : parseFloat(String(value))
+              form.setValue('base_price_cents', Number.isFinite(num) ? Math.round(num * 100) : 0)
+            }}
             error={form.formState.errors.base_price_cents?.message}
           />
         </FormGrid>

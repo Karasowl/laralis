@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -44,6 +45,8 @@ export default function TreatmentsPage() {
   const t = useTranslations()
   const tCommon = useTranslations('common')
   const { currentClinic } = useCurrentClinic()
+  const searchParams = useSearchParams()
+  const patientFilter = searchParams?.get('patient_id') || searchParams?.get('patient') || ''
   const {
     treatments,
     patients,
@@ -53,7 +56,10 @@ export default function TreatmentsPage() {
     createTreatment,
     updateTreatment,
     deleteTreatment
-  } = useTreatments({ clinicId: currentClinic?.id })
+  } = useTreatments({ clinicId: currentClinic?.id, patientId: patientFilter || undefined })
+
+  const filteredPatient = (patients || []).find(p => p.id === patientFilter)
+  const filteredCount = (treatments || []).length
 
   // Modal states
   const [createOpen, setCreateOpen] = useState(false)
@@ -236,7 +242,8 @@ export default function TreatmentsPage() {
       
       if (!response.ok) throw new Error('Failed to create patient')
       
-      const newPatient = await response.json()
+      const payload = await response.json()
+      const newPatient = payload?.data || payload
       
       // Refrescar la lista de pacientes
       await loadRelatedData()
@@ -257,15 +264,18 @@ export default function TreatmentsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...data,
-          clinic_id: currentClinic?.id,
-          base_price_cents: 0 // Por defecto
+          name: data?.name,
+          est_minutes: Number(data?.duration_minutes || data?.est_minutes || 0),
+          description: data?.description || undefined,
+          category: data?.category || undefined,
+          clinic_id: currentClinic?.id
         })
       })
       
       if (!response.ok) throw new Error('Failed to create service')
       
-      const newService = await response.json()
+      const payload = await response.json()
+      const newService = payload?.data || payload
       
       // Refrescar la lista de servicios
       await loadRelatedData()
@@ -282,17 +292,49 @@ export default function TreatmentsPage() {
 
   return (
     <AppLayout>
-      <div className="container mx-auto p-6 max-w-7xl space-y-6">
+      <div className="container mx-auto p-4 sm:p-6 max-w-7xl space-y-6">
         <PageHeader
           title={t('treatments.title')}
           subtitle={t('treatments.subtitle')}
           actions={
-            <Button onClick={() => { form.reset(treatmentInitialValues); setCreateOpen(true) }}>
+            <Button 
+              onClick={() => { form.reset({ ...treatmentInitialValues, patient_id: patientFilter || '' }); setCreateOpen(true) }}
+              className="whitespace-nowrap"
+            >
               <Plus className="h-4 w-4 mr-2" />
-              {t('treatments.addTreatment')}
+              <span className="hidden sm:inline">{t('treatments.addTreatment')}</span>
+              <span className="sm:hidden">{t('common.add')}</span>
             </Button>
           }
         />
+
+        {filteredPatient && (
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-lg bg-muted/40">
+            <div className="text-sm">
+              <span className="block sm:inline">Mostrando tratamientos de</span>
+              <span className="font-semibold"> {filteredPatient.first_name} {filteredPatient.last_name}</span>
+              <span className="text-muted-foreground"> — {filteredCount}</span>
+            </div>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <Button 
+                variant="outline" 
+                onClick={() => window.location.assign(`/patients?view_id=${filteredPatient.id}`)}
+                className="flex-1 sm:flex-none text-xs sm:text-sm"
+              >
+                <span className="hidden sm:inline">Ver Paciente</span>
+                <span className="sm:hidden">Paciente</span>
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => window.location.assign('/treatments')}
+                className="flex-1 sm:flex-none text-xs sm:text-sm"
+              >
+                <span className="hidden sm:inline">Quitar filtro</span>
+                <span className="sm:hidden">Quitar</span>
+              </Button>
+            </div>
+          </div>
+        )}
 
         <SummaryCards
           cards={[
@@ -348,6 +390,7 @@ export default function TreatmentsPage() {
           title={t('treatments.newTreatment')}
           onSubmit={form.handleSubmit(handleCreate)}
           maxWidth="2xl"
+          modal={false}
         >
           <TreatmentForm 
             form={form} 
@@ -368,6 +411,7 @@ export default function TreatmentsPage() {
           title={t('treatments.editTreatment')}
           onSubmit={form.handleSubmit(handleEdit)}
           maxWidth="2xl"
+          modal={false}
         >
           <TreatmentForm 
             form={form} 

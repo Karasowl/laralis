@@ -1,11 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { createServerClient } from '@supabase/ssr';
 
 // POST /api/reset - Limpiar datos según el tipo
 export async function POST(request: NextRequest) {
   try {
     const cookieStore = cookies();
+    // Create SSR client bound to cookies to identify current user
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() { return cookieStore.getAll(); },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options);
+            });
+          }
+        }
+      }
+    );
+    const { data: { user } } = await supabase.auth.getUser();
     const workspaceId = cookieStore.get('workspaceId')?.value;
     
     // Si no hay workspace en cookies, buscar cualquier workspace activo
@@ -141,77 +158,90 @@ export async function POST(request: NextRequest) {
         result.message = 'Categorías personalizadas eliminadas';
         break;
 
-      case 'all_data':
-        // Eliminar TODO incluyendo workspaces y clínicas
-        
-        // Usar el workspace_id que ya tenemos
-        const workspaceToDelete = activeWorkspaceId;
-        
-        if (workspaceToDelete) {
-          // Obtener todas las clínicas del workspace
-          const { data: allClinics } = await supabaseAdmin
+      case 'all_data': {
+        // Eliminar TODO de TODOS los workspaces del usuario autenticado
+        if (!user) {
+          return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        // Buscar todos los workspaces del propietario
+        const { data: userWorkspaces, error: wsErr } = await supabase
+          .from('workspaces')
+          .select('id')
+          .eq('owner_id', user.id);
+
+        if (wsErr) throw wsErr;
+
+        const workspacesToDelete = userWorkspaces?.map(w => w.id) || [];
+
+        for (const wsId of workspacesToDelete) {
+          // Todas las clínicas del workspace
+          const { data: allClinics, error: clErr } = await supabase
             .from('clinics')
             .select('id')
-            .eq('workspace_id', workspaceToDelete);
-          
-          const clinicIds = allClinics?.map(c => c.id) || [];
-          
-          // Borrar datos de todas las clínicas
-          if (clinicIds.length > 0) {
-            // 1. Service supplies (relaciones)
-            await supabaseAdmin
-              .from('service_supplies')
-              .delete()
-              .in('clinic_id', clinicIds);
+            .eq('workspace_id', wsId);
+          if (clErr) throw clErr;
 
-            // 2. Services
-            await supabaseAdmin
+          const clinicIds = allClinics?.map(c => c.id) || [];
+
+          if (clinicIds.length > 0) {
+            // Borrar primero servicios (elimina service_supplies por cascade)
+            const { error: e2 } = await supabase
               .from('services')
               .delete()
               .in('clinic_id', clinicIds);
+            if (e2) throw e2;
 
-            // 3. Supplies
-            await supabaseAdmin
+            // Luego insumos
+            const { error: e3 } = await supabase
               .from('supplies')
               .delete()
               .in('clinic_id', clinicIds);
+            if (e3) throw e3;
 
-            // 4. Fixed costs
-            await supabaseAdmin
+            // Costos fijos
+            const { error: e4 } = await supabase
               .from('fixed_costs')
               .delete()
               .in('clinic_id', clinicIds);
+            if (e4) throw e4;
 
-            // 5. Assets
-            await supabaseAdmin
+            // Activos
+            const { error: e5 } = await supabase
               .from('assets')
               .delete()
               .in('clinic_id', clinicIds);
+            if (e5) throw e5;
 
-            // 6. Settings time
-            await supabaseAdmin
+            // Configuración de tiempo
+            const { error: e6 } = await supabase
               .from('settings_time')
               .delete()
               .in('clinic_id', clinicIds);
+            if (e6) throw e6;
           }
-        }
 
-        // 7. Eliminar todas las clínicas del workspace
-        if (workspaceToDelete) {
-          await supabaseAdmin
+          // 7. Eliminar clínicas del workspace
+          const { error: clDelErr } = await supabase
             .from('clinics')
             .delete()
-            .eq('workspace_id', workspaceToDelete);
-          
-          // 8. Eliminar el workspace
-          await supabaseAdmin
+            .eq('workspace_id', wsId);
+          if (clDelErr) throw clDelErr;
+
+          // 8. Eliminar el workspace (workspace_members cae por cascade)
+          const { error: wsDelErr } = await supabase
             .from('workspaces')
             .delete()
-            .eq('id', workspaceToDelete);
+            .eq('id', wsId);
+          if (wsDelErr) throw wsDelErr;
         }
 
-        result.message = 'Todos los datos eliminados exitosamente';
-        break;
+        // Limpiar cookies de contexto en la respuesta
+        const response = NextResponse.json({ success: true, message: 'Todos los datos eliminados exitosamente' });
+        response.cookies.set('workspaceId', '', { path: '/', maxAge: 0 });
+        response.cookies.set('clinicId', '', { path: '/', maxAge: 0 });
+        return response;
+      }
 
       default:
         return NextResponse.json(
@@ -234,7 +264,8 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = cookies();
-    const clinicId = cookieStore.get('clinicId')?.value;
+    const searchParams = request.nextUrl.searchParams;
+    const clinicId = searchParams.get('clinicId') || cookieStore.get('clinicId')?.value || undefined as any;
 
     if (!clinicId) {
       return NextResponse.json(

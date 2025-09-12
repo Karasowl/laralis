@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { InputField, SelectField, FormGrid, TextareaField, FormSection } from '@/components/ui/form-field'
-import { SelectWithCreate } from '@/components/ui/select-with-create'
-import { toast } from 'sonner'
-import { Users, Megaphone, Globe, MapPin } from 'lucide-react'
+import { useTranslations } from 'next-intl'
+import { InputField, FormGrid, TextareaField, FormSection } from '@/components/ui/form-field'
+import { TouchRadioGroup } from '@/components/ui/mobile-form-advanced'
+import { Users, Megaphone, Globe } from 'lucide-react'
 
 interface PatientFormUnifiedProps {
   form: any
@@ -23,99 +23,54 @@ export function PatientFormUnified({
   t, 
   onCreateCampaign 
 }: PatientFormUnifiedProps) {
+  const tCommon = useTranslations('common')
   const [acquisitionType, setAcquisitionType] = useState<string>('')
-  
-  // Crear opciones unificadas para el selector de origen
-  const sourceOptions = [
-    // Campañas activas
-    ...campaigns
-      .filter(c => c.is_active)
-      .map(c => ({
-        value: `campaign:${c.id}`,
-        label: c.name,
-        icon: '📢',
-        group: t('acquisition.campaigns'),
-        type: 'campaign'
-      })),
-    
-    // Opción de referido
-    ...(patients.length > 0 ? [{
-      value: 'referral',
-      label: t('acquisition.referred_by_patient'),
-      icon: '👥',
-      group: t('acquisition.referrals'),
-      type: 'referral'
-    }] : []),
-    
-    // Plataformas orgánicas
-    ...platforms.map(p => ({
-      value: `organic:${p.id}`,
-      label: p.display_name || p.name,
-      icon: '🌐',
-      group: t('acquisition.organic'),
-      type: 'organic'
-    })),
-    
-    // Visita directa
-    {
-      value: 'direct',
-      label: t('acquisition.direct_visit'),
-      icon: '📍',
-      group: t('acquisition.direct'),
-      type: 'direct'
-    }
-  ]
-
-  // Manejar cambio en el selector de origen
-  const handleSourceChange = (value: string) => {
-    // Limpiar campos previos
-    form.setValue('campaign_id', null)
-    form.setValue('referred_by_patient_id', null)
-    form.setValue('platform_id', null)
-    
-    if (value.startsWith('campaign:')) {
-      const campaignId = value.replace('campaign:', '')
-      form.setValue('campaign_id', campaignId)
-      setAcquisitionType('campaign')
-    } else if (value === 'referral') {
-      setAcquisitionType('referral')
-    } else if (value.startsWith('organic:')) {
-      const platformId = value.replace('organic:', '')
-      form.setValue('platform_id', platformId)
-      setAcquisitionType('organic')
-    } else if (value === 'direct') {
-      setAcquisitionType('direct')
+  const [createCampaignMode, setCreateCampaignMode] = useState<boolean>(false)
+  const [newCampaignName, setNewCampaignName] = useState('')
+  const [newCampaignPlatform, setNewCampaignPlatform] = useState('')
+  const [creatingCampaign, setCreatingCampaign] = useState(false)
+  // Cambio de tipo de adquisición: limpia campos y muestra controles específicos
+  const handleAcquisitionTypeChange = (value: string) => {
+    setAcquisitionType(value)
+    // Limpiar campos relacionados
+    form.setValue('campaign_id', '')
+    form.setValue('referred_by_patient_id', '')
+    form.setValue('platform_id', '')
+    // Activar modo creación si no hay campañas activas
+    if (value === 'campaign') {
+      setCreateCampaignMode(campaigns.filter((c: any) => c.is_active).length === 0)
+    } else {
+      setCreateCampaignMode(false)
     }
   }
 
-  // Valor actual del selector basado en los campos del formulario
-  const getCurrentSourceValue = () => {
-    if (form.watch('campaign_id')) {
-      return `campaign:${form.watch('campaign_id')}`
-    } else if (form.watch('referred_by_patient_id')) {
-      return 'referral'
-    } else if (form.watch('platform_id')) {
-      return `organic:${form.watch('platform_id')}`
-    }
-    return 'direct'
-  }
-
+  // Debug simple para verificar montaje correcto en el navegador
   useEffect(() => {
-    // Sincronizar el tipo de adquisición con el valor actual
-    const currentValue = getCurrentSourceValue()
-    if (currentValue.startsWith('campaign:')) {
+    if (typeof window !== 'undefined') {
+      console.log('[PFU] PatientFormUnified v2 mounted');
+    }
+  }, [])
+
+  // Inicializar el valor del selector desde los campos si ya vienen con datos
+  useEffect(() => {
+    const campaign = form.getValues?.('campaign_id')
+    const refBy = form.getValues?.('referred_by_patient_id')
+    const platform = form.getValues?.('platform_id')
+    if (campaign) {
       setAcquisitionType('campaign')
-    } else if (currentValue === 'referral') {
+    } else if (refBy) {
       setAcquisitionType('referral')
-    } else if (currentValue.startsWith('organic:')) {
+    } else if (platform) {
       setAcquisitionType('organic')
     } else {
       setAcquisitionType('direct')
     }
-  }, [form.watch('campaign_id'), form.watch('referred_by_patient_id'), form.watch('platform_id')])
+    // run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-cy="pf-unified-v2">
       <FormSection title={t('personal_information')}>
         <FormGrid columns={2}>
           <InputField
@@ -153,17 +108,23 @@ export function PatientFormUnified({
             onChange={(value) => form.setValue('birth_date', value)}
             error={form.formState.errors.birth_date?.message}
           />
-          <SelectField
-            label={t('fields.gender')}
-            value={form.watch('gender')}
-            onChange={(value) => form.setValue('gender', value)}
-            placeholder={t('select_gender')}
-            options={[
-              { value: 'male', label: t('gender.male') },
-              { value: 'female', label: t('gender.female') }
-            ]}
-            error={form.formState.errors.gender?.message}
-          />
+          <div>
+            <label className="text-sm font-medium">
+              {t('fields.gender')}
+            </label>
+            <select
+              value={form.watch('gender') || ''}
+              onChange={(e) => form.setValue('gender', e.target.value)}
+              className="w-full mt-1 px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="">{t('select_gender')}</option>
+              <option value="male">{t('gender.male')}</option>
+              <option value="female">{t('gender.female')}</option>
+            </select>
+            {form.formState.errors.gender?.message && (
+              <p className="text-sm text-red-600 mt-1">{form.formState.errors.gender?.message}</p>
+            )}
+          </div>
         </FormGrid>
       </FormSection>
 
@@ -201,111 +162,145 @@ export function PatientFormUnified({
             onChange={(value) => form.setValue('first_visit_date', value)}
             error={form.formState.errors.first_visit_date?.message}
           />
-          
-          {/* Selector unificado de origen */}
-          <div>
-            <label className="text-sm font-medium">
-              {t('fields.acquisition_source')}
-            </label>
-            <select
-              value={getCurrentSourceValue()}
-              onChange={(e) => handleSourceChange(e.target.value)}
-              className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">{t('select_acquisition_source')}</option>
-              
-              {/* Agrupar opciones por tipo */}
-              {campaigns.filter(c => c.is_active).length > 0 && (
-                <optgroup label={t('acquisition.campaigns')}>
-                  {campaigns.filter(c => c.is_active).map(c => (
-                    <option key={c.id} value={`campaign:${c.id}`}>
-                      📢 {c.name}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-              
-              {patients.length > 0 && (
-                <optgroup label={t('acquisition.referrals')}>
-                  <option value="referral">👥 {t('acquisition.referred_by_patient')}</option>
-                </optgroup>
-              )}
-              
-              {platforms.length > 0 && (
-                <optgroup label={t('acquisition.organic')}>
-                  {platforms.map(p => (
-                    <option key={p.id} value={`organic:${p.id}`}>
-                      🌐 {p.display_name || p.name}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-              
-              <optgroup label={t('acquisition.other')}>
-                <option value="direct">📍 {t('acquisition.direct_visit')}</option>
-              </optgroup>
-            </select>
-          </div>
+
+          {/* Tipo de origen: radio claro y separado */}
+          <TouchRadioGroup
+            label={t('fields.acquisition_source')}
+            value={acquisitionType}
+            onChange={handleAcquisitionTypeChange}
+            options={[
+              { value: 'campaign', label: t('acquisition.campaigns') },
+              { value: 'referral', label: t('acquisition.referrals') },
+              { value: 'organic', label: t('acquisition.organic') },
+              { value: 'direct', label: t('acquisition.direct') },
+            ]}
+          />
 
           {/* Mostrar selector de paciente referidor si es necesario */}
+          {/* Dependientes por tipo de origen */}
+          {acquisitionType === 'campaign' && (
+            <div className="col-span-2 grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="text-sm font-medium">{t('fields.campaign')}</label>
+                <select
+                  value={form.watch('campaign_id') || ''}
+                  onChange={(e) => form.setValue('campaign_id', e.target.value)}
+                  className="w-full mt-1 px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="">{t('select_campaign')}</option>
+                  {campaigns.filter((c: any) => c.is_active).map((c: any) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-end">
+                <button type="button" className="px-3 py-2 border rounded-md text-sm" onClick={() => setCreateCampaignMode(true)}>
+                  {t('create_new_campaign')}
+                </button>
+              </div>
+            </div>
+          )}
+
           {acquisitionType === 'referral' && (
-            <SelectField
-              label={t('fields.select_referrer')}
-              value={form.watch('referred_by_patient_id')}
-              onChange={(value) => form.setValue('referred_by_patient_id', value)}
-              placeholder={t('select_referrer_patient')}
-              options={patients.map((p: any) => ({
-                value: p.id,
-                label: `${p.first_name} ${p.last_name}`
-              }))}
-              error={form.formState.errors.referred_by_patient_id?.message}
-              required
-            />
+            <div>
+              <label className="text-sm font-medium">{t('fields.select_referrer')}</label>
+              <select
+                value={form.watch('referred_by_patient_id') || ''}
+                onChange={(e) => form.setValue('referred_by_patient_id', e.target.value)}
+                className="w-full mt-1 px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="">{t('select_referrer_patient')}</option>
+                {patients.map((p: any) => (
+                  <option key={p.id} value={p.id}>{`${p.first_name} ${p.last_name}`}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {acquisitionType === 'organic' && (
+            <div>
+              <label className="text-sm font-medium">{t('fields.platform')}</label>
+              <select
+                value={form.watch('platform_id') || ''}
+                onChange={(e) => form.setValue('platform_id', e.target.value)}
+                className="w-full mt-1 px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="">{t('select_platform')}</option>
+                {platforms.map((p: any) => (
+                  <option key={p.id} value={p.id}>{p.display_name || p.name}</option>
+                ))}
+              </select>
+            </div>
           )}
 
           {/* Opción de crear nueva campaña si no hay ninguna activa */}
-          {acquisitionType === 'campaign' && campaigns.filter(c => c.is_active).length === 0 && (
-            <div className="col-span-2">
-              <p className="text-sm text-muted-foreground mb-2">
-                {t('no_active_campaigns')}
-              </p>
-              <SelectWithCreate
-                value=""
-                onValueChange={() => {}}
-                options={[]}
-                placeholder={t('create_new_campaign')}
-                canCreate={true}
-                entityName={t('entities.campaign')}
-                createDialogTitle={t('create_campaign_title')}
-                createDialogDescription={t('create_campaign_description')}
-                createFields={[
-                  {
-                    name: 'name',
-                    label: t('fields.name'),
-                    type: 'text',
-                    placeholder: t('campaign_name_placeholder'),
-                    required: true
-                  },
-                  {
-                    name: 'platform_category_id',
-                    label: t('settings.marketing.selectPlatform'),
-                    type: 'select',
-                    required: true,
-                    options: platforms.map((p: any) => ({ 
-                      value: p.id, 
-                      label: p.display_name || p.name 
-                    }))
-                  },
-                  {
-                    name: 'budget_cents',
-                    label: t('fields.budget'),
-                    type: 'number',
-                    placeholder: '10000',
-                    required: true
-                  }
-                ]}
-                onCreateSubmit={onCreateCampaign}
-              />
+          {acquisitionType === 'campaign' && (createCampaignMode || campaigns.filter(c => c.is_active).length === 0) && (
+            <div className="col-span-2 space-y-3 border rounded-md p-3">
+              <p className="text-sm font-medium">{t('create_campaign_title')}</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <InputField
+                  label={t('fields.name')}
+                  value={newCampaignName}
+                  onChange={(v) => setNewCampaignName(String(v))}
+                  placeholder={t('campaign_name_placeholder')}
+                  required
+                />
+                <div>
+                  <label className="text-sm font-medium">
+                    {t('fields.platform')}
+                  </label>
+                  <select
+                    value={newCampaignPlatform}
+                    onChange={(e) => setNewCampaignPlatform(String(e.target.value))}
+                    className="w-full mt-1 px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="">{t('select_platform')}</option>
+                    {platforms.map((p: any) => (
+                      <option key={p.id} value={p.id}>
+                        {p.display_name || p.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  className="px-3 py-2 text-sm border rounded-md"
+                  onClick={() => {
+                    setCreateCampaignMode(false)
+                    setNewCampaignName('')
+                    setNewCampaignPlatform('')
+                  }}
+                >
+                  {tCommon('cancel')}
+                </button>
+                <button
+                  type="button"
+                  className="px-3 py-2 text-sm bg-primary text-primary-foreground rounded-md disabled:opacity-50"
+                  disabled={creatingCampaign || !newCampaignName || !newCampaignPlatform}
+                  onClick={async () => {
+                    if (!onCreateCampaign) return
+                    try {
+                      setCreatingCampaign(true)
+                      const option = await onCreateCampaign({
+                        name: newCampaignName,
+                        platform_id: newCampaignPlatform
+                      })
+                      if (option?.value) {
+                        form.setValue('campaign_id', option.value)
+                        setCreateCampaignMode(false)
+                        setNewCampaignName('')
+                        setNewCampaignPlatform('')
+                      }
+                    } finally {
+                      setCreatingCampaign(false)
+                    }
+                  }}
+                >
+                  {creatingCampaign ? tCommon('saving') : tCommon('create')}
+                </button>
+              </div>
             </div>
           )}
         </FormGrid>

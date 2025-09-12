@@ -103,15 +103,15 @@ export function useApi<T = any>(endpoint: string, opts: UseApiOptions = {}) {
   const del = useCallback((options?: Omit<ApiOptions, 'method'>) => 
     execute({ method: 'DELETE', ...options }), [execute])
 
-  // Optional auto-fetch on mount
-  // Only for GET requests and valid endpoints
+  // Optional auto-fetch on mount/update when endpoint changes
+  // Keep dependencies minimal to avoid infinite loops due to unstable callbacks
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (opts.autoFetch && endpoint) {
       // fire-and-forget; state updates handled inside execute
       execute({ method: 'GET' })
     }
-  }, [opts.autoFetch, endpoint, execute])
+  }, [opts.autoFetch, endpoint])
 
   return {
     ...state,
@@ -134,23 +134,54 @@ export function useParallelApi() {
     requests: Array<{ endpoint: string; options?: ApiOptions }>
   ): Promise<T> => {
     setLoading(true)
-    
-    try {
-      const promises = requests.map(({ endpoint, options = {} }) => 
-        fetch(endpoint, {
+
+    // Helper with timeout and graceful JSON parsing
+    const doRequest = async (endpoint: string, options: ApiOptions = {}, timeoutMs = 8000) => {
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), timeoutMs)
+      try {
+        const res = await fetch(endpoint, {
           method: options.method || 'GET',
           headers: {
             'Content-Type': 'application/json',
             ...(options.headers || {})
           },
           credentials: 'include',
-          ...(options.body && { body: JSON.stringify(options.body) })
-        }).then(res => res.json())
+          ...(options.body && { body: JSON.stringify(options.body) }),
+          signal: controller.signal
+        })
+        const text = await res.text()
+        let data: any = null
+        try { data = text ? JSON.parse(text) : null } catch { data = null }
+        if (!res.ok) {
+          const msg = (data && (data.error || data.message)) || `HTTP ${res.status}`
+          throw new Error(msg)
+        }
+        return data
+      } finally {
+        clearTimeout(timer)
+      }
+    }
+
+    try {
+      const settled = await Promise.allSettled(
+        requests.map(({ endpoint, options = {} }) => doRequest(endpoint, options))
       )
 
-      const results = await Promise.all(promises)
+      const failures = settled.filter(s => s.status === 'rejected') as PromiseRejectedResult[]
+      if (failures.length > 0) {
+        // Show a single toast but still return partial results
+        const firstMsg = failures[0].reason instanceof Error ? failures[0].reason.message : String(failures[0].reason)
+        toast({
+          title: t('common.error'),
+          description: `${firstMsg}${failures.length > 1 ? ` (+${failures.length - 1} más)` : ''}`,
+          variant: 'destructive'
+        })
+      }
+
+      const results = settled.map(s => (s.status === 'fulfilled' ? s.value : {})) as T
       setLoading(false)
-      return results as T
+      return results
     } catch (error) {
       setLoading(false)
       toast({

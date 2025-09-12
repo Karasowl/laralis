@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 import { supabaseAdmin } from './supabaseAdmin';
+import { createClient } from './supabase/server';
 
 const CLINIC_COOKIE_NAME = 'clinicId';
 
@@ -19,32 +20,56 @@ export function setClinicIdCookie(clinicId: string) {
   });
 }
 
-export async function getFirstClinicIdFromDB(): Promise<string | null> {
-  const { data, error } = await supabaseAdmin
-    .from('clinics')
+// Deprecated: do not expose a global fallback clinic. Keeping for compatibility, but unused.
+async function getFirstClinicIdForUser(userId: string): Promise<string | null> {
+  // Pick the first clinic from any workspace owned by the user
+  const { data: workspaces, error: wsErr } = await supabaseAdmin
+    .from('workspaces')
     .select('id')
+    .eq('owner_id', userId)
+
+  if (wsErr || !workspaces || workspaces.length === 0) return null;
+
+  const { data: clinics, error } = await supabaseAdmin
+    .from('clinics')
+    .select('id, workspace_id')
+    .in('workspace_id', workspaces.map(w => w.id))
     .order('created_at', { ascending: true })
     .limit(1)
-    .single();
 
-  if (error || !data) {
-    console.error('Error fetching first clinic:', error);
-    return null;
-  }
-
-  return data.id;
+  if (error || !clinics || clinics.length === 0) return null;
+  return clinics[0].id;
 }
 
 export async function getClinicIdOrDefault(cookieStore: ReturnType<typeof cookies>): Promise<string | null> {
-  const clinicId = getClinicIdFromCookies(cookieStore);
-  if (clinicId) return clinicId;
+  // Ensure the clinic context belongs to the authenticated user
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const userId = user?.id;
 
-  // If no clinic ID in cookie, get the first one from DB
-  const defaultClinicId = await getFirstClinicIdFromDB();
-  if (defaultClinicId) {
-    // Note: We can't set cookie here in a GET request, but we'll handle that in the client
-    return defaultClinicId;
+  // If there is a cookie, verify it belongs to one of the user's workspaces
+  const cookieClinicId = getClinicIdFromCookies(cookieStore);
+  if (cookieClinicId && userId) {
+    const { data: clinic, error } = await supabaseAdmin
+      .from('clinics')
+      .select('id, workspace_id')
+      .eq('id', cookieClinicId)
+      .single();
+    if (!error && clinic) {
+      const { data: ws, error: wsErr } = await supabaseAdmin
+        .from('workspaces')
+        .select('id')
+        .eq('id', clinic.workspace_id)
+        .eq('owner_id', userId)
+        .single();
+      if (!wsErr && ws) return cookieClinicId;
+    }
   }
 
+  // No valid cookie: pick first clinic owned by the user
+  if (userId) {
+    const fallback = await getFirstClinicIdForUser(userId);
+    return fallback; // could be null if user has no clinics
+  }
   return null;
 }

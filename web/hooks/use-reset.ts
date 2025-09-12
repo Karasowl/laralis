@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import { useApi } from './use-api'
+import { useCurrentClinic } from './use-current-clinic'
 
 export interface ResetOption {
   id: string
@@ -30,6 +31,8 @@ type ResetProgress = { [key: string]: 'pending' | 'success' | 'error' }
 
 export function useReset() {
   const t = useTranslations('settings')
+  const { currentClinic } = useCurrentClinic()
+  const clinicId = currentClinic?.id || null
   
   const [selectedOptions, setSelectedOptions] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
@@ -107,8 +110,10 @@ export function useReset() {
 
   // Fetch data status
   const fetchStatus = useCallback(async () => {
+    if (!clinicId) return
+    
     try {
-      const response = await fetch('/api/reset/status')
+      const response = await fetch(`/api/reset/status?clinicId=${clinicId}`)
       if (response.ok) {
         const status = await response.json()
         setDataStatus(status)
@@ -116,10 +121,17 @@ export function useReset() {
     } catch (error) {
       console.error('Error fetching data status:', error)
     }
-  }, [])
+  }, [clinicId])
 
   // Perform reset
-  const performReset = useCallback(async (): Promise<boolean> => {
+  const performReset = useCallback(async (opts?: { skipConfirm?: boolean }): Promise<boolean> => {
+    const wantsAllData = selectedOptions.includes('all_data')
+    // Permit full wipe without clinic selection; block others if no clinic
+    if (!clinicId && !wantsAllData) {
+      toast.error(t('reset.no_clinic', { fallback: 'Primero selecciona o crea una clínica' }))
+      return false
+    }
+    
     if (selectedOptions.length === 0) {
       toast.error(t('reset.select_options'))
       return false
@@ -127,14 +139,19 @@ export function useReset() {
 
     // Extra validation for dangerous options
     if (selectedOptions.includes('all_data')) {
-      if (confirmText !== 'BORRAR TODO') {
+      const expected = String(t('reset.delete_all_confirmation_text') || '').trim().toUpperCase()
+      const typed = String(confirmText || '').trim().toUpperCase()
+      const aliases = new Set(['DELETE ALL', 'BORRAR TODO', expected])
+      if (!aliases.has(typed)) {
         toast.error(t('reset.confirm_required'))
         return false
       }
     }
 
-    if (!confirm(t('reset.confirm_message'))) {
-      return false
+    if (!opts?.skipConfirm) {
+      if (!confirm(t('reset.confirm_message'))) {
+        return false
+      }
     }
 
     setLoading(true)
@@ -151,7 +168,8 @@ export function useReset() {
         const response = await fetch('/api/reset', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ option })
+          // API expects { resetType }, it infers clinic/workspace from cookies
+          body: JSON.stringify({ resetType: option })
         })
         
         if (response.ok) {
@@ -160,7 +178,7 @@ export function useReset() {
           successCount++
           
           const optionLabel = resetOptions.find(o => o.id === option)?.label || option
-          results.push(`✓ ${optionLabel}: ${result.message || 'Completado'}`)
+          results.push(`✓ ${optionLabel}: ${result.message || t('reset.completed')}`)
         } else {
           throw new Error('Reset failed')
         }
@@ -169,7 +187,7 @@ export function useReset() {
         errorCount++
         
         const optionLabel = resetOptions.find(o => o.id === option)?.label || option
-        const errorMsg = error instanceof Error ? error.message : 'Error desconocido'
+        const errorMsg = error instanceof Error ? error.message : t('reset.unknown_error')
         results.push(`✗ ${optionLabel}: ${errorMsg}`)
       }
 
@@ -185,7 +203,7 @@ export function useReset() {
       })
     } else if (successCount > 0) {
       toast.warning(t('reset.partial_success'), {
-        description: `${successCount} exitosos, ${errorCount} con errores\n${results.join('\n')}`
+        description: t('reset.partial_success_detail', { success: successCount, errors: errorCount }) + '\n' + results.join('\n')
       })
     } else {
       toast.error(t('reset.error'))
@@ -208,7 +226,7 @@ export function useReset() {
     }, 3000)
 
     return successCount > 0
-  }, [selectedOptions, confirmText, resetOptions, t, fetchStatus])
+  }, [selectedOptions, confirmText, resetOptions, t, fetchStatus, clinicId])
 
   // Load status on mount
   useEffect(() => {

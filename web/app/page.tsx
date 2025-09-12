@@ -143,7 +143,7 @@ export default function DashboardPage() {
   const t = useTranslations('dashboard')
   const tNav = useTranslations('navigation')
   const router = useRouter()
-  const { currentClinic, currentWorkspace } = useWorkspace()
+  const { currentClinic, workspace, loading: workspaceLoading } = useWorkspace()
   
   // Dashboard data
   const { metrics, charts, activities, loading, error } = useDashboard({
@@ -153,10 +153,10 @@ export default function DashboardPage() {
 
   // Redirect if no workspace
   useEffect(() => {
-    if (!currentWorkspace && !loading) {
+    if (!workspace && !workspaceLoading) {
       router.push('/onboarding')
     }
-  }, [currentWorkspace, loading, router])
+  }, [workspace, workspaceLoading, router])
 
   // Mock data for charts (replace with actual data from API)
   const revenueData = charts.revenue.length > 0 ? charts.revenue : [

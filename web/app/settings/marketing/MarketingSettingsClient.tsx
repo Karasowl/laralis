@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { Card } from '@/components/ui/card'
 import { FormModal } from '@/components/ui/form-modal'
@@ -12,6 +12,7 @@ import { Archive, Trash2, RotateCcw, Megaphone, Plus, ChevronRight, Edit, ArrowL
 import { ActionDropdown, ActionItem } from '@/components/ui/ActionDropdown'
 import { useCrudOperations } from '@/hooks/use-crud-operations'
 import { useWorkspace } from '@/contexts/workspace-context'
+import { useCurrentClinic } from '@/hooks/use-current-clinic'
 import { formatCurrency } from '@/lib/money'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -34,6 +35,7 @@ const campaignSchema = z.object({
 type Platform = z.infer<typeof platformSchema> & { 
   id: string
   campaigns_count?: number
+  is_system?: boolean
 }
 type Campaign = z.infer<typeof campaignSchema> & { 
   id: string
@@ -45,6 +47,7 @@ type Campaign = z.infer<typeof campaignSchema> & {
 export default function MarketingSettingsClient() {
   const t = useTranslations()
   const { currentClinic } = useWorkspace()
+  const { currentClinic: fallbackClinic } = useCurrentClinic()
   
   // Platform CRUD
   const platforms = useCrudOperations<Platform>({
@@ -56,7 +59,8 @@ export default function MarketingSettingsClient() {
   // Load platforms on mount
   useEffect(() => {
     platforms.fetchItems()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // fetchItems is stable from useCrudOperations
 
   // Campaign CRUD - Using custom implementation for campaigns
   const [selectedPlatformId, setSelectedPlatformId] = useState<string>('')
@@ -64,7 +68,7 @@ export default function MarketingSettingsClient() {
   const [campaignsLoading, setCampaignsLoading] = useState(false)
   
   // Fetch campaigns for selected platform
-  const fetchCampaigns = async () => {
+  const fetchCampaigns = useCallback(async () => {
     if (!selectedPlatformId) {
       setCampaignsData([])
       return
@@ -86,12 +90,12 @@ export default function MarketingSettingsClient() {
     } finally {
       setCampaignsLoading(false)
     }
-  }
+  }, [selectedPlatformId])
   
   // Load campaigns when platform changes
   useEffect(() => {
     fetchCampaigns()
-  }, [selectedPlatformId])
+  }, [fetchCampaigns])
   
   // Campaign delete handler
   const handleDeleteCampaign = async (campaignId: string) => {
@@ -192,10 +196,8 @@ export default function MarketingSettingsClient() {
     }
   })
 
-  // Reset campaign form when selected platform changes
-  useEffect(() => {
-    campaignForm.setValue('platform_id', selectedPlatformId)
-  }, [selectedPlatformId, campaignForm])
+  // Note: Removed automatic form update to prevent infinite loops
+  // The platform_id is set when opening the modal instead
 
   // Platform handlers
   const handleOpenPlatformModal = (platform?: Platform) => {
@@ -210,10 +212,12 @@ export default function MarketingSettingsClient() {
   }
 
   const handleSavePlatform = async (data: z.infer<typeof platformSchema>) => {
-    if (!currentClinic?.id) return
+    // No hacemos early-return si no hay clínica; el backend resolverá clinic_id
+    // usando cookie o primera clínica disponible.
+    const payload = currentClinic?.id || fallbackClinic?.id
+      ? { ...data, clinic_id: (currentClinic?.id || fallbackClinic?.id)! }
+      : { display_name: data.display_name }
 
-    const payload = { ...data, clinic_id: currentClinic.id }
-    
     const success = editingPlatform
       ? await platforms.handleUpdate(editingPlatform.id, payload)
       : await platforms.handleCreate(payload)
@@ -473,11 +477,31 @@ export default function MarketingSettingsClient() {
                           )}
                         </div>
                       </div>
-                      <ChevronRight className={cn(
-                        "h-4 w-4 transition-transform",
-                        "text-muted-foreground",
-                        selectedPlatformId === platform.id && "text-primary"
-                      )} />
+                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        {/* Quick select chevron */}
+                        <ChevronRight className={cn(
+                          "h-4 w-4 transition-transform",
+                          "text-muted-foreground",
+                          selectedPlatformId === platform.id && "text-primary"
+                        )} />
+                        {/* Actions menu */}
+                        <ActionDropdown 
+                          actions={[
+                            {
+                              label: t('common.edit'),
+                              icon: <Edit className="h-4 w-4" />,
+                              onClick: () => handleOpenPlatformModal(platform)
+                            },
+                            {
+                              label: t('common.delete'),
+                              icon: <Trash2 className="h-4 w-4" />,
+                              onClick: () => handleDeletePlatform(platform.id),
+                              variant: 'destructive',
+                              separator: true
+                            }
+                          ]}
+                        />
+                      </div>
                     </div>
                   </div>
                 ))}

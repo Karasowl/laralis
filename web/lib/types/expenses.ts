@@ -87,7 +87,12 @@ export const expenseFormSchema = z.object({
   subcategory: z.string().optional(),
   description: z.string().optional(),
   notes: z.string().optional(),
-  amount_cents: z.number().int().positive('El monto debe ser mayor a 0'),
+  // UX: el formulario trabaja en pesos (número con decimales),
+  // pero transformamos a centavos como entero para el backend
+  amount_pesos: z
+    .number({ invalid_type_error: 'El monto debe ser un número' })
+    .positive('El monto debe ser mayor a 0')
+    .transform((pesos) => Math.round(pesos * 100)),
   vendor: z.string().optional(),
   invoice_number: z.string().optional(),
   is_recurring: z.boolean().default(false),

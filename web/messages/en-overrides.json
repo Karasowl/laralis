@@ -159,7 +159,7 @@
     "save_error": "Error saving settings",
     "workspaces": {
       "title": "Workspaces",
-      "description": "Manage your workspaces and organization settings",
+      "subtitle": "Manage your workspaces and organization settings",
       "emptyTitle": "No workspaces",
       "nameRequired": "Workspace name is required",
       "slugHelp": "Lowercase, letters and dashes only",

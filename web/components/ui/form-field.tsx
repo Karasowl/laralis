@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Eye, EyeOff, Calendar } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface BaseFieldProps {
@@ -90,29 +90,12 @@ export function InputField({
           className={cn(
             'mt-1 h-12 bg-white/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 focus:border-blue-500 dark:focus:border-blue-400 transition-all',
             type === 'password' && 'pr-12',
-            type === 'date' && 'cursor-pointer pr-12 date-input',
+            type === 'date' && 'cursor-pointer',
             error && 'border-red-500 focus:ring-red-500',
             className
           )}
         />
-        {type === 'date' && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="absolute right-0 top-1 h-10 px-3 py-2 hover:bg-transparent"
-            onClick={() => {
-              // Trigger the native date picker
-              dateInputRef.current?.showPicker?.();
-              dateInputRef.current?.click();
-              dateInputRef.current?.focus();
-            }}
-            disabled={disabled}
-          >
-            <Calendar className="h-4 w-4 text-gray-500" />
-            <span className="sr-only">Open calendar</span>
-          </Button>
-        )}
+        {/* For date inputs, rely on the native calendar indicator only (no extra icon) */}
         {type === 'password' && value && String(value).length > 0 && (
           <Button
             type="button"

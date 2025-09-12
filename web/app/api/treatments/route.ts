@@ -25,7 +25,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { data, error } = await supabaseAdmin
+    const patientId = searchParams.get('patient_id') || searchParams.get('patient');
+
+    let query = supabaseAdmin
       .from('treatments')
       .select(`
         *,
@@ -33,7 +35,13 @@ export async function GET(request: NextRequest) {
         service:services (id, name, variable_cost_cents)
       `)
       .eq('clinic_id', clinicId)
-      .order('treatment_date', { ascending: false });
+      .order('treatment_date', { ascending: false }) as any;
+
+    if (patientId) {
+      query = query.eq('patient_id', patientId);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('Error fetching treatments:', error);

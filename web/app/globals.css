@@ -53,7 +53,9 @@
     display: none !important;
   }
 
-  /* Ensure date input calendar button is visible */
+  /* Ensure date input calendar button is visible (native indicator)
+     NOTE: Our custom InputField with class .date-input renders its own
+     calendar button. For those, we hide the native indicator below. */
   input[type="date"]::-webkit-calendar-picker-indicator {
     cursor: pointer;
     opacity: 1;
@@ -76,6 +78,13 @@
   .dark input[type="date"]::-webkit-calendar-picker-indicator:hover {
     filter: invert(1);
     background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  /* Hide native indicator when using our custom date input */
+  .date-input::-webkit-calendar-picker-indicator {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    width: 0; height: 0; /* collapse space to avoid overlap */
   }
 
   /* Mobile specific date input styles */

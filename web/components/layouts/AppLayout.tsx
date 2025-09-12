@@ -12,6 +12,7 @@ import { UserMenu } from './UserMenu'
 import { getNavigationSections } from './NavigationConfig'
 import { MobileBottomNav } from './MobileBottomNav'
 import { Button } from '@/components/ui/button'
+import { ContextIndicator } from './ContextIndicator'
 import { Sun, Moon, Activity } from 'lucide-react'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 
@@ -37,6 +38,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     if (saved === 'true') {
       setSidebarCollapsed(true)
     }
+    try { console.log('[AppLayout] loaded v2 - sidebarCollapsed:', saved) } catch {}
   }, [])
 
   // Close mobile menu on route change
@@ -71,7 +73,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       {/* Mobile Header */}
       <MobileHeader
         isOpen={mobileSidebarOpen}
@@ -81,13 +83,11 @@ export function AppLayout({ children }: AppLayoutProps) {
             <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-500 to-violet-500 flex items-center justify-center shadow-lg">
               <Activity className="h-5 w-5 text-white" />
             </div>
-            <div>
+            <div className="min-w-0">
               <h1 className="font-bold text-base">Laralis</h1>
-              {currentClinic && (
-                <p className="text-xs text-muted-foreground truncate max-w-[150px]">
-                  {currentClinic.name}
-                </p>
-              )}
+              <div className="mt-0.5">
+                <ContextIndicator className="truncate max-w-[180px]" />
+              </div>
             </div>
           </div>
         }
@@ -194,19 +194,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         {/* Desktop Header Bar */}
         <header className="hidden lg:flex h-16 bg-card/50 backdrop-blur-xl border-b items-center justify-between px-6">
           <div className="flex items-center gap-4">
-            {workspace && (
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-violet-500 to-purple-500 flex items-center justify-center shadow">
-                  <Activity className="h-4 w-4 text-white" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium">{workspace.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {currentClinic?.name || t('select_clinic')}
-                  </p>
-                </div>
-              </div>
-            )}
+            <ContextIndicator />
           </div>
 
           <div className="flex items-center gap-4">
@@ -230,7 +218,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         </header>
 
         {/* Page Content */}
-        <main className="min-h-[calc(100vh-4rem)]">
+        <main className="min-h-[calc(100vh-4rem)] overflow-x-hidden">
           {children}
         </main>
       </div>

@@ -35,7 +35,7 @@ export default function CreateExpenseDialog() {
       category: '',
       subcategory: '',
       description: '',
-      amount_cents: 0,
+      amount_pesos: 0,
       vendor: '',
       invoice_number: '',
       is_recurring: false,
@@ -56,14 +56,7 @@ export default function CreateExpenseDialog() {
 
     setLoading(true)
 
-    const formattedData = {
-      ...data,
-      amount_cents: typeof data.amount_cents === 'string' 
-        ? parseMoney(data.amount_cents) 
-        : data.amount_cents
-    }
-
-    const success = await createExpense(formattedData)
+    const success = await createExpense(data)
     
     setLoading(false)
     

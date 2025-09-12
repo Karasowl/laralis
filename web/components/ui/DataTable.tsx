@@ -192,9 +192,9 @@ function DataTable<T extends { id?: string | number }>({
             })}
           </div>
 
-          {/* Desktop table */}
-          <div className="hidden md:block overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x pan-y' }}>
-        <table className="w-full">
+          {/* Desktop/tablet table */}
+          <div className="hidden md:block overflow-x-hidden" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
+        <table className="w-full table-fixed">
           <thead>
             <tr className="border-b bg-gradient-to-r from-muted/30 to-muted/10">
               {/* Placeholder header cell for hover indicator column to keep alignment */}

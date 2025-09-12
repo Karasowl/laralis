@@ -39,6 +39,7 @@ export function TreatmentForm({
               options={patients}
               placeholder={t('treatments.selectPatient')}
               canCreate={true}
+              createLabel={t('patients.addPatient')}
               entityName={t('entities.patient')}
               createDialogTitle={t('patients.create_title')}
               createDialogDescription={t('patients.create_quick_description')}
@@ -80,6 +81,7 @@ export function TreatmentForm({
               options={services}
               placeholder={t('treatments.selectService')}
               canCreate={true}
+              createLabel={t('services.addService', 'Agregar Servicio')}
               entityName={t('entities.service')}
               createDialogTitle={t('services.create_title')}
               createDialogDescription={t('services.create_quick_description')}
