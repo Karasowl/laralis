@@ -42,8 +42,9 @@ export function useExpenses(options: UseExpensesOptions = {}) {
     includeClinicId: true
   })
 
-  // Use API hooks for related data
-  const categoriesApi = useApi<{ data: any[] }>(
+  // Use API hooks for related data (this endpoint returns { data: [...] },
+  // but useApi unwraps it, so the hook's data is the array directly)
+  const categoriesApi = useApi<any[]>(
     '/api/categories?type=expenses&active=true',
     { autoFetch: true }
   )
@@ -127,7 +128,7 @@ export function useExpenses(options: UseExpensesOptions = {}) {
     error: null,
     
     // Related data
-    categories: categoriesApi.data?.data || [],
+    categories: categoriesApi.data || [],
     vendors: vendorsApi.data?.data || [],
     paymentMethods: paymentMethodsApi.data?.data || [],
     

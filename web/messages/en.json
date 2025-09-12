@@ -30,6 +30,8 @@
     "clinic": "Clinic",
     "notAvailable": "N/A",
     "minutes": "min",
+    "record": "record",
+    "records": "records",
     "loadError": "Error loading {entity}",
     "createSuccess": "{entity} created successfully",
     "createError": "Error creating {entity}",
@@ -207,7 +209,7 @@
         "invalidCode": "Code must be 6 digits",
         "deleteAccount": "Error deleting account"
       }
-    }, 
+    },
     "noPhone": "No phone",
     "defaultUser": "User",
     "fullName": "Full Name",
@@ -219,7 +221,7 @@
     "theme": "Theme",
     "systemTheme": "System",
     "lightTheme": "Light",
-    "darkTheme": "Dark", 
+    "darkTheme": "Dark",
     "notifications": "Notifications",
     "enabled": "Enabled",
     "disabled": "Disabled",
@@ -269,9 +271,15 @@
     "welcomeSubtitle": "Complete dental management system",
     "welcomeBody": "Manage your dental practice professionally",
     "features": {
-      "calc": { "title": "Automatic Calculation", "desc": "Costs, margins and pricing" },
+      "calc": {
+        "title": "Automatic Calculation",
+        "desc": "Costs, margins and pricing"
+      },
       "multi": { "title": "Multi-Clinic", "desc": "Manage multiple branches" },
-      "reports": { "title": "Detailed Reports", "desc": "Metrics and analytics" },
+      "reports": {
+        "title": "Detailed Reports",
+        "desc": "Metrics and analytics"
+      },
       "custom": { "title": "Customizable", "desc": "Adapt to your business" }
     },
     "workspaceStep": {
@@ -294,8 +302,14 @@
       "phonePlaceholder": "e.g., +52 555 1234567",
       "emailPlaceholder": "contact@clinic.com"
     },
-    "tips": { "title": "Tip:", "workspaceMulti": "A workspace can contain multiple clinics. Think of it as a 'brand' grouping your branches." },
-    "notes": { "title": "Note:", "addMoreClinics": "You can add more clinics later from the settings panel." },
+    "tips": {
+      "title": "Tip:",
+      "workspaceMulti": "A workspace can contain multiple clinics. Think of it as a 'brand' grouping your branches."
+    },
+    "notes": {
+      "title": "Note:",
+      "addMoreClinics": "You can add more clinics later from the settings panel."
+    },
     "doneStep": {
       "title": "All Set! 🚀",
       "subtitle": "Start configuring your business",
@@ -890,12 +904,12 @@
     "clinics": {
       "entity": "Clinic",
       "name": "Name",
-      "address": "Address", 
+      "address": "Address",
       "phone": "Phone",
       "email": "Email",
       "workspace": "Workspace",
       "namePlaceholder": "e.g., Downtown Branch",
-      "addressPlaceholder": "e.g., 123 Main Street", 
+      "addressPlaceholder": "e.g., 123 Main Street",
       "phonePlaceholder": "e.g., +52 555 1234567",
       "emailPlaceholder": "contact@clinic.com",
       "noWorkspaces": "No workspaces available",
@@ -917,7 +931,7 @@
       "campaignNamePlaceholder": "e.g., February Promos",
       "addCampaign": "Add Campaign",
       "archive": "Archive",
-      "unarchive": "Unarchive", 
+      "unarchive": "Unarchive",
       "archived": "Archived",
       "live": "Live",
       "active": "Active",
@@ -932,7 +946,7 @@
       "searchCampaigns": "Search campaigns...",
       "noPlatforms": "No platforms found",
       "noPlatformsDescription": "Add your first marketing platform",
-      "addFirstPlatform": "Add First Platform", 
+      "addFirstPlatform": "Add First Platform",
       "noCampaigns": "No campaigns found",
       "noCampaignsDescription": "Add your first campaign for this platform",
       "addFirstCampaign": "Add First Campaign",
@@ -976,7 +990,7 @@
       "description": "Set your work schedule and calendar"
     },
     "tariffs": {
-      "title": "Tariffs", 
+      "title": "Tariffs",
       "description": "Manage service prices and rates"
     },
     "fixedCosts": {
@@ -988,7 +1002,7 @@
       "description": "Manage equipment and depreciation"
     },
     "supplies": {
-      "title": "Supplies", 
+      "title": "Supplies",
       "description": "Control your materials inventory"
     },
     "reports": {
@@ -997,7 +1011,53 @@
     },
     "reset": {
       "title": "Reset Data",
-      "description": "Clear all data and start over"
+      "description": "Clear all data and start over",
+      "subtitle": "Clean up or reset your business data",
+      "patients": "Patients",
+      "patients_desc": "Delete all patient records and their treatments",
+      "treatments": "Treatments",
+      "treatments_desc": "Delete all treatment records",
+      "expenses": "Expenses",
+      "expenses_desc": "Delete all expense records",
+      "supplies": "Supplies",
+      "supplies_desc": "Delete all supplies and service recipes",
+      "services": "Services",
+      "services_desc": "Delete all services and their recipes",
+      "assets": "Assets",
+      "assets_desc": "Delete all equipment and assets",
+      "all_data": "All Data",
+      "all_data_desc": "Delete ALL business data (patients, treatments, expenses, supplies, services, assets)",
+      "warning": "Warning",
+      "warning_description": "This action cannot be undone. All selected data will be permanently deleted.",
+      "clean_data": "Clean Data",
+      "clean_data_description": "Select the data you want to delete. Be careful, this action cannot be undone.",
+      "options_selected": "options selected",
+      "clean_selected": "Clean Selected",
+      "cleaning": "Cleaning...",
+      "status_title": "Data Status",
+      "status_description": "Current status of your business data",
+      "checklist": {
+        "time_config": "Time Configuration",
+        "assets": "Assets",
+        "fixed_costs": "Fixed Costs",
+        "supplies": "Supplies",
+        "services": "Services",
+        "custom_categories": "Custom Categories"
+      },
+      "confirm_delete_all": "Type 'DELETE ALL' to confirm deletion of all data:",
+      "delete_all_placeholder": "Type DELETE ALL",
+      "delete_all_confirmation_text": "DELETE ALL",
+      "no_clinic": "Select or create a clinic first",
+      "select_options": "Please select at least one option",
+      "confirm_required": "Please type 'DELETE ALL' to confirm",
+      "confirm_message": "Are you sure you want to delete the selected data? This action cannot be undone.",
+      "success": "Data cleaned successfully",
+      "partial_success": "Some operations completed with errors",
+      "error": "Error cleaning data",
+      "has_data_warning": "You have existing data. Be careful when performing reset operations.",
+      "completed": "Completed",
+      "unknown_error": "Unknown error",
+      "partial_success_detail": "{success} successful, {errors} with errors"
     },
     "backup": {
       "title": "Backup & Restore",
@@ -1061,6 +1121,7 @@
   "patients": {
     "title": "Patients",
     "subtitle": "Manage your patient records",
+    "patientsDescription": "Manage patient records",
     "create_title": "Create Patient",
     "create_quick_description": "Enter name and basic info to register a new patient",
     "empty": {
@@ -1124,7 +1185,7 @@
     "selectPlatform": "Select platform",
     "isRecurring": "Recurring patient",
     "create_patient": "Create Patient",
-    "edit_patient": "Edit Patient", 
+    "edit_patient": "Edit Patient",
     "delete_patient": "Delete Patient",
     "delete_patient_confirm": "Are you sure you want to delete this patient?",
     "patient_details": "Patient Details",
@@ -1175,11 +1236,17 @@
       "acquisition_source": "Patient Source",
       "select_referrer": "Select who referred",
       "start_date": "Start date",
-      "budget": "Budget"
+      "budget": "Budget",
+      "activity": "Activity"
+    },
+    "activity": {
+      "visits": "Visits",
+      "treatments": "Treat.",
+      "spent": "Spent"
     },
     "gender": {
       "male": "Male",
-      "female": "Female", 
+      "female": "Female",
       "other": "Other"
     },
     "select_gender": "Select gender",
@@ -1592,7 +1659,7 @@
       "asset_name": "Equipment/asset name",
       "useful_life": "Years of useful life"
     },
-    
+
     "description_placeholder": "Describe the expense...",
     "vendor_placeholder": "Vendor name",
     "invoice_placeholder": "Invoice number",
@@ -1625,6 +1692,7 @@
     "units_remaining": "units remaining",
     "actions": {
       "view": "View",
+      "call": "Call",
       "edit": "Edit",
       "delete": "Delete"
     },

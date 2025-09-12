@@ -94,6 +94,12 @@ export async function PUT(
       }
     }
 
+    // Map amount_pesos to amount_cents for DB
+    if (typeof updateData.amount_pesos === 'number') {
+      updateData.amount_cents = updateData.amount_pesos
+      delete updateData.amount_pesos
+    }
+
     // Update expense
     const { data: updatedExpense, error: updateError } = await supabase
       .from('expenses')

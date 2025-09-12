@@ -173,7 +173,7 @@ describe('Multi-Tenancy E2E Tests', () => {
       cy.createTestWorkspace(user1.workspace, user1.clinic);
       
       // Crear segunda clínica en el mismo workspace
-      cy.visit('/settings/clinics');
+      cy.visit('/settings/workspaces');
       cy.get('[data-testid="add-clinic-button"]').click();
       cy.get('[data-testid="clinic-name"]').type('Sucursal Norte');
       cy.get('[data-testid="clinic-address"]').type('Av. Norte 456');

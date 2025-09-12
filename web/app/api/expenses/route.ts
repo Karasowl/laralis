@@ -118,6 +118,7 @@ export async function POST(request: NextRequest) {
       asset_name,
       asset_useful_life_years,
       category_id,
+      amount_pesos,
       ...expenseData
     } = validationResult.data as any
 
@@ -134,11 +135,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const amountCents = typeof amount_pesos === 'number' ? amount_pesos : expenseData.amount_cents
+
     // Create expense record
     const { data: expense, error: expenseError } = await supabase
       .from('expenses')
       .insert({
         ...expenseData,
+        amount_cents: amountCents,
         category: resolvedCategory || expenseData.category,
         category_id: category_id || null,
         clinic_id: body.clinic_id
@@ -162,7 +166,7 @@ export async function POST(request: NextRequest) {
           clinic_id: body.clinic_id,
           name: asset_name,
           category: expenseData.subcategory || expenseData.category,
-          acquisition_cost_cents: expenseData.amount_cents,
+          acquisition_cost_cents: amountCents,
           useful_life_years: asset_useful_life_years,
           acquisition_date: expenseData.expense_date
         })
@@ -203,7 +207,7 @@ export async function POST(request: NextRequest) {
           .from('supplies')
           .update({
             stock_quantity: (supply.stock_quantity || 0) + totalPortions,
-            last_purchase_price_cents: Math.round(expenseData.amount_cents / expenseData.quantity),
+            last_purchase_price_cents: Math.round(amountCents / expenseData.quantity),
             last_purchase_date: expenseData.expense_date
           })
           .eq('id', expenseData.related_supply_id)

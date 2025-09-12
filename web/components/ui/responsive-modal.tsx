@@ -41,46 +41,26 @@ export function ResponsiveModal({
   className,
   showCloseButton = true,
 }: ResponsiveModalProps) {
-  const isDesktop = useMediaQuery('(min-width: 768px)')
-
-  if (isDesktop) {
-    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className={cn('max-w-2xl', className)}>
-          {(title || description) && (
-            <DialogHeader>
-              {title && <DialogTitle>{title}</DialogTitle>}
-              {description ? (
-                <DialogDescription>{description}</DialogDescription>
-              ) : (
-                <DialogDescription className="sr-only">Dialog content</DialogDescription>
-              )}
-            </DialogHeader>
-          )}
-          {children}
-        </DialogContent>
-      </Dialog>
-    )
-  }
+  React.useEffect(() => {
+    try { console.log('[ResponsiveModal] loaded v3') } catch {}
+  }, [])
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className={cn('px-4', className)}>
+    <Dialog open={open} onOpenChange={onOpenChange} modal={true}>
+      <DialogContent className={cn('max-w-2xl', className)}>
         {(title || description) && (
-          <DrawerHeader className="text-left">
-            {title && <DrawerTitle>{title}</DrawerTitle>}
+          <DialogHeader>
+            {title && <DialogTitle>{title}</DialogTitle>}
             {description ? (
-              <DrawerDescription>{description}</DrawerDescription>
+              <DialogDescription>{description}</DialogDescription>
             ) : (
-              <DrawerDescription className="sr-only">Dialog content</DrawerDescription>
+              <DialogDescription className="sr-only">Dialog content</DialogDescription>
             )}
-          </DrawerHeader>
+          </DialogHeader>
         )}
-        <div className="px-4 pb-safe">
-          {children}
-        </div>
-      </DrawerContent>
-    </Drawer>
+        {children}
+      </DialogContent>
+    </Dialog>
   )
 }
 

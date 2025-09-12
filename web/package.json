@@ -6,6 +6,8 @@
     "kill-node": "taskkill /F /IM node.exe 2>nul || echo No hay procesos Node activos",
     "kill-next": "node scripts/kill-old-next.js",
     "dev": "node scripts/kill-old-next.js && next dev",
+    "dev:wsl": "node scripts/kill-old-next.js && WATCHPACK_POLLING=true CHOKIDAR_USEPOLLING=1 NEXT_WEBPACK_USEPOLLING=1 next dev",
+    "dev:wsl:clean": "node scripts/kill-old-next.js && rm -rf .next && WATCHPACK_POLLING=true CHOKIDAR_USEPOLLING=1 NEXT_WEBPACK_USEPOLLING=1 next dev",
     "dev:force": "npm run kill-node & next dev",
     "dev:clean": "npm run kill-next && next dev",
     "dev:safe": "node scripts/cleanup.js & npm run kill-node && next dev",

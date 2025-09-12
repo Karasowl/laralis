@@ -107,11 +107,6 @@ export function getNavigationSections(t: any): NavigationSection[] {
           icon: Building
         },
         {
-          href: '/settings/clinics',
-          label: t('navigation.clinics'),
-          icon: Shield
-        },
-        {
           href: '/settings/marketing',
           label: t('navigation.marketing'),
           icon: Megaphone

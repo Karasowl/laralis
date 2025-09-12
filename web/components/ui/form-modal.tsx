@@ -39,6 +39,8 @@ interface FormModalProps {
   // Styling
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
   className?: string;
+  // Radix Dialog modal prop (blocks background scroll when true)
+  modal?: boolean;
 }
 
 export function FormModal({
@@ -55,7 +57,11 @@ export function FormModal({
   showFooter = true,
   maxWidth = 'lg',
   className,
+  modal = true,
 }: FormModalProps) {
+  React.useEffect(() => {
+    try { console.log('[FormModal] loaded v2 - modal:', modal) } catch {}
+  }, [modal])
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (onSubmit) {
@@ -118,7 +124,7 @@ export function FormModal({
 
   if (trigger) {
     return (
-      <MobileModal open={open} onOpenChange={onOpenChange}>
+      <MobileModal open={open} onOpenChange={onOpenChange} modal={modal}>
         <MobileModalTrigger asChild>{trigger}</MobileModalTrigger>
         {modalContent}
       </MobileModal>
@@ -126,7 +132,7 @@ export function FormModal({
   }
 
   return (
-    <MobileModal open={open} onOpenChange={onOpenChange}>
+    <MobileModal open={open} onOpenChange={onOpenChange} modal={modal}>
       {modalContent}
     </MobileModal>
   );

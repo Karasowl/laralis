@@ -149,7 +149,7 @@ export function CrudPageLayout<T extends { id: string; name?: string }>({
               </div>
             )}
             
-            {onAdd && (
+            {onAdd && items.length > 0 && (
               <Button onClick={onAdd} className="w-full sm:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
                 {addButtonLabel}

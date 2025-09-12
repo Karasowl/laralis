@@ -1,60 +1,41 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 /**
  * Hook to ensure proper cleanup of modal-related styles on the body
  * Prevents scroll lock issues on mobile devices after modal closes
  */
 export function useModalCleanup(isOpen: boolean) {
+  const wasOpen = useRef<boolean>(isOpen)
+
   useEffect(() => {
     // Cleanup function to remove any stuck styles
     const cleanupBodyStyles = () => {
       if (typeof document === 'undefined') return
-      
+
       // Remove common modal-related styles that might block scroll
       document.body.style.removeProperty('overflow')
       document.body.style.removeProperty('pointer-events')
       document.body.style.removeProperty('position')
       document.body.style.removeProperty('touch-action')
       document.documentElement.style.removeProperty('overflow')
-      
-      // Remove any Radix UI specific data attributes that might affect scroll
-      document.body.removeAttribute('data-scroll-locked')
-      document.documentElement.removeAttribute('data-scroll-locked')
-      
-      // Ensure scroll is re-enabled on iOS
+      // Do NOT force-remove Radix/react-remove-scroll attributes while a dialog may be open
       document.body.style.webkitOverflowScrolling = 'touch'
     }
 
-    // When modal closes, ensure cleanup after a short delay
-    if (!isOpen) {
-      // Use requestAnimationFrame to ensure DOM has updated
+    // Run cleanup only on transition: open -> closed
+    if (wasOpen.current && !isOpen) {
       requestAnimationFrame(() => {
-        // Additional delay to ensure Radix animations complete
         setTimeout(cleanupBodyStyles, 200)
       })
     }
+    wasOpen.current = isOpen
 
-    // Cleanup on unmount
+    // Cleanup on unmount: if modal was open, finish cleanup after animations
     return () => {
-      if (!isOpen) {
-        cleanupBodyStyles()
-      }
+      if (!wasOpen.current) return
+      setTimeout(cleanupBodyStyles, 200)
     }
   }, [isOpen])
-  
-  // Also cleanup on component unmount regardless of state
-  useEffect(() => {
-    return () => {
-      if (typeof document === 'undefined') return
-      
-      // Final cleanup on unmount
-      setTimeout(() => {
-        document.body.style.removeProperty('overflow')
-        document.body.style.removeProperty('pointer-events')
-        document.documentElement.style.removeProperty('overflow')
-      }, 100)
-    }
-  }, [])
 }

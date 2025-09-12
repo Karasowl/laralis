@@ -42,16 +42,18 @@ export interface Treatment {
 interface UseTreatmentsOptions {
   clinicId?: string
   autoLoad?: boolean
+  patientId?: string
 }
 
 export function useTreatments(options: UseTreatmentsOptions = {}) {
-  const { clinicId, autoLoad = true } = options
+  const { clinicId, autoLoad = true, patientId } = options
   
   // Use generic CRUD for treatments
   const crud = useCrudOperations<Treatment>({
     endpoint: '/api/treatments',
     entityName: 'Treatment',
-    includeClinicId: true
+    includeClinicId: true,
+    staticParams: patientId ? { patient_id: patientId } : undefined,
   })
 
   // Use API hooks for related data

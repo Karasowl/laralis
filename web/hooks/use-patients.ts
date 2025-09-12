@@ -32,11 +32,11 @@ export function usePatients(options: UsePatientsOptions = {}) {
     searchParam: 'search'
   })
 
-  // Use API hooks for related data
-  const sourcesApi = useApi<PatientSource[]>('/api/patient-sources')
+  // Use API hooks for related data (respect autoLoad option)
+  const sourcesApi = useApi<PatientSource[]>('/api/patient-sources', { autoFetch: autoLoad })
   // Use marketing endpoint which handles clinic context and does not require user session
-  const campaignsApi = useApi<Campaign[]>('/api/marketing/campaigns')
-  const platformsApi = useApi<any[]>('/api/marketing/platforms')
+  const campaignsApi = useApi<Campaign[]>('/api/marketing/campaigns', { autoFetch: autoLoad })
+  const platformsApi = useApi<any[]>('/api/marketing/platforms', { autoFetch: autoLoad })
 
   // Patient-specific: Create patient source
   const createPatientSource = useCallback(async (name: string): Promise<boolean> => {
@@ -74,41 +74,21 @@ export function usePatients(options: UsePatientsOptions = {}) {
     return false
   }, [campaignsApi])
 
-  // Load related data
+  // Load related data (stable deps based on methods only)
   const loadRelatedData = useCallback(async () => {
-    console.log('[usePatients] Loading patient related data...')
     try {
       const results = await Promise.all([
         sourcesApi.get(),
         campaignsApi.get(),
         platformsApi.get()
       ])
-      console.log('[usePatients] API Results:', {
-        sources: results[0],
-        campaigns: results[1],
-        platforms: results[2]
-      })
-      console.log('[usePatients] platformsApi.data after get():', platformsApi.data)
-      
-      // Hacer una llamada directa para debug
-      const directResponse = await fetch('/api/marketing/platforms', {
-        credentials: 'include'
-      })
-      const directData = await directResponse.json()
-      console.log('[usePatients] Direct fetch result:', directData)
-      
+      // optional: inspect results if needed
     } catch (error) {
-      console.error('[usePatients] Error in loadRelatedData:', error)
+      // swallow toasts are handled in useApi
     }
-  }, [sourcesApi, campaignsApi, platformsApi])
+  }, [sourcesApi.get, campaignsApi.get, platformsApi.get])
 
-  // Debug log antes de retornar
-  console.log('[usePatients] Current state:', {
-    platformsApiData: platformsApi.data,
-    platformsApiLoading: platformsApi.loading,
-    sourcesApiData: sourcesApi.data,
-    campaignsApiData: campaignsApi.data
-  })
+  // no noisy logs here; state is returned below
 
   return {
     // From CRUD operations

@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -11,9 +12,11 @@ import { ResetOption } from '@/components/settings/ResetOption'
 import { ChecklistItem } from '@/components/settings/ChecklistItem'
 import { FormSection } from '@/components/ui/form-field'
 import { useReset } from '@/hooks/use-reset'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 export default function ResetPage() {
   const t = useTranslations('settings')
+  const tCommon = useTranslations('common')
   const {
     resetOptions,
     selectedOptions,
@@ -28,6 +31,7 @@ export default function ResetPage() {
   } = useReset()
 
   const hasAllDataSelected = selectedOptions.includes('all_data')
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   return (
     <AppLayout>
@@ -89,7 +93,7 @@ export default function ResetPage() {
                 {selectedOptions.length} {t('reset.options_selected')}
               </p>
               <Button
-                onClick={performReset}
+                onClick={() => setConfirmOpen(true)}
                 disabled={loading || selectedOptions.length === 0}
                 variant={hasAllDataSelected ? 'destructive' : 'default'}
               >
@@ -108,6 +112,20 @@ export default function ResetPage() {
             </div>
           </CardContent>
         </Card>
+
+        <ConfirmDialog
+          open={!!confirmOpen}
+          onOpenChange={setConfirmOpen}
+          title={hasAllDataSelected ? t('reset.confirm_delete_all') : t('reset.confirm_message')}
+          description={hasAllDataSelected ? undefined : t('reset.warning_description')}
+          variant={hasAllDataSelected ? 'destructive' : 'warning'}
+          onConfirm={async () => {
+            const ok = await performReset({ skipConfirm: true })
+            if (ok) setConfirmOpen(false)
+          }}
+          confirmText={hasAllDataSelected ? t('reset.clean_selected') : t('reset.clean_selected')}
+          cancelText={tCommon('cancel')}
+        />
 
         <Card>
           <CardHeader>

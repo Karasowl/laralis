@@ -43,9 +43,11 @@ const DrawerContent = React.forwardRef<
     <DrawerPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed inset-x-0 bottom-0 z-[60] mt-24 flex h-auto flex-col rounded-t-[10px] border bg-background",
+        "fixed inset-x-0 bottom-0 z-[60] mt-12 sm:mt-24 flex h-auto flex-col rounded-t-[10px] border bg-background",
         className
       )}
+      // Allow interactions without closing parent Dialogs
+      data-allow-interact-outside
       {...props}
     >
       <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />

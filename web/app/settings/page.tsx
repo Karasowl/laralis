@@ -26,20 +26,23 @@ export default function SettingsPage() {
 
   const settingsSections = [
     {
+      id: 'workspaces',
       title: t('settings.workspaces.title'),
-      description: t('settings.workspaces.description'),
+      description: t('settings.workspaces.subtitle'),
       href: '/settings/workspaces',
       icon: Building2,
       color: 'text-blue-600'
     },
     {
+      id: 'clinics',
       title: t('settings.clinics.title'),
       description: t('settings.clinics.description'),
-      href: '/settings/clinics',
+      href: '/settings/workspaces', // Clinics now live under Workspaces
       icon: Building,
       color: 'text-emerald-600'
     },
     {
+      id: 'time',
       title: t('settings.time.title'),
       description: t('settings.time.description'),
       href: '/time',
@@ -47,6 +50,7 @@ export default function SettingsPage() {
       color: 'text-purple-600'
     },
     {
+      id: 'tariffs',
       title: t('settings.tariffs.title'),
       description: t('settings.tariffs.description'),
       href: '/tariffs',
@@ -54,6 +58,7 @@ export default function SettingsPage() {
       color: 'text-orange-600'
     },
     {
+      id: 'marketing',
       title: t('settings.marketing.title'),
       description: t('settings.marketing.description'),
       href: '/settings/marketing',
@@ -61,6 +66,7 @@ export default function SettingsPage() {
       color: 'text-pink-600'
     },
     {
+      id: 'fixed-costs',
       title: t('settings.fixedCosts.title'),
       description: t('settings.fixedCosts.description'),
       href: '/fixed-costs',
@@ -68,6 +74,7 @@ export default function SettingsPage() {
       color: 'text-green-600'
     },
     {
+      id: 'assets',
       title: t('settings.assets.title'),
       description: t('settings.assets.description'),
       href: '/assets',
@@ -75,6 +82,7 @@ export default function SettingsPage() {
       color: 'text-indigo-600'
     },
     {
+      id: 'supplies',
       title: t('settings.supplies.title'),
       description: t('settings.supplies.description'),
       href: '/supplies',
@@ -82,6 +90,7 @@ export default function SettingsPage() {
       color: 'text-yellow-600'
     },
     {
+      id: 'reports',
       title: t('settings.reports.title'),
       description: t('settings.reports.description'),
       href: '/reports',
@@ -89,6 +98,7 @@ export default function SettingsPage() {
       color: 'text-cyan-600'
     },
     {
+      id: 'reset',
       title: t('settings.reset.title'),
       description: t('settings.reset.description'),
       href: '/settings/reset',
@@ -109,7 +119,7 @@ export default function SettingsPage() {
           {settingsSections.map((section) => {
             const Icon = section.icon;
             return (
-              <Link key={section.href} href={section.href}>
+              <Link key={section.id} href={section.href}>
                 <Card className="hover:shadow-lg transition-all duration-200 cursor-pointer group h-full">
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between">

@@ -239,6 +239,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (currentClinic) {
       localStorage.setItem('selectedClinicId', currentClinic.id);
+      try {
+        document.cookie = `clinicId=${currentClinic.id}; path=/; max-age=31536000`;
+      } catch {}
     }
   }, [currentClinic]);
 

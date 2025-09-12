@@ -19,19 +19,19 @@ const PageHeader = React.forwardRef<HTMLDivElement, PageHeaderProps>(
         )}
         {...props}
       >
-        <div className="flex flex-col min-[400px]:flex-row min-[400px]:items-start min-[400px]:justify-between gap-4">
-          <div className="space-y-2">
-            <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div className="space-y-2 min-w-0 flex-1">
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground">
               {title}
             </h1>
             {(subtitle || description) && (
-              <p className="text-base text-muted-foreground leading-relaxed">
+              <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
                 {subtitle || description}
               </p>
             )}
           </div>
           {actions && (
-            <div className="flex items-center gap-2 min-[400px]:ml-4">
+            <div className="flex items-center gap-2 sm:ml-4 shrink-0">
               {actions}
             </div>
           )}

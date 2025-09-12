@@ -45,7 +45,9 @@ export function ActionDropdown({
           <div key={index}>
             {action.separator && index > 0 && <DropdownMenuSeparator />}
             <DropdownMenuItem
-              onClick={action.onClick}
+              // Usar onSelect y ejecutar tras cerrar el menú para evitar
+              // conflictos de eventos con modales Radix
+              onSelect={() => setTimeout(() => action.onClick(), 50)}
               className={action.variant === 'destructive' ? 'text-destructive focus:text-destructive' : ''}
             >
               {action.icon && <span className="mr-2">{action.icon}</span>}

@@ -145,7 +145,9 @@ export function useDashboard(options: UseDashboardOptions = {}): DashboardState 
 
   const loadDashboardData = useCallback(async () => {
     if (!clinicId) {
-      // Don't set error if no clinic - just keep loading state
+      // If there is no clinic selected, don't keep the UI in skeleton state.
+      // Render with empty metrics and wait until a clinic is chosen to fetch.
+      setState(prev => ({ ...prev, loading: false, error: null }))
       return
     }
 
@@ -206,10 +208,13 @@ export function useDashboard(options: UseDashboardOptions = {}): DashboardState 
     }
   }, [clinicId, period, fetchAll])
 
-  // Auto-refresh every 5 minutes
+  // Run once on mount and whenever clinicId changes.
+  // Also set up auto-refresh only when a clinic is selected.
   useEffect(() => {
+    // Always attempt a load to clear skeleton when clinic is missing
+    loadDashboardData()
+
     if (clinicId) {
-      loadDashboardData()
       const interval = setInterval(loadDashboardData, 5 * 60 * 1000)
       return () => clearInterval(interval)
     }

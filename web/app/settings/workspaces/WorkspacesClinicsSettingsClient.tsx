@@ -35,6 +35,7 @@ type Clinic = {
 
 export default function WorkspacesClinicsSettingsClient() {
   const t = useTranslations()
+  const tCommon = useTranslations('common')
 
   // Left list: workspaces (reuse generic CRUD hook for listing only)
   const workspacesCrud = useCrudOperations<Workspace>({
@@ -68,6 +69,8 @@ export default function WorkspacesClinicsSettingsClient() {
       const result = await res.json()
       const data = result.data || result || []
       setClinics(data)
+      // Update per-workspace clinic count immediately after fetching
+      setClinicCounts(prev => ({ ...prev, [workspaceId]: Array.isArray(data) ? data.length : 0 }))
     } catch (err) {
       console.error('[fetchClinics] error:', err)
       setClinics([])
@@ -151,7 +154,7 @@ export default function WorkspacesClinicsSettingsClient() {
           const err = await res.json().catch(() => ({}))
           throw new Error(err.message || err.error || 'Failed to update clinic')
         }
-        toast.success(t('common.updateSuccess', { entity: t('settings.clinics.entity') }))
+        toast.success(tCommon('updateSuccess', { entity: t('settings.clinics.entity') }))
       } else {
         const res = await fetch(`/api/workspaces/${selectedWorkspaceId}/clinics`, {
           method: 'POST',
@@ -162,13 +165,25 @@ export default function WorkspacesClinicsSettingsClient() {
           const err = await res.json().catch(() => ({}))
           throw new Error(err.message || err.error || 'Failed to create clinic')
         }
-        toast.success(t('common.createSuccess', { entity: t('settings.clinics.entity') }))
+        // Parse created clinic to auto-select it as current
+        const payload = await res.json().catch(() => ({} as any))
+        const createdClinic = payload?.data || payload
+        if (createdClinic?.id) {
+          try {
+            await fetch('/api/clinics', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ clinicId: createdClinic.id }),
+            })
+          } catch {}
+        }
+        toast.success(tCommon('createSuccess', { entity: t('settings.clinics.entity') }))
       }
       setClinicModalOpen(false)
       setEditingClinic(null)
       await fetchClinics(selectedWorkspaceId)
     } catch (e: any) {
-      toast.error(e?.message || t('common.error'))
+      toast.error(e?.message || tCommon('error'))
     } finally {
       setSavingClinic(false)
     }
@@ -182,10 +197,10 @@ export default function WorkspacesClinicsSettingsClient() {
         const err = await res.json().catch(() => ({}))
         throw new Error(err.message || err.error || 'Failed to delete clinic')
       }
-      toast.success(t('common.deleteSuccess', { entity: t('settings.clinics.entity') }))
+      toast.success(tCommon('deleteSuccess', { entity: t('settings.clinics.entity') }))
       await fetchClinics(selectedWorkspaceId)
     } catch (e: any) {
-      toast.error(e?.message || t('common.error'))
+      toast.error(e?.message || tCommon('error'))
     }
   }
 
@@ -199,7 +214,7 @@ export default function WorkspacesClinicsSettingsClient() {
       if (!res.ok) throw new Error('Failed to set clinic')
       toast.success(t('settings.clinics.selectedAsCurrent', 'Clínica seleccionada'))
     } catch (e: any) {
-      toast.error(e?.message || t('common.error'))
+      toast.error(e?.message || tCommon('error'))
     }
   }
 
@@ -229,12 +244,12 @@ export default function WorkspacesClinicsSettingsClient() {
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
 
-  const validateWorkspace = () => {
+  const validateWorkspace = (name: string, slug: string) => {
     const errs: { name?: string; slug?: string } = {}
-    if (!workspaceForm.name || workspaceForm.name.trim().length === 0) {
+    if (!name || name.trim().length === 0) {
       errs.name = t('settings.workspaces.nameRequired', 'El nombre es requerido')
     }
-    const s = (workspaceForm.slug || '').trim()
+    const s = (slug || '').trim()
     if (!s || !/^[a-z0-9-]{3,}$/.test(s)) {
       errs.slug = t('settings.workspaces.slugInvalid', 'Usa minúsculas, números y guiones. Mín 3 caracteres')
     }
@@ -265,10 +280,12 @@ export default function WorkspacesClinicsSettingsClient() {
   const saveWorkspace = async () => {
     setSavingWorkspace(true)
     try {
-      if (!slugTouched && (!workspaceForm.slug || workspaceForm.slug.trim().length === 0)) {
-        setWorkspaceForm(prev => ({ ...prev, slug: slugify(prev.name) }))
-      }
-      if (!validateWorkspace()) {
+      // Determinar slug final de forma determinística
+      const finalSlug = slugTouched && workspaceForm.slug.trim().length > 0
+        ? slugify(workspaceForm.slug)
+        : slugify(workspaceForm.name)
+
+      if (!validateWorkspace(workspaceForm.name, finalSlug)) {
         toast.error(t('settings.workspaces.validationError', 'Corrige los errores del formulario'))
         return
       }
@@ -276,34 +293,41 @@ export default function WorkspacesClinicsSettingsClient() {
         const res = await fetch(`/api/workspaces/${editingWorkspace.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...workspaceForm })
+          body: JSON.stringify({ ...workspaceForm, slug: finalSlug })
         })
         if (!res.ok) {
           const err = await res.json().catch(() => ({}))
           throw new Error(err.message || err.error || 'Failed to update workspace')
         }
-        toast.success(t('common.updateSuccess', { entity: t('settings.workspaces.entity', 'Espacio de Trabajo') }))
+        toast.success(tCommon('updateSuccess', { entity: t('settings.workspaces.entity', 'Espacio de Trabajo') }))
       } else {
         const res = await fetch('/api/workspaces', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...workspaceForm })
+          body: JSON.stringify({ ...workspaceForm, slug: finalSlug })
         })
         if (!res.ok) {
           const err = await res.json().catch(() => ({}))
           throw new Error(err.message || err.error || 'Failed to create workspace')
         }
-        toast.success(t('common.createSuccess', { entity: t('settings.workspaces.entity', 'Espacio de Trabajo') }))
+        toast.success(tCommon('createSuccess', { entity: t('settings.workspaces.entity', 'Espacio de Trabajo') }))
       }
       await workspacesCrud.fetchItems()
       setWorkspaceModalOpen(false)
       setEditingWorkspace(null)
     } catch (e: any) {
-      toast.error(e?.message || t('common.error'))
+      toast.error(e?.message || tCommon('error'))
     } finally {
       setSavingWorkspace(false)
     }
   }
+
+  // Autogenerar slug en vivo mientras el usuario escribe el nombre
+  useEffect(() => {
+    if (!slugTouched) {
+      setWorkspaceForm(prev => ({ ...prev, slug: slugify(prev.name) }))
+    }
+  }, [workspaceForm.name, slugTouched])
 
   const deleteWorkspace = async (ws: Workspace) => {
     if (!window.confirm(t('settings.workspaces.deleteConfirm', '¿Estás seguro de que quieres eliminar este espacio de trabajo?'))) return
@@ -322,11 +346,11 @@ export default function WorkspacesClinicsSettingsClient() {
     { key: 'email', label: t('settings.clinics.email'), render: (_: any, c: Clinic) => c.email || '-' },
     {
       key: 'actions',
-      label: t('common.actions'),
+      label: tCommon('actions'),
       render: (_: any, c: Clinic) => {
         const actions: ActionItem[] = [
           {
-            label: t('common.edit'),
+            label: tCommon('edit'),
             icon: <Edit className="h-4 w-4" />,
             onClick: () => openEditClinic(c),
           },
@@ -335,7 +359,7 @@ export default function WorkspacesClinicsSettingsClient() {
             onClick: () => selectClinicAsCurrent(c),
           },
           {
-            label: t('common.delete'),
+            label: tCommon('delete'),
             icon: <Trash2 className="h-4 w-4" />,
             destructive: true,
             onClick: () => deleteClinic(c),
@@ -357,7 +381,7 @@ export default function WorkspacesClinicsSettingsClient() {
             <h2 className="text-lg font-semibold">{t('settings.workspaces.title')}</h2>
           </div>
           <Button size="sm" onClick={openCreateWorkspace}>
-            <Plus className="h-4 w-4 mr-1" /> {t('common.add')}
+            <Plus className="h-4 w-4 mr-1" /> {tCommon('add')}
           </Button>
         </div>
 
@@ -391,13 +415,13 @@ export default function WorkspacesClinicsSettingsClient() {
                 </div>
                 <div className="flex items-center gap-2">
                   {selectedWorkspaceId === ws.id && (
-                    <span className="text-xs text-primary">{t('common.selected')}</span>
+                    <span className="text-xs text-primary">{tCommon('selected')}</span>
                   )}
                   <div onClick={(e) => e.stopPropagation()}>
                     <ActionDropdown
                       actions={[
-                        { label: t('common.edit'), icon: <Edit className="h-4 w-4" />, onClick: () => openEditWorkspace(ws) },
-                        { label: t('common.delete'), icon: <Trash2 className="h-4 w-4" />, variant: 'destructive', separator: true, onClick: () => deleteWorkspace(ws) }
+                        { label: tCommon('edit'), icon: <Edit className="h-4 w-4" />, onClick: () => openEditWorkspace(ws) },
+                        { label: tCommon('delete'), icon: <Trash2 className="h-4 w-4" />, variant: 'destructive', separator: true, onClick: () => deleteWorkspace(ws) }
                       ]}
                     />
                   </div>
@@ -469,8 +493,8 @@ export default function WorkspacesClinicsSettingsClient() {
               title={editingClinic ? t('settings.clinics.edit') : t('settings.clinics.create')}
               onSubmit={(e) => { e.preventDefault(); saveClinic() }}
               isSubmitting={savingClinic}
-              cancelLabel={t('common.cancel')}
-              submitLabel={editingClinic ? t('common.update') : t('common.create')}
+              cancelLabel={tCommon('cancel')}
+              submitLabel={editingClinic ? tCommon('update') : tCommon('create')}
             >
               <div className="space-y-4">
                 <FormGrid columns={1}>
@@ -524,8 +548,8 @@ export default function WorkspacesClinicsSettingsClient() {
         title={editingWorkspace ? t('settings.workspaces.edit') : t('settings.workspaces.create')}
         onSubmit={(e) => { e.preventDefault(); saveWorkspace() }}
         isSubmitting={savingWorkspace}
-        cancelLabel={t('common.cancel')}
-        submitLabel={editingWorkspace ? t('common.update') : t('common.create')}
+        cancelLabel={tCommon('cancel')}
+        submitLabel={editingWorkspace ? tCommon('update') : tCommon('create')}
       >
         <div className="space-y-4">
           <FormGrid columns={1}>
@@ -540,12 +564,14 @@ export default function WorkspacesClinicsSettingsClient() {
               label={t('settings.workspaces.slug')}
               value={workspaceForm.slug}
               onChange={(v) => { setSlugTouched(true); setWorkspaceForm(prev => ({ ...prev, slug: String(v) })) }}
-              helperText={t('settings.workspaces.slugHelp', 'Ej.: grupo-dental-garcia')}
+              placeholder={t('settings.workspaces.slugPlaceholder', 'ej., garcia-dental')}
+              helperText={t('settings.workspaces.slugHelp', 'Se autogenera desde el nombre. Minúsculas, letras y guiones')}
               error={wsErrors.slug}
             />
             <InputField
               label={t('settings.workspaces.description')}
               value={workspaceForm.description}
+              placeholder={t('settings.workspaces.descriptionPlaceholder', 'Breve descripción del espacio de trabajo')}
               onChange={(v) => setWorkspaceForm(prev => ({ ...prev, description: String(v) }))}
             />
           </FormGrid>

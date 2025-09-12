@@ -16,7 +16,7 @@ const expenseSchema = z.object({
   category: z.string().min(1, 'Category is required'),
   subcategory: z.string().optional(),
   description: z.string().optional(),
-  amount_cents: z.number().min(0),
+  amount_pesos: z.number().min(0),
   vendor: z.string().optional(),
   invoice_number: z.string().optional(),
   is_recurring: z.boolean().default(false)
@@ -42,7 +42,7 @@ export function EditExpenseModal({ expense, open, onClose, onSave, categories = 
       category: expense.category,
       subcategory: expense.subcategory || '',
       description: expense.description || '',
-      amount_cents: expense.amount_cents,
+      amount_pesos: (expense.amount_cents || 0) / 100,
       vendor: expense.vendor || '',
       invoice_number: expense.invoice_number || '',
       is_recurring: expense.is_recurring || false
@@ -103,9 +103,9 @@ export function EditExpenseModal({ expense, open, onClose, onSave, categories = 
                 type="number"
                 step="0.01"
                 label={tFields('amount')}
-                value={(form.watch('amount_cents') / 100).toFixed(2)}
-                onChange={(value) => form.setValue('amount_cents', parseFloat(value as string) * 100)}
-                error={form.formState.errors.amount_cents?.message}
+                value={form.watch('amount_pesos') || 0}
+                onChange={(value) => form.setValue('amount_pesos', typeof value === 'number' ? value : parseFloat(String(value)))}
+                error={form.formState.errors.amount_pesos?.message}
                 required
               />
             </FormGrid>
