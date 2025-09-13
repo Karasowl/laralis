@@ -128,6 +128,22 @@ export async function PUT(
       );
     }
 
+    // Validate no duplicate name (case-insensitive) within the same clinic, excluding current id
+    if (name) {
+      const { data: existingSameName } = await supabaseAdmin
+        .from('supplies')
+        .select('id')
+        .eq('clinic_id', clinicId)
+        .ilike('name', name.trim())
+        .limit(1);
+      if (existingSameName && existingSameName.length > 0 && existingSameName[0].id !== params.id) {
+        return NextResponse.json(
+          { error: 'Duplicate name', message: 'Ya existe un insumo con ese nombre en esta clínica.' },
+          { status: 409 }
+        );
+      }
+    }
+
     const { data, error } = await supabaseAdmin
       .from('supplies')
       .update({ 

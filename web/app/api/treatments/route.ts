@@ -7,13 +7,6 @@ import { createClient } from '@/lib/supabase/server';
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = cookies();
-    const supabase = createClient();
-    
-    // ✅ Validar usuario autenticado
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const searchParams = request.nextUrl.searchParams;
     const clinicId = searchParams.get('clinicId') || await getClinicIdOrDefault(cookieStore);
@@ -57,7 +50,7 @@ export async function GET(request: NextRequest) {
       minutes: (row.duration_minutes ?? row.minutes) ?? 0,
       fixed_per_minute_cents: (row.fixed_cost_per_minute_cents ?? row.fixed_per_minute_cents) ?? 0,
       // Map status from DB to UI ('scheduled'|'in_progress' -> 'pending')
-      status: row.status === 'scheduled' || row.status === 'in_progress' ? 'pending' : row.status,
+      status: (row.status === 'scheduled' || row.status === 'in_progress') ? 'pending' : (row.status || 'pending'),
     }));
 
     return NextResponse.json({ data: mapped });
@@ -74,14 +67,6 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const cookieStore = cookies();
-    const supabase = createClient();
-    
-    // ✅ Validar usuario autenticado
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const clinicId = await getClinicIdOrDefault(cookieStore);
 
     if (!clinicId) {

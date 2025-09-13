@@ -20,7 +20,8 @@ const MobileModalOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-black/50 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      // Raise z-index above mobile bottom nav and other fixed elements
+      "fixed inset-0 z-[70] bg-black/50 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className
     )}
     {...props}
@@ -74,7 +75,8 @@ const MobileModalContent = React.forwardRef<
         ref={setRefs}
         className={cn(
           // Mobile-first design with slide-up animation
-          "fixed z-50 grid w-full gap-4 bg-background shadow-2xl transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
+          // Raise above overlay and any fixed bottom bars
+          "fixed z-[80] grid w-full gap-4 bg-background shadow-2xl transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
           // Mobile: Full screen with rounded top corners
           "inset-x-0 bottom-0 max-h-[95vh] rounded-t-[20px] border-t data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
           // Tablet and desktop: Centered modal
@@ -83,11 +85,8 @@ const MobileModalContent = React.forwardRef<
         )}
         // Manage focus explicitly to avoid aria-hidden/focus conflicts
         tabIndex={-1}
-        onOpenAutoFocus={(e) => {
-          // Cancel default focus move and focus the modal content container
-          e.preventDefault()
-          try { (contentRef.current as any)?.focus({ preventScroll: true }) } catch {}
-        }}
+        // Dejar que Radix enfoque el primer elemento disponible evita el warning
+        // de aria-hidden sobre elementos con foco oculto.
         onCloseAutoFocus={(e) => {
           // Avoid unexpected scroll jumps when closing
           e.preventDefault()

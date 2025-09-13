@@ -4,7 +4,6 @@ import { zFixedCost } from '@/lib/zod';
 import type { FixedCost, ApiResponse } from '@/lib/types';
 import { cookies } from 'next/headers';
 import { getClinicIdOrDefault } from '@/lib/clinic';
-import { createSupabaseClient } from '@/lib/supabase';
 
 export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<FixedCost[]>>> {
   try {
@@ -64,13 +63,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     const body = await request.json();
 
     const cookieStore = cookies();
-    const supabase = createSupabaseClient(cookieStore);
-    
-    // ✅ Validar usuario autenticado
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const clinicId = body.clinic_id || await getClinicIdOrDefault(cookieStore);
 

@@ -1,61 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
 export async function GET(request: NextRequest) {
   try {
-    const cookieStore = await cookies()
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
-    
-    const searchParams = request.nextUrl.searchParams
-    const clinicId = searchParams.get('clinicId')
-    
-    if (!clinicId) {
-      return NextResponse.json({ error: 'Clinic ID required' }, { status: 400 })
+    const sp = request.nextUrl.searchParams
+    const clinicId = sp.get('clinicId')
+    const period = sp.get('period') || 'month'
+    const dateFrom = sp.get('date_from')
+    const dateTo = sp.get('date_to')
+
+    if (!clinicId) return NextResponse.json({ error: 'Clinic ID required' }, { status: 400 })
+
+    const now = new Date()
+    let start: Date
+    let end: Date
+    if (period === 'custom' && dateFrom && dateTo) {
+      start = new Date(dateFrom)
+      end = new Date(dateTo)
+      end.setHours(23, 59, 59, 999)
+    } else {
+      start = new Date(now.getFullYear(), now.getMonth(), 1)
+      end = new Date(now)
     }
 
-    // Get total treatments count
-    const { count, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('treatments')
-      .select('*', { count: 'exact', head: true })
+      .select('status, created_at')
       .eq('clinic_id', clinicId)
+      .gte('created_at', start.toISOString())
+      .lte('created_at', end.toISOString())
 
     if (error) throw error
 
-    // Get treatments this month
-    const startOfMonth = new Date()
-    startOfMonth.setDate(1)
-    startOfMonth.setHours(0, 0, 0, 0)
+    const nonCancelled = (data || []).filter(t => t.status !== 'cancelled')
+    const completed = nonCancelled.filter(t => t.status === 'completed')
+    const pending = nonCancelled.filter(t => t.status === 'pending')
 
-    const { count: monthlyTreatments, error: monthError } = await supabase
-      .from('treatments')
-      .select('*', { count: 'exact', head: true })
-      .eq('clinic_id', clinicId)
-      .gte('created_at', startOfMonth.toISOString())
-
-    if (monthError) throw monthError
-
-    // Get pending treatments
-    const { count: pendingCount, error: pendingError } = await supabase
-      .from('treatments')
-      .select('*', { count: 'exact', head: true })
-      .eq('clinic_id', clinicId)
-      .eq('status', 'pending')
-
-    if (pendingError) throw pendingError
-
-    return NextResponse.json({
-      total: count || 0,
-      thisMonth: monthlyTreatments || 0,
-      pending: pendingCount || 0,
-      trend: monthlyTreatments && monthlyTreatments > 5 ? 'up' : 'stable',
-      trendValue: monthlyTreatments || 0
-    })
-  } catch (error) {
-    console.error('Dashboard treatments error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch treatments data' },
-      { status: 500 }
-    )
+    return NextResponse.json({ treatments: { total: nonCancelled.length, completed: completed.length, pending: pending.length } })
+  } catch (err) {
+    console.error('dashboard/treatments error', err)
+    return NextResponse.json({ error: 'Failed to fetch treatments metrics' }, { status: 500 })
   }
 }
+

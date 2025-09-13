@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParallelApi } from '@/hooks/use-api'
 import { ActivityItem } from '@/components/dashboard/RecentActivity'
+import { parseISO } from 'date-fns'
 
 export interface DashboardMetrics {
   revenue: {
@@ -43,7 +44,9 @@ export interface ChartData {
 
 interface UseDashboardOptions {
   clinicId?: string
-  period?: 'day' | 'week' | 'month' | 'year'
+  period?: 'day' | 'week' | 'month' | 'year' | 'custom'
+  from?: string
+  to?: string
 }
 
 interface DashboardState {
@@ -66,24 +69,25 @@ export class DashboardAggregator {
     // Simplified for example
     return {
       revenue: {
-        current: data[0]?.revenue?.current || 0,
-        previous: data[0]?.revenue?.previous || 0,
+        // Accept multiple shapes: {revenue:{current}}, {total}, {total_cents}
+        current: (data[0]?.revenue?.current ?? data[0]?.total ?? data[0]?.total_cents ?? 0),
+        previous: (data[0]?.revenue?.previous ?? data[0]?.previous ?? 0),
         change: 0
       },
       expenses: {
-        current: data[1]?.expenses?.current || 0,
-        previous: data[1]?.expenses?.previous || 0,
+        current: (data[1]?.expenses?.current ?? data[1]?.total ?? 0),
+        previous: (data[1]?.expenses?.previous ?? data[1]?.previous ?? 0),
         change: 0
       },
       patients: {
-        total: data[2]?.patients?.total || 0,
-        new: data[2]?.patients?.new || 0,
+        total: (data[2]?.patients?.total ?? data[2]?.total ?? 0),
+        new: (data[2]?.patients?.new ?? data[2]?.new ?? 0),
         change: 0
       },
       treatments: {
-        total: data[3]?.treatments?.total || 0,
-        completed: data[3]?.treatments?.completed || 0,
-        pending: data[3]?.treatments?.pending || 0
+        total: (data[3]?.treatments?.total ?? data[3]?.total ?? 0),
+        completed: (data[3]?.treatments?.completed ?? data[3]?.completed ?? 0),
+        pending: (data[3]?.treatments?.pending ?? data[3]?.pending ?? 0)
       },
       supplies: {
         lowStock: data[4]?.supplies?.lowStock || 0,
@@ -104,23 +108,70 @@ export class DashboardAggregator {
     }
   }
 
-  static processActivities(data: any[]): ActivityItem[] {
-    const activities = data || []
-    return activities.map(item => ({
-      id: item.id,
-      type: item.type,
-      title: item.title,
-      description: item.description,
-      amount: item.amount_cents,
-      timestamp: new Date(item.created_at),
-      user: item.user_name
-    }))
+  static processActivities(data: any): ActivityItem[] {
+    const pickArray = (input: any): any[] => {
+      if (Array.isArray(input)) return input
+      if (input && Array.isArray(input.data)) return input.data
+      if (input && input.data && Array.isArray(input.data.data)) return input.data.data
+      if (input && Array.isArray(input.items)) return input.items
+      if (input && Array.isArray(input.activities)) return input.activities
+      return []
+    }
+
+    const activities = pickArray(data)
+
+    const toValidDate = (input: any): Date | null => {
+      if (!input && input !== 0) return null
+      try {
+        if (input instanceof Date) {
+          return isNaN(input.getTime()) ? null : input
+        }
+        if (typeof input === 'number') {
+          const d = new Date(input)
+          return isNaN(d.getTime()) ? null : d
+        }
+        if (typeof input === 'string') {
+          const s = input.trim()
+          // Try numeric timestamp in string
+          const maybeNum = Number(s)
+          if (!Number.isNaN(maybeNum)) {
+            const dNum = new Date(maybeNum)
+            if (!isNaN(dNum.getTime())) return dNum
+          }
+          // Try ISO parse first
+          const dIso = parseISO(s)
+          if (!isNaN(dIso.getTime())) return dIso
+          // Fallback to native Date parser
+          const d = new Date(s)
+          return isNaN(d.getTime()) ? null : d
+        }
+      } catch {}
+      return null
+    }
+
+    return activities
+      .map((item: any) => {
+        const rawTs = item.created_at ?? item.timestamp ?? item.date ?? item.createdAt
+        const ts = toValidDate(rawTs)
+        if (!ts) return null
+        const ai: ActivityItem = {
+          id: String(item.id ?? `${item.type ?? 'activity'}-${Math.random().toString(36).slice(2)}`),
+          type: (item.type ?? 'treatment') as ActivityItem['type'],
+          title: item.title ?? item.name ?? 'Activity',
+          description: item.description ?? undefined,
+          amount: item.amount_cents ?? item.amount ?? undefined,
+          timestamp: ts,
+          user: item.user_name ?? item.user ?? undefined
+        }
+        return ai
+      })
+      .filter(Boolean) as ActivityItem[]
   }
 }
 
 // Main hook following Dependency Inversion
 export function useDashboard(options: UseDashboardOptions = {}): DashboardState {
-  const { clinicId, period = 'month' } = options
+  const { clinicId, period = 'month', from, to } = options
   
   const [state, setState] = useState<DashboardState>({
     metrics: {
@@ -155,15 +206,16 @@ export function useDashboard(options: UseDashboardOptions = {}): DashboardState 
       setState(prev => ({ ...prev, loading: true, error: null }))
 
       // Fetch all dashboard data in parallel
+      const range = period === 'custom' && from && to ? `&date_from=${from}&date_to=${to}` : ''
       const results = await fetchAll([
-        { endpoint: `/api/dashboard/revenue?clinicId=${clinicId}&period=${period}` },
-        { endpoint: `/api/dashboard/expenses?clinicId=${clinicId}&period=${period}` },
-        { endpoint: `/api/dashboard/patients?clinicId=${clinicId}` },
-        { endpoint: `/api/dashboard/treatments?clinicId=${clinicId}` },
+        { endpoint: `/api/dashboard/revenue?clinicId=${clinicId}&period=${period}${range}` },
+        { endpoint: `/api/dashboard/expenses?clinicId=${clinicId}&period=${period}${range}` },
+        { endpoint: `/api/dashboard/patients?clinicId=${clinicId}&period=${period}${range}` },
+        { endpoint: `/api/dashboard/treatments?clinicId=${clinicId}&period=${period}${range}` },
         { endpoint: `/api/dashboard/supplies?clinicId=${clinicId}` },
         { endpoint: `/api/dashboard/appointments?clinicId=${clinicId}` },
-        { endpoint: `/api/dashboard/charts/revenue?clinicId=${clinicId}` },
-        { endpoint: `/api/dashboard/charts/categories?clinicId=${clinicId}` },
+        { endpoint: `/api/dashboard/charts/revenue?clinicId=${clinicId}&period=${period}${range}` },
+        { endpoint: `/api/dashboard/charts/categories?clinicId=${clinicId}&period=${period}${range}` },
         { endpoint: `/api/dashboard/charts/services?clinicId=${clinicId}` },
         { endpoint: `/api/dashboard/activities?clinicId=${clinicId}&limit=10` }
       ])
@@ -186,12 +238,60 @@ export function useDashboard(options: UseDashboardOptions = {}): DashboardState 
         metrics.patients.total - metrics.patients.new
       )
 
+      // Fallbacks when backend endpoints are not available or return base shapes
+      try {
+        // Fallback for Treatments metrics using /api/treatments
+        if (!metrics.treatments || metrics.treatments.total === 0) {
+          const tretRes = await fetch(`/api/treatments?clinicId=${clinicId}`, { credentials: 'include' })
+          if (tretRes.ok) {
+            const js = await tretRes.json()
+            const items = js?.data || js || []
+            const nonCancelled = items.filter((t: any) => t.status !== 'cancelled')
+            const completed = nonCancelled.filter((t: any) => t.status === 'completed')
+            const pending = nonCancelled.filter((t: any) => t.status === 'pending')
+            metrics.treatments = {
+              total: nonCancelled.length,
+              completed: completed.length,
+              pending: pending.length
+            } as any
+            // If revenue.current is 0, compute quick fallback for selected period
+            if (!metrics.revenue || metrics.revenue.current === 0) {
+              const now = new Date()
+              let start = new Date(now)
+              let end = new Date(now)
+              if (period === 'custom' && from && to) {
+                start = new Date(from)
+                end = new Date(to)
+                end.setHours(23,59,59,999)
+              } else if (period === 'today') {
+                start.setHours(0, 0, 0, 0)
+              } else if (period === 'week') {
+                start.setDate(now.getDate() - 7)
+              } else if (period === 'month') {
+                start = new Date(now.getFullYear(), now.getMonth(), 1)
+              } else if (period === 'year') {
+                start = new Date(now.getFullYear(), 0, 1)
+              }
+              const inRange = completed.filter((t: any) => {
+                const dt = new Date(t.created_at || t.treatment_date)
+                return dt >= start && dt <= end
+              })
+              const total = inRange.reduce((sum: number, t: any) => sum + (t.price_cents || 0), 0)
+              metrics.revenue = metrics.revenue || { current: 0, previous: 0, change: 0 }
+              metrics.revenue.current = total
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[Dashboard] fallback metrics calc failed', e)
+      }
+
       // Process chart data
       const chartData = results.slice(6, 9)
       const charts = DashboardAggregator.processChartData(chartData)
 
       // Process activities
-      const activities = DashboardAggregator.processActivities(results[9]?.data)
+      const activities = DashboardAggregator.processActivities(results[9]?.data || results[9])
 
       setState({
         metrics,

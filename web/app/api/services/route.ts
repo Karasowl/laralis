@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
 import { getClinicIdOrDefault } from '@/lib/clinic';
-import { createSupabaseClient } from '@/lib/supabase';
+// import { createSupabaseClient } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
         )
       `)
       .eq('clinic_id', clinicId)
-      .eq('active', true)
+      .eq('is_active', true)
       .order('name', { ascending: true });
 
     // Apply search filter
@@ -91,15 +91,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     const cookieStore = cookies();
-    const supabase = createSupabaseClient(cookieStore);
-    
-    // ✅ Validar usuario autenticado
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const clinicId = body.clinic_id || cookieStore.get('clinicId')?.value;
+    // Use clinic context without requiring explicit auth here (wizard flow)
+    const clinicId = body.clinic_id || await getClinicIdOrDefault(cookieStore);
 
     if (!clinicId) {
       return NextResponse.json(
@@ -145,7 +138,7 @@ export async function POST(request: NextRequest) {
         est_minutes,
         description: description || null,
         price_cents: price_cents,
-        active: true
+        is_active: true
       })
       .select()
       .single();

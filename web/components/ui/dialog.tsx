@@ -32,7 +32,19 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+>(({ className, children, ...props }, ref) => {
+  const openedAtRef = React.useRef<number>(0)
+  React.useEffect(() => { openedAtRef.current = Date.now() }, [])
+
+  const guardOutside = (e: any) => {
+    const elapsed = Date.now() - openedAtRef.current
+    const originalTarget: HTMLElement | null = (e?.detail?.originalEvent?.target as HTMLElement) || (e?.target as HTMLElement) || null
+    const allowOutside = originalTarget?.closest?.('[data-allow-interact-outside]')
+    if (allowOutside) { e.preventDefault?.(); return }
+    if (elapsed < 250) { e.preventDefault?.() }
+  }
+
+  return (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
@@ -43,11 +55,12 @@ const DialogContent = React.forwardRef<
       )}
       // Manage focus gently to avoid scroll jumps; let caller set initial focus
       tabIndex={-1}
-      onOpenAutoFocus={(e) => {
-        e.preventDefault()
-        try { (ref as any)?.current?.focus?.({ preventScroll: true }) } catch {}
-      }}
+      // Deja que Radix gestione el enfoque al abrir para evitar el warning
+      // "Blocked aria-hidden on an element because its descendant retained focus".
+      // Mantén closeAutoFocus para evitar saltos de scroll al cerrar.
       onCloseAutoFocus={(e) => e.preventDefault()}
+      onPointerDownOutside={guardOutside}
+      onInteractOutside={guardOutside}
       // Allow interactions (e.g., nested popovers) without closing parents
       data-allow-interact-outside
       {...props}
@@ -59,7 +72,8 @@ const DialogContent = React.forwardRef<
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
   </DialogPortal>
-))
+  )
+})
 DialogContent.displayName = DialogPrimitive.Content.displayName
 
 const DialogHeader = ({

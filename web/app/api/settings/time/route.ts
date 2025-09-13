@@ -10,12 +10,6 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
   try {
     const cookieStore = cookies();
     const supabase = createSupabaseClient(cookieStore);
-    
-    // ✅ Validar usuario autenticado
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const searchParams = request.nextUrl.searchParams;
     const clinicId = searchParams.get('clinicId') || await getClinicIdOrDefault(cookieStore);
@@ -64,12 +58,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
 
     const cookieStore = cookies();
     const supabase = createSupabaseClient(cookieStore);
-    
-    // ✅ Validar usuario autenticado
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const clinicId = body.clinic_id || await getClinicIdOrDefault(cookieStore);
 

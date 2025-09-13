@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 // import { useModalCleanup } from '@/hooks/use-modal-cleanup'
 import { SimpleCrudPage } from '@/components/ui/crud-page-layout'
 import { FormModal } from '@/components/ui/form-modal'
-import { ResponsiveModal } from '@/components/ui/responsive-modal'
+// import { ResponsiveModal } from '@/components/ui/responsive-modal'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ActionDropdown, createEditAction, createDeleteAction } from '@/components/ui/ActionDropdown'
@@ -501,37 +501,29 @@ export default function PatientsPage() {
       searchable={true}
     >
       {/* Create Modal (Responsive) */}
-      <ResponsiveModal
+      <FormModal
         open={createOpen}
         onOpenChange={(open) => {
           if (open !== createOpen) setCreateOpen(open)
           if (!open) form.reset(initialValues)
         }}
+        modal={true}
         title={t('create_patient')}
         description={t('formDescription')}
+        onSubmit={form.handleSubmit(handleCreate)}
+        cancelLabel={tCommon('cancel')}
+        submitLabel={tCommon('save')}
+        maxWidth="2xl"
       >
-        <form
-          onSubmit={form.handleSubmit(handleCreate)}
-          className="space-y-4"
-        >
-          <PatientFormUnified
-            form={form}
-            campaigns={campaigns}
-            platforms={platforms}
-            patients={patients}
-            t={t}
-            onCreateCampaign={handleCreateCampaign}
-          />
-          <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
-              {tCommon('cancel')}
-            </Button>
-            <Button type="submit">
-              {tCommon('save')}
-            </Button>
-          </div>
-        </form>
-      </ResponsiveModal>
+        <PatientFormUnified
+          form={form}
+          campaigns={campaigns}
+          platforms={platforms}
+          patients={patients}
+          t={t}
+          onCreateCampaign={handleCreateCampaign}
+        />
+      </FormModal>
 
       {/* Edit Modal */}
       <FormModal

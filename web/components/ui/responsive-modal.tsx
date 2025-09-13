@@ -47,7 +47,17 @@ export function ResponsiveModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} modal={true}>
-      <DialogContent className={cn('max-w-2xl', className)}>
+      <DialogContent
+        className={cn(
+          // Keep width reasonable on desktop
+          'max-w-2xl',
+          // Ensure the modal fits viewport height and scrolls when content overflows
+          'max-h-[90vh] sm:max-h-[85vh] overflow-y-auto',
+          // Add some bottom padding to avoid controls hitting screen edges on mobile
+          'pb-4',
+          className
+        )}
+      >
         {(title || description) && (
           <DialogHeader>
             {title && <DialogTitle>{title}</DialogTitle>}

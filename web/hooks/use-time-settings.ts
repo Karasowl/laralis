@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useApi } from '@/hooks/use-api'
 import { useCrudOperations } from '@/hooks/use-crud-operations'
-import { calculateTimeCosts } from '@/lib/calc/tiempo'
+// Local simple calc to avoid coupling and ensure hours are shown even if costs=0
 import { toast } from 'sonner'
 import { useTranslations } from 'next-intl'
 
@@ -37,11 +37,8 @@ export function useTimeSettings(options: UseTimeSettingsOptions = {}) {
   const { clinicId, autoLoad = true } = options
   const t = useTranslations()
   
-  const [settings, setSettings] = useState<TimeSettings>({
-    work_days: 20,
-    hours_per_day: 7,
-    real_pct: 80
-  })
+  const [settings, setSettings] = useState<TimeSettings>({ work_days: 0, hours_per_day: 0, real_pct: 0 })
+  const [hasRecord, setHasRecord] = useState(false)
   
   // Use API hooks for fetching related data
   const settingsApi = useApi<{ data: TimeSettings }>(
@@ -72,39 +69,31 @@ export function useTimeSettings(options: UseTimeSettingsOptions = {}) {
   
   // Calculate time metrics using memoization
   const calculations = useMemo((): TimeCalculations => {
-    if (!settings || totalFixedCosts === 0) {
-      return {
-        hoursMonth: 0,
-        hoursYear: 0,
-        minutesMonth: 0,
-        minutesYear: 0,
-        realHoursMonth: 0,
-        realHoursYear: 0,
-        realMinutesMonth: 0,
-        realMinutesYear: 0,
-        fixedCostPerMinuteCents: 0,
-        fixedCostPerHourCents: 0
-      }
-    }
-    
-    const result = calculateTimeCosts(
-      totalFixedCosts,
-      settings.work_days,
-      settings.hours_per_day,
-      settings.real_pct / 100 // Convert percentage to decimal
-    )
-    
+    const hoursMonth = (settings.work_days || 0) * (settings.hours_per_day || 0)
+    const hoursYear = hoursMonth * 12
+    const minutesMonth = hoursMonth * 60
+    const minutesYear = hoursYear * 60
+    const realPctDec = Math.max(0, Math.min(1, (settings.real_pct || 0) / 100))
+    const realHoursMonth = Math.round(hoursMonth * realPctDec)
+    const realHoursYear = Math.round(hoursYear * realPctDec)
+    const realMinutesMonth = realHoursMonth * 60
+    const realMinutesYear = realHoursYear * 60
+
+    const fixedCostPerMinuteCents = minutesMonth > 0 && realPctDec > 0 && totalFixedCosts > 0
+      ? Math.round(totalFixedCosts / (minutesMonth * realPctDec))
+      : 0
+
     return {
-      hoursMonth: result.horasTrabajoMes,
-      hoursYear: result.horasTrabajoAno,
-      minutesMonth: result.minutosTrabajoMes,
-      minutesYear: result.minutosTrabajoAno,
-      realHoursMonth: result.horasProductivasMes,
-      realHoursYear: result.horasProductivasAno,
-      realMinutesMonth: result.minutosProductivosMes,
-      realMinutesYear: result.minutosProductivosAno,
-      fixedCostPerMinuteCents: result.costoFijoPorMinuto,
-      fixedCostPerHourCents: result.costoFijoPorMinuto * 60
+      hoursMonth,
+      hoursYear,
+      minutesMonth,
+      minutesYear,
+      realHoursMonth,
+      realHoursYear,
+      realMinutesMonth,
+      realMinutesYear,
+      fixedCostPerMinuteCents,
+      fixedCostPerHourCents: fixedCostPerMinuteCents * 60
     }
   }, [settings, totalFixedCosts])
   
@@ -112,11 +101,15 @@ export function useTimeSettings(options: UseTimeSettingsOptions = {}) {
   useEffect(() => {
     if (settingsApi.data?.data) {
       const apiSettings = settingsApi.data.data
+      try { console.log('[useTimeSettings] loaded from API', apiSettings) } catch {}
       setSettings({
         work_days: apiSettings.work_days,
         hours_per_day: apiSettings.hours_per_day,
-        real_pct: Math.round((apiSettings.real_pct || 0.8) * 100)
+        real_pct: Math.round((apiSettings.real_pct || 0) * 100)
       })
+      setHasRecord(true)
+    } else {
+      setHasRecord(false)
     }
   }, [settingsApi.data])
   
@@ -181,6 +174,7 @@ export function useTimeSettings(options: UseTimeSettingsOptions = {}) {
     fixedCosts,
     assetsDepreciation,
     totalFixedCosts,
+    hasRecord,
     
     // State
     loading,

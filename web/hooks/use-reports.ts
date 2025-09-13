@@ -71,8 +71,9 @@ export function useReports(options: UseReportsOptions = {}) {
     })
 
     // Calculate metrics
-    const revenueMonth = monthTreatments.reduce((sum, t) => sum + (t.price_cents || 0), 0)
-    const margins = monthTreatments.map(t => t.margin_pct || 0)
+    const completedMonth = monthTreatments.filter(t => t.status === 'completed')
+    const revenueMonth = completedMonth.reduce((sum, t) => sum + (t.price_cents || 0), 0)
+    const margins = completedMonth.map(t => t.margin_pct || 0)
     const averageMargin = margins.length > 0 
       ? margins.reduce((a, b) => a + b, 0) / margins.length
       : 0

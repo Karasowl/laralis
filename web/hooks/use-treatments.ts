@@ -78,11 +78,14 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
   // Calculate summary statistics using memoization
   const summary = useMemo(() => {
     const treatments = crud.items || []
-    const totalRevenue = treatments.reduce((sum, t) => sum + t.price_cents, 0)
-    const totalTreatments = treatments.length
-    const completedTreatments = treatments.filter(t => t.status === 'completed').length
-    const pendingTreatments = treatments.filter(t => t.status === 'pending').length
-    const averagePrice = totalTreatments > 0 ? totalRevenue / totalTreatments : 0
+    const nonCancelled = treatments.filter(t => t.status !== 'cancelled')
+    const completed = nonCancelled.filter(t => t.status === 'completed')
+
+    const totalRevenue = completed.reduce((sum, t) => sum + (t.price_cents || 0), 0)
+    const totalTreatments = nonCancelled.length // Excluye cancelados
+    const completedTreatments = completed.length
+    const pendingTreatments = nonCancelled.filter(t => t.status === 'pending').length
+    const averagePrice = completedTreatments > 0 ? totalRevenue / completedTreatments : 0
 
     return {
       totalRevenue,
@@ -105,22 +108,23 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
 
   // Enhanced create with snapshot logic
   const createTreatment = useCallback(async (data: any): Promise<boolean> => {
-    // Get current time settings if not loaded
+    // Ensure we have time settings
     if (!timeSettingsApi.data) {
       await timeSettingsApi.get()
     }
-    
-    const services = servicesApi.data || []
-    const selectedService = services.find(s => s.id === data.service_id)
-    
+    const fpm = Number((timeSettingsApi.data as any)?.data?.fixed_per_minute_cents || 0)
+
+    // Try to find service; if not present (e.g., created just now), refresh once
+    let selectedService = (servicesApi.data || []).find(s => s.id === data.service_id)
     if (!selectedService) {
-      return false
+      await servicesApi.get()
+      selectedService = (servicesApi.data || []).find(s => s.id === data.service_id)
     }
 
-    // Calculate snapshot costs
+    // Calculate snapshot costs with graceful fallback
     const fixedPerMinuteCents = timeSettingsApi.data?.data?.fixed_per_minute_cents || 0
-    const variableCost = selectedService.variable_cost_cents || 0
-    const fixedCost = fixedPerMinuteCents * data.minutes
+    const variableCost = selectedService?.variable_cost_cents || 0
+    const fixedCost = (Number(fpm) || 0) * data.minutes
     const totalCost = fixedCost + variableCost
     const price = Math.round(totalCost * (1 + data.margin_pct / 100))
 
@@ -141,7 +145,7 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
     }
 
     return await crud.handleCreate(treatmentData)
-  }, [crud, servicesApi.data, timeSettingsApi])
+  }, [crud, servicesApi, timeSettingsApi])
 
   // Enhanced update with snapshot preservation
   const updateTreatment = useCallback(async (
@@ -195,6 +199,7 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
     // From CRUD operations
     treatments: crud.items,
     loading: crud.loading || patientsApi.loading || servicesApi.loading,
+    isSubmitting: crud.isSubmitting,
     error: null,
     
     // Related data

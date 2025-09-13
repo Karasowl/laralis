@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useForm } from 'react-hook-form'
@@ -21,6 +21,7 @@ import { useTreatments } from '@/hooks/use-treatments'
 import { formatCurrency } from '@/lib/money'
 import { formatDate } from '@/lib/format'
 import { Calendar, User, DollarSign, FileText, Activity, Clock, Plus } from 'lucide-react'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 // Treatment form schema
 const treatmentFormSchema = z.object({
@@ -52,11 +53,17 @@ export default function TreatmentsPage() {
     patients,
     services,
     loading,
+    isSubmitting,
     summary,
     createTreatment,
     updateTreatment,
-    deleteTreatment
+    deleteTreatment,
+    loadRelatedData
   } = useTreatments({ clinicId: currentClinic?.id, patientId: patientFilter || undefined })
+
+  // Keep a ref of services to use immediately after refresh
+  const servicesRef = useRef(services as any[])
+  useEffect(() => { servicesRef.current = services as any[] }, [services])
 
   const filteredPatient = (patients || []).find(p => p.id === patientFilter)
   const filteredCount = (treatments || []).length
@@ -110,10 +117,24 @@ export default function TreatmentsPage() {
 
   // Handle service change to update estimated minutes
   const handleServiceChange = (serviceId: string) => {
-    form.setValue('service_id', serviceId)
+    form.setValue('service_id', serviceId, { shouldDirty: true, shouldTouch: true, shouldValidate: true })
     const service = services.find(s => s.id === serviceId)
     if (service && service.est_minutes) {
-      form.setValue('minutes', service.est_minutes)
+      form.setValue('minutes', service.est_minutes, { shouldDirty: true })
+    }
+  }
+
+  // When a new service is created from the wizard, refresh lists and set defaults
+  const handleServiceCreated = async (opt: { value: string; label: string }) => {
+    try {
+      await loadRelatedData()
+    } catch {}
+    // Select the new service and set minutes if available
+    form.setValue('service_id', opt.value)
+    const svcList = (servicesRef as any).current || services
+    const svc = svcList.find((s: any) => s.id === opt.value)
+    if (svc?.est_minutes) {
+      form.setValue('minutes', svc.est_minutes)
     }
   }
 
@@ -132,8 +153,8 @@ export default function TreatmentsPage() {
     {
       key: 'patient',
       label: t('treatments.fields.patient'),
-      render: (treatment: any) => {
-        const patient = patients.find(p => p.id === treatment.patient_id)
+      render: (_value: any, treatment: any) => {
+        const patient = patients.find(p => p.id === treatment?.patient_id)
         return (
           <div className="flex items-center gap-2">
             <User className="h-4 w-4 text-muted-foreground" />
@@ -145,62 +166,59 @@ export default function TreatmentsPage() {
     {
       key: 'service',
       label: t('treatments.fields.service'),
-      render: (treatment: any) => {
-        const service = services.find(s => s.id === treatment.service_id)
+      render: (_value: any, treatment: any) => {
+        const service = services.find(s => s.id === treatment?.service_id)
         return service?.name || t('common.notAvailable')
       }
     },
     {
-      key: 'duration',
+      key: 'minutes',
       label: t('treatments.fields.duration'),
-      render: (treatment: any) => (
+      render: (value: any) => (
         <div className="flex items-center gap-2">
           <Clock className="h-4 w-4 text-muted-foreground" />
-          {treatment.minutes} {t('common.minutes')}
+          {value ?? 0} {t('common.minutes')}
         </div>
       )
     },
     {
       key: 'price',
       label: t('treatments.fields.price'),
-      render: (treatment: any) => (
+      render: (_value: any, treatment: any) => (
         <div className="text-right font-semibold">
-          {formatCurrency(treatment.price_cents)}
+          {formatCurrency(treatment?.price_cents || 0)}
         </div>
       )
     },
     {
       key: 'status',
       label: t('treatments.fields.status'),
-      render: (treatment: any) => {
-        const statusColors: Record<string, string> = {
-          pending: 'warning',
-          completed: 'success',
-          cancelled: 'destructive'
-        }
-        return (
-          <Badge variant={statusColors[treatment.status] as any}>
-            {t(`treatments.status.${treatment.status}`)}
-          </Badge>
-        )
-      }
+      render: (_value: any, treatment: any) => (
+        <InlineStatusMenu
+          value={treatment?.status || 'pending'}
+          onChange={async (next) => {
+            await updateTreatment(treatment.id, { status: next }, treatment)
+          }}
+          t={t}
+        />
+      )
     },
     {
       key: 'actions',
       label: t('common.actions'),
-      render: (treatment: any) => (
+      render: (_value: any, treatment: any) => (
         <div className="md:flex md:justify-end">
           <ActionDropdown
             actions={[
             createEditAction(() => {
               form.reset({
-                patient_id: treatment.patient_id,
-                service_id: treatment.service_id,
-                treatment_date: treatment.treatment_date,
-                minutes: treatment.minutes,
-                margin_pct: treatment.margin_pct,
-                status: treatment.status,
-                notes: treatment.notes || '',
+                patient_id: treatment?.patient_id || '',
+                service_id: treatment?.service_id || '',
+                treatment_date: treatment?.treatment_date || new Date().toISOString().split('T')[0],
+                minutes: treatment?.minutes ?? 30,
+                margin_pct: treatment?.margin_pct ?? 60,
+                status: treatment?.status || 'pending',
+                notes: treatment?.notes || '',
               })
               setEditTreatment(treatment)
             }, tCommon('edit')),
@@ -311,7 +329,7 @@ export default function TreatmentsPage() {
         {filteredPatient && (
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-lg bg-muted/40">
             <div className="text-sm">
-              <span className="block sm:inline">Mostrando tratamientos de</span>
+              <span className="block sm:inline">{t('treatments.showingTreatmentsFor')}</span>
               <span className="font-semibold"> {filteredPatient.first_name} {filteredPatient.last_name}</span>
               <span className="text-muted-foreground"> — {filteredCount}</span>
             </div>
@@ -321,16 +339,16 @@ export default function TreatmentsPage() {
                 onClick={() => window.location.assign(`/patients?view_id=${filteredPatient.id}`)}
                 className="flex-1 sm:flex-none text-xs sm:text-sm"
               >
-                <span className="hidden sm:inline">Ver Paciente</span>
-                <span className="sm:hidden">Paciente</span>
+                <span className="hidden sm:inline">{t('treatments.viewPatient')}</span>
+                <span className="sm:hidden">{t('patients.patient')}</span>
               </Button>
               <Button 
                 variant="outline" 
                 onClick={() => window.location.assign('/treatments')}
                 className="flex-1 sm:flex-none text-xs sm:text-sm"
               >
-                <span className="hidden sm:inline">Quitar filtro</span>
-                <span className="sm:hidden">Quitar</span>
+                <span className="hidden sm:inline">{t('treatments.removeFilter')}</span>
+                <span className="sm:hidden">{t('common.remove')}</span>
               </Button>
             </div>
           </div>
@@ -389,8 +407,9 @@ export default function TreatmentsPage() {
           onOpenChange={(open) => { setCreateOpen(open); if (!open) form.reset(treatmentInitialValues) }}
           title={t('treatments.newTreatment')}
           onSubmit={form.handleSubmit(handleCreate)}
+          isSubmitting={isSubmitting}
           maxWidth="2xl"
-          modal={false}
+          modal={true}
         >
           <TreatmentForm 
             form={form} 
@@ -400,6 +419,7 @@ export default function TreatmentsPage() {
             onServiceChange={handleServiceChange}
             onCreatePatient={handleCreatePatient}
             onCreateService={handleCreateService}
+            onServiceCreated={handleServiceCreated}
             t={t}
           />
         </FormModal>
@@ -410,8 +430,9 @@ export default function TreatmentsPage() {
           onOpenChange={(open) => !open && setEditTreatment(null)}
           title={t('treatments.editTreatment')}
           onSubmit={form.handleSubmit(handleEdit)}
+          isSubmitting={isSubmitting}
           maxWidth="2xl"
-          modal={false}
+          modal={true}
         >
           <TreatmentForm 
             form={form} 
@@ -421,6 +442,7 @@ export default function TreatmentsPage() {
             onServiceChange={handleServiceChange}
             onCreatePatient={handleCreatePatient}
             onCreateService={handleCreateService}
+            onServiceCreated={handleServiceCreated}
             t={t}
           />
         </FormModal>
@@ -436,5 +458,36 @@ export default function TreatmentsPage() {
         />
       </div>
     </AppLayout>
+  )
+}
+
+function InlineStatusMenu({ value, onChange, t }: { value: 'pending' | 'completed' | 'cancelled'; onChange: (v: 'pending' | 'completed' | 'cancelled') => void | Promise<void>; t: any }) {
+  const statusColors: Record<string, any> = {
+    pending: 'warning',
+    completed: 'success',
+    cancelled: 'destructive'
+  }
+  const items: Array<{ v: 'pending' | 'completed' | 'cancelled' }> = [
+    { v: 'pending' },
+    { v: 'completed' },
+    { v: 'cancelled' }
+  ]
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="inline-flex items-center">
+          <Badge variant={statusColors[value] as any} className="cursor-pointer">
+            {t(`treatments.status.${value}`)}
+          </Badge>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        {items.map(it => (
+          <DropdownMenuItem key={it.v} onSelect={() => onChange(it.v)}>
+            {t(`treatments.status.${it.v}`)}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }

@@ -43,6 +43,7 @@ export default function TimeSettingsPage() {
     fixedCosts,
     assetsDepreciation,
     totalFixedCosts,
+    hasRecord,
     loading,
     error,
     updateSettings,
@@ -130,7 +131,7 @@ export default function TimeSettingsPage() {
           <TimeMetricCard
             icon={Calendar}
             title={t('work_days')}
-            value={settings.work_days}
+            value={hasRecord ? settings.work_days : '—'}
             subtitle={t('per_month')}
             variant="primary"
           />
@@ -138,7 +139,7 @@ export default function TimeSettingsPage() {
           <TimeMetricCard
             icon={Clock}
             title={t('hours_per_day')}
-            value={settings.hours_per_day}
+            value={hasRecord ? settings.hours_per_day : '—'}
             subtitle={t('scheduled')}
             variant="primary"
           />
@@ -146,7 +147,7 @@ export default function TimeSettingsPage() {
           <TimeMetricCard
             icon={TrendingUp}
             title={t('productivity')}
-            value={`${settings.real_pct}%`}
+            value={hasRecord ? `${settings.real_pct}%` : '—'}
             subtitle={t('real_time')}
             variant="success"
           />
@@ -162,22 +163,22 @@ export default function TimeSettingsPage() {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">{t('hours_month')}</p>
-                <p className="text-2xl font-bold">{calculations.hoursMonth}</p>
+                <p className="text-2xl font-bold">{hasRecord ? calculations.hoursMonth : '—'}</p>
               </div>
               
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">{t('hours_year')}</p>
-                <p className="text-2xl font-bold">{calculations.hoursYear}</p>
+                <p className="text-2xl font-bold">{hasRecord ? calculations.hoursYear : '—'}</p>
               </div>
               
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">{t('productive_hours_month')}</p>
-                <p className="text-2xl font-bold text-green-600">{calculations.realHoursMonth}</p>
+                <p className="text-2xl font-bold text-green-600">{hasRecord ? calculations.realHoursMonth : '—'}</p>
               </div>
               
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">{t('productive_hours_year')}</p>
-                <p className="text-2xl font-bold text-green-600">{calculations.realHoursYear}</p>
+                <p className="text-2xl font-bold text-green-600">{hasRecord ? calculations.realHoursYear : '—'}</p>
               </div>
             </div>
           </CardContent>
@@ -203,9 +204,7 @@ export default function TimeSettingsPage() {
                     <p className="text-sm font-medium">{t('cost_per_minute')}</p>
                     <p className="text-xs text-muted-foreground">{t('productive_minute')}</p>
                   </div>
-                  <p className="text-2xl font-bold text-blue-600">
-                    {formatCurrency(calculations.fixedCostPerMinuteCents)}
-                  </p>
+                  <p className="text-2xl font-bold text-blue-600">{hasRecord ? formatCurrency(calculations.fixedCostPerMinuteCents) : '—'}</p>
                 </div>
               </div>
               
@@ -215,9 +214,7 @@ export default function TimeSettingsPage() {
                     <p className="text-sm font-medium">{t('cost_per_hour')}</p>
                     <p className="text-xs text-muted-foreground">{t('productive_hour')}</p>
                   </div>
-                  <p className="text-2xl font-bold text-green-600">
-                    {formatCurrency(calculations.fixedCostPerHourCents)}
-                  </p>
+                  <p className="text-2xl font-bold text-green-600">{hasRecord ? formatCurrency(calculations.fixedCostPerHourCents) : '—'}</p>
                 </div>
               </div>
 

@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { MetricCard } from '@/components/dashboard/MetricCard'
@@ -145,10 +145,17 @@ export default function DashboardPage() {
   const router = useRouter()
   const { currentClinic, workspace, loading: workspaceLoading } = useWorkspace()
   
+  // Filters
+  const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'year' | 'custom'>('month')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+
   // Dashboard data
   const { metrics, charts, activities, loading, error } = useDashboard({
     clinicId: currentClinic?.id,
-    period: 'month'
+    period,
+    from: period === 'custom' ? dateFrom : undefined,
+    to: period === 'custom' ? dateTo : undefined
   })
 
   // Redirect if no workspace
@@ -159,52 +166,12 @@ export default function DashboardPage() {
   }, [workspace, workspaceLoading, router])
 
   // Mock data for charts (replace with actual data from API)
-  const revenueData = charts.revenue.length > 0 ? charts.revenue : [
-    { month: 'Ene', revenue: 45000, expenses: 32000 },
-    { month: 'Feb', revenue: 52000, expenses: 35000 },
-    { month: 'Mar', revenue: 48000, expenses: 33000 },
-    { month: 'Abr', revenue: 61000, expenses: 38000 },
-    { month: 'May', revenue: 58000, expenses: 36000 },
-    { month: 'Jun', revenue: 65000, expenses: 40000 }
-  ]
+  const revenueData = charts.revenue
 
-  const categoryData = charts.categories.length > 0 ? charts.categories : [
-    { name: 'Ortodoncia', value: 350 },
-    { name: 'Limpieza', value: 280 },
-    { name: 'Endodoncia', value: 180 },
-    { name: 'Cirugía', value: 120 },
-    { name: 'Otros', value: 70 }
-  ]
+  const categoryData = charts.categories
 
-  // Mock activities (replace with actual data)
-  const recentActivities = activities.length > 0 ? activities : [
-    {
-      id: '1',
-      type: 'treatment' as const,
-      title: 'Tratamiento completado',
-      description: 'Limpieza dental - Juan Pérez',
-      amount: 85000,
-      timestamp: new Date(Date.now() - 1000 * 60 * 30),
-      user: 'Dr. García'
-    },
-    {
-      id: '2',
-      type: 'patient' as const,
-      title: 'Nuevo paciente',
-      description: 'María López',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
-      user: 'Recepción'
-    },
-    {
-      id: '3',
-      type: 'expense' as const,
-      title: 'Gasto registrado',
-      description: 'Compra de insumos',
-      amount: 45000,
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5),
-      user: 'Admin'
-    }
-  ]
+  // Real recent activities (no mocks)
+  const recentActivities = activities
 
   const handleRefresh = () => {
     window.location.reload()
@@ -253,10 +220,30 @@ export default function DashboardPage() {
           title={t('title')}
           subtitle={t('subtitle', { clinic: currentClinic?.name || '' })}
           actions={
-            <Button onClick={handleRefresh} variant="outline">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              {t('refresh')}
-            </Button>
+            <div className="flex items-center gap-2">
+              <select
+                className="h-9 rounded-md border px-2 text-sm"
+                value={period}
+                onChange={(e) => setPeriod(e.target.value as any)}
+                aria-label="Periodo"
+              >
+                <option value="day">{t('today')}</option>
+                <option value="week">{t('this_week')}</option>
+                <option value="month">{t('this_month')}</option>
+                <option value="year">{t('this_year')}</option>
+                <option value="custom">{t('custom')}</option>
+              </select>
+              {period === 'custom' && (
+                <>
+                  <input type="date" className="h-9 rounded-md border px-2 text-sm" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+                  <input type="date" className="h-9 rounded-md border px-2 text-sm" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+                </>
+              )}
+              <Button onClick={handleRefresh} variant="outline">
+                <RefreshCw className="h-4 w-4 mr-2" />
+                {t('refresh')}
+              </Button>
+            </div>
           }
         />
 

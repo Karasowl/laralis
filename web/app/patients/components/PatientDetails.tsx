@@ -29,11 +29,11 @@ export function PatientDetails({ patient, t, stats }: PatientDetailsProps) {
       {/* Quick stats */}
       <div className="grid grid-cols-2 gap-4">
         <div className="rounded-md bg-muted/40 p-3 text-center">
-          <div className="text-xs text-muted-foreground">Tratamientos</div>
+          <div className="text-xs text-muted-foreground">{t('treatments.title')}</div>
           <div className="text-lg font-semibold">{stats?.treatments ?? 0}</div>
         </div>
         <div className="rounded-md bg-muted/40 p-3 text-center">
-          <div className="text-xs text-muted-foreground">Gastado</div>
+          <div className="text-xs text-muted-foreground">{t('patients.totalSpent')}</div>
           <div className="text-lg font-semibold">{formatCurrency(stats?.spent_cents ?? 0)}</div>
         </div>
       </div>
@@ -42,7 +42,7 @@ export function PatientDetails({ patient, t, stats }: PatientDetailsProps) {
       <div className="flex justify-end">
         <Button variant="outline" asChild>
           <Link href={`/treatments?patient_id=${patient.id}`}>
-            Ver Tratamientos
+            {t('treatments.viewTreatments')}
           </Link>
         </Button>
       </div>

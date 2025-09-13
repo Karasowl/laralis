@@ -10,6 +10,7 @@ interface TimeSettingsFormProps {
 
 export function TimeSettingsForm({ form }: TimeSettingsFormProps) {
   const t = useTranslations('time')
+  const v = useTranslations('validation')
   
   return (
     <Form {...form}>
@@ -20,7 +21,7 @@ export function TimeSettingsForm({ form }: TimeSettingsFormProps) {
             label={t('work_days_per_month')}
             value={form.watch('work_days')}
             onChange={(value) => form.setValue('work_days', parseInt(value as string))}
-            placeholder="20"
+            placeholder={v('placeholders.defaultDays20')}
             min={1}
             max={31}
             error={form.formState.errors.work_days?.message}
@@ -31,7 +32,7 @@ export function TimeSettingsForm({ form }: TimeSettingsFormProps) {
             label={t('hours_per_day')}
             value={form.watch('hours_per_day')}
             onChange={(value) => form.setValue('hours_per_day', parseInt(value as string))}
-            placeholder="7"
+            placeholder={v('placeholders.defaultHours7')}
             min={1}
             max={24}
             error={form.formState.errors.hours_per_day?.message}
@@ -42,7 +43,7 @@ export function TimeSettingsForm({ form }: TimeSettingsFormProps) {
             label={t('productivity_percentage')}
             value={form.watch('real_pct')}
             onChange={(value) => form.setValue('real_pct', parseInt(value as string))}
-            placeholder="80"
+            placeholder={v('placeholders.defaultPercentage80')}
             min={1}
             max={100}
             error={form.formState.errors.real_pct?.message}
