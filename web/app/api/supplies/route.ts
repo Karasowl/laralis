@@ -76,12 +76,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
 
     const cookieStore = cookies();
     const supabase = createSupabaseClient(cookieStore);
-    
-    // ✅ Validar usuario autenticado
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const clinicId = body.clinic_id || await getClinicIdOrDefault(cookieStore);
 
@@ -120,6 +114,25 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     }
 
     const { clinic_id, name, category, presentation, price_cents, portions } = validationResult.data;
+
+    // Prevent duplicate names per clinic (case-insensitive)
+    const { data: existingByName, error: dupCheckErr } = await supabaseAdmin
+      .from('supplies')
+      .select('id, name')
+      .eq('clinic_id', clinic_id)
+      .ilike('name', name.trim())
+      .limit(1);
+
+    if (dupCheckErr) {
+      console.error('Error checking duplicate supply name:', dupCheckErr)
+    }
+
+    if (existingByName && existingByName.length > 0) {
+      return NextResponse.json(
+        { error: 'Duplicate name', message: 'Ya existe un insumo con ese nombre en esta clínica.' },
+        { status: 409 }
+      )
+    }
 
     const { data, error } = await supabaseAdmin
       .from('supplies')

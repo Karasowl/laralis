@@ -1,65 +1,62 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
 export async function GET(request: NextRequest) {
   try {
-    const cookieStore = await cookies()
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
-    
-    const searchParams = request.nextUrl.searchParams
-    const clinicId = searchParams.get('clinicId')
-    
-    if (!clinicId) {
-      return NextResponse.json({ error: 'Clinic ID required' }, { status: 400 })
+    const sp = request.nextUrl.searchParams
+    const clinicId = sp.get('clinicId')
+    const period = sp.get('period') || 'month'
+    const dateFrom = sp.get('date_from')
+    const dateTo = sp.get('date_to')
+
+    if (!clinicId) return NextResponse.json({ error: 'Clinic ID required' }, { status: 400 })
+
+    const now = new Date()
+    let start: Date
+    let end: Date
+    if (period === 'custom' && dateFrom && dateTo) {
+      start = new Date(dateFrom)
+      end = new Date(dateTo)
+      end.setHours(23, 59, 59, 999)
+    } else {
+      start = new Date(now.getFullYear(), now.getMonth(), 1)
+      end = new Date(now)
     }
 
-    // Get expenses by category
-    const { data: expenses, error } = await supabase
-      .from('expenses')
-      .select('category, amount_cents')
+    // Fetch completed treatments within period
+    const { data: treatments, error: tErr } = await supabaseAdmin
+      .from('treatments')
+      .select('price_cents, created_at, status, service_id')
       .eq('clinic_id', clinicId)
+      .eq('status', 'completed')
+      .gte('created_at', start.toISOString())
+      .lte('created_at', end.toISOString())
 
-    if (error) throw error
+    if (tErr) throw tErr
 
-    // Group by category
-    const categoryTotals: Record<string, number> = {}
-    expenses?.forEach(expense => {
-      const category = expense.category || 'Otros'
-      categoryTotals[category] = (categoryTotals[category] || 0) + (expense.amount_cents || 0)
-    })
-
-    // If no data, provide mock categories
-    if (Object.keys(categoryTotals).length === 0) {
-      categoryTotals['Insumos'] = 15000
-      categoryTotals['Servicios'] = 8000
-      categoryTotals['Personal'] = 25000
-      categoryTotals['Renta'] = 12000
-      categoryTotals['Otros'] = 5000
+    // Fetch service categories
+    const serviceIds = Array.from(new Set((treatments || []).map(t => t.service_id).filter(Boolean)))
+    let categoriesMap: Record<string, string> = {}
+    if (serviceIds.length > 0) {
+      const { data: services, error: sErr } = await supabaseAdmin
+        .from('services')
+        .select('id, category')
+        .in('id', serviceIds)
+      if (sErr) throw sErr
+      categoriesMap = Object.fromEntries((services || []).map(s => [s.id, s.category || 'Otros']))
     }
 
-    const labels = Object.keys(categoryTotals)
-    const data = Object.values(categoryTotals).map(v => v / 100) // Convert to currency
+    const sums: Record<string, number> = {}
+    for (const t of treatments || []) {
+      const cat = categoriesMap[t.service_id as string] || 'Otros'
+      sums[cat] = (sums[cat] || 0) + Math.round((t.price_cents || 0) / 100)
+    }
 
-    return NextResponse.json({
-      labels,
-      datasets: [{
-        label: 'Gastos por Categoría',
-        data,
-        backgroundColor: [
-          'rgba(255, 99, 132, 0.8)',
-          'rgba(54, 162, 235, 0.8)',
-          'rgba(255, 206, 86, 0.8)',
-          'rgba(75, 192, 192, 0.8)',
-          'rgba(153, 102, 255, 0.8)',
-        ],
-      }]
-    })
-  } catch (error) {
-    console.error('Dashboard categories chart error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch categories chart data' },
-      { status: 500 }
-    )
+    const categories = Object.entries(sums).map(([name, value]) => ({ name, value }))
+    return NextResponse.json({ categories })
+  } catch (err) {
+    console.error('charts/categories error', err)
+    return NextResponse.json({ error: 'Failed to compute category chart' }, { status: 500 })
   }
 }
+

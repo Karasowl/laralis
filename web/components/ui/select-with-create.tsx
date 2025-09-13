@@ -17,7 +17,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { ResponsiveModal } from '@/components/ui/responsive-modal';
+import { FormModal } from '@/components/ui/form-modal';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useTranslations } from 'next-intl';
@@ -47,6 +47,10 @@ interface SelectWithCreateProps {
   createFields?: CreateField[];
   onCreateSubmit?: (data: any) => Promise<SelectOption>;
   entityName?: string;
+  // Optional: use a custom wizard for services
+  createMode?: 'default' | 'serviceWizard';
+  // Notify parent when an option gets created (both modes)
+  onCreatedOption?: (opt: SelectOption) => void;
 }
 
 interface CreateField {
@@ -74,30 +78,57 @@ export function SelectWithCreate({
   createFields = [{ name: 'name', label: 'Name', required: true }],
   onCreateSubmit,
   entityName = 'item',
+  createMode = 'default',
+  onCreatedOption,
 }: SelectWithCreateProps) {
   const t = useTranslations();
   const tCommon = useTranslations('common');
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
   const [createModalOpen, setCreateModalOpen] = React.useState(false);
+  // Force remount of creation content each time the modal opens
+  // This guarantees fresh, empty state for wizards/forms
+  const [createModalKey, setCreateModalKey] = React.useState(0);
   const [creating, setCreating] = React.useState(false);
   const [formData, setFormData] = React.useState<Record<string, any>>({});
+  const [localOptions, setLocalOptions] = React.useState<SelectOption[]>([]);
+  // Internal mirror to show selection immediately, even if parent updates async
+  const [internalValue, setInternalValue] = React.useState<string>(value || '');
+  const [internalLabel, setInternalLabel] = React.useState<string>('');
+  React.useEffect(() => {
+    // Sync down from parent when it changes externally
+    setInternalValue(value || '')
+  }, [value])
+  // Whenever options change, try to resolve the label for the current value
+  React.useEffect(() => {
+    const id = (internalValue || value || '') as string
+    if (!id) { setInternalLabel(''); return }
+    const opt = [...localOptions, ...options].find(o => o.value === id)
+    if (opt) setInternalLabel(opt.label)
+  }, [internalValue, value, options, localOptions])
 
   // Debug/version marker
   React.useEffect(() => {
     try { console.log('[SelectWithCreate] loaded v3 - canCreate:', canCreate, 'entity:', entityName) } catch {}
   }, [])
 
-  const selectedOption = options.find((option) => option.value === value);
+  const computedOptions = React.useMemo(() => {
+    const map = new Map<string, SelectOption>();
+    [...localOptions, ...options].forEach(opt => { if (!map.has(opt.value)) map.set(opt.value, opt) })
+    return Array.from(map.values())
+  }, [options, localOptions])
+
+  const selectedOption = computedOptions.find((option) => option.value === internalValue) ||
+    computedOptions.find((option) => option.value === value);
 
   const filteredOptions = React.useMemo(() => {
-    if (!search) return options;
+    if (!search) return computedOptions;
     
     const searchLower = search.toLowerCase();
-    return options.filter((option) =>
+    return computedOptions.filter((option) =>
       option.label.toLowerCase().includes(searchLower)
     );
-  }, [options, search]);
+  }, [computedOptions, search]);
 
   const handleCreateClick = React.useCallback(() => {
     // Cerrar popover primero para evitar superposición Popover+Dialog
@@ -129,8 +160,15 @@ export function SelectWithCreate({
     try {
       const newOption = await onCreateSubmit(formData);
       
+      // Persist locally to show immediately
+      try {
+        setLocalOptions(prev => (prev.some(p => p.value === newOption.value) ? prev : [{ value: newOption.value, label: newOption.label }, ...prev]))
+      } catch {}
       // Seleccionar automáticamente la nueva opción
+      setInternalValue(newOption.value)
+      setInternalLabel(newOption.label)
       onValueChange(newOption.value);
+      try { onCreatedOption?.(newOption) } catch {}
       setCreateModalOpen(false);
       toast.success(tCommon('createSuccess', { entity: entityName }));
     } catch (error) {
@@ -156,12 +194,12 @@ export function SelectWithCreate({
             aria-expanded={open}
             className={cn(
               'w-full justify-between font-normal',
-              !value && 'text-muted-foreground',
+              !(internalValue || value) && 'text-muted-foreground',
               className
             )}
             disabled={disabled}
           >
-            {selectedOption ? selectedOption.label : placeholder || tCommon('select')}
+            {internalLabel || (selectedOption ? selectedOption.label : (placeholder || tCommon('select')))}
             <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
@@ -182,14 +220,21 @@ export function SelectWithCreate({
                     key={option.value}
                     value={option.value}
                     onSelect={(currentValue) => {
-                      onValueChange(currentValue === value ? '' : currentValue);
+                      try {
+                        setLocalOptions(prev => (prev.some(p => p.value === option.value) ? prev : [option, ...prev]))
+                      } catch {}
+                      // Always set selected option by its id to avoid label/value mismatches
+                  const nextValue = option.value
+                      setInternalValue(nextValue)
+                      setInternalLabel(option.label)
+                      onValueChange(nextValue)
                       setOpen(false);
                     }}
                   >
                     <Check
                       className={cn(
                         'mr-2 h-4 w-4',
-                        value === option.value ? 'opacity-100' : 'opacity-0'
+                        (internalValue || value) === option.value ? 'opacity-100' : 'opacity-0'
                       )}
                     />
                     {option.label}
@@ -215,11 +260,7 @@ export function SelectWithCreate({
                   e.stopPropagation();
                   handleCreateClick();
                 }}
-                onTouchStart={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleCreateClick();
-                }}
+                // Use pointer events; avoid touchstart to prevent passive listener warning
                 onTouchEnd={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -241,17 +282,57 @@ export function SelectWithCreate({
       </Popover>
       )}
 
-      {/* Modal de creación (responsive: Drawer en móvil, Dialog en desktop) */}
-      <ResponsiveModal
-        open={createModalOpen}
-        onOpenChange={(open) => {
-          try { console.log('[SelectWithCreate] create modal onOpenChange:', open) } catch {}
-          setCreateModalOpen(open);
-        }}
-        title={createDialogTitle || tCommon('createNewTitle', { entity: entityName })}
-        description={createDialogDescription || tCommon('createNewDescription', { entity: entityName })}
-      >
-        <form onSubmit={handleCreateSubmit}>
+      {/* Modal de creación: mismo patrón FormModal/MobileModal que el resto */}
+      {createMode === 'serviceWizard' ? (
+        <FormModal
+          open={createModalOpen}
+          onOpenChange={(open) => {
+            try { console.log('[SelectWithCreate] create modal onOpenChange:', open) } catch {}
+            if (open) setCreateModalKey((k) => k + 1)
+            setCreateModalOpen(open)
+          }}
+          title={createDialogTitle || tCommon('createNewTitle', { entity: entityName })}
+          description={createDialogDescription || tCommon('createNewDescription', { entity: entityName })}
+          showFooter={false}
+          maxWidth="md"
+        >
+          {(() => {
+            // Lazy import to avoid circular deps
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            const Mod = require('@/components/services/ServiceQuickWizard')
+            const Wizard = Mod.ServiceQuickWizard as any
+            return (
+              <Wizard
+                key={createModalKey}
+                onDone={(opt: any) => {
+                  try {
+                    setLocalOptions(prev => (prev.some(p => p.value === opt.value) ? prev : [{ value: opt.value, label: opt.label }, ...prev]))
+                  } catch {}
+                  setInternalValue(opt.value)
+                  onValueChange(opt.value)
+                  try { onCreatedOption?.({ value: opt.value, label: opt.label }) } catch {}
+                  setCreateModalOpen(false)
+                }}
+                onCancel={() => setCreateModalOpen(false)}
+              />
+            )
+          })()}
+        </FormModal>
+      ) : (
+        <FormModal
+          open={createModalOpen}
+          onOpenChange={(open) => {
+            try { console.log('[SelectWithCreate] create modal onOpenChange:', open) } catch {}
+            if (open) setCreateModalKey((k) => k + 1)
+            setCreateModalOpen(open)
+          }}
+          title={createDialogTitle || tCommon('createNewTitle', { entity: entityName })}
+          description={createDialogDescription || tCommon('createNewDescription', { entity: entityName })}
+          onSubmit={handleCreateSubmit}
+          cancelLabel={tCommon('cancel')}
+          submitLabel={tCommon('create')}
+          maxWidth="md"
+        >
           <div className="grid gap-4 py-2 sm:py-4">
             {createFields.map((field) => (
               <div key={field.name} className="grid gap-2">
@@ -297,22 +378,8 @@ export function SelectWithCreate({
               </div>
             ))}
           </div>
-          <div className="mt-4 flex justify-end gap-2 sm:mt-6">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setCreateModalOpen(false)}
-              disabled={creating}
-            >
-              {tCommon('cancel')}
-            </Button>
-            <Button type="submit" disabled={creating}>
-              {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {tCommon('create')}
-            </Button>
-          </div>
-        </form>
-      </ResponsiveModal>
+        </FormModal>
+      )}
     </>
   );
 }

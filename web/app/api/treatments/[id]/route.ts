@@ -20,35 +20,32 @@ export async function PUT(
       return NextResponse.json({ error: 'No clinic context available' }, { status: 400 });
     }
 
-    // En edición protegemos snapshot: no permitimos cambiar service_id ni recálculo desde config
-    if (body.service_id && typeof body.service_id === 'string') {
-      // Opcional: bloquear cambio de servicio, exige crear uno nuevo
-      if (body._allow_service_change !== true) {
-        delete body.service_id;
-      }
+    // En edición protegemos snapshot: no permitimos cambiar service_id salvo que se indique
+    if (typeof body.service_id === 'string' && body._allow_service_change !== true) {
+      delete body.service_id;
     }
 
-    // Map UI payload to possible DB columns (no tocar snapshot salvo que venga explícito)
-    let payload: any = {
-      clinic_id: clinicId,
-      patient_id: body.patient_id,
-      ...(body.service_id ? { service_id: body.service_id } : {}),
-      treatment_date: body.treatment_date,
-      // Si cambia minutes, recalculamos con snapshot existente en client y lo mandamos ya resuelto
-      duration_minutes: body.minutes,
-      ...(body.fixed_per_minute_cents !== undefined ? { fixed_cost_per_minute_cents: body.fixed_per_minute_cents } : {}),
-      ...(body.variable_cost_cents !== undefined ? { variable_cost_cents: body.variable_cost_cents } : {}),
-      ...(body.margin_pct !== undefined ? { margin_pct: body.margin_pct } : {}),
-      ...(body.price_cents !== undefined ? { price_cents: body.price_cents } : {}),
-      status: body.status === 'pending' ? 'scheduled' : body.status,
-      notes: body.notes,
-      ...(body.snapshot_costs ? { snapshot_costs: body.snapshot_costs } : {}),
-      updated_at: new Date().toISOString()
-    };
+    // Map UI payload to possible DB columns (parcial: solo campos presentes)
+    const payload: any = { clinic_id: clinicId, updated_at: new Date().toISOString() };
+    if (body.patient_id !== undefined) payload.patient_id = body.patient_id;
+    if (body.service_id !== undefined) payload.service_id = body.service_id;
+    if (body.treatment_date !== undefined) payload.treatment_date = body.treatment_date;
+    if (body.minutes !== undefined) {
+      payload.duration_minutes = body.minutes;
+      payload.minutes = body.minutes; // alias legacy
+    }
+    if (body.fixed_per_minute_cents !== undefined) {
+      payload.fixed_cost_per_minute_cents = body.fixed_per_minute_cents;
+      payload.fixed_per_minute_cents = body.fixed_per_minute_cents; // alias legacy
+    }
+    if (body.variable_cost_cents !== undefined) payload.variable_cost_cents = body.variable_cost_cents;
+    if (body.margin_pct !== undefined) payload.margin_pct = body.margin_pct;
+    if (body.price_cents !== undefined) payload.price_cents = body.price_cents;
+    if (body.status !== undefined) payload.status = (body.status === 'pending' ? 'scheduled' : body.status);
+    if (body.notes !== undefined) payload.notes = body.notes;
+    if (body.snapshot_costs !== undefined) payload.snapshot_costs = body.snapshot_costs;
 
-    // Include legacy aliases so we can prune based on errors
-    if (body.minutes !== undefined) payload.minutes = body.minutes;
-    if (body.fixed_per_minute_cents !== undefined) payload.fixed_per_minute_cents = body.fixed_per_minute_cents;
+    // (ya incluimos alias arriba si aplica)
 
     // Attempt update; if a column doesn't exist, remove and retry up to 4 times
     const triedMissing: Set<string> = new Set();

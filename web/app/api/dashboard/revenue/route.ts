@@ -10,37 +10,48 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const clinicId = searchParams.get('clinicId')
     const period = searchParams.get('period') || 'month'
+    const dateFrom = searchParams.get('date_from')
+    const dateTo = searchParams.get('date_to')
     
     if (!clinicId) {
       return NextResponse.json({ error: 'Clinic ID required' }, { status: 400 })
     }
 
-    // Calculate date range based on period
-    const now = new Date()
-    let startDate = new Date()
-    
-    switch (period) {
-      case 'today':
-        startDate.setHours(0, 0, 0, 0)
-        break
-      case 'week':
-        startDate.setDate(now.getDate() - 7)
-        break
-      case 'month':
-        startDate.setMonth(now.getMonth() - 1)
-        break
-      case 'year':
-        startDate.setFullYear(now.getFullYear() - 1)
-        break
+    // Calculate date range from period or custom range
+    let now = new Date()
+    let startDate = new Date(now)
+    let endDate = new Date(now)
+
+    if (period === 'custom' && dateFrom && dateTo) {
+      startDate = new Date(dateFrom)
+      endDate = new Date(dateTo)
+      endDate.setHours(23,59,59,999)
+    } else {
+      switch (period) {
+        case 'today':
+          startDate.setHours(0, 0, 0, 0)
+          break
+        case 'week':
+          startDate.setDate(now.getDate() - 7)
+          break
+        case 'month':
+          // current month
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1)
+          break
+        case 'year':
+          startDate = new Date(now.getFullYear(), 0, 1)
+          break
+      }
     }
 
     // Get revenue from treatments
     const { data: treatments, error } = await supabase
       .from('treatments')
-      .select('price_cents')
+      .select('price_cents, status')
       .eq('clinic_id', clinicId)
+      .eq('status', 'completed')
       .gte('created_at', startDate.toISOString())
-      .lte('created_at', now.toISOString())
+      .lte('created_at', endDate.toISOString())
 
     if (error) throw error
 

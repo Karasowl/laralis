@@ -28,6 +28,15 @@ export function RecentActivity({
   title = 'Recent Activity',
   description = 'Latest actions in your clinic'
 }: RecentActivityProps) {
+  const safeFormatDistance = (value: Date | string | number) => {
+    try {
+      const d = value instanceof Date ? value : new Date(value)
+      if (isNaN(d.getTime())) return 'hace un momento'
+      return formatDistanceToNow(d, { addSuffix: true, locale: es })
+    } catch {
+      return 'hace un momento'
+    }
+  }
   const getActivityIcon = (type: ActivityItem['type']) => {
     switch (type) {
       case 'treatment': return Activity
@@ -75,7 +84,7 @@ export function RecentActivity({
                   <div className="flex-1 space-y-1">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-medium">{activity.title}</p>
-                      {activity.amount && (
+                      {(activity.amount ?? null) !== null && (
                         <span className="text-sm font-medium">
                           {formatCurrency(activity.amount)}
                         </span>
@@ -88,10 +97,7 @@ export function RecentActivity({
                     )}
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span>
-                        {formatDistanceToNow(activity.timestamp, { 
-                          addSuffix: true,
-                          locale: es 
-                        })}
+                        {safeFormatDistance(activity.timestamp)}
                       </span>
                       {activity.user && (
                         <>

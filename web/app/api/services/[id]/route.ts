@@ -206,19 +206,37 @@ export async function DELETE(
       );
     }
 
-    // Soft delete - marcar como inactivo si la columna existe
-    const { error } = await supabaseAdmin
+    // Soft delete - marcar como inactivo; si la columna no existe, borrar duro
+    let result = await supabaseAdmin
       .from('services')
-      .update({ active: false })
+      .update({ is_active: false })
       .eq('id', params.id)
       .eq('clinic_id', clinicId);
 
-    if (error) {
-      console.error('Error deleting service:', error);
-      return NextResponse.json(
-        { error: 'Failed to delete service', message: error.message },
-        { status: 500 }
-      );
+    if (result.error) {
+      const msg = result.error.message || '';
+      const missingCol = /column .*is_active.* does not exist/i.test(msg);
+      if (missingCol) {
+        // Fallback: eliminar registro
+        const hard = await supabaseAdmin
+          .from('services')
+          .delete()
+          .eq('id', params.id)
+          .eq('clinic_id', clinicId);
+        if (hard.error) {
+          console.error('Error hard-deleting service:', hard.error);
+          return NextResponse.json(
+            { error: 'Failed to delete service', message: hard.error.message },
+            { status: 500 }
+          );
+        }
+      } else {
+        console.error('Error soft-deleting service:', result.error);
+        return NextResponse.json(
+          { error: 'Failed to delete service', message: result.error.message },
+          { status: 500 }
+        );
+      }
     }
 
     return NextResponse.json({ 

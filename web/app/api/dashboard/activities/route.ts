@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
 export async function GET(request: NextRequest) {
   try {
-    const cookieStore = await cookies()
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
-    
     const searchParams = request.nextUrl.searchParams
     const clinicId = searchParams.get('clinicId')
     const limit = parseInt(searchParams.get('limit') || '10')
@@ -19,61 +15,78 @@ export async function GET(request: NextRequest) {
     const activities = []
     
     // Get recent treatments
-    const { data: treatments } = await supabase
+    const { data: treatments } = await supabaseAdmin
       .from('treatments')
-      .select('id, created_at, patient_id, patients(name), services(name)')
+      .select('id, created_at, patient_id, service_id, status, price_cents')
       .eq('clinic_id', clinicId)
       .order('created_at', { ascending: false })
       .limit(5)
-
-    treatments?.forEach(treatment => {
+    const serviceIds = Array.from(new Set((treatments || []).map((t: any) => t.service_id).filter(Boolean)))
+    const patientIds = Array.from(new Set((treatments || []).map((t: any) => t.patient_id).filter(Boolean)))
+    let servicesMap: Record<string, string> = {}
+    let patientsMap: Record<string, string> = {}
+    if (serviceIds.length) {
+      const { data: services } = await supabaseAdmin
+        .from('services')
+        .select('id, name')
+        .in('id', serviceIds)
+      servicesMap = Object.fromEntries((services || []).map((s: any) => [s.id, s.name]))
+    }
+    if (patientIds.length) {
+      const { data: patients } = await supabaseAdmin
+        .from('patients')
+        .select('id, first_name, last_name')
+        .in('id', patientIds)
+      patientsMap = Object.fromEntries((patients || []).map((p: any) => [p.id, `${p.first_name || ''} ${p.last_name || ''}`.trim()]))
+    }
+    ;(treatments || []).forEach((t: any) => {
+      const service = servicesMap[t.service_id] || 'Servicio'
+      const patient = patientsMap[t.patient_id] || 'Paciente'
+      const title = t.status === 'completed' ? 'Tratamiento completado' : 'Tratamiento registrado'
       activities.push({
-        id: `treatment-${treatment.id}`,
+        id: `treatment-${t.id}`,
         type: 'treatment',
-        // @ts-ignore
-        description: `Tratamiento realizado: ${treatment.services?.name || 'Servicio'}`,
-        // @ts-ignore
-        patient: treatment.patients?.name || 'Paciente',
-        timestamp: treatment.created_at,
-        icon: 'activity'
+        title,
+        description: `${service} — ${patient}`,
+        amount: t.price_cents,
+        timestamp: t.created_at,
       })
     })
 
     // Get recent patients
-    const { data: patients } = await supabase
+    const { data: patients } = await supabaseAdmin
       .from('patients')
-      .select('id, name, created_at')
+      .select('id, first_name, last_name, created_at')
       .eq('clinic_id', clinicId)
       .order('created_at', { ascending: false })
       .limit(3)
 
-    patients?.forEach(patient => {
+    patients?.forEach((patient: any) => {
       activities.push({
         id: `patient-${patient.id}`,
         type: 'patient',
-        description: 'Nuevo paciente registrado',
-        patient: patient.name,
+        title: 'Nuevo paciente',
+        description: `${patient.first_name || ''} ${patient.last_name || ''}`.trim(),
         timestamp: patient.created_at,
-        icon: 'user-plus'
       })
     })
 
     // Get recent expenses
-    const { data: expenses } = await supabase
+    const { data: expenses } = await supabaseAdmin
       .from('expenses')
       .select('id, description, amount_cents, created_at')
       .eq('clinic_id', clinicId)
       .order('created_at', { ascending: false })
       .limit(3)
 
-    expenses?.forEach(expense => {
+    expenses?.forEach((expense: any) => {
       activities.push({
         id: `expense-${expense.id}`,
         type: 'expense',
-        description: `Gasto registrado: ${expense.description}`,
+        title: 'Gasto registrado',
+        description: expense.description,
         amount: expense.amount_cents,
         timestamp: expense.created_at,
-        icon: 'receipt'
       })
     })
 

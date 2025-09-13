@@ -1,55 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
 export async function GET(request: NextRequest) {
   try {
-    const cookieStore = await cookies()
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
-    
-    const searchParams = request.nextUrl.searchParams
-    const clinicId = searchParams.get('clinicId')
-    
-    if (!clinicId) {
-      return NextResponse.json({ error: 'Clinic ID required' }, { status: 400 })
+    const sp = request.nextUrl.searchParams
+    const clinicId = sp.get('clinicId')
+    const period = sp.get('period') || 'month'
+    const dateFrom = sp.get('date_from')
+    const dateTo = sp.get('date_to')
+
+    if (!clinicId) return NextResponse.json({ error: 'Clinic ID required' }, { status: 400 })
+
+    const now = new Date()
+    let start: Date
+    let end: Date
+    if (period === 'custom' && dateFrom && dateTo) {
+      start = new Date(dateFrom)
+      end = new Date(dateTo)
+      end.setHours(23, 59, 59, 999)
+    } else {
+      start = new Date(now.getFullYear(), now.getMonth(), 1)
+      end = new Date(now)
     }
 
-    // Get total patients count
-    const { count, error } = await supabase
+    const { count: total, error: totalErr } = await supabaseAdmin
       .from('patients')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('clinic_id', clinicId)
+    if (totalErr) throw totalErr
 
-    if (error) throw error
-
-    // Get new patients this month
-    const startOfMonth = new Date()
-    startOfMonth.setDate(1)
-    startOfMonth.setHours(0, 0, 0, 0)
-
-    const { count: newPatients, error: newError } = await supabase
+    const { count: newly, error: newErr } = await supabaseAdmin
       .from('patients')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('clinic_id', clinicId)
-      .gte('created_at', startOfMonth.toISOString())
+      .gte('created_at', start.toISOString())
+      .lte('created_at', end.toISOString())
+    if (newErr) throw newErr
 
-    if (newError) throw newError
-
-    // Calculate trend
-    const trend = newPatients && newPatients > 0 ? 'up' : 'stable'
-    const trendValue = newPatients || 0
-
-    return NextResponse.json({
-      total: count || 0,
-      newThisMonth: newPatients || 0,
-      trend,
-      trendValue
-    })
-  } catch (error) {
-    console.error('Dashboard patients error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch patients data' },
-      { status: 500 }
-    )
+    return NextResponse.json({ patients: { total: total || 0, new: newly || 0 } })
+  } catch (err) {
+    console.error('dashboard/patients error', err)
+    return NextResponse.json({ error: 'Failed to fetch patients metrics' }, { status: 500 })
   }
 }
+

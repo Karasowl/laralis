@@ -11,6 +11,7 @@ interface TreatmentFormProps {
   onServiceChange: (serviceId: string) => void
   onCreatePatient?: (data: any) => Promise<any>
   onCreateService?: (data: any) => Promise<any>
+  onServiceCreated?: (opt: { value: string; label: string }) => void
   t: (key: string) => string
 }
 
@@ -22,6 +23,7 @@ export function TreatmentForm({
   onServiceChange,
   onCreatePatient,
   onCreateService,
+  onServiceCreated,
   t 
 }: TreatmentFormProps) {
   return (
@@ -35,7 +37,7 @@ export function TreatmentForm({
             </label>
             <SelectWithCreate
               value={form.watch('patient_id')}
-              onValueChange={(value) => form.setValue('patient_id', value)}
+              onValueChange={(value) => form.setValue('patient_id', value, { shouldDirty: true, shouldTouch: true, shouldValidate: true })}
               options={patients}
               placeholder={t('treatments.selectPatient')}
               canCreate={true}
@@ -83,8 +85,10 @@ export function TreatmentForm({
               canCreate={true}
               createLabel={t('services.addService', 'Agregar Servicio')}
               entityName={t('entities.service')}
+              createMode="serviceWizard"
               createDialogTitle={t('services.create_title')}
               createDialogDescription={t('services.create_quick_description')}
+              onCreatedOption={onServiceCreated}
               createFields={[
                 {
                   name: 'name',
