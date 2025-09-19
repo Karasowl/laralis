@@ -133,18 +133,8 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // If in onboarding and already has workspace, redirect to home
-  if (user && isOnboarding) {
-    const { data: workspaces } = await supabase
-      .from('workspaces')
-      .select('id')
-      .eq('owner_id', user.id)
-      .limit(1);
-
-    if (workspaces && workspaces.length > 0) {
-      return NextResponse.redirect(new URL('/', request.url));
-    }
-  }
+  // Keep onboarding accessible even if a workspace already exists.
+  // The app itself decides when onboarding is completed.
 
   return response;
 }

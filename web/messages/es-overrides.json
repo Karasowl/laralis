@@ -1,4 +1,7 @@
 {
+  "navigation": {
+    "cancel_setup": "Cancelar configuración"
+  },
   "settings": {
     "backup": "Respaldo y Restauración"
   },
@@ -258,6 +261,34 @@
     "tabs": {
       "advanced": "Advanced",
       "overview": "Overview"
+    }
+  },
+  "onboarding": {
+    "justInTime": {
+      "title": "Faltan pasos para continuar",
+      "missing": "Antes de continuar, completa:",
+      "openImporter": "Importar insumos",
+      "openRecipeWizard": "Crear receta",
+      "openTariffDrawer": "Definir tarifa"
+    },
+    "tariffDrawer": {
+      "title": "Definir tarifa",
+      "sections": {
+        "time": "Tiempo estimado (min)",
+        "recipe": "Receta (costo variable, centavos)",
+        "marginRounding": "Margen y redondeo"
+      },
+      "summary": {
+        "fixed": "Costo fijo",
+        "variable": "Costo variable",
+        "priceRaw": "Precio sin redondeo",
+        "priceRounded": "Precio redondeado"
+      },
+      "ctas": {
+        "apply": "Aplicar tarifa",
+        "saveServiceOnly": "Guardar sin tarifa",
+        "cancel": "Cancelar"
+      }
     }
   },
   "acquisition": {
@@ -585,7 +616,7 @@
     },
     "workspaceNameRequired": "WorkspaceNameRequired"
   },
-  "existing_categories": "Existing Categories",
+  "existing_categories": "Categorías existentes",
   "expense_details": "Expense Details",
   "expenses": {
     "title": "Gastos",

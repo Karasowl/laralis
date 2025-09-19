@@ -2,6 +2,8 @@
 
 import * as React from 'react'
 import { Button } from '@/components/ui/button'
+import { NumericInput } from '@/components/ui/numeric-input'
+import { useRouter } from 'next/navigation'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useSetupStatus } from '@/hooks/use-setup-status'
@@ -22,6 +24,7 @@ type SupplyRow = {
 }
 
 export function ServiceQuickWizard({ onDone, onCancel }: WizardProps) {
+  const router = useRouter()
   const t = useTranslations('services')
   const tCommon = useTranslations('common')
 
@@ -190,48 +193,9 @@ export function ServiceQuickWizard({ onDone, onCancel }: WizardProps) {
     }
   }
 
-  // Quick fixed-costs capture
-  const [monthlyFixedPesos, setMonthlyFixedPesos] = React.useState<number>(0)
-  async function saveQuickFixedCosts() {
-    setLoading(true)
-    setError(null)
-    try {
-      if (!monthlyFixedPesos || monthlyFixedPesos <= 0) {
-        setError('Ingresa un costo fijo mensual aproximado')
-        setLoading(false)
-        return
-      }
-      const res = await fetch('/api/fixed-costs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ category: 'setup', concept: 'Estimación base', amount_cents: Math.round(monthlyFixedPesos * 100) })
-      })
-      if (!res.ok) {
-        const txt = await res.text()
-        throw new Error(txt || 'No se pudo guardar costos fijos')
-      }
-      // Refresh cost-per-minute
-      try {
-        const cp = await fetch('/api/time/cost-per-minute', { credentials: 'include' })
-        const js = await cp.json()
-        const fixed = Number(js?.data?.per_minute_cents || 0)
-        fixedPerMinute.current = isNaN(fixed) ? 0 : fixed
-        const monthlyFixed = Number(js?.data?.monthly_fixed_cents || 0)
-        const effective = Number(js?.data?.effective_minutes_per_month || 0)
-        setNeedsFixed(monthlyFixed <= 0)
-        setNeedsTimeHard(effective <= 0)
-        setCpMeta({ monthly: monthlyFixed, effective })
-      } catch {}
-      // Ofrecer configurar Activos inmediatamente
-      setFixedJustSaved(true)
-      try { await refetch() } catch {}
-      setStep(needsTimeHard ? 0 : 5)
-    } catch (e: any) {
-      setError(e?.message || 'Error al guardar costos fijos')
-    } finally {
-      setLoading(false)
-    }
+  // En vez de capturar un estimado, redirigimos al módulo de Costos Fijos
+  function goToFixedCosts() {
+    router.push('/fixed-costs')
   }
 
   // Quick assets capture (optional)
@@ -424,7 +388,7 @@ export function ServiceQuickWizard({ onDone, onCancel }: WizardProps) {
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={onCancel}>{tCommon('cancel')}</Button>
-            <Button onClick={saveTimeSettings} disabled={loading || !timeFormValid}>{loading ? tCommon('saving') : tCommon('save', 'Guardar')}</Button>
+            <Button onClick={saveTimeSettings} disabled={loading || !timeFormValid}>{loading ? tCommon('saving') : tCommon('save')}</Button>
           </div>
         </div>
       )}
@@ -434,7 +398,7 @@ export function ServiceQuickWizard({ onDone, onCancel }: WizardProps) {
           <div className="grid gap-3">
             <div className="grid gap-2">
               <Label>Nombre del servicio</Label>
-              <Input value={name} onChange={e => setName(e.target.value)} placeholder="Limpieza, Extracción, etc." />
+              <Input value={name} onChange={e => setName(e.target.value)} placeholder={t('servicePlaceholder')} />
             </div>
             <div className="grid gap-2">
               <Label>Duración (min)</Label>
@@ -461,7 +425,7 @@ export function ServiceQuickWizard({ onDone, onCancel }: WizardProps) {
         <div className="space-y-4">
           <div className="grid gap-2">
             <Label>Insumos (receta clínica)</Label>
-            <Input placeholder="Buscar insumo" value={search} onChange={e => setSearch(e.target.value)} />
+            <Input placeholder={t('searchSupplyPlaceholder')} value={search} onChange={e => setSearch(e.target.value)} />
           </div>
           <div className="max-h-72 overflow-y-auto rounded-md border divide-y">
             {filteredSupplies.length > 0 && (
@@ -482,7 +446,7 @@ export function ServiceQuickWizard({ onDone, onCancel }: WizardProps) {
                     <div className="text-xs text-muted-foreground">Costo por porción: {formatCurrency(s.cost_per_portion_cents)}</div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Input aria-label="Cantidad" placeholder="Cant." type="number" className="w-24 sm:w-28" value={qty} onChange={e => setSelected(prev => ({ ...prev, [s.id]: Math.max(0, Number(e.target.value || 0)) }))} />
+                    <Input aria-label="Cantidad" placeholder={t('quantityPlaceholder')} type="number" className="w-24 sm:w-28" value={qty} onChange={e => setSelected(prev => ({ ...prev, [s.id]: Math.max(0, Number(e.target.value || 0)) }))} />
                     {qty > 0 && (
                       <Button type="button" variant="ghost" size="icon" title="Quitar de la receta" onClick={() => setSelected(prev => ({ ...prev, [s.id]: 0 }))}>
                         <Trash2 className="h-4 w-4" />
@@ -522,6 +486,7 @@ export function ServiceQuickWizard({ onDone, onCancel }: WizardProps) {
                 inputMode="decimal"
                 placeholder="0"
                 value={extraVariablePesos}
+                onFocus={e => e.currentTarget.select()}
                 onChange={e => setExtraVariablePesos(Number(e.target.value || 0))}
               />
             </div>
@@ -572,14 +537,10 @@ export function ServiceQuickWizard({ onDone, onCancel }: WizardProps) {
 
       {step === 4 && (
         <div className="space-y-4">
-          <div className="text-sm text-muted-foreground">Configura un estimado de tus costos fijos mensuales para poder calcular el costo por minuto. Luego podrás detallarlos en Configuración → Costos fijos.</div>
-          <div className="grid gap-2 sm:max-w-xs">
-            <Label>Costo fijo mensual aproximado (MXN)</Label>
-            <Input type="number" inputMode="decimal" placeholder="10000" value={monthlyFixedPesos} onChange={e => setMonthlyFixedPesos(Number(e.target.value || 0))} />
-          </div>
+          <div className="text-sm text-muted-foreground">Faltan costos fijos. Configúralos como en el módulo de “Costos fijos” para un cálculo preciso. Los tratamientos ya registrados no se recalculan: cada tratamiento guarda un snapshot financiero.</div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setStep(1)}>{tCommon('back', 'Atrás')}</Button>
-            <Button onClick={saveQuickFixedCosts} disabled={loading || !monthlyFixedPesos}>{loading ? tCommon('saving') : tCommon('save', 'Guardar')}</Button>
+            <Button onClick={goToFixedCosts}>Abrir Costos fijos</Button>
           </div>
         </div>
       )}
@@ -594,7 +555,7 @@ export function ServiceQuickWizard({ onDone, onCancel }: WizardProps) {
                 <div key={i} className="grid gap-2 sm:grid-cols-12 items-end">
                   <div className="sm:col-span-5">
                     <Label>Activo</Label>
-                    <Input placeholder="Autoclave, Sillón, Compresor" value={a.name} onChange={e => updateAssetAt(i, { name: e.target.value })} />
+                    <Input placeholder={t('assetPlaceholder')} value={a.name} onChange={e => updateAssetAt(i, { name: e.target.value })} />
                   </div>
                   <div className="sm:col-span-3">
                     <Label>Precio (MXN)</Label>
@@ -633,28 +594,29 @@ export function ServiceQuickWizard({ onDone, onCancel }: WizardProps) {
 function InlineSupplyCreate({ onCreate, loading }: { onCreate: (f: { name: string; presentation: string; price: number; portions: number }) => void | Promise<void>; loading?: boolean }) {
   const [name, setName] = React.useState('')
   const [presentation, setPresentation] = React.useState('Paquete 100u')
-  const [price, setPrice] = React.useState<number>(0)
-  const [portions, setPortions] = React.useState<number>(1)
+  const [price, setPrice] = React.useState<number | ''>('' as any)
+  const [portions, setPortions] = React.useState<number | ''>('' as any)
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
       <div className="grid gap-1">
         <Label>Nombre</Label>
-        <Input placeholder="Gasa estéril, Guantes, etc." value={name} onChange={e => setName(e.target.value)} />
+        <Input placeholder={t('supplyNamePlaceholder')} value={name} onChange={e => setName(e.target.value)} />
       </div>
       <div className="grid gap-1">
         <Label>Presentación</Label>
-        <Input placeholder="Paquete 100u, Caja 50u, Cartucho 1u" value={presentation} onChange={e => setPresentation(e.target.value)} />
+        <Input placeholder={t('supplyPresentationPlaceholder')} value={presentation} onChange={e => setPresentation(e.target.value)} />
       </div>
       <div className="grid gap-1">
         <Label>Precio total (MXN)</Label>
-        <Input placeholder="0" inputMode="decimal" type="number" min={0} value={price} onChange={e => setPrice(Number(e.target.value || 0))} />
+        <NumericInput placeholder="0" inputMode="decimal" min={0} value={price} onChange={setPrice} />
       </div>
       <div className="grid gap-1">
         <Label>Porciones por presentación</Label>
         <div className="flex gap-2 flex-col sm:flex-row">
-          <Input className="flex-1" placeholder="1" type="number" min={1} value={portions} onChange={e => setPortions(Math.max(1, Number(e.target.value || 0)))} />
-          <Button className="whitespace-nowrap" disabled={loading || !name || !price || !portions} onClick={() => onCreate({ name, presentation, price, portions })}>Agregar</Button>
+          <NumericInput className="flex-1" placeholder="1" min={1} value={portions} onChange={setPortions} />
+          <Button className="whitespace-nowrap" disabled={loading || !name || price === '' || portions === '' || Number(portions) < 1}
+            onClick={() => onCreate({ name, presentation, price: Number(price || 0), portions: Number(portions || 0) })}>Agregar</Button>
         </div>
       </div>
     </div>

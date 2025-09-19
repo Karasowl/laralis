@@ -76,13 +76,6 @@ export async function getClinicIdOrDefault(cookieStore: ReturnType<typeof cookie
     const fallback = await getFirstClinicIdForUser(userId);
     if (fallback) return fallback;
   }
-
-  // Last resort: pick the first clinic in the system (dev mode only)
-  const { data: anyClinic } = await supabaseAdmin
-    .from('clinics')
-    .select('id')
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .maybeSingle();
-  return anyClinic?.id || null;
+  // No valid clinic context
+  return null;
 }

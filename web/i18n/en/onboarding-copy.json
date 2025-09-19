@@ -1,0 +1,119 @@
+{
+  "onboarding": {
+    "title": "Set up financial base",
+    "subtitle": "Complete 4 steps to compute correct prices",
+    "steps": [
+      {
+        "id": "depreciation",
+        "title": "Depreciation",
+        "subtitle": "Calculate the monthly fund per equipment",
+        "description": "Add your equipment and useful life to build the monthly depreciation fund that will be included in your fixed costs.",
+        "fields": [
+          { "key": "assets", "label": "Equipment & assets", "helper": "Name, cost and useful life (months). Paste from CSV if needed." },
+          { "key": "lifeMonthsDefault", "label": "Default useful life (months)", "helper": "Applied to new assets; each asset is editable." }
+        ],
+        "preview": { "label": "Monthly depreciation fund", "value": "{amount}" },
+        "validations": {
+          "atLeastOneAsset": "Add at least one asset or a total > 0.",
+          "lifeMonthsPositive": "Useful life must be greater than 0."
+        },
+        "learnMore": "Why this matters: to ensure prices cover real equipment wear.",
+        "skipAllowed": false,
+        "primaryCta": "Continue",
+        "secondaryCta": "Back"
+      },
+      {
+        "id": "fixed_costs",
+        "title": "Fixed costs",
+        "subtitle": "Sum your monthly expenses",
+        "description": "Enter your clinic fixed costs. The depreciation fund from the previous step is already included.",
+        "fields": [
+          { "key": "rent", "label": "Rent / Mortgage", "helper": "Monthly facility payment." },
+          { "key": "utilities", "label": "Utilities (power, water, internet)", "helper": "Monthly average." },
+          { "key": "payroll", "label": "Payroll", "helper": "Salaries + benefits for fixed staff." },
+          { "key": "insurance", "label": "Insurance", "helper": "Liability, equipment, etc." },
+          { "key": "maintenance", "label": "Maintenance", "helper": "Preventive and corrective." },
+          { "key": "taxes", "label": "Taxes & licenses", "helper": "Fees, permits, memberships." },
+          { "key": "other", "label": "Other fixed", "helper": "Any other monthly fixed expense." }
+        ],
+        "preview": { "label": "Monthly fixed total", "value": "{amount}" },
+        "validations": {
+          "somePositive": "Enter at least one line with amount ≥ 0.",
+          "numbersOnly": "Use valid numbers in each field."
+        },
+        "learnMore": "Fixed costs determine your $/min together with the next step.",
+        "skipAllowed": false,
+        "primaryCta": "Continue",
+        "secondaryCta": "Back"
+      },
+      {
+        "id": "cost_per_min",
+        "title": "Cost per time",
+        "subtitle": "Define your operating capacity",
+        "description": "With your fixed costs and real capacity we calculate your fixed cost per minute.",
+        "fields": [
+          { "key": "workingDays", "label": "Working days per month", "helper": "1–31" },
+          { "key": "hoursPerDay", "label": "Hours per day", "helper": "1–24" },
+          { "key": "efficiencyPct", "label": "Efficiency (%)", "helper": "Effective hours percentage (50–100%)." }
+        ],
+        "preview": {
+          "lines": [
+            "Planned hours: {workingDays} × {hoursPerDay} = {hoursPlanned}",
+            "Real hours: {hoursPlanned} × {efficiencyPct}% = {hoursReal}",
+            "Fixed $/min: {fixedCosts} ÷ {hoursReal} ÷ 60 = {costPerMinute}"
+          ]
+        },
+        "validations": {
+          "daysRange": "Days between 1 and 31.",
+          "hoursRange": "Hours between 1 and 24.",
+          "efficiencyRange": "Efficiency between 50% and 100%."
+        },
+        "learnMore": "This is the base for the fixed component of your tariffs.",
+        "skipAllowed": false,
+        "primaryCta": "Continue",
+        "secondaryCta": "Back"
+      },
+      {
+        "id": "break_even",
+        "title": "Break-even",
+        "subtitle": "Estimate your revenue target",
+        "description": "Use your average variable cost to estimate the monthly revenue target.",
+        "fields": [ { "key": "variableCostPct", "label": "Average variable cost (%)", "helper": "Example: 35%" } ],
+        "preview": { "lines": [ "Contribution margin: {contribMarginPct}%", "Monthly target revenue: {breakEvenRevenue}" ] },
+        "validations": { "pctRange": "Enter a percentage between 0% and 100%." },
+        "learnMore": "Useful for tracking your monthly progress and setting goals.",
+        "skipAllowed": false,
+        "primaryCta": "Finish",
+        "secondaryCta": "Back"
+      }
+    ],
+    "done": {
+      "title": "Base ready",
+      "body": "You can now create services, recipes and tariffs. You can also import supplies or use suggested templates.",
+      "cta": "Create services and tariffs"
+    }
+  },
+  "drawerTariff": {
+    "title": "Calculate tariff",
+    "intro": "Fill the minimum to get a correct price.",
+    "sections": [
+      { "id": "time", "title": "Estimated time", "fields": [ { "key": "minutes", "label": "Minutes", "placeholder": "e.g. 60", "helper": "Usual time for this service." } ] },
+      { "id": "recipe", "title": "Recipe (supplies)", "helper": "If a supply is missing, create it here without leaving.", "actions": ["Add supply"] },
+      { "id": "margin", "title": "Margin & rounding", "fields": [ { "key": "marginPct", "label": "Margin %", "placeholder": "40" }, { "key": "rounding", "label": "Rounding rule", "options": [ { "id": "none", "label": "No rounding" }, { "id": "nearest_50", "label": "Multiples of 50" }, { "id": "nearest_100", "label": "Multiples of 100" } ] } ] }
+    ],
+    "preview": {
+      "title": "Summary",
+      "lines": [
+        "Fixed: {minutes} × {costPerMinute} = {fixed}",
+        "Variable: {variable}",
+        "Subtotal: {fixed} + {variable} = {subtotal}",
+        "Margin {marginPct}%: {marginAmount}",
+        "Suggested price: {price}",
+        "Rounding: {roundingRule}",
+        "Final price: {roundedPrice}"
+      ]
+    },
+    "ctas": { "apply": "Apply tariff", "cancel": "Cancel" },
+    "notes": "An active tariff (price) is required to complete treatments."
+  }
+}

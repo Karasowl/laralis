@@ -83,6 +83,7 @@ export function SelectWithCreate({
 }: SelectWithCreateProps) {
   const t = useTranslations();
   const tCommon = useTranslations('common');
+  const SIGNATURE = 'SelectWithCreate::v5.0.0';
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
   const [createModalOpen, setCreateModalOpen] = React.useState(false);
@@ -92,24 +93,12 @@ export function SelectWithCreate({
   const [creating, setCreating] = React.useState(false);
   const [formData, setFormData] = React.useState<Record<string, any>>({});
   const [localOptions, setLocalOptions] = React.useState<SelectOption[]>([]);
-  // Internal mirror to show selection immediately, even if parent updates async
-  const [internalValue, setInternalValue] = React.useState<string>(value || '');
-  const [internalLabel, setInternalLabel] = React.useState<string>('');
-  React.useEffect(() => {
-    // Sync down from parent when it changes externally
-    setInternalValue(value || '')
-  }, [value])
-  // Whenever options change, try to resolve the label for the current value
-  React.useEffect(() => {
-    const id = (internalValue || value || '') as string
-    if (!id) { setInternalLabel(''); return }
-    const opt = [...localOptions, ...options].find(o => o.value === id)
-    if (opt) setInternalLabel(opt.label)
-  }, [internalValue, value, options, localOptions])
 
-  // Debug/version marker
+  // Debug/version marker (helps verify HMR picked latest build)
   React.useEffect(() => {
-    try { console.log('[SelectWithCreate] loaded v3 - canCreate:', canCreate, 'entity:', entityName) } catch {}
+    try {
+      console.log(`[%s] mount @ %s | entity=%s | canCreate=%s`, SIGNATURE, new Date().toISOString(), entityName, String(canCreate))
+    } catch {}
   }, [])
 
   const computedOptions = React.useMemo(() => {
@@ -117,9 +106,8 @@ export function SelectWithCreate({
     [...localOptions, ...options].forEach(opt => { if (!map.has(opt.value)) map.set(opt.value, opt) })
     return Array.from(map.values())
   }, [options, localOptions])
-
-  const selectedOption = computedOptions.find((option) => option.value === internalValue) ||
-    computedOptions.find((option) => option.value === value);
+  const currentValue = value ?? ''
+  const selectedOption = computedOptions.find((option) => option.value === currentValue)
 
   const filteredOptions = React.useMemo(() => {
     if (!search) return computedOptions;
@@ -186,7 +174,7 @@ export function SelectWithCreate({
   return (
     <>
       {!createModalOpen && (
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={setOpen} modal>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
@@ -194,16 +182,16 @@ export function SelectWithCreate({
             aria-expanded={open}
             className={cn(
               'w-full justify-between font-normal',
-              !(internalValue || value) && 'text-muted-foreground',
+              !currentValue && 'text-muted-foreground',
               className
             )}
             disabled={disabled}
           >
-            {internalLabel || (selectedOption ? selectedOption.label : (placeholder || tCommon('select')))}
+            {selectedOption ? selectedOption.label : (placeholder || tCommon('select'))}
             <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-full p-0" align="start">
+        <PopoverContent className="w-full p-0" align="start" data-allow-interact-outside>
           <Command>
             <CommandInput 
               placeholder={searchPlaceholder || tCommon('search')}
@@ -220,13 +208,12 @@ export function SelectWithCreate({
                     key={option.value}
                     value={option.value}
                     onSelect={(currentValue) => {
+                      try { console.log(`[${SIGNATURE}] onSelect ->`, option.value, '| label=', option.label) } catch {}
                       try {
                         setLocalOptions(prev => (prev.some(p => p.value === option.value) ? prev : [option, ...prev]))
                       } catch {}
-                      // Always set selected option by its id to avoid label/value mismatches
-                  const nextValue = option.value
-                      setInternalValue(nextValue)
-                      setInternalLabel(option.label)
+                      // Set pending value for immediate UI, then propagate
+                      const nextValue = option.value
                       onValueChange(nextValue)
                       setOpen(false);
                     }}
@@ -234,7 +221,7 @@ export function SelectWithCreate({
                     <Check
                       className={cn(
                         'mr-2 h-4 w-4',
-                        (internalValue || value) === option.value ? 'opacity-100' : 'opacity-0'
+                        currentValue === option.value ? 'opacity-100' : 'opacity-0'
                       )}
                     />
                     {option.label}
@@ -308,7 +295,6 @@ export function SelectWithCreate({
                   try {
                     setLocalOptions(prev => (prev.some(p => p.value === opt.value) ? prev : [{ value: opt.value, label: opt.label }, ...prev]))
                   } catch {}
-                  setInternalValue(opt.value)
                   onValueChange(opt.value)
                   try { onCreatedOption?.({ value: opt.value, label: opt.label }) } catch {}
                   setCreateModalOpen(false)

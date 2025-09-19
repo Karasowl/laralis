@@ -12,6 +12,8 @@ interface ApiOptions {
   showErrorToast?: boolean
   successMessage?: string
   errorMessage?: string
+  // If false, do not mutate hook state with the response
+  updateState?: boolean
 }
 
 interface ApiState<T> {
@@ -24,7 +26,7 @@ type UseApiOptions = {
   autoFetch?: boolean
 }
 
-export function useApi<T = any>(endpoint: string, opts: UseApiOptions = {}) {
+export function useApi<T = any>(endpoint: string | null, opts: UseApiOptions = {}) {
   const [state, setState] = useState<ApiState<T>>({
     data: null,
     loading: false,
@@ -41,8 +43,13 @@ export function useApi<T = any>(endpoint: string, opts: UseApiOptions = {}) {
       showSuccessToast = false,
       showErrorToast = true,
       successMessage,
-      errorMessage
+      errorMessage,
+      updateState = true
     } = options
+
+    if (!endpoint) {
+      return { success: false, error: 'Missing API endpoint' }
+    }
 
     setState(prev => ({ ...prev, loading: true, error: null }))
 
@@ -57,13 +64,28 @@ export function useApi<T = any>(endpoint: string, opts: UseApiOptions = {}) {
         ...(body && { body: JSON.stringify(body) })
       })
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || data.message || 'API Error')
+      const raw = await response.text()
+      let data: any = null
+      if (raw) {
+        try {
+          data = JSON.parse(raw)
+        } catch {
+          data = raw
+        }
       }
 
-      setState({ data: data.data || data, loading: false, error: null })
+      if (!response.ok) {
+        const errorMsg = data && typeof data === 'object'
+          ? ((data as any).error || (data as any).message || 'API Error')
+          : response.statusText || 'API Error'
+        throw new Error(errorMsg || 'API Error')
+      }
+
+      if (updateState) {
+        setState({ data: (data as T | null), loading: false, error: null })
+      } else {
+        setState(prev => ({ ...prev, loading: false, error: null }))
+      }
 
       if (showSuccessToast) {
         toast({
@@ -72,10 +94,14 @@ export function useApi<T = any>(endpoint: string, opts: UseApiOptions = {}) {
         })
       }
 
-      return { success: true, data: data.data || data }
+      return { success: true, data: data as T | null }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error'
-      setState({ data: null, loading: false, error: errorMsg })
+      if (updateState) {
+        setState({ data: null, loading: false, error: errorMsg })
+      } else {
+        setState(prev => ({ ...prev, loading: false, error: errorMsg }))
+      }
 
       if (showErrorToast) {
         toast({

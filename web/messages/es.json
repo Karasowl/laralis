@@ -88,12 +88,14 @@
     "marketing": "Marketing",
     "clinics": "Clínicas",
     "workspaces": "Espacios de Trabajo",
+    "setup": "Configuración inicial",
     "finance": "Finanzas",
     "fixed_costs": "Costos Fijos",
     "administration": "Administración",
     "billing": "Facturación",
     "help": "Ayuda",
-    "user": "Usuario"
+    "user": "Usuario",
+    "cancel_setup": "Cancelar configuración"
   },
   "dark_mode": "Modo Oscuro",
   "toggle_theme": "Cambiar Tema",
@@ -463,6 +465,10 @@
       "title": "Nota:",
       "addMoreClinics": "Podrás agregar más clínicas después desde el panel de configuración."
     },
+    "monthly_progress": "Progreso",
+    "open": "Abrir",
+    "refresh": "Verificar de nuevo",
+    "checking": "Verificando...",
     "doneStep": {
       "title": "¡Todo Listo! 🚀",
       "subtitle": "Comienza a configurar tu negocio",
@@ -771,6 +777,12 @@
     "description": "Descripción",
     "descriptionPlaceholder": "Descripción opcional del servicio",
     "noServices": "No se encontraron servicios. Crea tu primer servicio para comenzar.",
+    "servicePlaceholder": "Limpieza, Extracción, etc.",
+    "searchSupplyPlaceholder": "Buscar insumo",
+    "quantityPlaceholder": "Cant.",
+    "assetPlaceholder": "Autoclave, Sillón, Compresor",
+    "supplyNamePlaceholder": "Gasa estéril, Guantes, etc.",
+    "supplyPresentationPlaceholder": "Paquete 100u, Caja 50u, Cartucho 1u",
     "manageSupplies": "Gestionar Insumos (Opcional)",
     "manageSuppliesHint": "Los insumos son opcionales. Define la receta de materiales usados en este servicio",
     "addSupply": "Agregar Insumo al Servicio",
@@ -800,7 +812,14 @@
       "base_price": "Precio Base",
       "description": "Descripción",
       "supply": "Insumo",
-      "quantity": "Cantidad"
+      "quantity": "Cantidad",
+      "unit": "Unidad",
+      "cost_per_unit": "Costo por Unidad"
+    },
+    "select_category": "Selecciona una categoría",
+    "entities": {
+      "category": "Categoría",
+      "supply": "Insumo"
     },
     "categories": {
       "preventivo": "Preventivo",
@@ -811,8 +830,19 @@
       "ortodoncia": "Ortodoncia",
       "protesis": "Prótesis",
       "periodoncia": "Periodoncia",
-      "otros": "Otros"
-    }
+      "otros": "Otros",
+      "create_title": "Crear Categoría",
+      "create_description": "Ingresa el nombre y una descripción opcional para la categoría"
+    },
+    "supplies": {
+      "create_title": "Crear Insumo",
+      "create_quick_description": "Ingresa la información básica para crear un nuevo insumo"
+    },
+    "cost_summary_note": "Laralis combina el costo fijo (minutos x costo fijo/minuto) y el costo variable de insumos para guardar el costo base financiero (ver docs/memories/2025-08-17-app-description-compilada.md §3.7).",
+    "time_settings_warning": "Configura la sección de Tiempo para obtener un costo fijo por minuto real (ver docs/memories/2025-08-17-app-description-compilada.md §3.7).",
+    "auto_base_price_hint": "Laralis guarda este valor automáticamente combinando costo fijo (minutos x costo fijo/minuto) y costo variable de insumos (ver docs/memories/2025-08-17-app-description-compilada.md §3.7).",
+    "unknown_cost": "Sin costo",
+    "please_import_supplies": "Importa insumos para crear servicios"
   },
   "businessSetup": {
     "assets": {
@@ -1507,7 +1537,6 @@
       "asset_name": "Nombre del equipo/activo",
       "useful_life": "Años de vida útil"
     },
-
     "description_placeholder": "Describe el gasto...",
     "vendor_placeholder": "Nombre del proveedor",
     "invoice_placeholder": "Número de factura",
@@ -1729,6 +1758,7 @@
     "amount": "Monto",
     "name": "Nombre",
     "duration": "Duración",
+    "price": "Precio",
     "contact": "Contacto",
     "dates": "Fechas",
     "first_name": "Nombre",

@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useApi } from '@/hooks/use-api'
-import { useCrudOperations } from '@/hooks/use-crud-operations'
 // Local simple calc to avoid coupling and ensure hours are shown even if costs=0
 import { toast } from 'sonner'
 import { useTranslations } from 'next-intl'
@@ -130,19 +129,21 @@ export function useTimeSettings(options: UseTimeSettingsOptions = {}) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...settings,
-          clinic_id: clinicId,
-          real_pct_decimal: settings.real_pct / 100
+          work_days: Number(settings.work_days) || 0,
+          hours_per_day: Number(settings.hours_per_day) || 0,
+          real_pct: Math.max(0, Number(settings.real_pct) || 0) / 100,
+          clinic_id: clinicId
         })
       })
       
       if (response.ok) {
         toast.success(t('settings.saved_successfully'))
         // Refresh settings after save
-        await settingsApi.refetch()
+        await settingsApi.get()
         return true
       } else {
-        toast.error(t('settings.save_error'))
+        const payload = await response.json().catch(() => ({})) as { message?: string }
+        toast.error(payload?.message || t('settings.save_error'))
         return false
       }
     } catch (err) {
@@ -155,9 +156,9 @@ export function useTimeSettings(options: UseTimeSettingsOptions = {}) {
   // Refresh all data
   const refreshData = useCallback(async () => {
     await Promise.all([
-      settingsApi.refetch(),
-      fixedCostsApi.refetch(),
-      assetsApi.refetch()
+      settingsApi.get(),
+      fixedCostsApi.get(),
+      assetsApi.get()
     ])
   }, [settingsApi, fixedCostsApi, assetsApi])
   

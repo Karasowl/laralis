@@ -105,8 +105,9 @@ export function useCrudOperations<T extends { id: string; name?: string }>(
         urlObj.searchParams.set(config.searchParam, searchDebounce);
       }
 
-      const url = urlObj.pathname + (urlObj.search ? urlObj.search : '');
-      const response = await fetch(url, { credentials: 'include' });
+      const url = urlObj.pathname + (urlObj.search ? urlObj.search : '')
+      try { console.log('[useCrudOperations] fetch', url) } catch {}
+      const response = await fetch(url, { credentials: 'include' })
       
       if (!response.ok) {
         throw new Error(`Failed to fetch ${config.entityName}`);
@@ -155,6 +156,14 @@ export function useCrudOperations<T extends { id: string; name?: string }>(
       });
       
       if (!response.ok) {
+        // Handle precondition failed (412) with a persistent banner-like toast
+        if (response.status === 412) {
+          let error: any = {};
+          try { error = await response.json() } catch {}
+          const msg = String(error?.message || 'Missing prerequisites');
+          toast.warning(msg, { duration: 8000 });
+          return false;
+        }
         const error = await response.json();
         throw new Error(error.message || error.error);
       }

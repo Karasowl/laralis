@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { supabaseAdmin, isUsingServiceRole } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
 import { getClinicIdOrDefault } from '@/lib/clinic';
 import { createClient } from '@/lib/supabase/server';
@@ -40,24 +40,38 @@ export async function GET(request: NextRequest) {
     const active = searchParams.get('active');
     const withType = searchParams.get('withType') === 'true';
     
-    let query = supabaseAdmin
+    const db = isUsingServiceRole ? supabaseAdmin : createClient();
+    let query = db
       .from(withType ? 'v_categories_with_type' : 'categories')
       .select('*')
-      .eq('clinic_id', clinicId)
+      .eq('is_active', true)
+      // Include both system categories (global) and clinic-specific ones
+      .or(`clinic_id.eq.${clinicId},is_system.eq.true`)
+      .order('is_system', { ascending: false })
       .order('display_order', { ascending: true });
     
     // Filter by type (preferred) or entity_type (compat)
     if (typeCode) {
-      // First get the category_type_id
-      const { data: typeData } = await supabaseAdmin
+      // First get the category_type_id (new schema)
+      const { data: typeData } = await db
         .from('category_types')
         .select('id')
         .eq('clinic_id', clinicId)
         .eq('code', typeCode)
-        .single();
+        .maybeSingle();
       
-      if (typeData) {
+      if (typeData?.id) {
         query = query.eq('category_type_id', typeData.id);
+      } else {
+        // Fallback to legacy schema filter by entity_type mapping
+        const map: Record<string, string> = {
+          services: 'service',
+          supplies: 'supply',
+          expenses: 'fixed_cost',
+          assets: 'asset'
+        };
+        const legacyType = map[typeCode];
+        if (legacyType) query = query.eq('entity_type', legacyType as any);
       }
     } else if (entityType) {
       // Backward compatibility: filter directly by categories.entity_type when provided
@@ -93,6 +107,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const cookieStore = cookies();
     const supabase = createClient();
+    const { searchParams } = new URL(request.url);
     
     // ✅ Validar usuario autenticado
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -105,16 +120,120 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No clinic context available' }, { status: 400 });
     }
     
-    // Validate input
+    // Support two modes:
+    // 1) New system: accept full payload (categorySchema)
+    // 2) Simplified: when `type` query is provided (e.g., type=services),
+    //    allow a minimal body { name, code? } and resolve category_type_id server-side
+
+    const typeCode = searchParams.get('type');
+
+    if (typeCode) {
+      // Resolve category_type_id for the clinic and type code (new schema)
+      const { data: typeData, error: typeErr } = await (isUsingServiceRole ? supabaseAdmin : createClient())
+        .from('category_types')
+        .select('id')
+        .eq('clinic_id', clinicId)
+        .eq('code', typeCode)
+        .maybeSingle();
+
+      const rawName = String(body?.name || '').trim();
+      if (!rawName) {
+        return NextResponse.json(
+          { error: 'Name is required' },
+          { status: 400 }
+        );
+      }
+
+      // Build code if not provided
+      const code: string = (body?.code && String(body.code).trim().length > 0)
+        ? String(body.code)
+        : rawName
+            .toLowerCase()
+            .normalize('NFD').replace(/\p{Diacritic}/gu, '')
+            .replace(/[^a-z0-9]+/g, '_')
+            .replace(/^_+|_+$/g, '');
+
+      // Try new-schema insert first if typeData exists
+      if (typeData?.id) {
+        const insertPayload = {
+          clinic_id: clinicId,
+          category_type_id: typeData.id,
+          parent_id: body?.parent_id ?? null,
+          code,
+          name: rawName,
+          description: body?.description ?? null,
+          icon: body?.icon ?? null,
+          color: body?.color ?? null,
+          display_order: typeof body?.display_order === 'number' ? body.display_order : 0,
+          is_system: false,
+          is_active: body?.is_active ?? true,
+          metadata: body?.metadata ?? {}
+        } as any;
+
+        const { data, error } = await (isUsingServiceRole ? supabaseAdmin : createClient())
+          .from('categories')
+          .insert(insertPayload)
+          .select()
+          .single();
+
+        if (!error && data) {
+          return NextResponse.json({ data });
+        }
+
+        // If insert failed due to schema mismatch, fall through to legacy path
+        if (error) {
+          console.warn('Falling back to legacy categories schema due to insert error:', (error as any).message || error);
+        }
+      }
+
+      // Legacy/compatible path: insert into old flexible categories (entity_type/name/display_name)
+      const entityTypeMap: Record<string, string> = {
+        services: 'service',
+        supplies: 'supply',
+        expenses: 'fixed_cost',
+        assets: 'asset'
+      };
+      const entity_type = entityTypeMap[typeCode] || 'service';
+
+      const legacyPayload = {
+        clinic_id: clinicId,
+        entity_type,
+        name: code, // store code as canonical name
+        display_name: rawName,
+        is_system: false,
+        is_active: body?.is_active ?? true,
+        display_order: typeof body?.display_order === 'number' ? body.display_order : 999
+      } as any;
+
+      const { data: legacyData, error: legacyErr } = await (isUsingServiceRole ? supabaseAdmin : createClient())
+        .from('categories')
+        .insert(legacyPayload)
+        .select()
+        .single();
+
+      if (legacyErr) {
+        if ((legacyErr as any).code === '23505') {
+          return NextResponse.json(
+            { error: 'Category already exists' },
+            { status: 400 }
+          );
+        }
+        console.error('Error creating category (legacy):', legacyErr);
+        return NextResponse.json({ error: 'Failed to create category' }, { status: 500 });
+      }
+
+      return NextResponse.json({ data: legacyData });
+    }
+
+    // Fallback to strict schema validation when no type provided
     const validatedData = categorySchema.parse(body);
-    
-    // Create category
+
     const { data, error } = await supabaseAdmin
       .from('categories')
       .insert({
         ...validatedData,
         clinic_id: clinicId,
-        is_system: false // User-created categories are never system categories
+        is_system: false
       })
       .select()
       .single();

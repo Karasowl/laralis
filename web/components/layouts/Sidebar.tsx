@@ -49,9 +49,9 @@ export function Sidebar({
           size="icon"
           onClick={onToggleCollapse}
           className="ml-auto"
-          aria-label={isCollapsed 
-            ? tRoot('expand_sidebar', { fallback: 'Expand Sidebar' }) 
-            : tRoot('collapse_sidebar', { fallback: 'Collapse Sidebar' })}
+          aria-label={isCollapsed
+            ? tRoot('expand_sidebar')
+            : tRoot('collapse_sidebar')}
         >
           <ChevronLeft className={cn(
             "h-4 w-4 transition-transform",

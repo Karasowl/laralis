@@ -38,6 +38,34 @@
     "edit": "Editar",
     "delete": "Eliminar"
   },
+  "onboarding": {
+    "justInTime": {
+      "title": "Missing steps to continue",
+      "missing": "Please complete before proceeding:",
+      "openImporter": "Import supplies",
+      "openRecipeWizard": "Create recipe",
+      "openTariffDrawer": "Define tariff"
+    },
+    "tariffDrawer": {
+      "title": "Define tariff",
+      "sections": {
+        "time": "Estimated time (min)",
+        "recipe": "Recipe (variable cost, cents)",
+        "marginRounding": "Margin & rounding"
+      },
+      "summary": {
+        "fixed": "Fixed cost",
+        "variable": "Variable cost",
+        "priceRaw": "Price (unrounded)",
+        "priceRounded": "Rounded price"
+      },
+      "ctas": {
+        "apply": "Apply tariff",
+        "saveServiceOnly": "Save service only",
+        "cancel": "Cancel"
+      }
+    }
+  },
   "workspaceStep": {
     "title": "Create Your Workspace",
     "subtitle": "Like a brand in Metricool",

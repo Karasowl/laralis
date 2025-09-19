@@ -1,0 +1,163 @@
+{
+  "onboarding": {
+    "title": "Configurar base financiera",
+    "subtitle": "Completa 4 pasos para calcular precios correctos",
+    "steps": [
+      {
+        "id": "depreciation",
+        "title": "Depreciación",
+        "subtitle": "Calcula el fondo mensual por equipo",
+        "description": "Agrega tus equipos y su vida útil para formar el fondo de depreciación mensual que se sumará a tus costos fijos.",
+        "fields": [
+          { "key": "assets", "label": "Equipos y activos", "helper": "Nombre, costo y vida útil (meses). Puedes pegar desde CSV." },
+          { "key": "lifeMonthsDefault", "label": "Vida útil por defecto (meses)", "helper": "Se aplica a nuevos activos; cada activo puede ajustarse." }
+        ],
+        "preview": {
+          "label": "Fondo mensual de depreciación",
+          "value": "{amount}"
+        },
+        "validations": {
+          "atLeastOneAsset": "Agrega al menos un activo o un total > 0.",
+          "lifeMonthsPositive": "La vida útil debe ser mayor a 0."
+        },
+        "learnMore": "¿Por qué pedimos esto? Para que el precio cubra el desgaste real de tus equipos.",
+        "skipAllowed": false,
+        "primaryCta": "Continuar",
+        "secondaryCta": "Volver"
+      },
+      {
+        "id": "fixed_costs",
+        "title": "Costos fijos",
+        "subtitle": "Suma tus gastos mensuales",
+        "description": "Ingresa los costos fijos de tu clínica. Ya incluimos el fondo de depreciación calculado en el paso anterior.",
+        "fields": [
+          { "key": "rent", "label": "Renta / Hipoteca", "helper": "Pago mensual del local." },
+          { "key": "utilities", "label": "Servicios (luz, agua, internet)", "helper": "Promedio mensual." },
+          { "key": "payroll", "label": "Nómina", "helper": "Salarios + prestaciones del personal fijo." },
+          { "key": "insurance", "label": "Seguros", "helper": "Responsabilidad civil, equipo, etc." },
+          { "key": "maintenance", "label": "Mantenimiento", "helper": "Mantenimiento preventivo y correctivo." },
+          { "key": "taxes", "label": "Impuestos y licencias", "helper": "Cuotas, permisos, colegiaturas." },
+          { "key": "other", "label": "Otros fijos", "helper": "Cualquier otro fijo mensual." }
+        ],
+        "preview": {
+          "label": "Total mensual de fijos",
+          "value": "{amount}"
+        },
+        "validations": {
+          "somePositive": "Ingresa al menos una línea con monto ≥ 0.",
+          "numbersOnly": "Usa números válidos en cada campo."
+        },
+        "learnMore": "Los costos fijos determinan tu \u0024/min con la capacidad operativa del paso siguiente.",
+        "skipAllowed": false,
+        "primaryCta": "Continuar",
+        "secondaryCta": "Volver"
+      },
+      {
+        "id": "cost_per_min",
+        "title": "Costo por tiempo",
+        "subtitle": "Define tu capacidad operativa",
+        "description": "Con tus costos fijos y capacidad real, calculamos el costo fijo por minuto.",
+        "fields": [
+          { "key": "workingDays", "label": "Días laborales al mes", "helper": "1–31" },
+          { "key": "hoursPerDay", "label": "Horas por día", "helper": "1–24" },
+          { "key": "efficiencyPct", "label": "Eficiencia (%)", "helper": "Porcentaje de horas efectivas (50–100%)." }
+        ],
+        "preview": {
+          "lines": [
+            "Horas planificadas: {workingDays} × {hoursPerDay} = {hoursPlanned}",
+            "Horas reales: {hoursPlanned} × {efficiencyPct}% = {hoursReal}",
+            "Costo fijo/min: {fixedCosts} ÷ {hoursReal} ÷ 60 = {costPerMinute}"
+          ]
+        },
+        "validations": {
+          "daysRange": "Días entre 1 y 31.",
+          "hoursRange": "Horas entre 1 y 24.",
+          "efficiencyRange": "Eficiencia entre 50% y 100%."
+        },
+        "learnMore": "Este valor es la base del componente fijo de tus tarifas.",
+        "skipAllowed": false,
+        "primaryCta": "Continuar",
+        "secondaryCta": "Volver"
+      },
+      {
+        "id": "break_even",
+        "title": "Punto de equilibrio",
+        "subtitle": "Estima tu ingreso objetivo",
+        "description": "Usa tu costo variable promedio para estimar el ingreso objetivo mensual.",
+        "fields": [
+          { "key": "variableCostPct", "label": "Costo variable promedio (%)", "helper": "Ejemplo: 35%" }
+        ],
+        "preview": {
+          "lines": [
+            "Margen de contribución: {contribMarginPct}%",
+            "Ingreso objetivo mensual: {breakEvenRevenue}"
+          ]
+        },
+        "validations": {
+          "pctRange": "Ingresa un porcentaje entre 0% y 100%."
+        },
+        "learnMore": "Sirve para monitorear tu avance mensual y definir objetivos.",
+        "skipAllowed": false,
+        "primaryCta": "Finalizar",
+        "secondaryCta": "Volver"
+      }
+    ],
+    "done": {
+      "title": "Base lista",
+      "body": "Ya puedes crear servicios, recetas y tarifas. También puedes importar insumos o usar las plantillas sugeridas.",
+      "cta": "Crear servicios y tarifas"
+    }
+  },
+  "drawerTariff": {
+    "title": "Calcular tarifa",
+    "intro": "Completa lo mínimo para obtener un precio correcto.",
+    "sections": [
+      {
+        "id": "time",
+        "title": "Tiempo estimado",
+        "fields": [
+          { "key": "minutes", "label": "Minutos", "placeholder": "Ej. 60", "helper": "Tiempo habitual para este servicio." }
+        ]
+      },
+      {
+        "id": "recipe",
+        "title": "Receta (insumos)",
+        "helper": "Si falta un insumo, créalo aquí sin salir.",
+        "actions": ["Agregar insumo"]
+      },
+      {
+        "id": "margin",
+        "title": "Margen y redondeo",
+        "fields": [
+          { "key": "marginPct", "label": "Margen %", "placeholder": "40" },
+          {
+            "key": "rounding",
+            "label": "Regla de redondeo",
+            "options": [
+              { "id": "none", "label": "Sin redondeo" },
+              { "id": "nearest_50", "label": "Múltiplos de 50" },
+              { "id": "nearest_100", "label": "Múltiplos de 100" }
+            ]
+          }
+        ]
+      }
+    ],
+    "preview": {
+      "title": "Resumen",
+      "lines": [
+        "Fijo: {minutes} × {costPerMinute} = {fixed}",
+        "Variable: {variable}",
+        "Subtotal: {fixed} + {variable} = {subtotal}",
+        "Margen {marginPct}%: {marginAmount}",
+        "Precio sugerido: {price}",
+        "Regla de redondeo: {roundingRule}",
+        "Precio final: {roundedPrice}"
+      ]
+    },
+    "ctas": {
+      "apply": "Aplicar tarifa",
+      "cancel": "Cancelar"
+    },
+    "notes": "Es obligatorio tener una tarifa (precio) activa para completar tratamientos."
+  }
+}

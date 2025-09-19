@@ -48,6 +48,15 @@ export default getRequestConfig(async () => {
 
   return {
     locale,
-    messages
+    messages,
+    onError(error) {
+      try {
+        // Silence missing message warnings; we provide fallbacks at runtime
+        // @ts-ignore next-intl error shape
+        if (error?.code === 'MISSING_MESSAGE') return;
+      } catch {}
+      // eslint-disable-next-line no-console
+      console.error(error);
+    }
   };
 });

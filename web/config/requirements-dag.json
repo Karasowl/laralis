@@ -1,0 +1,29 @@
+{
+  "$schema": "https://laralis.dev/schemas/requirements-dag.json",
+  "nodes": [
+    { "id": "depreciation",  "level": 1, "validatorKey": "hasMonthlyDepreciation" },
+    { "id": "fixed_costs",   "level": 2, "dependsOn": ["depreciation"], "validatorKey": "hasFixedCosts" },
+    { "id": "cost_per_min",  "level": 3, "dependsOn": ["fixed_costs"],  "validatorKey": "hasCostPerMinute" },
+    { "id": "break_even",    "level": 4, "dependsOn": ["cost_per_min"], "validatorKey": "hasBreakEven" },
+    { "id": "supplies",      "level": 5, "validatorKey": "hasAnySupply", "autofixKey": "openBulkImportSupplies" },
+    { "id": "service_recipe","level": 6, "dependsOn": ["supplies"], "validatorKey": "hasAnyServiceRecipe", "autofixKey": "openQuickRecipeWizard" },
+    { "id": "tariffs",       "level": 7, "dependsOn": ["service_recipe","cost_per_min"], "validatorKey": "hasAnyTariff", "autofixKey": "openTariffDrawer" }
+  ],
+  "actions": [
+    {
+      "id": "create_service",
+      "minRequirements": ["supplies"],
+      "defaults": { "minutes": 60, "marginPctDefault": 40, "roundingPolicyDefault": { "mode": "nearest", "multipleCents": 5000 } }
+    },
+    {
+      "id": "create_tariff",
+      "minRequirements": ["cost_per_min", "service_recipe"],
+      "snapshotRequired": true
+    },
+    {
+      "id": "create_treatment",
+      "minRequirements": ["tariffs"],
+      "snapshotRequired": true
+    }
+  ]
+}

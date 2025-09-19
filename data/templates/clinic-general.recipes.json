@@ -1,0 +1,52 @@
+{
+  "templateId": "clinic-general",
+  "roundingPolicyDefault": "nearest_50",
+  "marginPctDefault": 40,
+  "recipes": [
+    {
+      "slug": "limpieza",
+      "name": "Limpieza dental (profilaxis)",
+      "minutes": 60,
+      "items": [
+        { "supply": "guantes-latex", "qty": 1 },
+        { "supply": "cubrebocas", "qty": 1 },
+        { "supply": "rollos-algodon", "qty": 4 },
+        { "supply": "gasa-esteril", "qty": 4 },
+        { "supply": "cepillo-profilaxis", "qty": 1 },
+        { "supply": "pasta-profilaxis", "qty": 1 }
+      ],
+      "notes": "Receta base editable; añade desinfectante o barreras según protocolo."
+    },
+    {
+      "slug": "resina-posterior-una-cara",
+      "name": "Resina posterior (1 cara)",
+      "minutes": 45,
+      "items": [
+        { "supply": "guantes-latex", "qty": 1 },
+        { "supply": "cubrebocas", "qty": 1 },
+        { "supply": "rollos-algodon", "qty": 4 },
+        { "supply": "acido-grabador-37", "qty": 1 },
+        { "supply": "adhesivo-bonding", "qty": 1 },
+        { "supply": "resina-compuesta-jeringa", "qty": 1 },
+        { "supply": "hilo-retractor", "qty": 1 }
+      ],
+      "notes": "Ajusta cantidades según técnica y superficie tratada."
+    },
+    {
+      "slug": "extraccion-simple",
+      "name": "Extracción simple",
+      "minutes": 40,
+      "items": [
+        { "supply": "guantes-latex", "qty": 1 },
+        { "supply": "cubrebocas", "qty": 1 },
+        { "supply": "anestesico-carpule", "qty": 1 },
+        { "supply": "aguja-carpule", "qty": 1 },
+        { "supply": "gasa-esteril", "qty": 6 },
+        { "supply": "barrera-plastica", "qty": 2 },
+        { "supply": "succion-saliva-descartable", "qty": 1 }
+      ],
+      "notes": "Añade sutura o medicación postoperatoria si aplica."
+    }
+  ]
+}
+

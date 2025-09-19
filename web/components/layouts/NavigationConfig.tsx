@@ -10,9 +10,10 @@ import {
   PiggyBank,
   Briefcase,
   Calculator,
-  Shield,
   Building,
-  Megaphone
+  Megaphone,
+  Wrench,
+  XCircle
 } from 'lucide-react'
 
 export interface NavigationItem {
@@ -27,8 +28,8 @@ export interface NavigationSection {
   items: NavigationItem[]
 }
 
-export function getNavigationSections(t: any): NavigationSection[] {
-  return [
+export function getNavigationSections(t: any, options: { onboardingCompleted?: boolean } = {}): NavigationSection[] {
+  const baseSections: NavigationSection[] = [
     {
       items: [
         {
@@ -77,6 +78,11 @@ export function getNavigationSections(t: any): NavigationSection[] {
           icon: DollarSign
         },
         {
+          href: '/tariffs',
+          label: t('navigation.tariffs'),
+          icon: Calculator
+        },
+        {
           href: '/assets',
           label: t('navigation.assets'),
           icon: PiggyBank
@@ -113,5 +119,37 @@ export function getNavigationSections(t: any): NavigationSection[] {
         }
       ]
     }
-  ]
+  ];
+
+  const onboardingCompleted = options.onboardingCompleted ?? true;
+
+  if (!onboardingCompleted) {
+    const allowed = new Set(['/setup', '/services', '/supplies', '/assets', '/fixed-costs']);
+    const filtered = baseSections
+      .map(section => ({
+        ...section,
+        items: section.items.filter(item => allowed.has(item.href))
+      }))
+      .filter(section => section.items.length > 0);
+
+    const setupSection: NavigationSection = {
+      items: [
+        {
+          href: '/setup',
+          label: t('navigation.setup'),
+          icon: Wrench
+        },
+        {
+          href: '/setup/cancel',
+          label: t('navigation.cancel_setup'),
+          icon: XCircle
+        }
+      ]
+    };
+
+    return [setupSection, ...filtered];
+  }
+
+  return baseSections;
 }
+

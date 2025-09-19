@@ -101,11 +101,11 @@ export function CrudPageLayout<T extends { id: string; name?: string }>({
     const actionColumn: Column<T> | null = shouldAddActions
       ? {
           key: 'actions',
-          label: t('common.actions', { fallback: 'Actions' }),
+          label: t('common.actions'),
           render: (_value, item) => {
             const actions: any[] = [];
-            if (onEdit) actions.push(createEditAction(() => onEdit(item), t('common.edit', { fallback: 'Edit' })));
-            if (onDelete) actions.push(createDeleteAction(() => onDelete(item), t('common.delete', { fallback: 'Delete' })));
+            if (onEdit) actions.push(createEditAction(() => onEdit(item), t('common.edit')));
+            if (onDelete) actions.push(createDeleteAction(() => onDelete(item), t('common.delete')));
             return <ActionDropdown actions={actions} />;
           },
         }
@@ -164,7 +164,7 @@ export function CrudPageLayout<T extends { id: string; name?: string }>({
             {loading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                <span className="ml-2 text-muted-foreground">{t('common.loading', { fallback: 'Loading...' })}</span>
+                <span className="ml-2 text-muted-foreground">{t('common.loading')}</span>
               </div>
             ) : items.length === 0 ? (
               <EmptyState
@@ -244,10 +244,10 @@ export function SimpleCrudPage<T extends { id: string; name?: string }>({
   // Localized common strings
   // We avoid hardcoded English in composed labels
   const t = useT();
-  const addLabel = `${t('common.add', { fallback: 'Add' })} ${entityName}`;
-  const searchLabel = `${t('common.search', { fallback: 'Search' })} ${entityName.toLowerCase()}...`;
-  const emptyTitle = t('common.noData', { fallback: `No ${entityName.toLowerCase()} found` });
-  const emptyDesc = t('common.createNewDescription', { entity: entityName.toLowerCase(), fallback: `Get started by adding your first ${entityName.toLowerCase()}.` });
+  const addLabel = `${t('common.add')} ${entityName}`;
+  const searchLabel = `${t('common.search')} ${entityName.toLowerCase()}...`;
+  const emptyTitle = t('common.noData');
+  const emptyDesc = t('common.createNewDescription', { entity: entityName.toLowerCase() });
 
   return (
     <CrudPageLayout

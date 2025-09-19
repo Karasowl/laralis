@@ -286,7 +286,7 @@ export default function PatientsPage() {
                   <a
                     href={getTelHref(patient.phone)}
                     className="inline-flex items-center justify-center h-8 w-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                    aria-label={tg('actions.call', { fallback: 'Call' })}
+                    aria-label={tg('actions.call')}
                   >
                     <Phone className="h-4 w-4" />
                   </a>

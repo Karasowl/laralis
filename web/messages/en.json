@@ -30,7 +30,7 @@
     "business": "Business",
     "clinic": "Clinic",
     "notAvailable": "N/A",
-    "minutes": "min",
+    "minutes": "minutes",
     "record": "record",
     "records": "records",
     "loadError": "Error loading {entity}",
@@ -50,10 +50,7 @@
     "createNew": "New {entity}",
     "createNewTitle": "Create {entity}",
     "createNewDescription": "Enter the information to create a new {entity}",
-    "createSuccess": "{entity} created successfully",
-    "createError": "Error creating {entity}",
     "optional": "Optional",
-    "minutes": "minutes",
     "saving": "Saving...",
     "close": "Close",
     "internalError": "Internal server error",
@@ -66,7 +63,6 @@
     "systemTheme": "System",
     "status": "Status",
     "created": "Created",
-    "more": "More",
     "srClose": "Close",
     "active": "Active",
     "inactive": "Inactive",
@@ -92,12 +88,14 @@
     "marketing": "Marketing",
     "clinics": "Clinics",
     "workspaces": "Workspaces",
+    "setup": "Initial Setup",
     "finance": "Finance",
     "fixed_costs": "Fixed Costs",
     "administration": "Administration",
     "billing": "Billing",
     "help": "Help",
-    "user": "User"
+    "user": "User",
+    "cancel_setup": "Cancel Setup"
   },
   "dark_mode": "Dark Mode",
   "toggle_theme": "Toggle Theme",
@@ -110,12 +108,28 @@
     "treatment": "Treatment"
   },
   "home": {
-    "configurationStatus": "Configuration",
-    "databaseStatus": "Database Status",
-    "databaseReady": "Ready",
-    "calculationEngine": "Calculation Engine",
-    "calculationActive": "Active",
-    "initialState": "Initial"
+    "dashboard": "Dashboard",
+    "welcome": "Welcome",
+    "getStarted": "Get Started",
+    "noClinic": "No clinic selected",
+    "quickActions": "Quick Actions",
+    "patientsDescription": "Manage patient records",
+    "treatmentsDescription": "Record patient treatments",
+    "reportsDescription": "View financial analytics",
+    "openAction": "Open",
+    "recentActivity": "Recent Activity",
+    "lastTreatments": "Latest treatments and appointments",
+    "noRecentActivity": "No recent activity to display",
+    "metrics": {
+      "patientsMonth": "Patients This Month",
+      "treatmentsMonth": "Treatments",
+      "revenue": "Revenue",
+      "occupancy": "Occupancy Rate",
+      "newPatients": "New patients registered",
+      "completed": "Completed treatments",
+      "thisMonth": "This month",
+      "utilizationRate": "Chair utilization"
+    }
   },
   "fields": {
     "duration": "Duration"
@@ -276,12 +290,18 @@
         "title": "Automatic Calculation",
         "desc": "Costs, margins and pricing"
       },
-      "multi": { "title": "Multi-Clinic", "desc": "Manage multiple branches" },
+      "multi": {
+        "title": "Multi-Clinic",
+        "desc": "Manage multiple branches"
+      },
       "reports": {
         "title": "Detailed Reports",
         "desc": "Metrics and analytics"
       },
-      "custom": { "title": "Customizable", "desc": "Adapt to your business" }
+      "custom": {
+        "title": "Customizable",
+        "desc": "Adapt to your business"
+      }
     },
     "workspaceStep": {
       "title": "Create your Workspace",
@@ -311,6 +331,10 @@
       "title": "Note:",
       "addMoreClinics": "You can add more clinics later from the settings panel."
     },
+    "monthly_progress": "Progress",
+    "open": "Open",
+    "refresh": "Check again",
+    "checking": "Checking...",
     "doneStep": {
       "title": "All Set! 🚀",
       "subtitle": "Start configuring your business",
@@ -347,53 +371,30 @@
     }
   },
   "businessSetup": {
+    "title": "Business Setup",
+    "subtitle": "Define the financial foundations of your clinic",
+    "steps": {
+      "assets": "1. Depreciation (Assets)",
+      "fixedCosts": "2. Fixed Costs",
+      "timeCosts": "3. Time Costs",
+      "equilibrium": "4. Break-even Point"
+    },
     "assets": {
-      "title": "Assets",
-      "subtitle": "Equipment and investment with depreciation",
       "totalInvestment": "Total Investment",
       "assets": "assets",
       "depreciationPeriod": "Depreciation Period",
       "years": "years",
       "months": "months",
-      "monthlyDepreciation": "Total Monthly Depreciation",
       "perMonth": "per month",
-      "yearlyDepreciation": "Total Annual Depreciation",
+      "yearlyDepreciation": "Yearly Depreciation",
       "perYear": "per year",
-      "addAsset": "Add Asset",
       "detailBreakdown": "Detailed Breakdown",
-      "empty": {
-        "title": "No assets registered",
-        "description": "Add your equipment and investments to calculate depreciation"
-      },
-      "form": {
-        "name": "Asset Name",
-        "namePlaceholder": "e.g. Dental chair, Compressor, etc.",
-        "purchasePrice": "Purchase Price",
-        "purchasePricePlaceholder": "e.g. 50000",
-        "depreciationMonths": "Depreciation Months",
-        "depreciationMonthsPlaceholder": "e.g. 60",
-        "purchaseDate": "Purchase Date",
-        "save": "Save",
-        "cancel": "Cancel"
-      },
-      "table": {
-        "name": "Asset",
-        "purchasePrice": "Price",
-        "depreciationPeriod": "Depreciation",
-        "monthlyDepreciation": "Monthly Depreciation",
-        "remainingValue": "Remaining Value",
-        "age": "Age",
-        "actions": "Actions"
-      },
-      "depreciationExplanation": "Depreciation Explanation",
+      "depreciationExplanation": "How Depreciation is Calculated",
       "formula": "Formula",
-      "formulaExplanation": "Purchase Price ÷ Depreciation Months = Monthly Depreciation",
+      "formulaExplanation": "Monthly Depreciation = Purchase Price ÷ Depreciation Months",
       "exampleCalculation": "Example:",
       "month": "month",
-      "priceHelp": "Enter the price in Mexican pesos",
-      "depreciationExplanation": "Depreciation Explanation",
-      "formula": "Formula",
-      "formulaExplanation": "Purchase Price ÷ Depreciation Months = Monthly Depreciation"
+      "priceHelp": "Purchase price in Mexican pesos"
     }
   },
   "fixedCostsSummary": {
@@ -417,11 +418,12 @@
   },
   "nav": {
     "home": "Home",
-    "profile": "Profile",
+    "profile": "My Profile",
     "sections": {
+      "operations": "Operations",
       "finance": "Finance",
       "inventory": "Inventory",
-      "configuration": "Configuration"
+      "configuration": "Settings"
     },
     "dashboard": "Dashboard",
     "operations": "Operations",
@@ -446,38 +448,7 @@
     "workspaces": "Workspaces",
     "clinics": "Clinics",
     "logout": "Logout",
-    "workspace": "Workspace",
-    "profile": "My Profile",
-    "sections": {
-      "operations": "Operations",
-      "finance": "Finance",
-      "inventory": "Inventory",
-      "configuration": "Settings"
-    }
-  },
-  "home": {
-    "dashboard": "Dashboard",
-    "welcome": "Welcome",
-    "getStarted": "Get Started",
-    "noClinic": "No clinic selected",
-    "quickActions": "Quick Actions",
-    "patientsDescription": "Manage patient records",
-    "treatmentsDescription": "Record patient treatments",
-    "reportsDescription": "View financial analytics",
-    "openAction": "Open",
-    "recentActivity": "Recent Activity",
-    "lastTreatments": "Latest treatments and appointments",
-    "noRecentActivity": "No recent activity to display",
-    "metrics": {
-      "patientsMonth": "Patients This Month",
-      "treatmentsMonth": "Treatments",
-      "revenue": "Revenue",
-      "occupancy": "Occupancy Rate",
-      "newPatients": "New patients registered",
-      "completed": "Completed treatments",
-      "thisMonth": "This month",
-      "utilizationRate": "Chair utilization"
-    }
+    "workspace": "Workspace"
   },
   "time": {
     "title": "Time Settings",
@@ -527,7 +498,7 @@
     "days": "days",
     "hoursPerDayShort": "hrs/day",
     "ofPlannedHours": "of planned hours",
-    "calculatedCosts": "Calculated Time Costs",
+    "calculatedCosts": "Calculated Costs",
     "fixedCostPerHour": "Fixed Cost per Hour",
     "fixedCostPerMinute": "Fixed Cost per Minute",
     "formula": "Formula",
@@ -541,7 +512,7 @@
     "formTitle": "Time Configuration",
     "livePreviewDescription": "Real-time calculated values",
     "monthlyFixedCosts": "Monthly fixed costs",
-    "basedOnFixedCosts": "Based on monthly fixed costs of",
+    "basedOnFixedCosts": "Based on fixed costs of",
     "totalMinutes": "Total Minutes",
     "effectiveMinutes": "Effective Minutes",
     "percentageHelp": "As decimal (e.g: 0.8 = 80%)",
@@ -549,63 +520,67 @@
       "saved": "Time settings saved successfully",
       "saveError": "Error saving time settings",
       "loadError": "Error loading time settings"
-    },
-    "calculatedCosts": "Calculated Costs",
-    "basedOnFixedCosts": "Based on fixed costs of",
-    "fixedCostPerHour": "Fixed Cost per Hour",
-    "fixedCostPerMinute": "Fixed Cost per Minute"
+    }
   },
   "fixedCosts": {
     "title": "Fixed Costs",
-    "subtitle": "Manage your monthly fixed expenses",
-    "add": "Add Fixed Cost",
-    "category": "Category",
-    "concept": "Concept",
-    "description": "Description",
-    "amount": "Amount",
-    "totalMonthly": "Total Monthly",
+    "subtitle": "Recurring monthly expenses of your clinic",
     "addCost": "Add Fixed Cost",
-    "editCost": "Edit Fixed Cost",
-    "deleteCost": "Delete Fixed Cost",
-    "edit": "Edit",
-    "delete": "Delete",
-    "updateSuccess": "Fixed cost updated successfully",
-    "createSuccess": "Fixed cost created successfully",
-    "deleteSuccess": "Fixed cost deleted successfully",
-    "deleteError": "Error deleting fixed cost",
-    "saveError": "Error saving fixed cost",
-    "emptyForClinic": "No fixed costs for this clinic",
-    "listTitle": "Fixed Costs List",
-    "listDescription": "Manage all monthly recurring expenses of your practice",
-    "emptyTitle": "No fixed costs registered",
-    "emptyDescription": "Add your first fixed costs to start calculating your rates.",
-    "categoryBreakdown": "Category Breakdown",
-    "basedOnCosts": "Based on {count} configured fixed costs",
     "categories": {
+      "local": "Premises",
+      "provisions": "Provisions",
+      "depreciation": "Depreciation"
+    },
+    "items": {
       "rent": "Rent",
-      "salaries": "Salaries",
-      "utilities": "Utilities",
-      "insurance": "Insurance",
-      "equipment": "Equipment",
-      "maintenance": "Maintenance",
+      "electricity": "Electricity",
+      "water": "Water",
       "education": "Education",
       "advertising": "Advertising",
-      "other": "Other"
+      "maintenance": "Maintenance",
+      "depreciationFund": "Depreciation Fund"
     },
-    "placeholders": {
-      "concept": "Enter cost description",
-      "amount": "0.00"
+    "form": {
+      "name": "Concept",
+      "namePlaceholder": "e.g., Office rent",
+      "category": "Category",
+      "selectCategory": "Select a category",
+      "amount": "Monthly amount (USD)",
+      "amountPlaceholder": "0.00",
+      "description": "Description (optional)",
+      "descriptionPlaceholder": "Additional expense details",
+      "save": "Save",
+      "cancel": "Cancel"
+    },
+    "table": {
+      "concept": "Concept",
+      "category": "Category",
+      "amount": "Monthly Amount",
+      "actions": "Actions"
     },
     "summary": {
-      "concepts": "concepts"
+      "totalMonthly": "Total Monthly Fixed Costs",
+      "breakdown": "Breakdown by category",
+      "local": "Premises Expenses",
+      "provisions": "Provisions",
+      "depreciation": "Asset Depreciation",
+      "autoAddedNote": "Automatically added from assets"
     },
-    "messages": {
-      "saved": "Fixed cost saved successfully",
-      "deleted": "Fixed cost deleted successfully",
-      "saveError": "Error saving fixed cost",
-      "deleteError": "Error deleting fixed cost",
-      "loadError": "Error loading fixed costs"
-    }
+    "dialogTitle": "Add Fixed Cost",
+    "empty": {
+      "title": "No fixed costs registered",
+      "description": "Add your recurring monthly expenses to calculate break-even point"
+    },
+    "businessFlow": {
+      "title": "Business Calculation Flow",
+      "step1": "Step 1",
+      "step1Description": "Register your monthly fixed costs (rent, utilities, salaries)",
+      "step2": "Step 2",
+      "step2Description": "Monthly depreciation of your assets is automatically added",
+      "step3": "Step 3",
+      "step3Description": "The total monthly fixed costs is"
+    },
+    "concepts": "concepts"
   },
   "supplies": {
     "title": "Supplies",
@@ -663,38 +638,27 @@
     "listTitle": "Supplies List"
   },
   "tariffs": {
-    "title": "Tariffs & Pricing",
-    "subtitle": "Manage service pricing and calculate profit margins",
-    "total_services": "Total Services",
-    "active_services": "Active services configured",
-    "average_margin": "Average Margin",
-    "across_all_services": "Across all services",
-    "total_revenue": "Total Revenue",
-    "if_all_sold_once": "If all services sold once",
+    "title": "Pricing Tariff",
+    "subtitle": "Calculate service prices with margins",
     "service": "Service",
-    "costs": "Costs",
-    "fixed": "Fixed",
-    "variable": "Variable",
+    "duration": "Duration",
+    "fixedCost": "Fixed Cost",
+    "variableCost": "Variable Cost",
+    "totalCost": "Total Cost",
     "margin": "Margin",
-    "final_price": "Final Price",
-    "actions": "Actions",
-    "adjust": "Adjust",
-    "bulk_adjust": "Bulk Adjust",
-    "refresh": "Refresh",
-    "save_tariffs": "Save Tariffs",
-    "saving": "Saving...",
-    "search_services": "Search services...",
-    "no_services": "No Services",
-    "no_services_description": "No services configured yet. Please add services first.",
-    "go_to_services": "Go to Services",
-    "bulk_operations": "Bulk Operations",
-    "adjustment_settings": "Adjustment Settings",
-    "default_margin": "Default Margin (%)",
-    "round_to": "Round to",
-    "adjust_tariff": "Adjust Tariff",
-    "margin_percentage": "Margin Percentage (%)",
-    "total_cost": "Total Cost",
-    "with_margin": "With Margin"
+    "finalPrice": "Final Price",
+    "roundedPrice": "Rounded Price",
+    "defaultMargin": "Default Margin (%)",
+    "roundTo": "Round to",
+    "apply": "Apply",
+    "instructions": "Adjust individual margins or apply a default margin to all services. Prices are automatically calculated and rounded.",
+    "empty": "No services to price",
+    "emptyDescription": "Create services first to build your pricing tariff",
+    "summary": "Summary",
+    "totalServices": "Total Services",
+    "averageMargin": "Average Margin",
+    "minPrice": "Min Price",
+    "maxPrice": "Max Price"
   },
   "services": {
     "title": "Services",
@@ -709,7 +673,7 @@
     "duration_helper": "Duration in minutes",
     "description_placeholder": "Service description (optional)",
     "name": "Service Name",
-    "duration": "Duration (minutes)",
+    "duration": "Duration",
     "estMinutes": "Duration (minutes)",
     "recipe": "Recipe (Supplies)",
     "addIngredient": "Add Ingredient",
@@ -740,36 +704,35 @@
     "emptyTitle": "No services registered",
     "categoryCreated": "Category created successfully",
     "categoryError": "Error creating category",
-    "createCategory": "Create Category",
+    "createCategory": "Create Custom Category",
     "categoryName": "Category Name",
-    "categoryNamePlaceholder": "e.g. Orthodontics",
+    "categoryNamePlaceholder": "e.g., Implantology",
     "addService": "Add Service",
     "editService": "Edit Service",
     "addServiceDesc": "Fill out the new service data and optionally add supplies.",
     "editServiceDesc": "Update the service information and its supplies recipe.",
     "listTitle": "Service Catalog",
     "listDescription": "Define services with duration and supply requirements",
-    "name": "Service Name",
     "namePlaceholder": "e.g., Dental Cleaning",
     "category": "Category",
     "selectCategory": "Select a category",
-    "duration": "Duration",
     "description": "Description",
     "descriptionPlaceholder": "Optional service description",
     "noServices": "No services found. Create your first service to get started.",
+    "servicePlaceholder": "Cleaning, Extraction, etc.",
+    "searchSupplyPlaceholder": "Search supply",
+    "quantityPlaceholder": "Qty.",
+    "assetPlaceholder": "Autoclave, Chair, Compressor",
+    "supplyNamePlaceholder": "Sterile gauze, Gloves, etc.",
+    "supplyPresentationPlaceholder": "Package 100u, Box 50u, Cartridge 1u",
     "manageSupplies": "Manage Supplies (Optional)",
     "manageSuppliesHint": "Supplies are optional. Define the recipe of materials used in this service",
     "addSupply": "Add Supply to Service",
-    "selectSupply": "Select a supply",
-    "quantity": "Quantity",
     "currentSupplies": "Current Supplies",
     "noSupplies": "No supplies added yet",
     "noSuppliesAvailable": "No supplies available",
     "totalVariableCost": "Total Variable Cost",
     "addCategory": "New Category",
-    "createCategory": "Create Custom Category",
-    "categoryName": "Category Name",
-    "categoryNamePlaceholder": "e.g., Implantology",
     "systemCategories": "System Categories",
     "customCategories": "Custom Categories",
     "manage_categories": "Manage Categories",
@@ -791,7 +754,14 @@
       "base_price": "Base Price",
       "description": "Description",
       "supply": "Supply",
-      "quantity": "Quantity"
+      "quantity": "Quantity",
+      "unit": "Unit",
+      "cost_per_unit": "Cost per Unit"
+    },
+    "select_category": "Select a category",
+    "entities": {
+      "category": "Category",
+      "supply": "Supply"
     },
     "categories": {
       "preventivo": "Preventive",
@@ -802,70 +772,18 @@
       "ortodoncia": "Orthodontics",
       "protesis": "Prosthetics",
       "periodoncia": "Periodontics",
-      "otros": "Other"
-    }
-  },
-  "tariffs": {
-    "title": "Pricing Tariff",
-    "subtitle": "Calculate service prices with margins",
-    "service": "Service",
-    "duration": "Duration",
-    "fixedCost": "Fixed Cost",
-    "variableCost": "Variable Cost",
-    "totalCost": "Total Cost",
-    "margin": "Margin",
-    "finalPrice": "Final Price",
-    "roundedPrice": "Rounded Price",
-    "defaultMargin": "Default Margin (%)",
-    "roundTo": "Round to",
-    "apply": "Apply",
-    "instructions": "Adjust individual margins or apply a default margin to all services. Prices are automatically calculated and rounded.",
-    "empty": "No services to price",
-    "emptyDescription": "Create services first to build your pricing tariff",
-    "summary": "Summary",
-    "totalServices": "Total Services",
-    "averageMargin": "Average Margin",
-    "minPrice": "Min Price",
-    "maxPrice": "Max Price"
-  },
-  "fixedCosts": {
-    "list": {
-      "title": "Monthly Fixed Costs",
-      "subtitle": "Recurring office expenses"
+      "otros": "Other",
+      "create_title": "Create Category",
+      "create_description": "Enter the category name and an optional description"
     },
-    "category": "Category",
-    "concept": "Concept",
-    "amount": "Amount",
-    "summary": {
-      "concepts": "concepts"
+    "supplies": {
+      "create_title": "Create Supply",
+      "create_quick_description": "Enter basic information to create a new supply"
     },
-    "listTitle": "Fixed Costs",
-    "listDescription": "Manage monthly fixed expenses for the office",
-    "categoryBreakdown": "Category Breakdown",
-    "businessFlow": {
-      "title": "Business Cost Flow",
-      "step1": "Step 1",
-      "step1Description": "Record all your monthly fixed costs here",
-      "step2": "Step 2",
-      "step2Description": "System automatically calculates cost per minute based on your work time",
-      "step3": "Step 3",
-      "step3Description": "This cost is automatically included in every service quote"
-    },
-    "categories": {
-      "salaries": "Salaries",
-      "rent": "Rent",
-      "utilities": "Utilities",
-      "equipment": "Equipment",
-      "insurance": "Insurance",
-      "maintenance": "Maintenance",
-      "education": "Education",
-      "advertising": "Advertising",
-      "admin": "Administration",
-      "marketing": "Marketing",
-      "supplies": "Supplies",
-      "depreciation": "Depreciation",
-      "other": "Other"
-    }
+    "cost_summary_note": "Laralis combines fixed time cost (minutes x fixed cost per minute) and variable supply cost to derive the financial base cost (see docs/memories/2025-08-17-app-description-compilada.md §3.7).",
+    "time_settings_warning": "Complete Time configuration to unlock the real fixed cost per minute (see docs/memories/2025-08-17-app-description-compilada.md §3.7).",
+    "auto_base_price_hint": "Laralis keeps this field in sync by combining fixed-time cost (minutes x fixed cost per minute) and variable supply cost (see docs/memories/2025-08-17-app-description-compilada.md §3.7).",
+    "unknown_cost": "No cost"
   },
   "assets": {
     "entity": "Asset",
@@ -901,7 +819,7 @@
   },
   "settings": {
     "title": "Settings",
-    "subtitle": "Manage all your business configuration",
+    "subtitle": "Manage all your business settings",
     "language": "Language",
     "theme": "Theme",
     "organization": "Organization",
@@ -940,19 +858,32 @@
       "deleteConfirm": "Are you sure you want to delete this workspace?"
     },
     "clinics": {
-      "entity": "Clinic",
-      "name": "Name",
-      "address": "Address",
-      "phone": "Phone",
-      "email": "Email",
-      "workspace": "Workspace",
+      "title": "Clinics",
+      "description": "Manage clinic branches",
+      "create": "Create Clinic",
+      "createFirst": "Create your first clinic",
+      "edit": "Edit Clinic",
+      "editDesc": "Update clinic information",
+      "createDesc": "Add a new clinic to your workspace",
+      "empty": "No clinics found",
+      "emptyDesc": "Create your first clinic to get started",
+      "name": "Clinic Name",
       "namePlaceholder": "e.g., Downtown Branch",
+      "address": "Address",
       "addressPlaceholder": "e.g., 123 Main Street",
+      "phone": "Phone",
       "phonePlaceholder": "e.g., +52 555 1234567",
+      "email": "Email",
       "emailPlaceholder": "contact@clinic.com",
-      "noWorkspaces": "No workspaces available",
-      "noWorkspacesDesc": "You need to create a workspace first",
-      "createWorkspace": "Create Workspace"
+      "active": "Active",
+      "inactive": "Inactive",
+      "updateSuccess": "Clinic Updated",
+      "updateSuccessDesc": "Changes saved successfully",
+      "createSuccess": "Clinic Created",
+      "createSuccessDesc": "New clinic added successfully",
+      "deleteSuccess": "Clinic Deleted",
+      "deleteSuccessDesc": "Clinic removed successfully",
+      "deleteConfirm": "Are you sure you want to delete this clinic?"
     },
     "marketing": {
       "title": "Marketing",
@@ -994,34 +925,6 @@
       "activeCampaigns": "active campaigns",
       "platform": "platform",
       "campaign": "campaign"
-    },
-    "clinics": {
-      "title": "Clinics",
-      "description": "Manage clinic branches",
-      "create": "Create Clinic",
-      "createFirst": "Create your first clinic",
-      "edit": "Edit Clinic",
-      "editDesc": "Update clinic information",
-      "createDesc": "Add a new clinic to your workspace",
-      "empty": "No clinics found",
-      "emptyDesc": "Create your first clinic to get started",
-      "name": "Clinic Name",
-      "namePlaceholder": "e.g., Downtown Branch",
-      "address": "Address",
-      "addressPlaceholder": "e.g., 123 Main Street",
-      "phone": "Phone",
-      "phonePlaceholder": "e.g., +52 555 1234567",
-      "email": "Email",
-      "emailPlaceholder": "contact@clinic.com",
-      "active": "Active",
-      "inactive": "Inactive",
-      "updateSuccess": "Clinic Updated",
-      "updateSuccessDesc": "Changes saved successfully",
-      "createSuccess": "Clinic Created",
-      "createSuccessDesc": "New clinic added successfully",
-      "deleteSuccess": "Clinic Deleted",
-      "deleteSuccessDesc": "Clinic removed successfully",
-      "deleteConfirm": "Are you sure you want to delete this clinic?"
     },
     "time": {
       "title": "Time Settings",
@@ -1097,20 +1000,7 @@
       "unknown_error": "Unknown error",
       "partial_success_detail": "{success} successful, {errors} with errors"
     },
-    "backup": {
-      "title": "Backup & Restore",
-      "description": "Export or import your clinic data"
-    },
-    "title": "Settings",
-    "subtitle": "Manage all your business settings",
-    "organization": "Organization",
-    "businessSetup": "Business Setup",
-    "variableCosts": "Variable Costs",
-    "dataBackup": "Data & Backup",
-    "accountSecurity": "Account & Security",
-    "workspacesDesc": "Manage your workspaces",
-    "clinicsDesc": "Manage your business branches",
-    "assetsDesc": "Equipment and investment with depreciation",
+    "backup": "Backup & Restore",
     "fixedCostsDesc": "Recurring monthly expenses",
     "timeDesc": "Work days and effective hours",
     "equilibriumDesc": "Break-even point analysis",
@@ -1124,7 +1014,6 @@
     "timeConfigDesc": "Define work days and effective hours",
     "saved": "Settings saved successfully",
     "saveFailed": "Failed to save settings",
-    "backup": "Backup & Restore",
     "backupDesc": "Export or import your data",
     "backupWarning": "Caution",
     "backupWarningDesc": "Backups contain sensitive information. Store them securely.",
@@ -1184,7 +1073,11 @@
     "phone": "Phone",
     "birthDate": "Birth Date",
     "firstVisitDate": "First Visit",
-    "gender": "Gender",
+    "gender": {
+      "male": "Male",
+      "female": "Female",
+      "other": "Other"
+    },
     "selectGender": "Select gender",
     "male": "Male",
     "female": "Female",
@@ -1200,7 +1093,7 @@
     "select_source": "Select a source",
     "selectSource": "Select a source",
     "acquisition_source": "How did they find the clinic?",
-    "select_acquisition_source": "Select how the patient arrived",
+    "select_acquisition_source": "Select source",
     "acquisition_source_help": "Identify the main channel through which the patient learned about your clinic",
     "campaign_help": "Select the advertising campaign that brought this patient",
     "referral_help": "Select the patient who recommended your clinic",
@@ -1235,7 +1128,15 @@
       "campaign": "Campaign"
     },
     "acquisition": {
-      "direct": "Direct"
+      "campaigns": "Advertising Campaigns",
+      "referrals": "Referrals",
+      "organic": "Organic",
+      "other": "Other",
+      "direct_visit": "Direct Visit",
+      "referred_by_patient": "Referred by Patient",
+      "campaign_selected": "Patient from advertising campaign",
+      "referral_selected": "Patient referred by another patient",
+      "organic_selected": "Patient from organic channels"
     },
     "create_source_title": "Add New Source",
     "create_source_description": "Enter the name of the new referral source",
@@ -1284,25 +1185,8 @@
       "treatments": "Treat.",
       "spent": "Spent"
     },
-    "gender": {
-      "male": "Male",
-      "female": "Female",
-      "other": "Other"
-    },
     "select_gender": "Select gender",
-    "select_acquisition_source": "Select source",
     "acquisition_information": "Acquisition Information",
-    "acquisition": {
-      "campaigns": "Advertising Campaigns",
-      "referrals": "Referrals",
-      "organic": "Organic",
-      "other": "Other",
-      "direct_visit": "Direct Visit",
-      "referred_by_patient": "Referred by Patient",
-      "campaign_selected": "Patient from advertising campaign",
-      "referral_selected": "Patient referred by another patient",
-      "organic_selected": "Patient from organic channels"
-    },
     "no_active_campaigns": "No active campaigns",
     "create_new_campaign": "Create new campaign",
     "select_referrer_patient": "Select the referring patient"
@@ -1343,8 +1227,7 @@
     },
     "logout": {
       "button": "Sign Out",
-      "confirmTitle": "Sign out?",
-      "confirmMessage": "Are you sure you want to sign out?"
+      "confirm": "Are you sure you want to sign out?"
     },
     "login": {
       "title": "Welcome Back",
@@ -1368,10 +1251,10 @@
       "rememberMe": "Remember me"
     },
     "login_success": "Login successful",
-    "logout_success": "Logout successful",
+    "logout_success": "Signed out successfully",
     "reset_email_sent": "Password reset email sent",
     "passwords_dont_match": "Passwords don't match",
-    "register_success": "Registration successful",
+    "register_success": "Account created successfully",
     "register": {
       "title": "Get Started",
       "description": "Create your Laralis account",
@@ -1412,9 +1295,6 @@
       "signInLink": "Sign in here",
       "terms": "By creating an account, you agree to our Terms of Service and Privacy Policy"
     },
-    "register_success": "Account created successfully",
-    "logout_success": "Signed out successfully",
-    "reset_email_sent": "Password reset email sent",
     "forgotPassword": {
       "title": "Forgot your password?",
       "description": "Enter your email and we'll send you a reset link",
@@ -1446,10 +1326,6 @@
       "successMessage": "Password updated successfully",
       "redirecting": "Redirecting...",
       "updateError": "Error updating password"
-    },
-    "logout": {
-      "button": "Sign Out",
-      "confirm": "Are you sure you want to sign out?"
     },
     "errors": {
       "invalidCredentials": "Invalid email or password",
@@ -1499,93 +1375,6 @@
       "defaultPercentage80": "80",
       "deleteConfirm": "DELETE"
     }
-  },
-  "businessSetup": {
-    "title": "Business Setup",
-    "subtitle": "Define the financial foundations of your clinic",
-    "steps": {
-      "assets": "1. Depreciation (Assets)",
-      "fixedCosts": "2. Fixed Costs",
-      "timeCosts": "3. Time Costs",
-      "equilibrium": "4. Break-even Point"
-    },
-    "assets": {
-      "totalInvestment": "Total Investment",
-      "assets": "assets",
-      "depreciationPeriod": "Depreciation Period",
-      "years": "years",
-      "months": "months",
-      "perMonth": "per month",
-      "yearlyDepreciation": "Yearly Depreciation",
-      "perYear": "per year",
-      "detailBreakdown": "Detailed Breakdown",
-      "depreciationExplanation": "How Depreciation is Calculated",
-      "formula": "Formula",
-      "formulaExplanation": "Monthly Depreciation = Purchase Price ÷ Depreciation Months",
-      "exampleCalculation": "Example:",
-      "month": "month",
-      "priceHelp": "Purchase price in Mexican pesos"
-    }
-  },
-  "fixedCosts": {
-    "title": "Fixed Costs",
-    "subtitle": "Recurring monthly expenses of your clinic",
-    "addCost": "Add Fixed Cost",
-    "categories": {
-      "local": "Premises",
-      "provisions": "Provisions",
-      "depreciation": "Depreciation"
-    },
-    "items": {
-      "rent": "Rent",
-      "electricity": "Electricity",
-      "water": "Water",
-      "education": "Education",
-      "advertising": "Advertising",
-      "maintenance": "Maintenance",
-      "depreciationFund": "Depreciation Fund"
-    },
-    "form": {
-      "name": "Concept",
-      "namePlaceholder": "e.g., Office rent",
-      "category": "Category",
-      "selectCategory": "Select a category",
-      "amount": "Monthly amount (USD)",
-      "amountPlaceholder": "0.00",
-      "description": "Description (optional)",
-      "descriptionPlaceholder": "Additional expense details",
-      "save": "Save",
-      "cancel": "Cancel"
-    },
-    "table": {
-      "concept": "Concept",
-      "category": "Category",
-      "amount": "Monthly Amount",
-      "actions": "Actions"
-    },
-    "summary": {
-      "totalMonthly": "Total Monthly Fixed Costs",
-      "breakdown": "Breakdown by category",
-      "local": "Premises Expenses",
-      "provisions": "Provisions",
-      "depreciation": "Asset Depreciation",
-      "autoAddedNote": "Automatically added from assets"
-    },
-    "dialogTitle": "Add Fixed Cost",
-    "empty": {
-      "title": "No fixed costs registered",
-      "description": "Add your recurring monthly expenses to calculate break-even point"
-    },
-    "businessFlow": {
-      "title": "Business Calculation Flow",
-      "step1": "Step 1",
-      "step1Description": "Register your monthly fixed costs (rent, utilities, salaries)",
-      "step2": "Step 2",
-      "step2Description": "Monthly depreciation of your assets is automatically added",
-      "step3": "Step 3",
-      "step3Description": "The total monthly fixed costs is"
-    },
-    "concepts": "concepts"
   },
   "equilibrium": {
     "title": "Break-even Point",
@@ -1703,7 +1492,6 @@
       "asset_name": "Equipment/asset name",
       "useful_life": "Years of useful life"
     },
-
     "description_placeholder": "Describe the expense...",
     "vendor_placeholder": "Vendor name",
     "invoice_placeholder": "Invoice number",

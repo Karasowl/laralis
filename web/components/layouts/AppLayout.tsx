@@ -15,6 +15,9 @@ import { Button } from '@/components/ui/button'
 import { ContextIndicator } from './ContextIndicator'
 import { Sun, Moon, Activity } from 'lucide-react'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
+import dynamic from 'next/dynamic'
+import { OnboardingListeners } from '@/components/onboarding/OnboardingListeners'
+const TariffDrawerLazy = dynamic(() => import('@/components/pricing/TariffDrawer').then(m => m.TariffDrawer), { ssr: false })
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -25,6 +28,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   const pathname = usePathname()
   const router = useRouter()
   const { workspace, currentClinic, user, signOut } = useWorkspace()
+  const onboardingCompleted = Boolean(workspace?.onboarding_completed)
   const { theme, setTheme } = useTheme()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
@@ -57,7 +61,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   }
 
   // Get navigation sections with translations
-  const navigationSections = getNavigationSections(t)
+  const navigationSections = getNavigationSections(t, { onboardingCompleted })
 
   // Map user data for UserMenu component
   const userData = user ? {
@@ -217,18 +221,24 @@ export function AppLayout({ children }: AppLayoutProps) {
           </div>
         </header>
 
-        {/* Page Content */}
-        <main className="min-h-[calc(100vh-4rem)] overflow-x-hidden">
-          {children}
-        </main>
-      </div>
+      {/* Page Content */}
+      <main className="min-h-[calc(100vh-4rem)] overflow-x-hidden">
+        {children}
+      </main>
+    </div>
 
       {/* Mobile Bottom Navigation */}
-      <MobileBottomNav 
-        user={user}
-        workspace={workspace}
-        onSignOut={handleSignOut}
-      />
+      {onboardingCompleted && (
+        <MobileBottomNav 
+          user={user}
+          workspace={workspace}
+          onSignOut={handleSignOut}
+        />
+      )}
+      {/* Global pricing drawer portal (client-only) */}
+      <TariffDrawerLazy />
+      {/* Global onboarding listeners to react to autofix events */}
+      <OnboardingListeners />
     </div>
   )
 }

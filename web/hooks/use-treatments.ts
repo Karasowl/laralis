@@ -128,20 +128,29 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
     const totalCost = fixedCost + variableCost
     const price = Math.round(totalCost * (1 + data.margin_pct / 100))
 
+    const snapshot = {
+      // CamelCase snapshot for historical integrity (append-only)
+      fixedPerMinuteCents: fixedPerMinuteCents,
+      minutes: data.minutes,
+      variableCostCents: variableCost,
+      marginPct: data.margin_pct,
+      priceCents: price,
+      tariffVersion: 1,
+      // Also include snake_case for backward/DB compatibility
+      fixed_cost_cents: fixedCost,
+      variable_cost_cents: variableCost,
+      total_cost_cents: totalCost,
+      price_cents: price,
+      tariff_version: 1
+    }
+
     const treatmentData = {
       ...data,
       fixed_per_minute_cents: fixedPerMinuteCents,
       variable_cost_cents: variableCost,
       price_cents: price,
       tariff_version: 1,
-      snapshot_costs: {
-        fixed_cost_cents: fixedCost,
-        variable_cost_cents: variableCost,
-        total_cost_cents: totalCost,
-        margin_pct: data.margin_pct,
-        price_cents: price,
-        tariff_version: 1
-      }
+      snapshot_costs: snapshot
     }
 
     return await crud.handleCreate(treatmentData)

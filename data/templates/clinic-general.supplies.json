@@ -1,0 +1,147 @@
+{
+  "templateId": "clinic-general",
+  "currency": "MXN",
+  "supplies": [
+    {
+      "slug": "guantes-latex",
+      "name": "Guantes de látex",
+      "presentation": "Caja x 100 pares",
+      "portionsPerUnit": 100,
+      "unitCostCents": 35000,
+      "costPerPortionCents": 350,
+      "portionName": "par",
+      "category": "Protección personal"
+    },
+    {
+      "slug": "cubrebocas",
+      "name": "Cubrebocas desechable",
+      "presentation": "Caja x 50 piezas",
+      "portionsPerUnit": 50,
+      "unitCostCents": 15000,
+      "costPerPortionCents": 300,
+      "portionName": "pieza",
+      "category": "Protección personal"
+    },
+    {
+      "slug": "gasa-esteril",
+      "name": "Gasa estéril",
+      "presentation": "Paquete x 200 piezas",
+      "portionsPerUnit": 200,
+      "unitCostCents": 20000,
+      "costPerPortionCents": 100,
+      "portionName": "pieza",
+      "category": "Consumibles"
+    },
+    {
+      "slug": "rollos-algodon",
+      "name": "Rollos de algodón",
+      "presentation": "Bolsa x 200 piezas",
+      "portionsPerUnit": 200,
+      "unitCostCents": 12000,
+      "costPerPortionCents": 60,
+      "portionName": "pieza",
+      "category": "Consumibles"
+    },
+    {
+      "slug": "cepillo-profilaxis",
+      "name": "Cepillo de profilaxis",
+      "presentation": "Paquete x 50 piezas",
+      "portionsPerUnit": 50,
+      "unitCostCents": 6000,
+      "costPerPortionCents": 120,
+      "portionName": "pieza",
+      "category": "Consumibles"
+    },
+    {
+      "slug": "pasta-profilaxis",
+      "name": "Pasta de profilaxis",
+      "presentation": "Tarro x 30 porciones",
+      "portionsPerUnit": 30,
+      "unitCostCents": 8500,
+      "costPerPortionCents": 283,
+      "portionName": "porción",
+      "category": "Consumibles"
+    },
+    {
+      "slug": "aguja-carpule",
+      "name": "Aguja para carpule",
+      "presentation": "Caja x 100 piezas",
+      "portionsPerUnit": 100,
+      "unitCostCents": 16200,
+      "costPerPortionCents": 162,
+      "portionName": "pieza",
+      "category": "Consumibles"
+    },
+    {
+      "slug": "anestesico-carpule",
+      "name": "Anestésico (carpule)",
+      "presentation": "Caja x 50 carpules",
+      "portionsPerUnit": 50,
+      "unitCostCents": 25000,
+      "costPerPortionCents": 500,
+      "portionName": "carpule",
+      "category": "Materiales dentales"
+    },
+    {
+      "slug": "resina-compuesta-jeringa",
+      "name": "Resina compuesta (jeringa)",
+      "presentation": "Jeringa x 20 aplicaciones",
+      "portionsPerUnit": 20,
+      "unitCostCents": 60000,
+      "costPerPortionCents": 3000,
+      "portionName": "aplicación",
+      "category": "Materiales dentales"
+    },
+    {
+      "slug": "acido-grabador-37",
+      "name": "Ácido grabador 37%",
+      "presentation": "Frasco x 60 aplicaciones",
+      "portionsPerUnit": 60,
+      "unitCostCents": 15000,
+      "costPerPortionCents": 250,
+      "portionName": "aplicación",
+      "category": "Materiales dentales"
+    },
+    {
+      "slug": "adhesivo-bonding",
+      "name": "Adhesivo (bonding)",
+      "presentation": "Kit x 100 aplicaciones",
+      "portionsPerUnit": 100,
+      "unitCostCents": 55000,
+      "costPerPortionCents": 550,
+      "portionName": "aplicación",
+      "category": "Materiales dentales"
+    },
+    {
+      "slug": "hilo-retractor",
+      "name": "Hilo retractor",
+      "presentation": "Rollo x 100 segmentos",
+      "portionsPerUnit": 100,
+      "unitCostCents": 8000,
+      "costPerPortionCents": 80,
+      "portionName": "segmento",
+      "category": "Consumibles"
+    },
+    {
+      "slug": "barrera-plastica",
+      "name": "Barrera plástica de superficie",
+      "presentation": "Rollo x 200 cortes",
+      "portionsPerUnit": 200,
+      "unitCostCents": 18000,
+      "costPerPortionCents": 90,
+      "portionName": "corte",
+      "category": "Consumibles"
+    },
+    {
+      "slug": "succion-saliva-descartable",
+      "name": "Succión de saliva desechable",
+      "presentation": "Paquete x 100 piezas",
+      "portionsPerUnit": 100,
+      "unitCostCents": 9000,
+      "costPerPortionCents": 90,
+      "portionName": "pieza",
+      "category": "Consumibles"
+    }
+  ]
+}
+
