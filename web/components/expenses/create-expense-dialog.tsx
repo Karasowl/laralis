@@ -15,13 +15,23 @@ import {
 import { useCurrentClinic } from '@/hooks/use-current-clinic'
 import { useExpenses } from '@/hooks/use-expenses'
 import { useSupplies } from '@/hooks/use-supplies'
+import { useCategories } from '@/hooks/use-categories'
+import { CategoryModal } from '@/app/services/components/CategoryModal'
 import { parseMoney } from '@/lib/money'
 import { CreateExpenseForm } from './CreateExpenseForm'
 
 export default function CreateExpenseDialog() {
   const t = useTranslations('expenses')
+  const tServices = useTranslations('services')
   const { currentClinic } = useCurrentClinic()
   const { createExpense, categories } = useExpenses({ clinicId: currentClinic?.id })
+  const {
+    categories: expenseCategories,
+    createCategory,
+    updateCategory,
+    deleteCategory
+  } = useCategories('expenses')
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false)
   const { supplies } = useSupplies({ clinicId: currentClinic?.id })
   
   const [open, setOpen] = useState(false)
@@ -83,12 +93,26 @@ export default function CreateExpenseDialog() {
         </Button>
       }
     >
+      <div className="mb-2 flex items-center justify-end">
+        <button type="button" className="text-xs text-primary hover:underline" onClick={() => setCategoryModalOpen(true)}>
+          {tServices('manage_categories')}
+        </button>
+      </div>
       <CreateExpenseForm 
         form={form} 
         supplies={supplies} 
-        categories={categories}
+        categories={expenseCategories as any[]}
         showAssetFields={showAssetFields}
         setShowAssetFields={setShowAssetFields}
+      />
+
+      <CategoryModal
+        open={categoryModalOpen}
+        onOpenChange={setCategoryModalOpen}
+        categories={expenseCategories as any[]}
+        onCreateCategory={createCategory}
+        onUpdateCategory={updateCategory}
+        onDeleteCategory={deleteCategory}
       />
     </FormModal>
   )

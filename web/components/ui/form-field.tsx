@@ -35,6 +35,7 @@ interface InputFieldProps extends BaseFieldProps {
   min?: number;
   max?: number;
   step?: number | string;
+  inputRef?: React.Ref<HTMLInputElement>;
 }
 
 export function InputField({
@@ -53,6 +54,7 @@ export function InputField({
   min,
   max,
   step,
+  inputRef,
 }: InputFieldProps) {
   const fieldId = id || label?.toLowerCase().replace(/\s+/g, '-');
   const [showPassword, setShowPassword] = useState(false);
@@ -61,6 +63,28 @@ export function InputField({
   // Determinar el tipo real del input basado en si es password y si se debe mostrar
   const inputType = type === 'password' ? (showPassword ? 'text' : 'password') : type;
   
+  const displayValue = ((): string | number => {
+    if (type === 'number') {
+      if (value === '' as any) return ''
+      // Preserve 0 explicitly; otherwise allow empty string while typing
+      if (typeof value === 'number') return Number.isFinite(value) ? value : ''
+      return value ?? ''
+    }
+    return value ?? ''
+  })()
+
+  const handleRef = React.useCallback((node: HTMLInputElement | null) => {
+    if (type === 'date') {
+      dateInputRef.current = node
+    }
+    if (!inputRef) return
+    if (typeof inputRef === 'function') {
+      inputRef(node)
+    } else {
+      try { (inputRef as React.MutableRefObject<HTMLInputElement | null>).current = node } catch {}
+    }
+  }, [inputRef, type])
+
   return (
     <div className={cn('space-y-1', containerClassName)}>
       {label && (
@@ -71,16 +95,24 @@ export function InputField({
       )}
       <div className="relative">
         <Input
-          ref={dateInputRef}
+          ref={handleRef}
           id={fieldId}
           type={inputType}
-          value={value || ''}
+          value={displayValue}
           onChange={(e) => {
             if (type === 'number') {
-              onChange(e.target.valueAsNumber || 0);
-            } else {
-              onChange(e.target.value);
+              const raw = e.target.value
+              // Allow clearing the field without forcing 0
+              if (raw === '') { onChange(''); return }
+              const n = Number(raw)
+              if (!Number.isNaN(n)) onChange(n)
+              return
             }
+            onChange(e.target.value)
+          }}
+          onFocus={(e) => {
+            // Facilita reemplazar el 0 inicial: selecciona todo al enfocar
+            try { (e.target as HTMLInputElement).select() } catch {}
           }}
           placeholder={type === 'date' ? undefined : placeholder}
           disabled={disabled}

@@ -9,6 +9,8 @@ import { FormModal } from '@/components/ui/form-modal'
 import { FormSection, FormGrid, InputField, SelectField, TextareaField } from '@/components/ui/form-field'
 import { Form } from '@/components/ui/form'
 import { ExpenseWithRelations, ExpenseFormData, EXPENSE_SUBCATEGORIES } from '@/lib/types/expenses'
+import { useCategories } from '@/hooks/use-categories'
+import { CategoryModal } from '@/app/services/components/CategoryModal'
 
 // Schema for expense form
 const expenseSchema = z.object({
@@ -33,7 +35,10 @@ interface EditExpenseModalProps {
 export function EditExpenseModal({ expense, open, onClose, onSave, categories = [] }: EditExpenseModalProps) {
   const t = useTranslations('expenses')
   const tFields = useTranslations('fields')
+  const tServices = useTranslations('services')
   const [saving, setSaving] = useState(false)
+  const { categories: expenseCats, createCategory, updateCategory, deleteCategory } = useCategories('expenses')
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false)
   
   const form = useForm({
     resolver: zodResolver(expenseSchema),
@@ -86,6 +91,11 @@ export function EditExpenseModal({ expense, open, onClose, onSave, categories = 
       isSubmitting={saving}
       maxWidth="lg"
     >
+      <div className="mb-2 flex items-center justify-end">
+        <button type="button" className="text-xs text-primary hover:underline" onClick={() => setCategoryModalOpen(true)}>
+          {tServices('manage_categories')}
+        </button>
+      </div>
       <Form {...form}>
         <div className="space-y-4">
           <FormSection title={t('basic_information')}>
@@ -119,14 +129,14 @@ export function EditExpenseModal({ expense, open, onClose, onSave, categories = 
                 onChange={(value) => {
                   form.setValue('category', value)
                   // Attempt to map to category_id if list provided
-                  const match = (categories || []).find((c: any) => (c.display_name || c.name) === value)
+                  const match = (expenseCats || []).find((c: any) => (c.display_name || c.name) === value)
                   if (match) {
                     // @ts-ignore: category_id exists in schema (optional)
                     form.setValue('category_id', match.id)
                   }
                 }}
-                options={(categories && categories.length > 0
-                  ? categories.map((c: any) => ({ value: c.display_name || c.name, label: c.display_name || c.name }))
+                options={(expenseCats && expenseCats.length > 0
+                  ? expenseCats.map((c: any) => ({ value: c.display_name || c.name, label: c.display_name || c.name }))
                   : [
                     { value: 'Equipos', label: 'Equipos' },
                     { value: 'Insumos', label: 'Insumos' },
@@ -183,6 +193,15 @@ export function EditExpenseModal({ expense, open, onClose, onSave, categories = 
           </FormSection>
         </div>
       </Form>
+
+      <CategoryModal
+        open={categoryModalOpen}
+        onOpenChange={setCategoryModalOpen}
+        categories={expenseCats as any[]}
+        onCreateCategory={createCategory}
+        onUpdateCategory={updateCategory}
+        onDeleteCategory={deleteCategory}
+      />
     </FormModal>
   )
 }

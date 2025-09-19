@@ -1,7 +1,9 @@
 'use client'
 
+import React, { useEffect } from 'react'
 import { InputField, SelectField, TextareaField, FormGrid, FormSection } from '@/components/ui/form-field'
 import { SelectWithCreate } from '@/components/ui/select-with-create'
+import { useWatch } from 'react-hook-form'
 
 interface TreatmentFormProps {
   form: any
@@ -26,6 +28,20 @@ export function TreatmentForm({
   onServiceCreated,
   t 
 }: TreatmentFormProps) {
+  // Subscribe to field changes to avoid stale values overriding selection
+  const patientId = useWatch({ control: form.control, name: 'patient_id' })
+  const serviceId = useWatch({ control: form.control, name: 'service_id' })
+  const treatmentDate = useWatch({ control: form.control, name: 'treatment_date' })
+  const minutes = useWatch({ control: form.control, name: 'minutes' })
+  const marginPct = useWatch({ control: form.control, name: 'margin_pct' })
+  const status = useWatch({ control: form.control, name: 'status' })
+  const notes = useWatch({ control: form.control, name: 'notes' })
+  const SIGN = 'TreatmentForm::v2.0.0'
+  try { console.log(`[${SIGN}] mount @`, new Date().toISOString()) } catch {}
+  try { console.log(`[${SIGN}] current patient=`, patientId, '| service=', serviceId) } catch {}
+  // Log on selection change
+  useEffect(() => { try { console.log(`[${SIGN}] patient_id changed ->`, patientId) } catch {} }, [patientId])
+  useEffect(() => { try { console.log(`[${SIGN}] service_id changed ->`, serviceId) } catch {} }, [serviceId])
   return (
     <div className="space-y-6">
       <FormSection title={t('treatments.patientAndService')}>
@@ -36,7 +52,7 @@ export function TreatmentForm({
               <span className="text-red-500 ml-1">*</span>
             </label>
             <SelectWithCreate
-              value={form.watch('patient_id')}
+              value={patientId}
               onValueChange={(value) => form.setValue('patient_id', value, { shouldDirty: true, shouldTouch: true, shouldValidate: true })}
               options={patients}
               placeholder={t('treatments.selectPatient')}
@@ -78,7 +94,7 @@ export function TreatmentForm({
               <span className="text-red-500 ml-1">*</span>
             </label>
             <SelectWithCreate
-              value={form.watch('service_id')}
+              value={serviceId}
               onValueChange={onServiceChange}
               options={services}
               placeholder={t('treatments.selectService')}
@@ -118,7 +134,7 @@ export function TreatmentForm({
           <InputField
             label={t('treatments.fields.date')}
             type="date"
-            value={form.watch('treatment_date')}
+            value={treatmentDate}
             onChange={(value) => form.setValue('treatment_date', value as string)}
             error={form.formState.errors.treatment_date?.message}
             required
@@ -127,7 +143,7 @@ export function TreatmentForm({
           <InputField
             label={t('treatments.fields.duration')}
             type="number"
-            value={form.watch('minutes')}
+            value={minutes}
             onChange={(value) => form.setValue('minutes', parseInt(value as string) || 0)}
             placeholder="30"
             helper={t('treatments.durationHelp')}
@@ -140,7 +156,7 @@ export function TreatmentForm({
           <InputField
             label={t('treatments.fields.margin')}
             type="number"
-            value={form.watch('margin_pct')}
+            value={marginPct}
             onChange={(value) => form.setValue('margin_pct', parseInt(value as string) || 0)}
             placeholder="60"
             helper={t('treatments.marginHelp')}
@@ -150,7 +166,7 @@ export function TreatmentForm({
           
           <SelectField
             label={t('treatments.fields.status')}
-            value={form.watch('status')}
+            value={status}
             onChange={(value) => form.setValue('status', value as 'pending' | 'completed' | 'cancelled')}
             options={statusOptions}
             placeholder={t('treatments.selectStatus')}
@@ -163,7 +179,7 @@ export function TreatmentForm({
       <FormSection title={t('treatments.additionalInfo')}>
         <TextareaField
           label={t('treatments.fields.notes')}
-          value={form.watch('notes')}
+          value={notes}
           onChange={(value) => form.setValue('notes', value)}
           placeholder={t('treatments.notesPlaceholder')}
           error={form.formState.errors.notes?.message}

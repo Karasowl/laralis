@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button'
 import { formatCurrency } from '@/lib/format'
 import { Calculator, RefreshCw, Save } from 'lucide-react'
 import { useTariffs, TariffRow } from '@/hooks/use-tariffs'
+import { useRequirementsGuard } from '@/lib/requirements/useGuard'
+import { toast } from 'sonner'
 import { Form } from '@/components/ui/form'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -47,6 +49,8 @@ export default function TariffsPage() {
     defaultMargin: 30,
     defaultRoundTo: 10
   })
+
+  const { ensureReady } = useRequirementsGuard(() => ({ clinicId: currentClinic?.id as string }))
 
   // Modal states
   const [bulkModalOpen, setBulkModalOpen] = useState(false)
@@ -94,7 +98,12 @@ export default function TariffsPage() {
     }
   }
 
-  const openEditModal = (tariff: TariffRow) => {
+  const openEditModal = async (tariff: TariffRow) => {
+    const ready = await ensureReady('create_tariff', { serviceId: tariff.id })
+    if (!ready.allowed) {
+      toast.info(t('ensure_prereqs', 'Completa receta y costo/minuto para tarificar'))
+      return
+    }
     setSelectedTariff(tariff)
     editForm.setValue('serviceId', tariff.id)
     editForm.setValue('margin', tariff.margin_pct)

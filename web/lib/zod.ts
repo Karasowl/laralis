@@ -86,14 +86,27 @@ export type ZServiceSupply = z.infer<typeof zServiceSupply>;
 export const zFixedCostForm = z.object({
   category: z.string().min(1, 'Category is required'),
   concept: z.string().min(1, 'Concept is required'),
-  amount_pesos: z.number().positive('Amount must be positive').transform(pesos => Math.round(pesos * 100)), // Convert to cents
+  amount_pesos: z
+    .number()
+    .positive('Amount must be positive')
+    // Prevent exceeding Postgres BIGINT limit (9,223,372,036,854,775,807 cents)
+    // This is approximately $92,233,720,368,547,758.07 - practically unlimited
+    .refine((v) => Math.round(v * 100) <= Number.MAX_SAFE_INTEGER, {
+      message: 'Amount too large',
+    })
+    .transform((pesos) => Math.round(pesos * 100)), // to cents
 });
 
 export const zSupplyForm = z.object({
   name: z.string().min(1, 'Name is required'),
   category: z.enum(['insumo', 'bioseguridad', 'consumibles', 'materiales', 'medicamentos', 'equipos', 'otros']),
   presentation: z.string().min(1, 'Presentation is required'),
-  price_pesos: z.number().positive('Price must be positive'),
+  price_pesos: z
+    .number()
+    .positive('Price must be positive')
+    .refine((v) => Math.round(v * 100) <= Number.MAX_SAFE_INTEGER, {
+      message: 'Price too large',
+    }),
   portions: z.number().int().min(1, 'Portions must be at least 1')
 });
 
@@ -129,7 +142,12 @@ export const zAsset = z.object({
 // Form schema for Asset (client-side)
 export const zAssetForm = z.object({
   name: z.string().min(1, 'Name is required'),
-  purchase_price_pesos: z.number().positive('Price must be positive'),
+  purchase_price_pesos: z
+    .number()
+    .positive('Price must be positive')
+    .refine((v) => Math.round(v * 100) <= Number.MAX_SAFE_INTEGER, {
+      message: 'Price too large',
+    }),
   depreciation_months: z.number().int().min(1, 'Months must be at least 1'),
   purchase_date: z.string().optional(),
 });

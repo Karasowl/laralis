@@ -6,8 +6,19 @@ import { WelcomeStep } from '@/components/onboarding/WelcomeStep'
 import { WorkspaceStep } from '@/components/onboarding/WorkspaceStep'
 import { ClinicStep } from '@/components/onboarding/ClinicStep'
 import { CompleteStep } from '@/components/onboarding/CompleteStep'
+import { ChecklistStep } from '@/components/onboarding/ChecklistStep'
+import { useEffect } from 'react'
 
 export default function OnboardingPage() {
+  // Clear stale context from previous sessions so onboarding starts clean
+  useEffect(() => {
+    try {
+      localStorage.removeItem('selectedWorkspaceId')
+      localStorage.removeItem('selectedClinicId')
+      document.cookie = 'workspaceId=; path=/; max-age=0'
+      document.cookie = 'clinicId=; path=/; max-age=0'
+    } catch {}
+  }, [])
   const {
     steps,
     currentStep,
@@ -33,6 +44,26 @@ export default function OnboardingPage() {
       case 2:
         return <ClinicStep data={data} onChange={updateData} />
       case 3:
+        return (
+          <ChecklistStep
+            items={[
+              { id: 'depreciation', label: 'Depreciación (activos/equipos)', href: '/assets' },
+              { id: 'fixed_costs', label: 'Costos fijos mensuales', href: '/fixed-costs' },
+              { id: 'cost_per_min', label: 'Configuración de tiempo / Costo por minuto', href: '/time' }
+            ]}
+          />
+        )
+      case 4:
+        return (
+          <ChecklistStep
+            items={[
+              { id: 'supplies', label: 'Insumos (presentación y porciones)', href: '/supplies' },
+              { id: 'service_recipe', label: 'Recetas por servicio', href: '/services' },
+              { id: 'tariffs', label: 'Tarifas y redondeo', href: '/tariffs' }
+            ]}
+          />
+        )
+      case 5:
         return <CompleteStep data={data} />
       default:
         return null

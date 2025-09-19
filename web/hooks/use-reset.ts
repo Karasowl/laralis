@@ -128,7 +128,7 @@ export function useReset() {
     const wantsAllData = selectedOptions.includes('all_data')
     // Permit full wipe without clinic selection; block others if no clinic
     if (!clinicId && !wantsAllData) {
-      toast.error(t('reset.no_clinic', { fallback: 'Primero selecciona o crea una clínica' }))
+      toast.error(t('reset.no_clinic'))
       return false
     }
     

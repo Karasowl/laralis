@@ -75,6 +75,39 @@ export async function POST(request: NextRequest) {
     let result = { success: true, message: '' };
 
     switch (resetType) {
+      case 'patients':
+        // Eliminar pacientes (los tratamientos se eliminan por CASCADE)
+        const { error: patientsError } = await supabaseAdmin
+          .from('patients')
+          .delete()
+          .eq('clinic_id', clinicId);
+        
+        if (patientsError) throw patientsError;
+        result.message = 'Pacientes eliminados';
+        break;
+
+      case 'treatments':
+        // Eliminar solo tratamientos
+        const { error: treatmentsError } = await supabaseAdmin
+          .from('treatments')
+          .delete()
+          .eq('clinic_id', clinicId);
+        
+        if (treatmentsError) throw treatmentsError;
+        result.message = 'Tratamientos eliminados';
+        break;
+
+      case 'expenses':
+        // Eliminar gastos
+        const { error: expensesError } = await supabaseAdmin
+          .from('expenses')
+          .delete()
+          .eq('clinic_id', clinicId);
+        
+        if (expensesError) throw expensesError;
+        result.message = 'Gastos eliminados';
+        break;
+
       case 'services':
         // Eliminar servicios (las recetas se eliminan por CASCADE)
         const { error: servicesError } = await supabaseAdmin
@@ -87,12 +120,27 @@ export async function POST(request: NextRequest) {
         break;
 
       case 'supplies':
-        // Primero verificar si hay insumos en uso
-        const { data: usedSupplies } = await supabaseAdmin
-          .from('service_supplies')
-          .select('supply_id')
-          .eq('clinic_id', clinicId)
-          .limit(1);
+        // Primero verificar si hay insumos en uso (service_supplies no tiene clinic_id)
+        // Buscar servicios de la clínica y luego verificar si alguno tiene receta
+        const { data: clinicServices, error: svcErr } = await supabaseAdmin
+          .from('services')
+          .select('id')
+          .eq('clinic_id', clinicId);
+        if (svcErr) throw svcErr;
+
+        let usedSupplies: any[] | null = null;
+        if ((clinicServices?.length || 0) > 0) {
+          const serviceIds = (clinicServices || []).map(s => s.id);
+          const { data: ssData, error: ssErr } = await supabaseAdmin
+            .from('service_supplies')
+            .select('supply_id')
+            .in('service_id', serviceIds)
+            .limit(1);
+          if (ssErr) throw ssErr;
+          usedSupplies = ssData || [];
+        } else {
+          usedSupplies = [];
+        }
 
         if (usedSupplies && usedSupplies.length > 0) {
           return NextResponse.json(
@@ -164,8 +212,8 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Buscar todos los workspaces del propietario
-        const { data: userWorkspaces, error: wsErr } = await supabase
+        // Buscar todos los workspaces del propietario usando supabaseAdmin
+        const { data: userWorkspaces, error: wsErr } = await supabaseAdmin
           .from('workspaces')
           .select('id')
           .eq('owner_id', user.id);
@@ -176,7 +224,7 @@ export async function POST(request: NextRequest) {
 
         for (const wsId of workspacesToDelete) {
           // Todas las clínicas del workspace
-          const { data: allClinics, error: clErr } = await supabase
+          const { data: allClinics, error: clErr } = await supabaseAdmin
             .from('clinics')
             .select('id')
             .eq('workspace_id', wsId);
@@ -185,51 +233,80 @@ export async function POST(request: NextRequest) {
           const clinicIds = allClinics?.map(c => c.id) || [];
 
           if (clinicIds.length > 0) {
-            // Borrar primero servicios (elimina service_supplies por cascade)
-            const { error: e2 } = await supabase
+            // Eliminar tratamientos primero (dependen de pacientes y servicios)
+            const { error: treatErr } = await supabaseAdmin
+              .from('treatments')
+              .delete()
+              .in('clinic_id', clinicIds);
+            if (treatErr) throw treatErr;
+
+            // Eliminar pacientes
+            const { error: patErr } = await supabaseAdmin
+              .from('patients')
+              .delete()
+              .in('clinic_id', clinicIds);
+            if (patErr) throw patErr;
+
+            // Eliminar gastos
+            const { error: expErr } = await supabaseAdmin
+              .from('expenses')
+              .delete()
+              .in('clinic_id', clinicIds);
+            if (expErr) throw expErr;
+
+            // Borrar servicios (elimina service_supplies por cascade)
+            const { error: e2 } = await supabaseAdmin
               .from('services')
               .delete()
               .in('clinic_id', clinicIds);
             if (e2) throw e2;
 
             // Luego insumos
-            const { error: e3 } = await supabase
+            const { error: e3 } = await supabaseAdmin
               .from('supplies')
               .delete()
               .in('clinic_id', clinicIds);
             if (e3) throw e3;
 
             // Costos fijos
-            const { error: e4 } = await supabase
+            const { error: e4 } = await supabaseAdmin
               .from('fixed_costs')
               .delete()
               .in('clinic_id', clinicIds);
             if (e4) throw e4;
 
             // Activos
-            const { error: e5 } = await supabase
+            const { error: e5 } = await supabaseAdmin
               .from('assets')
               .delete()
               .in('clinic_id', clinicIds);
             if (e5) throw e5;
 
             // Configuración de tiempo
-            const { error: e6 } = await supabase
+            const { error: e6 } = await supabaseAdmin
               .from('settings_time')
               .delete()
               .in('clinic_id', clinicIds);
             if (e6) throw e6;
+
+            // Eliminar categorías personalizadas
+            const { error: catErr } = await supabaseAdmin
+              .from('categories')
+              .delete()
+              .in('clinic_id', clinicIds)
+              .eq('is_system', false);
+            if (catErr) throw catErr;
           }
 
           // 7. Eliminar clínicas del workspace
-          const { error: clDelErr } = await supabase
+          const { error: clDelErr } = await supabaseAdmin
             .from('clinics')
             .delete()
             .eq('workspace_id', wsId);
           if (clDelErr) throw clDelErr;
 
           // 8. Eliminar el workspace (workspace_members cae por cascade)
-          const { error: wsDelErr } = await supabase
+          const { error: wsDelErr } = await supabaseAdmin
             .from('workspaces')
             .delete()
             .eq('id', wsId);
@@ -253,8 +330,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result);
   } catch (error) {
     console.error('Error in reset:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorDetails = error instanceof Error && 'details' in error ? (error as any).details : null;
+    
     return NextResponse.json(
-      { error: 'Failed to reset data', details: error },
+      { 
+        error: 'Failed to reset data', 
+        message: errorMessage,
+        details: errorDetails,
+        // Include more debug info in development
+        ...(process.env.NODE_ENV === 'development' && { 
+          stack: error instanceof Error ? error.stack : null 
+        })
+      },
       { status: 500 }
     );
   }

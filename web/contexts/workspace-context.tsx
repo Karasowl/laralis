@@ -115,6 +115,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
       setWorkspaces(data || []);
       
+      if (!data || data.length === 0) {
+        setWorkspace(null);
+      } else if (!workspace || !data.some(ws => ws.id === workspace.id)) {
+        setWorkspace(data[0]);
+      }
+      
       // Si no hay workspaces y no estamos en onboarding o auth, redirigir
       const isProtectedRoute = !pathname?.includes('/onboarding') && 
                                !pathname?.includes('/auth') && 
@@ -125,10 +131,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         return;
       }
       
-      // Si no hay workspace seleccionado, seleccionar el primero
-      if (!workspace && data && data.length > 0) {
-        setWorkspace(data[0]);
-      }
     } catch (err: any) {
       console.error('Error refreshing workspaces:', err);
       setError(err.message);
@@ -228,6 +230,30 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspace]);
+
+  useEffect(() => {
+    if (loading) return;
+    if (!user) return;
+    const path = pathname || '';
+    const isAuthRoute = path.startsWith('/auth') || path.startsWith('/test-auth');
+    if (isAuthRoute) return;
+
+    if (workspaces.length === 0) {
+      if (!path.startsWith('/onboarding')) {
+        router.replace('/onboarding');
+      }
+      return;
+    }
+
+    const completed = Boolean(workspace?.onboarding_completed);
+    if (workspace && !completed) {
+      const allowedPrefixes = ['/setup', '/onboarding', '/assets', '/fixed-costs', '/time', '/supplies', '/services', '/tariffs'];
+      const isAllowed = allowedPrefixes.some(prefix => path === prefix || path.startsWith(`${prefix}/`));
+      if (!isAllowed) {
+        router.replace('/setup');
+      }
+    }
+  }, [loading, user, workspaces, workspace, pathname, router]);
 
   // Guardar selección en localStorage
   useEffect(() => {

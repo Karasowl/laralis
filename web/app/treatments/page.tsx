@@ -17,6 +17,8 @@ import { ActionDropdown, createEditAction, createDeleteAction } from '@/componen
 import { SummaryCards } from '@/components/ui/summary-cards'
 import { TreatmentForm } from './components/TreatmentForm'
 import { useCurrentClinic } from '@/hooks/use-current-clinic'
+import { useRequirementsGuard } from '@/lib/requirements/useGuard'
+import { toast } from 'sonner'
 import { useTreatments } from '@/hooks/use-treatments'
 import { formatCurrency } from '@/lib/money'
 import { formatDate } from '@/lib/format'
@@ -89,8 +91,22 @@ export default function TreatmentsPage() {
     defaultValues: treatmentInitialValues,
   })
 
+  // Guard: ensure financial prerequisites before creating treatment
+  const { ensureReady } = useRequirementsGuard(() => ({
+    clinicId: currentClinic?.id as string
+  }))
+  const [missingReqs, setMissingReqs] = useState<string[]>([])
+
   // Submit handlers
   const handleCreate = async (data: TreatmentFormData) => {
+    // Just-in-time guard: check tariffs and prerequisites for the selected service
+    const ready = await ensureReady('create_treatment', { serviceId: data.service_id })
+    if (!ready.allowed) {
+      toast.warning(t('onboarding.justInTime.title'))
+      setMissingReqs(ready.missing as any)
+      return
+    }
+    setMissingReqs([])
     const success = await createTreatment(data)
     if (success) {
       setCreateOpen(false)
@@ -409,8 +425,19 @@ export default function TreatmentsPage() {
           onSubmit={form.handleSubmit(handleCreate)}
           isSubmitting={isSubmitting}
           maxWidth="2xl"
-          modal={true}
+          modal={false}
         >
+          {missingReqs.length > 0 && (
+            <div className="mb-4 p-3 border rounded-md bg-amber-50 text-sm">
+              <div className="font-medium mb-1">{t('onboarding.justInTime.title')}</div>
+              <div className="mb-2">{t('onboarding.justInTime.missing')} {missingReqs.join(', ')}</div>
+              <div className="flex flex-wrap gap-2">
+                <a href="/time" className="underline text-blue-600">{t('time.title', 'Tiempo')}</a>
+                <a href="/fixed-costs" className="underline text-blue-600">{t('fixedCosts.title', 'Costos fijos')}</a>
+                <a href="/services" className="underline text-blue-600">{t('services.title', 'Servicios')}</a>
+              </div>
+            </div>
+          )}
           <TreatmentForm 
             form={form} 
             patients={patientOptions}
@@ -432,7 +459,7 @@ export default function TreatmentsPage() {
           onSubmit={form.handleSubmit(handleEdit)}
           isSubmitting={isSubmitting}
           maxWidth="2xl"
-          modal={true}
+          modal={false}
         >
           <TreatmentForm 
             form={form} 

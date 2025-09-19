@@ -43,10 +43,13 @@ export function SuppliesManager({
               <SelectField
                 value={ss.supply_id}
                 onChange={(value) => onUpdate(index, 'supply_id', value)}
-                options={supplies.map((supply: any) => ({
-                  value: supply.id,
-                  label: `${supply.name} - ${formatCurrency(supply.cost_per_unit_cents)}`
-                }))}
+                options={supplies.map((supply: any) => {
+                  const costCents = supply.cost_per_portion_cents ?? supply.cost_per_unit_cents ?? supply.price_cents ?? 0
+                  return ({
+                    value: supply.id,
+                    label: `${supply.name} - ${formatCurrency(costCents)}`
+                  })
+                })}
                 placeholder={t('select_supply')}
               />
             </div>
@@ -55,7 +58,7 @@ export function SuppliesManager({
                 type="number"
                 value={ss.quantity}
                 onChange={(value) => onUpdate(index, 'quantity', parseInt(value as string) || 0)}
-                min={1}
+                min={0}
               />
             </div>
             <Button

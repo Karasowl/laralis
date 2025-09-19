@@ -84,18 +84,81 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Server-side preconditions: block creation if financial base not ready
+    try {
+      // 1) Cost per minute must be derivable and > 0
+      const { data: timeRow } = await supabaseAdmin
+        .from('settings_time')
+        .select('work_days, hours_per_day, real_pct')
+        .eq('clinic_id', clinicId)
+        .single();
+      const { data: fixedList } = await supabaseAdmin
+        .from('fixed_costs')
+        .select('amount_cents')
+        .eq('clinic_id', clinicId);
+      const { data: assetsList } = await supabaseAdmin
+        .from('assets')
+        .select('purchase_price_cents, depreciation_months')
+        .eq('clinic_id', clinicId);
+      const fixedSum = (fixedList || []).reduce((s, r) => s + (r.amount_cents || 0), 0);
+      const dep = (assetsList || []).reduce((s, a) => s + (a.depreciation_months ? Math.round(a.purchase_price_cents / a.depreciation_months) : 0), 0);
+      const totalFixed = fixedSum + dep;
+      const wd = Number(timeRow?.work_days || 0);
+      const hpd = Number(timeRow?.hours_per_day || 0);
+      const rp = Number(timeRow?.real_pct || 0);
+      const rpDec = rp > 1 ? rp / 100 : rp; // tolerate decimal or percent
+      const minutesMonth = wd * hpd * 60;
+      const effectiveMinutes = Math.round(minutesMonth * Math.max(0, Math.min(1, rpDec)));
+      const cpm = effectiveMinutes > 0 && totalFixed > 0 ? Math.round(totalFixed / effectiveMinutes) : 0;
+      if (cpm <= 0) {
+        return NextResponse.json({ error: 'precondition_failed', message: 'Cost per minute is not configured. Complete time and fixed costs.' }, { status: 412 });
+      }
+
+      // 2) Service must have a recipe (or at least variable cost derivable)
+      const serviceId = body.service_id;
+      if (!serviceId) {
+        return NextResponse.json({ error: 'validation_error', message: 'Service is required' }, { status: 400 });
+      }
+      const { count: recipeCount } = await supabaseAdmin
+        .from('service_supplies')
+        .select('id', { count: 'exact', head: true })
+        .eq('service_id', serviceId);
+      if (!recipeCount || recipeCount <= 0) {
+        return NextResponse.json({ error: 'precondition_failed', message: 'Service has no recipe. Define supplies for the service.' }, { status: 412 });
+      }
+    } catch (e) {
+      // If any check fails unexpectedly, do not mask as 500; surface as precondition
+      return NextResponse.json({ error: 'precondition_failed', message: 'Unable to verify prerequisites for treatment creation.' }, { status: 412 });
+    }
+
+    // Validate pricing snapshot presence
+    const minutesVal = Number(body.minutes || 0);
+    const priceVal = Number(body.price_cents || 0);
+    const marginVal = Number(body.margin_pct ?? 60);
+    if (!minutesVal || minutesVal <= 0) {
+      return NextResponse.json({ error: 'precondition_failed', message: 'Minutes must be greater than zero.' }, { status: 412 });
+    }
+    if (marginVal < 0 || marginVal > 100) {
+      return NextResponse.json({ error: 'precondition_failed', message: 'Margin percentage must be between 0 and 100.' }, { status: 412 });
+    }
+    // If status is completed, require a positive price snapshot
+    const normalizedStatus = (body.status === 'pending' ? 'scheduled' : body.status) || 'scheduled';
+    if (normalizedStatus === 'completed' && (!priceVal || priceVal <= 0)) {
+      return NextResponse.json({ error: 'precondition_failed', message: 'Tariff/price is required to complete a treatment.' }, { status: 412 });
+    }
+
     // Map UI payload to DB column names and allowed values
     const treatmentData = {
       clinic_id: clinicId,
       patient_id: body.patient_id,
       service_id: body.service_id,
       treatment_date: body.treatment_date || new Date().toISOString().split('T')[0],
-      duration_minutes: body.minutes || 30,
+      duration_minutes: minutesVal || 30,
       fixed_cost_per_minute_cents: body.fixed_per_minute_cents || 0,
       variable_cost_cents: body.variable_cost_cents || 0,
-      margin_pct: body.margin_pct || 60,
-      price_cents: body.price_cents || 0,
-      status: (body.status === 'pending' ? 'scheduled' : body.status) || 'scheduled',
+      margin_pct: marginVal || 60,
+      price_cents: priceVal || 0,
+      status: normalizedStatus,
       notes: body.notes || null,
       snapshot_costs: body.snapshot_costs || {}
     } as const;
@@ -141,7 +204,48 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ 
+    // After creating a treatment, if it's completed and earlier than the patient's recorded first visit,
+    // adjust the patient's first_visit_date to the earliest completed treatment date.
+    try {
+      const created = insertResult.data as any;
+      const patientId = created?.patient_id;
+      const status = created?.status;
+      if (patientId && status === 'completed') {
+        // Fetch earliest completed treatment date for this patient in this clinic
+        const { data: rows, error: earliestErr } = await supabaseAdmin
+          .from('treatments')
+          .select('treatment_date')
+          .eq('clinic_id', clinicId)
+          .eq('patient_id', patientId)
+          .eq('status', 'completed')
+          .order('treatment_date', { ascending: true })
+          .limit(1);
+        if (!earliestErr && rows && rows.length > 0) {
+          const earliest = rows[0].treatment_date;
+          // Get current patient first_visit_date
+          const { data: pat, error: patErr } = await supabaseAdmin
+            .from('patients')
+            .select('id, first_visit_date')
+            .eq('clinic_id', clinicId)
+            .eq('id', patientId)
+            .single();
+          if (!patErr && pat) {
+            const current = pat.first_visit_date as string | null;
+            if (!current || (typeof current === 'string' && current > earliest)) {
+              await supabaseAdmin
+                .from('patients')
+                .update({ first_visit_date: earliest })
+                .eq('id', patientId)
+                .eq('clinic_id', clinicId);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[treatments POST] Failed to adjust patient first_visit_date:', e);
+    }
+
+    return NextResponse.json({
       data: insertResult.data,
       message: 'Treatment created successfully'
     });

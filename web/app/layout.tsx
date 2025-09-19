@@ -1,21 +1,24 @@
-import { NextIntlClientProvider } from 'next-intl';
-import { getMessages } from 'next-intl/server';
+import { getMessages, getLocale } from 'next-intl/server';
 import "./globals.css";
 import { Toaster } from 'sonner';
 import { WorkspaceProvider } from '@/contexts/workspace-context';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { BrowserExtensionsCleanup } from '@/components/providers/browser-extensions-cleanup';
+import { IntlProvider } from '@/components/providers/intl-provider';
 
 export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const messages = await getMessages();
+  const [messages, locale] = await Promise.all([
+    getMessages(),
+    getLocale()
+  ]);
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="font-sans antialiased" suppressHydrationWarning>
+      <body className="font-sans antialiased" suppressHydrationWarning data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false">
         <BrowserExtensionsCleanup />
         <ThemeProvider 
           attribute="class"
@@ -23,11 +26,11 @@ export default async function RootLayout({
           enableSystem={false}
           storageKey="laralis-theme"
         >
-          <NextIntlClientProvider messages={messages}>
+          <IntlProvider messages={messages} locale={locale}>
             <WorkspaceProvider>
               {children}
-              <Toaster 
-                richColors 
+              <Toaster
+                richColors
                 position="top-right"
                 toastOptions={{
                   style: {
@@ -36,7 +39,7 @@ export default async function RootLayout({
                 }}
               />
             </WorkspaceProvider>
-          </NextIntlClientProvider>
+          </IntlProvider>
         </ThemeProvider>
       </body>
     </html>

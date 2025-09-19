@@ -73,7 +73,8 @@ export default function FixedCostsPage() {
     const success = await createFixedCost({
       category: data.category,
       concept: data.concept,
-      amount_cents: data.amount_pesos * 100
+      // data.amount_pesos is already transformed to cents by zodResolver
+      amount_cents: data.amount_pesos as any // TypeScript type coercion since zod transforms it
     })
     if (success) {
       setCreateOpen(false)
@@ -86,7 +87,8 @@ export default function FixedCostsPage() {
     const success = await updateFixedCost(editCost.id, {
       category: data.category,
       concept: data.concept,
-      amount_cents: data.amount_pesos * 100
+      // data.amount_pesos is already transformed to cents by zodResolver
+      amount_cents: data.amount_pesos as any // TypeScript type coercion since zod transforms it
     })
     if (success) {
       setEditCost(null)
@@ -107,7 +109,7 @@ export default function FixedCostsPage() {
     {
       key: 'category',
       label: t('fixedCosts.category'),
-      render: (cost: any) => (
+      render: (_value: any, cost: any) => (
         <Badge variant="outline">
           {getCategoryDisplayName(cost.category, t)}
         </Badge>
@@ -116,23 +118,23 @@ export default function FixedCostsPage() {
     {
       key: 'concept',
       label: t('fixedCosts.concept'),
-      render: (cost: any) => (
+      render: (_value: any, cost: any) => (
         <div className="font-medium">{cost.concept}</div>
       )
     },
     {
-      key: 'amount',
+      key: 'amount_cents',
       label: t('fixedCosts.amount'),
-      render: (cost: any) => (
+      render: (_value: any, cost: any) => (
         <div className="text-right font-semibold">
-          {formatCurrency(cost.amount_cents)}
+          {formatCurrency(cost?.amount_cents || 0)}
         </div>
       )
     },
     {
       key: 'actions',
       label: t('common.actions'),
-      render: (cost: any) => (
+      render: (_value: any, cost: any) => (
         <ActionDropdown
           actions={[
             createEditAction(() => {
@@ -237,7 +239,8 @@ export default function FixedCostsPage() {
           <div className="lg:col-span-2">
             <DataTable
               columns={columns}
-              mobileColumns={[columns[1], columns[3]]}
+              // Mobile: concept, amount and actions
+              mobileColumns={[columns[1], columns[2], columns[3]]}
               data={fixedCosts}
               loading={loading}
               emptyState={{
@@ -347,8 +350,15 @@ function FixedCostForm({ form, categories, t }: any) {
           type="number"
           step="0.01"
           label={t('fixedCosts.amount')}
-          value={form.watch('amount_pesos')}
-          onChange={(value) => form.setValue('amount_pesos', parseFloat(value as string) || 0)}
+          value={form.watch('amount_pesos') as any}
+          onChange={(value) => {
+            if (value === '') {
+              form.setValue('amount_pesos' as any, '' as any, { shouldDirty: true })
+            } else {
+              const n = typeof value === 'number' ? value : parseFloat(String(value))
+              form.setValue('amount_pesos' as any, (Number.isFinite(n) ? n : 0) as any, { shouldDirty: true })
+            }
+          }}
           placeholder="0.00"
           error={form.formState.errors.amount_pesos?.message}
           required

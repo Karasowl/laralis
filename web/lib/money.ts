@@ -36,6 +36,18 @@ export function roundToNearestStepCents(cents: number, stepCents: number): numbe
 }
 
 /**
+ * Rounds cents to a step with mode control
+ * mode: 'nearest' | 'up' | 'down'
+ */
+export function roundToStepCents(cents: number, stepCents: number, mode: 'nearest' | 'up' | 'down' = 'nearest'): number {
+  if (stepCents <= 0) throw new Error('Step must be positive');
+  const q = cents / stepCents;
+  if (mode === 'up') return Math.ceil(q) * stepCents;
+  if (mode === 'down') return Math.floor(q) * stepCents;
+  return Math.round(q) * stepCents;
+}
+
+/**
  * Formats cents as currency string
  * @param cents Amount in cents
  * @param locale Locale for formatting (default 'es-MX')

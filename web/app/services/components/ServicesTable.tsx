@@ -30,7 +30,7 @@ export function ServicesTable({
     {
       key: 'name',
       label: tFields('name'),
-      render: (service: any) => (
+      render: (_value: any, service: any) => (
         <div>
           <div className="font-medium">{service.name}</div>
           {service.description && (
@@ -42,19 +42,19 @@ export function ServicesTable({
     {
       key: 'category',
       label: tFields('category'),
-      render: (service: any) => (
-        <Badge variant="outline">{service.category || t('no_category')}</Badge>
+      render: (_value: any, service: any) => (
+        <Badge variant="outline">{service?.category || t('no_category')}</Badge>
       )
     },
     {
       key: 'duration',
       label: tFields('duration'),
-      render: (service: any) => {
+      render: (_value: any, service: any) => {
         const minutes = service?.est_minutes || service?.duration_minutes || 0;
         return (
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-muted-foreground" />
-            <span>{minutes} {tRoot('minutes')}</span>
+            <span>{minutes} {tRoot('common.minutes')}</span>
           </div>
         )
       }
@@ -62,7 +62,7 @@ export function ServicesTable({
     {
       key: 'price',
       label: tFields('price'),
-      render: (service: any) => {
+      render: (_value: any, service: any) => {
         const price = service?.base_price_cents || service?.price_cents || 0;
         return (
           <div className="text-right font-semibold">
@@ -74,7 +74,7 @@ export function ServicesTable({
     {
       key: 'actions',
       label: tRoot('common.actions'),
-      render: (service: any) => {
+      render: (_value: any, service: any) => {
         if (!service) return null;
         
         return (

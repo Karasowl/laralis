@@ -14,16 +14,26 @@ import { Supply, SupplyCategory } from '@/lib/types';
 import { zSupplyForm } from '@/lib/zod';
 import { Package } from 'lucide-react';
 import { z } from 'zod';
+import { useCategories } from '@/hooks/use-categories';
+import { CategoryModal } from '@/app/services/components/CategoryModal';
 
 type SupplyFormData = z.infer<typeof zSupplyForm>;
 
-const categories: SupplyCategory[] = [
+// Legacy fallback kept for label mapping; options now come from categories API
+const legacyCategories: SupplyCategory[] = [
   'insumo', 'bioseguridad', 'consumibles', 'materiales', 
   'medicamentos', 'equipos', 'otros'
 ];
 
 export default function SuppliesPage() {
   const t = useTranslations();
+  const {
+    categories: catList,
+    createCategory,
+    updateCategory,
+    deleteCategory,
+  } = useCategories('supplies')
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false)
   
   // Use the centralized CRUD hook
   const crud = useCrudOperations<Supply>({
@@ -89,8 +99,7 @@ export default function SuppliesPage() {
   // Handle edit
   const handleEdit = (supply: Supply) => {
     crud.handleEdit(supply);
-    
-    const validCategory = categories.includes(supply.category as SupplyCategory) 
+    const validCategory = legacyCategories.includes(supply.category as SupplyCategory) 
       ? supply.category as SupplyCategory 
       : 'otros';
     
@@ -108,6 +117,17 @@ export default function SuppliesPage() {
     reset(supplyInitialValues);
     crud.openDialog();
   };
+
+  // Onboarding autofix: open create dialog if flagged by sessionStorage
+  if (typeof window !== 'undefined') {
+    try {
+      const flag = sessionStorage.getItem('auto_open_supplies_importer')
+      if (flag) {
+        sessionStorage.removeItem('auto_open_supplies_importer')
+        setTimeout(() => { try { handleOpenDialog() } catch {} }, 0)
+      }
+    } catch {}
+  }
 
   // Table columns
   const columns = [
@@ -148,12 +168,13 @@ export default function SuppliesPage() {
   ];
 
   // Category options for select
-  const categoryOptions = categories.map(cat => ({
-    value: cat,
-    label: t(`supplies.categories.${cat}`)
-  }));
+  const categoryOptions = (catList && catList.length > 0
+    ? catList.map((c: any) => ({ value: c.display_name || c.name || c.code, label: c.display_name || c.name || c.code }))
+    : legacyCategories.map(cat => ({ value: cat, label: t(`supplies.categories.${cat}`) }))
+  );
 
   return (
+    <>
     <SimpleCrudPage
       title={t('supplies.title')}
       subtitle={t('supplies.subtitle')}
@@ -193,13 +214,22 @@ export default function SuppliesPage() {
             required
           />
 
-          <SelectField
-            label={t('supplies.form.category')}
-            value={watch('category')}
-            onChange={(v) => setValue('category', v as SupplyCategory)}
-            options={categoryOptions}
-            error={errors.category?.message}
-          />
+          <div className="grid gap-2">
+            <SelectField
+              label={t('supplies.form.category')}
+              value={watch('category')}
+              onChange={(v) => setValue('category', v as SupplyCategory)}
+              options={categoryOptions}
+              error={errors.category?.message}
+            />
+            <button
+              type="button"
+              className="self-start text-xs text-primary hover:underline"
+              onClick={() => setCategoryModalOpen(true)}
+            >
+              {t('services.manage_categories')}
+            </button>
+          </div>
 
           <InputField
             label={t('supplies.form.presentation')}
@@ -243,5 +273,16 @@ export default function SuppliesPage() {
         </div>
       </FormModal>
     </SimpleCrudPage>
+
+      {/* Category Manager */}
+      <CategoryModal
+        open={categoryModalOpen}
+        onOpenChange={setCategoryModalOpen}
+        categories={catList as any[]}
+        onCreateCategory={createCategory}
+        onUpdateCategory={updateCategory}
+        onDeleteCategory={deleteCategory}
+      />
+    </>
   );
 }

@@ -36,7 +36,7 @@ export function DeleteAccountDialog({
   const t = useTranslations('profile');
 
   const handleDeleteAccount = async () => {
-    if (confirmText !== 'DELETE') return;
+    if (confirmText !== t('deleteConfirm')) return;
     
     setIsDeleting(true);
     
@@ -105,7 +105,7 @@ export function DeleteAccountDialog({
               </Label>
               <Input
                 id="confirm-delete"
-                placeholder="DELETE"
+                placeholder={t('deleteConfirm')}
                 value={confirmText}
                 onChange={(e) => setConfirmText(e.target.value)}
                 className="font-mono"

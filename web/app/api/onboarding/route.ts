@@ -26,23 +26,37 @@ export async function POST(request: NextRequest) {
         .substring(0, 50);
     };
 
-    // Create workspace
-    const { data: workspaceData, error: workspaceError } = await supabase
-      .from('workspaces')
-      .insert({
-        name: workspace.name,
-        slug: generateSlug(workspace.name),
-        description: workspace.description,
-        owner_id: user.id
-      })
-      .select()
-      .single();
+    // Create workspace (handle slug conflicts gracefully)
+    const baseSlug = generateSlug(workspace.name);
+    const attemptInsert = async (slug: string) => {
+      return await supabase
+        .from('workspaces')
+        .insert({
+          name: workspace.name,
+          slug,
+          description: workspace.description,
+          owner_id: user.id
+        })
+        .select()
+        .single();
+    };
+
+    let { data: workspaceData, error: workspaceError } = await attemptInsert(baseSlug);
+    if (workspaceError && (workspaceError as any).code === '23505') {
+      // Slug already exists. Try a suffixed slug once.
+      const altSlug = `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`;
+      const retry = await attemptInsert(altSlug);
+      workspaceData = retry.data as any;
+      workspaceError = retry.error as any;
+    }
 
     if (workspaceError) {
       console.error('Error creating workspace:', workspaceError);
+      const status = (workspaceError as any).code === '23505' ? 400 : 500;
+      const msg = (workspaceError as any).code === '23505' ? 'Workspace slug already exists' : 'Failed to create workspace';
       return NextResponse.json(
-        { error: 'Failed to create workspace' },
-        { status: 500 }
+        { error: msg },
+        { status }
       );
     }
 

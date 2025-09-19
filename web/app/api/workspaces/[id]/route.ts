@@ -39,12 +39,17 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { name, description } = body;
+    const { name, description, onboarding_completed, onboarding_step } = body;
 
-    // Validar datos requeridos
-    if (!name) {
+    // Permitir actualizaciones parciales: nombre/descr o flags de onboarding
+    if (
+      (name === undefined || name === null) &&
+      description === undefined &&
+      onboarding_completed === undefined &&
+      onboarding_step === undefined
+    ) {
       return NextResponse.json(
-        { error: 'Name is required' },
+        { error: 'No fields to update' },
         { status: 400 }
       );
     }
@@ -65,13 +70,17 @@ export async function PUT(
     }
 
     // Actualizar el workspace
+    const updateData: any = {
+      updated_at: new Date().toISOString()
+    };
+    if (name !== undefined) updateData.name = name;
+    if (description !== undefined) updateData.description = description;
+    if (onboarding_completed !== undefined) updateData.onboarding_completed = Boolean(onboarding_completed);
+    if (onboarding_step !== undefined) updateData.onboarding_step = Number(onboarding_step);
+
     const { data: workspace, error: updateError } = await supabaseAdmin
       .from('workspaces')
-      .update({
-        name,
-        description,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', params.id)
       .eq('owner_id', user.id)
       .select()

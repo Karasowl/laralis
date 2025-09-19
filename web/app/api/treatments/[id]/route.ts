@@ -79,6 +79,45 @@ export async function PUT(
       return NextResponse.json({ error: 'Failed to update treatment', message: result.error.message }, { status: 500 });
     }
 
+    // If treatment is completed and its date predates patient's first_visit_date, adjust it.
+    try {
+      const updated = result.data as any;
+      const patientId = updated?.patient_id;
+      const status = updated?.status;
+      const clinic = clinicId;
+      if (patientId && status === 'completed') {
+        const { data: rows, error: earliestErr } = await supabaseAdmin
+          .from('treatments')
+          .select('treatment_date')
+          .eq('clinic_id', clinic)
+          .eq('patient_id', patientId)
+          .eq('status', 'completed')
+          .order('treatment_date', { ascending: true })
+          .limit(1);
+        if (!earliestErr && rows && rows.length > 0) {
+          const earliest = rows[0].treatment_date;
+          const { data: pat, error: patErr } = await supabaseAdmin
+            .from('patients')
+            .select('id, first_visit_date')
+            .eq('clinic_id', clinic)
+            .eq('id', patientId)
+            .single();
+          if (!patErr && pat) {
+            const current = pat.first_visit_date as string | null;
+            if (!current || (typeof current === 'string' && current > earliest)) {
+              await supabaseAdmin
+                .from('patients')
+                .update({ first_visit_date: earliest })
+                .eq('id', patientId)
+                .eq('clinic_id', clinic);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[treatments PUT] Failed to adjust patient first_visit_date:', e);
+    }
+
     return NextResponse.json({ data: result.data, message: 'Treatment updated successfully' });
   } catch (error) {
     console.error('Unexpected error in PUT /api/treatments/[id]:', error);

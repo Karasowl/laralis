@@ -34,6 +34,12 @@ interface UseServicesOptions {
   autoLoad?: boolean
 }
 
+function extractList<T = any>(value: any): T[] {
+  if (Array.isArray(value)) return value as T[];
+  if (value && Array.isArray((value as any).data)) return (value as any).data as T[];
+  return [];
+}
+
 export function useServices(options: UseServicesOptions = {}) {
   const { clinicId, autoLoad = true } = options
   
@@ -44,87 +50,140 @@ export function useServices(options: UseServicesOptions = {}) {
     includeClinicId: true
   })
 
-  // Use API hook for categories
-  const categoriesApi = useApi<Category[]>('/api/categories?entity_type=service')
+  // Use API hook for categories (new categories system via type=services)
+  const categoriesApi = useApi<Category[]>('/api/categories?type=services&active=true', { autoFetch: true })
   
-  // Use API hook for service supplies
-  const suppliesApi = useApi<ServiceSupply[]>('/api/services')
+  // Service supplies are handled via dynamic endpoints per service id
   
   // Get supplies from existing hook
   const { supplies } = useSupplies({ clinicId })
 
   // Service-specific: Fetch service supplies
   const fetchServiceSupplies = useCallback(async (serviceId: string): Promise<ServiceSupply[]> => {
-    const result = await suppliesApi.get()
-    if (result.success) {
-      return result.data || []
+    try {
+      const res = await fetch(`/api/services/${serviceId}/supplies`, { credentials: 'include' })
+      if (!res.ok) return []
+      const js = await res.json()
+      const list = (Array.isArray(js?.data) ? js.data : Array.isArray(js) ? js : []) as any[]
+      // Map API "qty" to UI "quantity"
+      return list.map((item) => ({ supply_id: item.supply_id, quantity: item.qty })) as any
+    } catch {
+      return []
     }
-    return []
-  }, [suppliesApi])
+  }, [])
 
   // Service-specific: Update service supplies
-  const updateServiceSupplies = useCallback(async (
-    serviceId: string, 
-    supplies: Array<{ supply_id: string; quantity: number }>
-  ): Promise<boolean> => {
-    const result = await suppliesApi.put(
-      { supplies },
-      { 
-        showSuccessToast: false // Handle toast in parent
-      }
-    )
-    return result.success
-  }, [suppliesApi])
+  // Supplies updates are handled by the service endpoints themselves
 
   // Service-specific: Create category
   const createCategory = useCallback(async (name: string): Promise<boolean> => {
+    // Simple slug from name for code
+    const code = String(name)
+      .toLowerCase()
+      .normalize('NFD').replace(/\p{Diacritic}/gu, '')
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+
     const result = await categoriesApi.post(
-      { name, entity_type: 'service' },
+      { name, code, is_active: true },
       { 
         showSuccessToast: true,
-        successMessage: 'Category created successfully'
+        successMessage: 'Category created successfully',
+        updateState: false // avoid replacing the list with a single object
       }
     )
     
     if (result.success) {
-      // Refresh categories
       await categoriesApi.get()
       return true
     }
     return false
   }, [categoriesApi])
 
+  // Service-specific: Update category name
+  const updateCategory = useCallback(async (id: string, name: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`/api/categories/${id}?type=services`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      })
+      if (!res.ok) return false
+      await categoriesApi.get()
+      return true
+    } catch {
+      return false
+    }
+  }, [categoriesApi])
+
+  // Service-specific: Delete category (soft delete or remap)
+  const deleteCategory = useCallback(async (id: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`/api/categories/${id}?type=services`, {
+        method: 'DELETE',
+        credentials: 'include'
+      })
+      if (!res.ok) return false
+      await categoriesApi.get()
+      return true
+    } catch {
+      return false
+    }
+  }, [categoriesApi])
+
   // Enhanced create with supplies
   const createService = useCallback(async (data: any): Promise<boolean> => {
     const { supplies: serviceSupplies, ...serviceData } = data
-    
-    // Create service using CRUD operations
-    const success = await crud.handleCreate(serviceData)
-    
-    if (success && serviceSupplies && serviceSupplies.length > 0) {
-      // Get the newly created service (last one in the list)
-      const newService = crud.items[0] // CRUD adds new items at the beginning
-      if (newService) {
-        await updateServiceSupplies(newService.id, serviceSupplies)
-      }
+
+    const payload = {
+      ...serviceData,
+      est_minutes: serviceData.est_minutes ?? serviceData.duration_minutes ?? 0,
+      price_cents: serviceData.price_cents ?? serviceData.base_price_cents ?? 0
     }
-    
+
+    if (!payload.name || !payload.est_minutes) {
+      console.warn('[useServices] missing name or duration when creating service', payload)
+      return false
+    }
+
+    // Include supplies in create payload so API can persist them
+    const sanitized = Array.isArray(serviceSupplies)
+      ? serviceSupplies.filter((s) => s.supply_id && (s.quantity ?? 0) > 0)
+      : []
+    const success = await crud.handleCreate({
+      ...payload,
+      ...(sanitized.length > 0
+        ? { supplies: sanitized.map((s) => ({ supply_id: s.supply_id, qty: s.quantity })) }
+        : {})
+    })
+
     return success
-  }, [crud, updateServiceSupplies])
+  }, [crud])
 
   // Enhanced update with supplies
   const updateService = useCallback(async (id: string, data: any): Promise<boolean> => {
     const { supplies: serviceSupplies, ...serviceData } = data
-    
-    // Update service using CRUD operations
-    const success = await crud.handleUpdate(id, serviceData)
-    
-    if (success && serviceSupplies !== undefined) {
-      await updateServiceSupplies(id, serviceSupplies)
+
+    const payload = {
+      ...serviceData,
+      est_minutes: serviceData.est_minutes ?? serviceData.duration_minutes ?? 0,
+      price_cents: serviceData.price_cents ?? serviceData.base_price_cents ?? 0
     }
-    
+
+    const sanitized = serviceSupplies === undefined
+      ? undefined
+      : serviceSupplies.filter((s: any) => s.supply_id && (s.quantity ?? 0) > 0)
+
+    const success = await crud.handleUpdate(id, {
+      ...payload,
+      ...(sanitized !== undefined
+        ? { supplies: sanitized.map((s: any) => ({ supply_id: s.supply_id, qty: s.quantity })) }
+        : {})
+    })
+
     return success
-  }, [crud, updateServiceSupplies])
+  }, [crud])
 
   return {
     // From CRUD operations
@@ -133,7 +192,7 @@ export function useServices(options: UseServicesOptions = {}) {
     error: null,
     
     // From API hooks
-    categories: categoriesApi.data || [],
+    categories: extractList<Category>(categoriesApi.data),
     supplies,
     
     // Service operations
@@ -144,6 +203,8 @@ export function useServices(options: UseServicesOptions = {}) {
     
     // Service-specific operations
     fetchServiceSupplies,
-    createCategory
+    createCategory,
+    updateCategory,
+    deleteCategory
   }
 }

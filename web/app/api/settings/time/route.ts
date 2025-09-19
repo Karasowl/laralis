@@ -4,21 +4,60 @@ import { zSettingsTime } from '@/lib/zod';
 import type { SettingsTime, ApiResponse } from '@/lib/types';
 import { cookies } from 'next/headers';
 import { getClinicIdOrDefault } from '@/lib/clinic';
-import { createSupabaseClient } from '@/lib/supabase';
+import { isSupabaseConfigured } from '@/lib/supabase';
+
+type TimeSettingsRecord = SettingsTime & { clinic_id: string };
+
+const LOCAL_STORE_KEY = '__laralisTimeSettingsStore__';
+
+function getLocalStore() {
+  const globalAny = globalThis as any;
+  if (!globalAny[LOCAL_STORE_KEY]) {
+    globalAny[LOCAL_STORE_KEY] = new Map<string, TimeSettingsRecord>();
+  }
+  return globalAny[LOCAL_STORE_KEY] as Map<string, TimeSettingsRecord>;
+}
+
+const numberOrZero = (value: unknown): number => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+};
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+const normalizePayload = (body: any) => {
+  const work_days = Math.round(numberOrZero(body?.work_days));
+  const hours_per_day = Number(numberOrZero(body?.hours_per_day).toFixed(2));
+  const rawRealPct = body?.real_pct ?? body?.real_pct_decimal ?? body?.realPct ?? 0;
+  const real_pct = clamp(numberOrZero(rawRealPct), 0, 1);
+  return { work_days, hours_per_day, real_pct };
+};
 
 export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<SettingsTime>>> {
   try {
     const cookieStore = cookies();
-    const supabase = createSupabaseClient(cookieStore);
-
+    const supabaseReady = isSupabaseConfigured();
     const searchParams = request.nextUrl.searchParams;
-    const clinicId = searchParams.get('clinicId') || await getClinicIdOrDefault(cookieStore);
+
+    let clinicId = searchParams.get('clinicId') || cookieStore.get('clinicId')?.value || null;
+    if (!clinicId && supabaseReady) {
+      clinicId = await getClinicIdOrDefault(cookieStore);
+    }
 
     if (!clinicId) {
       return NextResponse.json(
         { error: 'No clinic context available' },
         { status: 400 }
       );
+    }
+
+    if (!supabaseReady) {
+      const localRecord = getLocalStore().get(clinicId) || null;
+      return NextResponse.json({ data: localRecord });
     }
 
     const { data, error } = await supabaseAdmin
@@ -30,11 +69,10 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
       .single();
 
     if (error) {
-      // If no records found, return null data instead of error
       if (error.code === 'PGRST116') {
         return NextResponse.json({ data: null });
       }
-      
+
       console.error('Error fetching time settings:', error);
       return NextResponse.json(
         { error: 'Failed to fetch time settings', message: error.message },
@@ -55,11 +93,12 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
 export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse<SettingsTime>>> {
   try {
     const body = await request.json();
-
     const cookieStore = cookies();
-    const supabase = createSupabaseClient(cookieStore);
+    const supabaseReady = isSupabaseConfigured();
 
-    const clinicId = body.clinic_id || await getClinicIdOrDefault(cookieStore);
+    const cookieClinic = cookieStore.get('clinicId')?.value || null;
+    const requestedClinicId = typeof body?.clinic_id === 'string' ? body.clinic_id : null;
+    const clinicId = requestedClinicId || cookieClinic || (supabaseReady ? await getClinicIdOrDefault(cookieStore) : null);
 
     if (!clinicId) {
       return NextResponse.json(
@@ -67,16 +106,47 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
         { status: 400 }
       );
     }
-    
-    // Add clinic_id to body for validation
-    const dataWithClinic = { ...body, clinic_id: clinicId };
-    
-    // Validate request body
-    const validationResult = zSettingsTime.safeParse(dataWithClinic);
+
+    const normalized = normalizePayload(body);
+    const baseValidation = zSettingsTime.pick({ work_days: true, hours_per_day: true, real_pct: true }).safeParse(normalized);
+
+    if (!baseValidation.success) {
+      return NextResponse.json(
+        {
+          error: 'Validation failed',
+          message: baseValidation.error.errors.map(e => e.message).join(', ')
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!supabaseReady) {
+      const store = getLocalStore();
+      const existing = store.get(clinicId);
+      const now = new Date().toISOString();
+      const record: TimeSettingsRecord = {
+        ...baseValidation.data,
+        clinic_id: clinicId,
+        created_at: existing?.created_at ?? now,
+        updated_at: now
+      };
+      store.set(clinicId, record);
+
+      return NextResponse.json({
+        data: record,
+        message: existing ? 'Time settings updated' : 'Time settings created'
+      });
+    }
+
+    const validationResult = zSettingsTime.safeParse({
+      ...baseValidation.data,
+      clinic_id: clinicId
+    });
+
     if (!validationResult.success) {
       return NextResponse.json(
-        { 
-          error: 'Validation failed', 
+        {
+          error: 'Validation failed',
           message: validationResult.error.errors.map(e => e.message).join(', ')
         },
         { status: 400 }
@@ -85,7 +155,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
 
     const { work_days, hours_per_day, real_pct, clinic_id } = validationResult.data;
 
-    // Check if a record exists for this clinic (upsert behavior)
     const { data: existing } = await supabaseAdmin
       .from('settings_time')
       .select('id')
@@ -94,14 +163,13 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       .single();
 
     let result;
-    
+
     if (existing) {
-      // Update existing record
       result = await supabaseAdmin
         .from('settings_time')
-        .update({ 
-          work_days, 
-          hours_per_day, 
+        .update({
+          work_days,
+          hours_per_day,
           real_pct,
           updated_at: new Date().toISOString()
         })
@@ -109,7 +177,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
         .select()
         .single();
     } else {
-      // Insert new record
       result = await supabaseAdmin
         .from('settings_time')
         .insert({ clinic_id, work_days, hours_per_day, real_pct })
@@ -125,15 +192,16 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       );
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       data: result.data,
       message: existing ? 'Time settings updated' : 'Time settings created'
     });
 
   } catch (error) {
-    console.error('Unexpected error in POST /api/settings/time:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Unexpected error in POST /api/settings/time:', message, error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', message },
       { status: 500 }
     );
   }
