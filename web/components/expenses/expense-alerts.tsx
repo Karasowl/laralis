@@ -91,7 +91,7 @@ export default function ExpenseAlerts() {
   }, [currentClinic?.id])
 
   const dismissAlert = (alertId: string) => {
-    setDismissed(prev => new Set([...prev, alertId]))
+    setDismissed(prev => new Set(Array.from(prev).concat(alertId)))
   }
 
   if (loading) {
@@ -119,14 +119,14 @@ export default function ExpenseAlerts() {
     )
   }
 
-  const getSeverityColor = (severity: 'high' | 'medium' | 'low') => {
+  const getSeverityColor = (severity: 'high' | 'medium' | 'low'): 'destructive' | 'default' => {
     switch (severity) {
       case 'high':
         return 'destructive'
       case 'medium':
         return 'default'
       case 'low':
-        return 'secondary'
+        return 'default'
       default:
         return 'default'
     }

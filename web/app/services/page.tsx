@@ -26,6 +26,14 @@ interface ServiceSupply {
   quantity: number
 }
 
+const resolveSupplyCost = (supply: any): number => {
+  if (typeof supply?.cost_per_portion_cents === 'number') return supply.cost_per_portion_cents
+  if (typeof supply?.cost_per_unit_cents === 'number') return supply.cost_per_unit_cents
+  if (typeof supply?.price_cents === 'number') return supply.price_cents
+  if (typeof supply?.cost_per_unit === 'number') return supply.cost_per_unit
+  return 0
+}
+
 const DEFAULT_SERVICE_FORM_VALUES: ServiceFormData = {
   name: '',
   category: 'otros',
@@ -101,7 +109,7 @@ export default function ServicesPage() {
   const handleCreate = async (data: ServiceFormData) => {
     const ready = await ensureReady('create_service')
     if (!ready.allowed) {
-      toast.info(t('please_import_supplies', 'Importa insumos para crear servicios'))
+      toast.info(t('please_import_supplies'))
       return
     }
     const sanitizedSupplies = serviceSupplies.filter((ss) => ss.supply_id && (ss.quantity ?? 0) > 0)
@@ -161,7 +169,7 @@ export default function ServicesPage() {
       const supply = supplies.find((s) => s.id === ss.supply_id)
       if (!supply) return total
       const qty = Number.isFinite(ss.quantity) ? ss.quantity : 0
-      const costCents = supply.cost_per_portion_cents ?? supply.cost_per_unit_cents ?? supply.price_cents ?? 0
+      const costCents = resolveSupplyCost(supply)
       return total + costCents * Math.max(qty, 0)
     }, 0)
   }, [serviceSupplies, supplies])
@@ -248,7 +256,6 @@ export default function ServicesPage() {
           }
         />
 
-        {(() => { try { console.log('[ServicesPage] services list', services); } catch {} })()}
         <ServicesTable
           services={services}
           loading={loading}

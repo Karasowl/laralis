@@ -80,7 +80,7 @@ export function useServices(options: UseServicesOptions = {}) {
     // Simple slug from name for code
     const code = String(name)
       .toLowerCase()
-      .normalize('NFD').replace(/\p{Diacritic}/gu, '')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-z0-9]+/g, '_')
       .replace(/^_+|_+$/g, '')
 

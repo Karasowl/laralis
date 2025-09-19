@@ -416,7 +416,7 @@ export function ServiceQuickWizard({ onDone, onCancel }: WizardProps) {
           )}
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={onCancel}>{tCommon('cancel')}</Button>
-            <Button disabled={!canContinueStep1} onClick={() => setStep(needsTimeHard ? 0 : (needsFixed ? 4 : 2))}>{tCommon('next', 'Siguiente')}</Button>
+            <Button disabled={!canContinueStep1} onClick={() => setStep(needsTimeHard ? 0 : (needsFixed ? 4 : 2))}>{tCommon('next')}</Button>
           </div>
         </div>
       )}
@@ -497,8 +497,8 @@ export function ServiceQuickWizard({ onDone, onCancel }: WizardProps) {
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setStep(1)}>{tCommon('back', 'Atrás')}</Button>
-            <Button onClick={() => setStep(3)}>{tCommon('next', 'Siguiente')}</Button>
+            <Button variant="outline" onClick={() => setStep(1)}>{tCommon('back')}</Button>
+            <Button onClick={() => setStep(3)}>{tCommon('next')}</Button>
           </div>
         </div>
       )}
@@ -529,7 +529,7 @@ export function ServiceQuickWizard({ onDone, onCancel }: WizardProps) {
             <div className="flex justify-between text-base"><span>Precio</span><span className="font-semibold">{formatCurrency(priceCents)}</span></div>
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setStep(2)}>{tCommon('back', 'Atrás')}</Button>
+            <Button variant="outline" onClick={() => setStep(2)}>{tCommon('back')}</Button>
             <Button disabled={loading || !name} onClick={handleCreateService}>{loading ? tCommon('saving') : tCommon('create')}</Button>
           </div>
         </div>
@@ -539,7 +539,7 @@ export function ServiceQuickWizard({ onDone, onCancel }: WizardProps) {
         <div className="space-y-4">
           <div className="text-sm text-muted-foreground">Faltan costos fijos. Configúralos como en el módulo de “Costos fijos” para un cálculo preciso. Los tratamientos ya registrados no se recalculan: cada tratamiento guarda un snapshot financiero.</div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setStep(1)}>{tCommon('back', 'Atrás')}</Button>
+            <Button variant="outline" onClick={() => setStep(1)}>{tCommon('back')}</Button>
             <Button onClick={goToFixedCosts}>Abrir Costos fijos</Button>
           </div>
         </div>
@@ -601,11 +601,11 @@ function InlineSupplyCreate({ onCreate, loading }: { onCreate: (f: { name: strin
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
       <div className="grid gap-1">
         <Label>Nombre</Label>
-        <Input placeholder={t('supplyNamePlaceholder')} value={name} onChange={e => setName(e.target.value)} />
+        <Input placeholder="Ej: Guantes de látex" value={name} onChange={e => setName(e.target.value)} />
       </div>
       <div className="grid gap-1">
         <Label>Presentación</Label>
-        <Input placeholder={t('supplyPresentationPlaceholder')} value={presentation} onChange={e => setPresentation(e.target.value)} />
+        <Input placeholder="Ej: Caja de 100" value={presentation} onChange={e => setPresentation(e.target.value)} />
       </div>
       <div className="grid gap-1">
         <Label>Precio total (MXN)</Label>

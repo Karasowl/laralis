@@ -119,7 +119,8 @@ export default function ExpensesTable({
       key: 'status',
       label: tFields('status'),
       render: (expense: ExpenseWithRelations) => {
-        const isPaid = expense.payment_status === 'paid'
+        // Por ahora todos los gastos se consideran pagados
+        const isPaid = true
         return (
           <Badge variant={isPaid ? 'success' : 'warning'}>
             {t(isPaid ? 'status.paid' : 'status.pending')}

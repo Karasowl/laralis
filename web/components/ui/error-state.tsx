@@ -52,9 +52,9 @@ export function ErrorState({
       iconColor: 'text-orange-500',
       bgColor: 'bg-orange-50 dark:bg-orange-900/20',
       borderColor: 'border-orange-200 dark:border-orange-800',
-      title: t('errors.network.title', 'Connection Error'),
-      description: t('errors.network.description', 'Check your internet connection and try again'),
-      actionLabel: t('retry', 'Retry'),
+      title: t('errors.network.title'),
+      description: t('errors.network.description'),
+      actionLabel: t('retry'),
       showRetry: true
     }
     
@@ -63,9 +63,9 @@ export function ErrorState({
       iconColor: 'text-purple-500',
       bgColor: 'bg-purple-50 dark:bg-purple-900/20',
       borderColor: 'border-purple-200 dark:border-purple-800',
-      title: t('errors.notFound.title', 'Page Not Found'),
-      description: t('errors.notFound.description', 'The content you are looking for is not available'),
-      actionLabel: t('goHome', 'Go to Home'),
+      title: t('errors.notFound.title'),
+      description: t('errors.notFound.description'),
+      actionLabel: t('goHome'),
       showRetry: false,
       goHome: true
     }
@@ -75,9 +75,9 @@ export function ErrorState({
       iconColor: 'text-red-500',
       bgColor: 'bg-red-50 dark:bg-red-900/20',
       borderColor: 'border-red-200 dark:border-red-800',
-      title: t('errors.server.title', 'Server Error'),
-      description: t('errors.server.description', 'We are experiencing technical issues. Please try again later'),
-      actionLabel: t('retry', 'Retry'),
+      title: t('errors.server.title'),
+      description: t('errors.server.description'),
+      actionLabel: t('retry'),
       showRetry: true
     }
     
@@ -86,9 +86,9 @@ export function ErrorState({
       iconColor: 'text-yellow-500',
       bgColor: 'bg-yellow-50 dark:bg-yellow-900/20',
       borderColor: 'border-yellow-200 dark:border-yellow-800',
-      title: t('errors.unauthorized.title', 'Access Denied'),
-      description: t('errors.unauthorized.description', 'You do not have permission to access this resource'),
-      actionLabel: t('goBack', 'Go Back'),
+      title: t('errors.unauthorized.title'),
+      description: t('errors.unauthorized.description'),
+      actionLabel: t('goBack'),
       showRetry: false,
       goBack: true
     }
@@ -99,9 +99,9 @@ export function ErrorState({
       iconColor: 'text-destructive',
       bgColor: 'bg-destructive/10',
       borderColor: 'border-destructive/20',
-      title: t('errors.default.title', 'Something went wrong'),
-      description: customMessage || t('errors.default.description', 'An unexpected error occurred. Please try again'),
-      actionLabel: t('retry', 'Retry'),
+      title: t('errors.default.title'),
+      description: customMessage || t('errors.default.description'),
+      actionLabel: t('retry'),
       showRetry: true
     }
   }
@@ -170,7 +170,7 @@ export function ErrorState({
                   className="flex-1"
                 >
                   <ArrowLeft className="h-4 w-4 mr-2" />
-                  {t('back', 'Back')}
+                  {t('back')}
                 </Button>
               )}
               

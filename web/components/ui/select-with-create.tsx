@@ -153,8 +153,6 @@ export function SelectWithCreate({
         setLocalOptions(prev => (prev.some(p => p.value === newOption.value) ? prev : [{ value: newOption.value, label: newOption.label }, ...prev]))
       } catch {}
       // Seleccionar automáticamente la nueva opción
-      setInternalValue(newOption.value)
-      setInternalLabel(newOption.label)
       onValueChange(newOption.value);
       try { onCreatedOption?.(newOption) } catch {}
       setCreateModalOpen(false);

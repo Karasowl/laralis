@@ -21,7 +21,7 @@ export function ClinicStep({ data, onChange }: ClinicStepProps) {
           <InputField
             label={t('clinicStep.nameLabel')}
             value={data.clinicName || ''}
-            onChange={(value) => onChange({ clinicName: value })}
+            onChange={(value) => onChange({ clinicName: value as string })}
             placeholder={t('clinicStep.namePlaceholder')}
             required
           />
@@ -29,7 +29,7 @@ export function ClinicStep({ data, onChange }: ClinicStepProps) {
           <InputField
             label={t('clinicStep.addressLabel')}
             value={data.clinicAddress || ''}
-            onChange={(value) => onChange({ clinicAddress: value })}
+            onChange={(value) => onChange({ clinicAddress: value as string })}
             placeholder={t('clinicStep.addressPlaceholder')}
           />
         </FormGrid>
@@ -38,15 +38,15 @@ export function ClinicStep({ data, onChange }: ClinicStepProps) {
           <InputField
             label={t('clinicStep.phoneLabel')}
             value={data.clinicPhone || ''}
-            onChange={(value) => onChange({ clinicPhone: value })}
+            onChange={(value) => onChange({ clinicPhone: value as string })}
             placeholder={t('clinicStep.phonePlaceholder')}
-            type="tel"
+            type="text"
           />
 
           <InputField
             label="Email"
             value={data.clinicEmail || ''}
-            onChange={(value) => onChange({ clinicEmail: value })}
+            onChange={(value) => onChange({ clinicEmail: value as string })}
             placeholder={t('clinicStep.emailPlaceholder')}
             type="email"
           />

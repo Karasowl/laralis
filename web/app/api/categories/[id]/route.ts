@@ -4,10 +4,12 @@ import { cookies } from 'next/headers';
 import { getClinicIdOrDefault } from '@/lib/clinic';
 import { createClient } from '@/lib/supabase/server';
 
+const diacriticRegex = /[\u0300-\u036f]/g;
+
 function slugify(input: string) {
   return String(input)
     .toLowerCase()
-    .normalize('NFD').replace(/\p{Diacritic}/gu, '')
+    .normalize('NFD').replace(diacriticRegex, '')
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '');
 }

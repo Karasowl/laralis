@@ -154,7 +154,7 @@ export default function FixedCostsPage() {
 
   // Category breakdown
   const getCategoryBreakdown = () => {
-    const breakdown = categories.map(category => {
+    const breakdown: any[] = categories.map(category => {
       const categoryTotal = fixedCosts
         .filter(cost => cost.category === category.value)
         .reduce((sum, cost) => sum + cost.amount_cents, 0)

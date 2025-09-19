@@ -190,6 +190,7 @@ export const zPatientForm = z.object({
   source_id: z.string().optional(),
   referred_by_patient_id: z.string().optional(),
   campaign_id: z.string().optional(),
+  platform_id: z.string().optional(),
 });
 
 export type ZPatient = z.infer<typeof zPatient>;

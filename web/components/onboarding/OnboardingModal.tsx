@@ -55,24 +55,7 @@ export function OnboardingModal({
     <SimpleModal
       open={true}
       onOpenChange={() => {}}
-      title={
-        <div className="flex items-center justify-between w-full">
-          <span>{title}</span>
-          <div className="flex items-center gap-1">
-            <LanguageSwitcher compact />
-            <ThemeToggle />
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleCancel}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <LogOut className="h-4 w-4" />
-              <span className="ml-2">{t('actions.cancel')}</span>
-            </Button>
-          </div>
-        </div>
-      }
+      title={title}
       description={description}
       maxWidth="lg"
     >

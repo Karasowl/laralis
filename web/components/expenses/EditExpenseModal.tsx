@@ -40,7 +40,7 @@ export function EditExpenseModal({ expense, open, onClose, onSave, categories = 
   const { categories: expenseCats, createCategory, updateCategory, deleteCategory } = useCategories('expenses')
   const [categoryModalOpen, setCategoryModalOpen] = useState(false)
   
-  const form = useForm({
+  const form = useForm<z.infer<typeof expenseSchema>>({
     resolver: zodResolver(expenseSchema),
     defaultValues: expense ? {
       expense_date: expense.expense_date,
@@ -51,7 +51,16 @@ export function EditExpenseModal({ expense, open, onClose, onSave, categories = 
       vendor: expense.vendor || '',
       invoice_number: expense.invoice_number || '',
       is_recurring: expense.is_recurring || false
-    } : {}
+    } : {
+      expense_date: new Date().toISOString().split('T')[0],
+      category: '',
+      subcategory: '',
+      description: '',
+      amount_pesos: 0,
+      vendor: '',
+      invoice_number: '',
+      is_recurring: false
+    }
   })
 
   const handleSubmit = async (data: z.infer<typeof expenseSchema>) => {

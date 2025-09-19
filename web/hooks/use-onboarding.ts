@@ -168,7 +168,7 @@ export function useOnboarding() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            workspace: { name: data.workspaceName, description: data.workspaceDescription },
+            workspace: { name: data.workspaceName, description: data.workspaceType || '' },
             clinic: { name: data.clinicName, address: data.clinicAddress, phone: data.clinicPhone, email: data.clinicEmail }
           })
         })
@@ -219,7 +219,7 @@ export function useOnboarding() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            workspace: { name: data.workspaceName, description: data.workspaceDescription },
+            workspace: { name: data.workspaceName, description: data.workspaceType || '' },
             clinic: { name: data.clinicName, address: data.clinicAddress, phone: data.clinicPhone, email: data.clinicEmail }
           })
         })

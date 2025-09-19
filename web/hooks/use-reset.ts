@@ -14,18 +14,22 @@ export interface ResetOption {
   tables?: string[]
 }
 
-export interface ResetStatus {
-  patients: number
-  treatments: number
-  expenses: number
-  supplies: number
-  services: number
-  assets: number
-  fixed_costs: number
-  tariffs: number
-  clinics: number
-  totalRecords: number
-}
+export interface ResetStatus {
+  services?: number
+  supplies?: number
+  fixedCosts?: number
+  assets?: number
+  timeConfigured?: boolean
+  customCategories?: number
+  hasData?: boolean
+  patients?: number
+  treatments?: number
+  expenses?: number
+  fixed_costs?: number
+  tariffs?: number
+  clinics?: number
+  totalRecords?: number
+}
 
 type ResetProgress = { [key: string]: 'pending' | 'success' | 'error' }
 
@@ -178,7 +182,7 @@ export function useReset() {
           successCount++
           
           const optionLabel = resetOptions.find(o => o.id === option)?.label || option
-          results.push(`✓ ${optionLabel}: ${result.message || t('reset.completed')}`)
+          results.push(`âœ“ ${optionLabel}: ${result.message || t('reset.completed')}`)
         } else {
           throw new Error('Reset failed')
         }
@@ -188,7 +192,7 @@ export function useReset() {
         
         const optionLabel = resetOptions.find(o => o.id === option)?.label || option
         const errorMsg = error instanceof Error ? error.message : t('reset.unknown_error')
-        results.push(`✗ ${optionLabel}: ${errorMsg}`)
+        results.push(`âœ— ${optionLabel}: ${errorMsg}`)
       }
 
       setResetProgress({ ...progress })

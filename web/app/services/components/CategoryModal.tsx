@@ -95,7 +95,7 @@ export function CategoryModal({
         <InputField
           label={t('categoryName')}
           value={newCategoryName}
-          onChange={setNewCategoryName}
+          onChange={(v) => setNewCategoryName(String(v))}
           placeholder={t('categoryNamePlaceholder')}
         />
         <div className="mt-4 space-y-2">

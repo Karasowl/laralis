@@ -6,7 +6,7 @@ import { cookies } from 'next/headers';
 import { getClinicIdOrDefault } from '@/lib/clinic';
 import { isSupabaseConfigured } from '@/lib/supabase';
 
-type TimeSettingsRecord = SettingsTime & { clinic_id: string };
+type TimeSettingsRecord = SettingsTime & { clinic_id: string; created_at?: string; updated_at?: string };
 
 const LOCAL_STORE_KEY = '__laralisTimeSettingsStore__';
 

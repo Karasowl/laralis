@@ -101,7 +101,7 @@ export default function TariffsPage() {
   const openEditModal = async (tariff: TariffRow) => {
     const ready = await ensureReady('create_tariff', { serviceId: tariff.id })
     if (!ready.allowed) {
-      toast.info(t('ensure_prereqs', 'Completa receta y costo/minuto para tarificar'))
+      toast.info(t('ensure_prereqs') || 'Completa receta y costo/minuto para tarificar')
       return
     }
     setSelectedTariff(tariff)

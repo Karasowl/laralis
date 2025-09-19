@@ -10,6 +10,7 @@ import { useApi } from '@/hooks/use-api'
 
 export interface TariffRow extends ServiceWithCost {
   margin_pct: number
+  category?: string
   final_price: number
   rounded_price: number
 }

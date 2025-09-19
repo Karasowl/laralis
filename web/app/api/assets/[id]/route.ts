@@ -14,7 +14,7 @@ export async function PUT(
     const body = await request.json();
     const cookieStore = cookies();
     
-    // Verificar autenticación
+    // Verificar autenticaciÃ³n
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -69,8 +69,7 @@ export async function PUT(
     }
 
     // Remover depreciation_months si existe ya que es una columna generada
-    const dataToUpdate = { ...validationResult.data };
-    delete dataToUpdate.depreciation_months;
+    const { depreciation_months: _ignoredDepreciationMonths, ...dataToUpdate } = validationResult.data;
 
     const { data, error } = await supabaseAdmin
       .from('assets')
@@ -112,7 +111,7 @@ export async function DELETE(
   try {
     const cookieStore = cookies();
     
-    // Verificar autenticación
+    // Verificar autenticaciÃ³n
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

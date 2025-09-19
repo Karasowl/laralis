@@ -24,7 +24,7 @@ export function useCategories(type: CategoryType) {
   const createCategory = async (name: string) => {
     const code = String(name)
       .toLowerCase()
-      .normalize('NFD').replace(/\p{Diacritic}/gu, '')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-z0-9]+/g, '_')
       .replace(/^_+|_+$/g, '')
     const res = await categoriesApi.post(

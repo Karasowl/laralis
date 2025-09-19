@@ -74,8 +74,8 @@ export function InputField({
   })()
 
   const handleRef = React.useCallback((node: HTMLInputElement | null) => {
-    if (type === 'date') {
-      dateInputRef.current = node
+    if (type === 'date' && dateInputRef) {
+      try { (dateInputRef as React.MutableRefObject<HTMLInputElement | null>).current = node } catch {}
     }
     if (!inputRef) return
     if (typeof inputRef === 'function') {

@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { createSupabaseClient } from '@/lib/supabase'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { getClinicIdOrDefault } from '@/lib/clinic'
 
 export async function GET(_req: NextRequest) {
   try {
     const cookieStore = cookies()
-    const supabase = createSupabaseClient(cookieStore)
 
     const clinicId = await getClinicIdOrDefault(cookieStore)
     if (!clinicId) return NextResponse.json({ error: 'No clinic context available' }, { status: 400 })

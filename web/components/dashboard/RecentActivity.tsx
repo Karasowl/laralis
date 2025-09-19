@@ -86,7 +86,7 @@ export function RecentActivity({
                       <p className="text-sm font-medium">{activity.title}</p>
                       {(activity.amount ?? null) !== null && (
                         <span className="text-sm font-medium">
-                          {formatCurrency(activity.amount)}
+                          {formatCurrency(activity.amount!)}
                         </span>
                       )}
                     </div>

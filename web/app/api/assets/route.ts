@@ -15,7 +15,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
 
     const cookieStore = cookies();
     
-    // Verificar autenticación
+    // Verificar autenticaciÃ³n
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     const body = await request.json();
     const cookieStore = cookies();
     
-    // Verificar autenticación
+    // Verificar autenticaciÃ³n
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -127,10 +127,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     }
 
     // Convert pesos form payload if present
-    const dataToValidate = { ...body, clinic_id: clinicId };
-    if ('purchase_price_pesos' in body) {
-      dataToValidate.purchase_price_cents = Math.round(body.purchase_price_pesos * 100);
-      delete dataToValidate.purchase_price_pesos;
+    const { purchase_price_pesos, ...bodyWithoutPesos } = body as { purchase_price_pesos?: number } & Record<string, unknown>;
+    const dataToValidate: Record<string, unknown> = { ...bodyWithoutPesos, clinic_id: clinicId };
+    if (typeof purchase_price_pesos === 'number') {
+      dataToValidate.purchase_price_cents = Math.round(purchase_price_pesos * 100);
     }
 
     const validationResult = zAsset.safeParse(dataToValidate);
@@ -145,8 +145,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     }
 
     // Remover depreciation_months si existe ya que es una columna generada
-    const dataToInsert = { ...validationResult.data };
-    delete dataToInsert.depreciation_months;
+    const { depreciation_months: _ignoredDepreciationMonths, ...dataToInsert } = validationResult.data;
 
     const { data, error } = await supabaseAdmin
       .from('assets')

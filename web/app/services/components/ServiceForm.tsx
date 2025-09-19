@@ -117,7 +117,7 @@ export function ServiceForm({
             label={t('fields.duration')}
             value={form.watch('duration_minutes')}
             onChange={(value) => form.setValue('duration_minutes', typeof value === 'number' ? value : parseInt(String(value), 10) || 0)}
-            helper={t('duration_helper')}
+            helperText={t('duration_helper')}
             error={form.formState.errors.duration_minutes?.message}
             required
           />
@@ -157,7 +157,7 @@ export function ServiceForm({
                     onValueChange={(value) => handleSupplySelect(value, index)}
                     options={supplies.map((supply: any) => {
                       const costCents = supply.cost_per_portion_cents ?? supply.cost_per_unit_cents ?? supply.price_cents ?? 0
-                      const labelCost = Number.isFinite(costCents) ? formatCurrency(costCents) : t('unknown_cost', '$0.00')
+                      const labelCost = Number.isFinite(costCents) ? formatCurrency(costCents) : t('unknown_cost')
                       return ({
                         value: supply.id,
                         label: `${supply.name} - ${labelCost}`
@@ -186,8 +186,7 @@ export function ServiceForm({
                         name: 'cost_per_unit',
                         label: t('fields.cost_per_unit'),
                         type: 'number',
-                        step: '0.01',
-                        placeholder: '0.00',
+                                                placeholder: '0.00',
                         required: true
                       }
                     ]}

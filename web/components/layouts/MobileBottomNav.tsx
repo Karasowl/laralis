@@ -150,7 +150,7 @@ export function MobileBottomNav({ user, workspace, onSignOut }: MobileBottomNavP
                 "text-[10px] font-medium",
                 isMoreActive() ? "text-primary" : "text-muted-foreground"
               )}>
-                {t('common.more', 'Más')}
+                {t('common.more')}
               </span>
             </Button>
           </DropdownMenuTrigger>
@@ -185,7 +185,7 @@ export function MobileBottomNav({ user, workspace, onSignOut }: MobileBottomNavP
             {/* Finance Section */}
             <DropdownMenuGroup>
               <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">
-                {t('nav.sections.finance', 'Finanzas')}
+                {t('nav.sections.finance')}
               </DropdownMenuLabel>
               {moreMenuItems.operations.map((item) => {
                 const Icon = item.icon;
@@ -211,7 +211,7 @@ export function MobileBottomNav({ user, workspace, onSignOut }: MobileBottomNavP
             {/* Inventory Section */}
             <DropdownMenuGroup>
               <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">
-                {t('nav.sections.inventory', 'Inventario')}
+                {t('nav.sections.inventory')}
               </DropdownMenuLabel>
               {moreMenuItems.inventory.map((item) => {
                 const Icon = item.icon;
@@ -237,7 +237,7 @@ export function MobileBottomNav({ user, workspace, onSignOut }: MobileBottomNavP
             {/* Settings Section */}
             <DropdownMenuGroup>
               <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">
-                {t('nav.sections.configuration', 'Configuración')}
+                {t('nav.sections.configuration')}
               </DropdownMenuLabel>
               {moreMenuItems.settings.map((item) => {
                 const Icon = item.icon;
@@ -262,7 +262,7 @@ export function MobileBottomNav({ user, workspace, onSignOut }: MobileBottomNavP
                 className="cursor-pointer"
               >
                 <User className="mr-2 h-4 w-4" />
-                <span>{t('nav.profile', 'Mi Perfil')}</span>
+                <span>{t('nav.profile')}</span>
               </DropdownMenuItem>
               
               {workspace && (
@@ -284,7 +284,7 @@ export function MobileBottomNav({ user, workspace, onSignOut }: MobileBottomNavP
               className="cursor-pointer text-destructive focus:text-destructive"
             >
               <LogOut className="mr-2 h-4 w-4" />
-              <span>{t('auth.signOut', 'Cerrar Sesión')}</span>
+              <span>{t('auth.signOut')}</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

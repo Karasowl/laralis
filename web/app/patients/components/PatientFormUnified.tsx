@@ -95,7 +95,7 @@ export function PatientFormUnified({
             error={form.formState.errors.email?.message}
           />
           <InputField
-            type="tel"
+            type="text"
             label={t('fields.phone')}
             value={form.watch('phone')}
             onChange={(value) => form.setValue('phone', value)}
