@@ -151,7 +151,7 @@ export default function SuppliesPage() {
       key: 'price_cents', 
       label: t('supplies.pricePerPresentation'), 
       render: (_value: any, supply: Supply) =>
-        formatCurrency(supply.price_cents)
+        formatCurrency(supply.price_cents ?? 0)
     },
     { 
       key: 'portions', 
@@ -162,7 +162,7 @@ export default function SuppliesPage() {
       label: t('supplies.pricePerPortion'), 
       render: (_value: any, supply: Supply) =>
         <span className="font-medium text-green-600">
-          {formatCurrency(supply.cost_per_portion_cents)}
+          {formatCurrency(supply.cost_per_portion_cents ?? 0)}
         </span>
     }
   ];

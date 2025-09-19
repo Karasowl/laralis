@@ -22,7 +22,7 @@ export default function AssetsPage() {
   const t = useTranslations();
   
   // CRUD operations
-  const crud = useCrudOperations<Asset>({
+  const crud = useCrudOperations<Asset & { id: string }>({
     endpoint: '/api/assets',
     entityName: t('assets.entity'),
     includeClinicId: true,
@@ -94,7 +94,7 @@ export default function AssetsPage() {
   };
 
   // Handle edit
-  const handleEdit = (asset: Asset) => {
+  const handleEdit = (asset: Asset & { id: string }) => {
     crud.handleEdit(asset);
     reset({
       name: asset.name,
@@ -252,7 +252,7 @@ export default function AssetsPage() {
             <InputField
               label={t('assets.formPurchaseDateLabel')}
               type="date"
-              value={watch('purchase_date')}
+              value={watch('purchase_date') ?? ''}
               onChange={(v) => setValue('purchase_date', v as string)}
               error={errors.purchase_date?.message}
             />

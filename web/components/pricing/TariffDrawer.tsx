@@ -119,7 +119,7 @@ export function TariffDrawer() {
         {/* Preview */}
         <div className="rounded-md bg-muted p-3 space-y-1 text-sm" aria-live="polite">
           <div className="flex justify-between"><span>Fijo</span><span>{formatCurrency(fixed, locale as any)}</span></div>
-          <div className="flex justify-between"><span>Variable</span><span>{formatCurrency(variableCostCents, locale as any)}</span></div>
+          <div className="flex justify-between"><span>Variable</span><span>{formatCurrency(variableCostCents || 0, locale as any)}</span></div>
           <div className="flex justify-between"><span>Subtotal</span><span>{formatCurrency(base, locale as any)}</span></div>
           <div className="flex justify-between"><span>{t('summary.priceRaw')}</span><span>{formatCurrency(price, locale as any)}</span></div>
           <div className="flex justify-between font-semibold"><span>{t('summary.priceRounded')}</span><span>{formatCurrency(rounded, locale as any)}</span></div>
@@ -131,11 +131,11 @@ export function TariffDrawer() {
             try {
               track({
                 event: 'drawer.apply',
-                minutes,
-                costPerMinuteCents,
-                variableCostCents,
-                marginPct,
-                stepCents: multipleCents,
+                minutes: minutes || 0,
+                costPerMinuteCents: costPerMinuteCents || 0,
+                variableCostCents: variableCostCents || 0,
+                marginPct: marginPct || 0,
+                stepCents: multipleCents || 0,
                 roundMode: mode,
                 priceCents: price,
                 roundedCents: rounded

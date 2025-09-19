@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
+interface Activity {
+  id: string;
+  type: 'treatment' | 'patient' | 'expense';
+  title: string;
+  description: string;
+  amount?: number | null;
+  timestamp: string;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
@@ -12,7 +21,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch recent activities from different tables
-    const activities = []
+    const activities: Activity[] = []
     
     // Get recent treatments
     const { data: treatments } = await supabaseAdmin
@@ -47,7 +56,7 @@ export async function GET(request: NextRequest) {
         id: `treatment-${t.id}`,
         type: 'treatment',
         title,
-        description: `${service} — ${patient}`,
+        description: `${service} â€” ${patient}`,
         amount: t.price_cents,
         timestamp: t.created_at,
       })

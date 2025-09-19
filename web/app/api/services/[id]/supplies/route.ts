@@ -54,15 +54,21 @@ export async function GET(
 
     // Transform the data to match our type
     // Note: Database uses 'qty' column
-    const transformedData = data?.map(item => ({
+    const transformedData = (data ?? []).map(item => ({
       id: item.id, // Include the record ID
+      clinic_id: clinicId,
+      service_id: params.id,
       supply_id: item.supply_id,
       qty: item.qty, // Keep original column name
-      supply: item.supplies ? {
-        ...item.supplies,
-        cost_per_portion_cents: Math.round(item.supplies.price_cents / item.supplies.portions)
-      } : undefined
-    })) || [];
+      supply: item.supplies
+        ? {
+            ...item.supplies,
+            cost_per_portion_cents: item.supplies.portions
+              ? Math.round(item.supplies.price_cents / item.supplies.portions)
+              : null,
+          }
+        : undefined,
+    }));
 
     return NextResponse.json({ data: transformedData });
   } catch (error) {

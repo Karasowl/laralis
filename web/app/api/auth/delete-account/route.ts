@@ -14,7 +14,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Crear cliente de Supabase para verificar autenticación
+    // Crear cliente de Supabase para verificar autenticaciÃ³n
     const cookieStore = cookies();
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -47,15 +47,15 @@ export async function DELETE(request: NextRequest) {
     const userId = user.id;
 
     // Primero intentar verificar con el OTP de Supabase
-    // Esto funciona si el usuario recibió un código de 6 dígitos
+    // Esto funciona si el usuario recibiÃ³ un cÃ³digo de 6 dÃ­gitos
     const { data: otpData, error: otpError } = await supabase.auth.verifyOtp({
       email: email,
       token: code,
       type: 'email'
     });
 
-    // Si el OTP de Supabase funciona, el email está verificado
-    let emailVerified = !otpError && otpData?.user;
+    // Si el OTP de Supabase funciona, el email estÃ¡ verificado
+    let emailVerified = !otpError && Boolean(otpData?.user);
 
     // Si el OTP de Supabase no funciona, verificar en nuestra tabla de fallback
     if (!emailVerified) {
@@ -75,7 +75,7 @@ export async function DELETE(request: NextRequest) {
         );
       }
 
-      // Marcar código como usado
+      // Marcar cÃ³digo como usado
       await supabaseAdmin
         .from('verification_codes')
         .update({ used: true })
@@ -84,7 +84,7 @@ export async function DELETE(request: NextRequest) {
       emailVerified = true;
     }
 
-    // Si el email no está verificado, rechazar
+    // Si el email no estÃ¡ verificado, rechazar
     if (!emailVerified) {
       return NextResponse.json(
         { error: 'Could not verify email ownership' },
@@ -109,7 +109,7 @@ export async function DELETE(request: NextRequest) {
           .single();
 
         if (workspace) {
-          // Obtener todas las clínicas del workspace
+          // Obtener todas las clÃ­nicas del workspace
           const { data: clinics } = await supabaseAdmin
             .from('clinics')
             .select('id')
@@ -117,7 +117,7 @@ export async function DELETE(request: NextRequest) {
 
           if (clinics) {
             for (const clinic of clinics) {
-              // Eliminar todos los datos de cada clínica
+              // Eliminar todos los datos de cada clÃ­nica
               // El orden es importante por las foreign keys
               
               // 1. Eliminar tratamientos
@@ -177,7 +177,7 @@ export async function DELETE(request: NextRequest) {
                 .delete()
                 .eq('clinic_id', clinic.id);
 
-              // 9. Eliminar configuración de tiempo
+              // 9. Eliminar configuraciÃ³n de tiempo
               await supabaseAdmin
                 .from('settings_time')
                 .delete()
@@ -190,7 +190,7 @@ export async function DELETE(request: NextRequest) {
                 .eq('clinic_id', clinic.id);
             }
 
-            // Eliminar las clínicas
+            // Eliminar las clÃ­nicas
             await supabaseAdmin
               .from('clinics')
               .delete()
@@ -229,7 +229,7 @@ export async function DELETE(request: NextRequest) {
 
     if (deleteAuthError) {
       console.error('Error deleting auth user:', deleteAuthError);
-      // Aunque falle la eliminación del auth, los datos ya fueron eliminados
+      // Aunque falle la eliminaciÃ³n del auth, los datos ya fueron eliminados
     }
 
     // Limpiar cookies

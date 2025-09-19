@@ -21,16 +21,16 @@ export function WorkspaceStep({ data, onChange }: WorkspaceStepProps) {
           <InputField
             label={t('workspaceStep.nameLabel')}
             value={data.workspaceName || ''}
-            onChange={(value) => onChange({ workspaceName: value })}
+            onChange={(value) => onChange({ workspaceName: value as string })}
             placeholder={t('workspaceStep.namePlaceholder')}
-            helper={t('workspaceStep.nameHelp')}
+            helperText={t('workspaceStep.nameHelp')}
             required
           />
 
           <TextareaField
             label={t('workspaceStep.descLabel')}
-            value={data.workspaceDescription || ''}
-            onChange={(value) => onChange({ workspaceDescription: value })}
+            value={data.workspaceType || ''}
+            onChange={(value) => onChange({ workspaceType: value as string })}
             placeholder={t('workspaceStep.descPlaceholder')}
             rows={3}
           />

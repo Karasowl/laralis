@@ -99,7 +99,7 @@ export function TreatmentForm({
               options={services}
               placeholder={t('treatments.selectService')}
               canCreate={true}
-              createLabel={t('services.addService', 'Agregar Servicio')}
+              createLabel={t('services.addService') || 'Agregar servicio'}
               entityName={t('entities.service')}
               createMode="serviceWizard"
               createDialogTitle={t('services.create_title')}
@@ -146,7 +146,7 @@ export function TreatmentForm({
             value={minutes}
             onChange={(value) => form.setValue('minutes', parseInt(value as string) || 0)}
             placeholder="30"
-            helper={t('treatments.durationHelp')}
+            helperText={t('treatments.durationHelp')}
             error={form.formState.errors.minutes?.message}
             required
           />
@@ -159,7 +159,7 @@ export function TreatmentForm({
             value={marginPct}
             onChange={(value) => form.setValue('margin_pct', parseInt(value as string) || 0)}
             placeholder="60"
-            helper={t('treatments.marginHelp')}
+            helperText={t('treatments.marginHelp')}
             error={form.formState.errors.margin_pct?.message}
             required
           />

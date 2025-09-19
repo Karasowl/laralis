@@ -83,10 +83,7 @@ export function ExpenseDetailsModal({ expense, open, onClose }: ExpenseDetailsMo
             <div className="p-3 bg-muted rounded-lg">
               <p className="font-medium">{expense.asset.name}</p>
               <p className="text-sm text-muted-foreground">
-                {t('purchase_date')}: {formatDate(expense.asset.purchase_date)}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {t('value')}: {formatMoney(expense.asset.value_cents)}
+                {t('category')}: {expense.asset.category}
               </p>
             </div>
           </FormSection>

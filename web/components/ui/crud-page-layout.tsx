@@ -194,6 +194,8 @@ export function CrudPageLayout<T extends { id: string; name?: string }>({
           <ConfirmDialog
             open={deleteConfirmOpen}
             onOpenChange={onDeleteConfirmChange}
+            onConfirm={onDeleteConfirm}
+            title="¿Eliminar registro?"
             {...createDeleteConfirm(onDeleteConfirm, deletingItem?.name)}
           />
         )}

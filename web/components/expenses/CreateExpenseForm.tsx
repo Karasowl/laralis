@@ -89,7 +89,7 @@ export function CreateExpenseForm({
                 <InputField
                   type="date"
                   label={tFields('date')}
-                  value={field.value}
+                  value={field.value || ''}
                   onChange={field.onChange}
                   error={fieldState.error?.message}
                   required
@@ -129,7 +129,7 @@ export function CreateExpenseForm({
                 <SelectField
                   label={tFields('category')}
                   placeholder={t('select_category')}
-                  value={field.value}
+                  value={field.value || ''}
                   onChange={(val) => {
                     // Update both display string and category_id
                     field.onChange(val)
@@ -155,7 +155,7 @@ export function CreateExpenseForm({
                 <SelectField
                   label={tFields('subcategory')}
                   placeholder={t('select_subcategory')}
-                  value={field.value}
+                  value={field.value || ''}
                   onChange={field.onChange}
                   options={getSubcategoriesForCategory(watchCategory).map((subcat) => ({
                     value: EXPENSE_SUBCATEGORIES[subcat as keyof typeof EXPENSE_SUBCATEGORIES],
@@ -177,7 +177,7 @@ export function CreateExpenseForm({
               <TextareaField
                 label={tFields('description')}
                 placeholder={t('description_placeholder')}
-                value={field.value}
+                value={field.value || ''}
                 onChange={field.onChange}
                 error={fieldState.error?.message}
               />
@@ -192,7 +192,7 @@ export function CreateExpenseForm({
                 <InputField
                   label={tFields('vendor')}
                   placeholder={t('vendor_placeholder')}
-                  value={field.value}
+                  value={field.value || ''}
                   onChange={field.onChange}
                   error={fieldState.error?.message}
                 />
@@ -206,7 +206,7 @@ export function CreateExpenseForm({
                 <InputField
                   label={tFields('invoice_number')}
                   placeholder={t('invoice_placeholder')}
-                  value={field.value}
+                  value={field.value || ''}
                   onChange={field.onChange}
                   error={fieldState.error?.message}
                 />
@@ -291,7 +291,7 @@ export function CreateExpenseForm({
                     <InputField
                       label={tFields('asset_name')}
                       placeholder={t('asset_name_placeholder')}
-                      value={field.value}
+                      value={field.value || ''}
                       onChange={field.onChange}
                       error={fieldState.error?.message}
                     />

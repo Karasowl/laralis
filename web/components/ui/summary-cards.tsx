@@ -100,16 +100,16 @@ export function SummaryCard({
             <div className={cn('ml-2', colorClasses[color])}>
               {React.isValidElement(Icon) ? (
                 Icon
-              ) : (
+              ) : typeof Icon === 'function' ? (
                 <Icon className="h-4 w-4" />
-              )}
+              ) : null}
             </div>
           )}
         </div>
         
         {/* Value */}
         <div className={cn('text-2xl font-semibold', colorClasses[color])}>
-          {typeof value === 'function' ? value() : value}
+          {value}
         </div>
         
         {/* Subtitle or trend */}

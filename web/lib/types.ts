@@ -22,7 +22,7 @@ export interface SettingsTime {
 }
 
 export interface FixedCost {
-  id?: string;
+  id: string;
   clinic_id: string;
   category: string;
   concept: string;
@@ -31,20 +31,21 @@ export interface FixedCost {
 }
 
 export interface Supply {
-  id?: string;
+  id: string;
   clinic_id: string;
   name: string;
   category: string; // 'insumo' | 'bioseguridad' | 'consumibles' | 'materiales' | 'medicamentos' | 'equipos' | 'otros'
   presentation: string;
   price_cents: number;
   portions: number;
-  cost_per_portion_cents: number;
+  cost_per_portion_cents?: number;
+  cost_per_unit_cents?: number;
   created_at?: string;
   updated_at?: string;
 }
 
 export interface Service {
-  id?: string;
+  id: string;
   clinic_id: string;
   name: string;
   est_minutes: number;
@@ -52,7 +53,7 @@ export interface Service {
 }
 
 export interface ServiceSupply {
-  id?: string;
+  id: string;
   clinic_id: string;
   service_id: string;
   supply_id: string;
@@ -68,7 +69,7 @@ export interface ServiceWithCost extends Service {
 }
 
 export interface Asset {
-  id?: string;
+  id: string;
   clinic_id: string;
   name: string;
   purchase_price_cents: number;
@@ -125,6 +126,7 @@ export interface Patient {
   source_id?: string;
   referred_by_patient_id?: string;
   campaign_id?: string;
+  platform_id?: string;
   created_at: string;
   updated_at?: string;
   // Relations (populated via joins)

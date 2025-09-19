@@ -71,7 +71,7 @@ export function useExpenses(options: UseExpensesOptions = {}) {
     const now = new Date()
     const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 12, 1)
     const recentExpenses = expenses.filter(e => 
-      new Date(e.date) >= twelveMonthsAgo
+      new Date(e.expense_date) >= twelveMonthsAgo
     )
     const monthlyAverage = recentExpenses.length > 0 
       ? recentExpenses.reduce((sum, e) => sum + (e.amount_cents || 0), 0) / 12

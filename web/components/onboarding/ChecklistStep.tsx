@@ -69,7 +69,7 @@ export function ChecklistStep({ items }: ChecklistStepProps) {
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">{t('monthly_progress', 'Progreso')}</CardTitle>
+          <CardTitle className="text-base">{t('monthly_progress')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {items.map((it) => {
@@ -90,7 +90,7 @@ export function ChecklistStep({ items }: ChecklistStepProps) {
                     variant="outline"
                     onClick={() => router.push(it.href!)}
                   >
-                    {t('open', 'Abrir')}
+                    {t('open')}
                   </Button>
                 )}
               </div>
@@ -99,7 +99,7 @@ export function ChecklistStep({ items }: ChecklistStepProps) {
           <div className="pt-2">
             <Button variant="outline" size="sm" onClick={check} disabled={checking}>
               <RefreshCw className="h-4 w-4 mr-2" />
-              {checking ? t('checking', 'Verificando...') : t('refresh', 'Verificar de nuevo')}
+              {checking ? t('checking') : t('refresh')}
             </Button>
           </div>
         </CardContent>

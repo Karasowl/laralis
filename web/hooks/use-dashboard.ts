@@ -263,7 +263,7 @@ export function useDashboard(options: UseDashboardOptions = {}): DashboardState 
                 start = new Date(from)
                 end = new Date(to)
                 end.setHours(23,59,59,999)
-              } else if (period === 'today') {
+              } else if (period === 'day') {
                 start.setHours(0, 0, 0, 0)
               } else if (period === 'week') {
                 start.setDate(now.getDate() - 7)

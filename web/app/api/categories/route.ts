@@ -5,6 +5,8 @@ import { getClinicIdOrDefault } from '@/lib/clinic';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 
+const diacriticRegex = /[\u0300-\u036f]/g;
+
 const categorySchema = z.object({
   category_type_id: z.string().uuid(),
   parent_id: z.string().uuid().optional().nullable(),
@@ -24,7 +26,7 @@ export async function GET(request: NextRequest) {
     const supabase = createClient();
     const { searchParams } = new URL(request.url);
     
-    // ✅ Validar usuario autenticado
+    // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Validar usuario autenticado
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -109,7 +111,7 @@ export async function POST(request: NextRequest) {
     const supabase = createClient();
     const { searchParams } = new URL(request.url);
     
-    // ✅ Validar usuario autenticado
+    // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Validar usuario autenticado
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -149,7 +151,7 @@ export async function POST(request: NextRequest) {
         ? String(body.code)
         : rawName
             .toLowerCase()
-            .normalize('NFD').replace(/\p{Diacritic}/gu, '')
+            .normalize('NFD').replace(diacriticRegex, '')
             .replace(/[^a-z0-9]+/g, '_')
             .replace(/^_+|_+$/g, '');
 
