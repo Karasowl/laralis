@@ -4,7 +4,11 @@
       "Bash(npm run build:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(git push:*)",
+      "Bash(cat:*)",
+      "Read(//e/dev-projects/laralis/**)",
+      "Bash(git rm:*)"
     ],
     "deny": [],
     "ask": []
