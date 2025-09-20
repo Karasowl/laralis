@@ -10,17 +10,24 @@ if (!isConfigured && typeof window === 'undefined') {
   console.warn('⚠️ Supabase is not configured. Please add NEXT_PUBLIC_SUPABASE_URL to your .env.local file');
 }
 
-// En desarrollo, usamos la anon key si no hay service role key
-const keyToUse = supabaseServiceRoleKey || supabaseAnonKey;
+// SECURITY: Service role key MUST never be used in browser
+if (typeof window !== 'undefined' && supabaseServiceRoleKey) {
+  throw new Error('SECURITY ERROR: Service role key cannot be used in browser environment');
+}
 
-if (!keyToUse && typeof window === 'undefined') {
+// En servidor usamos service role key, en cliente SOLO anon key
+const keyToUse = typeof window === 'undefined'
+  ? (supabaseServiceRoleKey || supabaseAnonKey)
+  : supabaseAnonKey;
+
+if (!keyToUse) {
   console.error('❌ No Supabase keys found. Please configure your environment variables.');
 }
 
 // Cliente con service role key para operaciones admin (solo server-side)
 export const supabaseAdmin = createClient(
-  supabaseUrl, 
-  keyToUse,
+  supabaseUrl,
+  keyToUse || '',
   {
     auth: {
       autoRefreshToken: false,

@@ -76,15 +76,21 @@ export async function GET() {
           
           try {
             // 1. Limpiar localStorage
-            details.innerHTML += '<div>✓ Limpiando localStorage...</div>';
+            const addDetail = (text) => {
+              const div = document.createElement('div');
+              div.textContent = text;
+              details.appendChild(div);
+            };
+
+            addDetail('✓ Limpiando localStorage...');
             localStorage.clear();
-            
+
             // 2. Limpiar sessionStorage
-            details.innerHTML += '<div>✓ Limpiando sessionStorage...</div>';
+            addDetail('✓ Limpiando sessionStorage...');
             sessionStorage.clear();
-            
+
             // 3. Intentar cargar Supabase y cerrar sesión
-            details.innerHTML += '<div>✓ Cerrando sesión de Supabase...</div>';
+            addDetail('✓ Cerrando sesión de Supabase...');
             
             // Importar Supabase dinámicamente
             const { createBrowserClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/ssr@0.5.2/+esm');
@@ -97,19 +103,28 @@ export async function GET() {
             await supabase.auth.signOut();
             
             // 4. Limpiar cookies desde el cliente
-            details.innerHTML += '<div>✓ Limpiando cookies...</div>';
+            addDetail('✓ Limpiando cookies...');
             document.cookie.split(";").forEach(function(c) { 
               document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
             });
             
             // 5. Éxito
-            status.innerHTML = '<span class="success">✅ Sesión cerrada exitosamente</span>';
-            details.innerHTML += '<div style="color: #10b981; margin-top: 10px;">✓ Limpieza completa</div>';
+            status.textContent = '✅ Sesión cerrada exitosamente';
+            status.className = 'success';
+            const successDiv = document.createElement('div');
+            successDiv.textContent = '✓ Limpieza completa';
+            successDiv.style.color = '#10b981';
+            successDiv.style.marginTop = '10px';
+            details.appendChild(successDiv);
             
           } catch (error) {
             console.error('Error durante limpieza:', error);
-            status.innerHTML = '<span class="error">⚠️ Error al cerrar sesión, pero puedes continuar</span>';
-            details.innerHTML += '<div style="color: #ef4444;">Error: ' + error.message + '</div>';
+            status.textContent = '⚠️ Error al cerrar sesión, pero puedes continuar';
+            status.className = 'error';
+            const errorDiv = document.createElement('div');
+            errorDiv.textContent = 'Error: ' + error.message;
+            errorDiv.style.color = '#ef4444';
+            details.appendChild(errorDiv);
           }
           
           // Mostrar botón para continuar
