@@ -19,6 +19,7 @@ async function deleteWorkspaceData(workspaceId: string) {
       { table: 'treatments', column: 'clinic_id' },
       { table: 'patients', column: 'clinic_id' },
       { table: 'expenses', column: 'clinic_id' },
+      { table: 'marketing_campaigns', column: 'clinic_id' },
       { table: 'services', column: 'clinic_id' },
       { table: 'supplies', column: 'clinic_id' },
       { table: 'fixed_costs', column: 'clinic_id' },
@@ -288,13 +289,19 @@ export async function POST(request: NextRequest) {
         break;
       }
       case 'custom_categories': {
+        const { error: campaignsError } = await supabaseAdmin
+          .from('marketing_campaigns')
+          .delete()
+          .eq('clinic_id', clinicId);
+        if (campaignsError && campaignsError.code !== 'PGRST116') throw campaignsError;
+
         const { error } = await supabaseAdmin
           .from('categories')
           .delete()
           .eq('clinic_id', clinicId)
           .eq('is_system', false);
         if (error) throw error;
-        result.message = 'CategorÃ­as personalizadas eliminadas';
+        result.message = 'Categorías personalizadas eliminadas';
         break;
       }
       case 'all_data': {
