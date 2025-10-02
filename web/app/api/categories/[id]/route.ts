@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, isUsingServiceRole } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
-import { getClinicIdOrDefault } from '@/lib/clinic';
+import { resolveClinicContext } from '@/lib/clinic';
 import { createClient } from '@/lib/supabase/server';
 
 const diacriticRegex = /[\u0300-\u036f]/g;
@@ -21,10 +21,12 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const clinicId = await getClinicIdOrDefault(cookieStore);
-    if (!clinicId) return NextResponse.json({ error: 'No clinic context available' }, { status: 400 });
-
     const { searchParams } = new URL(request.url);
+    const clinicContext = await resolveClinicContext({ requestedClinicId: searchParams.get('clinicId'), cookieStore });
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
+    }
+    const { clinicId } = clinicContext;
     const typeCode = (searchParams.get('type') || 'services') as 'services' | 'supplies' | 'expenses' | 'assets';
 
     const body = await request.json();
@@ -161,11 +163,12 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     const supabase = createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    const clinicId = await getClinicIdOrDefault(cookieStore);
-    if (!clinicId) return NextResponse.json({ error: 'No clinic context available' }, { status: 400 });
-
     const { searchParams } = new URL(request.url);
+    const clinicContext = await resolveClinicContext({ requestedClinicId: searchParams.get('clinicId'), cookieStore });
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
+    }
+    const { clinicId } = clinicContext;
     const typeCode = (searchParams.get('type') || 'services') as 'services' | 'supplies' | 'expenses' | 'assets';
 
     const db = isUsingServiceRole ? supabaseAdmin : createClient();

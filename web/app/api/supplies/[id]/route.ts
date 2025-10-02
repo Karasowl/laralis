@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { zSupply } from '@/lib/zod';
 import type { Supply, ApiResponse } from '@/lib/types';
 import { cookies } from 'next/headers';
-import { getClinicIdOrDefault } from '@/lib/clinic';
+import { resolveClinicContext } from '@/lib/clinic';
 
 interface RouteParams {
   params: {
@@ -17,14 +17,11 @@ export async function GET(
 ): Promise<NextResponse<ApiResponse<Supply>>> {
   try {
     const cookieStore = cookies();
-    const clinicId = await getClinicIdOrDefault(cookieStore);
-
-    if (!clinicId) {
-      return NextResponse.json(
-        { error: 'No clinic context available' },
-        { status: 400 }
-      );
+    const clinicContext = await resolveClinicContext({ cookieStore });
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
+    const { clinicId } = clinicContext;
 
     const { data, error } = await supabaseAdmin
       .from('supplies')
@@ -73,14 +70,11 @@ export async function PUT(
     console.log('PUT /api/supplies/[id] - Received body:', body, 'ID:', params.id);
     
     const cookieStore = cookies();
-    const clinicId = await getClinicIdOrDefault(cookieStore);
-
-    if (!clinicId) {
-      return NextResponse.json(
-        { error: 'No clinic context available' },
-        { status: 400 }
-      );
+    const clinicContext = await resolveClinicContext({ cookieStore });
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
+    const { clinicId } = clinicContext;
 
     // Si viene con price_pesos, convertir a cents
     let dataToValidate = { ...body };
@@ -193,14 +187,11 @@ export async function DELETE(
 ): Promise<NextResponse<ApiResponse<null>>> {
   try {
     const cookieStore = cookies();
-    const clinicId = await getClinicIdOrDefault(cookieStore);
-
-    if (!clinicId) {
-      return NextResponse.json(
-        { error: 'No clinic context available' },
-        { status: 400 }
-      );
+    const clinicContext = await resolveClinicContext({ cookieStore });
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
+    const { clinicId } = clinicContext;
 
     // Verificar que el supply pertenece a la clínica
     const { data: existingSupply } = await supabaseAdmin

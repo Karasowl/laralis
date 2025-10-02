@@ -1,154 +1,307 @@
 'use client'
 
-import { useMemo, useCallback, useState } from 'react'
-import { useCrudOperations } from '@/hooks/use-crud-operations'
-import { useApi } from '@/hooks/use-api'
-import { ExpenseWithRelations, ExpenseFilters, ExpenseFormData } from '@/lib/types/expenses'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { toast } from 'sonner'
+import { useTranslations } from 'next-intl'
+
+import { useCurrentClinic } from '@/hooks/use-current-clinic'
+import type {
+  ExpenseFilters,
+  ExpenseWithRelations,
+  ExpenseStats,
+  ExpenseFormData,
+  LowStockAlert,
+} from '@/lib/types/expenses'
+
+type BudgetAlertSeverity = 'high' | 'medium' | 'low'
+
+interface BudgetAlertDetails {
+  planned: number
+  actual: number
+  variance: number
+  percentage: number
+}
+
+interface BudgetAlert {
+  type: string
+  message: string
+  severity: BudgetAlertSeverity
+  details: BudgetAlertDetails
+}
+
+interface PriceChangeAlert {
+  id: string
+  name: string
+  category: string
+  price_per_portion_cents: number
+  last_purchase_price_cents: number
+  price_change_percentage: number
+}
+
+interface ExpenseAlerts {
+  low_stock: LowStockAlert[]
+  price_changes: PriceChangeAlert[]
+  budget_alerts: BudgetAlert[]
+  summary: {
+    total_alerts: number
+    by_severity: {
+      high: number
+      medium: number
+      low: number
+    }
+  }
+}
 
 interface UseExpensesOptions {
   clinicId?: string
-  filters?: ExpenseFilters
-  limit?: number
   autoLoad?: boolean
 }
 
-interface ExpenseStats {
-  totalAmount: number
-  totalCount: number
-  byCategory: Record<string, number>
-  monthlyAverage: number
-  topVendors: Array<{ vendor: string; amount: number }>
-}
-
 export function useExpenses(options: UseExpensesOptions = {}) {
-  const { clinicId, filters, limit, autoLoad = true } = options
-  const [localFilters, setLocalFilters] = useState<ExpenseFilters>(filters || {})
+  const { clinicId: providedClinicId, autoLoad = true } = options
+  const { currentClinic } = useCurrentClinic()
 
-  // Build query string with filters (excluding clinic_id; it will be appended by useCrudOperations)
+  const t = useTranslations('expenses')
+  const effectiveClinicId = providedClinicId ?? currentClinic?.id ?? null
+
+  const [expenses, setExpenses] = useState<ExpenseWithRelations[]>([])
+  const [filters, setFiltersState] = useState<ExpenseFilters>({})
+  const [stats, setStats] = useState<ExpenseStats | null>(null)
+  const [alerts, setAlerts] = useState<ExpenseAlerts | null>(null)
+
+  const [listLoading, setListLoading] = useState(false)
+  const [statsLoading, setStatsLoading] = useState(false)
+  const [alertsLoading, setAlertsLoading] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
   const queryString = useMemo(() => {
     const params = new URLSearchParams()
-    if (localFilters.category) params.append('category', localFilters.category)
-    if (localFilters.vendor) params.append('vendor', localFilters.vendor)
-    if (localFilters.start_date) params.append('start_date', localFilters.start_date)
-    if (localFilters.end_date) params.append('end_date', localFilters.end_date)
-    if (limit) params.append('limit', limit.toString())
-    return params.toString()
-  }, [localFilters, limit])
+    if (filters.category) params.set('category', filters.category)
+    if (filters.subcategory) params.set('subcategory', filters.subcategory)
+    if (filters.vendor) params.set('vendor', filters.vendor)
+    if (filters.start_date) params.set('start_date', filters.start_date)
+    if (filters.end_date) params.set('end_date', filters.end_date)
+    if (typeof filters.min_amount === 'number') params.set('min_amount', String(filters.min_amount))
+    if (typeof filters.max_amount === 'number') params.set('max_amount', String(filters.max_amount))
+    if (typeof filters.is_recurring === 'boolean') params.set('is_recurring', String(filters.is_recurring))
+    if (typeof filters.auto_processed === 'boolean') params.set('auto_processed', String(filters.auto_processed))
+    return params
+  }, [filters])
 
-  // Use generic CRUD with dynamic endpoint and automatic clinic id
-  const crud = useCrudOperations<ExpenseWithRelations>({
-    endpoint: `/api/expenses${queryString ? `?${queryString}` : ''}`,
-    entityName: 'Expense',
-    includeClinicId: true
-  })
+  const fetchExpenses = useCallback(async () => {
+    if (!effectiveClinicId) return
+    setListLoading(true)
 
-  // Use API hooks for related data (this endpoint returns { data: [...] },
-  // but useApi unwraps it, so the hook's data is the array directly)
-  const categoriesApi = useApi<any[]>(
-    '/api/categories?type=expenses&active=true',
-    { autoFetch: true }
-  )
-  const vendorsApi = useApi<{ data: any[] }>('/api/vendors')
-  const paymentMethodsApi = useApi<{ data: any[] }>('/api/payment-methods')
+    try {
+      const params = new URLSearchParams(queryString)
+      params.set('clinic_id', effectiveClinicId)
 
-  // Calculate stats using memoization
-  const stats = useMemo((): ExpenseStats => {
-    const expenses = crud.items || []
-    
-    // Total amount and count
-    const totalAmount = expenses.reduce((sum, e) => sum + (e.amount_cents || 0), 0)
-    const totalCount = expenses.length
-    
-    // By category
-    const byCategory: Record<string, number> = {}
-    expenses.forEach(e => {
-      if (e.category) {
-        byCategory[e.category] = (byCategory[e.category] || 0) + (e.amount_cents || 0)
+      const response = await fetch(`/api/expenses?${params.toString()}`, {
+        credentials: 'include',
+      })
+
+      const payload = await response.json().catch(() => null)
+
+      if (!response.ok) {
+        throw new Error(payload?.error || payload?.message || 'Failed to fetch expenses')
       }
-    })
-    
-    // Monthly average (last 12 months)
-    const now = new Date()
-    const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 12, 1)
-    const recentExpenses = expenses.filter(e => 
-      new Date(e.expense_date) >= twelveMonthsAgo
-    )
-    const monthlyAverage = recentExpenses.length > 0 
-      ? recentExpenses.reduce((sum, e) => sum + (e.amount_cents || 0), 0) / 12
-      : 0
-    
-    // Top vendors
-    const vendorTotals = new Map<string, number>()
-    expenses.forEach(e => {
-      if (e.vendor) {
-        const current = vendorTotals.get(e.vendor) || 0
-        vendorTotals.set(e.vendor, current + (e.amount_cents || 0))
-      }
-    })
-    
-    const topVendors = Array.from(vendorTotals.entries())
-      .map(([vendor, amount]) => ({ vendor, amount }))
-      .sort((a, b) => b.amount - a.amount)
-      .slice(0, 5)
-    
-    return {
-      totalAmount,
-      totalCount,
-      byCategory,
-      monthlyAverage,
-      topVendors
+
+      const list = Array.isArray(payload?.data) ? (payload.data as ExpenseWithRelations[]) : []
+      setExpenses(list)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      toast.error(message)
+    } finally {
+      setListLoading(false)
     }
-  }, [crud.items])
+  }, [effectiveClinicId, queryString])
 
-  // Update filters
-  const updateFilters = useCallback((newFilters: ExpenseFilters) => {
-    setLocalFilters(newFilters)
+  const fetchStats = useCallback(async () => {
+    if (!effectiveClinicId) return
+    setStatsLoading(true)
+
+    try {
+      const params = new URLSearchParams()
+      params.set('clinic_id', effectiveClinicId)
+      if (filters.start_date) params.set('start_date', filters.start_date)
+      if (filters.end_date) params.set('end_date', filters.end_date)
+
+      const response = await fetch(`/api/expenses/stats?${params.toString()}`, {
+        credentials: 'include',
+      })
+
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) {
+        throw new Error(payload?.error || payload?.message || 'Failed to fetch expense stats')
+      }
+
+      setStats(payload?.data ?? null)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      toast.error(message)
+    } finally {
+      setStatsLoading(false)
+    }
+  }, [effectiveClinicId, filters.start_date, filters.end_date])
+
+  const fetchAlerts = useCallback(async () => {
+    if (!effectiveClinicId) return
+    setAlertsLoading(true)
+
+    try {
+      const params = new URLSearchParams()
+      params.set('clinic_id', effectiveClinicId)
+
+      const response = await fetch(`/api/expenses/alerts?${params.toString()}`, {
+        credentials: 'include',
+      })
+
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) {
+        throw new Error(payload?.error || payload?.message || 'Failed to fetch alerts')
+      }
+
+      setAlerts(payload?.data ?? null)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      toast.error(message)
+    } finally {
+      setAlertsLoading(false)
+    }
+  }, [effectiveClinicId])
+
+  const refresh = useCallback(async () => {
+    await Promise.all([fetchExpenses(), fetchStats(), fetchAlerts()])
+  }, [fetchAlerts, fetchExpenses, fetchStats])
+
+  useEffect(() => {
+    if (!autoLoad || !effectiveClinicId) return
+    void fetchExpenses()
+    void fetchStats()
+  }, [autoLoad, effectiveClinicId, fetchExpenses, fetchStats])
+
+  useEffect(() => {
+    if (!autoLoad || !effectiveClinicId) return
+    void fetchAlerts()
+  }, [autoLoad, effectiveClinicId, fetchAlerts])
+
+  const updateFilters = useCallback((updates: Partial<ExpenseFilters>) => {
+    setFiltersState(prev => {
+      const next: ExpenseFilters = { ...prev, ...updates }
+      const clean: ExpenseFilters = {}
+      for (const [key, value] of Object.entries(next)) {
+        if (value === undefined || value === null || value === '') continue
+        ;(clean as any)[key] = value
+      }
+      return clean
+    })
   }, [])
 
-  // Enhanced create with supply items
-  const createExpense = useCallback(async (data: ExpenseFormData): Promise<boolean> => {
-    return await crud.handleCreate(data)
-  }, [crud])
+  const resetFilters = useCallback(() => {
+    setFiltersState({})
+  }, [])
 
-  // Batch operations
-  const deleteMultiple = useCallback(async (ids: string[]): Promise<boolean> => {
-    try {
-      const promises = ids.map(id => crud.handleDelete(id))
-      const results = await Promise.all(promises)
-      return results.every(r => r)
-    } catch (error) {
-      return false
-    }
-  }, [crud])
+  const handleRequest = useCallback(
+    async (method: 'POST' | 'PUT' | 'DELETE', endpoint: string, body?: any) => {
+      const response = await fetch(endpoint, {
+        method,
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      })
+
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) {
+        throw new Error(payload?.error || payload?.message || 'Request failed')
+      }
+
+      return payload
+    },
+    []
+  )
+
+  const createExpense = useCallback(
+    async (data: ExpenseFormData): Promise<boolean> => {
+      if (!effectiveClinicId) {
+        toast.error(t('messages.noClinic'))
+        return false
+      }
+
+      setIsSubmitting(true)
+      try {
+        await handleRequest('POST', '/api/expenses', {
+          ...data,
+          clinic_id: effectiveClinicId,
+        })
+        await refresh()
+        toast.success(t('messages.createSuccess', { entity: t('entity') }))
+        return true
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        toast.error(message || t('messages.createError', { entity: t('entity') }))
+        return false
+      } finally {
+        setIsSubmitting(false)
+      }
+    },
+    [effectiveClinicId, handleRequest, refresh, t]
+  )
+
+  const updateExpense = useCallback(
+    async (id: string, data: Partial<ExpenseFormData>): Promise<boolean> => {
+      setIsSubmitting(true)
+      try {
+        await handleRequest('PUT', `/api/expenses/${id}`, data)
+        await refresh()
+        toast.success(t('messages.updateSuccess', { entity: t('entity') }))
+        return true
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        toast.error(message || t('messages.updateError', { entity: t('entity') }))
+        return false
+      } finally {
+        setIsSubmitting(false)
+      }
+    },
+    [handleRequest, refresh, t]
+  )
+
+  const deleteExpense = useCallback(
+    async (id: string): Promise<boolean> => {
+      try {
+        await handleRequest('DELETE', `/api/expenses/${id}`)
+        await refresh()
+        toast.success(t('messages.deleteSuccess', { entity: t('entity') }))
+        return true
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        toast.error(message || t('messages.deleteError', { entity: t('entity') }))
+        return false
+      }
+    },
+    [handleRequest, refresh, t]
+  )
+
+  const loading = listLoading || statsLoading || alertsLoading
 
   return {
-    // From CRUD operations
-    expenses: crud.items,
-    loading: crud.loading,
-    error: null,
-    
-    // Related data
-    categories: categoriesApi.data || [],
-    vendors: vendorsApi.data?.data || [],
-    paymentMethods: paymentMethodsApi.data?.data || [],
-    
-    // Calculated data
+    expenses,
+    filters,
     stats,
-    
-    // Filters
-    filters: localFilters,
-    updateFilters,
-    
-    // Operations
-    fetchExpenses: crud.fetchItems,
+    alerts,
+    loading,
+    listLoading,
+    statsLoading,
+    alertsLoading,
+    isSubmitting,
+    setFilters: updateFilters,
+    resetFilters,
+    refresh,
     createExpense,
-    updateExpense: crud.handleUpdate,
-    deleteExpense: crud.handleDelete,
-    deleteMultiple,
-    
-    // UI State
-    isSubmitting: crud.isSubmitting,
-    searchTerm: crud.searchTerm,
-    setSearchTerm: crud.setSearchTerm
+    updateExpense,
+    deleteExpense,
+    clinicId: effectiveClinicId,
+    hasData: expenses.length > 0,
+    totalCount: expenses.length,
   }
 }

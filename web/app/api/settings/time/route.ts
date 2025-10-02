@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { zSettingsTime } from '@/lib/zod';
 import type { SettingsTime, ApiResponse } from '@/lib/types';
 import { cookies } from 'next/headers';
-import { getClinicIdOrDefault } from '@/lib/clinic';
+import { resolveClinicContext } from '@/lib/clinic';
 import { isSupabaseConfigured } from '@/lib/supabase';
 
 type TimeSettingsRecord = SettingsTime & { clinic_id: string; created_at?: string; updated_at?: string };
@@ -43,9 +43,15 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
     const supabaseReady = isSupabaseConfigured();
     const searchParams = request.nextUrl.searchParams;
 
-    let clinicId = searchParams.get('clinicId') || cookieStore.get('clinicId')?.value || null;
-    if (!clinicId && supabaseReady) {
-      clinicId = await getClinicIdOrDefault(cookieStore);
+    let clinicId: string | null = null;
+    if (supabaseReady) {
+      const ctx = await resolveClinicContext({ requestedClinicId: searchParams.get('clinicId'), cookieStore });
+      if ('error' in ctx) {
+        return NextResponse.json({ error: ctx.error.message }, { status: ctx.error.status });
+      }
+      clinicId = ctx.clinicId;
+    } else {
+      clinicId = searchParams.get('clinicId') || cookieStore.get('clinicId')?.value || null;
     }
 
     if (!clinicId) {
@@ -96,9 +102,17 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     const cookieStore = cookies();
     const supabaseReady = isSupabaseConfigured();
 
-    const cookieClinic = cookieStore.get('clinicId')?.value || null;
-    const requestedClinicId = typeof body?.clinic_id === 'string' ? body.clinic_id : null;
-    const clinicId = requestedClinicId || cookieClinic || (supabaseReady ? await getClinicIdOrDefault(cookieStore) : null);
+    let clinicId: string | null = null;
+    if (supabaseReady) {
+      const ctx = await resolveClinicContext({ requestedClinicId: typeof body?.clinic_id === 'string' ? body.clinic_id : null, cookieStore });
+      if ('error' in ctx) {
+        return NextResponse.json({ error: ctx.error.message }, { status: ctx.error.status });
+      }
+      clinicId = ctx.clinicId;
+    } else {
+      const cookieClinic = cookieStore.get('clinicId')?.value || null;
+      clinicId = (typeof body?.clinic_id === 'string' ? body.clinic_id : null) || cookieClinic;
+    }
 
     if (!clinicId) {
       return NextResponse.json(

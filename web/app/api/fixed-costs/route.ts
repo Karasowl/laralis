@@ -3,24 +3,29 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { zFixedCost } from '@/lib/zod';
 import type { FixedCost, ApiResponse } from '@/lib/types';
 import { cookies } from 'next/headers';
-import { getClinicIdOrDefault } from '@/lib/clinic';
+import { resolveClinicContext } from '@/lib/clinic';
 
 export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<FixedCost[]>>> {
   try {
-    const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const searchParams = request.nextUrl.searchParams;
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '50', 10);
     const category = searchParams.get('category');
-    
-    const cookieStore = cookies();
-    const clinicId = searchParams.get('clinicId') || await getClinicIdOrDefault(cookieStore);
 
-    if (!clinicId) {
+    const cookieStore = cookies();
+    const clinicContext = await resolveClinicContext({
+      requestedClinicId: searchParams.get('clinicId'),
+      cookieStore,
+    });
+
+    if ('error' in clinicContext) {
       return NextResponse.json(
-        { error: 'No clinic context available' },
-        { status: 400 }
+        { error: clinicContext.error.message },
+        { status: clinicContext.error.status }
       );
     }
+
+    const { clinicId } = clinicContext;
 
     let query = supabaseAdmin
       .from('fixed_costs')
@@ -28,12 +33,10 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
       .eq('clinic_id', clinicId)
       .order('created_at', { ascending: false });
 
-    // Apply category filter if provided
     if (category) {
       query = query.eq('category', category);
     }
 
-    // Apply pagination
     const from = (page - 1) * limit;
     const to = from + limit - 1;
     query = query.range(from, to);
@@ -61,28 +64,28 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
 export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse<FixedCost>>> {
   try {
     const body = await request.json();
-
     const cookieStore = cookies();
 
-    const clinicId = body.clinic_id || await getClinicIdOrDefault(cookieStore);
+    const clinicContext = await resolveClinicContext({
+      requestedClinicId: body?.clinic_id,
+      cookieStore,
+    });
 
-    if (!clinicId) {
+    if ('error' in clinicContext) {
       return NextResponse.json(
-        { error: 'No clinic context available' },
-        { status: 400 }
+        { error: clinicContext.error.message },
+        { status: clinicContext.error.status }
       );
     }
-    
-    // Add clinic_id to body for validation
-    const dataWithClinic = { ...body, clinic_id: clinicId };
-    
-    // Validate request body
-    const validationResult = zFixedCost.safeParse(dataWithClinic);
+
+    const { clinicId } = clinicContext;
+
+    const validationResult = zFixedCost.safeParse({ ...body, clinic_id: clinicId });
     if (!validationResult.success) {
       return NextResponse.json(
-        { 
-          error: 'Validation failed', 
-          message: validationResult.error.errors.map(e => e.message).join(', ')
+        {
+          error: 'Validation failed',
+          message: validationResult.error.errors.map(e => e.message).join(', '),
         },
         { status: 400 }
       );
@@ -104,11 +107,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       );
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       data,
-      message: 'Fixed cost created successfully'
+      message: 'Fixed cost created successfully',
     }, { status: 201 });
-
   } catch (error) {
     console.error('Unexpected error in POST /api/fixed-costs:', error);
     return NextResponse.json(

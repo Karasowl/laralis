@@ -15,11 +15,13 @@ import { Asset } from '@/lib/types';
 import { zAssetForm } from '@/lib/zod';
 import { Package, TrendingDown, Calendar, DollarSign } from 'lucide-react';
 import { z } from 'zod';
+import { getLocalDateISO } from '@/lib/utils';
 
 type AssetFormData = z.infer<typeof zAssetForm>;
 
 export default function AssetsPage() {
   const t = useTranslations();
+  const todayIso = getLocalDateISO();
   
   // CRUD operations
   const crud = useCrudOperations<Asset & { id: string }>({
@@ -41,7 +43,7 @@ export default function AssetsPage() {
       name: '',
       purchase_price_pesos: 0,
       depreciation_months: 36,
-      purchase_date: ''
+      purchase_date: todayIso
     }
   });
 
@@ -49,7 +51,7 @@ export default function AssetsPage() {
     name: '',
     purchase_price_pesos: 0,
     depreciation_months: 36,
-    purchase_date: ''
+    purchase_date: todayIso
   }
 
   // Calculate summary statistics

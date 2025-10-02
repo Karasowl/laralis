@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import type { ApiResponse, ServiceWithCost } from '@/lib/types';
 import { cookies } from 'next/headers';
-import { getClinicIdOrDefault } from '@/lib/clinic';
+import { resolveClinicContext } from '@/lib/clinic';
 import { calcularCostoVariable } from '@/lib/calc/variable';
 
 interface RouteParams {
@@ -17,14 +17,11 @@ export async function GET(
 ): Promise<NextResponse<ApiResponse<ServiceWithCost>>> {
   try {
     const cookieStore = cookies();
-    const clinicId = await getClinicIdOrDefault(cookieStore);
-
-    if (!clinicId) {
-      return NextResponse.json(
-        { error: 'No clinic context available' },
-        { status: 400 }
-      );
+    const clinicContext = await resolveClinicContext({ cookieStore });
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
+    const { clinicId } = clinicContext;
 
     // Get service details
     const { data: service, error: serviceError } = await supabaseAdmin

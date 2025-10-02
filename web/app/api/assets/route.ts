@@ -3,53 +3,29 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { zAsset } from '@/lib/zod';
 import type { Asset, ApiResponse } from '@/lib/types';
 import { cookies } from 'next/headers';
-import { getClinicIdOrDefault } from '@/lib/clinic';
-import { createServerClient } from '@supabase/ssr';
+import { resolveClinicContext } from '@/lib/clinic';
 
 export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<Asset[]>>> {
   try {
-    const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const searchParams = request.nextUrl.searchParams;
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '50', 10);
     const search = searchParams.get('search');
 
     const cookieStore = cookies();
-    
-    // Verificar autenticaciÃ³n
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, options);
-            });
-          },
-        },
-      }
-    );
-    
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-    
-    const clinicId = searchParams.get('clinicId') || await getClinicIdOrDefault(cookieStore);
+    const clinicContext = await resolveClinicContext({
+      requestedClinicId: searchParams.get('clinicId'),
+      cookieStore,
+    });
 
-    if (!clinicId) {
+    if ('error' in clinicContext) {
       return NextResponse.json(
-        { error: 'No clinic context available' },
-        { status: 400 }
+        { error: clinicContext.error.message },
+        { status: clinicContext.error.status }
       );
     }
+
+    const { clinicId } = clinicContext;
 
     let query = supabaseAdmin
       .from('assets')
@@ -89,46 +65,30 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
   try {
     const body = await request.json();
     const cookieStore = cookies();
-    
-    // Verificar autenticaciÃ³n
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, options);
-            });
-          },
-        },
-      }
-    );
-    
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-    
-    const clinicId = body.clinic_id || await getClinicIdOrDefault(cookieStore);
 
-    if (!clinicId) {
+    const clinicContext = await resolveClinicContext({
+      requestedClinicId: body?.clinic_id,
+      cookieStore,
+    });
+
+    if ('error' in clinicContext) {
       return NextResponse.json(
-        { error: 'No clinic context available' },
-        { status: 400 }
+        { error: clinicContext.error.message },
+        { status: clinicContext.error.status }
       );
     }
 
-    // Convert pesos form payload if present
-    const { purchase_price_pesos, ...bodyWithoutPesos } = body as { purchase_price_pesos?: number } & Record<string, unknown>;
-    const dataToValidate: Record<string, unknown> = { ...bodyWithoutPesos, clinic_id: clinicId };
+    const { clinicId } = clinicContext;
+
+    const { purchase_price_pesos, ...bodyWithoutPesos } = body as {
+      purchase_price_pesos?: number;
+    } & Record<string, unknown>;
+
+    const dataToValidate: Record<string, unknown> = {
+      ...bodyWithoutPesos,
+      clinic_id: clinicId,
+    };
+
     if (typeof purchase_price_pesos === 'number') {
       dataToValidate.purchase_price_cents = Math.round(purchase_price_pesos * 100);
     }
@@ -136,15 +96,14 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     const validationResult = zAsset.safeParse(dataToValidate);
     if (!validationResult.success) {
       return NextResponse.json(
-        { 
-          error: 'Validation failed', 
-          message: validationResult.error.errors.map(e => e.message).join(', ')
+        {
+          error: 'Validation failed',
+          message: validationResult.error.errors.map(e => e.message).join(', '),
         },
         { status: 400 }
       );
     }
 
-    // Remover depreciation_months si existe ya que es una columna generada
     const { depreciation_months: _ignoredDepreciationMonths, ...dataToInsert } = validationResult.data;
 
     const { data, error } = await supabaseAdmin
@@ -170,7 +129,3 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     );
   }
 }
-
-
-
-

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
-import { getClinicIdOrDefault } from '@/lib/clinic';
+import { resolveClinicContext } from '@/lib/clinic';
 import { z } from 'zod';
 
 const createCampaignSchema = z.object({
@@ -15,7 +15,11 @@ export async function GET(request: NextRequest) {
     const cookieStore = cookies();
     
     const searchParams = request.nextUrl.searchParams;
-    const clinicId = searchParams.get('clinicId') || await getClinicIdOrDefault(cookieStore);
+    const clinicContext = await resolveClinicContext({ requestedClinicId: searchParams.get('clinicId'), cookieStore });
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
+    }
+    const { clinicId } = clinicContext;
     const activeOnly = searchParams.get('active') === 'true';
     const includeArchived = searchParams.get('includeArchived') === 'true';
     const platformId = searchParams.get('platformId');
@@ -105,7 +109,11 @@ export async function POST(request: NextRequest) {
     console.log('[POST /api/marketing/campaigns] Request body:', JSON.stringify(body, null, 2));
     
     const cookieStore = cookies();
-    const clinicId = body.clinic_id || await getClinicIdOrDefault(cookieStore);
+    const clinicContext = await resolveClinicContext({ requestedClinicId: body?.clinic_id, cookieStore });
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
+    }
+    const { clinicId } = clinicContext;
     console.log('[POST /api/marketing/campaigns] Clinic ID:', clinicId);
 
     if (!clinicId) {
@@ -203,6 +211,29 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Missing campaign id' }, { status: 400 });
     }
 
+    const cookieStore = cookies();
+    const clinicContext = await resolveClinicContext({ requestedClinicId: body?.clinic_id, cookieStore });
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
+    }
+    const { clinicId } = clinicContext;
+
+    // Ensure the campaign belongs to this clinic
+    const { data: existing, error: fetchErr } = await supabaseAdmin
+      .from('marketing_campaigns')
+      .select('id, clinic_id')
+      .eq('id', id)
+      .maybeSingle();
+    if (fetchErr) {
+      return NextResponse.json({ error: 'Failed to fetch marketing campaign', message: fetchErr.message }, { status: 500 });
+    }
+    if (!existing) {
+      return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
+    }
+    if ((existing as any).clinic_id !== clinicId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const patch: any = {};
     if (body.name) patch.name = body.name;
     if (body.code !== undefined) patch.code = body.code;
@@ -213,6 +244,7 @@ export async function PUT(request: NextRequest) {
       .from('marketing_campaigns')
       .update({ ...patch })
       .eq('id', id)
+      .eq('clinic_id', clinicId)
       .select()
       .single();
 

@@ -355,7 +355,12 @@
       "creating": "Creating...",
       "start": "Start",
       "cancel": "Cancel",
-      "cancelled": "You have cancelled the setup process"
+      "cancelled": "You have cancelled the setup process",
+      "logout": "Log out",
+      "cancelConfirmTitle": "Cancel setup",
+      "cancelConfirmDescription": "Do you want to delete the workspace and clinic you created?",
+      "cancelConfirmConfirm": "Yes, delete",
+      "cancelConfirmCancel": "No, keep going"
     },
     "errors": {
       "requiredTitle": "Required field",

@@ -1,5 +1,8 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 import { useOnboarding } from '@/hooks/use-onboarding'
 import { OnboardingModal } from '@/components/onboarding/OnboardingModal'
 import { WelcomeStep } from '@/components/onboarding/WelcomeStep'
@@ -7,18 +10,57 @@ import { WorkspaceStep } from '@/components/onboarding/WorkspaceStep'
 import { ClinicStep } from '@/components/onboarding/ClinicStep'
 import { CompleteStep } from '@/components/onboarding/CompleteStep'
 import { ChecklistStep } from '@/components/onboarding/ChecklistStep'
-import { useEffect } from 'react'
+
+const clearOnboardingStorage = () => {
+  try {
+    const removable: string[] = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (!key) continue
+      if (key === 'onboarding_progress' || key.startsWith('onboarding_progress:')) {
+        removable.push(key)
+      }
+    }
+    removable.forEach(key => localStorage.removeItem(key))
+    // Nota: NO borramos las cookies/workspaceId/clinicId aquí para evitar
+    // carreras justo después de crear la clínica. Esa limpieza completa se
+    // hace únicamente en /setup/cancel.
+  } catch {
+    // ignore storage errors
+  }
+}
 
 export default function OnboardingPage() {
-  // Clear stale context from previous sessions so onboarding starts clean
+  const router = useRouter()
+  const clearedRef = useRef(false)
+  if (typeof window !== 'undefined' && !clearedRef.current) {
+    clearOnboardingStorage()
+    clearedRef.current = true
+  }
+
   useEffect(() => {
-    try {
-      localStorage.removeItem('selectedWorkspaceId')
-      localStorage.removeItem('selectedClinicId')
-      document.cookie = 'workspaceId=; path=/; max-age=0'
-      document.cookie = 'clinicId=; path=/; max-age=0'
-    } catch {}
+    clearOnboardingStorage()
   }, [])
+
+  // Client guard: if user already has a workspace, prefer full setup page
+  useEffect(() => {
+    const supabase = createClient()
+    ;(async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+        const { data: ws } = await supabase
+          .from('workspaces')
+          .select('id')
+          .eq('owner_id', user.id)
+          .limit(1)
+        if (ws && ws.length > 0) {
+          router.replace('/setup')
+        }
+      } catch {}
+    })()
+  }, [router])
+
   const {
     steps,
     currentStep,

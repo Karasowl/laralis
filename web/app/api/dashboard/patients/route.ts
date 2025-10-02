@@ -1,15 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { cookies } from 'next/headers'
+import { resolveClinicContext } from '@/lib/clinic'
 
 export async function GET(request: NextRequest) {
   try {
+    const cookieStore = cookies()
     const sp = request.nextUrl.searchParams
-    const clinicId = sp.get('clinicId')
+    const ctx = await resolveClinicContext({ requestedClinicId: sp.get('clinicId'), cookieStore })
+    if ('error' in ctx) return NextResponse.json({ error: ctx.error.message }, { status: ctx.error.status })
+    const { clinicId } = ctx
     const period = sp.get('period') || 'month'
     const dateFrom = sp.get('date_from')
     const dateTo = sp.get('date_to')
 
-    if (!clinicId) return NextResponse.json({ error: 'Clinic ID required' }, { status: 400 })
+    
 
     const now = new Date()
     let start: Date
@@ -43,4 +48,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to fetch patients metrics' }, { status: 500 })
   }
 }
-

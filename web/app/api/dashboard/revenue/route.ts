@@ -1,21 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
+import { resolveClinicContext } from '@/lib/clinic'
 
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = await cookies()
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
-    
     const searchParams = request.nextUrl.searchParams
-    const clinicId = searchParams.get('clinicId')
+    const ctx = await resolveClinicContext({ requestedClinicId: searchParams.get('clinicId'), cookieStore })
+    if ('error' in ctx) {
+      return NextResponse.json({ error: ctx.error.message }, { status: ctx.error.status })
+    }
+    const { clinicId } = ctx
     const period = searchParams.get('period') || 'month'
     const dateFrom = searchParams.get('date_from')
     const dateTo = searchParams.get('date_to')
     
-    if (!clinicId) {
-      return NextResponse.json({ error: 'Clinic ID required' }, { status: 400 })
-    }
+    
 
     // Calculate date range from period or custom range
     let now = new Date()

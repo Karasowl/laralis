@@ -5,42 +5,98 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { ChecklistStep } from '@/components/onboarding/ChecklistStep'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useWorkspace } from '@/contexts/workspace-context'
 import { useRouter } from 'next/navigation'
 import { evaluateRequirements } from '@/lib/requirements'
+import { Loading } from '@/components/ui/loading'
+import { toast } from 'sonner'
 
 export default function SetupPage() {
   const router = useRouter()
-  const { workspace, refreshWorkspaces } = useWorkspace()
+  const { workspace, currentClinic, refreshWorkspaces, setWorkspace } = useWorkspace() as any
   const [allOk, setAllOk] = useState<boolean | null>(null)
+  const [ready, setReady] = useState(false)
+  const [finishing, setFinishing] = useState(false)
+
+  const clinicId = useMemo(() => {
+    if (currentClinic?.id) return currentClinic.id
+    try {
+      if (typeof document !== 'undefined') {
+        const cookieMatch = document.cookie.match(/(?:^|; )clinicId=([^;]+)/)
+        if (cookieMatch) return decodeURIComponent(cookieMatch[1])
+      }
+      if (typeof localStorage !== 'undefined') {
+        const stored = localStorage.getItem('selectedClinicId')
+        if (stored) return stored
+      }
+    } catch {}
+    return undefined
+  }, [currentClinic?.id])
 
   useEffect(() => {
+    if (!clinicId) {
+      setReady(true)
+      setAllOk(false)
+      return
+    }
+
     let mounted = true
     ;(async () => {
       try {
-        const res = await evaluateRequirements({ clinicId: undefined as any }, ['depreciation','fixed_costs','cost_per_min','supplies','service_recipe','tariffs'] as any)
-        if (mounted) setAllOk((res.missing || []).length === 0)
+        const res = await evaluateRequirements(
+          { clinicId: clinicId as any },
+          ['depreciation', 'fixed_costs', 'cost_per_min', 'supplies', 'service_recipe', 'tariffs'] as any
+        )
+        if (mounted) {
+          setAllOk((res.missing || []).length === 0)
+        }
       } catch {
         if (mounted) setAllOk(false)
+      } finally {
+        if (mounted) setReady(true)
       }
     })()
-    return () => { mounted = false }
-  }, [])
+
+    return () => {
+      mounted = false
+    }
+  }, [clinicId])
 
   const finishSetup = async () => {
+    if (finishing) return
+
+    if (!workspace?.id) {
+      toast.error('No se encontró el espacio de trabajo.')
+      return
+    }
+
+    setFinishing(true)
     try {
-      if (!workspace?.id) { router.replace('/'); return }
-      await fetch(`/api/workspaces/${workspace.id}`, {
+      const response = await fetch(`/api/workspaces/${workspace.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ onboarding_completed: true })
       })
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({})) as { message?: string }
+        throw new Error(payload?.message || 'No se pudo finalizar la configuración')
+      }
+
+      // Optimistic: marcar como completado en contexto y luego refrescar
+      try { setWorkspace && setWorkspace({ ...(workspace as any), onboarding_completed: true }) } catch {}
       await refreshWorkspaces()
       router.replace('/')
-    } catch {
-      router.replace('/')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No se pudo finalizar la configuración'
+      toast.error(message)
+      setFinishing(false)
     }
+  }
+
+  if (!ready) {
+    return <Loading fullscreen message="Cargando configuración..." subtitle="Un momento, estamos preparando todo" />
   }
 
   return (
@@ -80,8 +136,8 @@ export default function SetupPage() {
           <div className="pt-2 flex flex-wrap gap-2">
             <Button onClick={() => router.push('/patients')} variant="outline">Crear paciente</Button>
             <Button onClick={() => router.push('/treatments')} variant="outline">Crear tratamiento</Button>
-            <Button onClick={finishSetup} disabled={allOk === false}>
-              {allOk ? 'Finalizar configuración e ir al Dashboard' : 'Completa los pasos para finalizar'}
+            <Button onClick={finishSetup} disabled={allOk === false || finishing}>
+              {allOk ? (finishing ? 'Finalizando...' : 'Finalizar configuración e ir al Dashboard') : 'Completa los pasos para finalizar'}
             </Button>
           </div>
         </Card>

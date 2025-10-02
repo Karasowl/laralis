@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin, isUsingServiceRole } from '@/lib/supabaseAdmin';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
-import { getClinicIdOrDefault } from '@/lib/clinic';
-import { createClient } from '@/lib/supabase/server';
+import { resolveClinicContext } from '@/lib/clinic';
 import { z } from 'zod';
 
 const createPlatformSchema = z.object({
@@ -13,34 +12,20 @@ const createPlatformSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = cookies();
-    const supabase = createClient();
-    
-    // ✅ Validar usuario autenticado (si no hay service role). En entornos
-    // con service role podemos permitir la operación incluso si la sesión
-    // no está disponible por alguna razón de cookies en el fetch.
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (!isUsingServiceRole && (authError || !user)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const searchParams = request.nextUrl.searchParams;
+
+    const clinicContext = await resolveClinicContext({
+      requestedClinicId: searchParams.get('clinicId'),
+      cookieStore,
+    });
+
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
 
-    const searchParams = request.nextUrl.searchParams;
-    const clinicId = searchParams.get('clinicId') || await getClinicIdOrDefault(cookieStore);
+    const { clinicId } = clinicContext;
     const activeOnly = searchParams.get('active') === 'true';
 
-    if (!clinicId) {
-      return NextResponse.json(
-        { error: 'No clinic context available' },
-        { status: 400 }
-      );
-    }
-
-    // ✅ TODO: Validar que el usuario tiene acceso a esta clínica
-    // const hasAccess = await validateUserClinicAccess(user.id, clinicId);
-    // if (!hasAccess) {
-    //   return NextResponse.json({ error: 'Access denied to this clinic' }, { status: 403 });
-    // }
-
-    // ✅ FIX: Solo plataformas del sistema O específicas de esta clínica
     let query = supabaseAdmin
       .from('categories')
       .select('*')
@@ -77,23 +62,19 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const cookieStore = cookies();
-    const supabase = createClient();
-    
-    // ✅ Verificación de sesión solo si no hay service role
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (!isUsingServiceRole && (authError || !user)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const searchParams = request.nextUrl.searchParams;
+    const body = await request.json();
+
+    const clinicContext = await resolveClinicContext({
+      requestedClinicId: body?.clinic_id || searchParams.get('clinicId'),
+      cookieStore,
+    });
+
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
 
-    // Accept clinic id from body or query param, falling back to cookie/default
-    const urlClinicId = request.nextUrl.searchParams.get('clinicId');
-    const body = await request.json();
-    console.log('[POST /api/marketing/platforms] body =', body);
-    const clinicId = body?.clinic_id || urlClinicId || await getClinicIdOrDefault(cookieStore);
-    console.log('[POST /api/marketing/platforms] clinicId =', clinicId);
-    if (!clinicId) {
-      return NextResponse.json({ error: 'No clinic context available' }, { status: 400 });
-    }
+    const { clinicId } = clinicContext;
 
     const validation = createPlatformSchema.safeParse(body);
     if (!validation.success) {
@@ -103,11 +84,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ✅ FIX: Siempre asignar clinic_id para plataformas personalizadas
     const { data, error } = await supabaseAdmin
       .from('categories')
       .insert({
-        clinic_id: clinicId, // ⚠️ CRÍTICO: Sin esto se filtra a otras clínicas
+        clinic_id: clinicId,
         entity_type: 'marketing_platform',
         name: validation.data.name || validation.data.display_name.toLowerCase().replace(/\s+/g, '_'),
         display_name: validation.data.display_name,
@@ -121,6 +101,7 @@ export async function POST(request: NextRequest) {
       console.error('Error creating marketing platform:', error);
       return NextResponse.json({ error: 'Failed to create marketing platform', message: error.message }, { status: 500 });
     }
+
     return NextResponse.json({ data });
   } catch (error) {
     console.error('Unexpected error in POST /api/marketing/platforms:', error);
@@ -135,7 +116,44 @@ export async function PUT(request: NextRequest) {
     if (!id) {
       return NextResponse.json({ error: 'Missing platform id' }, { status: 400 });
     }
-    const patch: any = {};
+
+    const cookieStore = cookies();
+    const clinicContext = await resolveClinicContext({
+      requestedClinicId: body?.clinic_id,
+      cookieStore,
+    });
+
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
+    }
+
+    const { clinicId } = clinicContext;
+
+    const { data: existing, error: fetchError } = await supabaseAdmin
+      .from('categories')
+      .select('id, clinic_id')
+      .eq('id', id)
+      .eq('entity_type', 'marketing_platform')
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error('Error fetching marketing platform:', fetchError);
+      return NextResponse.json({ error: 'Failed to fetch marketing platform', message: fetchError.message }, { status: 500 });
+    }
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Platform not found' }, { status: 404 });
+    }
+
+    if (existing.clinic_id && existing.clinic_id !== clinicId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    if (!existing.clinic_id) {
+      return NextResponse.json({ error: 'System platforms are read-only' }, { status: 403 });
+    }
+
+    const patch: Record<string, unknown> = {};
     if (body.display_name) patch.display_name = body.display_name;
     if (body.is_active !== undefined) patch.is_active = body.is_active;
 
@@ -143,6 +161,7 @@ export async function PUT(request: NextRequest) {
       .from('categories')
       .update(patch)
       .eq('id', id)
+      .eq('clinic_id', clinicId)
       .select()
       .single();
 
@@ -150,6 +169,7 @@ export async function PUT(request: NextRequest) {
       console.error('Error updating marketing platform:', error);
       return NextResponse.json({ error: 'Failed to update marketing platform', message: error.message }, { status: 500 });
     }
+
     return NextResponse.json({ data });
   } catch (error) {
     console.error('Unexpected error in PUT /api/marketing/platforms:', error);
@@ -165,22 +185,56 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Missing platform id' }, { status: 400 });
     }
 
-    // Ahora permitimos eliminar TODAS las plataformas, incluyendo las del sistema
+    const cookieStore = cookies();
+    const clinicContext = await resolveClinicContext({
+      requestedClinicId: body?.clinic_id,
+      cookieStore,
+    });
+
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
+    }
+
+    const { clinicId } = clinicContext;
+
+    const { data: existing, error: fetchError } = await supabaseAdmin
+      .from('categories')
+      .select('id, clinic_id')
+      .eq('id', id)
+      .eq('entity_type', 'marketing_platform')
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error('Error fetching marketing platform:', fetchError);
+      return NextResponse.json({ error: 'Failed to fetch marketing platform', message: fetchError.message }, { status: 500 });
+    }
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Platform not found' }, { status: 404 });
+    }
+
+    if (existing.clinic_id && existing.clinic_id !== clinicId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    if (!existing.clinic_id) {
+      return NextResponse.json({ error: 'System platforms are read-only' }, { status: 403 });
+    }
+
     const { error } = await supabaseAdmin
       .from('categories')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .eq('clinic_id', clinicId);
 
     if (error) {
       console.error('Error deleting marketing platform:', error);
       return NextResponse.json({ error: 'Failed to delete marketing platform', message: error.message }, { status: 500 });
     }
-    
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Unexpected error in DELETE /api/marketing/platforms:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
-
-

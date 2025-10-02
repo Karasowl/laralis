@@ -1,0 +1,37 @@
+{
+  "tariffs": {
+    "title": "Tarifario de Precios",
+    "subtitle": "Calcula precios de servicios con márgenes",
+    "total_services": "Total de servicios",
+    "active_services": "servicios activos",
+    "average_margin": "Margen promedio",
+    "across_all_services": "en todos los servicios",
+    "total_revenue": "Ingresos potenciales",
+    "if_all_sold_once": "si se vendiera cada uno una vez",
+    "no_services": "No hay servicios para cotizar",
+    "no_services_description": "Crea servicios primero para construir tu tarifario",
+    "bulk_adjust": "Ajuste masivo",
+    "refresh": "Actualizar",
+    "save_tariffs": "Guardar tarifas",
+    "saving": "Guardando...",
+    "search_services": "Buscar servicios",
+    "service": "Servicio",
+    "costs": "Costos",
+    "fixed": "Fijo",
+    "variable": "Variable",
+    "margin": "Margen",
+    "final_price": "Precio final",
+    "adjust": "Ajustar",
+    "bulk_operations": "Operaciones masivas",
+    "adjustment_settings": "Parámetros de ajuste",
+    "default_margin": "Margen predeterminado (%)",
+    "round_to": "Redondear a",
+    "adjust_tariff": "Ajustar tarifa",
+    "margin_percentage": "Porcentaje de margen",
+    "total_cost": "Costo total",
+    "with_margin": "Con margen",
+    "ensure_prereqs": "Completa receta y costo/minuto para tarificar",
+    "saved_successfully": "Tarifas guardadas correctamente"
+  }
+}
+

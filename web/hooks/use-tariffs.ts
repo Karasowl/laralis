@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import { ServiceWithCost } from '@/lib/types'
@@ -13,6 +13,8 @@ export interface TariffRow extends ServiceWithCost {
   category?: string
   final_price: number
   rounded_price: number
+  stored_price_cents?: number | null
+  stored_margin_pct?: number | null
 }
 
 interface UseTariffsOptions {
@@ -20,6 +22,17 @@ interface UseTariffsOptions {
   defaultMargin?: number
   defaultRoundTo?: number
   autoLoad?: boolean
+}
+
+interface StoredTariff {
+  service_id: string
+  clinic_id: string
+  margin_pct: number
+  price_cents: number
+  rounded_price_cents: number
+  fixed_cost_per_minute_cents: number
+  variable_cost_cents: number
+  is_active: boolean
 }
 
 export function useTariffs(options: UseTariffsOptions = {}) {
@@ -30,32 +43,43 @@ export function useTariffs(options: UseTariffsOptions = {}) {
   const [roundTo, setRoundTo] = useState(defaultRoundTo)
   const [localMargins, setLocalMargins] = useState<Record<string, number>>({})
   
-  // Use API hook for fetching services
+  const shouldFetch = autoLoad && !!clinicId
   const servicesApi = useApi<{ data: ServiceWithCost[] }>(
     clinicId ? `/api/services?clinicId=${clinicId}` : null,
-    { autoFetch: autoLoad && !!clinicId }
+    { autoFetch: shouldFetch }
+  )
+  const tariffsApi = useApi<{ data: StoredTariff[] }>(
+    clinicId ? `/api/tariffs?clinicId=${clinicId}` : null,
+    { autoFetch: shouldFetch }
   )
   
-  // Calculate tariffs with memoization
+  const storedTariffsByService = useMemo(() => {
+    const data = tariffsApi.data?.data || []
+    return new Map<string, StoredTariff>(data.map(row => [row.service_id, row]))
+  }, [tariffsApi.data])
+  
   const tariffs = useMemo((): TariffRow[] => {
     const services = servicesApi.data?.data || []
     
     return services.map(service => {
-      const serviceMargin = localMargins[service.id] ?? margin
+      const stored = storedTariffsByService.get(service.id)
+      const storedMargin = stored ? Number(stored.margin_pct) : null
+      const serviceMargin = localMargins[service.id] ?? storedMargin ?? margin
       const totalCost = (service.fixed_cost_cents || 0) + (service.variable_cost_cents || 0)
-      const finalPrice = calcularPrecioFinal(totalCost, serviceMargin)
-      const roundedPrice = redondearA(finalPrice, roundTo * 100)
-      
+      const calculatedFinalPrice = calcularPrecioFinal(totalCost, serviceMargin)
+      const calculatedRounded = redondearA(calculatedFinalPrice, roundTo * 100)
+
       return {
         ...service,
         margin_pct: serviceMargin,
-        final_price: finalPrice,
-        rounded_price: roundedPrice
+        final_price: stored?.price_cents ?? calculatedFinalPrice,
+        rounded_price: stored?.rounded_price_cents ?? calculatedRounded,
+        stored_price_cents: stored?.price_cents ?? null,
+        stored_margin_pct: storedMargin,
       }
     })
-  }, [servicesApi.data, margin, roundTo, localMargins])
+  }, [servicesApi.data, storedTariffsByService, localMargins, margin, roundTo])
   
-  // Update margin for a specific service
   const updateMargin = useCallback((serviceId: string, newMargin: number) => {
     setLocalMargins(prev => ({
       ...prev,
@@ -63,18 +87,15 @@ export function useTariffs(options: UseTariffsOptions = {}) {
     }))
   }, [])
   
-  // Update all margins
   const updateAllMargins = useCallback((newMargin: number) => {
     setMargin(newMargin)
-    setLocalMargins({}) // Clear individual margins
+    setLocalMargins({})
   }, [])
   
-  // Update rounding
   const updateRounding = useCallback((newRoundTo: number) => {
     setRoundTo(newRoundTo)
   }, [])
   
-  // Save tariffs to backend
   const saveTariffs = useCallback(async () => {
     if (!clinicId) {
       toast.error(t('settings.no_clinic_selected'))
@@ -97,33 +118,33 @@ export function useTariffs(options: UseTariffsOptions = {}) {
       })
       
       if (!response.ok) {
-        throw new Error('Failed to save tariffs')
+        const payload = await response.json().catch(() => null)
+        const message = payload?.message || 'Failed to save tariffs'
+        throw new Error(message)
       }
       
       toast.success(t('tariffs.saved_successfully'))
+      await tariffsApi.refetch()
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Error saving tariffs'
       toast.error(errorMsg)
       throw err
     }
-  }, [clinicId, tariffs, t])
+  }, [clinicId, tariffs, t, tariffsApi])
   
-  // Refresh tariffs
   const refreshTariffs = useCallback(async () => {
-    await servicesApi.refetch()
-  }, [servicesApi])
+    await Promise.all([
+      servicesApi.refetch(),
+      tariffsApi.refetch()
+    ])
+  }, [servicesApi, tariffsApi])
   
   return {
-    // Data
     tariffs,
-    loading: servicesApi.loading,
-    error: servicesApi.error,
-    
-    // Settings
+    loading: servicesApi.loading || tariffsApi.loading,
+    error: servicesApi.error || tariffsApi.error,
     margin,
     roundTo,
-    
-    // Operations
     updateMargin,
     updateAllMargins,
     updateRounding,

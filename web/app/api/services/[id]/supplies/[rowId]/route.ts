@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import type { ApiResponse } from '@/lib/types';
 import { cookies } from 'next/headers';
+import { resolveClinicContext } from '@/lib/clinic';
 
 interface RouteParams {
   params: {
@@ -16,22 +17,19 @@ export async function DELETE(
 ): Promise<NextResponse<ApiResponse<null>>> {
   try {
     const cookieStore = cookies();
-    const clinicId = cookieStore.get('clinicId')?.value;
-
-    if (!clinicId) {
-      return NextResponse.json(
-        { error: 'No clinic context available' },
-        { status: 400 }
-      );
+    const ctx = await resolveClinicContext({ cookieStore });
+    if ('error' in ctx) {
+      return NextResponse.json({ error: ctx.error.message }, { status: ctx.error.status });
     }
+    const { clinicId } = ctx;
 
     // Verify the recipe line exists and belongs to the service and clinic
+    // Verify the recipe line exists and belongs to a service in this clinic
     const { data: recipeLine } = await supabaseAdmin
       .from('service_supplies')
-      .select('id')
+      .select('id, service_id')
       .eq('id', params.rowId)
       .eq('service_id', params.id)
-      .eq('clinic_id', clinicId)
       .single();
 
     if (!recipeLine) {
@@ -41,12 +39,22 @@ export async function DELETE(
       );
     }
 
+    // Double-check service belongs to clinic
+    const { data: service } = await supabaseAdmin
+      .from('services')
+      .select('id')
+      .eq('id', params.id)
+      .eq('clinic_id', clinicId)
+      .single();
+    if (!service) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     // Delete the recipe line
     const { error } = await supabaseAdmin
       .from('service_supplies')
       .delete()
-      .eq('id', params.rowId)
-      .eq('clinic_id', clinicId);
+      .eq('id', params.rowId);
 
     if (error) {
       console.error('Error deleting recipe line:', error);
@@ -77,22 +85,18 @@ export async function PUT(
   try {
     const body = await request.json();
     const cookieStore = cookies();
-    const clinicId = cookieStore.get('clinicId')?.value;
-
-    if (!clinicId) {
-      return NextResponse.json(
-        { error: 'No clinic context available' },
-        { status: 400 }
-      );
+    const ctx = await resolveClinicContext({ cookieStore });
+    if ('error' in ctx) {
+      return NextResponse.json({ error: ctx.error.message }, { status: ctx.error.status });
     }
+    const { clinicId } = ctx;
 
     // Verify the recipe line exists and belongs to the service and clinic
     const { data: recipeLine } = await supabaseAdmin
       .from('service_supplies')
-      .select('id')
+      .select('id, service_id')
       .eq('id', params.rowId)
       .eq('service_id', params.id)
-      .eq('clinic_id', clinicId)
       .single();
 
     if (!recipeLine) {
@@ -111,12 +115,22 @@ export async function PUT(
       );
     }
 
+    // Double-check service belongs to clinic
+    const { data: service } = await supabaseAdmin
+      .from('services')
+      .select('id')
+      .eq('id', params.id)
+      .eq('clinic_id', clinicId)
+      .single();
+    if (!service) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     // Update the quantity
     const { error } = await supabaseAdmin
       .from('service_supplies')
       .update({ qty })
-      .eq('id', params.rowId)
-      .eq('clinic_id', clinicId);
+      .eq('id', params.rowId);
 
     if (error) {
       console.error('Error updating recipe line:', error);

@@ -65,6 +65,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const redirectingRef = (typeof window !== 'undefined') ? (window as any).__routeRedirectingRef ?? ((window as any).__routeRedirectingRef = { current: false }) : { current: false };
   const pathname = usePathname();
 
   // Crear cliente de Supabase para el browser
@@ -117,14 +118,29 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       
       if (!data || data.length === 0) {
         setWorkspace(null);
-      } else if (!workspace || !data.some(ws => ws.id === workspace.id)) {
-        setWorkspace(data[0]);
+      } else {
+        let preferredId: string | null = null;
+        try {
+          const m = typeof document !== 'undefined' ? document.cookie.match(/(?:^|; )workspaceId=([^;]+)/) : null;
+          preferredId = m ? decodeURIComponent(m[1]) : null;
+          if (!preferredId && typeof localStorage !== 'undefined') {
+            preferredId = localStorage.getItem('selectedWorkspaceId');
+          }
+        } catch {}
+
+        const currentStillValid = workspace && data.some(ws => ws.id === workspace.id);
+        const matchPreferred = preferredId ? data.find(ws => ws.id === preferredId) : undefined;
+        const next = (matchPreferred || (currentStillValid ? workspace! : data[0]));
+        if (!workspace || next.id !== workspace.id) {
+          setWorkspace(next as any);
+        }
       }
       
       // Si no hay workspaces y no estamos en onboarding o auth, redirigir
-      const isProtectedRoute = !pathname?.includes('/onboarding') && 
-                               !pathname?.includes('/auth') && 
-                               !pathname?.includes('/test-auth');
+      const isProtectedRoute = !pathname?.includes('/onboarding') &&
+                               !pathname?.includes('/auth') &&
+                               !pathname?.includes('/test-auth') &&
+                               !pathname?.includes('/setup');
       
       if ((!data || data.length === 0) && isProtectedRoute) {
         router.push('/onboarding');
@@ -238,9 +254,29 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     const isAuthRoute = path.startsWith('/auth') || path.startsWith('/test-auth');
     if (isAuthRoute) return;
 
+    // Context hints from cookies/localStorage to avoid early redirects
+    let wsCookie: string | null = null;
+    let wsLocal: string | null = null;
+    try {
+      wsLocal = typeof localStorage !== 'undefined' ? localStorage.getItem('selectedWorkspaceId') : null;
+      const m = typeof document !== 'undefined' ? document.cookie.match(/(?:^|; )workspaceId=([^;]+)/) : null;
+      wsCookie = m ? decodeURIComponent(m[1]) : null;
+    } catch {}
+
+    // If no workspaces yet but we have hints (just created), allow staying on /setup
     if (workspaces.length === 0) {
-      if (!path.startsWith('/onboarding')) {
+      if (wsCookie || wsLocal) {
+        if (path.startsWith('/onboarding') && !redirectingRef.current) {
+          redirectingRef.current = true;
+          router.replace('/setup');
+          setTimeout(() => { redirectingRef.current = false; }, 1500);
+        }
+        return; // don't bounce anywhere; let data load
+      }
+      if (!path.startsWith('/onboarding') && !redirectingRef.current) {
+        redirectingRef.current = true;
         router.replace('/onboarding');
+        setTimeout(() => { redirectingRef.current = false; }, 1500);
       }
       return;
     }
@@ -249,8 +285,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (workspace && !completed) {
       const allowedPrefixes = ['/setup', '/onboarding', '/assets', '/fixed-costs', '/time', '/supplies', '/services', '/tariffs'];
       const isAllowed = allowedPrefixes.some(prefix => path === prefix || path.startsWith(`${prefix}/`));
-      if (!isAllowed) {
+      if (!isAllowed && !redirectingRef.current) {
+        redirectingRef.current = true;
         router.replace('/setup');
+        setTimeout(() => { redirectingRef.current = false; }, 1500);
       }
     }
   }, [loading, user, workspaces, workspace, pathname, router]);

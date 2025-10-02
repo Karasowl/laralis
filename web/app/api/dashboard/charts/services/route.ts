@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
+import { resolveClinicContext } from '@/lib/clinic'
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,11 +9,11 @@ export async function GET(request: NextRequest) {
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
     
     const searchParams = request.nextUrl.searchParams
-    const clinicId = searchParams.get('clinicId')
-    
-    if (!clinicId) {
-      return NextResponse.json({ error: 'Clinic ID required' }, { status: 400 })
+    const ctx = await resolveClinicContext({ requestedClinicId: searchParams.get('clinicId'), cookieStore })
+    if ('error' in ctx) {
+      return NextResponse.json({ error: ctx.error.message }, { status: ctx.error.status })
     }
+    const { clinicId } = ctx
 
     // Get treatments with service information
     const { data: treatments, error } = await supabase

@@ -42,7 +42,6 @@ export function AppLayout({ children }: AppLayoutProps) {
     if (saved === 'true') {
       setSidebarCollapsed(true)
     }
-    try { console.log('[AppLayout] loaded v2 - sidebarCollapsed:', saved) } catch {}
   }, [])
 
   // Close mobile menu on route change

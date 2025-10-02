@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { ApiResponse, Clinic } from '@/lib/types'
 import { cookies } from 'next/headers'
 import { setClinicIdCookie } from '@/lib/clinic'
+import { createClient } from '@/lib/supabase/server'
 import { createServerClient } from '@supabase/ssr'
 
 export async function GET(request: Request) {
@@ -101,21 +102,33 @@ export async function POST(request: Request) {
       }, { status: 400 })
     }
 
-    // Verify the clinic exists
-    const { data: clinic, error } = await supabaseAdmin
-      .from('clinics')
-      .select('id')
-      .eq('id', clinicId)
-      .single()
+    const cookieStore = cookies()
+    const supabase = createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-    if (error || !clinic) {
+    if (authError || !user) {
       return NextResponse.json<ApiResponse<null>>({
-        error: 'Invalid clinic ID'
-      }, { status: 400 })
+        error: 'Unauthorized'
+      }, { status: 401 })
     }
 
-    // Set the cookie
-    setClinicIdCookie(clinicId)
+    const { data: hasAccess, error: accessError } = await supabase.rpc('user_has_clinic_access', { clinic_id: clinicId })
+
+    if (accessError) {
+      console.error('Error validating clinic access:', accessError)
+      return NextResponse.json<ApiResponse<null>>({
+        error: 'Failed to validate clinic access',
+        message: accessError.message
+      }, { status: 500 })
+    }
+
+    if (!hasAccess) {
+      return NextResponse.json<ApiResponse<null>>({
+        error: 'Access denied to clinic'
+      }, { status: 403 })
+    }
+
+    setClinicIdCookie(clinicId, cookieStore)
 
     return NextResponse.json<ApiResponse<null>>({
       message: 'Clinic selected successfully'
@@ -127,4 +140,6 @@ export async function POST(request: Request) {
     }, { status: 500 })
   }
 }
+
+
 

@@ -1,0 +1,37 @@
+{
+  "tariffs": {
+    "title": "Pricing Tariff",
+    "subtitle": "Calculate service prices with margins",
+    "total_services": "Total services",
+    "active_services": "active services",
+    "average_margin": "Average margin",
+    "across_all_services": "across all services",
+    "total_revenue": "Total revenue",
+    "if_all_sold_once": "if each sold once",
+    "no_services": "No services to price",
+    "no_services_description": "Create services first to build your pricing tariff",
+    "bulk_adjust": "Bulk adjust",
+    "refresh": "Refresh",
+    "save_tariffs": "Save tariffs",
+    "saving": "Saving...",
+    "search_services": "Search services",
+    "service": "Service",
+    "costs": "Costs",
+    "fixed": "Fixed",
+    "variable": "Variable",
+    "margin": "Margin",
+    "final_price": "Final price",
+    "adjust": "Adjust",
+    "bulk_operations": "Bulk operations",
+    "adjustment_settings": "Adjustment settings",
+    "default_margin": "Default margin (%)",
+    "round_to": "Round to",
+    "adjust_tariff": "Adjust tariff",
+    "margin_percentage": "Margin percentage",
+    "total_cost": "Total cost",
+    "with_margin": "With margin",
+    "ensure_prereqs": "Complete recipe and cost/minute to price",
+    "saved_successfully": "Tariffs saved successfully"
+  }
+}
+

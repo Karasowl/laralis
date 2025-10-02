@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { cookies } from 'next/headers'
+import { resolveClinicContext } from '@/lib/clinic'
 
 interface Activity {
   id: string;
@@ -13,12 +15,15 @@ interface Activity {
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
-    const clinicId = searchParams.get('clinicId')
+    const cookieStore = cookies()
+    const ctx = await resolveClinicContext({ requestedClinicId: searchParams.get('clinicId'), cookieStore })
+    if ('error' in ctx) {
+      return NextResponse.json({ error: ctx.error.message }, { status: ctx.error.status })
+    }
+    const { clinicId } = ctx
     const limit = parseInt(searchParams.get('limit') || '10')
     
-    if (!clinicId) {
-      return NextResponse.json({ error: 'Clinic ID required' }, { status: 400 })
-    }
+    
 
     // Fetch recent activities from different tables
     const activities: Activity[] = []

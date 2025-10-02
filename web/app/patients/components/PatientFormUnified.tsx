@@ -29,6 +29,7 @@ export function PatientFormUnified({
   const [newCampaignName, setNewCampaignName] = useState('')
   const [newCampaignPlatform, setNewCampaignPlatform] = useState('')
   const [creatingCampaign, setCreatingCampaign] = useState(false)
+  const activeCampaigns = Array.isArray(campaigns) ? campaigns.filter((c: any) => c?.is_active) : []
   // Cambio de tipo de adquisición: limpia campos y muestra controles específicos
   const handleAcquisitionTypeChange = (value: string) => {
     setAcquisitionType(value)
@@ -38,7 +39,7 @@ export function PatientFormUnified({
     form.setValue('platform_id', '')
     // Activar modo creación si no hay campañas activas
     if (value === 'campaign') {
-      setCreateCampaignMode(campaigns.filter((c: any) => c.is_active).length === 0)
+      setCreateCampaignMode(activeCampaigns.length === 0)
     } else {
       setCreateCampaignMode(false)
     }
@@ -188,7 +189,7 @@ export function PatientFormUnified({
                   className="w-full mt-1 px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   <option value="">{t('select_campaign')}</option>
-                  {campaigns.filter((c: any) => c.is_active).map((c: any) => (
+                  {activeCampaigns.map((c: any) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
@@ -234,7 +235,7 @@ export function PatientFormUnified({
           )}
 
           {/* Opción de crear nueva campaña si no hay ninguna activa */}
-          {acquisitionType === 'campaign' && (createCampaignMode || campaigns.filter(c => c.is_active).length === 0) && (
+          {acquisitionType === 'campaign' && (createCampaignMode || activeCampaigns.length === 0) && (
             <div className="col-span-2 space-y-3 border rounded-md p-3">
               <p className="text-sm font-medium">{t('create_campaign_title')}</p>
               <div className="grid gap-3 sm:grid-cols-2">

@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { cookies } from 'next/headers'
+import { resolveClinicContext } from '@/lib/clinic'
 
 export async function GET(request: NextRequest) {
   try {
     const supabase = createClient()
-    
     const searchParams = request.nextUrl.searchParams
-    const clinicId = searchParams.get('clinicId')
+    const cookieStore = cookies()
+    const ctx = await resolveClinicContext({ requestedClinicId: searchParams.get('clinicId'), cookieStore })
+    if ('error' in ctx) {
+      return NextResponse.json({ error: ctx.error.message }, { status: ctx.error.status })
+    }
+    const { clinicId } = ctx
     const period = searchParams.get('period') || 'month'
     const dateFrom = searchParams.get('date_from')
     const dateTo = searchParams.get('date_to')

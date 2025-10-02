@@ -1,143 +1,241 @@
+
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { createServerClient } from '@supabase/ssr';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
-// POST /api/reset - Limpiar datos según el tipo
+async function deleteWorkspaceData(workspaceId: string) {
+  const { data: clinicRows, error: clinicQueryError } = await supabaseAdmin
+    .from('clinics')
+    .select('id')
+    .eq('workspace_id', workspaceId);
+
+  if (clinicQueryError) throw clinicQueryError;
+
+  const clinicIds = (clinicRows ?? []).map(row => row?.id).filter((id): id is string => Boolean(id));
+
+  if (clinicIds.length > 0) {
+    const deleteTables = [
+      { table: 'treatments', column: 'clinic_id' },
+      { table: 'patients', column: 'clinic_id' },
+      { table: 'expenses', column: 'clinic_id' },
+      { table: 'services', column: 'clinic_id' },
+      { table: 'supplies', column: 'clinic_id' },
+      { table: 'fixed_costs', column: 'clinic_id' },
+      { table: 'assets', column: 'clinic_id' },
+      { table: 'settings_time', column: 'clinic_id' },
+    ];
+
+    for (const { table, column } of deleteTables) {
+      const { error } = await supabaseAdmin
+        .from(table)
+        .delete()
+        .in(column, clinicIds);
+      if (error && error.code !== 'PGRST116') throw error;
+    }
+
+    const { error: categoriesError } = await supabaseAdmin
+      .from('categories')
+      .delete()
+      .in('clinic_id', clinicIds)
+      .eq('is_system', false);
+    if (categoriesError && categoriesError.code !== 'PGRST116') throw categoriesError;
+  }
+
+  const { error: clinicDeleteError } = await supabaseAdmin
+    .from('clinics')
+    .delete()
+    .eq('workspace_id', workspaceId);
+  if (clinicDeleteError && clinicDeleteError.code !== 'PGRST116') throw clinicDeleteError;
+
+  const { error: memberDeleteError } = await supabaseAdmin
+    .from('workspace_members')
+    .delete()
+    .eq('workspace_id', workspaceId);
+  if (memberDeleteError && memberDeleteError.code !== 'PGRST116') throw memberDeleteError;
+
+  const { error: workspaceDeleteError } = await supabaseAdmin
+    .from('workspaces')
+    .delete()
+    .eq('id', workspaceId);
+  if (workspaceDeleteError && workspaceDeleteError.code !== 'PGRST116') throw workspaceDeleteError;
+}
+
+async function resetUserMetadata(userId: string, metadata: Record<string, unknown>) {
+  try {
+    await supabaseAdmin.auth.admin.updateUserById(userId, {
+      user_metadata: metadata,
+    });
+  } catch (error) {
+    console.error('Failed to reset user metadata', error);
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const cookieStore = cookies();
-    // Create SSR client bound to cookies to identify current user
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
-          getAll() { return cookieStore.getAll(); },
+          getAll() {
+            return cookieStore.getAll();
+          },
           setAll(cookiesToSet) {
             cookiesToSet.forEach(({ name, value, options }) => {
               cookieStore.set(name, value, options);
             });
-          }
-        }
+          },
+        },
       }
     );
-    const { data: { user } } = await supabase.auth.getUser();
-    const workspaceId = cookieStore.get('workspaceId')?.value;
-    
-    // Si no hay workspace en cookies, buscar cualquier workspace activo
-    let activeWorkspaceId = workspaceId;
-    let clinicId: string | null = null;
-    
-    if (!activeWorkspaceId) {
-      const { data: workspaces } = await supabaseAdmin
-        .from('workspaces')
-        .select('id')
-        .limit(1)
-        .single();
-      
-      if (workspaces) {
-        activeWorkspaceId = workspaces.id;
-      }
-    }
-    
-    // Obtener la primera clínica del workspace
-    if (activeWorkspaceId) {
-      const { data: clinic } = await supabaseAdmin
-        .from('clinics')
-        .select('id')
-        .eq('workspace_id', activeWorkspaceId)
-        .limit(1)
-        .single();
-      
-      if (clinic) {
-        clinicId = clinic.id;
-      }
-    }
-    
-    if (!clinicId && !activeWorkspaceId) {
-      return NextResponse.json(
-        { error: 'No workspace or clinic found' },
-        { status: 400 }
-      );
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();
-    const { resetType } = body;
+    const resetType = body?.resetType as string | undefined;
 
     if (!resetType) {
-      return NextResponse.json(
-        { error: 'Reset type is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Reset type is required' }, { status: 400 });
     }
 
-    let result = { success: true, message: '' };
+    const workspaceCookie = cookieStore.get('workspaceId')?.value || null;
+
+    if (resetType === 'initial_setup') {
+      const workspaceIds = new Set<string>();
+      if (workspaceCookie) workspaceIds.add(workspaceCookie);
+
+      const { data: ownedWorkspaces, error: ownedError } = await supabaseAdmin
+        .from('workspaces')
+        .select('id')
+        .eq('owner_id', user.id);
+      if (ownedError) throw ownedError;
+      (ownedWorkspaces ?? []).forEach(ws => {
+        if (ws?.id) workspaceIds.add(ws.id);
+      });
+
+      const { data: memberWorkspaces, error: memberError } = await supabaseAdmin
+        .from('workspace_members')
+        .select('workspace_id')
+        .eq('user_id', user.id);
+      if (memberError) throw memberError;
+      (memberWorkspaces ?? []).forEach(row => {
+        if (row?.workspace_id) workspaceIds.add(row.workspace_id);
+      });
+
+      for (const wsId of workspaceIds) {
+        await deleteWorkspaceData(wsId);
+      }
+
+      await supabaseAdmin
+        .from('workspace_members')
+        .delete()
+        .eq('user_id', user.id);
+
+      const currentMetadata = { ...(user.user_metadata || {}) } as Record<string, unknown>;
+      currentMetadata.onboarding_completed = false;
+      delete currentMetadata.default_workspace_id;
+      delete currentMetadata.default_clinic_id;
+      await resetUserMetadata(user.id, currentMetadata);
+
+      const response = NextResponse.json({ success: true, message: 'Initial setup cancelled' });
+      response.cookies.set('workspaceId', '', { path: '/', maxAge: 0 });
+      response.cookies.set('clinicId', '', { path: '/', maxAge: 0 });
+      return response;
+    }
+
+    let activeWorkspaceId = workspaceCookie;
+    let clinicId: string | null = cookieStore.get('clinicId')?.value || null;
+
+    if (clinicId) {
+      const { data: clinicRow } = await supabaseAdmin
+        .from('clinics')
+        .select('workspace_id')
+        .eq('id', clinicId)
+        .limit(1)
+        .single();
+      if (clinicRow?.workspace_id) {
+        activeWorkspaceId = clinicRow.workspace_id;
+      }
+    }
+
+    if (!clinicId && activeWorkspaceId) {
+      const { data: firstClinic } = await supabaseAdmin
+        .from('clinics')
+        .select('id')
+        .eq('workspace_id', activeWorkspaceId)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .single();
+      if (firstClinic?.id) {
+        clinicId = firstClinic.id;
+      }
+    }
+
+    if (!clinicId) {
+      return NextResponse.json({ error: 'No clinic found for reset' }, { status: 400 });
+    }
+
+    let result: { success: boolean; message: string } = { success: true, message: '' };
 
     switch (resetType) {
-      case 'patients':
-        // Eliminar pacientes (los tratamientos se eliminan por CASCADE)
-        const { error: patientsError } = await supabaseAdmin
+      case 'patients': {
+        const { error } = await supabaseAdmin
           .from('patients')
           .delete()
           .eq('clinic_id', clinicId);
-        
-        if (patientsError) throw patientsError;
+        if (error) throw error;
         result.message = 'Pacientes eliminados';
         break;
-
-      case 'treatments':
-        // Eliminar solo tratamientos
-        const { error: treatmentsError } = await supabaseAdmin
+      }
+      case 'treatments': {
+        const { error } = await supabaseAdmin
           .from('treatments')
           .delete()
           .eq('clinic_id', clinicId);
-        
-        if (treatmentsError) throw treatmentsError;
+        if (error) throw error;
         result.message = 'Tratamientos eliminados';
         break;
-
-      case 'expenses':
-        // Eliminar gastos
-        const { error: expensesError } = await supabaseAdmin
+      }
+      case 'expenses': {
+        const { error } = await supabaseAdmin
           .from('expenses')
           .delete()
           .eq('clinic_id', clinicId);
-        
-        if (expensesError) throw expensesError;
+        if (error) throw error;
         result.message = 'Gastos eliminados';
         break;
-
-      case 'services':
-        // Eliminar servicios (las recetas se eliminan por CASCADE)
-        const { error: servicesError } = await supabaseAdmin
+      }
+      case 'services': {
+        const { error } = await supabaseAdmin
           .from('services')
           .delete()
           .eq('clinic_id', clinicId);
-        
-        if (servicesError) throw servicesError;
+        if (error) throw error;
         result.message = 'Servicios eliminados';
         break;
-
-      case 'supplies':
-        // Primero verificar si hay insumos en uso (service_supplies no tiene clinic_id)
-        // Buscar servicios de la clínica y luego verificar si alguno tiene receta
-        const { data: clinicServices, error: svcErr } = await supabaseAdmin
+      }
+      case 'supplies': {
+        const { data: clinicServices, error: serviceLookupError } = await supabaseAdmin
           .from('services')
           .select('id')
           .eq('clinic_id', clinicId);
-        if (svcErr) throw svcErr;
+        if (serviceLookupError) throw serviceLookupError;
 
         let usedSupplies: any[] | null = null;
         if ((clinicServices?.length || 0) > 0) {
-          const serviceIds = (clinicServices || []).map(s => s.id);
-          const { data: ssData, error: ssErr } = await supabaseAdmin
+          const serviceIds = (clinicServices || []).map(service => service.id);
+          const { data: ssRows, error: recipeError } = await supabaseAdmin
             .from('service_supplies')
             .select('supply_id')
             .in('service_id', serviceIds)
             .limit(1);
-          if (ssErr) throw ssErr;
-          usedSupplies = ssData || [];
+          if (recipeError) throw recipeError;
+          usedSupplies = ssRows || [];
         } else {
           usedSupplies = [];
         }
@@ -149,182 +247,80 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        const { error: suppliesError } = await supabaseAdmin
+        const { error } = await supabaseAdmin
           .from('supplies')
           .delete()
           .eq('clinic_id', clinicId);
-        
-        if (suppliesError) throw suppliesError;
+        if (error) throw error;
         result.message = 'Insumos eliminados';
         break;
-
-      case 'fixed_costs':
-        const { error: fixedCostsError } = await supabaseAdmin
+      }
+      case 'fixed_costs': {
+        const { error } = await supabaseAdmin
           .from('fixed_costs')
           .delete()
           .eq('clinic_id', clinicId);
-        
-        if (fixedCostsError) throw fixedCostsError;
+        if (error) throw error;
         result.message = 'Costos fijos eliminados';
         break;
-
-      case 'assets':
-        const { error: assetsError } = await supabaseAdmin
+      }
+      case 'assets': {
+        const { error } = await supabaseAdmin
           .from('assets')
           .delete()
           .eq('clinic_id', clinicId);
-        
-        if (assetsError) throw assetsError;
+        if (error) throw error;
         result.message = 'Activos eliminados';
         break;
-
-      case 'time_settings':
-        // Restablecer a valores por defecto
-        const { error: timeError } = await supabaseAdmin
+      }
+      case 'time_settings': {
+        const { error } = await supabaseAdmin
           .from('settings_time')
           .upsert({
             clinic_id: clinicId,
             working_days_per_month: 20,
             hours_per_day: 8,
             real_hours_percentage: 80,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
           });
-        
-        if (timeError) throw timeError;
+        if (error) throw error;
         result.message = 'Configuración de tiempo restablecida';
         break;
-
-      case 'custom_categories':
-        // Eliminar solo categorías personalizadas de la clínica
-        const { error: categoriesError } = await supabaseAdmin
+      }
+      case 'custom_categories': {
+        const { error } = await supabaseAdmin
           .from('categories')
           .delete()
           .eq('clinic_id', clinicId)
           .eq('is_system', false);
-        
-        if (categoriesError) throw categoriesError;
+        if (error) throw error;
         result.message = 'Categorías personalizadas eliminadas';
         break;
-
+      }
       case 'all_data': {
-        // Eliminar TODO de TODOS los workspaces del usuario autenticado
         if (!user) {
           return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Buscar todos los workspaces del propietario usando supabaseAdmin
-        const { data: userWorkspaces, error: wsErr } = await supabaseAdmin
+        const { data: userWorkspaces, error: workspaceQueryError } = await supabaseAdmin
           .from('workspaces')
           .select('id')
           .eq('owner_id', user.id);
+        if (workspaceQueryError) throw workspaceQueryError;
 
-        if (wsErr) throw wsErr;
-
-        const workspacesToDelete = userWorkspaces?.map(w => w.id) || [];
-
-        for (const wsId of workspacesToDelete) {
-          // Todas las clínicas del workspace
-          const { data: allClinics, error: clErr } = await supabaseAdmin
-            .from('clinics')
-            .select('id')
-            .eq('workspace_id', wsId);
-          if (clErr) throw clErr;
-
-          const clinicIds = allClinics?.map(c => c.id) || [];
-
-          if (clinicIds.length > 0) {
-            // Eliminar tratamientos primero (dependen de pacientes y servicios)
-            const { error: treatErr } = await supabaseAdmin
-              .from('treatments')
-              .delete()
-              .in('clinic_id', clinicIds);
-            if (treatErr) throw treatErr;
-
-            // Eliminar pacientes
-            const { error: patErr } = await supabaseAdmin
-              .from('patients')
-              .delete()
-              .in('clinic_id', clinicIds);
-            if (patErr) throw patErr;
-
-            // Eliminar gastos
-            const { error: expErr } = await supabaseAdmin
-              .from('expenses')
-              .delete()
-              .in('clinic_id', clinicIds);
-            if (expErr) throw expErr;
-
-            // Borrar servicios (elimina service_supplies por cascade)
-            const { error: e2 } = await supabaseAdmin
-              .from('services')
-              .delete()
-              .in('clinic_id', clinicIds);
-            if (e2) throw e2;
-
-            // Luego insumos
-            const { error: e3 } = await supabaseAdmin
-              .from('supplies')
-              .delete()
-              .in('clinic_id', clinicIds);
-            if (e3) throw e3;
-
-            // Costos fijos
-            const { error: e4 } = await supabaseAdmin
-              .from('fixed_costs')
-              .delete()
-              .in('clinic_id', clinicIds);
-            if (e4) throw e4;
-
-            // Activos
-            const { error: e5 } = await supabaseAdmin
-              .from('assets')
-              .delete()
-              .in('clinic_id', clinicIds);
-            if (e5) throw e5;
-
-            // Configuración de tiempo
-            const { error: e6 } = await supabaseAdmin
-              .from('settings_time')
-              .delete()
-              .in('clinic_id', clinicIds);
-            if (e6) throw e6;
-
-            // Eliminar categorías personalizadas
-            const { error: catErr } = await supabaseAdmin
-              .from('categories')
-              .delete()
-              .in('clinic_id', clinicIds)
-              .eq('is_system', false);
-            if (catErr) throw catErr;
+        for (const ws of userWorkspaces ?? []) {
+          if (ws?.id) {
+            await deleteWorkspaceData(ws.id);
           }
-
-          // 7. Eliminar clínicas del workspace
-          const { error: clDelErr } = await supabaseAdmin
-            .from('clinics')
-            .delete()
-            .eq('workspace_id', wsId);
-          if (clDelErr) throw clDelErr;
-
-          // 8. Eliminar el workspace (workspace_members cae por cascade)
-          const { error: wsDelErr } = await supabaseAdmin
-            .from('workspaces')
-            .delete()
-            .eq('id', wsId);
-          if (wsDelErr) throw wsDelErr;
         }
 
-        // Limpiar cookies de contexto en la respuesta
         const response = NextResponse.json({ success: true, message: 'Todos los datos eliminados exitosamente' });
         response.cookies.set('workspaceId', '', { path: '/', maxAge: 0 });
         response.cookies.set('clinicId', '', { path: '/', maxAge: 0 });
         return response;
       }
-
       default:
-        return NextResponse.json(
-          { error: 'Invalid reset type' },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: 'Invalid reset type' }, { status: 400 });
     }
 
     return NextResponse.json(result);
@@ -332,51 +328,44 @@ export async function POST(request: NextRequest) {
     console.error('Error in reset:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorDetails = error instanceof Error && 'details' in error ? (error as any).details : null;
-    
     return NextResponse.json(
-      { 
-        error: 'Failed to reset data', 
+      {
+        error: 'Failed to reset data',
         message: errorMessage,
         details: errorDetails,
-        // Include more debug info in development
-        ...(process.env.NODE_ENV === 'development' && { 
-          stack: error instanceof Error ? error.stack : null 
-        })
+        ...(process.env.NODE_ENV === 'development' && {
+          stack: error instanceof Error ? error.stack : null,
+        }),
       },
       { status: 500 }
     );
   }
 }
 
-// GET /api/reset/status - Verificar qué datos existen
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = cookies();
     const searchParams = request.nextUrl.searchParams;
-    const clinicId = searchParams.get('clinicId') || cookieStore.get('clinicId')?.value || undefined as any;
+    const clinicId = searchParams.get('clinicId') || cookieStore.get('clinicId')?.value || undefined;
 
     if (!clinicId) {
-      return NextResponse.json(
-        { error: 'No clinic selected' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'No clinic selected' }, { status: 400 });
     }
 
-    // Contar registros en cada tabla
     const [
       { count: servicesCount },
       { count: suppliesCount },
       { count: fixedCostsCount },
       { count: assetsCount },
       { data: timeSettings },
-      { count: customCategoriesCount }
+      { count: customCategoriesCount },
     ] = await Promise.all([
       supabaseAdmin.from('services').select('*', { count: 'exact', head: true }).eq('clinic_id', clinicId),
       supabaseAdmin.from('supplies').select('*', { count: 'exact', head: true }).eq('clinic_id', clinicId),
       supabaseAdmin.from('fixed_costs').select('*', { count: 'exact', head: true }).eq('clinic_id', clinicId),
       supabaseAdmin.from('assets').select('*', { count: 'exact', head: true }).eq('clinic_id', clinicId),
       supabaseAdmin.from('settings_time').select('*').eq('clinic_id', clinicId).single(),
-      supabaseAdmin.from('categories').select('*', { count: 'exact', head: true }).eq('clinic_id', clinicId).eq('is_system', false)
+      supabaseAdmin.from('categories').select('*', { count: 'exact', head: true }).eq('clinic_id', clinicId).eq('is_system', false),
     ]);
 
     return NextResponse.json({
@@ -386,13 +375,11 @@ export async function GET(request: NextRequest) {
       assets: assetsCount || 0,
       timeConfigured: !!timeSettings,
       customCategories: customCategoriesCount || 0,
-      hasData: (servicesCount || 0) + (suppliesCount || 0) + (fixedCostsCount || 0) + (assetsCount || 0) > 0
+      hasData: (servicesCount || 0) + (suppliesCount || 0) + (fixedCostsCount || 0) + (assetsCount || 0) > 0,
     });
   } catch (error) {
     console.error('Error checking status:', error);
-    return NextResponse.json(
-      { error: 'Failed to check status' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to check status' }, { status: 500 });
   }
 }
+

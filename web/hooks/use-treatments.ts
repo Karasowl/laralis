@@ -57,9 +57,9 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
   })
 
   // Use API hooks for related data
-  // Note: useApi unwraps {data} responses, so the generic should be Patient[]
-  const patientsApi = useApi<Patient[]>('/api/patients')
-  const servicesApi = useApi<Service[]>('/api/services')
+  // Algunos endpoints devuelven { data: [...] }. Normalizamos a arrays.
+  const patientsApi = useApi<any>('/api/patients')
+  const servicesApi = useApi<any>('/api/services')
   const timeSettingsApi = useApi<{ data: { fixed_per_minute_cents: number } }>('/api/settings/time')
 
   // Use parallel API for initial load
@@ -76,8 +76,14 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
   }, [autoLoad])
 
   // Calculate summary statistics using memoization
+  const uniqueTreatments = useMemo(() => {
+    const map = new Map<string, Treatment>();
+    (crud.items || []).forEach(item => { if (item?.id) map.set(item.id, item); });
+    return Array.from(map.values());
+  }, [crud.items]);
+
   const summary = useMemo(() => {
-    const treatments = crud.items || []
+    const treatments = uniqueTreatments || []
     const nonCancelled = treatments.filter(t => t.status !== 'cancelled')
     const completed = nonCancelled.filter(t => t.status === 'completed')
 
@@ -95,7 +101,7 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
       averagePrice,
       completionRate: totalTreatments > 0 ? (completedTreatments / totalTreatments) * 100 : 0
     }
-  }, [crud.items])
+  }, [uniqueTreatments])
 
   // Load all related data in parallel
   const loadRelatedData = useCallback(async () => {
@@ -115,10 +121,12 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
     const fpm = Number((timeSettingsApi.data as any)?.data?.fixed_per_minute_cents || 0)
 
     // Try to find service; if not present (e.g., created just now), refresh once
-    let selectedService = (servicesApi.data || []).find(s => s.id === data.service_id)
+    const listOnce = Array.isArray(servicesApi.data) ? servicesApi.data as Service[] : ((servicesApi.data as any)?.data ?? [])
+    let selectedService = listOnce.find((s: Service) => s.id === data.service_id)
     if (!selectedService) {
       await servicesApi.get()
-      selectedService = (servicesApi.data || []).find(s => s.id === data.service_id)
+      const listTwice = Array.isArray(servicesApi.data) ? servicesApi.data as Service[] : ((servicesApi.data as any)?.data ?? [])
+      selectedService = listTwice.find((s: Service) => s.id === data.service_id)
     }
 
     // Calculate snapshot costs with graceful fallback
@@ -162,8 +170,8 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
     data: any, 
     existingTreatment: Treatment
   ): Promise<boolean> => {
-    const services = servicesApi.data || []
-    const selectedService = services.find(s => s.id === (data.service_id || existingTreatment.service_id))
+    const services = Array.isArray(servicesApi.data) ? servicesApi.data as Service[] : ((servicesApi.data as any)?.data ?? [])
+    const selectedService = services.find((s: Service) => s.id === (data.service_id || existingTreatment.service_id))
     
     if (!selectedService) {
       return false
@@ -206,14 +214,18 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
 
   return {
     // From CRUD operations
-    treatments: crud.items,
+    treatments: uniqueTreatments,
     loading: crud.loading || patientsApi.loading || servicesApi.loading,
     isSubmitting: crud.isSubmitting,
     error: null,
     
     // Related data
-    patients: patientsApi.data || [],
-    services: servicesApi.data || [],
+    patients: Array.isArray(patientsApi.data)
+      ? (patientsApi.data as Patient[])
+      : ((patientsApi.data as any)?.data ?? []),
+    services: Array.isArray(servicesApi.data)
+      ? (servicesApi.data as Service[])
+      : ((servicesApi.data as any)?.data ?? []),
     timeSettings: timeSettingsApi.data?.data || { fixed_per_minute_cents: 0 },
     
     // Calculated data

@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { FormModal } from '@/components/ui/form-modal'
 import { FormSection, FormGrid, InputField, SelectField, TextareaField } from '@/components/ui/form-field'
+import { getLocalDateISO } from '@/lib/utils'
 import { Form } from '@/components/ui/form'
 import { ExpenseWithRelations, ExpenseFormData, EXPENSE_SUBCATEGORIES } from '@/lib/types/expenses'
 import { useCategories } from '@/hooks/use-categories'
@@ -52,7 +53,7 @@ export function EditExpenseModal({ expense, open, onClose, onSave, categories = 
       invoice_number: expense.invoice_number || '',
       is_recurring: expense.is_recurring || false
     } : {
-      expense_date: new Date().toISOString().split('T')[0],
+      expense_date: getLocalDateISO(),
       category: '',
       subcategory: '',
       description: '',

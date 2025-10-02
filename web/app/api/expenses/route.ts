@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { 
   expenseFormSchema, 
   type CreateExpenseRequest, 
@@ -138,7 +139,7 @@ export async function POST(request: NextRequest) {
     const amountCents = typeof amount_pesos === 'number' ? amount_pesos : expenseData.amount_cents
 
     // Create expense record
-    const { data: expense, error: expenseError } = await supabase
+    const { data: expense, error: expenseError } = await supabaseAdmin
       .from('expenses')
       .insert({
         ...expenseData,
@@ -152,7 +153,7 @@ export async function POST(request: NextRequest) {
 
     if (expenseError) {
       console.error('Error creating expense:', expenseError)
-      return NextResponse.json({ error: 'Failed to create expense' }, { status: 500 })
+      return NextResponse.json({ error: 'Failed to create expense', message: expenseError.message }, { status: 500 })
     }
 
     // Handle integrations
@@ -160,7 +161,7 @@ export async function POST(request: NextRequest) {
 
     // Integration 1: Create asset if requested (for equipment purchases)
     if (create_asset && asset_name && asset_useful_life_years) {
-      const { data: asset, error: assetError } = await supabase
+      const { data: asset, error: assetError } = await supabaseAdmin
         .from('assets')
         .insert({
           clinic_id: body.clinic_id,
@@ -175,7 +176,7 @@ export async function POST(request: NextRequest) {
 
       if (!assetError && asset) {
         // Update expense to link to created asset
-        const { data: linkedExpense } = await supabase
+        const { data: linkedExpense } = await supabaseAdmin
           .from('expenses')
           .update({
             related_asset_id: asset.id,
@@ -191,7 +192,7 @@ export async function POST(request: NextRequest) {
 
     // Integration 2: Update supply inventory if supply purchase
     if (expenseData.related_supply_id && expenseData.quantity) {
-      const { data: supply } = await supabase
+      const { data: supply } = await supabaseAdmin
         .from('supplies')
         .select('stock_quantity, portions_per_presentation')
         .eq('id', expenseData.related_supply_id)
@@ -203,7 +204,7 @@ export async function POST(request: NextRequest) {
         const totalPortions = expenseData.quantity * portionsPerPresentation
         
         // Update supply inventory
-        await supabase
+        await supabaseAdmin
           .from('supplies')
           .update({
             stock_quantity: (supply.stock_quantity || 0) + totalPortions,
@@ -213,7 +214,7 @@ export async function POST(request: NextRequest) {
           .eq('id', expenseData.related_supply_id)
 
         // Mark expense as auto-processed
-        const { data: linkedExpense } = await supabase
+        const { data: linkedExpense } = await supabaseAdmin
           .from('expenses')
           .update({ auto_processed: true })
           .eq('id', expense.id)

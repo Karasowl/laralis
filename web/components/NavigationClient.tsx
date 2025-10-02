@@ -25,7 +25,14 @@ export function NavigationClient() {
       >
         {t('nav.home')}
       </Link>
-      
+
+      <Link
+        href="/expenses"
+        className="text-foreground/60 hover:text-foreground transition-colors"
+      >
+        {t('nav.expenses')}
+      </Link>
+
       {/* Operaciones Diarias */}
       <DropdownMenu>
         <DropdownMenuTrigger className="flex items-center gap-1 text-foreground/60 hover:text-foreground transition-colors">
