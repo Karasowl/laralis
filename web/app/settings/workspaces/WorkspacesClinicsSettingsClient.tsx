@@ -175,7 +175,7 @@ export default function WorkspacesClinicsSettingsClient() {
           body: JSON.stringify(clinicForm)
         })
         if (!res.ok) {
-          const err = await res.json().catch(() => => ({} as any)))
+          const err = await res.json().catch(() => ({} as any))
           throw new Error(err?.message || err?.error || 'Failed to create clinic')
         }
         toast.success(tCommon('createSuccess', { entity: tSettings('clinics.entity', { defaultValue: 'Clinic' }) }))
