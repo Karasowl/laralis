@@ -35,6 +35,12 @@ interface StoredTariff {
   is_active: boolean
 }
 
+const normalizeList = <T,>(value: any): T[] => {
+  if (Array.isArray(value)) return value as T[]
+  if (value && Array.isArray((value as any).data)) return (value as any).data as T[]
+  return []
+}
+
 export function useTariffs(options: UseTariffsOptions = {}) {
   const { clinicId, defaultMargin = 30, defaultRoundTo = 10, autoLoad = true } = options
   const t = useTranslations()
@@ -54,12 +60,12 @@ export function useTariffs(options: UseTariffsOptions = {}) {
   )
   
   const storedTariffsByService = useMemo(() => {
-    const data = tariffsApi.data?.data || []
+    const data = normalizeList<StoredTariff>(tariffsApi.data)
     return new Map<string, StoredTariff>(data.map(row => [row.service_id, row]))
   }, [tariffsApi.data])
   
   const tariffs = useMemo((): TariffRow[] => {
-    const services = servicesApi.data?.data || []
+    const services = normalizeList<ServiceWithCost>(servicesApi.data)
     
     return services.map(service => {
       const stored = storedTariffsByService.get(service.id)
@@ -101,7 +107,12 @@ export function useTariffs(options: UseTariffsOptions = {}) {
       toast.error(t('settings.no_clinic_selected'))
       return
     }
-    
+
+    if (!tariffs.length) {
+      toast.error(t('tariffs.no_services_to_save'))
+      return
+    }
+
     try {
       const tariffData = tariffs.map(tariff => ({
         service_id: tariff.id,
@@ -124,7 +135,7 @@ export function useTariffs(options: UseTariffsOptions = {}) {
       }
       
       toast.success(t('tariffs.saved_successfully'))
-      await tariffsApi.refetch()
+      await tariffsApi.get()
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Error saving tariffs'
       toast.error(errorMsg)
@@ -134,8 +145,8 @@ export function useTariffs(options: UseTariffsOptions = {}) {
   
   const refreshTariffs = useCallback(async () => {
     await Promise.all([
-      servicesApi.refetch(),
-      tariffsApi.refetch()
+      servicesApi.get(),
+      tariffsApi.get()
     ])
   }, [servicesApi, tariffsApi])
   

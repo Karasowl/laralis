@@ -5,6 +5,29 @@ import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import type { Service, ServiceSupply, ApiResponse } from '@/lib/types';
 
+const normalizeSupplyList = (supplies?: Array<{ supply_id?: string; qty?: number | null; quantity?: number | null }>) => {
+  if (!Array.isArray(supplies)) return [] as Array<{ supply_id: string; qty: number }>
+
+  const merged = new Map<string, number>()
+
+  for (const item of supplies) {
+    if (!item) continue
+    const supplyId = typeof item.supply_id === 'string' && item.supply_id.trim().length > 0
+      ? item.supply_id.trim()
+      : null
+    if (!supplyId) continue
+
+    const rawQty = item.qty ?? item.quantity ?? 0
+    const qty = Number(rawQty)
+    if (!Number.isFinite(qty) || qty <= 0) continue
+
+    const current = merged.get(supplyId) || 0
+    merged.set(supplyId, current + Math.round(qty))
+  }
+
+  return Array.from(merged.entries()).map(([supply_id, qty]) => ({ supply_id, qty }))
+}
+
 interface RouteParams {
   params: {
     id: string;
@@ -153,9 +176,11 @@ export async function PUT(
         .delete()
         .eq('service_id', params.id);
 
+      const serviceSuppliesPayload = normalizeSupplyList(supplies)
+
       // Add new supplies if any
-      if (Array.isArray(supplies) && supplies.length > 0) {
-        const serviceSupplies = supplies.map((supply: any) => ({
+      if (serviceSuppliesPayload.length > 0) {
+        const serviceSupplies = serviceSuppliesPayload.map((supply: any) => ({
           service_id: params.id,
           supply_id: supply.supply_id,
           qty: supply.qty

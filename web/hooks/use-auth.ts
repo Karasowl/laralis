@@ -36,6 +36,18 @@ export function useAuth(): UseAuthReturn {
   const t = useTranslations('auth')
   const supabase = useMemo(() => createClient(), [])
 
+  const persistLocalePreference = useCallback((preferredLocale?: string | null) => {
+    if (!preferredLocale) return
+    try {
+      document.cookie = `locale=${preferredLocale}; path=/; max-age=${60 * 60 * 24 * 365}`
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('preferred-locale', preferredLocale)
+      }
+    } catch (error) {
+      console.error('[useAuth] Failed to persist locale', error)
+    }
+  }, [])
+
   const clearError = useCallback(() => {
     setError(null)
   }, [])
@@ -62,6 +74,21 @@ export function useAuth(): UseAuthReturn {
         return false
       }
 
+      const preferredLanguage = (data.user.user_metadata as Record<string, any> | null)?.preferred_language as string | undefined
+      if (preferredLanguage) {
+        persistLocalePreference(preferredLanguage)
+      } else if (typeof window !== 'undefined') {
+        const storedLocale = window.localStorage.getItem('preferred-locale')
+        if (storedLocale) {
+          persistLocalePreference(storedLocale)
+          try {
+            await supabase.auth.updateUser({ data: { preferred_language: storedLocale } })
+          } catch (error) {
+            console.error('[useAuth] Failed to sync stored locale to user metadata', error)
+          }
+        }
+      }
+
       toast.success(t('login_success'))
       
       // Refresh the router to update the session in middleware
@@ -82,7 +109,7 @@ export function useAuth(): UseAuthReturn {
     } finally {
       setLoading(false)
     }
-  }, [supabase, t, router])
+  }, [supabase, t, router, persistLocalePreference])
 
   const register = useCallback(async (credentials: RegisterCredentials): Promise<boolean> => {
     setLoading(true)
@@ -110,12 +137,26 @@ export function useAuth(): UseAuthReturn {
       }
 
       toast.success(t('register_success'))
-      
+
+      const cookieLocale = typeof document !== 'undefined'
+        ? document.cookie.split('; ').find(part => part.startsWith('locale='))?.split('=')[1]
+        : undefined
+
+      const preferredLanguage = cookieLocale || (data.user?.user_metadata as Record<string, any> | null)?.preferred_language
+      if (preferredLanguage) {
+        persistLocalePreference(preferredLanguage)
+        try {
+          await supabase.auth.updateUser({ data: { preferred_language: preferredLanguage } })
+        } catch (error) {
+          console.error('[useAuth] Failed to persist preferred language after registration', error)
+        }
+      }
+
       // Auto-login after registration
       if (data.user) {
         router.push('/onboarding')
       }
-      
+
       return true
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Registration failed'
@@ -125,7 +166,7 @@ export function useAuth(): UseAuthReturn {
     } finally {
       setLoading(false)
     }
-  }, [supabase, router, t])
+  }, [supabase, router, t, persistLocalePreference])
 
   const logout = useCallback(async () => {
     setLoading(true)
@@ -140,7 +181,7 @@ export function useAuth(): UseAuthReturn {
     } finally {
       setLoading(false)
     }
-  }, [supabase, router, t])
+  }, [supabase, router, t, persistLocalePreference])
 
   const resetPassword = useCallback(async (email: string): Promise<boolean> => {
     setLoading(true)

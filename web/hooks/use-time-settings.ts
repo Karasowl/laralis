@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useApi } from '@/hooks/use-api'
 // Local simple calc to avoid coupling and ensure hours are shown even if costs=0
 import { toast } from 'sonner'
@@ -38,6 +38,7 @@ export function useTimeSettings(options: UseTimeSettingsOptions = {}) {
   
   const [settings, setSettings] = useState<TimeSettings>({ work_days: 0, hours_per_day: 0, real_pct: 0 })
   const [hasRecord, setHasRecord] = useState(false)
+  const draftRef = useRef<TimeSettings>({ work_days: 0, hours_per_day: 0, real_pct: 0 })
   
   // Resolve clinicId robustly: prop -> cookie -> localStorage
   const resolvedClinicId = useMemo(() => {
@@ -116,12 +117,14 @@ export function useTimeSettings(options: UseTimeSettingsOptions = {}) {
   useEffect(() => {
     if (settingsApi.data?.data) {
       const apiSettings = settingsApi.data.data
-      try { console.log('[useTimeSettings] loaded from API', apiSettings) } catch {}
-      setSettings({
+      const nextSettings: TimeSettings = {
         work_days: apiSettings.work_days,
         hours_per_day: apiSettings.hours_per_day,
         real_pct: Math.round((apiSettings.real_pct || 0) * 100)
-      })
+      }
+      try { console.log('[useTimeSettings] loaded from API', apiSettings) } catch {}
+      setSettings(nextSettings)
+      draftRef.current = nextSettings
       setHasRecord(true)
     } else {
       setHasRecord(false)
@@ -130,37 +133,55 @@ export function useTimeSettings(options: UseTimeSettingsOptions = {}) {
   
   // Update settings locally
   const updateSettings = useCallback((newSettings: Partial<TimeSettings>) => {
-    setSettings(prev => ({ ...prev, ...newSettings }))
+    setSettings(prev => {
+      const next = { ...prev, ...newSettings }
+      draftRef.current = next
+      return next
+    })
   }, [])
   
   // Save settings to backend
-  const saveSettings = useCallback(async (): Promise<boolean> => {
+  const saveSettings = useCallback(async (payload?: Partial<TimeSettings>): Promise<boolean> => {
     const cid = resolvedClinicId
     if (!cid) {
       toast.error(t('settings.no_clinic_selected'))
       return false
     }
-    
+
+    const base = draftRef.current
+    const draft: TimeSettings = {
+      work_days: base.work_days,
+      hours_per_day: base.hours_per_day,
+      real_pct: base.real_pct
+    }
+
+    if (payload) {
+      if (typeof payload.work_days === 'number') draft.work_days = payload.work_days
+      if (typeof payload.hours_per_day === 'number') draft.hours_per_day = payload.hours_per_day
+      if (typeof payload.real_pct === 'number') draft.real_pct = payload.real_pct
+    }
+
     try {
       const response = await fetch('/api/settings/time', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          work_days: Number(settings.work_days) || 0,
-          hours_per_day: Number(settings.hours_per_day) || 0,
-          real_pct: Math.max(0, Number(settings.real_pct) || 0) / 100,
+          work_days: Number(draft.work_days) || 0,
+          hours_per_day: Number(draft.hours_per_day) || 0,
+          real_pct: Math.max(0, Number(draft.real_pct) || 0) / 100,
           clinic_id: cid
         })
       })
-      
+
       if (response.ok) {
         toast.success(t('settings.saved_successfully'))
+        draftRef.current = draft
         // Refresh settings after save
         await settingsApi.get()
         return true
       } else {
-        const payload = await response.json().catch(() => ({})) as { message?: string }
-        toast.error(payload?.message || t('settings.save_error'))
+        const errorPayload = await response.json().catch(() => ({})) as { message?: string }
+        toast.error(errorPayload?.message || t('settings.save_error'))
         return false
       }
     } catch (err) {
@@ -204,3 +225,4 @@ export function useTimeSettings(options: UseTimeSettingsOptions = {}) {
     refreshData
   }
 }
+

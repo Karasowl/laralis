@@ -86,6 +86,18 @@ export default function WorkspacesClinicsSettingsClient() {
   }, [tCommon, tSettings])
 
   useEffect(() => {
+    if (typeof window === 'undefined') return
+    const hash = window.location.hash.replace('#', '')
+    if (!hash) return
+    const el = document.getElementById(hash)
+    if (el) {
+      setTimeout(() => {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 0)
+    }
+  }, [])
+
+  useEffect(() => {
     const loadClinics = async () => {
       if (!selectedWorkspaceId) {
         setClinics([])
@@ -220,7 +232,7 @@ export default function WorkspacesClinicsSettingsClient() {
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-      <Card className="p-6 space-y-4">
+      <Card id="workspaces-section" className="p-6 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Building2 className="h-5 w-5 text-primary" />
@@ -255,7 +267,7 @@ export default function WorkspacesClinicsSettingsClient() {
         )}
       </Card>
 
-      <Card className="p-6 lg:col-span-2 space-y-4">
+      <Card id="clinics-section" className="p-6 lg:col-span-2 space-y-4">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-base font-semibold">

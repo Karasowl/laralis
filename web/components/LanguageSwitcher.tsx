@@ -1,9 +1,10 @@
 'use client';
 
-import { useLocale, useTranslations } from 'next-intl';
+import { useLocale } from 'next-intl';
 import { Button } from './ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Globe } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 
 const locales = [
   { code: 'en', name: 'English', short: 'EN' },
@@ -17,9 +18,24 @@ interface LanguageSwitcherProps {
 export function LanguageSwitcher({ compact = false }: LanguageSwitcherProps) {
   const locale = useLocale();
 
-  const handleLocaleChange = (newLocale: string) => {
-    document.cookie = `locale=${newLocale}; path=/; max-age=${60 * 60 * 24 * 365}`; // 1 year
-    window.location.reload();
+  const handleLocaleChange = async (newLocale: string) => {
+    if (newLocale === locale) return
+
+    try {
+      if (typeof window !== 'undefined') {
+        try {
+          window.localStorage.setItem('preferred-locale', newLocale)
+        } catch {}
+        document.cookie = `locale=${newLocale}; path=/; max-age=${60 * 60 * 24 * 365}`
+      }
+
+      const supabase = createClient()
+      await supabase.auth.updateUser({ data: { preferred_language: newLocale } })
+    } catch (error) {
+      console.error('[LanguageSwitcher] Failed to persist preferred language', error)
+    } finally {
+      window.location.reload()
+    }
   };
 
   const currentLocale = locales.find(l => l.code === locale) || locales[0];
