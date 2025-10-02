@@ -1,0 +1,47 @@
+{
+  "reports": {
+    "advanced": {
+      "noData": "No data available",
+      "revenuePredictions": {
+        "title": "Revenue Predictions",
+        "nextMonth": "Next month",
+        "nextQuarter": "Next quarter",
+        "yearEnd": "By year end",
+        "range": "Expected range"
+      },
+      "confidence": {
+        "high": "High confidence",
+        "medium": "Medium confidence",
+        "low": "Low confidence"
+      },
+      "services": {
+        "mostProfitable": "Most profitable services",
+        "growthOpportunities": "Growth opportunities",
+        "highPotential": "High potential",
+        "treatments": "treatments",
+        "potential": "potential",
+        "serviceId": "Service {id}"
+      },
+      "patients": {
+        "title": "Patients",
+        "lifetimeValue": "Lifetime value",
+        "retentionRate": "Retention rate",
+        "newPerMonth": "New per month",
+        "capacityUtilization": "Capacity utilization"
+      },
+      "alerts": {
+        "decliningServices": "Declining services",
+        "requiresAttention": "Requires attention",
+        "monthlyDecline": "Monthly decline"
+      },
+      "kpis": {
+        "title": "Key performance indicators",
+        "avgTreatmentValue": "Avg. treatment value",
+        "avgMargin": "Avg. margin",
+        "patientsPerDay": "Patients per day",
+        "treatmentsLast30": "Treatments (last 30d)"
+      }
+    }
+  }
+}
+

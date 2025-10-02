@@ -1,0 +1,175 @@
+{
+  "expenses": {
+    "entity": "gasto",
+    "title": "Gastos",
+    "subtitle": "Controla y analiza cada peso que sale de la clínica.",
+    "actions": {
+      "new": "Registrar gasto"
+    },
+    "summary": {
+      "totalSpentTitle": "Total gastado",
+      "totalSpentSubtitle": "{count, plural, one {# movimiento} other {# movimientos}} registrados",
+      "varianceTitle": "Variación vs. plan",
+      "varianceSubtitle": "{percentage}% de diferencia",
+      "recurringTitle": "Recurrentes",
+      "recurringSubtitle": "Marcados como recurrentes",
+      "autoProcessedTitle": "Auto procesados",
+      "autoProcessedSubtitle": "Actualizados automáticamente"
+    },
+    "filters": {
+      "title": "Filtros",
+      "category": "Categoría",
+      "categoryAll": "Todas las categorías",
+      "subcategory": "Subcategoría",
+      "subcategoryAll": "Todas las subcategorías",
+      "vendor": "Proveedor",
+      "vendorPlaceholder": "Buscar por proveedor",
+      "dateFrom": "Desde",
+      "dateTo": "Hasta",
+      "amountMin": "Monto mínimo",
+      "amountMax": "Monto máximo",
+      "recurring": "Recurrente",
+      "autoProcessed": "Auto procesado",
+      "any": "Cualquiera",
+      "yes": "Sí",
+      "no": "No",
+      "reset": "Limpiar filtros",
+      "refresh": "Actualizar"
+    },
+    "table": {
+      "title": "Historial de gastos",
+      "date": "Fecha",
+      "category": "Categoría",
+      "description": "Descripción",
+      "noDescription": "Sin descripción",
+      "amount": "Monto",
+      "recurring": "Recurrente",
+      "recurringYes": "Recurrente",
+      "recurringNo": "No",
+      "autoProcessed": "Auto procesado",
+      "autoProcessedYes": "Automático",
+      "autoProcessedNo": "Manual",
+      "searchPlaceholder": "Buscar descripciones",
+      "emptyTitle": "Aún no hay gastos",
+      "emptyDescription": "Registra tu primer gasto para verlo aquí."
+    },
+    "form": {
+      "createTitle": "Registrar gasto",
+      "editTitle": "Editar gasto",
+      "sections": {
+        "basic": "Información básica",
+        "classification": "Clasificación",
+        "inventory": "Inventario",
+        "asset": "Crear activo"
+      },
+      "fields": {
+        "date": "Fecha del gasto",
+        "amount": "Monto (MXN)",
+        "description": "Concepto",
+        "descriptionPlaceholder": "Insumos, renta, servicios...",
+        "vendor": "Proveedor",
+        "vendorPlaceholder": "Proveedor o beneficiario",
+        "invoice": "Número de factura",
+        "notes": "Notas internas",
+        "category": "Categoría",
+        "subcategory": "Subcategoría",
+        "isRecurring": "Repetir cada periodo",
+        "relatedSupply": "Actualizar inventario de",
+        "relatedSupplyNone": "No actualizar inventario",
+        "quantity": "Cantidad adquirida",
+        "createAsset": "Crear un activo con esta compra",
+        "assetName": "Nombre del activo",
+        "assetLife": "Vida útil (años)"
+      },
+      "submit": {
+        "create": "Guardar gasto",
+        "update": "Actualizar gasto"
+      }
+    },
+    "alerts": {
+      "title": "Alertas",
+      "empty": "Sin alertas en este periodo.",
+      "budgetTitle": "Variación de presupuesto",
+      "budgetPlanned": "Planificado",
+      "budgetActual": "Real",
+      "budgetVariance": "Diferencia",
+      "lowStockTitle": "Insumos con stock bajo",
+      "lowStockIndicator": "{current} en inventario · mínimo {minimum}",
+      "priceChangesTitle": "Cambios importantes de precio",
+      "priceChangeUp": "+{value}% vs compra anterior",
+      "priceChangeDown": "-{value}% vs compra anterior",
+      "summaryTitle": "{total} alertas · {high} altas · {medium} medias · {low} bajas",
+      "severity": {
+        "high": "Alta",
+        "medium": "Media",
+        "low": "Baja"
+      }
+    },
+    "charts": {
+      "byCategory": {
+        "title": "Gasto por categoría",
+        "empty": "No hay datos en este rango.",
+        "transactions": "{count, plural, one {# movimiento} other {# movimientos}}"
+      },
+      "byMonth": {
+        "title": "Gasto mensual",
+        "empty": "Registra gastos para ver la tendencia.",
+        "transactions": "{count, plural, one {# movimiento} other {# movimientos}}"
+      }
+    },
+    "modals": {
+      "delete": {
+        "title": "Eliminar gasto",
+        "description": "Se eliminará permanentemente \"{description}\"."
+      }
+    },
+    "messages": {
+      "noClinic": "Selecciona una clínica antes de registrar gastos.",
+      "createSuccess": "Gasto guardado correctamente.",
+      "createError": "No se pudo guardar el gasto.",
+      "updateSuccess": "Gasto actualizado correctamente.",
+      "updateError": "No se pudo actualizar el gasto.",
+      "deleteSuccess": "Gasto eliminado.",
+      "deleteError": "No se pudo eliminar el gasto."
+    },
+    "categories": {
+      "equipos": "Equipos",
+      "insumos": "Insumos",
+      "servicios": "Servicios",
+      "mantenimiento": "Mantenimiento",
+      "marketing": "Marketing",
+      "administrativos": "Administrativos",
+      "personal": "Personal",
+      "otros": "Otros",
+      "unknown": "Categoría desconocida"
+    },
+    "subcategories": {
+      "dental": "Dental",
+      "mobiliario": "Mobiliario",
+      "tecnologia": "Tecnología",
+      "herramientas": "Herramientas",
+      "anestesia": "Anestesia",
+      "materiales": "Materiales",
+      "limpieza": "Limpieza",
+      "proteccion": "Protección",
+      "electricidad": "Electricidad",
+      "agua": "Agua",
+      "internet": "Internet",
+      "telefono": "Teléfono",
+      "gas": "Gas",
+      "equipos_mant": "Mantenimiento de equipos",
+      "instalaciones": "Instalaciones",
+      "software": "Software",
+      "publicidad": "Publicidad",
+      "promociones": "Promociones",
+      "eventos": "Eventos",
+      "papeleria": "Papelería",
+      "contabilidad": "Contabilidad",
+      "legal": "Legal",
+      "nomina": "Nómina",
+      "beneficios": "Beneficios",
+      "capacitacion": "Capacitación",
+      "unknown": "Subcategoría desconocida"
+    }
+  }
+}

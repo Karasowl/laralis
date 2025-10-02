@@ -10,10 +10,13 @@ interface IntlProviderProps {
 }
 
 export function IntlProvider({ messages, locale, children }: IntlProviderProps) {
+  // Default timezone to avoid next-intl warnings and provide consistent formatting
+  const timeZone = 'America/Mexico_City';
   return (
     <NextIntlClientProvider
       messages={messages}
       locale={locale}
+      timeZone={timeZone}
       onError={(error) => {
         try {
           // @ts-ignore next-intl error shape

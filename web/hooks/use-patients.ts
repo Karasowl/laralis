@@ -21,6 +21,16 @@ interface UsePatientsOptions {
   autoLoad?: boolean
 }
 
+function ensureArray<T>(value: unknown): T[] {
+  if (Array.isArray(value)) {
+    return value as T[];
+  }
+  if (value && typeof value === 'object' && Array.isArray((value as any).data)) {
+    return ((value as any).data) as T[];
+  }
+  return [];
+}
+
 export function usePatients(options: UsePatientsOptions = {}) {
   const { clinicId, autoLoad = true } = options
   
@@ -93,15 +103,15 @@ export function usePatients(options: UsePatientsOptions = {}) {
   return {
     // From CRUD operations
     patients: crud.items,
-    loading: crud.loading || sourcesApi.loading || campaignsApi.loading,
+    loading: crud.loading || sourcesApi.loading || campaignsApi.loading || platformsApi.loading,
     error: null,
     searchTerm: crud.searchTerm,
     setSearchTerm: crud.setSearchTerm,
     
     // From API hooks
-    patientSources: sourcesApi.data || [],
-    campaigns: campaignsApi.data || [],
-    platforms: platformsApi.data || [],
+    patientSources: ensureArray<PatientSource>(sourcesApi.data),
+    campaigns: ensureArray<Campaign>(campaignsApi.data),
+    platforms: ensureArray<any>(platformsApi.data),
     
     // Patient operations
     fetchPatients: crud.fetchItems,

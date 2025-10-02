@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { zSupply } from '@/lib/zod';
 import type { Supply, ApiResponse } from '@/lib/types';
 import { cookies } from 'next/headers';
-import { getClinicIdOrDefault } from '@/lib/clinic';
+import { resolveClinicContext } from '@/lib/clinic';
 
 export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<Supply[]>>> {
   try {
@@ -14,14 +14,11 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
     const search = searchParams.get('search');
     
     const cookieStore = cookies();
-    const clinicId = searchParams.get('clinicId') || await getClinicIdOrDefault(cookieStore);
-
-    if (!clinicId) {
-      return NextResponse.json(
-        { error: 'No clinic context available' },
-        { status: 400 }
-      );
+    const clinicContext = await resolveClinicContext({ requestedClinicId: searchParams.get('clinicId'), cookieStore });
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
+    const { clinicId } = clinicContext;
 
     let query = supabaseAdmin
       .from('supplies')
@@ -74,15 +71,11 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     const body = await request.json();
 
     const cookieStore = cookies();
-
-    const clinicId = body.clinic_id || await getClinicIdOrDefault(cookieStore);
-
-    if (!clinicId) {
-      return NextResponse.json(
-        { error: 'No clinic context available' },
-        { status: 400 }
-      );
+    const clinicContext = await resolveClinicContext({ requestedClinicId: body?.clinic_id, cookieStore });
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
+    const { clinicId } = clinicContext;
     
     // Si viene con price_pesos, convertir a cents
     let dataToValidate = { ...body };

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
-import { getClinicIdOrDefault } from '@/lib/clinic';
+import { resolveClinicContext } from '@/lib/clinic';
 import { z } from 'zod';
 
 const patientSourceSchema = z.object({
@@ -16,7 +16,11 @@ export async function GET(request: NextRequest) {
   try {
     const cookieStore = cookies();
     const searchParams = request.nextUrl.searchParams;
-    const clinicId = searchParams.get('clinicId') || await getClinicIdOrDefault(cookieStore);
+    const clinicContext = await resolveClinicContext({ requestedClinicId: searchParams.get('clinicId'), cookieStore });
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
+    }
+    const { clinicId } = clinicContext;
     const activeOnly = searchParams.get('active') === 'true';
 
     if (!clinicId) {
@@ -61,7 +65,11 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const cookieStore = cookies();
-    const clinicId = await getClinicIdOrDefault(cookieStore);
+    const clinicContext = await resolveClinicContext({ requestedClinicId: body?.clinic_id, cookieStore });
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
+    }
+    const { clinicId } = clinicContext;
 
     if (!clinicId) {
       return NextResponse.json(

@@ -50,7 +50,6 @@ const MobileModalContent = React.forwardRef<
   }
   React.useEffect(() => {
     openedAtRef.current = Date.now()
-    try { console.log('[MobileModal] Content mounted v2') } catch {}
   }, [])
 
   const guardEarlyOutside = (e: any) => {

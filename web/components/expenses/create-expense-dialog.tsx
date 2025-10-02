@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { FormModal } from '@/components/ui/form-modal'
 import { Button } from '@/components/ui/button'
+import { getLocalDateISO } from '@/lib/utils'
 import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { 
@@ -41,7 +42,7 @@ export default function CreateExpenseDialog() {
   const form = useForm<ExpenseFormData>({
     resolver: zodResolver(expenseFormSchema),
     defaultValues: {
-      expense_date: new Date().toISOString().split('T')[0],
+      expense_date: getLocalDateISO(),
       category: '',
       subcategory: '',
       description: '',

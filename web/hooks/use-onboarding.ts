@@ -173,7 +173,8 @@ export function useOnboarding() {
           })
         })
         if (!response.ok) throw new Error('Failed to create workspace/clinic')
-        // Persist cookies for clinic/workspace so validators target the new context
+        // Persist cookies/localStorage for clinic/workspace para que las siguientes
+        // pantallas (setup) tengan contexto inmediatamente
         try {
           const js = await response.json()
           const wsId = js?.workspace?.id
@@ -181,8 +182,19 @@ export function useOnboarding() {
           const maxAge = 60 * 60 * 24 * 30
           if (wsId) document.cookie = `workspaceId=${wsId}; path=/; max-age=${maxAge}`
           if (clinicId) document.cookie = `clinicId=${clinicId}; path=/; max-age=${maxAge}`
+          try {
+            if (wsId) localStorage.setItem('selectedWorkspaceId', wsId)
+            if (clinicId) localStorage.setItem('selectedClinicId', clinicId)
+            if (data.workspaceName) localStorage.setItem('selectedWorkspaceName', String(data.workspaceName))
+            if (data.clinicName) localStorage.setItem('selectedClinicName', String(data.clinicName))
+          } catch {}
         } catch {}
         setCreated(true)
+        // A partir de aquí ya queremos llevar al usuario a la pantalla
+        // de Configuración Inicial de página completa (con barra lateral),
+        // no continuar el flujo en modal.
+        router.push('/setup')
+        return
       } catch (e) {
         toast.error(t('errors.genericDescription'))
         setLoading(false)
@@ -191,7 +203,8 @@ export function useOnboarding() {
         setLoading(false)
       }
     }
-    // For requirement steps, validate async before proceeding
+    // Para los pasos de requisitos, si por alguna razón seguimos en el
+    // onboarding modal (p. ej. sin recarga), validamos antes de avanzar.
     if (!(await validateStepAsync())) return
     if (currentStep < steps.length - 1) {
       setCurrentStep(prev => prev + 1)

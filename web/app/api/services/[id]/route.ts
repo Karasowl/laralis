@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { zService } from '@/lib/zod';
 import { cookies } from 'next/headers';
-import { getClinicIdOrDefault } from '@/lib/clinic';
+import { resolveClinicContext } from '@/lib/clinic';
 import type { Service, ServiceSupply, ApiResponse } from '@/lib/types';
 
 interface RouteParams {
@@ -17,14 +17,11 @@ export async function GET(
 ): Promise<NextResponse<ApiResponse<Service & { supplies?: ServiceSupply[] }>>> {
   try {
     const cookieStore = cookies();
-    const clinicId = await getClinicIdOrDefault(cookieStore);
-
-    if (!clinicId) {
-      return NextResponse.json(
-        { error: 'No clinic context available' },
-        { status: 400 }
-      );
+    const clinicContext = await resolveClinicContext({ cookieStore });
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
+    const { clinicId } = clinicContext;
 
     // Get service with its supplies
     const { data: service, error: serviceError } = await supabaseAdmin
@@ -81,14 +78,11 @@ export async function PUT(
   try {
     const body = await request.json();
     const cookieStore = cookies();
-    const clinicId = await getClinicIdOrDefault(cookieStore);
-
-    if (!clinicId) {
-      return NextResponse.json(
-        { error: 'No clinic context available' },
-        { status: 400 }
-      );
+    const clinicContext = await resolveClinicContext({ requestedClinicId: body?.clinic_id, cookieStore });
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
+    const { clinicId } = clinicContext;
     
     // Extract supplies if provided
     const { supplies, ...serviceData } = body;
@@ -197,14 +191,11 @@ export async function DELETE(
 ): Promise<NextResponse<ApiResponse<null>>> {
   try {
     const cookieStore = cookies();
-    const clinicId = await getClinicIdOrDefault(cookieStore);
-
-    if (!clinicId) {
-      return NextResponse.json(
-        { error: 'No clinic context available' },
-        { status: 400 }
-      );
+    const clinicContext = await resolveClinicContext({ cookieStore });
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
+    const { clinicId } = clinicContext;
 
     // Soft delete - marcar como inactivo; si la columna no existe, borrar duro
     let result = await supabaseAdmin

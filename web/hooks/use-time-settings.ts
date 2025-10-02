@@ -39,20 +39,36 @@ export function useTimeSettings(options: UseTimeSettingsOptions = {}) {
   const [settings, setSettings] = useState<TimeSettings>({ work_days: 0, hours_per_day: 0, real_pct: 0 })
   const [hasRecord, setHasRecord] = useState(false)
   
+  // Resolve clinicId robustly: prop -> cookie -> localStorage
+  const resolvedClinicId = useMemo(() => {
+    if (clinicId) return clinicId
+    try {
+      if (typeof document !== 'undefined') {
+        const m = document.cookie.match(/(?:^|; )clinicId=([^;]+)/)
+        if (m) return decodeURIComponent(m[1])
+      }
+      if (typeof localStorage !== 'undefined') {
+        const ls = localStorage.getItem('selectedClinicId')
+        if (ls) return ls
+      }
+    } catch {}
+    return undefined
+  }, [clinicId])
+
   // Use API hooks for fetching related data
   const settingsApi = useApi<{ data: TimeSettings }>(
-    clinicId ? `/api/settings/time?clinicId=${clinicId}` : null,
-    { autoFetch: autoLoad && !!clinicId }
+    resolvedClinicId ? `/api/settings/time?clinicId=${resolvedClinicId}` : null,
+    { autoFetch: autoLoad && !!resolvedClinicId }
   )
   
   const fixedCostsApi = useApi<{ data: any[] }>(
-    clinicId ? `/api/fixed-costs?clinicId=${clinicId}` : null,
-    { autoFetch: autoLoad && !!clinicId }
+    resolvedClinicId ? `/api/fixed-costs?clinicId=${resolvedClinicId}` : null,
+    { autoFetch: autoLoad && !!resolvedClinicId }
   )
   
   const assetsApi = useApi<{ data: { monthly_depreciation_cents: number } }>(
-    clinicId ? `/api/assets/summary?clinicId=${clinicId}` : null,
-    { autoFetch: autoLoad && !!clinicId }
+    resolvedClinicId ? `/api/assets/summary?clinicId=${resolvedClinicId}` : null,
+    { autoFetch: autoLoad && !!resolvedClinicId }
   )
   
   // Extract data from API responses
@@ -119,7 +135,8 @@ export function useTimeSettings(options: UseTimeSettingsOptions = {}) {
   
   // Save settings to backend
   const saveSettings = useCallback(async (): Promise<boolean> => {
-    if (!clinicId) {
+    const cid = resolvedClinicId
+    if (!cid) {
       toast.error(t('settings.no_clinic_selected'))
       return false
     }
@@ -132,7 +149,7 @@ export function useTimeSettings(options: UseTimeSettingsOptions = {}) {
           work_days: Number(settings.work_days) || 0,
           hours_per_day: Number(settings.hours_per_day) || 0,
           real_pct: Math.max(0, Number(settings.real_pct) || 0) / 100,
-          clinic_id: clinicId
+          clinic_id: cid
         })
       })
       
@@ -151,7 +168,7 @@ export function useTimeSettings(options: UseTimeSettingsOptions = {}) {
       toast.error(errorMsg)
       return false
     }
-  }, [clinicId, settings, t, settingsApi])
+  }, [resolvedClinicId, settings, t, settingsApi])
   
   // Refresh all data
   const refreshData = useCallback(async () => {

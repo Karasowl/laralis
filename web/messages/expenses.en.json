@@ -1,0 +1,175 @@
+{
+  "expenses": {
+    "entity": "expense",
+    "title": "Expenses",
+    "subtitle": "Track and analyse every peso spent across your clinics.",
+    "actions": {
+      "new": "New expense"
+    },
+    "summary": {
+      "totalSpentTitle": "Total spent",
+      "totalSpentSubtitle": "{count, plural, one {# entry} other {# entries}} recorded",
+      "varianceTitle": "Variance vs plan",
+      "varianceSubtitle": "{percentage}% difference",
+      "recurringTitle": "Recurring",
+      "recurringSubtitle": "Marked as recurring",
+      "autoProcessedTitle": "Auto processed",
+      "autoProcessedSubtitle": "Updated automatically"
+    },
+    "filters": {
+      "title": "Filters",
+      "category": "Category",
+      "categoryAll": "All categories",
+      "subcategory": "Subcategory",
+      "subcategoryAll": "All subcategories",
+      "vendor": "Vendor",
+      "vendorPlaceholder": "Search by vendor",
+      "dateFrom": "From",
+      "dateTo": "To",
+      "amountMin": "Min amount",
+      "amountMax": "Max amount",
+      "recurring": "Recurring",
+      "autoProcessed": "Auto processed",
+      "any": "Any",
+      "yes": "Yes",
+      "no": "No",
+      "reset": "Clear filters",
+      "refresh": "Refresh"
+    },
+    "table": {
+      "title": "Expense log",
+      "date": "Date",
+      "category": "Category",
+      "description": "Description",
+      "noDescription": "No description",
+      "amount": "Amount",
+      "recurring": "Recurring",
+      "recurringYes": "Recurring",
+      "recurringNo": "No",
+      "autoProcessed": "Auto processed",
+      "autoProcessedYes": "Automated",
+      "autoProcessedNo": "Manual",
+      "searchPlaceholder": "Search descriptions",
+      "emptyTitle": "No expenses yet",
+      "emptyDescription": "Start by registering your first expense to see it here."
+    },
+    "form": {
+      "createTitle": "Register expense",
+      "editTitle": "Edit expense",
+      "sections": {
+        "basic": "Basic information",
+        "classification": "Classification",
+        "inventory": "Inventory",
+        "asset": "Create asset"
+      },
+      "fields": {
+        "date": "Expense date",
+        "amount": "Amount (MXN)",
+        "description": "Concept",
+        "descriptionPlaceholder": "Consumables, rent, utilities...",
+        "vendor": "Vendor",
+        "vendorPlaceholder": "Supplier or payee",
+        "invoice": "Invoice number",
+        "notes": "Internal notes",
+        "category": "Category",
+        "subcategory": "Subcategory",
+        "isRecurring": "Repeat every period",
+        "relatedSupply": "Update inventory for",
+        "relatedSupplyNone": "Do not update inventory",
+        "quantity": "Quantity purchased",
+        "createAsset": "Create a new asset from this purchase",
+        "assetName": "Asset name",
+        "assetLife": "Useful life (years)"
+      },
+      "submit": {
+        "create": "Save expense",
+        "update": "Update expense"
+      }
+    },
+    "alerts": {
+      "title": "Alerts",
+      "empty": "No alerts for this period.",
+      "budgetTitle": "Budget variance",
+      "budgetPlanned": "Planned",
+      "budgetActual": "Actual",
+      "budgetVariance": "Variance",
+      "lowStockTitle": "Supplies at low stock",
+      "lowStockIndicator": "{current} in stock · minimum {minimum}",
+      "priceChangesTitle": "Significant price changes",
+      "priceChangeUp": "+{value}% vs previous purchase",
+      "priceChangeDown": "-{value}% vs previous purchase",
+      "summaryTitle": "{total} alerts · {high} high · {medium} medium · {low} low",
+      "severity": {
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low"
+      }
+    },
+    "charts": {
+      "byCategory": {
+        "title": "Spend by category",
+        "empty": "No data for this range.",
+        "transactions": "{count, plural, one {# transaction} other {# transactions}}"
+      },
+      "byMonth": {
+        "title": "Monthly spend",
+        "empty": "Add expenses to see the trend.",
+        "transactions": "{count, plural, one {# movement} other {# movements}}"
+      }
+    },
+    "modals": {
+      "delete": {
+        "title": "Delete expense",
+        "description": "This will permanently delete \"{description}\"."
+      }
+    },
+    "messages": {
+      "noClinic": "Select a clinic before registering expenses.",
+      "createSuccess": "{entity, select, expense {Expense saved successfully} other {Saved successfully}}",
+      "createError": "Could not save the expense.",
+      "updateSuccess": "Expense updated successfully.",
+      "updateError": "Could not update the expense.",
+      "deleteSuccess": "Expense deleted.",
+      "deleteError": "Could not delete the expense."
+    },
+    "categories": {
+      "equipos": "Equipment",
+      "insumos": "Supplies",
+      "servicios": "Services",
+      "mantenimiento": "Maintenance",
+      "marketing": "Marketing",
+      "administrativos": "Administrative",
+      "personal": "Staff",
+      "otros": "Other",
+      "unknown": "Unknown category"
+    },
+    "subcategories": {
+      "dental": "Dental",
+      "mobiliario": "Furniture",
+      "tecnologia": "Technology",
+      "herramientas": "Tools",
+      "anestesia": "Anesthesia",
+      "materiales": "Materials",
+      "limpieza": "Cleaning",
+      "proteccion": "Protection",
+      "electricidad": "Electricity",
+      "agua": "Water",
+      "internet": "Internet",
+      "telefono": "Telephone",
+      "gas": "Gas",
+      "equipos_mant": "Equipment maintenance",
+      "instalaciones": "Facilities",
+      "software": "Software",
+      "publicidad": "Advertising",
+      "promociones": "Promotions",
+      "eventos": "Events",
+      "papeleria": "Office supplies",
+      "contabilidad": "Accounting",
+      "legal": "Legal",
+      "nomina": "Payroll",
+      "beneficios": "Benefits",
+      "capacitacion": "Training",
+      "unknown": "Unknown subcategory"
+    }
+  }
+}

@@ -59,9 +59,6 @@ export function FormModal({
   className,
   modal = true,
 }: FormModalProps) {
-  React.useEffect(() => {
-    try { console.log('[FormModal] loaded v2 - modal:', modal) } catch {}
-  }, [modal])
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (onSubmit) {

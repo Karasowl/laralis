@@ -1,22 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
-import { getClinicIdOrDefault } from '@/lib/clinic';
+import { resolveClinicContext } from '@/lib/clinic';
 import { createClient } from '@/lib/supabase/server';
+import { z } from 'zod';
+
+const treatmentSchema = z.object({
+  clinic_id: z.string().optional(),
+  patient_id: z.string().min(1, 'Patient is required'),
+  service_id: z.string().min(1, 'Service is required'),
+  treatment_date: z.string().optional(),
+  minutes: z.coerce.number().int().positive('Minutes must be positive').optional(),
+  duration_minutes: z.coerce.number().int().positive('Minutes must be positive').optional(),
+  fixed_per_minute_cents: z.coerce.number().int().nonnegative().optional(),
+  fixed_cost_per_minute_cents: z.coerce.number().int().nonnegative().optional(),
+  variable_cost_cents: z.coerce.number().int().nonnegative().optional(),
+  margin_pct: z.coerce.number().min(0).max(100).optional(),
+  price_cents: z.coerce.number().int().nonnegative().optional(),
+  status: z.enum(['pending', 'completed', 'cancelled', 'scheduled', 'in_progress']).optional(),
+  notes: z.string().optional(),
+  snapshot_costs: z.record(z.any()).optional(),
+});
 
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = cookies();
-
     const searchParams = request.nextUrl.searchParams;
-    const clinicId = searchParams.get('clinicId') || await getClinicIdOrDefault(cookieStore);
-
-    if (!clinicId) {
-      return NextResponse.json(
-        { error: 'No clinic context available' },
-        { status: 400 }
-      );
+    const clinicContext = await resolveClinicContext({ requestedClinicId: searchParams.get('clinicId'), cookieStore });
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
+    const { clinicId } = clinicContext;
 
     const patientId = searchParams.get('patient_id') || searchParams.get('patient');
 
@@ -65,19 +79,28 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const cookieStore = cookies();
-    const clinicId = await getClinicIdOrDefault(cookieStore);
-
-    if (!clinicId) {
+    const rawBody = await request.json();
+    const parsed = treatmentSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      const message = parsed.error.errors.map(err => err.message).join(', ');
       return NextResponse.json(
-        { error: 'No clinic context available' },
+        {
+          error: 'Validation failed',
+          message,
+        },
         { status: 400 }
       );
     }
+    const payloadBody = parsed.data;
+    const cookieStore = cookies();
+    const clinicContext = await resolveClinicContext({ requestedClinicId: rawBody?.clinic_id, cookieStore });
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
+    }
+    const { clinicId } = clinicContext;
 
     // Validate required fields
-    if (!body.patient_id || !body.service_id) {
+    if (!payloadBody.patient_id || !payloadBody.service_id) {
       return NextResponse.json(
         { error: 'Patient and service are required' },
         { status: 400 }
@@ -115,7 +138,7 @@ export async function POST(request: NextRequest) {
       }
 
       // 2) Service must have a recipe (or at least variable cost derivable)
-      const serviceId = body.service_id;
+      const serviceId = payloadBody.service_id;
       if (!serviceId) {
         return NextResponse.json({ error: 'validation_error', message: 'Service is required' }, { status: 400 });
       }
@@ -132,9 +155,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate pricing snapshot presence
-    const minutesVal = Number(body.minutes || 0);
-    const priceVal = Number(body.price_cents || 0);
-    const marginVal = Number(body.margin_pct ?? 60);
+    const minutesVal = Number(
+      (payloadBody.duration_minutes ?? payloadBody.minutes) || 0
+    );
+    const priceVal = Number(payloadBody.price_cents ?? 0);
+    const marginVal = Number(payloadBody.margin_pct ?? 60);
     if (!minutesVal || minutesVal <= 0) {
       return NextResponse.json({ error: 'precondition_failed', message: 'Minutes must be greater than zero.' }, { status: 412 });
     }
@@ -142,7 +167,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'precondition_failed', message: 'Margin percentage must be between 0 and 100.' }, { status: 412 });
     }
     // If status is completed, require a positive price snapshot
-    const normalizedStatus = (body.status === 'pending' ? 'scheduled' : body.status) || 'scheduled';
+    const normalizedStatus = (() => {
+      const status = payloadBody.status;
+      if (!status) return 'scheduled';
+      return status === 'pending' ? 'scheduled' : status;
+    })();
     if (normalizedStatus === 'completed' && (!priceVal || priceVal <= 0)) {
       return NextResponse.json({ error: 'precondition_failed', message: 'Tariff/price is required to complete a treatment.' }, { status: 412 });
     }
@@ -150,17 +179,18 @@ export async function POST(request: NextRequest) {
     // Map UI payload to DB column names and allowed values
     const treatmentData = {
       clinic_id: clinicId,
-      patient_id: body.patient_id,
-      service_id: body.service_id,
-      treatment_date: body.treatment_date || new Date().toISOString().split('T')[0],
+      patient_id: payloadBody.patient_id,
+      service_id: payloadBody.service_id,
+      treatment_date: payloadBody.treatment_date || new Date().toISOString().split('T')[0],
       duration_minutes: minutesVal || 30,
-      fixed_cost_per_minute_cents: body.fixed_per_minute_cents || 0,
-      variable_cost_cents: body.variable_cost_cents || 0,
+      fixed_cost_per_minute_cents:
+        payloadBody.fixed_cost_per_minute_cents ?? payloadBody.fixed_per_minute_cents ?? 0,
+      variable_cost_cents: payloadBody.variable_cost_cents ?? 0,
       margin_pct: marginVal || 60,
       price_cents: priceVal || 0,
       status: normalizedStatus,
-      notes: body.notes || null,
-      snapshot_costs: body.snapshot_costs || {}
+      notes: payloadBody.notes?.trim() ? payloadBody.notes.trim() : null,
+      snapshot_costs: payloadBody.snapshot_costs || {}
     } as const;
 
     // Dynamic insert tolerant to schema variations:

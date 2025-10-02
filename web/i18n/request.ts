@@ -46,6 +46,18 @@ export default getRequestConfig(async () => {
     }
   }
 
+  // Merge section-specific bundles if present (e.g., tariffs.es.json, reports.es.json)
+  for (const sectionName of ['tariffs', 'reports', 'expenses']) {
+    try {
+      const section = (await import(`../messages/${sectionName}.${locale}.json`)).default as Record<string, any>;
+      if (section && typeof section === 'object') {
+        messages = deepMerge(messages, section);
+      }
+    } catch (_e) {
+      // optional bundle; ignore if missing
+    }
+  }
+
   return {
     locale,
     messages,

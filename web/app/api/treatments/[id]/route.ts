@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
-import { getClinicIdOrDefault } from '@/lib/clinic';
+import { resolveClinicContext } from '@/lib/clinic';
 
 interface RouteParams {
   params: { id: string };
@@ -14,11 +14,11 @@ export async function PUT(
   try {
     const body = await request.json();
     const cookieStore = cookies();
-    const clinicId = await getClinicIdOrDefault(cookieStore);
-
-    if (!clinicId) {
-      return NextResponse.json({ error: 'No clinic context available' }, { status: 400 });
+    const clinicContext = await resolveClinicContext({ requestedClinicId: body?.clinic_id, cookieStore });
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
+    const { clinicId } = clinicContext;
 
     // En edición protegemos snapshot: no permitimos cambiar service_id salvo que se indique
     if (typeof body.service_id === 'string' && body._allow_service_change !== true) {
@@ -131,11 +131,11 @@ export async function DELETE(
 ) {
   try {
     const cookieStore = cookies();
-    const clinicId = await getClinicIdOrDefault(cookieStore);
-
-    if (!clinicId) {
-      return NextResponse.json({ error: 'No clinic context available' }, { status: 400 });
+    const clinicContext = await resolveClinicContext({ cookieStore });
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
+    const { clinicId } = clinicContext;
 
     const { error } = await supabaseAdmin
       .from('treatments')

@@ -17,6 +17,7 @@ import { useWorkspace } from '@/contexts/workspace-context'
 import { usePatients } from '@/hooks/use-patients' 
 import { useTreatments } from '@/hooks/use-treatments'
 import { formatDate, formatCurrency } from '@/lib/format' 
+import { getLocalDateISO } from '@/lib/utils' 
 import { zPatientForm, ZPatientForm } from '@/lib/zod'
 import { Patient } from '@/lib/types'
 import { Users, Phone, Mail, Calendar, MapPin, Plus, User, Eye, MessageCircle, FileText } from 'lucide-react'
@@ -30,6 +31,7 @@ export default function PatientsPage() {
   const tCommon = useTranslations('common')
   const tg = useTranslations()
   const tEntities = useTranslations('entities')
+  const todayIso = getLocalDateISO()
   const { currentClinic } = useWorkspace()
   const {
     patients,
@@ -110,8 +112,8 @@ export default function PatientsPage() {
     last_name: '',
     email: '',
     phone: '',
-    birth_date: '',
-    first_visit_date: '',
+    birth_date: todayIso,
+    first_visit_date: todayIso,
     gender: '',
     address: '',
     city: '',

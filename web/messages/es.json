@@ -489,7 +489,12 @@
       "creating": "Creando...",
       "start": "Comenzar",
       "cancel": "Cancelar",
-      "cancelled": "Has cancelado el proceso de configuración"
+      "cancelled": "Has cancelado el proceso de configuración",
+      "logout": "Cerrar sesión",
+      "cancelConfirmTitle": "Cancelar configuración",
+      "cancelConfirmDescription": "¿Deseas eliminar el espacio de trabajo y la clínica creados?",
+      "cancelConfirmConfirm": "Sí, eliminar",
+      "cancelConfirmCancel": "No, continuar"
     },
     "errors": {
       "requiredTitle": "Campo requerido",

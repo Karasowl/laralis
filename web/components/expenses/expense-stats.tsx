@@ -11,7 +11,7 @@ import { TrendingUp, TrendingDown, DollarSign, Receipt, Target, AlertTriangle } 
 import { formatMoney } from '@/lib/money'
 import { type ExpenseStats } from '@/lib/types/expenses'
 import { useCurrentClinic } from '@/hooks/use-current-clinic'
-import { cn } from '@/lib/utils'
+import { cn, getLocalDateISO } from '@/lib/utils'
 
 interface ExpenseStatsProps {
   detailed?: boolean
@@ -25,8 +25,8 @@ export default function ExpenseStats({ detailed = false }: ExpenseStatsProps) {
   const [stats, setStats] = useState<ExpenseStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [dateRange, setDateRange] = useState({
-    start_date: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
-    end_date: new Date().toISOString().split('T')[0]
+    start_date: getLocalDateISO(new Date(new Date().getFullYear(), new Date().getMonth(), 1)),
+    end_date: getLocalDateISO()
   })
 
   const fetchStats = async () => {

@@ -3,9 +3,23 @@
 import Link from 'next/link'
 import { useWorkspace } from '@/contexts/workspace-context'
 import { cn } from '@/lib/utils'
+import { useEffect, useState } from 'react'
 
 export function ContextIndicator({ className, compact = false }: { className?: string; compact?: boolean }) {
   const { workspace, currentClinic } = useWorkspace()
+  const [fallback, setFallback] = useState<{ ws?: string; clinic?: string }>({})
+
+  useEffect(() => {
+    if (workspace?.name && currentClinic?.name) return
+    try {
+      const ws = localStorage.getItem('selectedWorkspaceName') || undefined
+      const clinic = localStorage.getItem('selectedClinicName') || undefined
+      setFallback({ ws, clinic })
+    } catch {}
+  }, [workspace?.name, currentClinic?.name])
+
+  const wsName = workspace?.name || fallback.ws || '-'
+  const clinicName = currentClinic?.name || fallback.clinic || '-'
 
   return (
     <div className={cn('flex items-center gap-2', className)}>
@@ -19,7 +33,7 @@ export function ContextIndicator({ className, compact = false }: { className?: s
           )}
           title="Workspace"
         >
-          {workspace?.name || '—'}
+          {wsName}
         </span>
       </Link>
       <Link href="/settings/workspaces" className="no-underline">
@@ -32,7 +46,7 @@ export function ContextIndicator({ className, compact = false }: { className?: s
           )}
           title="Clinic"
         >
-          {currentClinic?.name || '—'}
+          {clinicName}
         </span>
       </Link>
     </div>

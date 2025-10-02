@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { zFixedCost } from '@/lib/zod';
 import type { FixedCost, ApiResponse } from '@/lib/types';
 import { cookies } from 'next/headers';
-import { getClinicIdOrDefault } from '@/lib/clinic';
+import { resolveClinicContext } from '@/lib/clinic';
 
 interface RouteParams {
   params: {
@@ -11,20 +11,26 @@ interface RouteParams {
   };
 }
 
+async function getClinicContextFromCookies() {
+  const cookieStore = cookies();
+  const clinicContext = await resolveClinicContext({ cookieStore });
+  if ('error' in clinicContext) {
+    return clinicContext;
+  }
+  return { clinicId: clinicContext.clinicId };
+}
+
 export async function GET(
-  request: NextRequest, 
+  request: NextRequest,
   { params }: RouteParams
 ): Promise<NextResponse<ApiResponse<FixedCost>>> {
   try {
-    const cookieStore = cookies();
-    const clinicId = await getClinicIdOrDefault(cookieStore);
-
-    if (!clinicId) {
-      return NextResponse.json(
-        { error: 'No clinic context available' },
-        { status: 400 }
-      );
+    const clinicContext = await getClinicContextFromCookies();
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
+
+    const { clinicId } = clinicContext;
 
     const { data, error } = await supabaseAdmin
       .from('fixed_costs')
@@ -40,7 +46,7 @@ export async function GET(
           { status: 404 }
         );
       }
-      
+
       console.error('Error fetching fixed cost:', error);
       return NextResponse.json(
         { error: 'Failed to fetch fixed cost', message: error.message },
@@ -59,31 +65,26 @@ export async function GET(
 }
 
 export async function PUT(
-  request: NextRequest, 
+  request: NextRequest,
   { params }: RouteParams
 ): Promise<NextResponse<ApiResponse<FixedCost>>> {
   try {
     const body = await request.json();
     const cookieStore = cookies();
-    const clinicId = await getClinicIdOrDefault(cookieStore);
+    const clinicContext = await resolveClinicContext({ cookieStore });
 
-    if (!clinicId) {
-      return NextResponse.json(
-        { error: 'No clinic context available' },
-        { status: 400 }
-      );
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
-    
-    // Add clinic_id to body for validation
-    const dataWithClinic = { ...body, clinic_id: clinicId };
-    
-    // Validate request body
-    const validationResult = zFixedCost.safeParse(dataWithClinic);
+
+    const { clinicId } = clinicContext;
+
+    const validationResult = zFixedCost.safeParse({ ...body, clinic_id: clinicId });
     if (!validationResult.success) {
       return NextResponse.json(
-        { 
-          error: 'Validation failed', 
-          message: validationResult.error.errors.map(e => e.message).join(', ')
+        {
+          error: 'Validation failed',
+          message: validationResult.error.errors.map(e => e.message).join(', '),
         },
         { status: 400 }
       );
@@ -106,7 +107,7 @@ export async function PUT(
           { status: 404 }
         );
       }
-      
+
       console.error('Error updating fixed cost:', error);
       return NextResponse.json(
         { error: 'Failed to update fixed cost', message: error.message },
@@ -114,11 +115,10 @@ export async function PUT(
       );
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       data,
-      message: 'Fixed cost updated successfully'
+      message: 'Fixed cost updated successfully',
     });
-
   } catch (error) {
     console.error('Unexpected error in PUT /api/fixed-costs/[id]:', error);
     return NextResponse.json(
@@ -129,19 +129,16 @@ export async function PUT(
 }
 
 export async function DELETE(
-  request: NextRequest, 
+  request: NextRequest,
   { params }: RouteParams
 ): Promise<NextResponse<ApiResponse<null>>> {
   try {
-    const cookieStore = cookies();
-    const clinicId = await getClinicIdOrDefault(cookieStore);
-
-    if (!clinicId) {
-      return NextResponse.json(
-        { error: 'No clinic context available' },
-        { status: 400 }
-      );
+    const clinicContext = await getClinicContextFromCookies();
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
+
+    const { clinicId } = clinicContext;
 
     const { error } = await supabaseAdmin
       .from('fixed_costs')
@@ -157,11 +154,10 @@ export async function DELETE(
       );
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       data: null,
-      message: 'Fixed cost deleted successfully'
+      message: 'Fixed cost deleted successfully',
     });
-
   } catch (error) {
     console.error('Unexpected error in DELETE /api/fixed-costs/[id]:', error);
     return NextResponse.json(

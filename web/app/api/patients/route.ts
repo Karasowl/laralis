@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
-import { getClinicIdOrDefault } from '@/lib/clinic';
-import { createClient } from '@/lib/supabase/server';
+import { resolveClinicContext } from '@/lib/clinic';
 import { z } from 'zod';
 
 const patientSchema = z.object({
@@ -20,30 +19,25 @@ const patientSchema = z.object({
   source_id: z.string().optional().nullable(),
   referred_by_patient_id: z.string().optional().nullable(),
   campaign_id: z.string().optional().nullable(),
-  acquisition_date: z.string().optional().nullable()
+  acquisition_date: z.string().optional().nullable(),
 });
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
-    
-    // ✅ Validar usuario autenticado
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const cookieStore = await cookies();
+    const cookieStore = cookies();
     const searchParams = request.nextUrl.searchParams;
-    const clinicId = searchParams.get('clinicId') || await getClinicIdOrDefault(cookieStore);
-    const search = searchParams.get('search');
 
-    if (!clinicId) {
-      return NextResponse.json(
-        { error: 'No clinic context available' },
-        { status: 400 }
-      );
+    const clinicContext = await resolveClinicContext({
+      requestedClinicId: searchParams.get('clinicId'),
+      cookieStore,
+    });
+
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
+
+    const { clinicId } = clinicContext;
+    const search = searchParams.get('search');
 
     let query = supabaseAdmin
       .from('patients')
@@ -51,7 +45,6 @@ export async function GET(request: NextRequest) {
       .eq('clinic_id', clinicId)
       .order('created_at', { ascending: false });
 
-    // Add search filter if provided
     if (search) {
       query = query.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,email.ilike.%${search}%`);
     }
@@ -79,29 +72,19 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    console.log('POST /api/patients - Body received:', body);
-    
-    const supabase = createClient();
-    
-    // ✅ Validar usuario autenticado
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const cookieStore = cookies();
+
+    const clinicContext = await resolveClinicContext({
+      requestedClinicId: body?.clinic_id,
+      cookieStore,
+    });
+
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
 
-    const cookieStore = await cookies();
-    const clinicId = await getClinicIdOrDefault(cookieStore);
-    console.log('POST /api/patients - Clinic ID:', clinicId);
+    const { clinicId } = clinicContext;
 
-    if (!clinicId) {
-      return NextResponse.json(
-        { error: 'No clinic context available' },
-        { status: 400 }
-      );
-    }
-
-    // Clean empty strings from body
-    // IMPORTANT: Don't set email to null if empty, leave it undefined to avoid unique constraint issues
     const cleanedBody = {
       first_name: body.first_name,
       last_name: body.last_name,
@@ -117,22 +100,20 @@ export async function POST(request: NextRequest) {
       ...(body.source_id && { source_id: body.source_id }),
       ...(body.referred_by_patient_id && { referred_by_patient_id: body.referred_by_patient_id }),
       ...(body.campaign_id && { campaign_id: body.campaign_id }),
-      // Si no viene acquisition_date, usar first_visit_date como respaldo
       ...(
         (body.acquisition_date || body.first_visit_date)
           ? { acquisition_date: (body.acquisition_date || body.first_visit_date) }
           : {}
-      )
+      ),
     };
 
-    // Validate request body
     const validationResult = patientSchema.safeParse(cleanedBody);
     if (!validationResult.success) {
       console.error('Validation errors:', validationResult.error.errors);
       return NextResponse.json(
-        { 
-          error: 'Validation failed', 
-          message: validationResult.error.errors.map(e => e.message).join(', ')
+        {
+          error: 'Validation failed',
+          message: validationResult.error.errors.map(e => e.message).join(', '),
         },
         { status: 400 }
       );
@@ -153,27 +134,26 @@ export async function POST(request: NextRequest) {
       console.error('Error creating patient - Full error:', JSON.stringify(error, null, 2));
       console.error('Error message:', error.message);
       console.error('Patient data attempted:', patientData);
-      
-      // Check for duplicate email error
+
       if (error.code === '23505' && error.message.includes('patients_clinic_id_email_key')) {
         return NextResponse.json(
-          { 
-            error: 'Email duplicado', 
-            message: 'Ya existe un paciente registrado con este email en esta clínica. Puedes dejar el email vacío o usar uno diferente.' 
+          {
+            error: 'Email duplicado',
+            message: 'Ya existe un paciente registrado con este email en esta clinica. Puedes dejar el email vacío o usar uno diferente.',
           },
           { status: 400 }
         );
       }
-      
+
       return NextResponse.json(
         { error: 'Failed to create patient', message: error.message },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       data,
-      message: 'Patient created successfully'
+      message: 'Patient created successfully',
     });
   } catch (error) {
     console.error('Unexpected error in POST /api/patients:', error);

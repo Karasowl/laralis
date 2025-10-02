@@ -21,6 +21,7 @@ import { useRequirementsGuard } from '@/lib/requirements/useGuard'
 import { toast } from 'sonner'
 import { useTreatments } from '@/hooks/use-treatments'
 import { formatCurrency } from '@/lib/money'
+import { getLocalDateISO } from '@/lib/utils'
 import { formatDate } from '@/lib/format'
 import { Calendar, User, DollarSign, FileText, Activity, Clock, Plus } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -79,7 +80,7 @@ export default function TreatmentsPage() {
   const treatmentInitialValues: TreatmentFormData = {
     patient_id: '',
     service_id: '',
-    treatment_date: new Date().toISOString().split('T')[0],
+    treatment_date: getLocalDateISO(),
     minutes: 30,
     margin_pct: 60,
     status: 'pending',
@@ -230,7 +231,7 @@ export default function TreatmentsPage() {
               form.reset({
                 patient_id: treatment?.patient_id || '',
                 service_id: treatment?.service_id || '',
-                treatment_date: treatment?.treatment_date || new Date().toISOString().split('T')[0],
+                treatment_date: treatment?.treatment_date || getLocalDateISO(),
                 minutes: treatment?.minutes ?? 30,
                 margin_pct: treatment?.margin_pct ?? 60,
                 status: treatment?.status || 'pending',

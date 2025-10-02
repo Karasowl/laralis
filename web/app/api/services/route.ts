@@ -1,8 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
-import { getClinicIdOrDefault } from '@/lib/clinic';
+import { resolveClinicContext } from '@/lib/clinic';
+import { z } from 'zod';
 // import { createSupabaseClient } from '@/lib/supabase';
+
+const serviceSupplySchema = z.object({
+  supply_id: z.string().min(1, 'supply_id is required'),
+  qty: z.coerce.number().int().positive('qty must be positive').optional(),
+  quantity: z.coerce.number().int().positive('quantity must be positive').optional(),
+});
+
+const serviceSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required'),
+  category: z.string().trim().min(1).optional().default('otros'),
+  est_minutes: z.coerce.number().int().positive('est_minutes must be positive'),
+  description: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) => (value && value.length > 0 ? value : null)),
+  supplies: z.array(serviceSupplySchema).optional(),
+});
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,14 +29,11 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     
     const cookieStore = cookies();
-    const clinicId = searchParams.get('clinicId') || await getClinicIdOrDefault(cookieStore);
-
-    if (!clinicId) {
-      return NextResponse.json(
-        { error: 'No clinic context available' },
-        { status: 400 }
-      );
+    const clinicContext = await resolveClinicContext({ requestedClinicId: searchParams.get('clinicId'), cookieStore });
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
+    const { clinicId } = clinicContext;
 
     // Get services with their supplies relationship
     // Using explicit relationship hint to avoid ambiguity
@@ -88,38 +104,28 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const rawBody = await request.json();
+    const parseResult = serviceSchema.safeParse(rawBody);
 
-    const cookieStore = cookies();
-    // Use clinic context without requiring explicit auth here (wizard flow)
-    const clinicId = body.clinic_id || await getClinicIdOrDefault(cookieStore);
-
-    if (!clinicId) {
+    if (!parseResult.success) {
+      const message = parseResult.error.errors.map((err) => err.message).join(', ');
       return NextResponse.json(
-        { error: 'No clinic context available' },
-        { status: 400 }
-      );
-    }
-    
-    // Extract supplies if provided
-    const { supplies, ...serviceDataInput } = body;
-    
-    // Add clinic_id to body for validation
-    const dataWithClinic = { ...serviceDataInput, clinic_id: clinicId };
-    
-    // Extract the fields we need
-    const { name, category = 'otros', est_minutes, description } = body;
-    
-    // Validate required fields (category is optional with default)
-    if (!name || !est_minutes) {
-      return NextResponse.json(
-        { 
-          error: 'Validation failed', 
-          message: 'Name and est_minutes are required'
+        {
+          error: 'Validation failed',
+          message,
         },
         { status: 400 }
       );
     }
+
+    const cookieStore = cookies();
+    const clinicContext = await resolveClinicContext({ requestedClinicId: rawBody?.clinic_id, cookieStore });
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
+    }
+    const { clinicId } = clinicContext;
+    
+    const { supplies, name, category, est_minutes, description } = parseResult.data;
 
     // Calculate initial price (can be updated later in tariffs)
     // For now, use a default calculation based on time and a standard margin
@@ -136,7 +142,7 @@ export async function POST(request: NextRequest) {
         name,
         category,
         est_minutes,
-        description: description || null,
+        description: description ?? null,
         price_cents: price_cents,
         is_active: true
       })
@@ -152,11 +158,11 @@ export async function POST(request: NextRequest) {
     }
 
     // If supplies are provided, add them to the service
-    if (supplies && Array.isArray(supplies) && supplies.length > 0) {
-      const serviceSupplies = supplies.map((supply: any) => ({
+    if (supplies && supplies.length > 0) {
+      const serviceSupplies = supplies.map((supply) => ({
         service_id: serviceData.id,
         supply_id: supply.supply_id,
-        qty: supply.qty || supply.quantity || 1
+        qty: supply.qty ?? supply.quantity ?? 1
       }));
 
       const { error: suppliesError } = await supabaseAdmin

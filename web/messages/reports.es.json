@@ -1,0 +1,47 @@
+{
+  "reports": {
+    "advanced": {
+      "noData": "Sin datos disponibles",
+      "revenuePredictions": {
+        "title": "Predicciones de ingresos",
+        "nextMonth": "Próximo mes",
+        "nextQuarter": "Próximo trimestre",
+        "yearEnd": "Al cierre del año",
+        "range": "Rango esperado"
+      },
+      "confidence": {
+        "high": "Alta confianza",
+        "medium": "Confianza media",
+        "low": "Baja confianza"
+      },
+      "services": {
+        "mostProfitable": "Servicios más rentables",
+        "growthOpportunities": "Oportunidades de crecimiento",
+        "highPotential": "Alto potencial",
+        "treatments": "tratamientos",
+        "potential": "potencial",
+        "serviceId": "Servicio {id}"
+      },
+      "patients": {
+        "title": "Pacientes",
+        "lifetimeValue": "Valor de vida",
+        "retentionRate": "Tasa de retención",
+        "newPerMonth": "Nuevos por mes",
+        "capacityUtilization": "Uso de capacidad"
+      },
+      "alerts": {
+        "decliningServices": "Servicios en declive",
+        "requiresAttention": "Requiere atención",
+        "monthlyDecline": "Caída mensual"
+      },
+      "kpis": {
+        "title": "Indicadores clave",
+        "avgTreatmentValue": "Valor prom. por tratamiento",
+        "avgMargin": "Margen promedio",
+        "patientsPerDay": "Pacientes por día",
+        "treatmentsLast30": "Tratamientos (últimos 30d)"
+      }
+    }
+  }
+}
+

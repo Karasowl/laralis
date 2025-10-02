@@ -65,6 +65,11 @@ export default function TimeSettingsPage() {
 
   // Handlers
   const handleUpdateSettings = async (data: z.infer<typeof timeSettingsSchema>) => {
+    if (!currentClinic?.id) {
+      // Avoid race: if clinic context not ready yet, prevent submit
+      try { (await import('sonner')).toast.error(t('settings.no_clinic_selected')) } catch {}
+      return
+    }
     updateSettings(data)
     
     setSaving(true)
