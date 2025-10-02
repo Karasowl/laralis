@@ -301,7 +301,7 @@ export async function POST(request: NextRequest) {
           .eq('clinic_id', clinicId)
           .eq('is_system', false);
         if (error) throw error;
-        result.message = 'Categorías personalizadas eliminadas';
+        result.message = 'Categorias personalizadas eliminadas';
         break;
       }
       case 'all_data': {
