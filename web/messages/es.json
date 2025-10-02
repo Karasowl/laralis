@@ -69,7 +69,7 @@
     "srClose": "Cerrar"
   },
   "navigation": {
-    "dashboard": "Dashboard",
+    "dashboard": "Inicio",
     "patients": "Pacientes",
     "treatments": "Tratamientos",
     "operations": "Operaciones",
@@ -82,12 +82,12 @@
     "logout": "Cerrar Sesión",
     "equilibrium": "Punto de Equilibrio",
     "assets": "Activos",
-    "fixedCosts": "Costos Fijos",
+    "fixedCosts": "Costos fijos",
     "tariffs": "Tarifas",
     "time": "Tiempo",
-    "marketing": "Marketing",
+    "marketing": "Mercadotecnia",
     "clinics": "Clínicas",
-    "workspaces": "Espacios de Trabajo",
+    "workspaces": "Espacios de trabajo",
     "setup": "Configuración inicial",
     "finance": "Finanzas",
     "fixed_costs": "Costos Fijos",
@@ -182,7 +182,7 @@
       "signInLink": "Inicia sesión aquí",
       "terms": "Al crear una cuenta, aceptas nuestros Términos de Servicio y Política de Privacidad"
     },
-    "register_success": "Cuenta creada exitosamente",
+    "register_success": "Cuenta creada. Revisa tu correo, enviamos un codigo de verificacion",
     "logout_success": "Sesión cerrada exitosamente",
     "reset_email_sent": "Correo de recuperación enviado",
     "forgotPassword": {
@@ -721,7 +721,8 @@
     "totalServices": "Total de Servicios",
     "averageMargin": "Margen Promedio",
     "minPrice": "Precio Mín",
-    "maxPrice": "Precio Máx"
+    "maxPrice": "Precio Máx",
+    "no_services_to_save": "No hay servicios disponibles para tarificar."
   },
   "services": {
     "title": "Servicios",

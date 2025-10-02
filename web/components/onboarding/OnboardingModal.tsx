@@ -79,6 +79,47 @@ export function OnboardingModal({
       requestCancellation()
     }
   }
+  const leftButton = isFirstStep ? (
+    <Button
+      type="button"
+      variant="outline"
+      onClick={requestCancellation}
+      className="w-full sm:w-auto"
+    >
+      {t('actions.logout')}
+    </Button>
+  ) : (
+    <Button
+      type="button"
+      variant="outline"
+      onClick={onPrevious}
+      className="w-full sm:w-auto"
+    >
+      <ChevronLeft className="h-4 w-4 mr-2" />
+      {t('actions.prev')}
+    </Button>
+  )
+
+  const rightButton = !isLastStep ? (
+    <Button
+      type="button"
+      onClick={onNext}
+      className="w-full sm:w-auto"
+    >
+      {t('actions.next')}
+      <ChevronRight className="h-4 w-4 ml-2" />
+    </Button>
+  ) : (
+    <Button
+      type="button"
+      onClick={onComplete}
+      disabled={loading}
+      className="w-full sm:w-auto bg-green-600 hover:bg-green-700"
+    >
+      {loading ? t('actions.creating') : t('actions.start')}
+      <ChevronRight className="h-4 w-4 ml-2" />
+    </Button>
+  )
 
   return (
     <SimpleModal
@@ -88,47 +129,20 @@ export function OnboardingModal({
       description={description}
       maxWidth="lg"
     >
-      <div className="space-y-6">
-        <Progress value={progress} className="w-full" />
+      <div className="flex min-h-full flex-col gap-6 pb-4">
+        <div className="pt-2">
+          <Progress value={progress} className="w-full" />
+        </div>
 
-        {children}
+        <div className="flex-1">
+          {children}
+        </div>
 
-        <div className="flex justify-between pt-4">
-          {isFirstStep ? (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={requestCancellation}
-            >
-              {t('actions.logout')}
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onPrevious}
-            >
-              <ChevronLeft className="h-4 w-4 mr-2" />
-              {t('actions.prev')}
-            </Button>
-          )}
-
-          {!isLastStep ? (
-            <Button type="button" onClick={onNext}>
-              {t('actions.next')}
-              <ChevronRight className="h-4 w-4 ml-2" />
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              onClick={onComplete}
-              disabled={loading}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              {loading ? t('actions.creating') : t('actions.start')}
-              <ChevronRight className="h-4 w-4 ml-2" />
-            </Button>
-          )}
+        <div className="sticky bottom-0 left-0 right-0 -mx-6 -mb-4 bg-background/95 px-6 pb-4 pt-3 shadow-[0_-8px_20px_-12px_rgba(15,23,42,0.45)] backdrop-blur-sm sm:static sm:mx-0 sm:mb-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-0 sm:shadow-none sm:backdrop-blur-none">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            {leftButton}
+            {rightButton}
+          </div>
         </div>
       </div>
     </SimpleModal>

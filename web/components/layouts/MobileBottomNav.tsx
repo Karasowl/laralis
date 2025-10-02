@@ -271,7 +271,7 @@ export function MobileBottomNav({ user, workspace, onSignOut }: MobileBottomNavP
                   className="cursor-pointer"
                 >
                   <Building2 className="mr-2 h-4 w-4" />
-                  <span>Workspaces</span>
+                  <span>{t('nav.workspaces')}</span>
                 </DropdownMenuItem>
               )}
             </DropdownMenuGroup>

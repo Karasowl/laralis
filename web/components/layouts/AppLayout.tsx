@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { useT } from '@/lib/i18n'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -82,17 +83,20 @@ export function AppLayout({ children }: AppLayoutProps) {
         isOpen={mobileSidebarOpen}
         onToggle={() => setMobileSidebarOpen(!mobileSidebarOpen)}
         logo={
-          <div className="flex items-center gap-3">
+          <Link
+            href={onboardingCompleted ? '/' : '/setup'}
+            className="flex items-center gap-3 no-underline"
+          >
             <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-500 to-violet-500 flex items-center justify-center shadow-lg">
               <Activity className="h-5 w-5 text-white" />
             </div>
             <div className="min-w-0">
-              <h1 className="font-bold text-base">Laralis</h1>
+              <h1 className="font-bold text-base text-foreground">Laralis</h1>
               <div className="mt-0.5">
                 <ContextIndicator className="truncate max-w-[180px]" />
               </div>
             </div>
-          </div>
+          </Link>
         }
       />
 

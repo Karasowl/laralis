@@ -663,7 +663,8 @@
     "totalServices": "Total Services",
     "averageMargin": "Average Margin",
     "minPrice": "Min Price",
-    "maxPrice": "Max Price"
+    "maxPrice": "Max Price",
+    "no_services_to_save": "There are no services available to configure tariffs."
   },
   "services": {
     "title": "Services",
@@ -1259,7 +1260,7 @@
     "logout_success": "Signed out successfully",
     "reset_email_sent": "Password reset email sent",
     "passwords_dont_match": "Passwords don't match",
-    "register_success": "Account created successfully",
+    "register_success": "Account created. Check your email for the verification code",
     "register": {
       "title": "Get Started",
       "description": "Create your Laralis account",

@@ -147,7 +147,7 @@ export default function RegisterPage() {
         error={error}
       >
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="relative">
               <User className="absolute left-3 top-9 h-4 w-4 text-muted-foreground pointer-events-none" />
               <InputField

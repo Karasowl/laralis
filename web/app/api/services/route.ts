@@ -23,6 +23,29 @@ const serviceSchema = z.object({
   supplies: z.array(serviceSupplySchema).optional(),
 });
 
+const normalizeSupplyList = (supplies?: Array<{ supply_id?: string; qty?: number | null; quantity?: number | null }>) => {
+  if (!Array.isArray(supplies)) return [] as Array<{ supply_id: string; qty: number }>
+
+  const merged = new Map<string, number>()
+
+  for (const item of supplies) {
+    if (!item) continue
+    const supplyId = typeof item.supply_id === 'string' && item.supply_id.trim().length > 0
+      ? item.supply_id.trim()
+      : null
+    if (!supplyId) continue
+
+    const rawQty = item.qty ?? item.quantity ?? 0
+    const qty = Number(rawQty)
+    if (!Number.isFinite(qty) || qty <= 0) continue
+
+    const current = merged.get(supplyId) || 0
+    merged.set(supplyId, current + Math.round(qty))
+  }
+
+  return Array.from(merged.entries()).map(([supply_id, qty]) => ({ supply_id, qty }))
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -157,20 +180,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // If supplies are provided, add them to the service
-    if (supplies && supplies.length > 0) {
-      const serviceSupplies = supplies.map((supply) => ({
+    const serviceSuppliesPayload = normalizeSupplyList(supplies)
+
+    if (serviceSuppliesPayload.length > 0) {
+      const serviceSupplies = serviceSuppliesPayload.map((supply) => ({
         service_id: serviceData.id,
         supply_id: supply.supply_id,
-        qty: supply.qty ?? supply.quantity ?? 1
-      }));
+        qty: supply.qty
+      }))
 
       const { error: suppliesError } = await supabaseAdmin
         .from('service_supplies')
-        .insert(serviceSupplies);
+        .insert(serviceSupplies)
 
       if (suppliesError) {
-        console.error('Error adding supplies to service:', suppliesError);
+        console.error('Error adding supplies to service:', suppliesError)
         // Consider rolling back the service creation here
       }
     }
