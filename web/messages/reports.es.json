@@ -33,6 +33,18 @@
         "lifetimeValue": "Valor de vida del paciente",
         "lifetimeValueHint": "Ingreso promedio generado por cada paciente a lo largo de su relación con la clínica.",
         "footer": "Compara estos indicadores con tus campañas activas para optimizar la inversión en marketing."
+      },
+      "channels": {
+        "title": "Distribución por canal",
+        "subtitle": "Pacientes alcanzados por plataforma en todas tus campañas.",
+        "empty": "Aún no hay pacientes provenientes de campañas registradas.",
+        "tooltipLabel": "Pacientes"
+      },
+      "dormant": {
+        "title": "Campañas sin pacientes",
+        "subtitle": "Identifica campañas activas que todavía no generan resultados.",
+        "empty": "Todas tus campañas registran al menos un paciente.",
+        "hint": "Revisa el mensaje, presupuesto o canal de estas campañas para impulsar su desempeño."
       }
     },
     "advanced": {

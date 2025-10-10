@@ -13,8 +13,18 @@ import {
   Megaphone,
   DollarSign,
   TrendingUp,
-  Target
+  Target,
+  AlertTriangle
 } from 'lucide-react'
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip
+} from 'recharts'
 
 interface ReportsMarketingProps {
   clinicId?: string
@@ -49,10 +59,33 @@ export function ReportsMarketing({ clinicId, insights, loading }: ReportsMarketi
     () => campaigns.filter(campaign => campaign.is_active && !campaign.is_archived).length,
     [campaigns]
   )
+  const dormantCampaigns = useMemo(
+    () =>
+      campaigns
+        .filter(campaign => !campaign.is_archived && (campaign.patients_count || 0) === 0)
+        .sort((a, b) => {
+          if (a.is_active === b.is_active) {
+            return a.name.localeCompare(b.name)
+          }
+          return a.is_active ? -1 : 1
+        })
+        .slice(0, 5),
+    [campaigns]
+  )
   const topCampaigns = useMemo(
     () => [...campaigns].sort((a, b) => (b.patients_count || 0) - (a.patients_count || 0)).slice(0, 5),
     [campaigns]
   )
+  const channelBreakdown = useMemo(() => {
+    const map = new Map<string, number>()
+    campaigns.forEach(campaign => {
+      const key = campaign.platform_name || t('marketing.campaigns.unknownPlatform')
+      map.set(key, (map.get(key) || 0) + (campaign.patients_count || 0))
+    })
+    return Array.from(map.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+  }, [campaigns, t])
 
   const patientInsights = insights?.patient_insights
   const lifetimeValueDisplay = patientInsights
@@ -73,6 +106,7 @@ export function ReportsMarketing({ clinicId, insights, loading }: ReportsMarketi
       patientInsights.acquisition_rate > 0)
   )
   const campaignsAvailable = campaigns.length > 0
+  const hasChannelData = channelBreakdown.some(item => item.count > 0)
 
   if (combinedLoading) {
     return (
@@ -238,6 +272,94 @@ export function ReportsMarketing({ clinicId, insights, loading }: ReportsMarketi
             </div>
             <p className="text-xs text-muted-foreground">
               {t('marketing.patientInsights.footer')}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Megaphone className="h-5 w-5" />
+              {t('marketing.channels.title')}
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {t('marketing.channels.subtitle')}
+            </p>
+          </CardHeader>
+          <CardContent className="h-[320px]">
+            {hasChannelData ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={channelBreakdown} layout="vertical" margin={{ top: 10, left: 0, right: 20, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" allowDecimals={false} />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    width={150}
+                    tick={{ fontSize: 12 }}
+                  />
+                  <Tooltip
+                    cursor={{ fill: 'rgba(99, 102, 241, 0.12)' }}
+                    formatter={(value: number) => [
+                      t('marketing.campaigns.patients', { count: value }),
+                      t('marketing.channels.tooltipLabel')
+                    ]}
+                  />
+                  <Bar dataKey="count" fill="#6366F1" radius={[4, 4, 4, 4]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {t('marketing.channels.empty')}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              {t('marketing.dormant.title')}
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {t('marketing.dormant.subtitle')}
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {dormantCampaigns.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {t('marketing.dormant.empty')}
+              </p>
+            ) : (
+              dormantCampaigns.map(campaign => (
+                <div
+                  key={campaign.id}
+                  className="flex items-center justify-between rounded-lg border p-3"
+                >
+                  <div>
+                    <p className="font-medium text-sm">{campaign.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {campaign.platform_name || t('marketing.campaigns.unknownPlatform')}
+                    </p>
+                  </div>
+                  <div className="text-right space-y-1">
+                    <Badge variant={campaign.is_active ? 'outline' : 'secondary'}>
+                      {campaign.is_active
+                        ? t('marketing.campaigns.status.active')
+                        : t('marketing.campaigns.status.inactive')}
+                    </Badge>
+                    <p className="text-xs text-muted-foreground">
+                      {t('marketing.campaigns.patients', { count: campaign.patients_count || 0 })}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+            <p className="text-xs text-muted-foreground">
+              {t('marketing.dormant.hint')}
             </p>
           </CardContent>
         </Card>
