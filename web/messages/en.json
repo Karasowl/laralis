@@ -102,6 +102,203 @@
   "select_clinic": "Select Clinic",
   "expand_sidebar": "Expand Sidebar",
   "collapse_sidebar": "Collapse Sidebar",
+  "setupWizard": {
+    "header": {
+      "title": "Initial setup",
+      "subtitle": "We guide you step by step so your prices reflect the reality of your clinic."
+    },
+    "loading": {
+      "message": "Loading setup...",
+      "subtitle": "Hold on, we're getting everything ready for you."
+    },
+    "progress": {
+      "title": "Overall progress",
+      "description": "Move at your own pace. You can revisit any step whenever you need to adjust data.",
+      "badge": {
+        "complete": "Checklist complete!",
+        "incomplete": "Still polishing details"
+      },
+      "count": "{completed} of {total} steps done",
+      "label": "Your progress",
+      "percent": "{value}% complete",
+      "refresh": "Refresh status",
+      "refreshing": "Checking..."
+    },
+    "stepper": {
+      "step": "Step {index}",
+      "status": {
+        "done": "Done",
+        "inProgress": "In progress",
+        "pending": "Pending"
+      }
+    },
+    "currentStep": {
+      "label": "Step {index} of {total}",
+      "validated": "Validated",
+      "inProgress": "In progress"
+    },
+    "primaryPanel": {
+      "title": "Primary action",
+      "description": "Focus on the main action and refresh when you finish to mark this step as complete.",
+      "refresh": "Refresh status",
+      "refreshing": "Checking..."
+    },
+    "guide": {
+      "title": "Key points",
+      "description": "Before you continue, make sure these points are covered."
+    },
+    "tip": {
+      "summary": "Quick tip"
+    },
+    "reflection": {
+      "summary": "Confirm understanding",
+      "acknowledge": "Yes, I'm clear",
+      "acknowledged": "Got it!",
+      "openModule": "Open in the tool"
+    },
+    "navigation": {
+      "previous": "Previous step ({index})",
+      "next": "Next step ({index})",
+      "previousShort": "Previous",
+      "nextShort": "Next",
+      "caption": "Step {index} of {total}",
+      "locked": "Finish the current step before moving on.",
+      "completeDisabled": "Complete all steps to finish",
+      "completeReady": "Done, go to dashboard",
+      "completing": "Finishing..."
+    },
+    "nextSection": {
+      "title": "What's next?",
+      "description": "With your financial foundation ready, focus on caring for patients and measuring results. These actions help you make the most of the setup.",
+      "cards": {
+        "patients": {
+          "title": "Create your first patient",
+          "description": "Store history, preferences, and active treatments in one place.",
+          "cta": "Open patients"
+        },
+        "treatments": {
+          "title": "Design a treatment",
+          "description": "Combine services and recipes, assign timing, and calculate margins instantly.",
+          "cta": "Create treatment"
+        },
+        "services": {
+          "title": "Share your catalog",
+          "description": "Use final tariffs to build promo bundles and communicate prices.",
+          "cta": "View services"
+        }
+      },
+      "cta": {
+        "patient": "Create patient",
+        "treatment": "Create treatment",
+        "finish": "Complete setup and open the dashboard"
+      },
+      "note": "When every step is green you can finish the setup. You can always edit the data later."
+    },
+    "toasts": {
+      "checkError": "We couldn't verify your progress. Try again in a moment.",
+      "workspaceMissing": "Workspace not found.",
+      "finishError": "We couldn't complete the setup.",
+      "finishSuccess": "Great! Let's keep moving to the next step."
+    },
+    "steps": {
+      "depreciation": {
+        "title": "Equipment depreciation",
+        "caption": "Record the assets you use for each treatment.",
+        "description": "Determine how much each piece of equipment costs per month so the real cost is distributed fairly across your services.",
+        "points": {
+          "0": "Create an asset for every relevant tool or piece of equipment.",
+          "1": "Enter purchase cost, useful life, and residual value.",
+          "2": "Assign the assets to the services that use them."
+        },
+        "action": "Configure assets",
+        "tip": "If you're unsure about useful life, start with 36 months for mid-range equipment and adjust later.",
+        "reflection": {
+          "title": "Are all critical pieces of equipment covered?",
+          "description": "Missing assets will undervalue your services and hurt your margin."
+        }
+      },
+      "fixed_costs": {
+        "title": "Monthly fixed costs",
+        "caption": "Your financial baseline regardless of patient volume.",
+        "description": "Detail the expenses you pay every month so you know how much you must bill to cover them.",
+        "points": {
+          "0": "List your fixed expenses (rent, salaries, software, etc.).",
+          "1": "Tag an owner or label so you can find them quickly.",
+          "2": "Double-check that amounts and dates are up to date."
+        },
+        "action": "Register fixed costs",
+        "tip": "Group expenses by category (operations, staff, marketing) to analyze them more easily.",
+        "reflection": {
+          "title": "Do you know your monthly break-even point?",
+          "description": "With this data you can estimate it and set realistic revenue goals."
+        }
+      },
+      "cost_per_min": {
+        "title": "Cost per minute",
+        "caption": "The foundation for profitable pricing.",
+        "description": "Set the typical duration of your services and how much each minute of your team costs.",
+        "points": {
+          "0": "Define the standard duration for each type of service.",
+          "1": "Enter the hourly rate of the staff who performs it.",
+          "2": "Add prep or cleanup time when needed."
+        },
+        "action": "Configure timing and rates",
+        "tip": "Start with the actual time observed and refine it with historical data.",
+        "reflection": {
+          "title": "Does the configured time reflect reality?",
+          "description": "If you underestimate minutes, your prices will fall below your costs."
+        }
+      },
+      "supplies": {
+        "title": "Supplies and presentations",
+        "caption": "Control every material you use in your services.",
+        "description": "Upload supplies, define presentations, and portion them to know the exact cost per service.",
+        "points": {
+          "0": "Register each supply with its most recent price.",
+          "1": "Define how you buy it (presentation) and how you use it (portion).",
+          "2": "Set a minimum stock so you don't run out unexpectedly."
+        },
+        "action": "Configure supplies",
+        "tip": "Add providers so you can quickly spot who offers the best cost.",
+        "reflection": {
+          "title": "Do you know how much each portion used costs?",
+          "description": "That value feeds your service recipes automatically."
+        }
+      },
+      "service_recipe": {
+        "title": "Service recipes",
+        "caption": "Every material and timing detail per treatment.",
+        "description": "Define which supplies and labor each service needs to calculate the full cost.",
+        "points": {
+          "0": "Pick the service and add every supply with its quantity.",
+          "1": "Include staff time and equipment involved.",
+          "2": "Save the recipe and review it with the team to validate."
+        },
+        "action": "Complete recipes",
+        "tip": "Create versions by complexity (basic, premium) to offer profitable alternatives.",
+        "reflection": {
+          "title": "Is your team following this recipe step by step?",
+          "description": "When everyone uses it, you standardize cost and quality."
+        }
+      },
+      "tariffs": {
+        "title": "Tariffs and rounding",
+        "caption": "Turn your costs into clear patient-facing prices.",
+        "description": "Define target margins, rounding rules, and taxes so prices are ready to publish.",
+        "points": {
+          "0": "Select the target margin for each service.",
+          "1": "Configure rounding rules and currency to communicate simple prices.",
+          "2": "Confirm that any applicable taxes are included."
+        },
+        "action": "Publish tariffs",
+        "tip": "Use different margin rules for acquisition versus retention services.",
+        "reflection": {
+          "title": "Do the final prices sustain your expected margin?",
+          "description": "Review the simulation before sharing it with the team or patients."
+        }
+      }
+    }
+  },
   "entities": {
     "patient": "Patient",
     "service": "Service",
@@ -257,6 +454,8 @@
     "newTreatment": "New Treatment",
     "newExpense": "New Expense",
     "viewReports": "View Reports",
+    "appointments_coming_soon": "Appointments calendar coming soon",
+    "appointments_coming_soon_description": "We're building the appointments module. Keep recording your treatments and we'll let you know when it's ready.",
     "metrics": {
       "revenue": "Revenue",
       "expenses": "Expenses",
@@ -531,6 +730,20 @@
     "title": "Fixed Costs",
     "subtitle": "Recurring monthly expenses of your clinic",
     "addCost": "Add Fixed Cost",
+    "frequency": {
+      "label": "Payment frequency",
+      "helper": "Choose how often you pay this bill. The amount will be converted to a monthly equivalent.",
+      "monthly": "Monthly",
+      "monthlyHint": "You pay this amount every month.",
+      "weekly": "Weekly",
+      "weeklyHint": "You pay this amount every week.",
+      "biweekly": "Bi-weekly",
+      "biweeklyHint": "You pay this amount every two weeks.",
+      "quarterly": "Quarterly",
+      "quarterlyHint": "You pay this amount every three months.",
+      "yearly": "Yearly",
+      "yearlyHint": "You pay this amount once a year."
+    },
     "categories": {
       "local": "Premises",
       "provisions": "Provisions",
@@ -762,7 +975,8 @@
       "supply": "Supply",
       "quantity": "Quantity",
       "unit": "Unit",
-      "cost_per_unit": "Cost per Unit"
+      "cost_per_unit": "Cost per Unit",
+      "base_price_auto": "Base Price (auto)"
     },
     "select_category": "Select a category",
     "entities": {
@@ -788,8 +1002,11 @@
     },
     "cost_summary_note": "Laralis combines fixed time cost (minutes x fixed cost per minute) and variable supply cost to derive the financial base cost (see docs/memories/2025-08-17-app-description-compilada.md §3.7).",
     "time_settings_warning": "Complete Time configuration to unlock the real fixed cost per minute (see docs/memories/2025-08-17-app-description-compilada.md §3.7).",
-    "auto_base_price_hint": "Laralis keeps this field in sync by combining fixed-time cost (minutes x fixed cost per minute) and variable supply cost (see docs/memories/2025-08-17-app-description-compilada.md §3.7).",
-    "unknown_cost": "No cost"
+    "auto_base_price_hint": "Base price is calculated automatically from your fixed cost per minute plus the supplies you add. To adjust what the patient pays, use the tariff module.",
+    "unknown_cost": "No cost",
+    "durationPlaceholder": "e.g. 45",
+    "additional_details": "Additional details",
+    "supplies_section_hint": "Add the supplies you consume in this service to calculate its real cost."
   },
   "assets": {
     "entity": "Asset",

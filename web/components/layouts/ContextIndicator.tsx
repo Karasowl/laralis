@@ -6,7 +6,13 @@ import { useWorkspace } from '@/contexts/workspace-context'
 import { cn } from '@/lib/utils'
 import { useEffect, useState } from 'react'
 
-export function ContextIndicator({ className, compact = false }: { className?: string; compact?: boolean }) {
+interface ContextIndicatorProps {
+  className?: string;
+  compact?: boolean;
+  interactive?: boolean;
+}
+
+export function ContextIndicator({ className, compact = false, interactive = true }: ContextIndicatorProps) {
   const t = useTranslations('navigation')
   const { workspace, currentClinic } = useWorkspace()
   const [fallback, setFallback] = useState<{ ws?: string; clinic?: string }>({})
@@ -38,32 +44,60 @@ export function ContextIndicator({ className, compact = false }: { className?: s
 
   return (
     <div className={cn('flex items-center gap-2', className)}>
-      <Link href={workspaceHref} className="no-underline">
+      {interactive ? (
+        <Link href={workspaceHref} className="no-underline">
+          <span
+            data-testid="current-workspace-name"
+            data-cy="current-workspace"
+            className={cn(
+              'inline-flex items-center rounded-full border px-2 py-0.5 text-xs',
+              'bg-muted/60 text-foreground/80 hover:bg-muted',
+            )}
+            title={t('workspaces')}
+          >
+            {wsName}
+          </span>
+        </Link>
+      ) : (
         <span
           data-testid="current-workspace-name"
           data-cy="current-workspace"
           className={cn(
             'inline-flex items-center rounded-full border px-2 py-0.5 text-xs',
-            'bg-muted/60 text-foreground/80 hover:bg-muted',
+            'bg-muted/60 text-foreground/80',
           )}
           title={t('workspaces')}
         >
           {wsName}
         </span>
-      </Link>
-      <Link href={clinicHref} className="no-underline">
+      )}
+      {interactive ? (
+        <Link href={clinicHref} className="no-underline">
+          <span
+            data-testid="current-clinic-name"
+            data-cy="current-clinic"
+            className={cn(
+              'inline-flex items-center rounded-full border px-2 py-0.5 text-xs',
+              'bg-muted/60 text-foreground/80 hover:bg-muted',
+            )}
+            title={t('clinics')}
+          >
+            {clinicName}
+          </span>
+        </Link>
+      ) : (
         <span
           data-testid="current-clinic-name"
           data-cy="current-clinic"
           className={cn(
             'inline-flex items-center rounded-full border px-2 py-0.5 text-xs',
-            'bg-muted/60 text-foreground/80 hover:bg-muted',
+            'bg-muted/60 text-foreground/80',
           )}
           title={t('clinics')}
         >
           {clinicName}
         </span>
-      </Link>
+      )}
     </div>
   )
 }

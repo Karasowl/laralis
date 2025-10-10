@@ -93,7 +93,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             <div className="min-w-0">
               <h1 className="font-bold text-base text-foreground">Laralis</h1>
               <div className="mt-0.5">
-                <ContextIndicator className="truncate max-w-[180px]" />
+                <ContextIndicator className="truncate max-w-[180px]" interactive={false} />
               </div>
             </div>
           </Link>

@@ -13,17 +13,19 @@ import {
   FileText,
   Package,
   Brain,
-  BarChart3
+  BarChart3,
+  Megaphone
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/money'
 import { useCurrentClinic } from '@/hooks/use-current-clinic'
 import { useReports } from '@/hooks/use-reports'
 import { ReportsAdvanced } from './ReportsAdvanced'
+import { ReportsMarketing } from './ReportsMarketing'
 
 export default function ReportsPage() {
   const t = useTranslations()
   const { currentClinic } = useCurrentClinic()
-  const { dashboardData, loading } = useReports({ clinicId: currentClinic?.id })
+  const { dashboardData, insights, kpis, loading } = useReports({ clinicId: currentClinic?.id })
 
   const metricCards = [
     {
@@ -69,7 +71,7 @@ export default function ReportsPage() {
         />
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
               {t('reports.tabs.overview')}
@@ -77,6 +79,10 @@ export default function ReportsPage() {
             <TabsTrigger value="advanced" className="flex items-center gap-2">
               <Brain className="h-4 w-4" />
               {t('reports.tabs.advanced')}
+            </TabsTrigger>
+            <TabsTrigger value="marketing" className="flex items-center gap-2">
+              <Megaphone className="h-4 w-4" />
+              {t('reports.tabs.marketing')}
             </TabsTrigger>
           </TabsList>
 
@@ -185,8 +191,12 @@ export default function ReportsPage() {
             </div>
           </TabsContent>
 
-          <TabsContent value="advanced">
-            <ReportsAdvanced />
+          <TabsContent value="advanced" className="space-y-6">
+            <ReportsAdvanced insights={insights} kpis={kpis} loading={loading} />
+          </TabsContent>
+
+          <TabsContent value="marketing" className="space-y-6">
+            <ReportsMarketing clinicId={currentClinic?.id} insights={insights} loading={loading} />
           </TabsContent>
         </Tabs>
       </div>

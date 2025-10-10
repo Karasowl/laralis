@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
         id: `treatment-${t.id}`,
         type: 'treatment',
         title,
-        description: `${service} â€” ${patient}`,
+        description: `${service} - ${patient}`,
         amount: t.price_cents,
         timestamp: t.created_at,
       })
@@ -119,3 +119,4 @@ export async function GET(request: NextRequest) {
     )
   }
 }
+

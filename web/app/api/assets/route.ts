@@ -104,7 +104,23 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       );
     }
 
-    const { depreciation_months: _ignoredDepreciationMonths, ...dataToInsert } = validationResult.data;
+    const {
+      id: _ignoreId,
+      created_at: _ignoreCreatedAt,
+      updated_at: _ignoreUpdatedAt,
+      depreciation_months,
+      ...rest
+    } = validationResult.data;
+
+    const normalizedMonths = typeof depreciation_months === 'number' && Number.isFinite(depreciation_months)
+      ? Math.max(1, Math.round(depreciation_months))
+      : 36;
+    const depreciationYears = Math.max(1, Math.round(normalizedMonths / 12));
+
+    const dataToInsert = {
+      ...rest,
+      depreciation_years: depreciationYears,
+    };
 
     const { data, error } = await supabaseAdmin
       .from('assets')

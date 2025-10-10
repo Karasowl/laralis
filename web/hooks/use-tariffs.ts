@@ -49,13 +49,29 @@ export function useTariffs(options: UseTariffsOptions = {}) {
   const [roundTo, setRoundTo] = useState(defaultRoundTo)
   const [localMargins, setLocalMargins] = useState<Record<string, number>>({})
   
-  const shouldFetch = autoLoad && !!clinicId
+  // Resolve clinic id robustly: prop -> cookie -> localStorage
+  const resolvedClinicId = useMemo(() => {
+    if (clinicId) return clinicId
+    try {
+      if (typeof document !== 'undefined') {
+        const m = document.cookie.match(/(?:^|; )clinicId=([^;]+)/)
+        if (m) return decodeURIComponent(m[1])
+      }
+      if (typeof localStorage !== 'undefined') {
+        const ls = localStorage.getItem('selectedClinicId')
+        if (ls) return ls
+      }
+    } catch {}
+    return undefined
+  }, [clinicId])
+  
+  const shouldFetch = autoLoad && !!resolvedClinicId
   const servicesApi = useApi<{ data: ServiceWithCost[] }>(
-    clinicId ? `/api/services?clinicId=${clinicId}` : null,
+    resolvedClinicId ? `/api/services?clinicId=${resolvedClinicId}` : null,
     { autoFetch: shouldFetch }
   )
   const tariffsApi = useApi<{ data: StoredTariff[] }>(
-    clinicId ? `/api/tariffs?clinicId=${clinicId}` : null,
+    resolvedClinicId ? `/api/tariffs?clinicId=${resolvedClinicId}` : null,
     { autoFetch: shouldFetch }
   )
   
@@ -103,7 +119,7 @@ export function useTariffs(options: UseTariffsOptions = {}) {
   }, [])
   
   const saveTariffs = useCallback(async () => {
-    if (!clinicId) {
+    if (!resolvedClinicId) {
       toast.error(t('settings.no_clinic_selected'))
       return
     }
@@ -116,7 +132,7 @@ export function useTariffs(options: UseTariffsOptions = {}) {
     try {
       const tariffData = tariffs.map(tariff => ({
         service_id: tariff.id,
-        clinic_id: clinicId,
+        clinic_id: resolvedClinicId!,
         margin_percentage: tariff.margin_pct,
         final_price_cents: tariff.rounded_price,
         is_active: true
@@ -141,7 +157,7 @@ export function useTariffs(options: UseTariffsOptions = {}) {
       toast.error(errorMsg)
       throw err
     }
-  }, [clinicId, tariffs, t, tariffsApi])
+  }, [resolvedClinicId, tariffs, t, tariffsApi])
   
   const refreshTariffs = useCallback(async () => {
     await Promise.all([

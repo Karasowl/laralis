@@ -1,5 +1,40 @@
 {
   "reports": {
+    "tabs": {
+      "overview": "Resumen",
+      "advanced": "Avanzado",
+      "marketing": "Marketing"
+    },
+    "marketing": {
+      "noData": "Aún no hay datos de campañas o fuentes de marketing.",
+      "summary": {
+        "patientsFromCampaigns": "Pacientes desde campañas",
+        "activeCampaigns": "Campañas activas",
+        "lifetimeValue": "Valor de vida promedio",
+        "retention": "Retención de pacientes",
+        "noData": "—"
+      },
+      "campaigns": {
+        "title": "Campañas destacadas",
+        "empty": "Registra tus campañas para comenzar a medir resultados.",
+        "patients": "{count, plural, one {# paciente} other {# pacientes}}",
+        "unknownPlatform": "Plataforma sin nombre",
+        "status": {
+          "active": "Activa",
+          "inactive": "Inactiva"
+        }
+      },
+      "patientInsights": {
+        "title": "Indicadores de adquisición",
+        "acquisition": "Nuevos pacientes (30 días)",
+        "acquisitionHint": "Personas captadas durante los últimos 30 días.",
+        "retention": "Tasa de retención",
+        "retentionHint": "Porcentaje de pacientes que vuelven para más tratamientos.",
+        "lifetimeValue": "Valor de vida del paciente",
+        "lifetimeValueHint": "Ingreso promedio generado por cada paciente a lo largo de su relación con la clínica.",
+        "footer": "Compara estos indicadores con tus campañas activas para optimizar la inversión en marketing."
+      }
+    },
     "advanced": {
       "noData": "Sin datos disponibles",
       "revenuePredictions": {
@@ -44,4 +79,3 @@
     }
   }
 }
-

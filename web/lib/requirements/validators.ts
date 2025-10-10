@@ -28,7 +28,12 @@ function getClinicIdStorage(): string | undefined {
   }
 }
 
-function buildUrl(path: string, clinicId?: string, params?: Record<string, string | number | undefined>) {
+function buildUrl(
+  path: string,
+  clinicId?: string,
+  params?: Record<string, string | number | undefined>,
+  cacheKeySuffix?: string
+) {
   const base = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
   const u = new URL(path, base);
   // Prefer explicit clinicId, then cookie, then localStorage fallback
@@ -38,6 +43,9 @@ function buildUrl(path: string, clinicId?: string, params?: Record<string, strin
     for (const [k, v] of Object.entries(params)) {
       if (v !== undefined && v !== null) u.searchParams.set(k, String(v));
     }
+  }
+  if (cacheKeySuffix) {
+    u.searchParams.set('_', cacheKeySuffix);
   }
   return u.pathname + (u.search ? u.search : '');
 }
@@ -64,24 +72,28 @@ async function apiGet<T = any>(url: string): Promise<T | null> {
 }
 
 export async function hasMonthlyDepreciation(ctx: GuardContext): Promise<boolean> {
-  const url = buildUrl('/api/assets/summary', ctx.clinicId);
-  const js = await apiGet<{ data?: { monthly_depreciation_cents?: number } }>(url);
-  const v = Number(js?.data?.monthly_depreciation_cents || 0);
-  return v > 0;
+  const url = buildUrl('/api/assets/summary', ctx.clinicId, undefined, ctx.cacheKeySuffix);
+  const js = await apiGet<{ data?: { monthly_depreciation_cents?: number; asset_count?: number; assets_count?: number; total_investment_cents?: number; minimal_asset_present?: boolean } }>(url);
+  const data = js?.data;
+  const monthly = Number(data?.monthly_depreciation_cents || 0);
+  const count = Number(data?.asset_count ?? data?.assets_count ?? 0);
+  const total = Number(data?.total_investment_cents || 0);
+  const minimal = Boolean(data?.minimal_asset_present);
+  return monthly > 0 || count > 0 || total > 0 || minimal;
 }
 
 export async function hasFixedCosts(ctx: GuardContext): Promise<boolean> {
   // Only consider explicit fixed-cost rows here. Depreciation has its own step.
-  const fixed = await apiGet<{ data?: Array<{ amount_cents: number }> }>(buildUrl('/api/fixed-costs', ctx.clinicId, { limit: 200 }));
+  const fixed = await apiGet<{ data?: Array<{ amount_cents: number }> }>(buildUrl('/api/fixed-costs', ctx.clinicId, { limit: 200 }, ctx.cacheKeySuffix));
   const fixedSum = (fixed?.data || []).reduce((s, r) => s + (Number(r.amount_cents) || 0), 0);
   return fixedSum > 0;
 }
 
 export async function hasCostPerMinute(ctx: GuardContext): Promise<boolean> {
   // Require time settings and positive total fixed costs to derive CPM > 0
-  const time = await apiGet<{ data?: { work_days?: number; hours_per_day?: number; real_pct?: number; fixed_per_minute_cents?: number } }>(buildUrl('/api/settings/time', ctx.clinicId));
-  const fixed = await apiGet<{ data?: Array<{ amount_cents: number }> }>(buildUrl('/api/fixed-costs', ctx.clinicId, { limit: 200 }));
-  const assets = await apiGet<{ data?: { monthly_depreciation_cents?: number } }>(buildUrl('/api/assets/summary', ctx.clinicId));
+  const time = await apiGet<{ data?: { work_days?: number; hours_per_day?: number; real_pct?: number; fixed_per_minute_cents?: number } }>(buildUrl('/api/settings/time', ctx.clinicId, undefined, ctx.cacheKeySuffix));
+  const fixed = await apiGet<{ data?: Array<{ amount_cents: number }> }>(buildUrl('/api/fixed-costs', ctx.clinicId, { limit: 200 }, ctx.cacheKeySuffix));
+  const assets = await apiGet<{ data?: { monthly_depreciation_cents?: number } }>(buildUrl('/api/assets/summary', ctx.clinicId, undefined, ctx.cacheKeySuffix));
 
   const workDays = Number(time?.data?.work_days || 0);
   const hoursPerDay = Number(time?.data?.hours_per_day || 0);
@@ -102,13 +114,13 @@ export async function hasCostPerMinute(ctx: GuardContext): Promise<boolean> {
 }
 
 export async function hasBreakEven(ctx: GuardContext): Promise<boolean> {
-  const js = await apiGet<{ data?: { break_even_revenue_cents?: number } }>(buildUrl('/api/equilibrium', ctx.clinicId));
+  const js = await apiGet<{ data?: { break_even_revenue_cents?: number } }>(buildUrl('/api/equilibrium', ctx.clinicId, undefined, ctx.cacheKeySuffix));
   const bev = Number(js?.data?.break_even_revenue_cents || 0);
   return bev > 0;
 }
 
 export async function hasAnySupply(ctx: GuardContext): Promise<boolean> {
-  const js = await apiGet<{ data?: Array<any> }>(buildUrl('/api/supplies', ctx.clinicId, { limit: 1 }));
+  const js = await apiGet<{ data?: Array<any> }>(buildUrl('/api/supplies', ctx.clinicId, { limit: 1 }, ctx.cacheKeySuffix));
   return (js?.data?.length || 0) > 0;
 }
 
@@ -116,13 +128,13 @@ export async function hasAnyServiceRecipe(ctx: GuardContext): Promise<boolean> {
   // If a specific serviceId is provided, fetch services list (with embedded supplies)
   // and verify the target service has a non-empty recipe.
   if (ctx.serviceId) {
-    const list = await apiGet<any[]>(buildUrl('/api/services', ctx.clinicId, { limit: 200 }));
+    const list = await apiGet<any[]>(buildUrl('/api/services', ctx.clinicId, { limit: 200 }, ctx.cacheKeySuffix));
     const svc = (list || []).find((s: any) => s?.id === ctx.serviceId);
     const recipe = Array.isArray(svc?.service_supplies) ? svc.service_supplies : [];
     return recipe.length > 0;
   }
   // Otherwise check if any service has recipe
-  const list = await apiGet<any[]>(buildUrl('/api/services', ctx.clinicId, { limit: 50 }));
+  const list = await apiGet<any[]>(buildUrl('/api/services', ctx.clinicId, { limit: 50 }, ctx.cacheKeySuffix));
   const has = (list || []).some((s: any) => Array.isArray(s?.service_supplies) ? s.service_supplies.length > 0 : (Number(s?.variable_cost_cents) || 0) > 0);
   return has;
 }
@@ -141,6 +153,6 @@ export async function hasAnyTariff(ctx: GuardContext): Promise<boolean> {
   }
 
   // Otherwise, at least one service must exist to adjust tariffs.
-  const list = await apiGet<any[]>(buildUrl('/api/services', ctx.clinicId, { limit: 1 }));
+  const list = await apiGet<any[]>(buildUrl('/api/services', ctx.clinicId, { limit: 1 }, ctx.cacheKeySuffix));
   return (list || []).length > 0;
 }

@@ -102,6 +102,203 @@
   "select_clinic": "Seleccionar Clínica",
   "expand_sidebar": "Expandir Barra Lateral",
   "collapse_sidebar": "Colapsar Barra Lateral",
+  "setupWizard": {
+    "header": {
+      "title": "Configuración inicial",
+      "subtitle": "Te guiamos paso a paso para que tus precios reflejen la realidad de tu clínica."
+    },
+    "loading": {
+      "message": "Cargando configuración...",
+      "subtitle": "Un momento, estamos preparando todo para ti."
+    },
+    "progress": {
+      "title": "Progreso general",
+      "description": "Avanza a tu ritmo. Puedes volver a un paso cuando quieras para ajustar datos.",
+      "badge": {
+        "complete": "¡Checklist completada!",
+        "incomplete": "Seguimos afinando detalles"
+      },
+      "count": "{completed} de {total} pasos listos",
+      "label": "Tu avance",
+      "percent": "{value}% completado",
+      "refresh": "Verificar estado",
+      "refreshing": "Verificando..."
+    },
+    "stepper": {
+      "step": "Paso {index}",
+      "status": {
+        "done": "Completado",
+        "inProgress": "En curso",
+        "pending": "Pendiente"
+      }
+    },
+    "currentStep": {
+      "label": "Paso {index} de {total}",
+      "validated": "Validado",
+      "inProgress": "En progreso"
+    },
+    "primaryPanel": {
+      "title": "Acción principal",
+      "description": "Prioriza la acción principal y refresca cuando termines para marcar este paso como completo.",
+      "refresh": "Actualizar estado",
+      "refreshing": "Verificando..."
+    },
+    "guide": {
+      "title": "Puntos clave",
+      "description": "Antes de continuar, verifica que estos puntos estén cubiertos."
+    },
+    "tip": {
+      "summary": "Tip rápido"
+    },
+    "reflection": {
+      "summary": "Comprueba tu comprensión",
+      "acknowledge": "Sí, lo tengo claro",
+      "acknowledged": "¡Entendido!",
+      "openModule": "Revisar en la herramienta"
+    },
+    "navigation": {
+      "previous": "Paso anterior ({index})",
+      "next": "Siguiente paso ({index})",
+      "previousShort": "Paso anterior",
+      "nextShort": "Paso siguiente",
+      "caption": "Paso {index} de {total}",
+      "locked": "Completa el paso actual para continuar.",
+      "completeDisabled": "Completa todos los pasos para finalizar",
+      "completeReady": "Listo, ir al dashboard",
+      "completing": "Finalizando..."
+    },
+    "nextSection": {
+      "title": "¿Qué sigue?",
+      "description": "Con la base financiera lista, enfócate en atender pacientes y medir resultados. Estas acciones te ayudan a aprovechar lo que acabas de configurar.",
+      "cards": {
+        "patients": {
+          "title": "Crea a tu primer paciente",
+          "description": "Guarda historial, preferencias y tratamientos activos en un solo lugar.",
+          "cta": "Abrir pacientes"
+        },
+        "treatments": {
+          "title": "Diseña un tratamiento",
+          "description": "Combina servicios y receta, asigna tiempos y calcula márgenes al instante.",
+          "cta": "Crear tratamiento"
+        },
+        "services": {
+          "title": "Comparte tu catálogo",
+          "description": "Usa las tarifas finales para armar paquetes promocionales y comunicar precios.",
+          "cta": "Ver servicios"
+        }
+      },
+      "cta": {
+        "patient": "Crear paciente",
+        "treatment": "Crear tratamiento",
+        "finish": "Completar la configuración y abrir el dashboard"
+      },
+      "note": "Cuando todos los pasos estén en verde podrás finalizar la configuración. Siempre puedes volver a editar cualquier dato."
+    },
+    "toasts": {
+      "checkError": "No pudimos verificar tu avance. Intenta de nuevo en unos segundos.",
+      "workspaceMissing": "No se encontró el espacio de trabajo.",
+      "finishError": "No se pudo finalizar la configuración.",
+      "finishSuccess": "¡Perfecto! Continuemos con el siguiente paso."
+    },
+    "steps": {
+      "depreciation": {
+        "title": "Depreciación de equipos",
+        "caption": "Registra los activos que usas para cada tratamiento.",
+        "description": "Define cuánto vale cada equipo por mes para que el costo real se reparta de forma justa entre tus servicios.",
+        "points": {
+          "0": "Crea un activo por cada equipo o herramienta relevante.",
+          "1": "Ingresa costo de compra, vida útil y valor residual.",
+          "2": "Asigna los activos a los servicios que los usan."
+        },
+        "action": "Configurar activos",
+        "tip": "Si dudas con la vida útil, empieza con 36 meses para equipos medianos y ajusta luego.",
+        "reflection": {
+          "title": "¿Ya están considerados todos los equipos críticos?",
+          "description": "Si falta alguno, tus servicios quedarán subvalorados y perderás margen."
+        }
+      },
+      "fixed_costs": {
+        "title": "Costos fijos mensuales",
+        "caption": "Tu base financiera sin importar la cantidad de pacientes.",
+        "description": "Detalla los gastos que pagas sí o sí cada mes para calcular cuánto necesitas facturar para cubrirlos.",
+        "points": {
+          "0": "Lista tus gastos fijos (alquiler, sueldos, licencias, etc.).",
+          "1": "Asigna un responsable o etiqueta para ubicarlos rápido.",
+          "2": "Revisa que las fechas y montos estén actualizados."
+        },
+        "action": "Registrar costos fijos",
+        "tip": "Agrupa tus gastos por categorías (operación, personal, marketing) para analizarlos mejor.",
+        "reflection": {
+          "title": "¿Conoces tu punto de equilibrio mensual?",
+          "description": "Con estos datos puedes estimarlo y decidir metas de facturación realistas."
+        }
+      },
+      "cost_per_min": {
+        "title": "Costo por minuto",
+        "caption": "La base para poner precios rentables.",
+        "description": "Configura el tiempo promedio de tus servicios y cuánto cuesta cada minuto de tu equipo humano.",
+        "points": {
+          "0": "Define el tiempo estándar para cada tipo de servicio.",
+          "1": "Ingresa la tarifa por hora del personal que lo ejecuta.",
+          "2": "Añade tiempos de preparación o limpieza si aplican."
+        },
+        "action": "Configurar tiempos y tarifas",
+        "tip": "Empieza con el tiempo real observado y luego ajusta con datos históricos.",
+        "reflection": {
+          "title": "¿El tiempo configurado refleja la realidad?",
+          "description": "Si subestimas minutos, tus precios quedarán por debajo de tus costos."
+        }
+      },
+      "supplies": {
+        "title": "Insumos y presentaciones",
+        "caption": "Controla cada material que usas en tus servicios.",
+        "description": "Carga tus insumos, define presentaciones y fracciona porciones para conocer su costo exacto por servicio.",
+        "points": {
+          "0": "Registra cada insumo con su precio actualizado.",
+          "1": "Define cómo lo compras (presentación) y en qué porciones lo usas.",
+          "2": "Marca inventario mínimo para no sorprenderte sin stock."
+        },
+        "action": "Configurar insumos",
+        "tip": "Añade proveedores para identificar rápidamente quién ofrece mejor costo.",
+        "reflection": {
+          "title": "¿Sabes cuánto cuesta cada porción utilizada?",
+          "description": "Ese dato alimenta automáticamente las recetas de tus servicios."
+        }
+      },
+      "service_recipe": {
+        "title": "Recetas por servicio",
+        "caption": "El detalle de materiales y tiempos por tratamiento.",
+        "description": "Define qué insumos y cuánta mano de obra requiere cada servicio para calcular el costo completo.",
+        "points": {
+          "0": "Elige el servicio y suma cada insumo con su cantidad.",
+          "1": "Incluye tiempo del personal y equipos involucrados.",
+          "2": "Guarda la receta y revísala con el equipo para validarla."
+        },
+        "action": "Completar recetas",
+        "tip": "Crea versiones por complejidad (básica, premium) para ofrecer alternativas rentables.",
+        "reflection": {
+          "title": "¿El equipo coincide con esta receta paso a paso?",
+          "description": "Si todos la siguen igual, estandarizas el costo y la calidad."
+        }
+      },
+      "tariffs": {
+        "title": "Tarifas y redondeo",
+        "caption": "Convierte tus costos en precios claros para tus pacientes.",
+        "description": "Define márgenes objetivo, políticas de redondeo e impuestos para publicar precios listos para usar.",
+        "points": {
+          "0": "Selecciona el margen objetivo (utilidad) para cada servicio.",
+          "1": "Configura redondeos y moneda para comunicar precios simples.",
+          "2": "Verifica que los impuestos aplicables estén incorporados."
+        },
+        "action": "Publicar tarifas",
+        "tip": "Crea reglas de margen diferentes para servicios de captación vs. fidelización.",
+        "reflection": {
+          "title": "¿Los precios finales sostienen tu margen esperado?",
+          "description": "Revisa la simulación antes de comunicarlo al equipo o pacientes."
+        }
+      }
+    }
+  },
   "auth": {
     "signOut": "Cerrar Sesión",
     "login_success": "Inicio de sesión exitoso",
@@ -397,6 +594,8 @@
     "record_expense": "Registrar gasto",
     "appointments": "Citas",
     "upcoming_appointments": "Próximas citas",
+    "appointments_coming_soon": "Agenda de citas próximamente",
+    "appointments_coming_soon_description": "Estamos trabajando en el módulo de agenda. Mientras tanto puedes registrar tratamientos y te avisaremos cuando esté listo.",
     "view_calendar": "Ver calendario",
     "today": "Hoy",
     "this_week": "Esta semana",
@@ -820,7 +1019,8 @@
       "supply": "Insumo",
       "quantity": "Cantidad",
       "unit": "Unidad",
-      "cost_per_unit": "Costo por Unidad"
+      "cost_per_unit": "Costo por Unidad",
+      "base_price_auto": "Precio base (auto)"
     },
     "select_category": "Selecciona una categoría",
     "entities": {
@@ -846,9 +1046,12 @@
     },
     "cost_summary_note": "Laralis combina el costo fijo (minutos x costo fijo/minuto) y el costo variable de insumos para guardar el costo base financiero (ver docs/memories/2025-08-17-app-description-compilada.md §3.7).",
     "time_settings_warning": "Configura la sección de Tiempo para obtener un costo fijo por minuto real (ver docs/memories/2025-08-17-app-description-compilada.md §3.7).",
-    "auto_base_price_hint": "Laralis guarda este valor automáticamente combinando costo fijo (minutos x costo fijo/minuto) y costo variable de insumos (ver docs/memories/2025-08-17-app-description-compilada.md §3.7).",
+    "auto_base_price_hint": "El precio base se calcula automáticamente con tu costo fijo por minuto y los insumos agregados. Ajusta lo que paga el paciente desde el módulo de tarifario.",
     "unknown_cost": "Sin costo",
-    "please_import_supplies": "Importa insumos para crear servicios"
+    "please_import_supplies": "Importa insumos para crear servicios",
+    "durationPlaceholder": "ej. 45",
+    "additional_details": "Detalles adicionales",
+    "supplies_section_hint": "Agrega los insumos que consumes en este servicio para calcular su costo real."
   },
   "businessSetup": {
     "assets": {
@@ -894,6 +1097,20 @@
     "conceptPlaceholder": "ej., Renta del local",
     "noFixedCosts": "No hay costos fijos registrados",
     "noFixedCostsDescription": "Agrega tus gastos mensuales recurrentes para calcular el punto de equilibrio",
+    "frequency": {
+      "label": "Frecuencia de pago",
+      "helper": "Ingresa la frecuencia real del gasto. Convertimos el monto al equivalente mensual automáticamente.",
+      "monthly": "Mensual",
+      "monthlyHint": "Pagas este monto cada mes.",
+      "weekly": "Semanal",
+      "weeklyHint": "Pagas este monto cada semana.",
+      "biweekly": "Quincenal",
+      "biweeklyHint": "Pagas este monto cada dos semanas.",
+      "quarterly": "Trimestral",
+      "quarterlyHint": "Pagas este monto cada tres meses.",
+      "yearly": "Anual",
+      "yearlyHint": "Pagas este monto una vez al año."
+    },
     "summary": {
       "local": "Gastos del Local",
       "depreciation": "Depreciación de Activos"

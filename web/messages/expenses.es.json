@@ -11,10 +11,13 @@
       "totalSpentSubtitle": "{count, plural, one {# movimiento} other {# movimientos}} registrados",
       "varianceTitle": "Variación vs. plan",
       "varianceSubtitle": "{percentage}% de diferencia",
+      "planNotConfiguredTitle": "Plan sin configurar",
+      "planNotConfiguredValue": "Configura tu presupuesto",
+      "planNotConfiguredSubtitle": "Ve a Costos fijos para establecer un presupuesto mensual.",
       "recurringTitle": "Recurrentes",
       "recurringSubtitle": "Marcados como recurrentes",
-      "autoProcessedTitle": "Auto procesados",
-      "autoProcessedSubtitle": "Actualizados automáticamente"
+      "expenseGuidanceTitle": "¿Cómo se relaciona con Costos fijos?",
+      "expenseGuidanceDescription": "Los gastos registran movimientos variables del día a día. Los costos fijos son tus compromisos mensuales planeados; configúralos para comparar tu presupuesto con lo que realmente gastas."
     },
     "filters": {
       "title": "Filtros",
@@ -29,7 +32,6 @@
       "amountMin": "Monto mínimo",
       "amountMax": "Monto máximo",
       "recurring": "Recurrente",
-      "autoProcessed": "Auto procesado",
       "any": "Cualquiera",
       "yes": "Sí",
       "no": "No",
@@ -46,9 +48,6 @@
       "recurring": "Recurrente",
       "recurringYes": "Recurrente",
       "recurringNo": "No",
-      "autoProcessed": "Auto procesado",
-      "autoProcessedYes": "Automático",
-      "autoProcessedNo": "Manual",
       "searchPlaceholder": "Buscar descripciones",
       "emptyTitle": "Aún no hay gastos",
       "emptyDescription": "Registra tu primer gasto para verlo aquí."

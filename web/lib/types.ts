@@ -87,16 +87,23 @@ export interface ApiResponse<T> {
 }
 
 // Fixed cost categories (matching seed data and UI)
-export type FixedCostCategory = 
-  | 'rent' 
-  | 'utilities' 
-  | 'salaries' 
-  | 'equipment' 
-  | 'insurance' 
-  | 'maintenance'
-  | 'education'
-  | 'advertising'
-  | 'other';
+export type FixedCostCategory =
+    | 'rent'
+    | 'utilities'
+    | 'salaries'
+    | 'equipment'
+    | 'insurance'
+    | 'maintenance'
+    | 'education'
+    | 'advertising'
+    | 'other';
+
+export type FixedCostFrequency =
+    | 'monthly'
+    | 'weekly'
+    | 'biweekly'
+    | 'quarterly'
+    | 'yearly';
 
 // Supply categories
 export type SupplyCategory = 

@@ -1,8 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { useTranslations, useLocale } from 'next-intl'
+import { useTranslations } from 'next-intl'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
+import type { UseFormReturn } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -16,13 +18,16 @@ import { ActionDropdown, createEditAction, createDeleteAction } from '@/componen
 import { InputField, SelectField, FormGrid, FormSection } from '@/components/ui/form-field'
 import { SummaryCards } from '@/components/ui/summary-cards'
 import { useCurrentClinic } from '@/hooks/use-current-clinic'
+import { useWorkspace } from '@/contexts/workspace-context'
 import { useFixedCosts } from '@/hooks/use-fixed-costs'
+import type { FixedCost } from '@/hooks/use-fixed-costs'
 import { formatCurrency } from '@/lib/money'
 import { getCategoryDisplayName } from '@/lib/format'
 import { zFixedCostForm } from '@/lib/zod'
-import { FixedCostCategory } from '@/lib/types'
+import { FixedCostCategory, FixedCostFrequency } from '@/lib/types'
 import { Receipt, TrendingUp, Calculator, DollarSign, Plus } from 'lucide-react'
 import { z } from 'zod'
+import { toast } from 'sonner'
 
 type FixedCostFormData = z.infer<typeof zFixedCostForm>
 
@@ -37,11 +42,32 @@ const categories: { value: FixedCostCategory; label: string }[] = [
   { value: 'other', label: 'fixedCosts.categories.other' },
 ]
 
+const frequencyOptions: { value: FixedCostFrequency; label: string; descriptionKey: string }[] = [
+  { value: 'monthly', label: 'fixedCosts.frequency.monthly', descriptionKey: 'fixedCosts.frequency.monthlyHint' },
+  { value: 'weekly', label: 'fixedCosts.frequency.weekly', descriptionKey: 'fixedCosts.frequency.weeklyHint' },
+  { value: 'biweekly', label: 'fixedCosts.frequency.biweekly', descriptionKey: 'fixedCosts.frequency.biweeklyHint' },
+  { value: 'quarterly', label: 'fixedCosts.frequency.quarterly', descriptionKey: 'fixedCosts.frequency.quarterlyHint' },
+  { value: 'yearly', label: 'fixedCosts.frequency.yearly', descriptionKey: 'fixedCosts.frequency.yearlyHint' },
+]
+
+const frequencyFactor: Record<FixedCostFrequency, number> = {
+  monthly: 1,
+  weekly: 52 / 12,
+  biweekly: 26 / 12,
+  quarterly: 1 / 3,
+  yearly: 1 / 12
+}
+
+const toMonthlyCents = (amountCents: number, frequency: FixedCostFrequency) =>
+  Math.max(0, Math.round(amountCents * frequencyFactor[frequency]))
+
 export default function FixedCostsPage() {
   const t = useTranslations()
   const tCommon = useTranslations('common')
-  const locale = useLocale()
+  const tSetup = useTranslations('setupWizard')
   const { currentClinic } = useCurrentClinic()
+  const { workspace } = useWorkspace()
+  const router = useRouter()
   const {
     fixedCosts,
     loading,
@@ -53,14 +79,15 @@ export default function FixedCostsPage() {
 
   // Modal states
   const [createOpen, setCreateOpen] = useState(false)
-  const [editCost, setEditCost] = useState<any>(null)
-  const [deleteCost, setDeleteCost] = useState<any>(null)
+  const [editCost, setEditCost] = useState<FixedCost | null>(null)
+  const [deleteCost, setDeleteCost] = useState<FixedCost | null>(null)
 
   // Form
   const fixedCostInitialValues: FixedCostFormData = {
     category: 'other',
     concept: '',
     amount_pesos: 0,
+    frequency: 'monthly',
   }
 
   const form = useForm<FixedCostFormData>({
@@ -74,11 +101,23 @@ export default function FixedCostsPage() {
       category: data.category,
       concept: data.concept,
       // data.amount_pesos is already transformed to cents by zodResolver
-      amount_cents: data.amount_pesos as any // TypeScript type coercion since zod transforms it
+      amount_cents: toMonthlyCents(data.amount_pesos as number, data.frequency)
     })
     if (success) {
       setCreateOpen(false)
-      form.reset()
+      form.reset(fixedCostInitialValues)
+      const fromSetup = (typeof window !== 'undefined' && sessionStorage.getItem('return_to_setup') === '1')
+      const inOnboarding = (workspace?.onboarding_completed === false) || (workspace?.onboarding_completed === undefined && fromSetup)
+      if (inOnboarding) {
+        try {
+          if (typeof window !== 'undefined') {
+            window.localStorage?.setItem('setup_fixed_costs_done', 'true')
+          }
+        } catch {}
+        toast.success(tSetup('toasts.finishSuccess'))
+        try { if (typeof window !== 'undefined') sessionStorage.removeItem('return_to_setup') } catch {}
+        router.push('/setup')
+      }
     }
   }
 
@@ -88,11 +127,21 @@ export default function FixedCostsPage() {
       category: data.category,
       concept: data.concept,
       // data.amount_pesos is already transformed to cents by zodResolver
-      amount_cents: data.amount_pesos as any // TypeScript type coercion since zod transforms it
+      amount_cents: toMonthlyCents(data.amount_pesos as number, data.frequency)
     })
     if (success) {
       setEditCost(null)
-      form.reset()
+      form.reset(fixedCostInitialValues)
+      const fromSetup = (typeof window !== 'undefined' && sessionStorage.getItem('return_to_setup') === '1')
+      const inOnboarding = (workspace?.onboarding_completed === false) || (workspace?.onboarding_completed === undefined && fromSetup)
+      if (inOnboarding) {
+        try {
+          if (typeof window !== 'undefined') {
+            window.localStorage?.setItem('setup_fixed_costs_done', 'true')
+          }
+        } catch {}
+        try { if (typeof window !== 'undefined') sessionStorage.removeItem('return_to_setup') } catch {}
+      }
     }
   }
 
@@ -109,7 +158,7 @@ export default function FixedCostsPage() {
     {
       key: 'category',
       label: t('fixedCosts.category'),
-      render: (_value: any, cost: any) => (
+      render: (_value: unknown, cost: FixedCost) => (
         <Badge variant="outline">
           {getCategoryDisplayName(cost.category, t)}
         </Badge>
@@ -118,14 +167,14 @@ export default function FixedCostsPage() {
     {
       key: 'concept',
       label: t('fixedCosts.concept'),
-      render: (_value: any, cost: any) => (
+      render: (_value: unknown, cost: FixedCost) => (
         <div className="font-medium">{cost.concept}</div>
       )
     },
     {
       key: 'amount_cents',
       label: t('fixedCosts.amount'),
-      render: (_value: any, cost: any) => (
+      render: (_value: unknown, cost: FixedCost) => (
         <div className="text-right font-semibold">
           {formatCurrency(cost?.amount_cents || 0)}
         </div>
@@ -134,7 +183,7 @@ export default function FixedCostsPage() {
     {
       key: 'actions',
       label: t('common.actions'),
-      render: (_value: any, cost: any) => (
+      render: (_value: unknown, cost: FixedCost) => (
         <ActionDropdown
           actions={[
             createEditAction(() => {
@@ -142,6 +191,7 @@ export default function FixedCostsPage() {
                 category: cost.category as FixedCostCategory,
                 concept: cost.concept,
                 amount_pesos: cost.amount_cents / 100,
+                frequency: 'monthly'
               })
               setEditCost(cost)
             }, tCommon('edit')),
@@ -154,7 +204,7 @@ export default function FixedCostsPage() {
 
   // Category breakdown
   const getCategoryBreakdown = () => {
-    const breakdown: any[] = categories.map(category => {
+    const breakdown: Array<{ category: string; label: string; total: number; percentage: number }> = categories.map((category) => {
       const categoryTotal = fixedCosts
         .filter(cost => cost.category === category.value)
         .reduce((sum, cost) => sum + cost.amount_cents, 0)
@@ -291,7 +341,7 @@ export default function FixedCostsPage() {
           title={t('fixedCosts.create')}
           onSubmit={form.handleSubmit(handleCreate)}
         >
-          <FixedCostForm form={form} categories={categories} t={t} />
+            <FixedCostForm form={form} categories={categories} frequencyOptions={frequencyOptions} t={t} />
         </FormModal>
 
         {/* Edit Modal */}
@@ -301,7 +351,7 @@ export default function FixedCostsPage() {
           title={t('fixedCosts.edit')}
           onSubmit={form.handleSubmit(handleEdit)}
         >
-          <FixedCostForm form={form} categories={categories} t={t} />
+          <FixedCostForm form={form} categories={categories} frequencyOptions={frequencyOptions} t={t} />
         </FormModal>
 
         {/* Delete Confirmation */}
@@ -321,7 +371,26 @@ export default function FixedCostsPage() {
 }
 
 // Fixed Cost Form Component
-function FixedCostForm({ form, categories, t }: any) {
+interface FixedCostFormProps {
+  form: UseFormReturn<FixedCostFormData>
+  categories: { value: FixedCostCategory; label: string }[]
+  frequencyOptions: { value: FixedCostFrequency; label: string; descriptionKey: string }[]
+  t: (key: string) => string
+}
+
+function FixedCostForm({ form, categories, frequencyOptions, t }: FixedCostFormProps) {
+  const amountValue = form.watch('amount_pesos') ?? 0
+  const frequencyValue = form.watch('frequency') ?? 'monthly'
+
+  const handleAmountChange = (raw: string | number) => {
+    if (raw === '') {
+      form.setValue('amount_pesos', 0, { shouldDirty: true, shouldValidate: true })
+      return
+    }
+    const n = typeof raw === 'number' ? raw : Number(raw)
+    form.setValue('amount_pesos', Number.isFinite(n) ? n : 0, { shouldDirty: true, shouldValidate: true })
+  }
+
   return (
     <FormSection>
       <FormGrid columns={1}>
@@ -329,14 +398,14 @@ function FixedCostForm({ form, categories, t }: any) {
           label={t('fixedCosts.category')}
           value={form.watch('category')}
           onChange={(value) => form.setValue('category', value)}
-          options={categories.map((cat: any) => ({
+          options={categories.map((cat) => ({
             value: cat.value,
             label: t(cat.label)
           }))}
           error={form.formState.errors.category?.message}
           required
         />
-        
+
         <InputField
           label={t('fixedCosts.concept')}
           value={form.watch('concept')}
@@ -345,20 +414,26 @@ function FixedCostForm({ form, categories, t }: any) {
           error={form.formState.errors.concept?.message}
           required
         />
-        
+
+        <SelectField
+          label={t('fixedCosts.frequency.label')}
+          value={frequencyValue}
+          onChange={(value) => form.setValue('frequency', value as FixedCostFrequency, { shouldDirty: true })}
+          options={frequencyOptions.map((freq) => ({
+            value: freq.value,
+            label: t(freq.label)
+          }))}
+          helperText={t('fixedCosts.frequency.helper')}
+          error={form.formState.errors.frequency?.message}
+          required
+        />
+
         <InputField
           type="number"
           step="0.01"
           label={t('fixedCosts.amount')}
-          value={form.watch('amount_pesos') as any}
-          onChange={(value) => {
-            if (value === '') {
-              form.setValue('amount_pesos' as any, '' as any, { shouldDirty: true })
-            } else {
-              const n = typeof value === 'number' ? value : parseFloat(String(value))
-              form.setValue('amount_pesos' as any, (Number.isFinite(n) ? n : 0) as any, { shouldDirty: true })
-            }
-          }}
+          value={amountValue}
+          onChange={handleAmountChange}
           placeholder="0.00"
           error={form.formState.errors.amount_pesos?.message}
           required
@@ -367,3 +442,4 @@ function FixedCostForm({ form, categories, t }: any) {
     </FormSection>
   )
 }
+

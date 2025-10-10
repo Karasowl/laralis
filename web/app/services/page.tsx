@@ -14,6 +14,8 @@ import { SuppliesManager } from './components/SuppliesManager'
 import { ServicesTable } from './components/ServicesTable'
 import { CategoryModal } from './components/CategoryModal'
 import { useCurrentClinic } from '@/hooks/use-current-clinic'
+import { useWorkspace } from '@/contexts/workspace-context'
+import { useRouter } from 'next/navigation'
 import { useServices } from '@/hooks/use-services'
 import { useTimeSettings } from '@/hooks/use-time-settings'
 import { useRequirementsGuard } from '@/lib/requirements/useGuard'
@@ -46,6 +48,8 @@ export default function ServicesPage() {
   const t = useTranslations('services')
   const tCommon = useTranslations('common')
   const { currentClinic } = useCurrentClinic()
+  const { workspace } = useWorkspace()
+  const router = useRouter()
   useEffect(() => {
     try { console.log('[ServicesPage] currentClinic', currentClinic?.id) } catch {}
   }, [currentClinic?.id])
@@ -122,6 +126,14 @@ export default function ServicesPage() {
       setCreateOpen(false)
       form.reset()
       setServiceSupplies([])
+      // Tras crear, vuelve al Setup solo si seguimos en onboarding
+      try { if (typeof window !== 'undefined') localStorage.setItem('setup_service_recipe_done', 'true') } catch {}
+      const fromSetup = (typeof window !== 'undefined' && sessionStorage.getItem('return_to_setup') === '1')
+      const inOnboarding = (workspace?.onboarding_completed === false) || (workspace?.onboarding_completed === undefined && fromSetup)
+      if (inOnboarding) {
+        try { if (typeof window !== 'undefined') sessionStorage.removeItem('return_to_setup') } catch {}
+        setTimeout(() => router.push('/setup'), 0)
+      }
     }
   }
 
@@ -137,6 +149,14 @@ export default function ServicesPage() {
       setEditService(null)
       form.reset()
       setServiceSupplies([])
+      // En onboarding, marcar y volver a Setup tras editar receta
+      try { if (typeof window !== 'undefined') localStorage.setItem('setup_service_recipe_done', 'true') } catch {}
+      const fromSetup = (typeof window !== 'undefined' && sessionStorage.getItem('return_to_setup') === '1')
+      const inOnboarding = (workspace?.onboarding_completed === false) || (workspace?.onboarding_completed === undefined && fromSetup)
+      if (inOnboarding) {
+        try { if (typeof window !== 'undefined') sessionStorage.removeItem('return_to_setup') } catch {}
+        setTimeout(() => router.push('/setup'), 0)
+      }
     }
   }
 

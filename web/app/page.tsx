@@ -21,10 +21,10 @@ import {
   Package,
   ShoppingCart,
   AlertCircle,
-  Calendar,
   RefreshCw
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -142,6 +142,7 @@ function AlertsSection({ lowStockCount }: { lowStockCount: number }) {
 export default function DashboardPage() {
   const t = useTranslations('dashboard')
   const tNav = useTranslations('navigation')
+  const tCommon = useTranslations('common')
   const router = useRouter()
   const { currentClinic, workspace, loading: workspaceLoading } = useWorkspace()
   
@@ -326,29 +327,18 @@ export default function DashboardPage() {
               <div>
                 <CardTitle>{t('appointments')}</CardTitle>
                 <CardDescription>
-                  {t('upcoming_appointments')}
+                  {t('appointments_coming_soon')}
                 </CardDescription>
               </div>
-              <Button
-                variant="outline"
-                onClick={() => router.push('/appointments')}
-              >
-                <Calendar className="h-4 w-4 mr-2" />
-                {t('view_calendar')}
-              </Button>
+              <Badge variant="outline" className="uppercase tracking-wide text-xs">
+                {tCommon('comingSoon')}
+              </Badge>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">{t('today')}</p>
-                <p className="text-2xl font-bold">{metrics.appointments.today}</p>
-              </div>
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">{t('this_week')}</p>
-                <p className="text-2xl font-bold">{metrics.appointments.week}</p>
-              </div>
-            </div>
+            <p className="text-sm text-muted-foreground">
+              {t('appointments_coming_soon_description')}
+            </p>
           </CardContent>
         </Card>
       </div>

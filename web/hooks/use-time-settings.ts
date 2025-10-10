@@ -165,6 +165,7 @@ export function useTimeSettings(options: UseTimeSettingsOptions = {}) {
       const response = await fetch('/api/settings/time', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           work_days: Number(draft.work_days) || 0,
           hours_per_day: Number(draft.hours_per_day) || 0,

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useWorkspace } from '@/contexts/workspace-context'
 import { AppLayout } from '@/components/layouts/AppLayout'
@@ -24,17 +24,33 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { TimeMetricCard } from './components/TimeMetricCard'
 import { CostBreakdown } from './components/CostBreakdown'
 import { TimeSettingsForm } from './components/TimeSettingsForm'
+import { useRouter } from 'next/navigation'
 
 // Schema for time settings
+// Guard rails aligned with server zod (hours_per_day max 16) and
+// operationally reasonable ranges for productivity (50-95%).
 const timeSettingsSchema = z.object({
-  work_days: z.number().min(1).max(31),
-  hours_per_day: z.number().min(1).max(24),
-  real_pct: z.number().min(1).max(100)
+  work_days: z
+    .coerce
+    .number({ invalid_type_error: 'time.validation.must_be_number' })
+    .min(1, 'time.validation.min_days')
+    .max(31, 'time.validation.max_days'),
+  hours_per_day: z
+    .coerce
+    .number({ invalid_type_error: 'time.validation.must_be_number' })
+    .min(1, 'time.validation.min_hours')
+    .max(16, 'time.validation.max_hours'),
+  real_pct: z
+    .coerce
+    .number({ invalid_type_error: 'time.validation.must_be_number' })
+    .min(50, 'time.validation.min_pct')
+    .max(95, 'time.validation.max_pct'),
 })
 
 export default function TimeSettingsPage() {
   const t = useTranslations('time')
-  const { currentClinic } = useWorkspace()
+  const { currentClinic, clinics, setCurrentClinic, workspace } = useWorkspace()
+  const router = useRouter()
   
   // Time settings management
   const {
@@ -45,7 +61,6 @@ export default function TimeSettingsPage() {
     totalFixedCosts,
     hasRecord,
     loading,
-    error,
     updateSettings,
     saveSettings,
     refreshData
@@ -60,32 +75,55 @@ export default function TimeSettingsPage() {
   // Form
   const settingsForm = useForm({
     resolver: zodResolver(timeSettingsSchema),
-    defaultValues: settings
+    defaultValues: settings,
+    mode: 'onChange',
+    reValidateMode: 'onChange'
   })
 
   // Handlers
   const handleUpdateSettings = async (data: z.infer<typeof timeSettingsSchema>) => {
-    if (!currentClinic?.id) {
-      // Avoid race: if clinic context not ready yet, prevent submit
-      try { (await import('sonner')).toast.error(t('settings.no_clinic_selected')) } catch {}
+    const valid = await settingsForm.trigger()
+    if (!valid) {
+      setSaving(false)
       return
     }
+
     updateSettings(data)
-    
+
     setSaving(true)
     const success = await saveSettings()
     setSaving(false)
-    
+
     if (success) {
       setSettingsModalOpen(false)
       settingsForm.reset(data)
+      const fromSetup = (typeof window !== 'undefined' && sessionStorage.getItem('return_to_setup') === '1')
+      const inOnboarding = (workspace?.onboarding_completed === false) || (workspace?.onboarding_completed === undefined && fromSetup)
+      if (inOnboarding) {
+        try {
+          if (typeof window !== 'undefined') {
+            window.localStorage?.setItem('setup_time_done', 'true')
+          }
+        } catch {}
+        try { if (typeof window !== 'undefined') sessionStorage.removeItem('return_to_setup') } catch {}
+        router.push('/setup')
+      }
     }
   }
 
   const handleOpenModal = () => {
     settingsForm.reset(settings)
+    settingsForm.clearErrors()
     setSettingsModalOpen(true)
   }
+
+  useEffect(() => {
+    if (!currentClinic && clinics?.length) {
+      try {
+        setCurrentClinic(clinics[0])
+      } catch {}
+    }
+  }, [currentClinic, clinics, setCurrentClinic])
 
   if (loading) {
     return (

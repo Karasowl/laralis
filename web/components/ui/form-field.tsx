@@ -36,6 +36,7 @@ interface InputFieldProps extends BaseFieldProps {
   max?: number;
   step?: number | string;
   inputRef?: React.Ref<HTMLInputElement>;
+  readOnly?: boolean;
 }
 
 export function InputField({
@@ -55,6 +56,7 @@ export function InputField({
   max,
   step,
   inputRef,
+  readOnly,
 }: InputFieldProps) {
   const fieldId = id || label?.toLowerCase().replace(/\s+/g, '-');
   const [showPassword, setShowPassword] = useState(false);
@@ -99,6 +101,7 @@ export function InputField({
           id={fieldId}
           type={inputType}
           value={displayValue}
+          readOnly={readOnly}
           onChange={(e) => {
             if (type === 'number') {
               const raw = e.target.value

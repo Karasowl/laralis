@@ -15,6 +15,7 @@ export type GuardContext = {
   workspaceId?: string;
   clinicId: string;
   serviceId?: string;
+  cacheKeySuffix?: string;
 };
 
 type NodeDef = {

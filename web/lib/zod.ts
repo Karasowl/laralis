@@ -86,6 +86,7 @@ export type ZServiceSupply = z.infer<typeof zServiceSupply>;
 export const zFixedCostForm = z.object({
   category: z.string().min(1, 'Category is required'),
   concept: z.string().min(1, 'Concept is required'),
+  frequency: z.enum(['monthly', 'weekly', 'biweekly', 'quarterly', 'yearly']).default('monthly'),
   amount_pesos: z
     .number()
     .positive('Amount must be positive')
@@ -133,7 +134,11 @@ export const zAsset = z.object({
   clinic_id: z.string().uuid(),
   name: z.string().min(1, 'Name is required'),
   purchase_price_cents: z.number().int().nonnegative('Price must be non-negative'),
-  depreciation_months: z.number().int().positive('Months must be positive'),
+  depreciation_months: z
+    .number()
+    .int()
+    .positive('Months must be positive')
+    .refine((value) => value % 12 === 0, { message: 'Months must be a multiple of 12' }),
   purchase_date: z.string().optional(),
   created_at: z.string().optional(),
   updated_at: z.string().optional(),
@@ -148,7 +153,11 @@ export const zAssetForm = z.object({
     .refine((v) => Math.round(v * 100) <= Number.MAX_SAFE_INTEGER, {
       message: 'Price too large',
     }),
-  depreciation_months: z.number().int().min(1, 'Months must be at least 1'),
+  depreciation_months: z
+    .number()
+    .int()
+    .min(1, 'Months must be at least 1')
+    .refine((value) => value % 12 === 0, { message: 'Months must be a multiple of 12' }),
   purchase_date: z.string().optional(),
 });
 

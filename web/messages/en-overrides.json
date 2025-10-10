@@ -886,6 +886,8 @@
     "record_expense": "Registrar gasto",
     "appointments": "Citas",
     "upcoming_appointments": "Próximas citas",
+    "appointments_coming_soon": "Appointments calendar coming soon",
+    "appointments_coming_soon_description": "We're building the appointments module. Keep recording your treatments and we'll let you know when it's ready.",
     "view_calendar": "Ver calendario",
     "today": "Hoy",
     "this_week": "Esta semana",

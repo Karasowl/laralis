@@ -8,10 +8,10 @@ import {
   Plus,
   Receipt,
   TrendingUp,
-  ShieldCheck,
   AlertTriangle,
   ShoppingCart,
   CalendarRange,
+  Info,
 } from 'lucide-react'
 
 import { AppLayout } from '@/components/layouts/AppLayout'
@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button'
 import { SummaryCards } from '@/components/ui/summary-cards'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { FormModal } from '@/components/ui/form-modal'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { DataTable, type Column } from '@/components/ui/DataTable'
@@ -303,20 +304,6 @@ export default function ExpensesPage() {
       ),
     },
     {
-      key: 'auto_processed',
-      label: t('table.autoProcessed'),
-      className: 'text-center',
-      render: (value) => (
-        value ? (
-          <Badge variant="outline" className="border-green-500 text-green-600">
-            {t('table.autoProcessedYes')}
-          </Badge>
-        ) : (
-          <span className="text-xs text-muted-foreground">{t('table.autoProcessedNo')}</span>
-        )
-      ),
-    },
-    {
       key: 'actions',
       label: tCommon('actions'),
       render: (_value, expense) => (
@@ -342,38 +329,45 @@ export default function ExpensesPage() {
   const variance = stats?.vs_fixed_costs?.variance ?? (actual - planned)
   const variancePct = stats?.vs_fixed_costs?.variance_percentage ?? (planned > 0 ? Math.round((variance / planned) * 100) : 0)
   const recurringCount = useMemo(() => expenses.filter((expense) => expense.is_recurring).length, [expenses])
-  const autoProcessedCount = useMemo(() => expenses.filter((expense) => expense.auto_processed).length, [expenses])
+  const summaryCards = useMemo(() => {
+    const cards = [
+      {
+        label: t('summary.totalSpentTitle'),
+        value: formatCurrency(totalSpent),
+        subtitle: t('summary.totalSpentSubtitle', { count: stats?.total_count ?? expenses.length }),
+        icon: Receipt,
+        color: 'primary' as const,
+      }
+    ]
 
-  const summaryCards = useMemo(() => [
-    {
-      label: t('summary.totalSpentTitle'),
-      value: formatCurrency(totalSpent),
-      subtitle: t('summary.totalSpentSubtitle', { count: stats?.total_count ?? expenses.length }),
-      icon: Receipt,
-      color: 'primary' as const,
-    },
-    {
-      label: t('summary.varianceTitle'),
-      value: formatCurrency(variance),
-      subtitle: t('summary.varianceSubtitle', { percentage: Math.abs(variancePct) }),
-      icon: TrendingUp,
-      color: variance > 0 ? ('danger' as const) : ('success' as const),
-    },
-    {
+    if (planned > 0) {
+      cards.push({
+        label: t('summary.varianceTitle'),
+        value: formatCurrency(variance),
+        subtitle: t('summary.varianceSubtitle', { percentage: Math.abs(variancePct) }),
+        icon: TrendingUp,
+        color: variance > 0 ? ('danger' as const) : ('success' as const),
+      })
+    } else {
+      cards.push({
+        label: t('summary.planNotConfiguredTitle'),
+        value: t('summary.planNotConfiguredValue'),
+        subtitle: t('summary.planNotConfiguredSubtitle'),
+        icon: AlertTriangle,
+        color: 'warning' as const,
+      })
+    }
+
+    cards.push({
       label: t('summary.recurringTitle'),
       value: recurringCount,
       subtitle: t('summary.recurringSubtitle'),
       icon: CalendarRange,
       color: 'info' as const,
-    },
-    {
-      label: t('summary.autoProcessedTitle'),
-      value: autoProcessedCount,
-      subtitle: t('summary.autoProcessedSubtitle'),
-      icon: ShieldCheck,
-      color: 'success' as const,
-    },
-  ], [autoProcessedCount, expenses.length, recurringCount, stats?.total_count, t, totalSpent, variance, variancePct])
+    })
+
+    return cards
+  }, [expenses.length, planned, recurringCount, stats?.total_count, t, totalSpent, variance, variancePct])
 
   const renderAlerts = () => {
     if (!alerts || alerts.summary.total_alerts === 0) {
@@ -493,6 +487,14 @@ export default function ExpensesPage() {
             </Button>
           )}
         />
+
+        <Alert className="bg-blue-50 border-blue-200 text-blue-900">
+          <Info className="h-5 w-5" />
+          <AlertTitle>{t('summary.expenseGuidanceTitle')}</AlertTitle>
+          <AlertDescription>
+            {t('summary.expenseGuidanceDescription')}
+          </AlertDescription>
+        </Alert>
 
         <SummaryCards cards={summaryCards} columns={4} />
 
@@ -1011,16 +1013,6 @@ function FiltersCard({
             label={t('filters.recurring')}
             value={typeof filters.is_recurring === 'boolean' ? String(filters.is_recurring) : 'any'}
             onChange={(value) => handleBooleanFilter('is_recurring', value)}
-            options={[
-              { value: 'any', label: t('filters.any') },
-              { value: 'true', label: t('filters.yes') },
-              { value: 'false', label: t('filters.no') },
-            ]}
-          />
-          <SelectField
-            label={t('filters.autoProcessed')}
-            value={typeof filters.auto_processed === 'boolean' ? String(filters.auto_processed) : 'any'}
-            onChange={(value) => handleBooleanFilter('auto_processed', value)}
             options={[
               { value: 'any', label: t('filters.any') },
               { value: 'true', label: t('filters.yes') },
