@@ -71,6 +71,7 @@ export function ServiceForm({
         <FormGrid columns={2}>
           <InputField
             label={t('fields.name')}
+            placeholder={t('namePlaceholder')}
             value={form.watch('name')}
             onChange={(value) => form.setValue('name', value)}
             error={form.formState.errors.name?.message}
@@ -115,6 +116,7 @@ export function ServiceForm({
           <InputField
             type="number"
             label={t('fields.duration')}
+            placeholder={t('durationPlaceholder')}
             value={form.watch('duration_minutes')}
             onChange={(value) => form.setValue('duration_minutes', typeof value === 'number' ? value : parseInt(String(value), 10) || 0)}
             helperText={t('duration_helper')}
@@ -124,11 +126,13 @@ export function ServiceForm({
           <InputField
             type="number"
             step="0.01"
-            label={t('fields.base_price')}
+            label={t('fields.base_price_auto')}
             value={(form.watch('base_price_cents') || 0) / 100}
             onChange={() => {}}
-            disabled
+            readOnly
+            className="bg-muted text-muted-foreground"
             helperText={t('auto_base_price_hint')}
+            error={form.formState.errors.base_price_cents?.message}
           />
         </FormGrid>
         <TextareaField
@@ -141,7 +145,7 @@ export function ServiceForm({
         />
       </FormSection>
 
-      <FormSection title={t('supplies_section')}>
+      <FormSection title={t('supplies_section')} description={t('supplies_section_hint')}>
         <div className="space-y-4">
           {serviceSupplies.map((ss: any, index: number) => (
             <div key={index} className="flex gap-2 items-end">
@@ -225,6 +229,17 @@ export function ServiceForm({
             {t('add_supply')}
           </Button>
         </div>
+      </FormSection>
+
+      <FormSection title={t('additional_details')}>
+        <TextareaField
+          label={t('fields.description')}
+          value={form.watch('description')}
+          onChange={(value) => form.setValue('description', value)}
+          placeholder={t('description_placeholder')}
+          rows={3}
+          error={form.formState.errors.description?.message}
+        />
       </FormSection>
 
       <FormSection title={t('costSummary')}>

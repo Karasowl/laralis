@@ -25,14 +25,17 @@ export function CategoryBreakdown({
 }: CategoryBreakdownProps) {
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
+      const value = payload[0].value as number
+      const total = data.reduce((a, b) => a + b.value, 0)
+      const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0'
       return (
         <div className="bg-white p-3 border rounded-lg shadow-lg">
           <p className="font-medium">{payload[0].name}</p>
           <p className="text-sm text-muted-foreground">
-            {formatCurrency(payload[0].value * 100)}
+            {formatCurrency(value)}
           </p>
           <p className="text-xs text-muted-foreground">
-            {((payload[0].value / data.reduce((a, b) => a + b.value, 0)) * 100).toFixed(1)}%
+            {percentage}%
           </p>
         </div>
       )

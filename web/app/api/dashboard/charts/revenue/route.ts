@@ -35,13 +35,16 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch completed treatments (revenue)
+    const startISO = start.toISOString().split('T')[0]
+    const endISO = end.toISOString().split('T')[0]
+
     const { data: treatments, error: tErr } = await supabaseAdmin
       .from('treatments')
-      .select('price_cents, created_at, status')
+      .select('price_cents, treatment_date, status')
       .eq('clinic_id', clinicId)
       .eq('status', 'completed')
-      .gte('created_at', start.toISOString())
-      .lte('created_at', end.toISOString())
+      .gte('treatment_date', startISO)
+      .lte('treatment_date', endISO)
 
     if (tErr) throw tErr
 
@@ -66,7 +69,9 @@ export async function GET(request: NextRequest) {
     const expensesByMonth: Record<string, number> = Object.fromEntries(months.map(k => [k, 0]))
 
     for (const t of treatments || []) {
-      const d = new Date(t.created_at as string)
+      if (!t.treatment_date) continue
+      const d = new Date(t.treatment_date as string)
+      if (Number.isNaN(d.getTime())) continue
       const k = monthKey(d)
       if (k in revenueByMonth) revenueByMonth[k] += Math.round((t.price_cents || 0) / 100)
     }
@@ -92,4 +97,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to compute revenue chart' }, { status: 500 })
   }
 }
-

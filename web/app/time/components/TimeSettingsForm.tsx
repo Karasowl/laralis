@@ -1,11 +1,18 @@
 'use client'
 
 import { FormSection, FormGrid, InputField } from '@/components/ui/form-field'
+import type { UseFormReturn } from 'react-hook-form'
 import { Form } from '@/components/ui/form'
 import { useTranslations } from 'next-intl'
 
+type TimeSettingsFormValues = {
+  work_days: number
+  hours_per_day: number
+  real_pct: number
+}
+
 interface TimeSettingsFormProps {
-  form: any
+  form: UseFormReturn<TimeSettingsFormValues>
 }
 
 export function TimeSettingsForm({ form }: TimeSettingsFormProps) {
@@ -19,8 +26,8 @@ export function TimeSettingsForm({ form }: TimeSettingsFormProps) {
           <InputField
             type="number"
             label={t('work_days_per_month')}
-            value={form.watch('work_days')}
-            onChange={(value) => form.setValue('work_days', parseInt(value as string))}
+            value={Number(form.watch('work_days') || 0)}
+            onChange={(value) => form.setValue('work_days', Number(value) || 0)}
             placeholder={v('placeholders.defaultDays20')}
             min={1}
             max={31}
@@ -30,22 +37,23 @@ export function TimeSettingsForm({ form }: TimeSettingsFormProps) {
           <InputField
             type="number"
             label={t('hours_per_day')}
-            value={form.watch('hours_per_day')}
-            onChange={(value) => form.setValue('hours_per_day', parseInt(value as string))}
+            value={Number(form.watch('hours_per_day') || 0)}
+            onChange={(value) => form.setValue('hours_per_day', Number(value) || 0)}
             placeholder={v('placeholders.defaultHours7')}
             min={1}
-            max={24}
+            max={16}
+            helperText={t('min_hours_help')}
             error={form.formState.errors.hours_per_day?.message}
           />
           
           <InputField
             type="number"
             label={t('productivity_percentage')}
-            value={form.watch('real_pct')}
-            onChange={(value) => form.setValue('real_pct', parseInt(value as string))}
+            value={Number(form.watch('real_pct') || 0)}
+            onChange={(value) => form.setValue('real_pct', Number(value) || 0)}
             placeholder={v('placeholders.defaultPercentage80')}
-            min={1}
-            max={100}
+            min={50}
+            max={95}
             error={form.formState.errors.real_pct?.message}
           />
         </FormGrid>

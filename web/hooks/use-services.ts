@@ -151,8 +151,21 @@ export function useServices(options: UseServicesOptions = {}) {
     const sanitized = Array.isArray(serviceSupplies)
       ? serviceSupplies.filter((s) => s.supply_id && (s.quantity ?? 0) > 0)
       : []
+    // Best-effort clinic id resolution to avoid races when context is not ready
+    let clinicIdFromHints: string | undefined
+    try {
+      if (typeof document !== 'undefined') {
+        const m = document.cookie.match(/(?:^|; )clinicId=([^;]+)/)
+        clinicIdFromHints = m ? decodeURIComponent(m[1]) : undefined
+      }
+      if (!clinicIdFromHints && typeof localStorage !== 'undefined') {
+        clinicIdFromHints = localStorage.getItem('selectedClinicId') || undefined
+      }
+    } catch {}
+
     const success = await crud.handleCreate({
       ...payload,
+      ...(clinicIdFromHints ? { clinic_id: clinicIdFromHints } : {}),
       ...(sanitized.length > 0
         ? { supplies: sanitized.map((s) => ({ supply_id: s.supply_id, qty: s.quantity })) }
         : {})

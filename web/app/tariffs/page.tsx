@@ -138,7 +138,7 @@ export default function TariffsPage() {
     {
       key: 'name',
       label: t('service'),
-      render: (tariff: TariffRow) => (
+      render: (_value: string, tariff: TariffRow) => (
         <div>
           <div className="font-medium">{tariff.name}</div>
           <div className="text-sm text-muted-foreground">
@@ -150,7 +150,7 @@ export default function TariffsPage() {
     {
       key: 'costs',
       label: t('costs'),
-      render: (tariff: TariffRow) => {
+      render: (_value: unknown, tariff: TariffRow) => {
         const totalCost = (tariff.fixed_cost_cents || 0) + (tariff.variable_cost_cents || 0)
         return (
           <div className="text-right">
@@ -168,7 +168,7 @@ export default function TariffsPage() {
     {
       key: 'margin',
       label: t('margin'),
-      render: (tariff: TariffRow) => (
+      render: (_value: number, tariff: TariffRow) => (
         <div className="text-center">
           <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-sm font-medium">
             {tariff.margin_pct}%
@@ -179,7 +179,7 @@ export default function TariffsPage() {
     {
       key: 'price',
       label: t('final_price'),
-      render: (tariff: TariffRow) => (
+      render: (_value: number, tariff: TariffRow) => (
         <div className="text-right">
           <div className="font-semibold text-lg">
             {formatCurrency(tariff.rounded_price)}
@@ -195,7 +195,7 @@ export default function TariffsPage() {
     {
       key: 'actions',
       label: tRoot('common.actions'),
-      render: (tariff: TariffRow) => (
+      render: (_value: unknown, tariff: TariffRow) => (
         <Button
           variant="outline"
           size="sm"

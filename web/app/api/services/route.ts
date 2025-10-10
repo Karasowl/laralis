@@ -77,7 +77,6 @@ export async function GET(request: NextRequest) {
         )
       `)
       .eq('clinic_id', clinicId)
-      .eq('is_active', true)
       .order('name', { ascending: true });
 
     // Apply search filter

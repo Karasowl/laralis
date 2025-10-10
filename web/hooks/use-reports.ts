@@ -28,6 +28,8 @@ interface ReportsSummaryResponse {
   }
 }
 
+export type ReportsKpis = ReportsSummaryResponse['data']['kpis']
+
 const EMPTY_DASHBOARD: DashboardData = {
   patientsMonth: 0,
   treatmentsMonth: 0,

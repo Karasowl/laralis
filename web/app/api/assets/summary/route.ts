@@ -5,12 +5,15 @@ import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { calculateMonthlyDepreciation } from '@/lib/calc/depreciacion';
 
-export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<{
+type SummaryResponse = {
   monthly_depreciation_cents: number;
   total_investment_cents: number;
   asset_count: number;
   average_depreciation_months: number;
-}>>> {
+  minimal_asset_present: boolean;
+};
+
+export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<SummaryResponse>>> {
   try {
     const cookieStore = cookies();
     const searchParams = request.nextUrl.searchParams;
@@ -44,11 +47,15 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
 
     const assets = data || [];
 
-    const total_investment_cents = assets.reduce((sum, a) => sum + a.purchase_price_cents, 0);
+    const minimal_asset_present = assets.length > 0;
+    const total_investment_cents = assets.reduce((sum, a) => sum + (a.purchase_price_cents || 0), 0);
 
     const monthly_depreciation_cents = assets.reduce((sum, a) => {
+      const price = Number(a.purchase_price_cents || 0);
+      const months = Number(a.depreciation_months || 0);
+      if (price <= 0 || months <= 0) return sum;
       try {
-        return sum + calculateMonthlyDepreciation(a.purchase_price_cents, a.depreciation_months);
+        return sum + calculateMonthlyDepreciation(price, months);
       } catch {
         return sum;
       }
@@ -57,7 +64,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
     const asset_count = assets.length;
 
     const average_depreciation_months = asset_count > 0
-      ? Math.round(assets.reduce((sum, a) => sum + (a.depreciation_months || 0), 0) / asset_count)
+      ? Math.round(assets.reduce((sum, a) => sum + Number(a.depreciation_months || 0), 0) / asset_count)
       : 0;
 
     return NextResponse.json({
@@ -66,6 +73,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
         total_investment_cents,
         asset_count,
         average_depreciation_months,
+        minimal_asset_present,
       },
     });
   } catch (error) {

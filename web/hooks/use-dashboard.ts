@@ -223,8 +223,108 @@ export function useDashboard(options: UseDashboardOptions = {}): DashboardState 
       // Process metrics
       const metricsData = results.slice(0, 6)
       const metrics = DashboardAggregator.aggregateMetrics(metricsData)
-      
-      // Calculate changes
+
+      // Fallbacks when backend endpoints are not available or return base shapes
+      try {
+        const needsTreatmentSnapshot = !metrics.treatments || metrics.treatments.total === 0
+        const needsRevenueFallback = !metrics.revenue || metrics.revenue.current === 0
+
+        if (needsTreatmentSnapshot || needsRevenueFallback) {
+          const tretRes = await fetch(`/api/treatments?clinicId=${clinicId}`, { credentials: 'include' })
+          if (tretRes.ok) {
+            const js = await tretRes.json()
+            const items = (js?.data || js || []) as any[]
+            const normaliseStatus = (status: string) => {
+              if (status === 'scheduled' || status === 'in_progress') return 'pending'
+              return status || 'pending'
+            }
+            const enriched = items.map((t) => ({
+              ...t,
+              status: normaliseStatus(t.status),
+              price_cents: t.price_cents ?? t.final_price_cents ?? 0,
+            }))
+
+            const nonCancelled = enriched.filter((t: any) => t.status !== 'cancelled')
+            const completed = nonCancelled.filter((t: any) => t.status === 'completed')
+            const pending = nonCancelled.filter((t: any) => t.status === 'pending')
+
+            if (needsTreatmentSnapshot) {
+              metrics.treatments = {
+                total: nonCancelled.length,
+                completed: completed.length,
+                pending: pending.length
+              } as any
+            }
+
+            if (needsRevenueFallback) {
+              const now = new Date()
+              const startOfDay = (date: Date) => {
+                const d = new Date(date)
+                d.setHours(0, 0, 0, 0)
+                return d
+              }
+              const endOfDay = (date: Date) => {
+                const d = new Date(date)
+                d.setHours(23, 59, 59, 999)
+                return d
+              }
+
+              let currentStart = startOfDay(now)
+              let currentEnd = endOfDay(now)
+
+              if (period === 'custom' && from && to) {
+                currentStart = startOfDay(new Date(from))
+                currentEnd = endOfDay(new Date(to))
+              } else if (period === 'day') {
+                currentStart = startOfDay(now)
+                currentEnd = endOfDay(now)
+              } else if (period === 'week') {
+                currentStart = startOfDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6))
+                currentEnd = endOfDay(now)
+              } else if (period === 'month') {
+                currentStart = startOfDay(new Date(now.getFullYear(), now.getMonth(), 1))
+                currentEnd = endOfDay(now)
+              } else if (period === 'year') {
+                currentStart = startOfDay(new Date(now.getFullYear(), 0, 1))
+                currentEnd = endOfDay(now)
+              }
+
+              const durationMs = currentEnd.getTime() - currentStart.getTime()
+              const previousEnd = new Date(currentStart.getTime() - 1)
+              const previousStart = new Date(previousEnd.getTime() - durationMs)
+
+              const inCurrent = completed.filter((t: any) => {
+                const sourceDate = t.treatment_date || t.completed_at || t.created_at
+                if (!sourceDate) return false
+                const dt = new Date(sourceDate)
+                if (Number.isNaN(dt.getTime())) return false
+                return dt >= currentStart && dt <= currentEnd
+              })
+
+              const inPrevious = completed.filter((t: any) => {
+                const sourceDate = t.treatment_date || t.completed_at || t.created_at
+                if (!sourceDate) return false
+                const dt = new Date(sourceDate)
+                if (Number.isNaN(dt.getTime())) return false
+                return dt >= previousStart && dt <= previousEnd
+              })
+
+              const currentSum = inCurrent.reduce((sum: number, t: any) => sum + (t.price_cents || 0), 0)
+              const previousSum = inPrevious.reduce((sum: number, t: any) => sum + (t.price_cents || 0), 0)
+
+              metrics.revenue = {
+                current: currentSum,
+                previous: previousSum,
+                change: 0
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[Dashboard] fallback metrics calc failed', e)
+      }
+
+      // Recalculate changes after applying fallbacks
       metrics.revenue.change = DashboardAggregator.calculateChange(
         metrics.revenue.current,
         metrics.revenue.previous
@@ -237,54 +337,6 @@ export function useDashboard(options: UseDashboardOptions = {}): DashboardState 
         metrics.patients.new,
         metrics.patients.total - metrics.patients.new
       )
-
-      // Fallbacks when backend endpoints are not available or return base shapes
-      try {
-        // Fallback for Treatments metrics using /api/treatments
-        if (!metrics.treatments || metrics.treatments.total === 0) {
-          const tretRes = await fetch(`/api/treatments?clinicId=${clinicId}`, { credentials: 'include' })
-          if (tretRes.ok) {
-            const js = await tretRes.json()
-            const items = js?.data || js || []
-            const nonCancelled = items.filter((t: any) => t.status !== 'cancelled')
-            const completed = nonCancelled.filter((t: any) => t.status === 'completed')
-            const pending = nonCancelled.filter((t: any) => t.status === 'pending')
-            metrics.treatments = {
-              total: nonCancelled.length,
-              completed: completed.length,
-              pending: pending.length
-            } as any
-            // If revenue.current is 0, compute quick fallback for selected period
-            if (!metrics.revenue || metrics.revenue.current === 0) {
-              const now = new Date()
-              let start = new Date(now)
-              let end = new Date(now)
-              if (period === 'custom' && from && to) {
-                start = new Date(from)
-                end = new Date(to)
-                end.setHours(23,59,59,999)
-              } else if (period === 'day') {
-                start.setHours(0, 0, 0, 0)
-              } else if (period === 'week') {
-                start.setDate(now.getDate() - 7)
-              } else if (period === 'month') {
-                start = new Date(now.getFullYear(), now.getMonth(), 1)
-              } else if (period === 'year') {
-                start = new Date(now.getFullYear(), 0, 1)
-              }
-              const inRange = completed.filter((t: any) => {
-                const dt = new Date(t.created_at || t.treatment_date)
-                return dt >= start && dt <= end
-              })
-              const total = inRange.reduce((sum: number, t: any) => sum + (t.price_cents || 0), 0)
-              metrics.revenue = metrics.revenue || { current: 0, previous: 0, change: 0 }
-              metrics.revenue.current = total
-            }
-          }
-        }
-      } catch (e) {
-        console.warn('[Dashboard] fallback metrics calc failed', e)
-      }
 
       // Process chart data
       const chartData = results.slice(6, 9)

@@ -47,7 +47,19 @@ export async function PUT(
       );
     }
 
-    const { depreciation_months: _ignoredDepreciationMonths, ...dataToUpdate } = validationResult.data;
+    const {
+      id: _ignoreId,
+      created_at: _ignoreCreatedAt,
+      updated_at: _ignoreUpdatedAt,
+      depreciation_months,
+      ...rest
+    } = validationResult.data;
+
+    const dataToUpdate: Record<string, unknown> = { ...rest };
+    if (typeof depreciation_months === 'number' && Number.isFinite(depreciation_months)) {
+      const normalizedMonths = Math.max(1, Math.round(depreciation_months));
+      dataToUpdate.depreciation_years = Math.max(1, Math.round(normalizedMonths / 12));
+    }
 
     const { data, error } = await supabaseAdmin
       .from('assets')

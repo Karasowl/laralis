@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { InputField, FormGrid, TextareaField, FormSection } from '@/components/ui/form-field'
 import { TouchRadioGroup } from '@/components/ui/mobile-form-advanced'
@@ -29,6 +29,7 @@ export function PatientFormUnified({
   const [newCampaignName, setNewCampaignName] = useState('')
   const [newCampaignPlatform, setNewCampaignPlatform] = useState('')
   const [creatingCampaign, setCreatingCampaign] = useState(false)
+  const newCampaignNameRef = useRef<HTMLInputElement | null>(null)
   const activeCampaigns = Array.isArray(campaigns) ? campaigns.filter((c: any) => c?.is_active) : []
   // Cambio de tipo de adquisición: limpia campos y muestra controles específicos
   const handleAcquisitionTypeChange = (value: string) => {
@@ -51,6 +52,15 @@ export function PatientFormUnified({
       console.log('[PFU] PatientFormUnified v2 mounted');
     }
   }, [])
+
+  useEffect(() => {
+    if (!createCampaignMode) return
+    if (typeof window === 'undefined') return
+    const id = window.requestAnimationFrame(() => {
+      try { newCampaignNameRef.current?.focus() } catch {}
+    })
+    return () => window.cancelAnimationFrame(id)
+  }, [createCampaignMode])
 
   // Inicializar el valor del selector desde los campos si ya vienen con datos
   useEffect(() => {
@@ -195,7 +205,17 @@ export function PatientFormUnified({
                 </select>
               </div>
               <div className="flex items-end">
-                <button type="button" className="px-3 py-2 border rounded-md text-sm" onClick={() => setCreateCampaignMode(true)}>
+                <button
+                  type="button"
+                  className="px-3 py-2 border rounded-md text-sm"
+                  onClick={() => {
+                    if (!createCampaignMode) {
+                      setCreateCampaignMode(true)
+                      return
+                    }
+                    try { newCampaignNameRef.current?.focus() } catch {}
+                  }}
+                >
                   {t('create_new_campaign')}
                 </button>
               </div>
@@ -244,6 +264,7 @@ export function PatientFormUnified({
                   value={newCampaignName}
                   onChange={(v) => setNewCampaignName(String(v))}
                   placeholder={t('campaign_name_placeholder')}
+                  inputRef={newCampaignNameRef}
                   required
                 />
                 <div>

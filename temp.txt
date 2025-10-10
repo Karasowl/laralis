@@ -92,41 +92,33 @@ export default function SetupPage() {
     [stepT]
   )
 
+  const [status, setStatus] = useState<Record<RequirementId, boolean>>({
+    depreciation: false,
+    fixed_costs: false,
+    cost_per_min: false,
+    supplies: false,
+    service_recipe: false,
+    tariffs: false
+  })
   const [reflectionAcknowledged, setReflectionAcknowledged] = useState<Record<RequirementId, boolean>>({})
   const [activeStepId, setActiveStepId] = useState<RequirementId>(steps[0]?.id ?? 'depreciation')
   const [ready, setReady] = useState(false)
   const [finishing, setFinishing] = useState(false)
   const [checking, setChecking] = useState(false)
-  const [missingState, setMissingState] = useState<Set<RequirementId> | null>(null)
 
   const requirementIds = useMemo<RequirementId[]>(() => steps.map((step) => step.id), [steps])
-  const isStepDone = useCallback(
-    (id: RequirementId) => {
-      if (!missingState) return false
-      return !missingState.has(id)
-    },
-    [missingState]
-  )
-
   const activeStep = steps.find((step) => step.id === activeStepId) ?? steps[0]
   const activeIndex = steps.findIndex((step) => step.id === activeStepId)
   const nextStep = activeIndex >= 0 ? steps[activeIndex + 1] : undefined
-  const firstPendingIndex = useMemo(() => steps.findIndex((step) => !isStepDone(step.id)), [steps, isStepDone])
+  const firstPendingIndex = useMemo(() => steps.findIndex((step) => !status[step.id]), [steps, status])
   const maxAccessibleIndex = firstPendingIndex === -1 ? steps.length - 1 : firstPendingIndex
-  const canAdvance = isStepDone(activeStepId)
+  const canAdvance = Boolean(status[activeStepId])
 
   const activePoints = activeStep?.points ?? []
 
-  const completedSteps = useMemo(() => {
-    if (!missingState) return 0
-    return steps.length - missingState.size
-  }, [missingState, steps])
+  const completedSteps = steps.filter((step) => status[step.id]).length
   const progressValue = steps.length ? Math.round((completedSteps / steps.length) * 100) : 0
   const allDone = steps.length > 0 && completedSteps === steps.length
-
-  try { console.log('[setup] missingState', missingState ? Array.from(missingState) : null) } catch {}
-
-  useEffect(() => { try { console.log("[setup] missingState", missingState && Array.from(missingState)) } catch {} }, [missingState])
 
   const clinicId = useMemo(() => {
     if (currentClinic?.id) return currentClinic.id
@@ -143,40 +135,28 @@ export default function SetupPage() {
     return undefined
   }, [currentClinic?.id])
 
-  const mountedRef = useRef(false)
-  const nextSectionRef = useRef<HTMLDivElement | null>(null)
-  const autoScrolledRef = useRef(false)
+  const mountedRef = useRef(true)
   useEffect(() => {
-    mountedRef.current = true
     return () => {
       mountedRef.current = false
     }
-  }, [])
-
-  const scrollToNextSection = useCallback(() => {
-    try {
-      nextSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    } catch {}
   }, [])
 
   const refreshStatus = useCallback(async (): Promise<Set<RequirementId> | null> => {
     if (!clinicId || !mountedRef.current) return null
     setChecking(true)
     try {
-      const result = await evaluateRequirements(
-        { clinicId, workspaceId: workspace?.id ?? undefined, cacheKeySuffix: Date.now().toString() },
-        requirementIds
-      )
-      const missingSet = new Set(result?.missing || [])
-
-      try {
-        console.log('[setup] evaluateRequirements', { clinicId, missing: result?.missing, raw: result })
-      } catch {}
-
-      if (!mountedRef.current) return missingSet
-      setMissingState(missingSet)
-      try { console.log('[setup] status updated missing', Array.from(missingSet)) } catch {}
-      return missingSet
+      const result = await evaluateRequirements({ clinicId }, requirementIds)
+      const missing = new Set(result.missing || [])
+      if (!mountedRef.current) return missing
+      setStatus((prev) => {
+        const next = { ...prev }
+        for (const id of requirementIds) {
+          next[id] = !missing.has(id)
+        }
+        return next
+      })
+      return missing
     } catch (error) {
       if (mountedRef.current) {
         console.error('Failed to evaluate setup requirements', error)
@@ -188,7 +168,7 @@ export default function SetupPage() {
         setChecking(false)
       }
     }
-  }, [clinicId, requirementIds, t, workspace?.id])
+  }, [clinicId, requirementIds, t])
 
   useEffect(() => {
     if (!clinicId) {
@@ -211,17 +191,6 @@ export default function SetupPage() {
       isMounted = false
     }
   }, [clinicId, refreshStatus])
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      (window as any).__LARALIS_REFRESH_SETUP = refreshStatus
-    }
-    return () => {
-      if (typeof window !== 'undefined' && (window as any).__LARALIS_REFRESH_SETUP === refreshStatus) {
-        delete (window as any).__LARALIS_REFRESH_SETUP
-      }
-    }
-  }, [refreshStatus])
 
   const acknowledgeReflection = useCallback(
     (stepId: RequirementId) => {
@@ -267,6 +236,10 @@ export default function SetupPage() {
     }
   }, [allDone, finishing, refreshWorkspaces, router, setWorkspace, t, workspace])
 
+  if (!ready) {
+    return <Loading fullscreen message={t('loading.message')} subtitle={t('loading.subtitle')} />
+  }
+
   const handleNextStep = useCallback(async () => {
     if (!nextStep) return
     if (!canAdvance) {
@@ -278,27 +251,6 @@ export default function SetupPage() {
     }
     setActiveStepId(nextStep.id)
   }, [nextStep, canAdvance, refreshStatus, activeStepId, t])
-
-  useEffect(() => {
-    if (!ready) return
-    if (!missingState) return
-    const firstPending = steps.find((step) => missingState.has(step.id))
-    if (firstPending && firstPending.id !== activeStepId) {
-      setActiveStepId(firstPending.id)
-    }
-  }, [ready, missingState, steps, activeStepId])
-
-  useEffect(() => {
-    if (!ready || !allDone || autoScrolledRef.current) return
-    autoScrolledRef.current = true
-    requestAnimationFrame(() => {
-      scrollToNextSection()
-    })
-  }, [allDone, ready, scrollToNextSection])
-
-  if (!ready) {
-    return <Loading fullscreen message={t('loading.message')} subtitle={t('loading.subtitle')} />
-  }
 
   return (
     <AppLayout>
@@ -322,45 +274,12 @@ export default function SetupPage() {
                 <span>{t('progress.label')}</span>
                 <span>{t('progress.percent', { value: progressValue })}</span>
               </div>
-              <div className="mt-3 flex items-center justify-end">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => refreshStatus()}
-                  disabled={checking}
-                >
-                  {checking ? t('progress.refreshing') : t('progress.refresh')}
-                </Button>
-              </div>
             </div>
           </div>
-          {allDone && (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div className="flex items-start gap-3">
-                  <Sparkles className="mt-0.5 h-5 w-5 text-emerald-600" />
-                  <div>
-                    <p className="text-sm font-semibold text-emerald-900">
-                      {t('nextSection.title')}
-                    </p>
-                    <p className="text-sm text-emerald-900/80">{t('nextSection.description')}</p>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button onClick={finishSetup} disabled={finishing}>
-                    {finishing ? t('navigation.completing') : t('nextSection.cta.finish')}
-                  </Button>
-                  <Button variant="outline" onClick={scrollToNextSection}>
-                    {t('nextSection.title')}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
           <div className="hidden border-t pt-4 md:block">
             <div className="flex gap-3 overflow-x-auto pb-1">
               {steps.map((step, index) => {
-                const done = isStepDone(step.id)
+                const done = status[step.id]
                 const isActive = step.id === activeStepId
                 const locked = firstPendingIndex !== -1 && index > maxAccessibleIndex
                 return (
@@ -409,8 +328,8 @@ export default function SetupPage() {
                     {activeStep?.description}
                   </p>
                 </div>
-                <Badge variant={isStepDone(activeStepId) ? 'default' : 'secondary'}>
-                  {isStepDone(activeStepId) ? t('currentStep.validated') : t('currentStep.inProgress')}
+                <Badge variant={status[activeStepId] ? 'default' : 'secondary'}>
+                  {status[activeStepId] ? t('currentStep.validated') : t('currentStep.inProgress')}
                 </Badge>
               </div>
 
@@ -423,16 +342,7 @@ export default function SetupPage() {
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Button
                     size="lg"
-                    onClick={() => {
-                      try { if (typeof window !== 'undefined') sessionStorage.setItem('return_to_setup', '1') } catch {}
-                      const href = activeStep?.action.href ?? '#'
-                      const parts = href.split('?')[0]
-                      const params = new URLSearchParams(href.includes('?') ? href.split('?')[1] : '')
-                      params.set('from', 'setup')
-                      if (currentClinic?.id) params.set('clinicId', currentClinic.id)
-                      const target = `${parts}?${params.toString()}`
-                      router.push(target)
-                    }}
+                    onClick={() => router.push(activeStep?.action.href ?? '#')}
                     className="flex-1 min-w-[200px] justify-center"
                   >
                     {activeStep?.action.label}
@@ -508,7 +418,7 @@ export default function SetupPage() {
               <div className="flex justify-end gap-2 pt-2">
                 <Button
                   onClick={nextStep ? handleNextStep : finishSetup}
-                  disabled={finishing || (!nextStep && !allDone)}
+                  disabled={finishing || (nextStep ? !canAdvance : !allDone)}
                 >
                   {nextStep
                     ? t('navigation.nextShort')
@@ -523,8 +433,7 @@ export default function SetupPage() {
         </div>
 
         {allDone && (
-          <div ref={nextSectionRef}>
-            <Card className="space-y-6 p-6">
+          <Card className="space-y-6 p-6">
             <div>
               <h3 className="text-xl font-semibold">{t('nextSection.title')}</h3>
               <p className="text-sm text-muted-foreground">{t('nextSection.description')}</p>
@@ -586,7 +495,6 @@ export default function SetupPage() {
               </Button>
             </div>
           </Card>
-          </div>
         )}
       </div>
     </AppLayout>

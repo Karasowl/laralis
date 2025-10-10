@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { z } from 'zod';
@@ -60,6 +60,8 @@ export function useCrudOperations<T extends { id: string; name?: string }>(
   const [deletingItem, setDeletingItem] = useState<T | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchDebounce, setSearchDebounce] = useState('');
+  const lastFetchIdRef = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
 
   // Stringified key for static params to use in effect deps
   const staticParamsKey = JSON.stringify(config.staticParams || {});
@@ -76,7 +78,11 @@ export function useCrudOperations<T extends { id: string; name?: string }>(
   const fetchItems = useCallback(async () => {
     try {
       setLoading(true);
-      
+      const fetchId = ++lastFetchIdRef.current;
+      try { abortRef.current?.abort() } catch {}
+      const controller = new AbortController();
+      abortRef.current = controller;
+
       // Construir URL combinando parámetros existentes + estáticos + búsqueda
       let urlString = config.endpoint;
       const base = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
@@ -86,7 +92,19 @@ export function useCrudOperations<T extends { id: string; name?: string }>(
       // resuelto en el cliente, dejamos que el backend determine la clínica
       // a partir de la cookie o de un valor por defecto.
       if (config.includeClinicId) {
-        const clinicIdToUse = (currentClinic?.id) || (fallbackClinic?.id);
+        let clinicIdToUse = currentClinic?.id || fallbackClinic?.id;
+        if (!clinicIdToUse) {
+          try {
+            if (typeof document !== 'undefined') {
+              const m = document.cookie.match(/(?:^|; )clinicId=([^;]+)/);
+              if (m) clinicIdToUse = decodeURIComponent(m[1]);
+            }
+            if (!clinicIdToUse && typeof localStorage !== 'undefined') {
+              const stored = localStorage.getItem('selectedClinicId');
+              if (stored) clinicIdToUse = stored;
+            }
+          } catch {}
+        }
         if (clinicIdToUse) {
           urlObj.searchParams.set('clinic_id', clinicIdToUse);
           urlObj.searchParams.set('clinicId', clinicIdToUse);
@@ -107,7 +125,7 @@ export function useCrudOperations<T extends { id: string; name?: string }>(
 
       const url = urlObj.pathname + (urlObj.search ? urlObj.search : '')
       try { console.log('[useCrudOperations] fetch', url) } catch {}
-      const response = await fetch(url, { credentials: 'include' })
+      const response = await fetch(url, { credentials: 'include', signal: controller.signal })
       
       if (!response.ok) {
         throw new Error(`Failed to fetch ${config.entityName}`);
@@ -120,11 +138,14 @@ export function useCrudOperations<T extends { id: string; name?: string }>(
         ? data.map(config.transformData)
         : data;
       
-      setItems(transformedData);
+      if (fetchId === lastFetchIdRef.current) {
+        try { console.log('[useCrudOperations] fetched', config.endpoint, Array.isArray(transformedData) ? transformedData.length : 'n/a') } catch {}
+        setItems(transformedData);
+      }
     } catch (error) {
+      if ((error as any)?.name === 'AbortError') return;
       console.error(`Error fetching ${config.entityName}:`, error);
       toast.error(t('common.loadError', { entity: config.entityName }));
-      setItems([]);
     } finally {
       setLoading(false);
     }
@@ -143,7 +164,19 @@ export function useCrudOperations<T extends { id: string; name?: string }>(
     setIsSubmitting(true);
     try {
       // Include clinic_id if configured (use fallback if workspace not ready)
-      const clinicIdToUse = currentClinic?.id || fallbackClinic?.id;
+      let clinicIdToUse = currentClinic?.id || fallbackClinic?.id;
+      if (!clinicIdToUse) {
+        try {
+          if (typeof document !== 'undefined') {
+            const m = document.cookie.match(/(?:^|; )clinicId=([^;]+)/);
+            if (m) clinicIdToUse = decodeURIComponent(m[1]);
+          }
+          if (!clinicIdToUse && typeof localStorage !== 'undefined') {
+            const stored = localStorage.getItem('selectedClinicId');
+            if (stored) clinicIdToUse = stored;
+          }
+        } catch {}
+      }
       const payload = config.includeClinicId && clinicIdToUse
         ? { ...data, clinic_id: clinicIdToUse }
         : data;
@@ -168,6 +201,7 @@ export function useCrudOperations<T extends { id: string; name?: string }>(
         throw new Error(error.message || error.error);
       }
       
+      try { console.log('[useCrudOperations] create response ok', config.endpoint) } catch {}
       toast.success(t('common.createSuccess', { entity: config.entityName }));
       await fetchItems();
       return true;

@@ -23,13 +23,17 @@ import {
   Lightbulb
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/money'
-import { useCurrentClinic } from '@/hooks/use-current-clinic'
-import { useReports } from '@/hooks/use-reports'
+import type { BusinessInsights } from '@/lib/analytics'
+import type { ReportsKpis } from '@/hooks/use-reports'
 
-export function ReportsAdvanced() {
+interface ReportsAdvancedProps {
+  insights: BusinessInsights | null
+  kpis: ReportsKpis | null
+  loading: boolean
+}
+
+export function ReportsAdvanced({ insights, kpis, loading }: ReportsAdvancedProps) {
   const t = useTranslations('reports')
-  const { currentClinic } = useCurrentClinic()
-  const { insights, kpis, loading } = useReports({ clinicId: currentClinic?.id })
 
   if (loading) {
     return (

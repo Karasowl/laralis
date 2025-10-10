@@ -16,6 +16,8 @@ import { Package } from 'lucide-react';
 import { z } from 'zod';
 import { useCategories } from '@/hooks/use-categories';
 import { CategoryModal } from '@/app/services/components/CategoryModal';
+import { useWorkspace } from '@/contexts/workspace-context';
+import { useRouter } from 'next/navigation';
 
 type SupplyFormData = z.infer<typeof zSupplyForm>;
 
@@ -27,6 +29,8 @@ const legacyCategories: SupplyCategory[] = [
 
 export default function SuppliesPage() {
   const t = useTranslations();
+  const { workspace } = useWorkspace();
+  const router = useRouter();
   const {
     categories: catList,
     createCategory,
@@ -45,7 +49,6 @@ export default function SuppliesPage() {
 
   // Form handling
   const {
-    register,
     handleSubmit,
     reset,
     setValue,
@@ -93,6 +96,20 @@ export default function SuppliesPage() {
     if (success) {
       crud.closeDialog();
       reset();
+      if (!crud.editingItem) {
+        try {
+          if (typeof window !== 'undefined') {
+            window.localStorage?.setItem('setup_supplies_done', 'true');
+          }
+        } catch {}
+        // Redirect back to Setup only if we are in onboarding flow.
+        const fromSetup = (typeof window !== 'undefined' && sessionStorage.getItem('return_to_setup') === '1')
+        const inOnboarding = (workspace?.onboarding_completed === false) || (workspace?.onboarding_completed === undefined && fromSetup)
+        if (inOnboarding) {
+          try { if (typeof window !== 'undefined') sessionStorage.removeItem('return_to_setup') } catch {}
+          setTimeout(() => router.push('/setup'), 0);
+        }
+      }
     }
   };
 
@@ -138,19 +155,19 @@ export default function SuppliesPage() {
     { 
       key: 'category', 
       label: t('supplies.form.category'), 
-      render: (_value: any, supply: Supply) => 
+      render: (_value: unknown, supply: Supply) => 
         getSupplyCategoryLabel(supply.category, t)
     },
     { 
       key: 'presentation', 
       label: t('supplies.form.presentation'), 
-      render: (_value: any, supply: Supply) =>
+      render: (_value: unknown, supply: Supply) =>
         supply.presentation || '-'
     },
     { 
       key: 'price_cents', 
       label: t('supplies.pricePerPresentation'), 
-      render: (_value: any, supply: Supply) =>
+      render: (_value: unknown, supply: Supply) =>
         formatCurrency(supply.price_cents ?? 0)
     },
     { 
@@ -160,7 +177,7 @@ export default function SuppliesPage() {
     { 
       key: 'cost_per_portion_cents', 
       label: t('supplies.pricePerPortion'), 
-      render: (_value: any, supply: Supply) =>
+      render: (_value: unknown, supply: Supply) =>
         <span className="font-medium text-green-600">
           {formatCurrency(supply.cost_per_portion_cents ?? 0)}
         </span>
@@ -169,7 +186,7 @@ export default function SuppliesPage() {
 
   // Category options for select
   const categoryOptions = (catList && catList.length > 0
-    ? catList.map((c: any) => ({ value: c.display_name || c.name || c.code, label: c.display_name || c.name || c.code }))
+    ? (catList as CategoryRow[]).map((c) => ({ value: c.display_name || c.name || c.code || '', label: c.display_name || c.name || c.code || '' })).filter(option => option.value)
     : legacyCategories.map(cat => ({ value: cat, label: t(`supplies.categories.${cat}`) }))
   );
 
@@ -278,7 +295,7 @@ export default function SuppliesPage() {
       <CategoryModal
         open={categoryModalOpen}
         onOpenChange={setCategoryModalOpen}
-        categories={catList as any[]}
+        categories={catList as CategoryRow[]}
         onCreateCategory={createCategory}
         onUpdateCategory={updateCategory}
         onDeleteCategory={deleteCategory}

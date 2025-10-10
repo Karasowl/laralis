@@ -63,7 +63,12 @@ export function RevenueChart({
             <YAxis 
               className="text-xs"
               tick={{ fill: 'currentColor' }}
-              tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+              tickFormatter={(value: number) => {
+                if (Math.abs(value) >= 1000) {
+                  return `$${(value / 1000).toFixed(0)}k`
+                }
+                return `$${value.toFixed(0)}`
+              }}
             />
             <Tooltip content={<CustomTooltip />} />
             <Area

@@ -28,33 +28,44 @@ export async function GET(request: NextRequest) {
       end = new Date(now)
     }
 
+    const startISO = start.toISOString().split('T')[0]
+    const endISO = end.toISOString().split('T')[0]
+
     // Fetch completed treatments within period
     const { data: treatments, error: tErr } = await supabaseAdmin
       .from('treatments')
-      .select('price_cents, created_at, status, service_id')
+      .select('price_cents, treatment_date, status, service_id')
       .eq('clinic_id', clinicId)
       .eq('status', 'completed')
-      .gte('created_at', start.toISOString())
-      .lte('created_at', end.toISOString())
+      .gte('treatment_date', startISO)
+      .lte('treatment_date', endISO)
 
     if (tErr) throw tErr
 
     // Fetch service categories
     const serviceIds = Array.from(new Set((treatments || []).map(t => t.service_id).filter(Boolean)))
-    let categoriesMap: Record<string, string> = {}
+    const serviceInfo = new Map<string, { name: string; category?: string }>()
     if (serviceIds.length > 0) {
       const { data: services, error: sErr } = await supabaseAdmin
         .from('services')
-        .select('id, category')
+        .select('id, name, category')
         .in('id', serviceIds)
       if (sErr) throw sErr
-      categoriesMap = Object.fromEntries((services || []).map(s => [s.id, s.category || 'Otros']))
+      for (const service of services || []) {
+        serviceInfo.set(service.id, {
+          name: service.name || 'Servicio sin nombre',
+          category: service.category || undefined
+        })
+      }
     }
 
     const sums: Record<string, number> = {}
     for (const t of treatments || []) {
-      const cat = categoriesMap[t.service_id as string] || 'Otros'
-      sums[cat] = (sums[cat] || 0) + Math.round((t.price_cents || 0) / 100)
+      if (!t.service_id) continue
+      if (!t.treatment_date || Number.isNaN(new Date(t.treatment_date as string).getTime())) continue
+      const info = serviceInfo.get(t.service_id)
+      const label = info?.name || info?.category || 'Servicio sin nombre'
+      sums[label] = (sums[label] || 0) + (t.price_cents || 0)
     }
 
     const categories = Object.entries(sums).map(([name, value]) => ({ name, value }))

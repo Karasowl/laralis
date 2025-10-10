@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { CrudPageLayout } from '@/components/ui/crud-page-layout';
@@ -16,12 +17,18 @@ import { zAssetForm } from '@/lib/zod';
 import { Package, TrendingDown, Calendar, DollarSign } from 'lucide-react';
 import { z } from 'zod';
 import { getLocalDateISO } from '@/lib/utils';
+import { useWorkspace } from '@/contexts/workspace-context';
+import { evaluateRequirements } from '@/lib/requirements';
+import { toast } from 'sonner';
 
 type AssetFormData = z.infer<typeof zAssetForm>;
 
 export default function AssetsPage() {
   const t = useTranslations();
+  const setupT = useTranslations('setupWizard');
   const todayIso = getLocalDateISO();
+  const router = useRouter();
+  const { currentClinic, workspace } = useWorkspace();
   
   // CRUD operations
   const crud = useCrudOperations<Asset & { id: string }>({
@@ -56,6 +63,7 @@ export default function AssetsPage() {
 
   // Calculate summary statistics
   const summary = useMemo(() => {
+    try { console.log('[assets] items.length', crud.items.length) } catch {}
     const totalInvestmentCents = crud.items.reduce((sum, a) => sum + a.purchase_price_cents, 0);
     const monthlyDepreciationCents = crud.items.reduce((sum, a) => {
       if (!a.depreciation_months || a.depreciation_months <= 0) return sum;
@@ -90,8 +98,13 @@ export default function AssetsPage() {
       : await crud.handleCreate(payload);
     
     if (success) {
+      const wasCreating = !crud.editingItem;
       crud.closeDialog();
       reset();
+      if (wasCreating && !workspace?.onboarding_completed) {
+        toast.success(setupT('toasts.finishSuccess'));
+        router.push('/setup');
+      }
     }
   };
 
@@ -121,7 +134,7 @@ export default function AssetsPage() {
     { 
       key: 'purchase_price_cents', 
       label: t('assets.table.purchasePrice'), 
-      render: (_v: any, row: Asset) => formatCurrency(row.purchase_price_cents) 
+      render: (_value: unknown, row: Asset) => formatCurrency(row.purchase_price_cents) 
     },
     { 
       key: 'depreciation_months', 
@@ -130,7 +143,7 @@ export default function AssetsPage() {
     { 
       key: 'monthly_dep', 
       label: t('assets.table.monthlyDep'), 
-      render: (_v: any, row: Asset) => 
+      render: (_value: unknown, row: Asset) => 
         formatCurrency(Math.round(row.purchase_price_cents / row.depreciation_months)) 
     }
   ];
@@ -186,6 +199,30 @@ export default function AssetsPage() {
       </div>
     </Card>
   );
+
+  useEffect(() => {
+    if (workspace?.onboarding_completed) return;
+    const clinicId = currentClinic?.id;
+    if (!clinicId || crud.loading) return;
+    if (!crud.items || crud.items.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await evaluateRequirements({ clinicId, cacheKeySuffix: Date.now().toString() }, ['depreciation']);
+        if (!cancelled && !(res.missing || []).includes('depreciation')) {
+          toast.success(setupT('toasts.finishSuccess'));
+          router.push('/setup');
+        }
+      } catch (error) {
+        console.error('Failed to evaluate depreciation requirement', error);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [crud.loading, crud.items, currentClinic?.id, workspace?.onboarding_completed, router, setupT]);
 
   return (
     <>
