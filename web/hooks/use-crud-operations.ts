@@ -294,6 +294,8 @@ export function useCrudOperations<T extends { id: string; name?: string }>(
   const closeDialog = () => {
     setIsDialogOpen(false);
     setEditingItem(null);
+    setDeleteConfirmOpen(false);
+    setDeletingItem(null);
   };
 
   const reset = () => {

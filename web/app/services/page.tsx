@@ -279,6 +279,7 @@ export default function ServicesPage() {
         <ServicesTable
           services={services}
           loading={loading}
+          categories={categories}
           onManageSupplies={handleManageSupplies}
           onEdit={handleEditService}
           onDelete={handleDeleteService}

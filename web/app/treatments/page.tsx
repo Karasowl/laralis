@@ -117,6 +117,13 @@ export default function TreatmentsPage() {
 
   const handleEdit = async (data: TreatmentFormData) => {
     if (!editTreatment) return
+
+    if (data.service_id !== editTreatment.service_id) {
+      toast.error(t('treatments.serviceChangeNotAllowed'))
+      form.setValue('service_id', editTreatment.service_id, { shouldDirty: false, shouldTouch: true, shouldValidate: true })
+      return
+    }
+
     const success = await updateTreatment(editTreatment.id, data, editTreatment)
     if (success) {
       setEditTreatment(null)
@@ -426,7 +433,6 @@ export default function TreatmentsPage() {
           onSubmit={form.handleSubmit(handleCreate)}
           isSubmitting={isSubmitting}
           maxWidth="2xl"
-          modal={false}
         >
           {missingReqs.length > 0 && (
             <div className="mb-4 p-3 border rounded-md bg-amber-50 text-sm">
@@ -460,7 +466,6 @@ export default function TreatmentsPage() {
           onSubmit={form.handleSubmit(handleEdit)}
           isSubmitting={isSubmitting}
           maxWidth="2xl"
-          modal={false}
         >
           <TreatmentForm 
             form={form} 
@@ -471,6 +476,7 @@ export default function TreatmentsPage() {
             onCreatePatient={handleCreatePatient}
             onCreateService={handleCreateService}
             onServiceCreated={handleServiceCreated}
+            serviceLocked
             t={t}
           />
         </FormModal>

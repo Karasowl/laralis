@@ -1,20 +1,31 @@
 'use client'
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParallelApi } from '@/hooks/use-api'
 
 export interface EquilibriumData {
   fixedCostsCents: number
   variableCostPercentage: number
+  autoVariableCostPercentage: number
+  autoVariableCostSampleSize: number
+  autoVariableCostPeriod?: { from: string; to: string; days: number }
+  variableCostSource: 'calculated' | 'fallback'
   contributionMargin: number
   breakEvenRevenueCents: number
   dailyTargetCents: number
   safetyMarginCents: number
+  safetyMarginPercentage: number
+  customSafetyMarginPercentage: number
   workDays: number
+  baseWorkDays: number
+  baseSafetyMarginPercentage: number
   monthlyTargetCents: number
+  manualMonthlyTargetCents: number
+  baseMonthlyTargetCents: number
   currentRevenueCents: number
   revenueGapCents: number
   daysToBreakEven: number
+  progressPercentage: number
 }
 
 interface UseEquilibriumOptions {
@@ -24,29 +35,63 @@ interface UseEquilibriumOptions {
   safetyMarginPercentage?: number
 }
 
-// Single Responsibility: Equilibrium calculations
+interface SimulationSettings {
+  workDays?: number
+  variableCostPercentage?: number
+  safetyMarginPercentage?: number
+  manualMonthlyTargetPesos?: number | null
+}
+
 export class EquilibriumCalculator {
   static calculate(
     fixedCostsCents: number,
     variableCostPercentage: number,
     workDays: number,
-    safetyMarginPercentage: number = 20
-  ): Partial<EquilibriumData> {
-    const contributionMargin = 100 - variableCostPercentage
-    const breakEvenRevenueCents = Math.round(
-      (fixedCostsCents * 100) / contributionMargin
+    safetyMarginPercentage: number = 20,
+    manualMonthlyTargetCents?: number
+  ): Pick<
+    EquilibriumData,
+    | 'contributionMargin'
+    | 'breakEvenRevenueCents'
+    | 'dailyTargetCents'
+    | 'safetyMarginCents'
+    | 'safetyMarginPercentage'
+    | 'monthlyTargetCents'
+  > {
+    const contributionMargin = Math.max(0, 100 - variableCostPercentage)
+    const marginDecimal = contributionMargin / 100
+
+    const breakEvenRevenueCents =
+      marginDecimal > 0 ? Math.round(fixedCostsCents / marginDecimal) : 0
+
+    const defaultMonthlyTargetCents = Math.round(
+      breakEvenRevenueCents * (1 + Math.max(0, safetyMarginPercentage) / 100)
     )
-    const safetyMarginCents = Math.round(
-      breakEvenRevenueCents * (safetyMarginPercentage / 100)
-    )
-    const monthlyTargetCents = breakEvenRevenueCents + safetyMarginCents
-    const dailyTargetCents = Math.round(monthlyTargetCents / workDays)
+
+    const manualTarget =
+      manualMonthlyTargetCents && manualMonthlyTargetCents > 0
+        ? manualMonthlyTargetCents
+        : undefined
+
+    const monthlyTargetCents = manualTarget
+      ? Math.max(breakEvenRevenueCents, manualTarget)
+      : defaultMonthlyTargetCents
+
+    const safetyMarginCents = Math.max(0, monthlyTargetCents - breakEvenRevenueCents)
+    const effectiveSafetyMarginPercentage =
+      breakEvenRevenueCents > 0
+        ? (safetyMarginCents / breakEvenRevenueCents) * 100
+        : 0
+
+    const dailyTargetCents =
+      workDays > 0 ? Math.round(monthlyTargetCents / workDays) : 0
 
     return {
       contributionMargin,
       breakEvenRevenueCents,
       dailyTargetCents,
       safetyMarginCents,
+      safetyMarginPercentage: effectiveSafetyMarginPercentage,
       monthlyTargetCents
     }
   }
@@ -55,32 +100,32 @@ export class EquilibriumCalculator {
     currentRevenueCents: number,
     targetRevenueCents: number,
     dailyTargetCents: number
-  ): { revenueGapCents: number; daysToBreakEven: number; progressPercentage: number } {
+  ): {
+    revenueGapCents: number
+    daysToBreakEven: number
+    progressPercentage: number
+  } {
     const revenueGapCents = Math.max(0, targetRevenueCents - currentRevenueCents)
-    const daysToBreakEven = dailyTargetCents > 0 
-      ? Math.ceil(revenueGapCents / dailyTargetCents)
-      : 0
-    const progressPercentage = targetRevenueCents > 0
-      ? Math.min(100, (currentRevenueCents / targetRevenueCents) * 100)
-      : 0
+    const daysToBreakEven =
+      dailyTargetCents > 0 ? Math.ceil(revenueGapCents / dailyTargetCents) : 0
+    const progressPercentage =
+      targetRevenueCents > 0
+        ? Math.min(100, (currentRevenueCents / targetRevenueCents) * 100)
+        : 0
 
     return { revenueGapCents, daysToBreakEven, progressPercentage }
   }
 }
 
-// Interface Segregation: Equilibrium operations
 interface IEquilibriumOperations {
   data: EquilibriumData
   loading: boolean
   error: string | null
-  updateWorkDays: (days: number) => void
-  updateVariableCostPercentage: (percentage: number) => void
-  updateCurrentRevenue: (cents: number) => void
+  simulate: (settings: Partial<SimulationSettings>) => void
+  resetSimulation: () => void
   refreshData: () => Promise<void>
-  saveSettings: () => Promise<void>
 }
 
-// Main hook following Dependency Inversion
 export function useEquilibrium(options: UseEquilibriumOptions = {}): IEquilibriumOperations {
   const {
     clinicId,
@@ -92,25 +137,34 @@ export function useEquilibrium(options: UseEquilibriumOptions = {}): IEquilibriu
   const [data, setData] = useState<EquilibriumData>({
     fixedCostsCents: 0,
     variableCostPercentage: defaultVariableCostPercentage,
+    autoVariableCostPercentage: defaultVariableCostPercentage,
+    autoVariableCostSampleSize: 0,
+    variableCostSource: 'fallback',
     contributionMargin: 65,
     breakEvenRevenueCents: 0,
     dailyTargetCents: 0,
     safetyMarginCents: 0,
+    safetyMarginPercentage,
+    customSafetyMarginPercentage: safetyMarginPercentage,
     workDays: defaultWorkDays,
+    baseWorkDays: defaultWorkDays,
+    baseSafetyMarginPercentage: safetyMarginPercentage,
     monthlyTargetCents: 0,
+    manualMonthlyTargetCents: 0,
+    baseMonthlyTargetCents: 0,
     currentRevenueCents: 0,
     revenueGapCents: 0,
-    daysToBreakEven: 0
+    daysToBreakEven: 0,
+    progressPercentage: 0
   })
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const { fetchAll } = useParallelApi()
 
-  // Load all data
   const loadData = useCallback(async () => {
     if (!clinicId) {
-      setError('common.noClinicContext') // Translation key for error messages
+      setError('common.noClinicContext')
       setLoading(false)
       return
     }
@@ -119,161 +173,229 @@ export function useEquilibrium(options: UseEquilibriumOptions = {}): IEquilibriu
       setLoading(true)
       setError(null)
 
-      // Fetch all data in parallel
-      const [fixedCostsRes, assetsRes, timeRes, revenueRes] = await fetchAll([
+      const [
+        fixedCostsRes,
+        assetsRes,
+        timeRes,
+        revenueRes,
+        variableCostRes
+      ] = await fetchAll([
         { endpoint: `/api/fixed-costs?clinicId=${clinicId}` },
         { endpoint: `/api/assets/summary?clinicId=${clinicId}` },
         { endpoint: `/api/settings/time?clinicId=${clinicId}` },
-        { endpoint: `/api/reports/revenue?clinicId=${clinicId}&period=month` }
+        { endpoint: `/api/reports/revenue?clinicId=${clinicId}&period=month` },
+        { endpoint: `/api/equilibrium/variable-cost?clinicId=${clinicId}` }
       ])
 
-      // Calculate total fixed costs
-      let totalFixedCents = 0
-      
-      if (fixedCostsRes?.data) {
-        const costs = Array.isArray(fixedCostsRes.data) ? fixedCostsRes.data : []
-        totalFixedCents = costs.reduce((sum: number, cost: any) => 
-          sum + (cost.amount_cents || 0), 0
-        )
+      const toArray = (input: any): any[] => {
+        if (Array.isArray(input)) return input
+        if (Array.isArray(input?.data)) return input.data
+        if (Array.isArray(input?.data?.data)) return input.data.data
+        return []
       }
 
-      if (assetsRes?.data?.monthly_depreciation_cents) {
-        totalFixedCents += assetsRes.data.monthly_depreciation_cents
+      const toObject = (input: any): Record<string, any> => {
+        if (!input || Array.isArray(input)) return {}
+        if (input.data && !Array.isArray(input.data)) return input.data
+        return input
       }
 
-      // Get work days
-      const workDays = timeRes?.data?.work_days || defaultWorkDays
+      const fixedCosts = toArray(fixedCostsRes).map((cost: any) => ({
+        amount_cents: Number(cost?.amount_cents || cost?.amount || 0)
+      }))
 
-      // Get current revenue
-      const currentRevenueCents = revenueRes?.data?.total_cents || 0
+      const assetsSummary = toObject(assetsRes)
 
-      // Calculate equilibrium
+      const manualFixedCents = fixedCosts.reduce(
+        (sum, cost) => sum + Number(cost.amount_cents || 0),
+        0
+      )
+
+      const assetsDepreciation = Number(
+        assetsSummary?.monthly_depreciation_cents ??
+          assetsSummary?.data?.monthly_depreciation_cents ??
+          0
+      )
+
+      const totalFixedCents = manualFixedCents + assetsDepreciation
+      const timeSettings = toObject(timeRes)
+      const workDays =
+        Number(timeSettings?.work_days ?? defaultWorkDays) || defaultWorkDays
+
+      const revenuePayload = toObject(revenueRes)
+      const currentRevenueCents = Number(
+        revenuePayload?.revenue?.current ??
+          revenuePayload?.data?.revenue?.current ??
+          0
+      )
+
+      const variableCostData = toObject(variableCostRes)
+      const calculatedVariableCostPercentage = Number(
+        variableCostData?.variableCostPercentage ??
+          variableCostData?.data?.variableCostPercentage ??
+          0
+      )
+      const sampleSize = Number(
+        variableCostData?.sampleSize ?? variableCostData?.data?.sampleSize ?? 0
+      )
+      const autoVariableCostPercentage =
+        sampleSize > 0
+          ? calculatedVariableCostPercentage
+          : defaultVariableCostPercentage
+
       const calculations = EquilibriumCalculator.calculate(
         totalFixedCents,
-        data.variableCostPercentage,
+        autoVariableCostPercentage,
         workDays,
         safetyMarginPercentage
       )
 
-      // Calculate progress
       const progress = EquilibriumCalculator.calculateProgress(
         currentRevenueCents,
-        calculations.monthlyTargetCents || 0,
-        calculations.dailyTargetCents || 0
+        calculations.monthlyTargetCents ?? 0,
+        calculations.dailyTargetCents ?? 0
       )
 
-      setData(prev => ({
-        ...prev,
+      setData({
         fixedCostsCents: totalFixedCents,
+        variableCostPercentage: autoVariableCostPercentage,
+        autoVariableCostPercentage,
+        autoVariableCostSampleSize: sampleSize,
+        autoVariableCostPeriod: variableCostData?.period,
+        variableCostSource: sampleSize > 0 ? 'calculated' : 'fallback',
+        contributionMargin: calculations.contributionMargin ?? 0,
+        breakEvenRevenueCents: calculations.breakEvenRevenueCents ?? 0,
+        dailyTargetCents: calculations.dailyTargetCents ?? 0,
+        safetyMarginCents: calculations.safetyMarginCents ?? 0,
+        safetyMarginPercentage: calculations.safetyMarginPercentage ?? 0,
+        customSafetyMarginPercentage: safetyMarginPercentage,
         workDays,
+        baseWorkDays: workDays,
+        baseSafetyMarginPercentage: safetyMarginPercentage,
+        monthlyTargetCents: calculations.monthlyTargetCents ?? 0,
+        manualMonthlyTargetCents: 0,
+        baseMonthlyTargetCents: calculations.monthlyTargetCents ?? 0,
         currentRevenueCents,
-        ...calculations,
-        ...progress
-      }))
-
+        revenueGapCents: progress.revenueGapCents,
+        daysToBreakEven: progress.daysToBreakEven,
+        progressPercentage: progress.progressPercentage
+      })
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Error loading equilibrium data'
+      const errorMsg =
+        err instanceof Error ? err.message : 'Error loading equilibrium data'
       setError(errorMsg)
       console.error('Error loading equilibrium:', err)
     } finally {
       setLoading(false)
     }
-  }, [clinicId, data.variableCostPercentage, defaultWorkDays, safetyMarginPercentage, fetchAll])
+  }, [
+    clinicId,
+    defaultVariableCostPercentage,
+    defaultWorkDays,
+    safetyMarginPercentage,
+    fetchAll
+  ])
 
-  // Update handlers
-  const updateWorkDays = useCallback((days: number) => {
+  const simulate = useCallback((settings: Partial<SimulationSettings>) => {
     setData(prev => {
+      const workDays =
+        settings.workDays !== undefined ? settings.workDays : prev.workDays
+      const variableCostPercentage =
+        settings.variableCostPercentage !== undefined
+          ? settings.variableCostPercentage
+          : prev.variableCostPercentage
+      const customSafetyMarginPercentage =
+        settings.safetyMarginPercentage !== undefined
+          ? settings.safetyMarginPercentage
+          : prev.customSafetyMarginPercentage
+
+      const manualMonthlyTargetCents =
+        settings.manualMonthlyTargetPesos !== undefined
+          ? Math.max(
+              0,
+              Math.round((settings.manualMonthlyTargetPesos || 0) * 100)
+            )
+          : prev.manualMonthlyTargetCents
+
       const calculations = EquilibriumCalculator.calculate(
         prev.fixedCostsCents,
-        prev.variableCostPercentage,
-        days,
-        safetyMarginPercentage
+        variableCostPercentage,
+        workDays,
+        customSafetyMarginPercentage,
+        manualMonthlyTargetCents > 0 ? manualMonthlyTargetCents : undefined
       )
-      
+
       const progress = EquilibriumCalculator.calculateProgress(
         prev.currentRevenueCents,
-        calculations.monthlyTargetCents || 0,
-        calculations.dailyTargetCents || 0
+        calculations.monthlyTargetCents ?? 0,
+        calculations.dailyTargetCents ?? 0
       )
 
       return {
         ...prev,
-        workDays: days,
-        ...calculations,
-        ...progress
-      }
-    })
-  }, [safetyMarginPercentage])
-
-  const updateVariableCostPercentage = useCallback((percentage: number) => {
-    setData(prev => {
-      const calculations = EquilibriumCalculator.calculate(
-        prev.fixedCostsCents,
-        percentage,
-        prev.workDays,
-        safetyMarginPercentage
-      )
-      
-      const progress = EquilibriumCalculator.calculateProgress(
-        prev.currentRevenueCents,
-        calculations.monthlyTargetCents || 0,
-        calculations.dailyTargetCents || 0
-      )
-
-      return {
-        ...prev,
-        variableCostPercentage: percentage,
-        ...calculations,
-        ...progress
-      }
-    })
-  }, [safetyMarginPercentage])
-
-  const updateCurrentRevenue = useCallback((cents: number) => {
-    setData(prev => {
-      const progress = EquilibriumCalculator.calculateProgress(
-        cents,
-        prev.monthlyTargetCents,
-        prev.dailyTargetCents
-      )
-
-      return {
-        ...prev,
-        currentRevenueCents: cents,
-        ...progress
+        workDays,
+        variableCostPercentage,
+        customSafetyMarginPercentage,
+        manualMonthlyTargetCents,
+        contributionMargin:
+          calculations.contributionMargin ?? prev.contributionMargin,
+        breakEvenRevenueCents:
+          calculations.breakEvenRevenueCents ?? prev.breakEvenRevenueCents,
+        dailyTargetCents:
+          calculations.dailyTargetCents ?? prev.dailyTargetCents,
+        safetyMarginCents:
+          calculations.safetyMarginCents ?? prev.safetyMarginCents,
+        safetyMarginPercentage:
+          calculations.safetyMarginPercentage ?? prev.safetyMarginPercentage,
+        monthlyTargetCents:
+          calculations.monthlyTargetCents ?? prev.monthlyTargetCents,
+        revenueGapCents: progress.revenueGapCents,
+        daysToBreakEven: progress.daysToBreakEven,
+        progressPercentage: progress.progressPercentage
       }
     })
   }, [])
 
-  // Save settings using useApi
-  const saveSettings = useCallback(async () => {
-    if (!clinicId) return
+  const resetSimulation = useCallback(() => {
+    setData(prev => {
+      const calculations = EquilibriumCalculator.calculate(
+        prev.fixedCostsCents,
+        prev.autoVariableCostPercentage,
+        prev.baseWorkDays,
+        prev.baseSafetyMarginPercentage
+      )
 
-    try {
-      const response = await fetch(`/api/settings/equilibrium`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          clinic_id: clinicId,
-          work_days: data.workDays,
-          variable_cost_percentage: data.variableCostPercentage,
-          safety_margin_percentage: safetyMarginPercentage
-        })
-      })
-      
-      if (!response.ok) {
-        throw new Error('Failed to save settings')
+      const progress = EquilibriumCalculator.calculateProgress(
+        prev.currentRevenueCents,
+        calculations.monthlyTargetCents ?? 0,
+        calculations.dailyTargetCents ?? 0
+      )
+
+      return {
+        ...prev,
+        workDays: prev.baseWorkDays,
+        variableCostPercentage: prev.autoVariableCostPercentage,
+        customSafetyMarginPercentage: prev.baseSafetyMarginPercentage,
+        manualMonthlyTargetCents: 0,
+        contributionMargin:
+          calculations.contributionMargin ?? prev.contributionMargin,
+        breakEvenRevenueCents:
+          calculations.breakEvenRevenueCents ?? prev.breakEvenRevenueCents,
+        dailyTargetCents:
+          calculations.dailyTargetCents ?? prev.dailyTargetCents,
+        safetyMarginCents:
+          calculations.safetyMarginCents ?? prev.safetyMarginCents,
+        safetyMarginPercentage:
+          calculations.safetyMarginPercentage ?? prev.safetyMarginPercentage,
+        monthlyTargetCents:
+          calculations.monthlyTargetCents ?? prev.monthlyTargetCents,
+        revenueGapCents: progress.revenueGapCents,
+        daysToBreakEven: progress.daysToBreakEven,
+        progressPercentage: progress.progressPercentage
       }
-      
-      // Refetch data after save
-      await loadData()
-    } catch (err) {
-      console.error('Error saving settings:', err)
-      throw err
-    }
-  }, [clinicId, data.workDays, data.variableCostPercentage, safetyMarginPercentage, loadData])
+    })
+  }, [])
 
-  // Load data on mount
   useEffect(() => {
     loadData()
   }, [loadData])
@@ -282,10 +404,8 @@ export function useEquilibrium(options: UseEquilibriumOptions = {}): IEquilibriu
     data,
     loading,
     error,
-    updateWorkDays,
-    updateVariableCostPercentage,
-    updateCurrentRevenue,
-    refreshData: loadData,
-    saveSettings
+    simulate,
+    resetSimulation,
+    refreshData: loadData
   }
 }

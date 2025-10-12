@@ -83,13 +83,17 @@ function computeRanges(period: SupportedPeriod, from?: string | null, to?: strin
     }
     case 'month':
     default: {
-      current.start = startOfDay(new Date(now.getFullYear(), now.getMonth(), 1))
-      current.end = endOfDay(now)
-      const prevMonth = now.getMonth() === 0
+      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+      const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+      current.start = startOfDay(currentMonthStart)
+      current.end = endOfDay(currentMonthEnd)
+
+      const prevMonthStart = now.getMonth() === 0
         ? new Date(now.getFullYear() - 1, 11, 1)
         : new Date(now.getFullYear(), now.getMonth() - 1, 1)
-      previous.start = startOfDay(clone(prevMonth))
-      previous.end = endOfDay(new Date(previous.start.getFullYear(), previous.start.getMonth() + 1, 0))
+      const prevMonthEnd = new Date(prevMonthStart.getFullYear(), prevMonthStart.getMonth() + 1, 0)
+      previous.start = startOfDay(prevMonthStart)
+      previous.end = endOfDay(prevMonthEnd)
       break
     }
   }

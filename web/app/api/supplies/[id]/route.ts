@@ -207,6 +207,32 @@ export async function DELETE(
       );
     }
 
+    const { data: usage, error: usageError } = await supabaseAdmin
+      .from('service_supplies')
+      .select(`
+        service_id,
+        services:services!service_supplies_service_id_fkey (name)
+      `)
+      .eq('supply_id', params.id)
+      .limit(5)
+
+    if (usageError) {
+      console.error('[supplies DELETE] Failed to check service dependencies:', usageError)
+    } else if (usage && usage.length > 0) {
+      const serviceNames = usage
+        .map((row: any) => row.services?.name)
+        .filter(Boolean)
+      const nameList = serviceNames.slice(0, 3).join(', ')
+      const moreCount = Math.max(0, serviceNames.length - 3)
+      const message = serviceNames.length > 0
+        ? `No puedes eliminar este insumo porque forma parte de ${serviceNames.length} servicio(s): ${nameList}${moreCount > 0 ? ` y ${moreCount} más` : ''}. Elimina primero el insumo de esos servicios.`
+        : 'No puedes eliminar este insumo porque forma parte de uno o más servicios activos. Elimina primero el insumo de esos servicios.'
+      return NextResponse.json(
+        { error: 'supply_in_use', message },
+        { status: 409 }
+      )
+    }
+
     const { error } = await supabaseAdmin
       .from('supplies')
       .delete()

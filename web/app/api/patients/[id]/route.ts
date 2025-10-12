@@ -135,6 +135,37 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    try {
+      const { data: treatmentUsage, error: treatmentError } = await supabaseAdmin
+        .from('treatments')
+        .select(
+          'id, treatment_date, services:services!treatments_service_id_fkey(name)'
+        )
+        .eq('patient_id', params.id)
+        .limit(5)
+
+      if (treatmentError) {
+        console.error('[patients DELETE] Unable to check treatment usage:', treatmentError)
+      } else if (treatmentUsage && treatmentUsage.length > 0) {
+        const serviceNames = treatmentUsage
+          .map((row: any) => row?.services?.name)
+          .filter(Boolean) as string[]
+        const listed = serviceNames.slice(0, 3).join(', ')
+        const remaining = Math.max(0, serviceNames.length - 3)
+        return NextResponse.json(
+          {
+            error: 'patient_in_use',
+            message: serviceNames.length > 0
+              ? `No puedes eliminar este paciente porque tiene ${serviceNames.length} tratamiento(s) registrados (${listed}${remaining > 0 ? ` y ${remaining} más` : ''}). Elimina o reasigna esos tratamientos primero.`
+              : 'No puedes eliminar este paciente porque tiene tratamientos registrados.'
+          },
+          { status: 409 }
+        )
+      }
+    } catch (err) {
+      console.error('[patients DELETE] Unexpected usage check error:', err)
+    }
+
     const { error } = await supabaseAdmin
       .from('patients')
       .delete()

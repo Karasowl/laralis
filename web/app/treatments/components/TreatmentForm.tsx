@@ -14,6 +14,7 @@ interface TreatmentFormProps {
   onCreatePatient?: (data: any) => Promise<any>
   onCreateService?: (data: any) => Promise<any>
   onServiceCreated?: (opt: { value: string; label: string }) => void
+  serviceLocked?: boolean
   t: (key: string) => string
 }
 
@@ -26,6 +27,7 @@ export function TreatmentForm({
   onCreatePatient,
   onCreateService,
   onServiceCreated,
+  serviceLocked = false,
   t 
 }: TreatmentFormProps) {
   // Subscribe to field changes to avoid stale values overriding selection
@@ -36,6 +38,7 @@ export function TreatmentForm({
   const marginPct = useWatch({ control: form.control, name: 'margin_pct' })
   const status = useWatch({ control: form.control, name: 'status' })
   const notes = useWatch({ control: form.control, name: 'notes' })
+  const selectedService = services.find(service => service.value === serviceId)
   const SIGN = 'TreatmentForm::v2.0.0'
   try { console.log(`[${SIGN}] mount @`, new Date().toISOString()) } catch {}
   try { console.log(`[${SIGN}] current patient=`, patientId, '| service=', serviceId) } catch {}
@@ -98,7 +101,7 @@ export function TreatmentForm({
               onValueChange={onServiceChange}
               options={services}
               placeholder={t('treatments.selectService')}
-              canCreate={true}
+              canCreate={!serviceLocked}
               createLabel={t('services.addService') || 'Agregar servicio'}
               entityName={t('entities.service')}
               createMode="serviceWizard"
@@ -121,9 +124,16 @@ export function TreatmentForm({
                 }
               ]}
               onCreateSubmit={onCreateService}
+              disabled={serviceLocked}
             />
             {form.formState.errors.service_id?.message && (
               <p className="text-sm text-red-500 mt-1">{form.formState.errors.service_id?.message}</p>
+            )}
+            {serviceLocked && (
+              <div className="mt-3 rounded-md border border-dashed border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                <p className="font-semibold">{t('treatments.serviceLockedTitle')}</p>
+                <p>{t('treatments.serviceLockedMessage', { service: selectedService?.label || t('common.notAvailable') })}</p>
+              </div>
             )}
           </div>
         </FormGrid>

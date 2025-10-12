@@ -5,19 +5,18 @@ import Link from 'next/link';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
-import { 
+import {
   Building,
   Building2,
-  Clock, 
-  Calculator, 
+  Clock,
+  Calculator,
   DollarSign,
   Package,
   Wrench,
   TrendingUp,
   RefreshCw,
+  Database,
   ChevronRight,
-  Download,
-  Upload,
   Megaphone
 } from 'lucide-react';
 
@@ -90,6 +89,14 @@ export default function SettingsPage() {
       color: 'text-yellow-600'
     },
     {
+      id: 'data',
+      title: t('settings.data.title'),
+      description: t('settings.data.description'),
+      href: '/settings/data',
+      icon: Database,
+      color: 'text-sky-600'
+    },
+    {
       id: 'reports',
       title: t('settings.reports.title'),
       description: t('settings.reports.description'),
@@ -144,34 +151,6 @@ export default function SettingsPage() {
             );
           })}
         </div>
-
-        <Card className="border-dashed">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="p-2 rounded-lg bg-muted">
-                  <Download className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <div>
-                  <h3 className="font-semibold">{t('settings.backup.title')}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {t('settings.backup.description')}
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors inline-flex items-center gap-2">
-                  <Upload className="h-4 w-4" />
-                  {t('settings.backup.import')}
-                </button>
-                <button className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors inline-flex items-center gap-2">
-                  <Download className="h-4 w-4" />
-                  {t('settings.backup.export')}
-                </button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </AppLayout>
   );

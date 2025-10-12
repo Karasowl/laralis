@@ -1,5 +1,33 @@
 {
   "reports": {
+    "overview": {
+      "summary": {
+        "title": "Executive summary",
+        "subtitle": "Predicted revenue and confidence for the upcoming periods.",
+        "labels": {
+          "nextMonth": "Next month",
+          "nextQuarter": "Next quarter",
+          "yearEnd": "By year end"
+        },
+        "range": "Expected range: {min} – {max}",
+        "empty": "Connect your treatment and billing data to generate predictions."
+      },
+      "highlights": {
+        "title": "Highlights",
+        "subtitle": "Services that are driving performance right now.",
+        "empty": "Collect treatment data to surface top performers.",
+        "potential": "Potential: {value}",
+        "frequency": "{count, plural, one {# treatment run} other {# treatments run}}",
+        "margin": "Average margin: {margin}%"
+      },
+      "alerts": {
+        "title": "Alerts",
+        "subtitle": "Services that are losing traction and require attention.",
+        "empty": "No declining services detected this period.",
+        "message": "Review pricing, bundles or marketing to recover momentum.",
+        "cta": "See full analytics"
+      }
+    },
     "tabs": {
       "overview": "Overview",
       "advanced": "Advanced",

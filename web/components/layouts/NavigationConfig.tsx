@@ -152,4 +152,3 @@ export function getNavigationSections(t: any, options: { onboardingCompleted?: b
 
   return baseSections;
 }
-
