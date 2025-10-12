@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import { useTranslations } from 'next-intl'
 import { DataTable } from '@/components/ui/DataTable'
 import { Badge } from '@/components/ui/badge'
@@ -10,6 +11,7 @@ import { Briefcase, Package, Clock } from 'lucide-react'
 interface ServicesTableProps {
   services: any[]
   loading: boolean
+  categories?: Array<{ id?: string; code?: string; name?: string; display_name?: string }>
   onManageSupplies: (service: any) => void
   onEdit: (service: any) => void
   onDelete: (service: any) => void
@@ -18,6 +20,7 @@ interface ServicesTableProps {
 export function ServicesTable({ 
   services, 
   loading, 
+  categories = [],
   onManageSupplies, 
   onEdit, 
   onDelete 
@@ -25,6 +28,17 @@ export function ServicesTable({
   const t = useTranslations('services')
   const tRoot = useTranslations()
   const tFields = useTranslations('fields')
+
+  const categoryLookup = useMemo(() => {
+    const map = new Map<string, string>()
+    categories.forEach(cat => {
+      const key = (cat.id || cat.code || cat.name || '').trim()
+      if (!key) return
+      const label = cat.display_name || cat.name || cat.code || key
+      map.set(key, label)
+    })
+    return map
+  }, [categories])
 
   const columns = [
     {
@@ -43,7 +57,18 @@ export function ServicesTable({
       key: 'category',
       label: tFields('category'),
       render: (_value: any, service: any) => (
-        <Badge variant="outline">{service?.category || t('no_category')}</Badge>
+        <Badge variant="outline">
+          {(() => {
+            const raw = service?.category
+            const mapped = raw ? categoryLookup.get(raw) : undefined
+            if (mapped) return mapped
+            if (typeof raw === 'string' && raw.trim().length > 0) {
+              const looksLikeId = /^[0-9a-f-]{10,}$/.test(raw)
+              if (!looksLikeId) return raw
+            }
+            return t('no_category')
+          })()}
+        </Badge>
       )
     },
     {

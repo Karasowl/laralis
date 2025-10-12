@@ -22,26 +22,38 @@ export async function GET(request: NextRequest) {
     if (period === 'custom' && dateFrom && dateTo) {
       start = new Date(dateFrom)
       end = new Date(dateTo)
-      end.setHours(23, 59, 59, 999)
     } else {
       start = new Date(now.getFullYear(), now.getMonth(), 1)
-      end = new Date(now)
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
     }
+
+    const startISO = start.toISOString().split('T')[0]
+    const endISO = end.toISOString().split('T')[0]
 
     const { data, error } = await supabaseAdmin
       .from('treatments')
-      .select('status, created_at')
+      .select('status, treatment_date')
       .eq('clinic_id', clinicId)
-      .gte('created_at', start.toISOString())
-      .lte('created_at', end.toISOString())
+      .gte('treatment_date', startISO)
+      .lte('treatment_date', endISO)
 
     if (error) throw error
 
     const nonCancelled = (data || []).filter(t => t.status !== 'cancelled')
-    const completed = nonCancelled.filter(t => t.status === 'completed')
-    const pending = nonCancelled.filter(t => t.status === 'pending')
+    const normalised = nonCancelled.map(t => {
+      const status = t.status === 'scheduled' || t.status === 'in_progress' ? 'pending' : (t.status || 'pending')
+      return { status }
+    })
+    const completed = normalised.filter(t => t.status === 'completed')
+    const pending = normalised.filter(t => t.status === 'pending')
 
-    return NextResponse.json({ treatments: { total: nonCancelled.length, completed: completed.length, pending: pending.length } })
+    return NextResponse.json({
+      treatments: {
+        total: normalised.length,
+        completed: completed.length,
+        pending: pending.length
+      }
+    })
   } catch (err) {
     console.error('dashboard/treatments error', err)
     return NextResponse.json({ error: 'Failed to fetch treatments metrics' }, { status: 500 })

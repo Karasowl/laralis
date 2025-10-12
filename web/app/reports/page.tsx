@@ -3,24 +3,41 @@
 import { useTranslations } from 'next-intl'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { 
-  TrendingUp, 
-  Users, 
-  DollarSign, 
+import {
+  TrendingUp,
+  Users,
+  DollarSign,
   Activity,
   FileText,
   Package,
   Brain,
   BarChart3,
-  Megaphone
+  Megaphone,
+  Calendar,
+  Target,
+  Sparkles,
+  AlertTriangle,
+  ArrowUpRight,
+  ArrowUpCircle
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/money'
 import { useCurrentClinic } from '@/hooks/use-current-clinic'
 import { useReports } from '@/hooks/use-reports'
 import { ReportsAdvanced } from './ReportsAdvanced'
 import { ReportsMarketing } from './ReportsMarketing'
+
+type PredictionKey = 'next_month' | 'next_quarter' | 'year_end'
+
+const confidenceToneClass: Record<'success' | 'info' | 'warning', string> = {
+  success: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  info: 'bg-blue-100 text-blue-700 border-blue-200',
+  warning: 'bg-amber-100 text-amber-800 border-amber-200',
+}
+
+const formatServiceId = (id: string) => (id.length > 10 ? `${id.slice(0, 10)}…` : id)
 
 export default function ReportsPage() {
   const t = useTranslations()
@@ -62,6 +79,13 @@ export default function ReportsPage() {
     }
   ]
 
+  const predictions = insights?.revenue_predictions
+  const serviceAnalysis = insights?.service_analysis
+  const mostProfitable = serviceAnalysis?.most_profitable?.slice(0, 2) ?? []
+  const growthOpportunities = serviceAnalysis?.growth_opportunities?.slice(0, 2) ?? []
+  const decliningServices = serviceAnalysis?.declining_services?.slice(0, 3) ?? []
+  const hasInsights = Boolean(insights)
+
   return (
     <AppLayout>
       <div className="p-4 lg:p-8 max-w-[1600px] mx-auto space-y-6">
@@ -87,8 +111,94 @@ export default function ReportsPage() {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
+            <Card>
+              <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <CardTitle>{t('reports.overview.summary.title')}</CardTitle>
+                  <CardDescription>{t('reports.overview.summary.subtitle')}</CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="grid gap-4 md:grid-cols-3">
+                    {[0, 1, 2].map(item => (
+                      <div key={item} className="space-y-3 rounded-lg border border-border/60 p-5">
+                        <span className="block h-4 w-28 animate-pulse rounded bg-muted" />
+                        <span className="block h-6 w-24 animate-pulse rounded bg-muted" />
+                        <span className="block h-4 w-32 animate-pulse rounded bg-muted" />
+                      </div>
+                    ))}
+                  </div>
+                ) : !predictions ? (
+                  <p className="text-sm text-muted-foreground">
+                    {t('reports.overview.summary.empty')}
+                  </p>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-3">
+                    {[
+                      {
+                        key: 'next_month' as PredictionKey,
+                        icon: Calendar,
+                        label: t('reports.overview.summary.labels.nextMonth'),
+                      },
+                      {
+                        key: 'next_quarter' as PredictionKey,
+                        icon: Target,
+                        label: t('reports.overview.summary.labels.nextQuarter'),
+                      },
+                      {
+                        key: 'year_end' as PredictionKey,
+                        icon: Sparkles,
+                        label: t('reports.overview.summary.labels.yearEnd'),
+                      },
+                    ].map(item => {
+                      const Icon = item.icon
+                      const prediction = predictions[item.key]
+                      const confidence = prediction?.confidence ?? 0
+                      const badge =
+                        confidence >= 0.75
+                          ? { tone: 'success', label: t('reports.advanced.confidence.high') }
+                          : confidence >= 0.5
+                          ? { tone: 'info', label: t('reports.advanced.confidence.medium') }
+                          : { tone: 'warning', label: t('reports.advanced.confidence.low') }
+
+                      return (
+                        <Card key={item.key} className="border border-border/60 shadow-sm">
+                          <CardContent className="space-y-3 p-5">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Icon className="h-4 w-4 text-primary" />
+                                <p className="text-sm font-medium text-muted-foreground">
+                                  {item.label}
+                                </p>
+                              </div>
+                              <Badge
+                                variant="outline"
+                                className={`text-xs ${confidenceToneClass[badge.tone]}`}
+                              >
+                                {badge.label}
+                              </Badge>
+                            </div>
+                            <p className="text-2xl font-semibold text-foreground">
+                              {formatCurrency(prediction?.predictedValue ?? 0)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {t('reports.overview.summary.range', {
+                                min: formatCurrency(prediction?.confidence_interval?.[0] ?? 0),
+                                max: formatCurrency(prediction?.confidence_interval?.[1] ?? 0),
+                              })}
+                            </p>
+                          </CardContent>
+                        </Card>
+                      )
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Main metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
               {metricCards.map((metric, index) => {
                 const Icon = metric.icon
                 return (
@@ -119,8 +229,8 @@ export default function ReportsPage() {
               })}
             </div>
 
-            {/* Activity summary */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Detail summary */}
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -188,10 +298,110 @@ export default function ReportsPage() {
                   </div>
                 </CardContent>
               </Card>
+
+              {hasInsights && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <ArrowUpCircle className="h-5 w-5" />
+                      {t('reports.overview.highlights.title')}
+                    </CardTitle>
+                    <CardDescription>{t('reports.overview.highlights.subtitle')}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {mostProfitable.length === 0 && growthOpportunities.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        {t('reports.overview.highlights.empty')}
+                      </p>
+                    ) : (
+                      <>
+                        {mostProfitable.map(service => (
+                          <div key={`${service.service_id}-profit`} className="rounded-lg border p-3">
+                            <div className="flex items-center justify-between">
+                              <p className="font-medium">
+                                {t('reports.advanced.services.serviceId', {
+                                  id: formatServiceId(service.service_id),
+                                })}
+                              </p>
+                              <Badge variant="outline" className="text-xs bg-emerald-100 text-emerald-700 border-emerald-200">
+                                {service.roi.toFixed(1)}% ROI
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {t('reports.overview.highlights.margin', { margin: service.average_margin.toFixed(1) })}
+                            </p>
+                          </div>
+                        ))}
+
+                        {growthOpportunities.map(opportunity => (
+                          <div key={`${opportunity.service_id}-growth`} className="rounded-lg border border-dashed p-3">
+                            <div className="flex items-center justify-between">
+                              <p className="font-medium">
+                                {t('reports.advanced.services.serviceId', {
+                                  id: formatServiceId(opportunity.service_id),
+                                })}
+                              </p>
+                              <Badge variant="outline" className="text-xs bg-sky-100 text-sky-700 border-sky-200">
+                                {t('reports.overview.highlights.potential', {
+                                  value: formatCurrency(opportunity.potential_revenue),
+                                })}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {t('reports.overview.highlights.frequency', { count: opportunity.frequency })}
+                            </p>
+                          </div>
+                        ))}
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {hasInsights && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-amber-600">
+                      <AlertTriangle className="h-5 w-5" />
+                      {t('reports.overview.alerts.title')}
+                    </CardTitle>
+                    <CardDescription>{t('reports.overview.alerts.subtitle')}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {decliningServices.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">{t('reports.overview.alerts.empty')}</p>
+                    ) : (
+                      decliningServices.map(service => (
+                        <div key={`${service.service_id}-decline`} className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 p-3">
+                          <div>
+                            <p className="font-medium text-amber-900">
+                              {t('reports.advanced.services.serviceId', {
+                                id: formatServiceId(service.service_id),
+                              })}
+                            </p>
+                            <p className="text-xs text-amber-800">
+                              {t('reports.overview.alerts.message')}
+                            </p>
+                          </div>
+                          <span className="text-sm font-semibold text-amber-700">
+                            -{(service.decline_rate * 100).toFixed(1)}%
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </CardContent>
+                  <CardFooter className="justify-end">
+                    <a href="#advanced" className="inline-flex items-center gap-1 text-sm text-amber-700 hover:underline">
+                      {t('reports.overview.alerts.cta')}
+                      <ArrowUpRight className="h-4 w-4" />
+                    </a>
+                  </CardFooter>
+                </Card>
+              )}
             </div>
           </TabsContent>
 
-          <TabsContent value="advanced" className="space-y-6">
+          <TabsContent value="advanced" id="advanced" className="space-y-6">
             <ReportsAdvanced insights={insights} kpis={kpis} loading={loading} />
           </TabsContent>
 

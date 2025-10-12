@@ -222,6 +222,71 @@ export async function DELETE(
     }
     const { clinicId } = clinicContext;
 
+    // Check dependencies before deleting
+    const dependencyMessages: string[] = []
+
+    try {
+      const { data: treatmentUsage, error: treatmentError } = await supabaseAdmin
+        .from('treatments')
+        .select(
+          'id, treatment_date, patients:patients!treatments_patient_id_fkey (first_name, last_name)'
+        )
+        .eq('clinic_id', clinicId)
+        .eq('service_id', params.id)
+        .limit(5)
+
+      if (treatmentError) {
+        console.error('[services DELETE] treatment usage lookup failed:', treatmentError)
+      } else if (treatmentUsage && treatmentUsage.length > 0) {
+        const patientNames = treatmentUsage
+          .map((row: any) => {
+            const patient = row?.patients
+            if (!patient) return null
+            const first = patient.first_name?.trim() || ''
+            const last = patient.last_name?.trim() || ''
+            const full = `${first} ${last}`.trim()
+            return full || null
+          })
+          .filter(Boolean) as string[]
+        const listed = patientNames.slice(0, 3).join(', ')
+        const remaining = Math.max(0, patientNames.length - 3)
+        dependencyMessages.push(
+          patientNames.length > 0
+            ? `Tiene ${patientNames.length} tratamiento(s) registrados: ${listed}${remaining > 0 ? ` y ${remaining} más` : ''}.`
+            : 'Tiene tratamientos registrados.'
+        )
+      }
+    } catch (err) {
+      console.error('[services DELETE] treatment usage unexpected error:', err)
+    }
+
+    try {
+      const { data: tariffUsage, error: tariffError } = await supabaseAdmin
+        .from('tariffs')
+        .select('id')
+        .eq('clinic_id', clinicId)
+        .eq('service_id', params.id)
+        .limit(1)
+
+      if (tariffError) {
+        console.error('[services DELETE] tariff usage lookup failed:', tariffError)
+      } else if (tariffUsage && tariffUsage.length > 0) {
+        dependencyMessages.push('Tiene tarifas activas asociadas.')
+      }
+    } catch (err) {
+      console.error('[services DELETE] tariff usage unexpected error:', err)
+    }
+
+    if (dependencyMessages.length > 0) {
+      return NextResponse.json(
+        {
+          error: 'service_in_use',
+          message: `No puedes eliminar este servicio porque está en uso. ${dependencyMessages.join(' ')}`
+        },
+        { status: 409 }
+      )
+    }
+
     // Soft delete - marcar como inactivo; si la columna no existe, borrar duro
     let result = await supabaseAdmin
       .from('services')

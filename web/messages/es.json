@@ -1674,6 +1674,10 @@
     "suppliesDesc": "Inventario de insumos dentales",
     "servicesDesc": "Procedimientos y tratamientos",
     "tariffsDesc": "Cálculo de precios con márgenes",
+    "data": {
+      "title": "Datos y mantenimiento",
+      "description": "Exporta, importa o respalda la información de tu clínica"
+    },
     "exportDesc": "Descarga todos tus datos",
     "importDesc": "Restaura datos desde archivo",
     "resetDesc": "Elimina todos los datos de la clínica",
@@ -1688,6 +1692,41 @@
     "exportData": "Exportar Datos",
     "importData": "Importar Datos",
     "resetData": "Resetear Datos",
+    "dataManagement": {
+      "title": "Datos y mantenimiento",
+      "subtitle": "Gestiona exportaciones, importaciones y respaldos locales de tu clínica.",
+      "export": {
+        "title": "Exportar datos",
+        "description": "Descarga un archivo JSON con tu workspace, clínicas, pacientes, tratamientos, servicios y registros financieros.",
+        "button": "Descargar exportación",
+        "success": "Exportación generada correctamente.",
+        "error": "No pudimos generar la exportación. Intenta nuevamente."
+      },
+      "backup": {
+        "title": "Respaldos",
+        "description": "Crea un respaldo local antes de importar datos para evitar pérdidas.",
+        "button": "Crear respaldo",
+        "success": "Respaldo listo. Guarda el archivo descargado en un lugar seguro.",
+        "error": "No pudimos crear el respaldo."
+      },
+      "import": {
+        "title": "Importar datos",
+        "description": "Carga un archivo de exportación de Laralis. Esto reemplazará los registros actuales de la clínica. Te recomendamos crear un respaldo antes.",
+        "selectFile": "Elegir archivo",
+        "button": "Importar datos",
+        "confirmTitle": "¿Reemplazar datos actuales?",
+        "confirmDescription": "Se eliminarán los registros actuales de la clínica y se cargarán los del archivo.",
+        "processing": "Importando datos...",
+        "success": "Datos importados correctamente.",
+        "error": "La importación falló. No se realizaron cambios.",
+        "noFile": "Selecciona un archivo .json exportado desde Laralis."
+      },
+      "messages": {
+        "invalidFormat": "Archivo no soportado. Sube una exportación JSON generada por Laralis.",
+        "clinicMismatch": "La exportación corresponde a otra clínica o workspace.",
+        "sizeExceeded": "El archivo es demasiado grande. El máximo permitido es {limit} MB."
+      }
+    },
     "securityInfoDesc": "Tu cuenta está protegida con autenticación segura de Supabase",
     "dangerZone": "Zona de Peligro",
     "deleteAccount": "Eliminar Cuenta",

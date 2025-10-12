@@ -52,9 +52,12 @@ export async function GET(request: NextRequest) {
 
     const clinicId = clinicContext.clinicId
 
-    const endDate = to ? new Date(to) : new Date()
+    const today = new Date()
+    const defaultRangeEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+
+    const endDate = to ? new Date(to) : defaultRangeEnd
     if (Number.isNaN(endDate.getTime())) {
-      endDate.setTime(Date.now())
+      endDate.setTime(defaultRangeEnd.getTime())
     }
 
     const startDate = from ? new Date(from) : new Date(endDate)
@@ -64,6 +67,7 @@ export async function GET(request: NextRequest) {
 
     if (!from) {
       startDate.setMonth(startDate.getMonth() - DEFAULT_MONTH_LOOKBACK)
+      startDate.setDate(1)
     }
 
     const startISO = normaliseDateString(startDate.toISOString(), startDate)

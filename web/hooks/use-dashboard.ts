@@ -283,7 +283,7 @@ export function useDashboard(options: UseDashboardOptions = {}): DashboardState 
                 currentEnd = endOfDay(now)
               } else if (period === 'month') {
                 currentStart = startOfDay(new Date(now.getFullYear(), now.getMonth(), 1))
-                currentEnd = endOfDay(now)
+                currentEnd = endOfDay(new Date(now.getFullYear(), now.getMonth() + 1, 0))
               } else if (period === 'year') {
                 currentStart = startOfDay(new Date(now.getFullYear(), 0, 1))
                 currentEnd = endOfDay(now)
