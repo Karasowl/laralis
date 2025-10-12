@@ -11,6 +11,19 @@ const sendError = (message: string, status: number, code?: string) =>
     { status },
   );
 
+
+const CHUNK_SIZE = 500;
+
+const chunkArray = <T>(items: T[], size: number): T[][] => {
+  if (items.length === 0) return [];
+  if (items.length <= size) return [items];
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
+};
+
 type TableConfig = {
   key: string;
   table: string;
@@ -18,23 +31,35 @@ type TableConfig = {
 };
 
 const DELETE_ORDER: TableConfig[] = [
+  { key: 'service_supplies', table: 'service_supplies', column: 'clinic_id' },
   { key: 'treatments', table: 'treatments', column: 'clinic_id' },
+  { key: 'tariffs', table: 'tariffs', column: 'clinic_id' },
   { key: 'expenses', table: 'expenses', column: 'clinic_id' },
-  { key: 'assets', table: 'assets', column: 'clinic_id' },
-  { key: 'supplies', table: 'supplies', column: 'clinic_id' },
   { key: 'patients', table: 'patients', column: 'clinic_id' },
-  { key: 'fixed_costs', table: 'fixed_costs', column: 'clinic_id' },
   { key: 'services', table: 'services', column: 'clinic_id' },
+  { key: 'supplies', table: 'supplies', column: 'clinic_id' },
+  { key: 'assets', table: 'assets', column: 'clinic_id' },
+  { key: 'fixed_costs', table: 'fixed_costs', column: 'clinic_id' },
+  { key: 'marketing_campaigns', table: 'marketing_campaigns', column: 'clinic_id' },
+  { key: 'settings_time', table: 'settings_time', column: 'clinic_id' },
+  { key: 'categories', table: 'categories', column: 'clinic_id' },
+  { key: 'category_types', table: 'category_types', column: 'clinic_id' },
 ];
 
 const INSERT_ORDER: TableConfig[] = [
+  { key: 'category_types', table: 'category_types', column: 'clinic_id' },
+  { key: 'categories', table: 'categories', column: 'clinic_id' },
+  { key: 'marketing_campaigns', table: 'marketing_campaigns', column: 'clinic_id' },
   { key: 'services', table: 'services', column: 'clinic_id' },
   { key: 'supplies', table: 'supplies', column: 'clinic_id' },
+  { key: 'service_supplies', table: 'service_supplies', column: 'clinic_id' },
   { key: 'assets', table: 'assets', column: 'clinic_id' },
   { key: 'patients', table: 'patients', column: 'clinic_id' },
   { key: 'expenses', table: 'expenses', column: 'clinic_id' },
+  { key: 'tariffs', table: 'tariffs', column: 'clinic_id' },
   { key: 'fixed_costs', table: 'fixed_costs', column: 'clinic_id' },
   { key: 'treatments', table: 'treatments', column: 'clinic_id' },
+  { key: 'settings_time', table: 'settings_time', column: 'clinic_id' },
 ];
 
 export async function POST(request: Request) {
@@ -146,53 +171,112 @@ export async function POST(request: Request) {
 
     const tables: Record<string, unknown[]> = payload.tables || {};
 
-    // Remove existing data in dependency-safe order
-    for (const config of DELETE_ORDER) {
-      const { error } = await supabaseAdmin
+    const backupData: Record<string, unknown[]> = {};
+    for (const config of INSERT_ORDER) {
+      const { data: existing, error: existingError } = await supabaseAdmin
         .from(config.table)
-        .delete()
+        .select('*')
         .eq(config.column, clinicId);
 
-      if (error) {
-        console.error(`[data-import] Failed deleting from ${config.table}:`, error.message);
-        return sendError(`Failed deleting existing records from ${config.table}`, 500);
+      if (existingError) {
+        console.error(`[data-import] Failed to backup ${config.table}:`, existingError.message);
+        return sendError(existingError.message || `Failed to read ${config.table}`, 500);
       }
+
+      backupData[config.key] = existing ?? [];
     }
 
     const summary: Record<string, number> = {};
 
-    // Insert new data
-    for (const config of INSERT_ORDER) {
-      const rows = Array.isArray(tables[config.key]) ? tables[config.key] : [];
-      if (!rows.length) {
-        summary[config.key] = 0;
-        continue;
-      }
+    try {
+      for (const config of DELETE_ORDER) {
+        const { error } = await supabaseAdmin
+          .from(config.table)
+          .delete()
+          .eq(config.column, clinicId);
 
-      const sanitizedRows = rows.map((row: Record<string, unknown>) => {
-        const copy: Record<string, unknown> = { ...row, [config.column]: clinicId };
-        if ('workspace_id' in copy) {
-          copy.workspace_id = clinic.workspace_id;
+        if (error) {
+          console.error(`[data-import] Failed deleting from ${config.table}:`, error.message);
+          throw new Error(error.message || `Failed deleting existing records from ${config.table}`);
         }
-        return copy;
-      });
-
-      const { error } = await supabaseAdmin
-        .from(config.table)
-        .insert(sanitizedRows, { returning: 'minimal' });
-
-      if (error) {
-        console.error(`[data-import] Failed inserting into ${config.table}:`, error.message);
-        return sendError(`Failed inserting records into ${config.table}`, 500);
       }
 
-      summary[config.key] = sanitizedRows.length;
-    }
+      for (const config of INSERT_ORDER) {
+        const rows = Array.isArray(tables[config.key]) ? tables[config.key] : [];
+        if (!rows.length) {
+          summary[config.key] = 0;
+          continue;
+        }
 
-    return NextResponse.json({
-      success: true,
-      summary,
-    });
+        const sanitizedRows = rows.map((row: Record<string, unknown>) => {
+          const copy: Record<string, unknown> = { ...row, [config.column]: clinicId };
+          if ('workspace_id' in copy) {
+            copy.workspace_id = clinic.workspace_id;
+          }
+          return copy;
+        });
+
+        for (const chunk of chunkArray(sanitizedRows, CHUNK_SIZE)) {
+          if (chunk.length === 0) continue;
+          const { error } = await supabaseAdmin
+            .from(config.table)
+            .insert(chunk, { returning: 'minimal' });
+
+          if (error) {
+            console.error(`[data-import] Failed inserting into ${config.table}:`, error.message);
+            throw new Error(error.message || `Failed inserting records into ${config.table}`);
+          }
+        }
+
+        summary[config.key] = sanitizedRows.length;
+      }
+
+      return NextResponse.json({
+        success: true,
+        summary,
+      });
+    } catch (error) {
+      console.error('[data-import] import failed, restoring previous data:', error);
+
+      for (const config of INSERT_ORDER) {
+        const originalRows = backupData[config.key] || [];
+
+        const { error: deleteError } = await supabaseAdmin
+          .from(config.table)
+          .delete()
+          .eq(config.column, clinicId);
+
+        if (deleteError) {
+          console.error(`[data-import] restore delete ${config.table} failed:`, deleteError.message);
+        }
+
+        if (originalRows.length) {
+          const sanitizedOriginal = originalRows.map((row: Record<string, unknown>) => {
+            const copy: Record<string, unknown> = { ...row, [config.column]: clinicId };
+            if ('workspace_id' in copy) {
+              copy.workspace_id = clinic.workspace_id;
+            }
+            return copy;
+          });
+
+          for (const chunk of chunkArray(sanitizedOriginal, CHUNK_SIZE)) {
+            if (chunk.length === 0) continue;
+            const { error: insertError } = await supabaseAdmin
+              .from(config.table)
+              .insert(chunk, { returning: 'minimal' });
+
+            if (insertError) {
+              console.error(`[data-import] restore insert ${config.table} failed:`, insertError.message);
+            }
+          }
+        }
+      }
+
+      const message =
+        error instanceof Error ? error.message || 'Import failed' : 'Import failed';
+
+      return sendError(message, 500);
+    }
   } catch (error) {
     console.error('[data-import] unexpected error:', error);
     return sendError('Import failed', 500);

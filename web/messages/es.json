@@ -95,7 +95,12 @@
     "billing": "Facturación",
     "help": "Ayuda",
     "user": "Usuario",
-    "cancel_setup": "Cancelar configuración"
+    "cancel_setup": "Cancelar configuración",
+    "insights": "Insights",
+    "account": "Cuenta",
+    "preferences": "Preferencias",
+    "security": "Seguridad",
+    "dataMaintenance": "Mantenimiento de datos"
   },
   "dark_mode": "Modo Oscuro",
   "toggle_theme": "Cambiar Tema",
@@ -1141,7 +1146,7 @@
   },
   "settings": {
     "title": "Configuración",
-    "subtitle": "Administra toda la configuración de tu negocio",
+    "subtitle": "Configura tus preferencias personales, seguridad y mantenimiento del workspace.",
     "language": "Idioma",
     "theme": "Tema",
     "organization": "Organización",
@@ -1177,7 +1182,8 @@
       "createSuccessDesc": "Nuevo espacio de trabajo agregado exitosamente",
       "deleteSuccess": "Espacio de Trabajo Eliminado",
       "deleteSuccessDesc": "Espacio de trabajo eliminado exitosamente",
-      "deleteConfirm": "¿Estás seguro de que quieres eliminar este espacio de trabajo?"
+      "deleteConfirm": "¿Estás seguro de que quieres eliminar este espacio de trabajo?",
+      "summary": "{name} - {clinicCount, plural, one {# clínica} other {# clínicas}}"
     },
     "time": {
       "title": "Configuración de Tiempo",
@@ -1282,6 +1288,263 @@
       "activeCampaigns": "campañas activas",
       "platform": "plataforma",
       "campaign": "campaña"
+    },
+    "groups": {
+      "personal": {
+        "title": "Personal",
+        "subtitle": "Administra tu cuenta, preferencias y seguridad."
+      },
+      "organization": {
+        "title": "Organización",
+        "subtitle": "Crea workspaces y clínicas para tu equipo."
+      },
+      "maintenance": {
+        "title": "Mantenimiento",
+        "subtitle": "Respalda o reinicia los datos del tenant de forma segura."
+      }
+    },
+    "account": {
+      "cardTitle": "Cuenta y perfil",
+      "cardDescription": "Edita tus datos personales y la información del perfil.",
+      "title": "Cuenta y perfil",
+      "subtitle": "Mantén tu información personal y tu perfil actualizados.",
+      "quickInfo": {
+        "language": "El idioma se gestiona desde Preferencias.",
+        "theme": "El tema se configura en Preferencias.",
+        "notifications": "Los canales de notificación viven en Preferencias.",
+        "security": "El 2FA y la contraseña se controlan en Seguridad."
+      },
+      "summary": {
+        "email": "Correo electrónico",
+        "phone": "Teléfono",
+        "language": "Idioma",
+        "timezone": "Zona horaria",
+        "theme": "Tema",
+        "notifications": "Notificaciones",
+        "notAvailable": "No disponible"
+      }
+    },
+    "preferences": {
+      "cardTitle": "Preferencias",
+      "cardDescription": "Idioma, zona horaria, tema y notificaciones.",
+      "title": "Preferencias y localización",
+      "subtitle": "Personaliza cómo se comporta Laralis para ti.",
+      "language": {
+        "title": "Idioma",
+        "description": "Selecciona el idioma predeterminado de tu cuenta.",
+        "label": "Idioma predeterminado",
+        "placeholder": "Selecciona un idioma",
+        "options": {
+          "es": "Español",
+          "en": "Inglés"
+        }
+      },
+      "timezone": {
+        "label": "Zona horaria",
+        "placeholder": "Selecciona una zona horaria"
+      },
+      "appearance": {
+        "title": "Apariencia",
+        "description": "Controla cómo se ve la interfaz en todos tus dispositivos.",
+        "options": {
+          "light": "Claro",
+          "dark": "Oscuro",
+          "system": "Sistema"
+        },
+        "descriptions": {
+          "light": "Interfaz clara ideal para consultorios iluminados.",
+          "dark": "Paleta oscura que reduce el brillo en ambientes nocturnos.",
+          "system": "Sigue automáticamente la preferencia del dispositivo."
+        }
+      },
+      "notifications": {
+        "title": "Notificaciones",
+        "description": "Elige cómo te mantenemos informado.",
+        "channels": {
+          "email": {
+            "title": "Alertas por correo",
+            "description": "Recibe actualizaciones operativas y avisos de seguridad en tu bandeja."
+          },
+          "sms": {
+            "title": "Alertas por SMS",
+            "description": "Obtén mensajes de texto para eventos urgentes como falta de stock."
+          },
+          "push": {
+            "title": "Notificaciones push",
+            "description": "Usa notificaciones push del navegador para actualizaciones inmediatas."
+          }
+        },
+        "none": "Sin canales activos"
+      },
+      "actions": {
+        "reset": "Revertir cambios",
+        "cancel": "Cancelar",
+        "save": "Guardar preferencias"
+      },
+      "messages": {
+        "loadFailed": "No pudimos cargar tus preferencias.",
+        "saveSuccess": "Preferencias guardadas correctamente.",
+        "saveFailed": "No pudimos guardar tus preferencias."
+      }
+    },
+    "security": {
+      "cardTitle": "Seguridad",
+      "cardDescription": "Contraseñas, autenticación multifactor y sesiones.",
+      "title": "Centro de seguridad",
+      "subtitle": "Protege el acceso a tu cuenta y controla sesiones activas.",
+      "password": {
+        "title": "Contraseña",
+        "subtitle": "Actualiza tu contraseña con regularidad para mantener la cuenta segura.",
+        "current": "Contraseña actual",
+        "new": "Nueva contraseña",
+        "confirm": "Confirmar contraseña",
+        "show": "Mostrar contraseñas",
+        "errors": {
+          "invalidCurrent": "La contraseña actual es incorrecta.",
+          "passwordMismatch": "Las contraseñas no coinciden."
+        },
+        "messages": {
+          "success": "Contraseña actualizada correctamente.",
+          "failed": "No pudimos actualizar tu contraseña."
+        }
+      },
+      "mfa": {
+        "title": "Autenticación de dos factores",
+        "subtitle": "Añade una capa extra de seguridad con una app autenticadora.",
+        "status": {
+          "enabled": "Activa",
+          "disabled": "Inactiva"
+        },
+        "messages": {
+          "loadFailed": "No pudimos cargar el estado de 2FA.",
+          "setupFailed": "No pudimos iniciar la configuración.",
+          "codeRequired": "Ingresa el código de verificación para continuar.",
+          "enabled": "Autenticación de dos factores activada.",
+          "confirmFailed": "No pudimos verificar el código.",
+          "disabled": "Autenticación de dos factores desactivada.",
+          "disableFailed": "No pudimos desactivar la autenticación de dos factores.",
+          "recoveryRegenerated": "Nuevos códigos de recuperación generados.",
+          "recoveryFailed": "No pudimos regenerar los códigos de recuperación.",
+          "copyNotSupported": "Tu navegador no soporta copiar al portapapeles.",
+          "copied": "Códigos de recuperación copiados.",
+          "copyFailed": "No pudimos copiar los códigos."
+        },
+        "enabled": {
+          "title": "Protección activa",
+          "description": "Laralis pedirá un código en cada nuevo dispositivo.",
+          "lastVerified": "Última verificación {date}",
+          "codesRemaining": "{count} códigos de recuperación restantes"
+        },
+        "unknown": "Desconocido",
+        "callout": {
+          "title": "Protege tu cuenta",
+          "description": "Usa Google Authenticator, Authy o cualquier app TOTP para asegurar el acceso."
+        },
+        "actions": {
+          "enable": "Activar 2FA",
+          "confirm": "Confirmar código",
+          "cancel": "Cancelar configuración",
+          "reconfigure": "Configurar de nuevo",
+          "disable": "Desactivar 2FA",
+          "regenerate": "Generar nuevos códigos",
+          "copy": "Copiar",
+          "download": "Descargar"
+        },
+        "setup": {
+          "scanTitle": "Escanea el código QR",
+          "scanDescription": "Abre tu app autenticadora y escanea el QR.",
+          "secretHint": "Si no puedes escanear, ingresa este secreto manualmente: {secret}",
+          "verifyTitle": "Verifica el código",
+          "verifyDescription": "Ingresa un código de tu app para finalizar.",
+          "rememberDevice": "Recordar este dispositivo por 30 días"
+        },
+        "recovery": {
+          "title": "Códigos de recuperación",
+          "description": "Guarda estos códigos en un lugar seguro. Cada código se usa una sola vez.",
+          "codeLabel": "Código del autenticador",
+          "codesTitle": "Códigos de respaldo"
+        }
+      },
+      "sessions": {
+        "title": "Sesiones activas",
+        "subtitle": "Cierra sesión en los dispositivos que ya no uses.",
+        "description": "Mantendremos esta sesión abierta. Puedes cerrar sesión en todos los demás dispositivos.",
+        "actions": {
+          "signOutOthers": "Cerrar sesiones en otros dispositivos"
+        },
+        "messages": {
+          "signedOutOthers": "Se cerraron las demás sesiones.",
+          "signOutFailed": "No pudimos cerrar las otras sesiones."
+        },
+        "notice": {
+          "title": "¿Necesitas revocar acceso?",
+          "description": "Cerrar las otras sesiones es inmediato y protege tus datos si pierdes un dispositivo."
+        }
+      }
+    },
+    "dataManagement": {
+      "title": "Datos y mantenimiento",
+      "subtitle": "Administra exportaciones, importaciones y respaldos locales de forma segura.",
+      "export": {
+        "title": "Exportar datos",
+        "description": "Descarga una copia JSON de tus espacios, clínicas, pacientes, tratamientos, servicios y registros financieros.",
+        "button": "Descargar exportación",
+        "success": "Exportación generada correctamente.",
+        "error": "No pudimos generar la exportación. Intenta de nuevo."
+      },
+      "backup": {
+        "title": "Respaldos",
+        "description": "Crea un respaldo local antes de importar para evitar pérdida de información.",
+        "button": "Crear respaldo",
+        "success": "Respaldo listo. Guarda el archivo descargado en un lugar seguro.",
+        "error": "No pudimos crear el respaldo."
+      },
+      "import": {
+        "title": "Importar datos",
+        "description": "Sube un archivo de exportación de Laralis. Esto reemplazará los registros actuales de la clínica. Recomendamos crear primero un respaldo.",
+        "selectFile": "Elegir archivo",
+        "clickLabel": "Haz clic para buscar en tus archivos",
+        "dropLabel": "o arrastra y suelta aquí la exportación en formato JSON",
+        "selected": "Archivo seleccionado:",
+        "button": "Importar datos",
+        "confirmTitle": "¿Reemplazar los datos actuales?",
+        "confirmDescription": "Todos los registros de esta clínica se eliminarán y reemplazarán con el contenido del archivo.",
+        "processing": "Importando datos...",
+        "success": "Datos importados correctamente.",
+        "error": "La importación falló. No se modificaron los datos.",
+        "noFile": "Selecciona un archivo .json generado por Laralis.",
+        "fileInfo": "{size} • exportación JSON",
+        "change": "Elegir otro archivo",
+        "remove": "Quitar archivo"
+      },
+      "messages": {
+        "invalidFormat": "Archivo no admitido. Sube una exportación JSON creada por Laralis.",
+        "clinicMismatch": "La exportación corresponde a otra clínica o workspace.",
+        "sizeExceeded": "El archivo es demasiado grande. El tamaño máximo permitido es {limit} MB.",
+        "importSummaryTitle": "Datos restaurados",
+        "importSummaryDescription": "Los datos importados ya están listos. Se restauró:",
+        "importSummaryItem": "{label}: {count}",
+        "importSummaryEmpty": "El archivo no contenía registros nuevos.",
+        "importErrorTitle": "No pudimos completar la importación",
+        "importErrorDescription": "No se aplicaron cambios. Revisa el detalle a continuación e inténtalo de nuevo.",
+        "importErrorDetails": "{message}"
+      }
+    },
+    "summary": {
+      "services": "Servicios",
+      "supplies": "Insumos",
+      "assets": "Activos",
+      "patients": "Pacientes",
+      "expenses": "Gastos",
+      "fixed_costs": "Costos fijos",
+      "treatments": "Tratamientos",
+      "service_categories": "Categorías de servicios",
+      "category_types": "Tipos de categorías",
+      "categories": "Categorías",
+      "service_supplies": "Insumos por servicio",
+      "tariffs": "Tarifas",
+      "settings_time": "Configuración de tiempo",
+      "marketing_campaigns": "Campañas de marketing"
     }
   },
   "validation": {

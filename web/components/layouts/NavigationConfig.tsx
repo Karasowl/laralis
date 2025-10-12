@@ -1,11 +1,10 @@
-import { 
-  Home, 
-  Users, 
-  Calendar, 
-  Receipt, 
-  Package, 
-  DollarSign, 
-  TrendingUp, 
+import {
+  Home,
+  Users,
+  Calendar,
+  Receipt,
+  Package,
+  DollarSign,
   Settings as SettingsIcon,
   PiggyBank,
   Briefcase,
@@ -13,7 +12,9 @@ import {
   Building,
   Megaphone,
   Wrench,
-  XCircle
+  XCircle,
+  BarChart3,
+  Shield
 } from 'lucide-react'
 
 export interface NavigationItem {
@@ -34,8 +35,8 @@ export function getNavigationSections(t: any, options: { onboardingCompleted?: b
       items: [
         {
           href: '/',
-          label: t('navigation.dashboard'),
-          icon: Home
+          label: t('navigation.insights'),
+          icon: BarChart3
         },
         {
           href: '/patients',
@@ -61,6 +62,11 @@ export function getNavigationSections(t: any, options: { onboardingCompleted?: b
           href: '/supplies',
           label: t('navigation.supplies'),
           icon: Package
+        },
+        {
+          href: '/marketing',
+          label: t('navigation.marketing'),
+          icon: Megaphone
         },
         {
           href: '/expenses',
@@ -91,11 +97,6 @@ export function getNavigationSections(t: any, options: { onboardingCompleted?: b
           href: '/equilibrium',
           label: t('navigation.equilibrium'),
           icon: Calculator
-        },
-        {
-          href: '/reports',
-          label: t('navigation.reports'),
-          icon: TrendingUp
         }
       ]
     },
@@ -113,9 +114,29 @@ export function getNavigationSections(t: any, options: { onboardingCompleted?: b
           icon: Building
         },
         {
-          href: '/settings/marketing',
-          label: t('navigation.marketing'),
-          icon: Megaphone
+          href: '/settings/account',
+          label: t('navigation.account'),
+          icon: Home
+        },
+        {
+          href: '/settings/preferences',
+          label: t('navigation.preferences'),
+          icon: Calculator
+        },
+        {
+          href: '/settings/security',
+          label: t('navigation.security'),
+          icon: Shield
+        },
+        {
+          href: '/settings/data',
+          label: t('navigation.dataMaintenance'),
+          icon: Receipt
+        },
+        {
+          href: '/settings/reset',
+          label: t('navigation.reset'),
+          icon: XCircle
         }
       ]
     }

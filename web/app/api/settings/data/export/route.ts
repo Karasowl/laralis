@@ -10,13 +10,20 @@ type TableConfig = {
 };
 
 const CLINIC_TABLES: TableConfig[] = [
+  { key: 'category_types', table: 'category_types', column: 'clinic_id' },
+  { key: 'categories', table: 'categories', column: 'clinic_id' },
+  { key: 'marketing_campaigns', table: 'marketing_campaigns', column: 'clinic_id' },
+  { key: 'marketing_campaign_status_history', table: 'marketing_campaign_status_history', column: 'clinic_id' },
   { key: 'services', table: 'services', column: 'clinic_id' },
+  { key: 'service_supplies', table: 'service_supplies', column: 'clinic_id' },
   { key: 'supplies', table: 'supplies', column: 'clinic_id' },
   { key: 'assets', table: 'assets', column: 'clinic_id' },
   { key: 'patients', table: 'patients', column: 'clinic_id' },
   { key: 'treatments', table: 'treatments', column: 'clinic_id' },
   { key: 'expenses', table: 'expenses', column: 'clinic_id' },
+  { key: 'tariffs', table: 'tariffs', column: 'clinic_id' },
   { key: 'fixed_costs', table: 'fixed_costs', column: 'clinic_id' },
+  { key: 'settings_time', table: 'settings_time', column: 'clinic_id' },
 ];
 
 export async function GET(request: NextRequest) {
