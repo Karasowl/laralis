@@ -225,18 +225,23 @@ export default function WorkspacesClinicsSettingsClient() {
   const workspaceSummary = useMemo(() => {
     if (!selectedWorkspace) return null
     return t('settings.workspaces.summary', {
-      defaultValue: 'Workspace: {name}',
-      name: selectedWorkspace.name
+      name: selectedWorkspace.name,
+      clinicCount: clinics.length
     })
-  }, [selectedWorkspace, t])
+  }, [selectedWorkspace, clinics.length, t])
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       <Card id="workspaces-section" className="p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Building2 className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-semibold">{t('settings.workspaces.title')}</h2>
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-semibold">{t('settings.workspaces.title')}</h2>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t('settings.workspaces.subtitle')}
+            </p>
           </div>
         </div>
 
@@ -271,7 +276,7 @@ export default function WorkspacesClinicsSettingsClient() {
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-base font-semibold">
-              {t('settings.clinics.clinics', { defaultValue: 'Clinics' })}
+              {t('settings.clinics.title')}
             </h3>
             {workspaceSummary && (
               <p className="text-xs text-muted-foreground">{workspaceSummary}</p>
@@ -279,7 +284,7 @@ export default function WorkspacesClinicsSettingsClient() {
           </div>
           <Button size="sm" onClick={openCreateClinic} disabled={!selectedWorkspaceId}>
             <Plus className="mr-2 h-4 w-4" />
-            {t('settings.clinics.add', { defaultValue: 'Add clinic' })}
+            {t('settings.clinics.create')}
           </Button>
         </div>
 

@@ -6,112 +6,88 @@ import { AppLayout } from '@/components/layouts/AppLayout';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import {
-  Building,
+  UserCog,
+  SlidersHorizontal,
+  ShieldCheck,
   Building2,
-  Clock,
-  Calculator,
-  DollarSign,
-  Package,
-  Wrench,
-  TrendingUp,
-  RefreshCw,
   Database,
+  RefreshCw,
   ChevronRight,
-  Megaphone
 } from 'lucide-react';
 
 export default function SettingsPage() {
   const t = useTranslations();
 
-  const settingsSections = [
+  const settingsGroups = [
     {
-      id: 'workspaces',
-      title: t('settings.workspaces.title'),
-      description: t('settings.workspaces.subtitle'),
-      href: '/settings/workspaces',
-      icon: Building2,
-      color: 'text-blue-600'
+      id: 'personal',
+      title: t('settings.groups.personal.title'),
+      subtitle: t('settings.groups.personal.subtitle'),
+      items: [
+        {
+          id: 'account',
+          title: t('settings.account.cardTitle'),
+          description: t('settings.account.cardDescription'),
+          href: '/settings/account',
+          icon: UserCog,
+          color: 'text-sky-600',
+        },
+        {
+          id: 'preferences',
+          title: t('settings.preferences.cardTitle'),
+          description: t('settings.preferences.cardDescription'),
+          href: '/settings/preferences',
+          icon: SlidersHorizontal,
+          color: 'text-violet-600',
+        },
+        {
+          id: 'security',
+          title: t('settings.security.cardTitle'),
+          description: t('settings.security.cardDescription'),
+          href: '/settings/security',
+          icon: ShieldCheck,
+          color: 'text-emerald-600',
+        },
+      ],
     },
     {
-      id: 'clinics',
-      title: t('settings.clinics.title'),
-      description: t('settings.clinics.description'),
-      href: '/settings/workspaces', // Clinics now live under Workspaces
-      icon: Building,
-      color: 'text-emerald-600'
+      id: 'organization',
+      title: t('settings.groups.organization.title'),
+      subtitle: t('settings.groups.organization.subtitle'),
+      items: [
+        {
+          id: 'workspaces',
+          title: t('settings.workspaces.title'),
+          description: t('settings.workspaces.subtitle'),
+          href: '/settings/workspaces',
+          icon: Building2,
+          color: 'text-blue-600',
+        },
+      ],
     },
     {
-      id: 'time',
-      title: t('settings.time.title'),
-      description: t('settings.time.description'),
-      href: '/time',
-      icon: Clock,
-      color: 'text-purple-600'
+      id: 'maintenance',
+      title: t('settings.groups.maintenance.title'),
+      subtitle: t('settings.groups.maintenance.subtitle'),
+      items: [
+        {
+          id: 'data',
+          title: t('settings.data.title'),
+          description: t('settings.data.description'),
+          href: '/settings/data',
+          icon: Database,
+          color: 'text-sky-600',
+        },
+        {
+          id: 'reset',
+          title: t('settings.reset.title'),
+          description: t('settings.reset.description'),
+          href: '/settings/reset',
+          icon: RefreshCw,
+          color: 'text-red-600',
+        },
+      ],
     },
-    {
-      id: 'tariffs',
-      title: t('settings.tariffs.title'),
-      description: t('settings.tariffs.description'),
-      href: '/tariffs',
-      icon: Calculator,
-      color: 'text-orange-600'
-    },
-    {
-      id: 'marketing',
-      title: t('settings.marketing.title'),
-      description: t('settings.marketing.description'),
-      href: '/settings/marketing',
-      icon: Megaphone,
-      color: 'text-pink-600'
-    },
-    {
-      id: 'fixed-costs',
-      title: t('settings.fixedCosts.title'),
-      description: t('settings.fixedCosts.description'),
-      href: '/fixed-costs',
-      icon: DollarSign,
-      color: 'text-green-600'
-    },
-    {
-      id: 'assets',
-      title: t('settings.assets.title'),
-      description: t('settings.assets.description'),
-      href: '/assets',
-      icon: Wrench,
-      color: 'text-indigo-600'
-    },
-    {
-      id: 'supplies',
-      title: t('settings.supplies.title'),
-      description: t('settings.supplies.description'),
-      href: '/supplies',
-      icon: Package,
-      color: 'text-yellow-600'
-    },
-    {
-      id: 'data',
-      title: t('settings.data.title'),
-      description: t('settings.data.description'),
-      href: '/settings/data',
-      icon: Database,
-      color: 'text-sky-600'
-    },
-    {
-      id: 'reports',
-      title: t('settings.reports.title'),
-      description: t('settings.reports.description'),
-      href: '/reports',
-      icon: TrendingUp,
-      color: 'text-cyan-600'
-    },
-    {
-      id: 'reset',
-      title: t('settings.reset.title'),
-      description: t('settings.reset.description'),
-      href: '/settings/reset',
-      icon: RefreshCw,
-      color: 'text-red-600'
-    }
   ];
 
   return (
@@ -122,34 +98,40 @@ export default function SettingsPage() {
           subtitle={t('settings.subtitle')}
         />
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {settingsSections.map((section) => {
-            const Icon = section.icon;
-            return (
-              <Link key={section.id} href={section.href}>
-                <Card className="hover:shadow-lg transition-all duration-200 cursor-pointer group h-full">
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <div className={`p-2 rounded-lg bg-muted ${section.color} bg-opacity-10`}>
-                            <Icon className={`h-5 w-5 ${section.color}`} />
+        <div className="space-y-8">
+          {settingsGroups.map((group) => (
+            <section key={group.id} className="space-y-4">
+              <div>
+                <h2 className="text-lg font-semibold">{group.title}</h2>
+                <p className="text-sm text-muted-foreground">{group.subtitle}</p>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link key={item.id} href={item.href}>
+                      <Card className="group h-full cursor-pointer transition-all duration-200 hover:shadow-lg">
+                        <CardContent className="p-6">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="mb-2 flex items-center gap-3">
+                                <div className={`rounded-lg bg-muted p-2 bg-opacity-10 ${item.color}`}>
+                                  <Icon className={`h-5 w-5 ${item.color}`} />
+                                </div>
+                                <h3 className="text-lg font-semibold">{item.title}</h3>
+                              </div>
+                              <p className="text-sm text-muted-foreground">{item.description}</p>
+                            </div>
+                            <ChevronRight className="mt-1 h-5 w-5 text-muted-foreground transition-colors group-hover:text-foreground" />
                           </div>
-                          <h3 className="font-semibold text-lg">
-                            {section.title}
-                          </h3>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {section.description}
-                        </p>
-                      </div>
-                      <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors mt-1" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            );
-          })}
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
         </div>
       </div>
     </AppLayout>

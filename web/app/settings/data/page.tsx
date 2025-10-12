@@ -1,8 +1,9 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import { Download, Upload, HardDrive, AlertTriangle } from 'lucide-react';
+import { useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
+import { Download, Upload, HardDrive, AlertTriangle, File, XCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { useRouter } from 'next/navigation';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,10 +17,25 @@ import { DeleteAccountSection } from '../SettingsClient';
 const MAX_IMPORT_SIZE_MB = 10;
 const MAX_IMPORT_SIZE_BYTES = MAX_IMPORT_SIZE_MB * 1024 * 1024;
 
+const formatFileSize = (bytes: number) => {
+  if (!Number.isFinite(bytes)) {
+    return '0 MB';
+  }
+  if (bytes < 1024) {
+    return `${bytes.toFixed(0)} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+};
+
 export default function DataSettingsPage() {
+  const router = useRouter();
   const tSettings = useTranslations('settings');
   const t = useTranslations('settings.dataManagement');
   const common = useTranslations('common');
+  const tSummary = useTranslations('settings.summary');
   const { toast } = useToast();
 
   const [isExporting, setIsExporting] = useState(false);
@@ -27,6 +43,7 @@ export default function DataSettingsPage() {
   const [isImporting, setIsImporting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isDragActive, setIsDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const triggerDownload = async (mode: 'export' | 'backup') => {
@@ -83,6 +100,14 @@ export default function DataSettingsPage() {
     }
   };
 
+  const clearSelectedFile = () => {
+    setSelectedFile(null);
+    setIsDragActive(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleFileChange = (file: File | null) => {
     if (!file) {
       setSelectedFile(null);
@@ -114,6 +139,51 @@ export default function DataSettingsPage() {
     }
 
     setSelectedFile(file);
+  };
+
+  const triggerFileDialog = () => {
+    setIsDragActive(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleDropZoneKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      triggerFileDialog();
+    }
+  };
+
+  const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = 'copy';
+    if (!isDragActive) {
+      setIsDragActive(true);
+    }
+  };
+
+  const handleDragLeave = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const related = event.relatedTarget as Node | null;
+    if (related && event.currentTarget.contains(related)) {
+      return;
+    }
+    if (isDragActive) {
+      setIsDragActive(false);
+    }
+  };
+
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragActive(false);
+    const file = event.dataTransfer.files?.[0] ?? null;
+    handleFileChange(file);
+    event.dataTransfer.clearData();
   };
 
   const openImportConfirm = () => {
@@ -151,8 +221,33 @@ export default function DataSettingsPage() {
         throw new Error(details || t('import.error'));
       }
 
+      const summary = payload?.summary ?? {};
+      const summaryEntries = Object.entries(summary)
+        .filter(([, count]) => typeof count === 'number' && count > 0)
+        .map(([key, count]) => ({
+          key,
+          count: count as number
+        }));
+
       toast({
-        title: t('import.success'),
+        title: t('messages.importSummaryTitle'),
+        description: (
+          <div className="space-y-2">
+            <p className="text-sm font-medium">{t('messages.importSummaryDescription')}</p>
+            {summaryEntries.length > 0 ? (
+              <ul className="list-disc space-y-1 pl-5 text-sm">
+                {summaryEntries.map(({ key, count }) => (
+                  <li key={key}>
+                    {tSummary(key as any, { count, defaultValue: key })}:{' '}
+                    <span className="font-semibold">{count}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground">{t('messages.importSummaryEmpty')}</p>
+            )}
+          </div>
+        ),
       });
 
       setSelectedFile(null);
@@ -160,11 +255,24 @@ export default function DataSettingsPage() {
         fileInputRef.current.value = '';
       }
       setConfirmOpen(false);
+
+      router.refresh();
     } catch (error) {
       const description = error instanceof Error ? error.message : undefined;
       toast({
-        title: t('import.error'),
-        description,
+        title: t('messages.importErrorTitle'),
+        description: (
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              {t('messages.importErrorDescription')}
+            </p>
+            {description && (
+              <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+                {t('messages.importErrorDetails', { message: description })}
+              </p>
+            )}
+          </div>
+        ),
         variant: 'destructive',
       });
     } finally {
@@ -251,23 +359,73 @@ export default function DataSettingsPage() {
               <AlertDescription>{t('import.description')}</AlertDescription>
             </Alert>
 
-            <div className="space-y-2">
-              <Input
-                ref={fileInputRef}
-                type="file"
-                accept="application/json"
-                onChange={(event) => handleFileChange(event.target.files?.[0] ?? null)}
-              />
-              {selectedFile ? (
-                <p className="text-xs text-muted-foreground">
-                  {selectedFile.name} · {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
-                </p>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  {t('import.noFile')}
-                </p>
-              )}
+            <Input
+              ref={fileInputRef}
+              type="file"
+              accept="application/json"
+              id="data-import-file"
+              className="sr-only"
+              onChange={(event) => handleFileChange(event.target.files?.[0] ?? null)}
+            />
+
+            <div
+              role="button"
+              tabIndex={0}
+              aria-label={t('import.selectFile')}
+              onClick={triggerFileDialog}
+              onKeyDown={handleDropZoneKeyDown}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 text-center transition ${
+                isDragActive
+                  ? 'border-primary bg-primary/5'
+                  : 'border-muted-foreground/30 hover:border-primary/60 hover:bg-muted/40'
+              }`}
+            >
+              <Upload className="h-8 w-8 text-primary" />
+              <p className="mt-3 text-sm font-medium text-foreground">
+                {t('import.clickLabel')}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t('import.dropLabel')}
+              </p>
             </div>
+
+            {selectedFile ? (
+              <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3 text-left">
+                  <File className="mt-0.5 h-5 w-5 text-primary" />
+                  <div>
+                    <p className="text-sm font-medium break-all">{selectedFile.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {t('import.fileInfo', { size: formatFileSize(selectedFile.size) })}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={triggerFileDialog}
+                  >
+                    {t('import.change')}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={clearSelectedFile}
+                    aria-label={t('import.remove')}
+                  >
+                    <XCircle className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground text-center">
+                {t('import.noFile')}
+              </p>
+            )}
           </CardContent>
           <CardFooter className="justify-end">
             <Button
