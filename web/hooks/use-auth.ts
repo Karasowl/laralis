@@ -136,7 +136,8 @@ export function useAuth(): UseAuthReturn {
         return false
       }
 
-      toast.success(t('register_success'))
+      // Don't show toast here, the verify-email page will show all the info
+      // toast.success(t('register_success'))
 
       const cookieLocale = typeof document !== 'undefined'
         ? document.cookie.split('; ').find(part => part.startsWith('locale='))?.split('=')[1]
@@ -152,9 +153,9 @@ export function useAuth(): UseAuthReturn {
         }
       }
 
-      // Auto-login after registration
+      // Redirect to verify email page with the email as parameter
       if (data.user) {
-        router.push('/onboarding')
+        router.push(`/auth/verify-email?email=${encodeURIComponent(credentials.email)}`)
       }
 
       return true

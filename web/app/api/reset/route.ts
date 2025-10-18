@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { deleteClinicData } from '@/lib/clinic-tables';
 
 async function deleteWorkspaceData(workspaceId: string) {
   const { data: clinicRows, error: clinicQueryError } = await supabaseAdmin
@@ -15,32 +16,9 @@ async function deleteWorkspaceData(workspaceId: string) {
   const clinicIds = (clinicRows ?? []).map(row => row?.id).filter((id): id is string => Boolean(id));
 
   if (clinicIds.length > 0) {
-    const deleteTables = [
-      { table: 'treatments', column: 'clinic_id' },
-      { table: 'patients', column: 'clinic_id' },
-      { table: 'expenses', column: 'clinic_id' },
-      { table: 'marketing_campaigns', column: 'clinic_id' },
-      { table: 'services', column: 'clinic_id' },
-      { table: 'supplies', column: 'clinic_id' },
-      { table: 'fixed_costs', column: 'clinic_id' },
-      { table: 'assets', column: 'clinic_id' },
-      { table: 'settings_time', column: 'clinic_id' },
-    ];
-
-    for (const { table, column } of deleteTables) {
-      const { error } = await supabaseAdmin
-        .from(table)
-        .delete()
-        .in(column, clinicIds);
-      if (error && error.code !== 'PGRST116') throw error;
+    for (const clinicId of clinicIds) {
+      await deleteClinicData(clinicId);
     }
-
-    const { error: categoriesError } = await supabaseAdmin
-      .from('categories')
-      .delete()
-      .in('clinic_id', clinicIds)
-      .eq('is_system', false);
-    if (categoriesError && categoriesError.code !== 'PGRST116') throw categoriesError;
   }
 
   const { error: clinicDeleteError } = await supabaseAdmin
@@ -54,6 +32,12 @@ async function deleteWorkspaceData(workspaceId: string) {
     .delete()
     .eq('workspace_id', workspaceId);
   if (memberDeleteError && memberDeleteError.code !== 'PGRST116') throw memberDeleteError;
+
+  const { error: activityDeleteError } = await supabaseAdmin
+    .from('workspace_activity')
+    .delete()
+    .eq('workspace_id', workspaceId);
+  if (activityDeleteError && activityDeleteError.code !== 'PGRST116') throw activityDeleteError;
 
   const { error: workspaceDeleteError } = await supabaseAdmin
     .from('workspaces')

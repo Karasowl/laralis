@@ -12,20 +12,25 @@ import { InputField } from '@/components/ui/form-field'
 import { useAuth } from '@/hooks/use-auth'
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 
-// Schema for login form
-const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters')
-})
-
-type LoginFormData = z.infer<typeof loginSchema>
+type LoginFormData = {
+  email: string
+  password: string
+}
 
 export default function LoginPage() {
   const t = useTranslations('auth.login')
+  const tValidation = useTranslations('validation')
   const router = useRouter()
   const { login, loading, error, clearError } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
+
+  // Schema for login form with translated messages
+  const loginSchema = z.object({
+    email: z.string().email(tValidation('email')),
+    password: z.string().min(6, tValidation('passwordMinLength6'))
+  })
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -120,13 +125,15 @@ export default function LoginPage() {
           </div>
 
           <div className="flex items-center justify-between">
-            <label className="flex items-center space-x-2">
-              <input type="checkbox" className="rounded" />
-              <span className="text-sm text-muted-foreground">{t('rememberMe')}</span>
-            </label>
-            
-            <a 
-              href="/auth/forgot-password" 
+            <div className="flex items-center space-x-2">
+              <Checkbox id="remember" />
+              <label htmlFor="remember" className="text-sm text-muted-foreground">
+                {t('rememberMe')}
+              </label>
+            </div>
+
+            <a
+              href="/auth/forgot-password"
               className="text-sm text-primary hover:underline"
             >
               {t('forgotPassword')}

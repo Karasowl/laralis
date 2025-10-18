@@ -1,6 +1,24 @@
 {
   "reports": {
     "overview": {
+      "predictions": {
+        "confidence": "Confidence: {value}%",
+        "next_month": {
+          "title": "Next Month Outlook",
+          "subtitle": "Projection with the current booking pace",
+          "description": "Expected revenue based on scheduled treatments and ongoing trends."
+        },
+        "next_quarter": {
+          "title": "Quarterly Outlook",
+          "subtitle": "Forecast for the upcoming quarter",
+          "description": "Plan resources and cash flow with a medium-term revenue estimate."
+        },
+        "year_end": {
+          "title": "Year-End Outlook",
+          "subtitle": "Projection to close the year",
+          "description": "Long-term view combining seasonality and recent performance."
+        }
+      },
       "summary": {
         "title": "Executive summary",
         "subtitle": "Predicted revenue and confidence for the upcoming periods.",

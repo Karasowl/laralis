@@ -2,12 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import {
-  ArrowRight,
-  Lightbulb,
-  RotateCw,
-  Sparkles
-} from 'lucide-react'
+import { ArrowRight, RotateCw } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -33,10 +28,7 @@ type StepDefinition = {
   title: string
   caption: string
   description: string
-  points: string[]
   action: { href: string; label: string }
-  tip: string
-  reflection: { title: string; description: string }
 }
 
 const STEP_IDS: RequirementId[] = [
@@ -57,15 +49,6 @@ const STEP_ROUTES: Record<RequirementId, string> = {
   tariffs: '/tariffs'
 }
 
-const STEP_POINTS_COUNT: Record<RequirementId, number> = {
-  depreciation: 3,
-  fixed_costs: 3,
-  cost_per_min: 3,
-  supplies: 3,
-  service_recipe: 3,
-  tariffs: 3
-}
-
 export default function SetupPage() {
   const router = useRouter()
   const { workspace, currentClinic, refreshWorkspaces, setWorkspace } = useWorkspace()
@@ -79,20 +62,11 @@ export default function SetupPage() {
         title: stepT(`${id}.title`),
         caption: stepT(`${id}.caption`),
         description: stepT(`${id}.description`),
-        points: Array.from({ length: STEP_POINTS_COUNT[id] }, (_, index) =>
-          stepT(`${id}.points.${index}`)
-        ),
-        action: { href: STEP_ROUTES[id], label: stepT(`${id}.action`) },
-        tip: stepT(`${id}.tip`),
-        reflection: {
-          title: stepT(`${id}.reflection.title`),
-          description: stepT(`${id}.reflection.description`)
-        }
+        action: { href: STEP_ROUTES[id], label: stepT(`${id}.action`) }
       })),
     [stepT]
   )
 
-  const [reflectionAcknowledged, setReflectionAcknowledged] = useState<Record<RequirementId, boolean>>({})
   const [activeStepId, setActiveStepId] = useState<RequirementId>(steps[0]?.id ?? 'depreciation')
   const [ready, setReady] = useState(false)
   const [finishing, setFinishing] = useState(false)
@@ -114,8 +88,6 @@ export default function SetupPage() {
   const firstPendingIndex = useMemo(() => steps.findIndex((step) => !isStepDone(step.id)), [steps, isStepDone])
   const maxAccessibleIndex = firstPendingIndex === -1 ? steps.length - 1 : firstPendingIndex
   const canAdvance = isStepDone(activeStepId)
-
-  const activePoints = activeStep?.points ?? []
 
   const completedSteps = useMemo(() => {
     if (!missingState) return 0
@@ -144,19 +116,11 @@ export default function SetupPage() {
   }, [currentClinic?.id])
 
   const mountedRef = useRef(false)
-  const nextSectionRef = useRef<HTMLDivElement | null>(null)
-  const autoScrolledRef = useRef(false)
   useEffect(() => {
     mountedRef.current = true
     return () => {
       mountedRef.current = false
     }
-  }, [])
-
-  const scrollToNextSection = useCallback(() => {
-    try {
-      nextSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    } catch {}
   }, [])
 
   const refreshStatus = useCallback(async (): Promise<Set<RequirementId> | null> => {
@@ -223,27 +187,49 @@ export default function SetupPage() {
     }
   }, [refreshStatus])
 
-  const acknowledgeReflection = useCallback(
-    (stepId: RequirementId) => {
-      setReflectionAcknowledged((prev) => ({ ...prev, [stepId]: true }))
-      toast.success(t('toasts.finishSuccess'))
-    },
-    [t]
-  )
-
   const finishSetup = useCallback(async () => {
     if (finishing || !allDone) return
 
-    if (!workspace?.id) {
-      toast.error(t('toasts.workspaceMissing'))
-      return
-    }
-
-    const fallback = t('toasts.finishError')
-
     setFinishing(true)
+
     try {
-      const response = await fetch(`/api/workspaces/${workspace.id}`, {
+      // Obtener workspace ID del contexto o de localStorage/cookies como fallback
+      let workspaceId = workspace?.id
+
+      if (!workspaceId) {
+        // Intentar obtener de localStorage/cookies
+        try {
+          const stored = localStorage.getItem('selectedWorkspaceId')
+          if (stored) {
+            workspaceId = stored
+          } else {
+            const cookieMatch = document.cookie.match(/(?:^|; )workspaceId=([^;]+)/)
+            if (cookieMatch) {
+              workspaceId = decodeURIComponent(cookieMatch[1])
+            }
+          }
+        } catch (e) {
+          console.error('Error reading workspace ID from storage:', e)
+        }
+
+        // Si aún no hay workspace ID, intentar refrescar
+        if (!workspaceId) {
+          await refreshWorkspaces()
+          await new Promise(resolve => setTimeout(resolve, 500))
+          workspaceId = workspace?.id
+        }
+      }
+
+      // Verificar si finalmente tenemos un workspace ID
+      if (!workspaceId) {
+        toast.error(t('toasts.workspaceMissing'))
+        setFinishing(false)
+        return
+      }
+
+      const fallback = t('toasts.finishError')
+
+      const response = await fetch(`/api/workspaces/${workspaceId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ onboarding_completed: true })
@@ -254,9 +240,12 @@ export default function SetupPage() {
         throw new Error(payload?.message || fallback)
       }
 
-      try {
-        setWorkspace({ ...workspace, onboarding_completed: true })
-      } catch {}
+      // Actualizar el workspace en el contexto si existe
+      if (workspace) {
+        try {
+          setWorkspace({ ...workspace, onboarding_completed: true })
+        } catch {}
+      }
 
       await refreshWorkspaces()
       router.replace('/')
@@ -287,14 +276,6 @@ export default function SetupPage() {
       setActiveStepId(firstPending.id)
     }
   }, [ready, missingState, steps, activeStepId])
-
-  useEffect(() => {
-    if (!ready || !allDone || autoScrolledRef.current) return
-    autoScrolledRef.current = true
-    requestAnimationFrame(() => {
-      scrollToNextSection()
-    })
-  }, [allDone, ready, scrollToNextSection])
 
   if (!ready) {
     return <Loading fullscreen message={t('loading.message')} subtitle={t('loading.subtitle')} />
@@ -334,29 +315,6 @@ export default function SetupPage() {
               </div>
             </div>
           </div>
-          {allDone && (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div className="flex items-start gap-3">
-                  <Sparkles className="mt-0.5 h-5 w-5 text-emerald-600" />
-                  <div>
-                    <p className="text-sm font-semibold text-emerald-900">
-                      {t('nextSection.title')}
-                    </p>
-                    <p className="text-sm text-emerald-900/80">{t('nextSection.description')}</p>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button onClick={finishSetup} disabled={finishing}>
-                    {finishing ? t('navigation.completing') : t('nextSection.cta.finish')}
-                  </Button>
-                  <Button variant="outline" onClick={scrollToNextSection}>
-                    {t('nextSection.title')}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
           <div className="hidden border-t pt-4 md:block">
             <div className="flex gap-3 overflow-x-auto pb-1">
               {steps.map((step, index) => {
@@ -444,67 +402,6 @@ export default function SetupPage() {
                   </Button>
                 </div>
               </div>
-
-              <div className="rounded-xl border bg-background p-5">
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  {t('guide.title')}
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{t('guide.description')}</p>
-                <ul className="mt-4 space-y-3">
-                  {activePoints.map((point) => (
-                    <li
-                      key={point}
-                      className="flex items-start gap-3 rounded-lg bg-muted/20 p-3 text-sm leading-snug"
-                    >
-                      <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
-                      {point}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2">
-                <details className="group rounded-xl border bg-amber-50/80 p-4">
-                  <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-semibold text-amber-900">
-                    <span className="flex items-center gap-2">
-                      <Lightbulb className="h-4 w-4" />
-                      {t('tip.summary')}
-                    </span>
-                    <ArrowRight className="h-4 w-4 transition group-open:rotate-90" />
-                  </summary>
-                  <p className="mt-3 text-sm text-amber-900/90">{activeStep?.tip}</p>
-                </details>
-
-                <details className="group rounded-xl border bg-muted/20 p-4">
-                  <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-semibold">
-                    {t('reflection.summary')}
-                    <ArrowRight className="h-4 w-4 transition group-open:rotate-90" />
-                  </summary>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {activeStep?.reflection.description}
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Button
-                      size="sm"
-                      onClick={() => acknowledgeReflection(activeStepId)}
-                      variant={reflectionAcknowledged[activeStepId] ? 'default' : 'secondary'}
-                    >
-                      {reflectionAcknowledged[activeStepId]
-                        ? t('reflection.acknowledged')
-                        : t('reflection.acknowledge')}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => router.push(activeStep?.action.href ?? '#')}
-                    >
-                      {t('reflection.openModule')}
-                    </Button>
-                  </div>
-                </details>
-              </div>
-
               <div className="flex justify-end gap-2 pt-2">
                 <Button
                   onClick={nextStep ? handleNextStep : finishSetup}
@@ -521,73 +418,6 @@ export default function SetupPage() {
               </div>
             </Card>
         </div>
-
-        {allDone && (
-          <div ref={nextSectionRef}>
-            <Card className="space-y-6 p-6">
-            <div>
-              <h3 className="text-xl font-semibold">{t('nextSection.title')}</h3>
-              <p className="text-sm text-muted-foreground">{t('nextSection.description')}</p>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              <div className="rounded-xl border bg-muted/20 p-4">
-                <p className="text-sm font-semibold">{t('nextSection.cards.patients.title')}</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {t('nextSection.cards.patients.description')}
-                </p>
-                <Button
-                  className="mt-3 w-full"
-                  variant="outline"
-                  onClick={() => router.push('/patients')}
-                >
-                  {t('nextSection.cards.patients.cta')}
-                </Button>
-              </div>
-              <div className="rounded-xl border bg-muted/20 p-4">
-                <p className="text-sm font-semibold">{t('nextSection.cards.treatments.title')}</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {t('nextSection.cards.treatments.description')}
-                </p>
-                <Button
-                  className="mt-3 w-full"
-                  variant="outline"
-                  onClick={() => router.push('/treatments')}
-                >
-                  {t('nextSection.cards.treatments.cta')}
-                </Button>
-              </div>
-              <div className="rounded-xl border bg-muted/20 p-4">
-                <p className="text-sm font-semibold">{t('nextSection.cards.services.title')}</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {t('nextSection.cards.services.description')}
-                </p>
-                <Button
-                  className="mt-3 w-full"
-                  variant="outline"
-                  onClick={() => router.push('/services')}
-                >
-                  {t('nextSection.cards.services.cta')}
-                </Button>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" onClick={() => router.push('/patients')}>
-                {t('nextSection.cta.patient')}
-              </Button>
-              <Button variant="outline" onClick={() => router.push('/treatments')}>
-                {t('nextSection.cta.treatment')}
-              </Button>
-              <Button onClick={finishSetup} disabled={!allDone || finishing}>
-                {allDone
-                  ? finishing
-                    ? t('navigation.completing')
-                    : t('nextSection.cta.finish')
-                  : t('navigation.completeDisabled')}
-              </Button>
-            </div>
-          </Card>
-          </div>
-        )}
       </div>
     </AppLayout>
   )

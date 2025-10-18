@@ -103,13 +103,79 @@ export async function DELETE(
       return NextResponse.json({ error: guard.status === 404 ? 'Clinic not found' : 'Forbidden' }, { status: guard.status })
     }
 
+    // Get the clinic to find its workspace
+    const { data: clinic, error: clinicErr } = await supabaseAdmin
+      .from('clinics')
+      .select('id, workspace_id')
+      .eq('id', params.id)
+      .single()
+
+    if (clinicErr || !clinic) {
+      return NextResponse.json({ error: 'Clinic not found' }, { status: 404 })
+    }
+
+    // Count how many clinics are in this workspace
+    const { count: clinicsInWorkspace, error: countErr } = await supabaseAdmin
+      .from('clinics')
+      .select('id', { count: 'exact', head: true })
+      .eq('workspace_id', clinic.workspace_id)
+
+    if (countErr) {
+      return NextResponse.json({ error: 'Failed to count clinics', message: countErr.message }, { status: 500 })
+    }
+
+    // Check if there are other workspaces with clinics for this user
+    const { data: otherWorkspaces, error: wsErr } = await supabaseAdmin
+      .from('workspaces')
+      .select('id')
+      .eq('owner_id', user.id)
+      .neq('id', clinic.workspace_id)
+
+    if (wsErr) {
+      return NextResponse.json({ error: 'Failed to check workspaces', message: wsErr.message }, { status: 500 })
+    }
+
+    let hasOtherWorkspacesWithClinics = false
+    if (otherWorkspaces && otherWorkspaces.length > 0) {
+      for (const ws of otherWorkspaces) {
+        const { count, error: otherCountErr } = await supabaseAdmin
+          .from('clinics')
+          .select('id', { count: 'exact', head: true })
+          .eq('workspace_id', ws.id)
+
+        if (!otherCountErr && count && count > 0) {
+          hasOtherWorkspacesWithClinics = true
+          break
+        }
+      }
+    }
+
+    // Business rule: Cannot delete the last clinic in a workspace unless there's another workspace with clinics
+    if (clinicsInWorkspace === 1 && !hasOtherWorkspacesWithClinics) {
+      return NextResponse.json({
+        error: 'Cannot delete the last clinic. Create another clinic in a different workspace first.',
+        code: 'LAST_CLINIC'
+      }, { status: 400 })
+    }
+
+    // Delete the clinic (cascade will delete all related data)
     const { error } = await supabaseAdmin
       .from('clinics')
       .delete()
       .eq('id', params.id)
+
     if (error) {
       return NextResponse.json({ error: 'Failed to delete clinic', message: error.message }, { status: 500 })
     }
+
+    // If the deleted clinic was the current one, clear cookies
+    const currentClinicId = cookieStore.get('clinicId')?.value
+    if (currentClinicId === params.id) {
+      const response = NextResponse.json({ success: true })
+      response.cookies.delete('clinicId')
+      return response
+    }
+
     return NextResponse.json({ success: true })
   } catch (e) {
     console.error('DELETE /api/clinics/[id] error:', e)

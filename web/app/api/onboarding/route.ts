@@ -7,12 +7,32 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { workspace, clinic } = body;
 
+    // Try to refresh session first
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+    if (sessionError) {
+      console.error('[onboarding] Session error:', sessionError);
+    }
+
+    // If we have a session, try to refresh it
+    if (session) {
+      const { error: refreshError } = await supabase.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token
+      });
+
+      if (refreshError) {
+        console.error('[onboarding] Refresh error:', refreshError);
+      }
+    }
+
     // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
+
     if (userError || !user) {
+      console.error('[onboarding] Auth error:', { userError, hasSession: !!session });
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Unauthorized', details: userError?.message || 'No user found' },
         { status: 401 }
       );
     }

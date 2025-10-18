@@ -40,6 +40,8 @@
     "updateError": "Error updating {entity}",
     "deleteSuccess": "{entity} deleted successfully",
     "deleteError": "Error deleting {entity}",
+    "cannotDeleteLastClinic": "Cannot delete the last clinic. Create another clinic in a different workspace first.",
+    "cannotDeleteLastWorkspace": "Cannot delete the last workspace with clinics. Create another workspace with at least one clinic first.",
     "switchClinic": "Switch clinic",
     "selectClinic": "Select a clinic",
     "noClinicsFound": "No clinics found",
@@ -100,7 +102,8 @@
     "account": "Account",
     "preferences": "Preferences",
     "security": "Security",
-    "dataMaintenance": "Data maintenance"
+    "dataMaintenance": "Data maintenance",
+    "reset": "Reset & Delete"
   },
   "dark_mode": "Dark Mode",
   "toggle_theme": "Toggle Theme",
@@ -152,9 +155,6 @@
       "title": "Key points",
       "description": "Before you continue, make sure these points are covered."
     },
-    "tip": {
-      "summary": "Quick tip"
-    },
     "reflection": {
       "summary": "Confirm understanding",
       "acknowledge": "Yes, I'm clear",
@@ -201,7 +201,7 @@
     },
     "toasts": {
       "checkError": "We couldn't verify your progress. Try again in a moment.",
-      "workspaceMissing": "Workspace not found.",
+      "workspaceMissing": "Could not load workspace. Please try refreshing the page.",
       "finishError": "We couldn't complete the setup.",
       "finishSuccess": "Great! Let's keep moving to the next step."
     },
@@ -943,12 +943,12 @@
     "description": "Description",
     "descriptionPlaceholder": "Optional service description",
     "noServices": "No services found. Create your first service to get started.",
-    "servicePlaceholder": "Cleaning, Extraction, etc.",
-    "searchSupplyPlaceholder": "Search supply",
-    "quantityPlaceholder": "Qty.",
-    "assetPlaceholder": "Autoclave, Chair, Compressor",
-    "supplyNamePlaceholder": "Sterile gauze, Gloves, etc.",
-    "supplyPresentationPlaceholder": "Package 100u, Box 50u, Cartridge 1u",
+    "servicePlaceholder": "e.g., Dental cleaning",
+    "searchSupplyPlaceholder": "Search supplies...",
+    "quantityPlaceholder": "0",
+    "assetPlaceholder": "e.g., Dental chair",
+    "supplyNamePlaceholder": "e.g., Latex gloves",
+    "supplyPresentationPlaceholder": "e.g., Box of 100",
     "manageSupplies": "Manage Supplies (Optional)",
     "manageSuppliesHint": "Supplies are optional. Define the recipe of materials used in this service",
     "addSupply": "Add Supply to Service",
@@ -1180,54 +1180,41 @@
       "description": "Configure reports and analytics"
     },
     "reset": {
-      "title": "Reset Data",
-      "description": "Clear all data and start over",
-      "subtitle": "Clean up or reset your business data",
-      "patients": "Patients",
-      "patients_desc": "Delete all patient records and their treatments",
-      "treatments": "Treatments",
-      "treatments_desc": "Delete all treatment records",
-      "expenses": "Expenses",
-      "expenses_desc": "Delete all expense records",
-      "supplies": "Supplies",
-      "supplies_desc": "Delete all supplies and service recipes",
-      "services": "Services",
-      "services_desc": "Delete all services and their recipes",
-      "assets": "Assets",
-      "assets_desc": "Delete all equipment and assets",
-      "all_data": "All Data",
-      "all_data_desc": "Delete ALL business data (patients, treatments, expenses, supplies, services, assets)",
+      "title": "Reset & Delete",
+      "subtitle": "Delete clinic data or close your account permanently",
       "warning": "Warning",
-      "warning_description": "This action cannot be undone. All selected data will be permanently deleted.",
-      "clean_data": "Clean Data",
-      "clean_data_description": "Select the data you want to delete. Be careful, this action cannot be undone.",
-      "options_selected": "options selected",
-      "clean_selected": "Clean Selected",
-      "cleaning": "Cleaning...",
-      "status_title": "Data Status",
-      "status_description": "Current status of your business data",
-      "checklist": {
-        "time_config": "Time Configuration",
-        "assets": "Assets",
-        "fixed_costs": "Fixed Costs",
-        "supplies": "Supplies",
-        "services": "Services",
-        "custom_categories": "Custom Categories"
-      },
-      "confirm_delete_all": "Type 'DELETE ALL' to confirm deletion of all data:",
-      "delete_all_placeholder": "Type DELETE ALL",
-      "delete_all_confirmation_text": "DELETE ALL",
-      "no_clinic": "Select or create a clinic first",
-      "select_options": "Please select at least one option",
-      "confirm_required": "Please type 'DELETE ALL' to confirm",
-      "confirm_message": "Are you sure you want to delete the selected data? This action cannot be undone.",
-      "success": "Data cleaned successfully",
-      "partial_success": "Some operations completed with errors",
-      "error": "Error cleaning data",
-      "has_data_warning": "You have existing data. Be careful when performing reset operations.",
-      "completed": "Completed",
-      "unknown_error": "Unknown error",
-      "partial_success_detail": "{success} successful, {errors} with errors"
+      "warning_description": "These actions cannot be undone. All data will be permanently deleted.",
+      "delete_all_data_title": "Delete All Clinic Data",
+      "delete_all_data_description": "Remove all data from the current clinic and start fresh.",
+      "delete_all_data_button": "Delete All Clinic Data",
+      "data_will_be_deleted": "The following data will be permanently deleted",
+      "data_item_patients": "All patients and their history",
+      "data_item_treatments": "All treatments and procedures",
+      "data_item_expenses": "All expenses and financial records",
+      "data_item_services": "All services and their configurations",
+      "data_item_supplies": "All supplies and inventory",
+      "data_item_all_config": "All clinic settings and configurations",
+      "delete_account_title": "Delete Account Permanently",
+      "delete_account_description": "Close your account and delete all associated data.",
+      "delete_account_button": "Delete My Account",
+      "account_deletion_warning": "This will permanently delete",
+      "account_item_all_data": "All clinic data from all clinics",
+      "account_item_workspaces": "All workspaces you own",
+      "account_item_clinics": "All clinic configurations",
+      "account_item_no_recovery": "This action cannot be recovered",
+      "confirm_delete_all_data": "Confirm Data Deletion",
+      "confirm_delete_all_data_description": "This will permanently delete all data from your current clinic. This action cannot be undone.",
+      "confirm_delete_account": "Confirm Account Deletion",
+      "confirm_delete_account_description": "This will permanently delete your account and all associated data. You will not be able to recover this information.",
+      "type_delete_to_confirm": "Type DELETE to confirm",
+      "yes_delete": "Yes, Delete Data",
+      "yes_delete_account": "Yes, Delete My Account",
+      "deleting": "Deleting...",
+      "data_deleted_success": "All clinic data has been deleted successfully",
+      "account_deleted_success": "Your account has been deleted. Redirecting...",
+      "delete_error": "An error occurred while deleting. Please try again.",
+      "no_clinic": "No clinic selected",
+      "delete_placeholder": "DELETE"
     },
     "backup": "Backup & Restore",
     "fixedCostsDesc": "Recurring monthly expenses",
@@ -1532,7 +1519,8 @@
       "service_supplies": "Service supplies",
       "tariffs": "Tariffs",
       "settings_time": "Working time settings",
-      "marketing_campaigns": "Marketing campaigns"
+      "marketing_campaigns": "Marketing campaigns",
+      "marketing_campaign_status_history": "Campaign status history"
     }
   },
   "patients": {
@@ -1696,6 +1684,128 @@
   "reports": {
     "title": "Reports",
     "subtitle": "View financial and operational analytics",
+    "tabs": {
+      "overview": "Overview",
+      "advanced": "Advanced",
+      "marketing": "Marketing"
+    },
+    "overview": {
+      "predictions": {
+        "confidence": "Confidence: {value}%",
+        "next_month": {
+          "title": "Next Month Outlook",
+          "subtitle": "Projection with the current booking pace",
+          "description": "Expected revenue based on scheduled treatments and ongoing trends."
+        },
+        "next_quarter": {
+          "title": "Quarterly Outlook",
+          "subtitle": "Forecast for the upcoming quarter",
+          "description": "Plan resources and cash flow with a medium-term revenue estimate."
+        },
+        "year_end": {
+          "title": "Year-End Outlook",
+          "subtitle": "Projection to close the year",
+          "description": "Long-term view combining seasonality and recent performance."
+        }
+      },
+      "highlights": {
+        "title": "Key Highlights",
+        "subtitle": "Services delivering the strongest results right now",
+        "metric": "Top ROI",
+        "margin": "Average margin: {margin}%",
+        "frequency": "Performed {count} times last month",
+        "potential": "Extra potential: {value}"
+      },
+      "alerts": {
+        "title": "Services to Watch",
+        "subtitle": "Declining performance detected",
+        "message": "Review pricing, promotion, or patient experience to recover momentum."
+      }
+    },
+    "advanced": {
+      "noData": "No advanced insights available yet",
+      "confidence": {
+        "high": "High confidence",
+        "medium": "Medium confidence",
+        "low": "Low confidence"
+      },
+      "revenuePredictions": {
+        "title": "Forecast scenarios",
+        "nextMonth": "Next month",
+        "nextQuarter": "Next quarter",
+        "yearEnd": "Year end",
+        "range": "Expected range"
+      },
+      "services": {
+        "mostProfitable": "Most profitable services",
+        "serviceId": "Service {id}",
+        "treatments": "treatments",
+        "growthOpportunities": "Growth opportunities",
+        "highPotential": "High potential",
+        "potential": "Additional monthly potential"
+      },
+      "patients": {
+        "title": "Patient insights",
+        "lifetimeValue": "Lifetime value",
+        "retentionRate": "Retention rate",
+        "newPerMonth": "New patients per month",
+        "capacityUtilization": "Capacity utilization"
+      },
+      "alerts": {
+        "decliningServices": "Declining services",
+        "requiresAttention": "Needs attention",
+        "monthlyDecline": "Monthly decline"
+      },
+      "kpis": {
+        "title": "Key performance indicators",
+        "avgTreatmentValue": "Average treatment value",
+        "avgMargin": "Average margin",
+        "patientsPerDay": "Patients per day",
+        "treatmentsLast30": "Treatments in the last 30 days"
+      }
+    },
+    "marketing": {
+      "noData": "No marketing insights available yet",
+      "summary": {
+        "patientsFromCampaigns": "Patients from campaigns",
+        "activeCampaigns": "Active campaigns",
+        "lifetimeValue": "Average lifetime value",
+        "retention": "Retention rate",
+        "noData": "No data yet"
+      },
+      "campaigns": {
+        "title": "Top campaigns",
+        "empty": "No campaign performance recorded",
+        "unknownPlatform": "Unknown channel",
+        "status": {
+          "active": "Active",
+          "inactive": "Inactive"
+        },
+        "patients": "{count, plural, one {# patient} other {# patients}}"
+      },
+      "patientInsights": {
+        "title": "Patient acquisition insights",
+        "acquisition": "New patients",
+        "acquisitionHint": "Total attributed to campaigns",
+        "retention": "Retention",
+        "retentionHint": "Returning patient rate",
+        "lifetimeValue": "Lifetime value",
+        "lifetimeValueHint": "Average revenue generated per patient",
+        "footer": "Keep nurturing your campaigns to sustain growth."
+      },
+      "channels": {
+        "title": "Channel performance",
+        "subtitle": "Where your patients are coming from",
+        "tooltipLabel": "Patients",
+        "empty": "No channel data yet"
+      },
+      "dormant": {
+        "title": "Dormant campaigns",
+        "subtitle": "Active but without recent patients",
+        "empty": "All active campaigns have produced patients recently",
+        "hint": "Review messaging or reallocate budget to reactivate these campaigns."
+      }
+    },
     "empty": {
       "title": "No data to report",
       "description": "Reports will be available once you have recorded treatments"
@@ -1796,6 +1906,38 @@
       "emailSentTitle": "Email sent!",
       "emailSentDescription": "We've sent a reset link to {email}",
       "checkSpam": "If you don't see the email, check your spam folder"
+    },
+    "verifyEmail": {
+      "title": "Check your email!",
+      "subtitle": "You're almost done creating your account",
+      "successTitle": "We sent you a verification email",
+      "sentTo": "We've sent a verification link to {email}",
+      "checkInbox": "Please check your inbox",
+      "instructions": "Click the link in the email to activate your account and start using Laralis.",
+      "whatToDo": "What to do now?",
+      "step1Title": "Open your email",
+      "step1Description": "Look for a message from Laralis in your inbox",
+      "step2Title": "Click the verification link",
+      "step2Description": "The link will take you back to Laralis to confirm your account",
+      "step3Title": "Start using Laralis!",
+      "step3Description": "Once verified, you'll have access to all features",
+      "importantTitle": "Important",
+      "checkSpam": "If you don't see the email in your inbox, check your spam or junk folder.",
+      "linkExpiry": "The verification link will expire in 24 hours.",
+      "resendEmail": "Resend verification email",
+      "resending": "Sending...",
+      "waitTime": "Wait {seconds} seconds",
+      "resendSuccess": "Email resent successfully!",
+      "resendError": "Error resending email. Please try again.",
+      "resendAttempts": "Emails resent: {count}",
+      "backToLogin": "Back to login",
+      "needHelp": "Need help?",
+      "commonIssues": "Common issues:",
+      "issue1": "The email may take a few minutes to arrive",
+      "issue2": "Make sure the email address is spelled correctly",
+      "issue3": "Some email providers may block automated emails",
+      "contactSupport": "If you continue having issues, contact us at",
+      "supportEmail": "support@laralis.com"
     },
     "resetPassword": {
       "title": "New password",

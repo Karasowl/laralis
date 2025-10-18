@@ -12,23 +12,14 @@ import { InputField } from '@/components/ui/form-field'
 import { useAuth } from '@/hooks/use-auth'
 import { Mail, Lock, User, Check } from 'lucide-react'
 
-// Schema for register form
-const registerSchema = z.object({
-  firstName: z.string().min(2, 'First name must be at least 2 characters'),
-  lastName: z.string().min(2, 'Last name must be at least 2 characters'),
-  email: z.string().email('Invalid email address'),
-  password: z.string()
-    .min(8)
-    .regex(/[A-Z]/)
-    .regex(/[a-z]/)
-    .regex(/[0-9]/),
-  confirmPassword: z.string(),
-  acceptTerms: z.boolean().refine(val => val === true)
-}).refine((data) => data.password === data.confirmPassword, {
-  path: ["confirmPassword"]
-})
-
-type RegisterFormData = z.infer<typeof registerSchema>
+type RegisterFormData = {
+  firstName: string
+  lastName: string
+  email: string
+  password: string
+  confirmPassword: string
+  acceptTerms: boolean
+}
 
 // Password strength indicator component
 function PasswordStrength({ password }: { password: string }) {
@@ -94,8 +85,28 @@ function PasswordStrength({ password }: { password: string }) {
 
 export default function RegisterPage() {
   const t = useTranslations('auth.register')
+  const tValidation = useTranslations('validation')
   const router = useRouter()
   const { register, loading, error, clearError } = useAuth()
+
+  // Create schema with translated messages
+  const registerSchema = z.object({
+    firstName: z.string().min(2, tValidation('required')),
+    lastName: z.string().min(2, tValidation('required')),
+    email: z.string().email(tValidation('email')),
+    password: z.string()
+      .min(8, tValidation('passwordMinLength8'))
+      .regex(/[A-Z]/, tValidation('passwordUppercase'))
+      .regex(/[a-z]/, tValidation('passwordLowercase'))
+      .regex(/[0-9]/, tValidation('passwordNumber')),
+    confirmPassword: z.string(),
+    acceptTerms: z.boolean().refine(val => val === true, {
+      message: tValidation('acceptTerms')
+    })
+  }).refine((data) => data.password === data.confirmPassword, {
+    path: ["confirmPassword"],
+    message: tValidation('passwordsNoMatch')
+  })
 
   const form = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
@@ -124,10 +135,11 @@ export default function RegisterPage() {
       confirmPassword: data.confirmPassword,
       name: `${data.firstName} ${data.lastName}`
     })
-    
-    if (success) {
-      router.push('/onboarding')
-    }
+
+    // The register function will handle the redirect to verify-email page
+    // if (success) {
+    //   router.push('/auth/verify-email')
+    // }
   }
 
   return (

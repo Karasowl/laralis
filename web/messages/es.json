@@ -45,6 +45,8 @@
     "updateError": "Error al actualizar {entity}",
     "deleteSuccess": "{entity} eliminado exitosamente",
     "deleteError": "Error al eliminar {entity}",
+    "cannotDeleteLastClinic": "No se puede eliminar la última clínica. Crea otra clínica en un espacio de trabajo diferente primero.",
+    "cannotDeleteLastWorkspace": "No se puede eliminar el último espacio de trabajo con clínicas. Crea otro espacio de trabajo con al menos una clínica primero.",
     "switchClinic": "Cambiar clínica",
     "selectClinic": "Selecciona una clínica",
     "noClinicsFound": "No se encontraron clínicas",
@@ -100,7 +102,8 @@
     "account": "Cuenta",
     "preferences": "Preferencias",
     "security": "Seguridad",
-    "dataMaintenance": "Mantenimiento de datos"
+    "dataMaintenance": "Mantenimiento de datos",
+    "reset": "Reiniciar y Eliminar"
   },
   "dark_mode": "Modo Oscuro",
   "toggle_theme": "Cambiar Tema",
@@ -152,9 +155,6 @@
       "title": "Puntos clave",
       "description": "Antes de continuar, verifica que estos puntos estén cubiertos."
     },
-    "tip": {
-      "summary": "Tip rápido"
-    },
     "reflection": {
       "summary": "Comprueba tu comprensión",
       "acknowledge": "Sí, lo tengo claro",
@@ -201,7 +201,7 @@
     },
     "toasts": {
       "checkError": "No pudimos verificar tu avance. Intenta de nuevo en unos segundos.",
-      "workspaceMissing": "No se encontró el espacio de trabajo.",
+      "workspaceMissing": "No se pudo cargar el espacio de trabajo. Por favor, intenta refrescar la página.",
       "finishError": "No se pudo finalizar la configuración.",
       "finishSuccess": "¡Perfecto! Continuemos con el siguiente paso."
     },
@@ -398,6 +398,38 @@
       "emailSentTitle": "¡Correo enviado!",
       "emailSentDescription": "Hemos enviado un enlace de recuperación a {email}",
       "checkSpam": "Si no ves el correo, revisa tu carpeta de spam"
+    },
+    "verifyEmail": {
+      "title": "¡Revisa tu correo electrónico!",
+      "subtitle": "Ya casi terminas de crear tu cuenta",
+      "successTitle": "Te enviamos un correo de verificación",
+      "sentTo": "Hemos enviado un enlace de verificación a {email}",
+      "checkInbox": "Por favor revisa tu bandeja de entrada",
+      "instructions": "Haz clic en el enlace del correo para activar tu cuenta y comenzar a usar Laralis.",
+      "whatToDo": "¿Qué hacer ahora?",
+      "step1Title": "Abre tu correo electrónico",
+      "step1Description": "Busca un mensaje de Laralis en tu bandeja de entrada",
+      "step2Title": "Haz clic en el enlace de verificación",
+      "step2Description": "El enlace te llevará de vuelta a Laralis para confirmar tu cuenta",
+      "step3Title": "¡Comienza a usar Laralis!",
+      "step3Description": "Una vez verificado, podrás acceder a todas las funciones",
+      "importantTitle": "Importante",
+      "checkSpam": "Si no ves el correo en tu bandeja de entrada, revisa tu carpeta de spam o correo no deseado.",
+      "linkExpiry": "El enlace de verificación expirará en 24 horas.",
+      "resendEmail": "Reenviar correo de verificación",
+      "resending": "Enviando...",
+      "waitTime": "Espera {seconds} segundos",
+      "resendSuccess": "¡Correo reenviado exitosamente!",
+      "resendError": "Error al reenviar el correo. Intenta de nuevo.",
+      "resendAttempts": "Correos reenviados: {count}",
+      "backToLogin": "Volver al inicio de sesión",
+      "needHelp": "¿Necesitas ayuda?",
+      "commonIssues": "Problemas comunes:",
+      "issue1": "El correo puede tardar unos minutos en llegar",
+      "issue2": "Verifica que el correo esté escrito correctamente",
+      "issue3": "Algunos proveedores de correo pueden bloquear correos automáticos",
+      "contactSupport": "Si sigues teniendo problemas, contáctanos en",
+      "supportEmail": "soporte@laralis.com"
     },
     "resetPassword": {
       "title": "Nueva contraseña",
@@ -987,12 +1019,12 @@
     "description": "Descripción",
     "descriptionPlaceholder": "Descripción opcional del servicio",
     "noServices": "No se encontraron servicios. Crea tu primer servicio para comenzar.",
-    "servicePlaceholder": "Limpieza, Extracción, etc.",
-    "searchSupplyPlaceholder": "Buscar insumo",
-    "quantityPlaceholder": "Cant.",
-    "assetPlaceholder": "Autoclave, Sillón, Compresor",
-    "supplyNamePlaceholder": "Gasa estéril, Guantes, etc.",
-    "supplyPresentationPlaceholder": "Paquete 100u, Caja 50u, Cartucho 1u",
+    "servicePlaceholder": "Ej: Limpieza dental",
+    "searchSupplyPlaceholder": "Buscar insumos...",
+    "quantityPlaceholder": "0",
+    "assetPlaceholder": "Ej: Sillón dental",
+    "supplyNamePlaceholder": "Ej: Guantes de látex",
+    "supplyPresentationPlaceholder": "Ej: Caja de 100",
     "manageSupplies": "Gestionar Insumos (Opcional)",
     "manageSuppliesHint": "Los insumos son opcionales. Define la receta de materiales usados en este servicio",
     "addSupply": "Agregar Insumo al Servicio",
@@ -1210,8 +1242,41 @@
       "description": "Configura reportes y an�lisis"
     },
     "reset": {
-      "title": "Reiniciar Datos",
-      "description": "Borra todos los datos y comienza de nuevo"
+      "title": "Reiniciar y Eliminar",
+      "subtitle": "Elimina datos de la clínica o cierra tu cuenta permanentemente",
+      "warning": "Advertencia",
+      "warning_description": "Estas acciones no se pueden deshacer. Todos los datos serán eliminados permanentemente.",
+      "delete_all_data_title": "Eliminar Todos los Datos de la Clínica",
+      "delete_all_data_description": "Elimina todos los datos de la clínica actual y comienza de nuevo.",
+      "delete_all_data_button": "Eliminar Todos los Datos",
+      "data_will_be_deleted": "Los siguientes datos serán eliminados permanentemente",
+      "data_item_patients": "Todos los pacientes y su historial",
+      "data_item_treatments": "Todos los tratamientos y procedimientos",
+      "data_item_expenses": "Todos los gastos y registros financieros",
+      "data_item_services": "Todos los servicios y sus configuraciones",
+      "data_item_supplies": "Todos los insumos e inventario",
+      "data_item_all_config": "Todas las configuraciones de la clínica",
+      "delete_account_title": "Eliminar Cuenta Permanentemente",
+      "delete_account_description": "Cierra tu cuenta y elimina todos los datos asociados.",
+      "delete_account_button": "Eliminar Mi Cuenta",
+      "account_deletion_warning": "Esto eliminará permanentemente",
+      "account_item_all_data": "Todos los datos de todas las clínicas",
+      "account_item_workspaces": "Todos los espacios de trabajo que posees",
+      "account_item_clinics": "Todas las configuraciones de clínicas",
+      "account_item_no_recovery": "Esta acción no se puede recuperar",
+      "confirm_delete_all_data": "Confirmar Eliminación de Datos",
+      "confirm_delete_all_data_description": "Esto eliminará permanentemente todos los datos de tu clínica actual. Esta acción no se puede deshacer.",
+      "confirm_delete_account": "Confirmar Eliminación de Cuenta",
+      "confirm_delete_account_description": "Esto eliminará permanentemente tu cuenta y todos los datos asociados. No podrás recuperar esta información.",
+      "type_delete_to_confirm": "Escribe DELETE para confirmar",
+      "yes_delete": "Sí, Eliminar Datos",
+      "yes_delete_account": "Sí, Eliminar Mi Cuenta",
+      "deleting": "Eliminando...",
+      "data_deleted_success": "Todos los datos de la clínica han sido eliminados exitosamente",
+      "account_deleted_success": "Tu cuenta ha sido eliminada. Redirigiendo...",
+      "delete_error": "Ocurrió un error al eliminar. Por favor intenta de nuevo.",
+      "no_clinic": "No hay clínica seleccionada",
+      "delete_placeholder": "ELIMINAR"
     },
     "backup": {
       "title": "Respaldo y Restauración",
@@ -1544,7 +1609,8 @@
       "service_supplies": "Insumos por servicio",
       "tariffs": "Tarifas",
       "settings_time": "Configuración de tiempo",
-      "marketing_campaigns": "Campañas de marketing"
+      "marketing_campaigns": "Campañas de marketing",
+      "marketing_campaign_status_history": "Historial de campañas"
     }
   },
   "validation": {
@@ -1837,6 +1903,128 @@
   "reports": {
     "title": "Reportes",
     "subtitle": "Visualiza análisis financieros y operacionales",
+    "tabs": {
+      "overview": "Resumen",
+      "advanced": "Avanzado",
+      "marketing": "Marketing"
+    },
+    "overview": {
+      "predictions": {
+        "confidence": "Confianza: {value}%",
+        "next_month": {
+          "title": "Proyección del próximo mes",
+          "subtitle": "Estimación con el ritmo actual de reservas",
+          "description": "Ingreso esperado según los tratamientos agendados y la tendencia reciente."
+        },
+        "next_quarter": {
+          "title": "Proyección del próximo trimestre",
+          "subtitle": "Pronóstico para los siguientes tres meses",
+          "description": "Planifica recursos y flujo de caja con una estimación a mediano plazo."
+        },
+        "year_end": {
+          "title": "Proyección de cierre anual",
+          "subtitle": "Estimación para terminar el año",
+          "description": "Visión de largo plazo combinando estacionalidad y desempeño reciente."
+        }
+      },
+      "highlights": {
+        "title": "Puntos destacados",
+        "subtitle": "Servicios con mejor desempeño ahora mismo",
+        "metric": "Mejor ROI",
+        "margin": "Margen promedio: {margin}%",
+        "frequency": "Realizado {count} veces el mes pasado",
+        "potential": "Potencial extra: {value}"
+      },
+      "alerts": {
+        "title": "Servicios a vigilar",
+        "subtitle": "Detectamos una caída en el desempeño",
+        "message": "Revisa precios, promoción o experiencia del paciente para recuperar el ritmo."
+      }
+    },
+    "advanced": {
+      "noData": "Aún no hay insights avanzados",
+      "confidence": {
+        "high": "Alta confianza",
+        "medium": "Confianza media",
+        "low": "Baja confianza"
+      },
+      "revenuePredictions": {
+        "title": "Escenarios de pronóstico",
+        "nextMonth": "Próximo mes",
+        "nextQuarter": "Próximo trimestre",
+        "yearEnd": "Cierre anual",
+        "range": "Rango estimado"
+      },
+      "services": {
+        "mostProfitable": "Servicios más rentables",
+        "serviceId": "Servicio {id}",
+        "treatments": "tratamientos",
+        "growthOpportunities": "Oportunidades de crecimiento",
+        "highPotential": "Alto potencial",
+        "potential": "Potencial mensual adicional"
+      },
+      "patients": {
+        "title": "Insights de pacientes",
+        "lifetimeValue": "Valor de vida",
+        "retentionRate": "Tasa de retención",
+        "newPerMonth": "Pacientes nuevos por mes",
+        "capacityUtilization": "Uso de capacidad"
+      },
+      "alerts": {
+        "decliningServices": "Servicios en declive",
+        "requiresAttention": "Requiere atención",
+        "monthlyDecline": "Caída mensual"
+      },
+      "kpis": {
+        "title": "Indicadores clave",
+        "avgTreatmentValue": "Valor promedio por tratamiento",
+        "avgMargin": "Margen promedio",
+        "patientsPerDay": "Pacientes por día",
+        "treatmentsLast30": "Tratamientos en los últimos 30 días"
+      }
+    },
+    "marketing": {
+      "noData": "Aún no hay datos de marketing",
+      "summary": {
+        "patientsFromCampaigns": "Pacientes desde campañas",
+        "activeCampaigns": "Campañas activas",
+        "lifetimeValue": "Valor de vida promedio",
+        "retention": "Retención",
+        "noData": "Sin datos"
+      },
+      "campaigns": {
+        "title": "Campañas destacadas",
+        "empty": "Aún no tienes resultados de campañas",
+        "unknownPlatform": "Canal desconocido",
+        "status": {
+          "active": "Activa",
+          "inactive": "Inactiva"
+        },
+        "patients": "{count, plural, one {# paciente} other {# pacientes}}"
+      },
+      "patientInsights": {
+        "title": "Insights de adquisición",
+        "acquisition": "Pacientes nuevos",
+        "acquisitionHint": "Total atribuido a campañas",
+        "retention": "Retención",
+        "retentionHint": "Porcentaje de pacientes que regresan",
+        "lifetimeValue": "Valor de vida",
+        "lifetimeValueHint": "Ingreso promedio generado por paciente",
+        "footer": "Mantén activas tus campañas para sostener el crecimiento."
+      },
+      "channels": {
+        "title": "Desempeño por canal",
+        "subtitle": "Origen de tus pacientes",
+        "tooltipLabel": "Pacientes",
+        "empty": "Sin datos de canales"
+      },
+      "dormant": {
+        "title": "Campañas inactivas",
+        "subtitle": "Activas pero sin pacientes recientes",
+        "empty": "Todas las campañas activas generaron pacientes recientemente",
+        "hint": "Revisa mensajes o redistribuye presupuesto para reactivarlas."
+      }
+    },
     "empty": {
       "title": "No hay datos para reportar",
       "description": "Los reportes estarán disponibles una vez que hayas registrado tratamientos"
