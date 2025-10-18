@@ -1,6 +1,24 @@
 {
   "reports": {
     "overview": {
+      "predictions": {
+        "confidence": "Confianza: {value}%",
+        "next_month": {
+          "title": "Proyección del próximo mes",
+          "subtitle": "Estimación con el ritmo actual de reservas",
+          "description": "Ingreso esperado según los tratamientos agendados y la tendencia reciente."
+        },
+        "next_quarter": {
+          "title": "Proyección del próximo trimestre",
+          "subtitle": "Pronóstico para los siguientes tres meses",
+          "description": "Planifica recursos y flujo de caja con una estimación a mediano plazo."
+        },
+        "year_end": {
+          "title": "Proyección de cierre anual",
+          "subtitle": "Estimación para terminar el año",
+          "description": "Visión de largo plazo combinando estacionalidad y desempeño reciente."
+        }
+      },
       "summary": {
         "title": "Resumen ejecutivo",
         "subtitle": "Proyección de ingresos y confianza para los próximos periodos.",

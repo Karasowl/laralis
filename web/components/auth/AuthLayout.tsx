@@ -156,7 +156,7 @@ export function AuthLayout({ children, showLogo = true }: AuthLayoutProps) {
           {/* Footer - refined */}
           <div className="mt-6 text-center">
             <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-              © 2024 Laralis. {t('allRightsReserved')}
+              © {new Date().getFullYear()} Laralis. {t('allRightsReserved')}
             </p>
           </div>
         </div>
@@ -164,3 +164,4 @@ export function AuthLayout({ children, showLogo = true }: AuthLayoutProps) {
     </div>
   )
 }
+

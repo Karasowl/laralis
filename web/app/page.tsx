@@ -219,7 +219,7 @@ export default function InsightsPage() {
           actions={
             <div className="flex items-center gap-2">
               <select
-                className="h-9 rounded-md border px-2 text-sm"
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 value={period}
                 onChange={(e) => setPeriod(e.target.value as typeof period)}
                 aria-label="Periodo"
@@ -342,10 +342,21 @@ export default function InsightsPage() {
                       const prediction = predictions?.[key]
                       if (!prediction) return null
 
-                      const tone =
-                        confidenceToneClass[
-                          (prediction.confidence as 'success' | 'info' | 'warning') || 'info'
-                        ]
+                      const score = typeof (prediction as any).confidence_score === 'number'
+                        ? (prediction as any).confidence_score
+                        : typeof (prediction as any).confidence === 'number'
+                          ? (prediction as any).confidence
+                          : 0
+
+                      const amount = (prediction as any).amount ?? (prediction as any).predictedValue ?? 0
+
+                      const getTone = (s: number): 'success' | 'info' | 'warning' => {
+                        if (s >= 0.8) return 'success'
+                        if (s >= 0.6) return 'info'
+                        return 'warning'
+                      }
+
+                      const tone = confidenceToneClass[getTone(score)]
 
                       return (
                         <Card key={key} className="border border-dashed">
@@ -361,20 +372,20 @@ export default function InsightsPage() {
                               </div>
                               <Badge className={tone}>
                                 {tReports('overview.predictions.confidence', {
-                                  value: Math.round(prediction.confidence_score * 100)
+                                  value: Math.round((score || 0) * 100)
                                 })}
                               </Badge>
                             </div>
                           </CardHeader>
                           <CardContent className="space-y-2">
                             <div className="text-2xl font-semibold">
-                              {formatCurrency(prediction.amount)}
+                              {formatCurrency(amount || 0)}
                             </div>
                             <p className="text-sm text-muted-foreground">
                               {prediction.comment ||
                                 tReports(`overview.predictions.${key}.description`)}
                             </p>
-                            <Progress value={prediction.confidence_score * 100} />
+                            <Progress value={(score || 0) * 100} />
                           </CardContent>
                         </Card>
                       )

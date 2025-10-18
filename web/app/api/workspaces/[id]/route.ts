@@ -110,7 +110,7 @@ export async function DELETE(
 ) {
   try {
     const cookieStore = cookies();
-    
+
     // Crear cliente de Supabase para el servidor
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -151,6 +151,46 @@ export async function DELETE(
       return NextResponse.json(
         { error: 'Workspace not found or unauthorized' },
         { status: 404 }
+      );
+    }
+
+    // Check if there are other workspaces with clinics for this user
+    const { data: otherWorkspaces, error: wsErr } = await supabaseAdmin
+      .from('workspaces')
+      .select('id')
+      .eq('owner_id', user.id)
+      .neq('id', params.id);
+
+    if (wsErr) {
+      return NextResponse.json(
+        { error: 'Failed to check other workspaces', details: wsErr.message },
+        { status: 500 }
+      );
+    }
+
+    let hasOtherWorkspacesWithClinics = false;
+    if (otherWorkspaces && otherWorkspaces.length > 0) {
+      for (const ws of otherWorkspaces) {
+        const { count, error: countErr } = await supabaseAdmin
+          .from('clinics')
+          .select('id', { count: 'exact', head: true })
+          .eq('workspace_id', ws.id);
+
+        if (!countErr && count && count > 0) {
+          hasOtherWorkspacesWithClinics = true;
+          break;
+        }
+      }
+    }
+
+    // Business rule: Cannot delete workspace if it's the last one with clinics
+    if (!hasOtherWorkspacesWithClinics) {
+      return NextResponse.json(
+        {
+          error: 'Cannot delete the last workspace with clinics. Create another workspace with at least one clinic first.',
+          code: 'LAST_WORKSPACE'
+        },
+        { status: 400 }
       );
     }
 

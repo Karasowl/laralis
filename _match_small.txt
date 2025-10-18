@@ -1,0 +1,13 @@
+E:\dev-projects\laralis\web\components\auth\AuthLayout.tsx:130:Laralis
+E:\dev-projects\laralis\web\components\auth\AuthLayout.tsx:159:© 2024 Laralis. {t('allRightsReserved')}
+E:\dev-projects\laralis\web\components\layouts\AppLayout.tsx:94:<h1 className="font-bold text-base text-foreground">Laralis</h1>
+E:\dev-projects\laralis\web\components\layouts\DashboardLayout.tsx:144:<h1 className="font-bold text-lg truncate">Laralis</h1>
+E:\dev-projects\laralis\web\app\api\settings\data\export\route.ts:104:const filename = `laralis-${mode}-${timestamp}.json`;
+E:\dev-projects\laralis\web\app\api\settings\time\route.ts:11:const LOCAL_STORE_KEY = '__laralisTimeSettingsStore__';
+E:\dev-projects\laralis\web\app\meta.json\route.ts:5:name: 'Laralis Dental Manager',
+E:\dev-projects\laralis\web\app\settings\data\page.tsx:73:let filename = `laralis-${mode}-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+E:\dev-projects\laralis\web\app\settings\security\SecuritySettingsClient.tsx:330:link.download = `laralis-recovery-codes-${Date.now()}.txt`;
+E:\dev-projects\laralis\web\app\setup\page.tsx:181:(window as any).__LARALIS_REFRESH_SETUP = refreshStatus
+E:\dev-projects\laralis\web\app\setup\page.tsx:184:if (typeof window !== 'undefined' && (window as any).__LARALIS_REFRESH_SETUP === refreshStatus) {
+E:\dev-projects\laralis\web\app\setup\page.tsx:185:delete (window as any).__LARALIS_REFRESH_SETUP
+E:\dev-projects\laralis\web\app\layout.tsx:27:storageKey="laralis-theme"

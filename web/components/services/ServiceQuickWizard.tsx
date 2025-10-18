@@ -592,6 +592,7 @@ export function ServiceQuickWizard({ onDone, onCancel }: WizardProps) {
 }
 
 function InlineSupplyCreate({ onCreate, loading }: { onCreate: (f: { name: string; presentation: string; price: number; portions: number }) => void | Promise<void>; loading?: boolean }) {
+  const t = useTranslations('services')
   const [name, setName] = React.useState('')
   const [presentation, setPresentation] = React.useState('Paquete 100u')
   const [price, setPrice] = React.useState<number | ''>('' as any)
@@ -601,11 +602,11 @@ function InlineSupplyCreate({ onCreate, loading }: { onCreate: (f: { name: strin
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
       <div className="grid gap-1">
         <Label>Nombre</Label>
-        <Input placeholder="Ej: Guantes de látex" value={name} onChange={e => setName(e.target.value)} />
+        <Input placeholder={t('supplyNamePlaceholder')} value={name} onChange={e => setName(e.target.value)} />
       </div>
       <div className="grid gap-1">
         <Label>Presentación</Label>
-        <Input placeholder="Ej: Caja de 100" value={presentation} onChange={e => setPresentation(e.target.value)} />
+        <Input placeholder={t('supplyPresentationPlaceholder')} value={presentation} onChange={e => setPresentation(e.target.value)} />
       </div>
       <div className="grid gap-1">
         <Label>Precio total (MXN)</Label>

@@ -2,196 +2,260 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertTriangle, Trash2, RefreshCw } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { AlertTriangle, Trash2, UserX, Loader2 } from 'lucide-react'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { AppLayout } from '@/components/layouts/AppLayout'
-import { ResetOption } from '@/components/settings/ResetOption'
-import { ChecklistItem } from '@/components/settings/ChecklistItem'
-import { FormSection } from '@/components/ui/form-field'
-import { useReset } from '@/hooks/use-reset'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { useCurrentClinic } from '@/hooks/use-current-clinic'
+import { useWorkspace } from '@/contexts/workspace-context'
+import { toast } from 'sonner'
 
 export default function ResetPage() {
-  const t = useTranslations('settings')
+  const t = useTranslations('settings.reset')
   const tCommon = useTranslations('common')
-  const {
-    resetOptions,
-    selectedOptions,
-    loading,
-    resetProgress,
-    dataStatus,
-    confirmText,
-    setConfirmText,
-    toggleOption,
-    performReset,
-    fetchStatus
-  } = useReset()
+  const router = useRouter()
+  const { currentClinic } = useCurrentClinic()
+  const { user } = useWorkspace()
 
-  const hasAllDataSelected = selectedOptions.includes('all_data')
-  const [confirmOpen, setConfirmOpen] = useState(false)
+  // Delete all clinic data state
+  const [deleteDataConfirm, setDeleteDataConfirm] = useState('')
+  const [deletingData, setDeletingData] = useState(false)
+  const [showDeleteDataDialog, setShowDeleteDataDialog] = useState(false)
+
+  // Delete account state
+  const [deleteAccountConfirm, setDeleteAccountConfirm] = useState('')
+  const [deletingAccount, setDeletingAccount] = useState(false)
+  const [showDeleteAccountDialog, setShowDeleteAccountDialog] = useState(false)
+
+  const handleDeleteAllData = async () => {
+    if (!currentClinic) {
+      toast.error(t('no_clinic'))
+      return
+    }
+
+    setDeletingData(true)
+
+    try {
+      const response = await fetch('/api/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resetType: 'all_data' })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete data')
+      }
+
+      toast.success(t('data_deleted_success'))
+
+      setTimeout(() => {
+        router.push('/setup')
+      }, 2000)
+    } catch (error) {
+      console.error('Error deleting data:', error)
+      toast.error(t('delete_error'))
+      setDeletingData(false)
+      setShowDeleteDataDialog(false)
+    }
+  }
+
+  const handleDeleteAccount = async () => {
+    setDeletingAccount(true)
+
+    try {
+      const response = await fetch('/api/account/delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to delete account')
+      }
+
+      toast.success(t('account_deleted_success'))
+
+      setTimeout(() => {
+        router.push('/')
+      }, 2000)
+    } catch (error) {
+      console.error('Error deleting account:', error)
+      toast.error(t('delete_error'))
+      setDeletingAccount(false)
+      setShowDeleteAccountDialog(false)
+    }
+  }
 
   return (
     <AppLayout>
-      <div className="container mx-auto p-6 max-w-7xl space-y-6">
-        <PageHeader 
-          title={t('reset.title')} 
-          subtitle={t('reset.subtitle')}
+      <div className="container mx-auto p-6 max-w-4xl space-y-6">
+        <PageHeader
+          title={t('title')}
+          subtitle={t('subtitle')}
         />
 
         <Alert className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
           <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
           <AlertDescription className="text-amber-800 dark:text-amber-200">
-            <strong>{t('reset.warning')}:</strong> {t('reset.warning_description')}
+            <strong>{t('warning')}:</strong> {t('warning_description')}
           </AlertDescription>
         </Alert>
 
+        {/* Delete All Clinic Data */}
         <Card>
           <CardHeader>
-            <CardTitle>{t('reset.clean_data')}</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-destructive" />
+              {t('delete_all_data_title')}
+            </CardTitle>
             <CardDescription>
-              {t('reset.clean_data_description')}
+              {t('delete_all_data_description')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-3">
-              {resetOptions.map(option => (
-                <ResetOption
-                  key={option.id}
-                  {...option}
-                  selected={selectedOptions.includes(option.id)}
-                  disabled={loading}
-                  status={resetProgress[option.id]}
-                  onToggle={() => toggleOption(option.id)}
-                />
-              ))}
-            </div>
-
-            {hasAllDataSelected && (
-              <Alert className="bg-red-100 dark:bg-red-950/20 border-red-300 dark:border-red-800">
-                <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
-                <AlertDescription>
-                  <p className="font-medium text-red-800 dark:text-red-200 mb-2">
-                    {t('reset.confirm_delete_all')}
-                  </p>
-                  <input
-                    type="text"
-                    value={confirmText}
-                    onChange={(e) => setConfirmText(e.target.value)}
-                    className="w-full px-3 py-2 border border-red-300 dark:border-red-700 rounded-md bg-white dark:bg-gray-900"
-                    placeholder={t('reset.delete_all_placeholder')}
-                    disabled={loading}
-                  />
-                </AlertDescription>
-              </Alert>
-            )}
-
-            <div className="flex justify-between items-center pt-4">
-              <p className="text-sm text-muted-foreground">
-                {selectedOptions.length} {t('reset.options_selected')}
+            <div className="bg-destructive/5 border border-destructive/20 rounded-lg p-4">
+              <p className="text-sm font-medium text-destructive mb-2">
+                {t('data_will_be_deleted')}:
               </p>
-              <Button
-                onClick={() => setConfirmOpen(true)}
-                disabled={loading || selectedOptions.length === 0}
-                variant={hasAllDataSelected ? 'destructive' : 'default'}
-              >
-                {loading ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                    {t('reset.cleaning')}
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    {t('reset.clean_selected')}
-                  </>
-                )}
-              </Button>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>• {t('data_item_patients')}</li>
+                <li>• {t('data_item_treatments')}</li>
+                <li>• {t('data_item_expenses')}</li>
+                <li>• {t('data_item_services')}</li>
+                <li>• {t('data_item_supplies')}</li>
+                <li>• {t('data_item_all_config')}</li>
+              </ul>
             </div>
+
+            <Button
+              onClick={() => setShowDeleteDataDialog(true)}
+              disabled={!currentClinic || deletingData}
+              variant="destructive"
+              className="w-full"
+            >
+              {deletingData ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  {t('deleting')}
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  {t('delete_all_data_button')}
+                </>
+              )}
+            </Button>
           </CardContent>
         </Card>
 
+        {/* Delete Account */}
+        <Card className="border-destructive/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-destructive">
+              <UserX className="h-5 w-5" />
+              {t('delete_account_title')}
+            </CardTitle>
+            <CardDescription>
+              {t('delete_account_description')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4">
+              <p className="text-sm font-medium text-destructive mb-2">
+                {t('account_deletion_warning')}
+              </p>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>• {t('account_item_all_data')}</li>
+                <li>• {t('account_item_workspaces')}</li>
+                <li>• {t('account_item_clinics')}</li>
+                <li>• {t('account_item_no_recovery')}</li>
+              </ul>
+            </div>
+
+            <Button
+              onClick={() => setShowDeleteAccountDialog(true)}
+              disabled={deletingAccount}
+              variant="destructive"
+              className="w-full"
+            >
+              {deletingAccount ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  {t('deleting')}
+                </>
+              ) : (
+                <>
+                  <UserX className="h-4 w-4 mr-2" />
+                  {t('delete_account_button')}
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Delete All Data Confirmation Dialog */}
         <ConfirmDialog
-          open={!!confirmOpen}
-          onOpenChange={setConfirmOpen}
-          title={hasAllDataSelected ? t('reset.confirm_delete_all') : t('reset.confirm_message')}
-          description={hasAllDataSelected ? undefined : t('reset.warning_description')}
-          variant={hasAllDataSelected ? 'destructive' : 'warning'}
-          onConfirm={async () => {
-            const ok = await performReset({ skipConfirm: true })
-            if (ok) setConfirmOpen(false)
-          }}
-          confirmText={hasAllDataSelected ? t('reset.clean_selected') : t('reset.clean_selected')}
+          open={showDeleteDataDialog}
+          onOpenChange={setShowDeleteDataDialog}
+          title={t('confirm_delete_all_data')}
+          description={
+            <div className="space-y-4">
+              <p>{t('confirm_delete_all_data_description')}</p>
+              <div className="space-y-2">
+                <Label htmlFor="delete-data-confirm">
+                  {t('type_delete_to_confirm')}
+                </Label>
+                <Input
+                  id="delete-data-confirm"
+                  placeholder={t('delete_placeholder')}
+                  value={deleteDataConfirm}
+                  onChange={(e) => setDeleteDataConfirm(e.target.value)}
+                  className="font-mono"
+                />
+              </div>
+            </div>
+          }
+          variant="destructive"
+          onConfirm={handleDeleteAllData}
+          confirmText={t('yes_delete')}
           cancelText={tCommon('cancel')}
+          confirmDisabled={deleteDataConfirm.toUpperCase() !== 'DELETE' || deletingData}
         />
 
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-start">
-              <div>
-                <CardTitle>{t('reset.status_title')}</CardTitle>
-                <CardDescription>
-                  {t('reset.status_description')}
-                </CardDescription>
+        {/* Delete Account Confirmation Dialog */}
+        <ConfirmDialog
+          open={showDeleteAccountDialog}
+          onOpenChange={setShowDeleteAccountDialog}
+          title={t('confirm_delete_account')}
+          description={
+            <div className="space-y-4">
+              <p>{t('confirm_delete_account_description')}</p>
+              <div className="space-y-2">
+                <Label htmlFor="delete-account-confirm">
+                  {t('type_delete_to_confirm')}
+                </Label>
+                <Input
+                  id="delete-account-confirm"
+                  placeholder={t('delete_placeholder')}
+                  value={deleteAccountConfirm}
+                  onChange={(e) => setDeleteAccountConfirm(e.target.value)}
+                  className="font-mono"
+                />
               </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={fetchStatus}
-                disabled={loading}
-              >
-                <RefreshCw className="h-4 w-4" />
-              </Button>
             </div>
-          </CardHeader>
-          <CardContent>
-            <FormSection>
-              <div className="space-y-1">
-                <ChecklistItem 
-                  label={t('reset.checklist.time_config')} 
-                  completed={dataStatus?.timeConfigured || false} 
-                  count={null}
-                />
-                <ChecklistItem 
-                  label={t('reset.checklist.assets')} 
-                  completed={(dataStatus?.assets || 0) > 0} 
-                  count={dataStatus?.assets}
-                />
-                <ChecklistItem 
-                  label={t('reset.checklist.fixed_costs')} 
-                  completed={(dataStatus?.fixedCosts || 0) > 0} 
-                  count={dataStatus?.fixedCosts}
-                />
-                <ChecklistItem 
-                  label={t('reset.checklist.supplies')} 
-                  completed={(dataStatus?.supplies || 0) > 0} 
-                  count={dataStatus?.supplies}
-                />
-                <ChecklistItem 
-                  label={t('reset.checklist.services')} 
-                  completed={(dataStatus?.services || 0) > 0} 
-                  count={dataStatus?.services}
-                />
-                <ChecklistItem 
-                  label={t('reset.checklist.custom_categories')} 
-                  completed={(dataStatus?.customCategories || 0) > 0} 
-                  count={dataStatus?.customCategories}
-                />
-              </div>
-            </FormSection>
-            
-            {dataStatus?.hasData && (
-              <Alert className="mt-4">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
-                  {t('reset.has_data_warning')}
-                </AlertDescription>
-              </Alert>
-            )}
-          </CardContent>
-        </Card>
+          }
+          variant="destructive"
+          onConfirm={handleDeleteAccount}
+          confirmText={t('yes_delete_account')}
+          cancelText={tCommon('cancel')}
+          confirmDisabled={deleteAccountConfirm.toUpperCase() !== 'DELETE' || deletingAccount}
+        />
       </div>
     </AppLayout>
   )

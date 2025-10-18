@@ -1,0 +1,510 @@
+   1: 'use client'
+   2: 
+   3: import { useEffect, useMemo, useState } from 'react'
+   4: import { useTranslations } from 'next-intl'
+   5: import { useRouter } from 'next/navigation'
+   6: import { AppLayout } from '@/components/layouts/AppLayout'
+   7: import { PageHeader } from '@/components/ui/PageHeader'
+   8: import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+   9: import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+  10: import { Skeleton } from '@/components/ui/skeleton'
+  11: import { MetricCard } from '@/components/dashboard/MetricCard'
+  12: import { RevenueChart } from '@/components/dashboard/RevenueChart'
+  13: import { CategoryBreakdown } from '@/components/dashboard/CategoryBreakdown'
+  14: import { RecentActivity } from '@/components/dashboard/RecentActivity'
+  15: import { Button } from '@/components/ui/button'
+  16: import { Badge } from '@/components/ui/badge'
+  17: import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+  18: import { Progress } from '@/components/ui/progress'
+  19: import { useWorkspace } from '@/contexts/workspace-context'
+  20: import { useDashboard } from '@/hooks/use-dashboard'
+  21: import { useReports } from '@/hooks/use-reports'
+  22: import { formatCurrency } from '@/lib/format'
+  23: import { ReportsAdvanced } from '@/app/reports/ReportsAdvanced'
+  24: import { ReportsMarketing } from '@/app/reports/ReportsMarketing'
+  25: import {
+  26:   Users,
+  27:   DollarSign,
+  28:   TrendingUp,
+  29:   Receipt,
+  30:   Activity,
+  31:   Package,
+  32:   ShoppingCart,
+  33:   AlertCircle,
+  34:   AlertTriangle,
+  35:   RefreshCw,
+  36:   ArrowUpRight,
+  37:   ArrowUpCircle
+  38: } from 'lucide-react'
+  39: 
+  40: type PredictionKey = 'next_month' | 'next_quarter' | 'year_end'
+  41: 
+  42: const confidenceToneClass: Record<'success' | 'info' | 'warning', string> = {
+  43:   success: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  44:   info: 'bg-blue-100 text-blue-700 border-blue-200',
+  45:   warning: 'bg-amber-100 text-amber-800 border-amber-200'
+  46: }
+  47: 
+  48: function DashboardSkeleton() {
+  49:   return (
+  50:     <div className="space-y-6">
+  51:       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+  52:         {[1, 2, 3, 4].map((i) => (
+  53:           <Card key={i}>
+  54:             <CardHeader className="space-y-2">
+  55:               <Skeleton className="h-4 w-24" />
+  56:               <Skeleton className="h-6 w-32" />
+  57:             </CardHeader>
+  58:           </Card>
+  59:         ))}
+  60:       </div>
+  61:       <div className="grid gap-4 md:grid-cols-2">
+  62:         <Skeleton className="h-96" />
+  63:         <Skeleton className="h-96" />
+  64:       </div>
+  65:       <div className="grid gap-4 md:grid-cols-2">
+  66:         <Skeleton className="h-80" />
+  67:         <Skeleton className="h-80" />
+  68:       </div>
+  69:     </div>
+  70:   )
+  71: }
+  72: 
+  73: function QuickActions({ onRefresh }: { onRefresh: () => void }) {
+  74:   const t = useTranslations('dashboard')
+  75:   const tNav = useTranslations('navigation')
+  76:   const router = useRouter()
+  77: 
+  78:   return (
+  79:     <Card>
+  80:       <CardHeader>
+  81:         <CardTitle>{t('quick_actions')}</CardTitle>
+  82:         <CardDescription>{t('common_tasks')}</CardDescription>
+  83:       </CardHeader>
+  84:       <CardContent>
+  85:         <div className="grid grid-cols-2 gap-2">
+  86:           <Button
+  87:             variant="outline"
+  88:             className="justify-start"
+  89:             onClick={() => router.push('/treatments/new')}
+  90:           >
+  91:             <Activity className="h-4 w-4 mr-2" />
+  92:             {t('new_treatment')}
+  93:           </Button>
+  94:           <Button
+  95:             variant="outline"
+  96:             className="justify-start"
+  97:             onClick={() => router.push('/patients/new')}
+  98:           >
+  99:             <Users className="h-4 w-4 mr-2" />
+ 100:             {t('new_patient')}
+ 101:           </Button>
+ 102:           <Button
+ 103:             variant="outline"
+ 104:             className="justify-start"
+ 105:             onClick={() => router.push('/expenses/new')}
+ 106:           >
+ 107:             <Receipt className="h-4 w-4 mr-2" />
+ 108:             {t('record_expense')}
+ 109:           </Button>
+ 110:           <Button
+ 111:             variant="outline"
+ 112:             className="justify-start"
+ 113:             onClick={onRefresh}
+ 114:           >
+ 115:             <RefreshCw className="h-4 w-4 mr-2" />
+ 116:             {t('refresh_data')}
+ 117:           </Button>
+ 118:         </div>
+ 119:       </CardContent>
+ 120:     </Card>
+ 121:   )
+ 122: }
+ 123: 
+ 124: function AlertsSection({ lowStockCount }: { lowStockCount: number }) {
+ 125:   const t = useTranslations('dashboard')
+ 126:   const router = useRouter()
+ 127: 
+ 128:   if (lowStockCount === 0) return null
+ 129: 
+ 130:   return (
+ 131:     <Card className="border-yellow-200 bg-yellow-50">
+ 132:       <CardHeader>
+ 133:         <div className="flex items-center gap-2">
+ 134:           <AlertCircle className="h-5 w-5 text-yellow-600" />
+ 135:           <CardTitle className="text-yellow-900">{t('alerts')}</CardTitle>
+ 136:         </div>
+ 137:       </CardHeader>
+ 138:       <CardContent>
+ 139:         <div className="space-y-2">
+ 140:           <div className="flex items-center justify-between">
+ 141:             <span className="text-sm text-yellow-800">
+ 142:               {t('low_stock_items', { count: lowStockCount })}
+ 143:             </span>
+ 144:             <Button
+ 145:               variant="outline"
+ 146:               size="sm"
+ 147:               onClick={() => router.push('/supplies?filter=low-stock')}
+ 148:             >
+ 149:               <ShoppingCart className="h-4 w-4 mr-2" />
+ 150:               {t('view_supplies')}
+ 151:             </Button>
+ 152:           </div>
+ 153:         </div>
+ 154:       </CardContent>
+ 155:     </Card>
+ 156:   )
+ 157: }
+ 158: 
+ 159: export default function InsightsPage() {
+ 160:   const t = useTranslations('dashboard')
+ 161:   const tNav = useTranslations('navigation')
+ 162:   const tReports = useTranslations('reports')
+ 163:   const router = useRouter()
+ 164:   const { currentClinic } = useWorkspace()
+ 165:   const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'year' | 'custom'>('month')
+ 166:   const [dateFrom, setDateFrom] = useState('')
+ 167:   const [dateTo, setDateTo] = useState('')
+ 168:   const [mounted, setMounted] = useState(false)
+ 169: 
+ 170:   const {
+ 171:     metrics,
+ 172:     charts,
+ 173:     activities,
+ 174:     loading: dashboardLoading,
+ 175:     error: dashboardError
+ 176:   } = useDashboard({
+ 177:     clinicId: currentClinic?.id,
+ 178:     period,
+ 179:     from: dateFrom || undefined,
+ 180:     to: dateTo || undefined
+ 181:   })
+ 182: 
+ 183:   const {
+ 184:     insights,
+ 185:     kpis,
+ 186:     loading: reportsLoading,
+ 187:     error: reportsError,
+ 188:     fetchReportsData
+ 189:   } = useReports({ clinicId: currentClinic?.id })
+ 190: 
+ 191:   useEffect(() => {
+ 192:     setMounted(true)
+ 193:   }, [])
+ 194: 
+ 195:   const handleRefresh = () => {
+ 196:     fetchReportsData()
+ 197:     window.location.reload()
+ 198:   }
+ 199: 
+ 200:   const isLoading = (dashboardLoading && !mounted) || reportsLoading
+ 201:   const hasInsights = Boolean(insights)
+ 202:   const predictions = insights?.revenue_predictions
+ 203:   const serviceAnalysis = insights?.service_analysis
+ 204:   const mostProfitable = serviceAnalysis?.most_profitable?.slice(0, 2) ?? []
+ 205:   const growthOpportunities = serviceAnalysis?.growth_opportunities?.slice(0, 2) ?? []
+ 206:   const decliningServices = serviceAnalysis?.declining_services?.slice(0, 3) ?? []
+ 207: 
+ 208:   const predictionOrder: PredictionKey[] = useMemo(
+ 209:     () => ['next_month', 'next_quarter', 'year_end'],
+ 210:     []
+ 211:   )
+ 212: 
+ 213:   return (
+ 214:     <AppLayout>
+ 215:       <div className="p-4 lg:p-8 max-w-[1600px] mx-auto space-y-6">
+ 216:         <PageHeader
+ 217:           title={t('title')}
+ 218:           subtitle={t('subtitle', { clinic: currentClinic?.name || '' })}
+ 219:           actions={
+ 220:             <div className="flex items-center gap-2">
+ 221:               <select
+ 222:                 className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+ 223:                 value={period}
+ 224:                 onChange={(e) => setPeriod(e.target.value as typeof period)}
+ 225:                 aria-label="Periodo"
+ 226:               >
+ 227:                 <option value="day">{t('today')}</option>
+ 228:                 <option value="week">{t('this_week')}</option>
+ 229:                 <option value="month">{t('this_month')}</option>
+ 230:                 <option value="year">{t('this_year')}</option>
+ 231:                 <option value="custom">{t('custom')}</option>
+ 232:               </select>
+ 233:               {period === 'custom' && (
+ 234:                 <>
+ 235:                   <input
+ 236:                     type="date"
+ 237:                     className="h-9 rounded-md border px-2 text-sm"
+ 238:                     value={dateFrom}
+ 239:                     onChange={(e) => setDateFrom(e.target.value)}
+ 240:                   />
+ 241:                   <input
+ 242:                     type="date"
+ 243:                     className="h-9 rounded-md border px-2 text-sm"
+ 244:                     value={dateTo}
+ 245:                     onChange={(e) => setDateTo(e.target.value)}
+ 246:                   />
+ 247:                 </>
+ 248:               )}
+ 249:               <Button onClick={handleRefresh} variant="outline">
+ 250:                 <RefreshCw className="h-4 w-4 mr-2" />
+ 251:                 {t('refresh')}
+ 252:               </Button>
+ 253:             </div>
+ 254:           }
+ 255:         />
+ 256: 
+ 257:         <Tabs defaultValue="overview" className="space-y-6">
+ 258:           <TabsList className="grid w-full grid-cols-3 md:max-w-xl">
+ 259:             <TabsTrigger value="overview">{tReports('tabs.overview')}</TabsTrigger>
+ 260:             <TabsTrigger value="advanced">{tReports('tabs.advanced')}</TabsTrigger>
+ 261:             <TabsTrigger value="marketing">{tReports('tabs.marketing')}</TabsTrigger>
+ 262:           </TabsList>
+ 263: 
+ 264:           <TabsContent value="overview" className="space-y-6">
+ 265:             {isLoading ? (
+ 266:               <DashboardSkeleton />
+ 267:             ) : (
+ 268:               <>
+ 269:                 {(dashboardError || reportsError) && (
+ 270:                   <Alert variant="destructive">
+ 271:                     <AlertTitle>{t('error_loading')}</AlertTitle>
+ 272:                     <AlertDescription>
+ 273:                       {dashboardError || reportsError || t('error_generic')}
+ 274:                     </AlertDescription>
+ 275:                     <Button onClick={handleRefresh} className="mt-4">
+ 276:                       <RefreshCw className="h-4 w-4 mr-2" />
+ 277:                       {t('retry')}
+ 278:                     </Button>
+ 279:                   </Alert>
+ 280:                 )}
+ 281: 
+ 282:                 {metrics.supplies.lowStock > 0 && (
+ 283:                   <AlertsSection lowStockCount={metrics.supplies.lowStock} />
+ 284:                 )}
+ 285: 
+ 286:                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+ 287:                   <MetricCard
+ 288:                     title={t('monthly_revenue')}
+ 289:                     value={formatCurrency(metrics.revenue.current)}
+ 290:                     change={metrics.revenue.change}
+ 291:                     changeType={metrics.revenue.change > 0 ? 'increase' : 'decrease'}
+ 292:                     icon={DollarSign}
+ 293:                     color="text-green-600"
+ 294:                     subtitle={t('vs_previous_month')}
+ 295:                   />
+ 296: 
+ 297:                   <MetricCard
+ 298:                     title={t('monthly_expenses')}
+ 299:                     value={formatCurrency(metrics.expenses.current)}
+ 300:                     change={metrics.expenses.change}
+ 301:                     changeType={metrics.expenses.change > 0 ? 'increase' : 'decrease'}
+ 302:                     icon={Receipt}
+ 303:                     color="text-red-600"
+ 304:                     subtitle={t('vs_previous_month')}
+ 305:                   />
+ 306: 
+ 307:                   <MetricCard
+ 308:                     title={t('active_patients')}
+ 309:                     value={metrics.patients.total}
+ 310:                     change={metrics.patients.change}
+ 311:                     changeType="increase"
+ 312:                     icon={Users}
+ 313:                     color="text-blue-600"
+ 314:                     subtitle={`${metrics.patients.new} ${t('new_this_month')}`}
+ 315:                   />
+ 316: 
+ 317:                   <MetricCard
+ 318:                     title={tNav('treatments')}
+ 319:                     value={metrics.treatments.total}
+ 320:                     icon={Activity}
+ 321:                     color="text-purple-600"
+ 322:                     subtitle={`${metrics.treatments.completed} ${t('completed')}`}
+ 323:                   />
+ 324:                 </div>
+ 325: 
+ 326:                 <div className="grid gap-4 md:grid-cols-2">
+ 327:                   <RevenueChart
+ 328:                     data={charts.revenue}
+ 329:                     title={t('revenue_vs_expenses')}
+ 330:                     description={t('monthly_comparison')}
+ 331:                   />
+ 332:                   <CategoryBreakdown
+ 333:                     data={charts.categories}
+ 334:                     title={t('services_breakdown')}
+ 335:                     description={t('by_category')}
+ 336:                   />
+ 337:                 </div>
+ 338: 
+ 339:                 {hasInsights && (
+ 340:                   <div className="grid gap-4 md:grid-cols-3">
+ 341:                     {predictionOrder.map((key) => {
+ 342:                       const prediction = predictions?.[key]
+ 343:                       if (!prediction) return null
+ 344: 
+ 345:                       const tone =
+ 346:                         confidenceToneClass[
+ 347:                           (prediction.confidence as 'success' | 'info' | 'warning') || 'info'
+ 348:                         ]
+ 349: 
+ 350:                       return (
+ 351:                         <Card key={key} className="border border-dashed">
+ 352:                           <CardHeader>
+ 353:                             <div className="flex items-center justify-between">
+ 354:                               <div>
+ 355:                                 <CardTitle className="text-base">
+ 356:                                   {tReports(`overview.predictions.${key}.title`)}
+ 357:                                 </CardTitle>
+ 358:                                 <CardDescription>
+ 359:                                   {tReports(`overview.predictions.${key}.subtitle`)}
+ 360:                                 </CardDescription>
+ 361:                               </div>
+ 362:                               <Badge className={tone}>
+ 363:                                 {tReports('overview.predictions.confidence', {
+ 364:                                   value: Math.round(prediction.confidence_score * 100)
+ 365:                                 })}
+ 366:                               </Badge>
+ 367:                             </div>
+ 368:                           </CardHeader>
+ 369:                           <CardContent className="space-y-2">
+ 370:                             <div className="text-2xl font-semibold">
+ 371:                               {formatCurrency(prediction.amount)}
+ 372:                             </div>
+ 373:                             <p className="text-sm text-muted-foreground">
+ 374:                               {prediction.comment ||
+ 375:                                 tReports(`overview.predictions.${key}.description`)}
+ 376:                             </p>
+ 377:                             <Progress value={prediction.confidence_score * 100} />
+ 378:                           </CardContent>
+ 379:                         </Card>
+ 380:                       )
+ 381:                     })}
+ 382:                   </div>
+ 383:                 )}
+ 384: 
+ 385:                 {hasInsights && (mostProfitable.length > 0 || growthOpportunities.length > 0) && (
+ 386:                   <Card>
+ 387:                     <CardHeader>
+ 388:                       <div className="flex items-center justify-between gap-2">
+ 389:                         <div>
+ 390:                           <CardTitle>{tReports('overview.highlights.title')}</CardTitle>
+ 391:                           <CardDescription>{tReports('overview.highlights.subtitle')}</CardDescription>
+ 392:                         </div>
+ 393:                         <Badge variant="outline" className="gap-1 text-xs uppercase tracking-wide">
+ 394:                           <TrendingUp className="h-3.5 w-3.5" />
+ 395:                           {tReports('overview.highlights.metric')}
+ 396:                         </Badge>
+ 397:                       </div>
+ 398:                     </CardHeader>
+ 399:                     <CardContent className="grid gap-4 md:grid-cols-2">
+ 400:                       {mostProfitable.map((service) => (
+ 401:                         <div key={service.service_id} className="rounded-lg border p-4">
+ 402:                           <div className="flex items-center justify-between">
+ 403:                             <div>
+ 404:                               <p className="font-semibold">
+ 405:                                 {service.service_name || service.service_id}
+ 406:                               </p>
+ 407:                               <p className="text-xs text-muted-foreground">
+ 408:                                 {tReports('overview.highlights.margin', {
+ 409:                                   margin: service.average_margin.toFixed(1)
+ 410:                                 })}
+ 411:                               </p>
+ 412:                             </div>
+ 413:                             <Badge variant="outline" className="bg-emerald-100 text-emerald-700">
+ 414:                               <ArrowUpCircle className="h-3.5 w-3.5 mr-1" />
+ 415:                               {service.roi.toFixed(1)}% ROI
+ 416:                             </Badge>
+ 417:                           </div>
+ 418:                         </div>
+ 419:                       ))}
+ 420: 
+ 421:                       {growthOpportunities.map((service) => (
+ 422:                         <div
+ 423:                           key={`${service.service_id}-opportunity`}
+ 424:                           className="rounded-lg border border-dashed p-4"
+ 425:                         >
+ 426:                           <div className="flex items-center justify-between">
+ 427:                             <div>
+ 428:                               <p className="font-semibold">
+ 429:                                 {service.service_name || service.service_id}
+ 430:                               </p>
+ 431:                               <p className="text-xs text-muted-foreground">
+ 432:                                 {tReports('overview.highlights.frequency', {
+ 433:                                   count: service.frequency
+ 434:                                 })}
+ 435:                               </p>
+ 436:                             </div>
+ 437:                             <Badge variant="outline" className="bg-sky-100 text-sky-700">
+ 438:                               <ArrowUpRight className="h-3.5 w-3.5 mr-1" />
+ 439:                               {tReports('overview.highlights.potential', {
+ 440:                                 value: formatCurrency(service.potential_revenue)
+ 441:                               })}
+ 442:                             </Badge>
+ 443:                           </div>
+ 444:                         </div>
+ 445:                       ))}
+ 446:                     </CardContent>
+ 447:                   </Card>
+ 448:                 )}
+ 449: 
+ 450:                 {hasInsights && decliningServices.length > 0 && (
+ 451:                   <Card className="border-amber-200 bg-amber-50">
+ 452:                     <CardHeader>
+ 453:                       <CardTitle className="flex items-center gap-2 text-amber-700">
+ 454:                         <AlertTriangle className="h-5 w-5" />
+ 455:                         {tReports('overview.alerts.title')}
+ 456:                       </CardTitle>
+ 457:                       <CardDescription>{tReports('overview.alerts.subtitle')}</CardDescription>
+ 458:                     </CardHeader>
+ 459:                     <CardContent className="space-y-3">
+ 460:                       {decliningServices.map((service) => (
+ 461:                         <div
+ 462:                           key={`${service.service_id}-decline`}
+ 463:                           className="flex items-center justify-between rounded-lg border border-amber-200 bg-white p-3"
+ 464:                         >
+ 465:                           <div>
+ 466:                             <p className="font-medium text-amber-700">
+ 467:                               {service.service_name || service.service_id}
+ 468:                             </p>
+ 469:                             <p className="text-xs text-muted-foreground">
+ 470:                               {tReports('overview.alerts.message')}
+ 471:                             </p>
+ 472:                           </div>
+ 473:                           <span className="text-sm font-semibold text-amber-700">
+ 474:                             -{(service.decline_rate * 100).toFixed(1)}%
+ 475:                           </span>
+ 476:                         </div>
+ 477:                       ))}
+ 478:                     </CardContent>
+ 479:                   </Card>
+ 480:                 )}
+ 481: 
+ 482:                 <div className="grid gap-4 md:grid-cols-2">
+ 483:                   <RecentActivity
+ 484:                     activities={activities}
+ 485:                     title={t('recent_activity')}
+ 486:                     description={t('latest_clinic_actions')}
+ 487:                   />
+ 488:                   <QuickActions onRefresh={handleRefresh} />
+ 489:                 </div>
+ 490:               </>
+ 491:             )}
+ 492:           </TabsContent>
+ 493: 
+ 494:           <TabsContent value="advanced">
+ 495:             <ReportsAdvanced insights={insights} kpis={kpis} loading={reportsLoading} />
+ 496:           </TabsContent>
+ 497: 
+ 498:           <TabsContent value="marketing">
+ 499:             <ReportsMarketing
+ 500:               clinicId={currentClinic?.id}
+ 501:               insights={insights}
+ 502:               loading={reportsLoading}
+ 503:             />
+ 504:           </TabsContent>
+ 505:         </Tabs>
+ 506:       </div>
+ 507:     </AppLayout>
+ 508:   )
+ 509: }
+

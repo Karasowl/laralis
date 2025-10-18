@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { deleteClinicData } from '@/lib/clinic-tables';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
@@ -117,77 +118,7 @@ export async function DELETE(request: NextRequest) {
 
           if (clinics) {
             for (const clinic of clinics) {
-              // Eliminar todos los datos de cada clÃ­nica
-              // El orden es importante por las foreign keys
-              
-              // 1. Eliminar tratamientos
-              await supabaseAdmin
-                .from('treatments')
-                .delete()
-                .eq('clinic_id', clinic.id);
-
-              // 2. Eliminar service_supplies
-              const { data: services } = await supabaseAdmin
-                .from('services')
-                .select('id')
-                .eq('clinic_id', clinic.id);
-              
-              if (services) {
-                for (const service of services) {
-                  await supabaseAdmin
-                    .from('service_supplies')
-                    .delete()
-                    .eq('service_id', service.id);
-                }
-              }
-
-              // 3. Eliminar servicios
-              await supabaseAdmin
-                .from('services')
-                .delete()
-                .eq('clinic_id', clinic.id);
-
-              // 4. Eliminar pacientes
-              await supabaseAdmin
-                .from('patients')
-                .delete()
-                .eq('clinic_id', clinic.id);
-
-              // 5. Eliminar insumos
-              await supabaseAdmin
-                .from('supplies')
-                .delete()
-                .eq('clinic_id', clinic.id);
-
-              // 6. Eliminar gastos
-              await supabaseAdmin
-                .from('expenses')
-                .delete()
-                .eq('clinic_id', clinic.id);
-
-              // 7. Eliminar activos
-              await supabaseAdmin
-                .from('assets')
-                .delete()
-                .eq('clinic_id', clinic.id);
-
-              // 8. Eliminar costos fijos
-              await supabaseAdmin
-                .from('fixed_costs')
-                .delete()
-                .eq('clinic_id', clinic.id);
-
-              // 9. Eliminar configuraciÃ³n de tiempo
-              await supabaseAdmin
-                .from('settings_time')
-                .delete()
-                .eq('clinic_id', clinic.id);
-
-              // 10. Eliminar tarifas
-              await supabaseAdmin
-                .from('tariffs')
-                .delete()
-                .eq('clinic_id', clinic.id);
+              await deleteClinicData(clinic.id);
             }
 
             // Eliminar las clÃ­nicas
@@ -199,7 +130,18 @@ export async function DELETE(request: NextRequest) {
 
           // Eliminar miembros del workspace
           await supabaseAdmin
+            .from('workspace_members')
+            .delete()
+            .eq('workspace_id', workspace.id);
+
+          await supabaseAdmin
             .from('user_workspaces')
+            .delete()
+            .eq('workspace_id', workspace.id);
+
+          // Eliminar actividad del workspace
+          await supabaseAdmin
+            .from('workspace_activity')
             .delete()
             .eq('workspace_id', workspace.id);
 
@@ -215,6 +157,11 @@ export async function DELETE(request: NextRequest) {
     // Eliminar el usuario de user_workspaces (si queda alguno)
     await supabaseAdmin
       .from('user_workspaces')
+      .delete()
+      .eq('user_id', userId);
+
+    await supabaseAdmin
+      .from('workspace_members')
       .delete()
       .eq('user_id', userId);
 

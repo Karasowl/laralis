@@ -2,6 +2,13 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import {
+  CLINIC_DELETE_SEQUENCE,
+  CLINIC_INSERT_SEQUENCE,
+  CLINIC_SUMMARY_KEYS,
+  MARKETING_STATUS_KEY,
+  fetchCampaignStatusHistory,
+} from '@/lib/clinic-tables';
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
@@ -23,45 +30,6 @@ const chunkArray = <T>(items: T[], size: number): T[][] => {
   }
   return chunks;
 };
-
-type TableConfig = {
-  key: string;
-  table: string;
-  column: string;
-};
-
-const DELETE_ORDER: TableConfig[] = [
-  { key: 'service_supplies', table: 'service_supplies', column: 'clinic_id' },
-  { key: 'treatments', table: 'treatments', column: 'clinic_id' },
-  { key: 'tariffs', table: 'tariffs', column: 'clinic_id' },
-  { key: 'expenses', table: 'expenses', column: 'clinic_id' },
-  { key: 'patients', table: 'patients', column: 'clinic_id' },
-  { key: 'services', table: 'services', column: 'clinic_id' },
-  { key: 'supplies', table: 'supplies', column: 'clinic_id' },
-  { key: 'assets', table: 'assets', column: 'clinic_id' },
-  { key: 'fixed_costs', table: 'fixed_costs', column: 'clinic_id' },
-  { key: 'marketing_campaigns', table: 'marketing_campaigns', column: 'clinic_id' },
-  { key: 'settings_time', table: 'settings_time', column: 'clinic_id' },
-  { key: 'categories', table: 'categories', column: 'clinic_id' },
-  { key: 'category_types', table: 'category_types', column: 'clinic_id' },
-];
-
-const INSERT_ORDER: TableConfig[] = [
-  { key: 'category_types', table: 'category_types', column: 'clinic_id' },
-  { key: 'categories', table: 'categories', column: 'clinic_id' },
-  { key: 'marketing_campaigns', table: 'marketing_campaigns', column: 'clinic_id' },
-  { key: 'services', table: 'services', column: 'clinic_id' },
-  { key: 'supplies', table: 'supplies', column: 'clinic_id' },
-  { key: 'service_supplies', table: 'service_supplies', column: 'clinic_id' },
-  { key: 'assets', table: 'assets', column: 'clinic_id' },
-  { key: 'patients', table: 'patients', column: 'clinic_id' },
-  { key: 'expenses', table: 'expenses', column: 'clinic_id' },
-  { key: 'tariffs', table: 'tariffs', column: 'clinic_id' },
-  { key: 'fixed_costs', table: 'fixed_costs', column: 'clinic_id' },
-  { key: 'treatments', table: 'treatments', column: 'clinic_id' },
-  { key: 'settings_time', table: 'settings_time', column: 'clinic_id' },
-];
-
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
@@ -172,7 +140,7 @@ export async function POST(request: Request) {
     const tables: Record<string, unknown[]> = payload.tables || {};
 
     const backupData: Record<string, unknown[]> = {};
-    for (const config of INSERT_ORDER) {
+    for (const config of CLINIC_INSERT_SEQUENCE) {
       const { data: existing, error: existingError } = await supabaseAdmin
         .from(config.table)
         .select('*')
@@ -186,10 +154,32 @@ export async function POST(request: Request) {
       backupData[config.key] = existing ?? [];
     }
 
+    const backupCampaignIds = (backupData.marketing_campaigns ?? [])
+      .map((campaign: any) => campaign?.id)
+      .filter((id: unknown): id is string => typeof id === 'string' && id.length > 0);
+    backupData[MARKETING_STATUS_KEY] = backupCampaignIds.length
+      ? await fetchCampaignStatusHistory(backupCampaignIds)
+      : [];
+
     const summary: Record<string, number> = {};
+    for (const key of CLINIC_SUMMARY_KEYS) {
+      summary[key] = 0;
+    }
 
     try {
-      for (const config of DELETE_ORDER) {
+      if (backupCampaignIds.length) {
+        const { error: historyDeleteError } = await supabaseAdmin
+          .from('marketing_campaign_status_history')
+          .delete()
+          .in('campaign_id', backupCampaignIds);
+
+        if (historyDeleteError) {
+          console.error('[data-import] Failed deleting marketing status history:', historyDeleteError.message);
+          throw new Error(historyDeleteError.message || 'Failed deleting campaign status history');
+        }
+      }
+
+      for (const config of CLINIC_DELETE_SEQUENCE) {
         const { error } = await supabaseAdmin
           .from(config.table)
           .delete()
@@ -201,7 +191,7 @@ export async function POST(request: Request) {
         }
       }
 
-      for (const config of INSERT_ORDER) {
+      for (const config of CLINIC_INSERT_SEQUENCE) {
         const rows = Array.isArray(tables[config.key]) ? tables[config.key] : [];
         if (!rows.length) {
           summary[config.key] = 0;
@@ -231,6 +221,26 @@ export async function POST(request: Request) {
         summary[config.key] = sanitizedRows.length;
       }
 
+      const marketingStatusRows = Array.isArray(tables[MARKETING_STATUS_KEY])
+        ? tables[MARKETING_STATUS_KEY]
+        : [];
+
+      summary[MARKETING_STATUS_KEY] = marketingStatusRows.length;
+
+      if (marketingStatusRows.length) {
+        for (const chunk of chunkArray(marketingStatusRows, CHUNK_SIZE)) {
+          if (chunk.length === 0) continue;
+          const { error: historyInsertError } = await supabaseAdmin
+            .from('marketing_campaign_status_history')
+            .insert(chunk, { returning: 'minimal' });
+
+          if (historyInsertError) {
+            console.error('[data-import] Failed inserting campaign status history:', historyInsertError.message);
+            throw new Error(historyInsertError.message || 'Failed inserting campaign status history');
+          }
+        }
+      }
+
       return NextResponse.json({
         success: true,
         summary,
@@ -238,7 +248,17 @@ export async function POST(request: Request) {
     } catch (error) {
       console.error('[data-import] import failed, restoring previous data:', error);
 
-      for (const config of INSERT_ORDER) {
+      if (backupCampaignIds.length) {
+        await supabaseAdmin
+          .from('marketing_campaign_status_history')
+          .delete()
+          .in('campaign_id', backupCampaignIds)
+          .catch((restoreError) => {
+            console.error('[data-import] restore delete history failed:', restoreError?.message);
+          });
+      }
+
+      for (const config of CLINIC_INSERT_SEQUENCE) {
         const originalRows = backupData[config.key] || [];
 
         const { error: deleteError } = await supabaseAdmin
@@ -268,6 +288,20 @@ export async function POST(request: Request) {
             if (insertError) {
               console.error(`[data-import] restore insert ${config.table} failed:`, insertError.message);
             }
+          }
+        }
+      }
+
+      const backupStatusHistory = backupData[MARKETING_STATUS_KEY] || [];
+      if (backupStatusHistory.length) {
+        for (const chunk of chunkArray(backupStatusHistory, CHUNK_SIZE)) {
+          if (chunk.length === 0) continue;
+          const { error: statusRestoreError } = await supabaseAdmin
+            .from('marketing_campaign_status_history')
+            .insert(chunk, { returning: 'minimal' });
+
+          if (statusRestoreError) {
+            console.error('[data-import] restore history insert failed:', statusRestoreError.message);
           }
         }
       }

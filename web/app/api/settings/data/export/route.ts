@@ -2,29 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-
-type TableConfig = {
-  key: string;
-  table: string;
-  column: string;
-};
-
-const CLINIC_TABLES: TableConfig[] = [
-  { key: 'category_types', table: 'category_types', column: 'clinic_id' },
-  { key: 'categories', table: 'categories', column: 'clinic_id' },
-  { key: 'marketing_campaigns', table: 'marketing_campaigns', column: 'clinic_id' },
-  { key: 'marketing_campaign_status_history', table: 'marketing_campaign_status_history', column: 'clinic_id' },
-  { key: 'services', table: 'services', column: 'clinic_id' },
-  { key: 'service_supplies', table: 'service_supplies', column: 'clinic_id' },
-  { key: 'supplies', table: 'supplies', column: 'clinic_id' },
-  { key: 'assets', table: 'assets', column: 'clinic_id' },
-  { key: 'patients', table: 'patients', column: 'clinic_id' },
-  { key: 'treatments', table: 'treatments', column: 'clinic_id' },
-  { key: 'expenses', table: 'expenses', column: 'clinic_id' },
-  { key: 'tariffs', table: 'tariffs', column: 'clinic_id' },
-  { key: 'fixed_costs', table: 'fixed_costs', column: 'clinic_id' },
-  { key: 'settings_time', table: 'settings_time', column: 'clinic_id' },
-];
+import {
+  CLINIC_DATA_TABLES,
+  MARKETING_STATUS_KEY,
+  fetchCampaignStatusHistory,
+} from '@/lib/clinic-tables';
 
 export async function GET(request: NextRequest) {
   try {
@@ -74,7 +56,7 @@ export async function GET(request: NextRequest) {
 
     const tables: Record<string, unknown[]> = {};
 
-    for (const config of CLINIC_TABLES) {
+    for (const config of CLINIC_DATA_TABLES) {
       const { data, error } = await supabaseAdmin
         .from(config.table)
         .select('*')
@@ -91,7 +73,7 @@ export async function GET(request: NextRequest) {
       tables[config.key] = data ?? [];
     }
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       version: 1,
       exportedAt: new Date().toISOString(),
       workspaceId,
@@ -100,6 +82,21 @@ export async function GET(request: NextRequest) {
       clinic,
       tables,
     };
+
+    const campaigns = Array.isArray(tables.marketing_campaigns) ? tables.marketing_campaigns : [];
+    if (campaigns.length > 0) {
+      const campaignIds = campaigns
+        .map((campaign: any) => campaign?.id)
+        .filter((id: unknown): id is string => typeof id === 'string' && id.length > 0);
+
+      if (campaignIds.length > 0) {
+        tables[MARKETING_STATUS_KEY] = await fetchCampaignStatusHistory(campaignIds);
+      } else {
+        tables[MARKETING_STATUS_KEY] = [];
+      }
+    } else {
+      tables[MARKETING_STATUS_KEY] = [];
+    }
 
     const json = JSON.stringify(payload, null, 2);
     const mode = request.nextUrl.searchParams.get('mode') === 'backup' ? 'backup' : 'export';
