@@ -30,12 +30,24 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      console.error('[onboarding] Auth error:', { userError, hasSession: !!session });
+      console.error('[onboarding] Auth error:', {
+        userError,
+        hasSession: !!session,
+        sessionUserId: session?.user?.id,
+        errorMessage: userError?.message
+      });
       return NextResponse.json(
         { error: 'Unauthorized', details: userError?.message || 'No user found' },
         { status: 401 }
       );
     }
+
+    console.log('[onboarding] User authenticated:', {
+      userId: user.id,
+      email: user.email,
+      workspaceName: workspace.name,
+      clinicName: clinic.name
+    });
 
     // Generate slug from workspace name
     const generateSlug = (name: string) => {
@@ -71,11 +83,25 @@ export async function POST(request: NextRequest) {
     }
 
     if (workspaceError) {
-      console.error('Error creating workspace:', workspaceError);
+      console.error('[onboarding] Error creating workspace:', {
+        error: workspaceError,
+        code: (workspaceError as any).code,
+        message: workspaceError.message,
+        details: (workspaceError as any).details,
+        hint: (workspaceError as any).hint,
+        userId: user.id,
+        workspaceName: workspace.name,
+        slug: baseSlug
+      });
       const status = (workspaceError as any).code === '23505' ? 400 : 500;
       const msg = (workspaceError as any).code === '23505' ? 'Workspace slug already exists' : 'Failed to create workspace';
       return NextResponse.json(
-        { error: msg },
+        {
+          error: msg,
+          details: workspaceError.message,
+          code: (workspaceError as any).code,
+          hint: (workspaceError as any).hint
+        },
         { status }
       );
     }
@@ -94,15 +120,29 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (clinicError) {
-      console.error('Error creating clinic:', clinicError);
+      console.error('[onboarding] Error creating clinic:', {
+        error: clinicError,
+        code: (clinicError as any).code,
+        message: clinicError.message,
+        details: (clinicError as any).details,
+        hint: (clinicError as any).hint,
+        userId: user.id,
+        workspaceId: workspaceData.id,
+        clinicName: clinic.name
+      });
       // Try to rollback workspace creation
       await supabase
         .from('workspaces')
         .delete()
         .eq('id', workspaceData.id);
-      
+
       return NextResponse.json(
-        { error: 'Failed to create clinic' },
+        {
+          error: 'Failed to create clinic',
+          details: clinicError.message,
+          code: (clinicError as any).code,
+          hint: (clinicError as any).hint
+        },
         { status: 500 }
       );
     }
