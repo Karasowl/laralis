@@ -19,6 +19,7 @@ Cada entrada sigue la estructura:
 
 ### 2025-10-18
 
+- **[2025-10-18-fix-onboarding-triggers-rls.md](2025-10-18-fix-onboarding-triggers-rls.md)** - Fix P0 crítico: Triggers de clinics fallaban por falta de políticas RLS en custom_categories y patient_sources
 - **[2025-10-18-fix-onboarding-multiple-issues.md](2025-10-18-fix-onboarding-multiple-issues.md)** - Fix P0 crítico: Múltiples problemas que bloqueaban el onboarding (RLS, diálogo molesto, errores genéricos)
 - **[2025-10-18-fix-onboarding-skip-clinic-step.md](2025-10-18-fix-onboarding-skip-clinic-step.md)** - Fix crítico: Bug donde el onboarding saltaba los pasos de workspace y clínica, causando "access denied" en assets
 
@@ -36,10 +37,12 @@ Cada entrada sigue la estructura:
 - [2025-08-09-bootstrap-proyecto.md](2025-08-09-bootstrap-proyecto.md) - Setup inicial completo
 
 ### Onboarding & Auth
+- [2025-10-18-fix-onboarding-triggers-rls.md](2025-10-18-fix-onboarding-triggers-rls.md) - Fix de políticas RLS en triggers automáticos de clinics
 - [2025-10-18-fix-onboarding-multiple-issues.md](2025-10-18-fix-onboarding-multiple-issues.md) - Fix de RLS policies, UX del modal, y mensajes de error
 - [2025-10-18-fix-onboarding-skip-clinic-step.md](2025-10-18-fix-onboarding-skip-clinic-step.md) - Fix del guard que permitía saltar pasos críticos
 
 ### Base de Datos / RLS
+- [2025-10-18-fix-onboarding-triggers-rls.md](2025-10-18-fix-onboarding-triggers-rls.md) - Políticas RLS para custom_categories y patient_sources (triggers)
 - [2025-10-18-fix-onboarding-multiple-issues.md](2025-10-18-fix-onboarding-multiple-issues.md) - Políticas RLS faltantes para workspaces e INSERT en clinics
 
 ### Motor de Cálculos
@@ -59,6 +62,6 @@ Cada entrada sigue la estructura:
 
 ## Stats
 
-- **Total entradas**: 7
+- **Total entradas**: 8
 - **Última actualización**: 2025-10-18
-- **Archivos documentados**: 85+
+- **Archivos documentados**: 88+
