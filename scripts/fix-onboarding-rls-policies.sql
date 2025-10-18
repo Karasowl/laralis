@@ -19,11 +19,11 @@ DROP POLICY IF EXISTS "Users can create their own workspaces" ON public.workspac
 CREATE POLICY "Users can create their own workspaces" ON public.workspaces
   FOR INSERT WITH CHECK (
     auth.uid() IS NOT NULL
-    AND created_by = auth.uid()
+    AND owner_id = auth.uid()
   );
 
 -- 2. Permitir crear clínicas en workspaces propios (durante onboarding)
--- NOTA: Se verifica con created_by en workspaces, no con workspace_users
+-- NOTA: Se verifica con owner_id en workspaces, no con workspace_users
 DROP POLICY IF EXISTS "Creators can create clinics in their workspace" ON public.clinics;
 CREATE POLICY "Creators can create clinics in their workspace" ON public.clinics
   FOR INSERT WITH CHECK (
@@ -31,7 +31,7 @@ CREATE POLICY "Creators can create clinics in their workspace" ON public.clinics
     EXISTS (
       SELECT 1 FROM public.workspaces
       WHERE workspaces.id = clinics.workspace_id
-      AND workspaces.created_by = auth.uid()
+      AND workspaces.owner_id = auth.uid()
     )
   );
 
