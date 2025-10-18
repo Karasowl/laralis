@@ -17,6 +17,11 @@ Cada entrada sigue la estructura:
 
 ## Entradas
 
+### 2025-10-18
+
+- **[2025-10-18-fix-onboarding-multiple-issues.md](2025-10-18-fix-onboarding-multiple-issues.md)** - Fix P0 crítico: Múltiples problemas que bloqueaban el onboarding (RLS, diálogo molesto, errores genéricos)
+- **[2025-10-18-fix-onboarding-skip-clinic-step.md](2025-10-18-fix-onboarding-skip-clinic-step.md)** - Fix crítico: Bug donde el onboarding saltaba los pasos de workspace y clínica, causando "access denied" en assets
+
 ### 2025-08-09
 
 - **[2025-08-09-bootstrap-proyecto.md](2025-08-09-bootstrap-proyecto.md)** - Arranque inicial del proyecto con Next.js, i18n, motor de cálculos y shell de UI estilo Apple
@@ -29,6 +34,13 @@ Cada entrada sigue la estructura:
 
 ### Infraestructura
 - [2025-08-09-bootstrap-proyecto.md](2025-08-09-bootstrap-proyecto.md) - Setup inicial completo
+
+### Onboarding & Auth
+- [2025-10-18-fix-onboarding-multiple-issues.md](2025-10-18-fix-onboarding-multiple-issues.md) - Fix de RLS policies, UX del modal, y mensajes de error
+- [2025-10-18-fix-onboarding-skip-clinic-step.md](2025-10-18-fix-onboarding-skip-clinic-step.md) - Fix del guard que permitía saltar pasos críticos
+
+### Base de Datos / RLS
+- [2025-10-18-fix-onboarding-multiple-issues.md](2025-10-18-fix-onboarding-multiple-issues.md) - Políticas RLS faltantes para workspaces e INSERT en clinics
 
 ### Motor de Cálculos
 - [2025-08-09-bootstrap-proyecto.md](2025-08-09-bootstrap-proyecto.md) - Implementación del motor de cálculos con tests
@@ -47,6 +59,6 @@ Cada entrada sigue la estructura:
 
 ## Stats
 
-- **Total entradas**: 5
-- **Última actualización**: 2025-08-09
-- **Archivos documentados**: 80+
+- **Total entradas**: 7
+- **Última actualización**: 2025-10-18
+- **Archivos documentados**: 85+

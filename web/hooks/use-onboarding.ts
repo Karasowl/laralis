@@ -172,7 +172,13 @@ export function useOnboarding() {
             clinic: { name: data.clinicName, address: data.clinicAddress, phone: data.clinicPhone, email: data.clinicEmail }
           })
         })
-        if (!response.ok) throw new Error('Failed to create workspace/clinic')
+        if (!response.ok) {
+          // Obtener el mensaje de error real del servidor
+          const errorData = await response.json().catch(() => ({}))
+          const errorMessage = errorData?.error || errorData?.details || 'Failed to create workspace/clinic'
+          console.error('[onboarding] API error:', { status: response.status, errorData })
+          throw new Error(errorMessage)
+        }
         // Persist cookies/localStorage for clinic/workspace para que las siguientes
         // pantallas (setup) tengan contexto inmediatamente
         try {
@@ -196,7 +202,10 @@ export function useOnboarding() {
         router.push('/setup')
         return
       } catch (e) {
-        toast.error(t('errors.genericDescription'))
+        // Mostrar el error específico en lugar del genérico
+        const errorMessage = e instanceof Error ? e.message : t('errors.genericDescription')
+        console.error('[onboarding] Failed to create:', e)
+        toast.error(errorMessage)
         setLoading(false)
         return
       } finally {

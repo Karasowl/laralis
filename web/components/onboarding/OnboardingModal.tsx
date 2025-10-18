@@ -74,10 +74,15 @@ export function OnboardingModal({
     performCancellation()
   }, [performCancellation, t])
 
+  // IMPORTANTE: NO cerrar el modal automáticamente al hacer clic fuera.
+  // El modal solo debe cerrarse cuando el usuario hace clic explícitamente en:
+  // 1. El botón "Cerrar sesión" (primer paso)
+  // 2. Completar el onboarding
+  // NO debe cerrarse al hacer clic en el backdrop/fondo.
   const handleOpenChange = (open: boolean) => {
-    if (!open) {
-      requestCancellation()
-    }
+    // No hacer nada - el modal está siempre abierto durante el onboarding
+    // El cierre se maneja explícitamente con los botones
+    return
   }
   const leftButton = isFirstStep ? (
     <Button
