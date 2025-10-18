@@ -42,20 +42,36 @@ export default function OnboardingPage() {
     clearOnboardingStorage()
   }, [])
 
-  // Client guard: if user already has a workspace, prefer full setup page
+  // Client guard: if user already has workspace AND clinic, prefer full setup page
   useEffect(() => {
     const supabase = createClient()
     ;(async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return
+
+        // Check if user has workspace
         const { data: ws } = await supabase
           .from('workspaces')
           .select('id')
           .eq('owner_id', user.id)
           .limit(1)
+
         if (ws && ws.length > 0) {
-          router.replace('/setup')
+          const workspaceId = ws[0].id
+
+          // Also check if workspace has at least one clinic
+          const { data: clinic } = await supabase
+            .from('clinics')
+            .select('id')
+            .eq('workspace_id', workspaceId)
+            .limit(1)
+
+          // Only redirect to /setup if BOTH workspace AND clinic exist
+          if (clinic && clinic.length > 0) {
+            router.replace('/setup')
+          }
+          // If workspace exists but no clinic, let onboarding continue to clinic creation step
         }
       } catch {}
     })()
