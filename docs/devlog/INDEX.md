@@ -19,6 +19,7 @@ Cada entrada sigue la estructura:
 
 ### 2025-10-18
 
+- **[2025-10-18-fix-setup-wizard-redirect-loop.md](2025-10-18-fix-setup-wizard-redirect-loop.md)** - Fix P0 crítico: Wizard de setup redirigía inmediatamente al hacer click en "Configure assets", creando un loop que impedía completar el onboarding
 - **[2025-10-18-fix-services-revenue-rls-errors.md](2025-10-18-fix-services-revenue-rls-errors.md)** - Fix P0 crítico: Errores en /api/services y /api/dashboard/revenue por políticas RLS faltantes en tablas operacionales (services, supplies, treatments, expenses)
 - **[2025-10-18-fix-onboarding-triggers-rls.md](2025-10-18-fix-onboarding-triggers-rls.md)** - Fix P0 crítico: Triggers de clinics fallaban por falta de políticas RLS en custom_categories y patient_sources
 - **[2025-10-18-fix-onboarding-multiple-issues.md](2025-10-18-fix-onboarding-multiple-issues.md)** - Fix P0 crítico: Múltiples problemas que bloqueaban el onboarding (RLS, diálogo molesto, errores genéricos)
@@ -68,6 +69,6 @@ Cada entrada sigue la estructura:
 
 ## Stats
 
-- **Total entradas**: 9
+- **Total entradas**: 10
 - **Última actualización**: 2025-10-18
-- **Archivos documentados**: 95+
+- **Archivos documentados**: 96+
