@@ -104,20 +104,44 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       return;
     }
-    
+
     try {
       const { data, error } = await supabase
         .from('workspaces')
         .select('*')
         .eq('owner_id', user.id)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false});
 
       if (error) throw error;
 
       setWorkspaces(data || []);
-      
+
       if (!data || data.length === 0) {
         setWorkspace(null);
+
+        // 🔥 AUTO-LIMPIEZA: Si no hay workspaces en BD, limpiar localStorage fantasma
+        try {
+          const hasStaleWorkspace = typeof localStorage !== 'undefined' && localStorage.getItem('selectedWorkspaceId');
+          const hasStaleClinic = typeof localStorage !== 'undefined' && localStorage.getItem('selectedClinicId');
+
+          if (hasStaleWorkspace || hasStaleClinic) {
+            console.warn('[workspace-context] 🧹 Detectadas clínicas/workspaces fantasma. Auto-limpiando localStorage...');
+            localStorage.removeItem('selectedWorkspaceId');
+            localStorage.removeItem('selectedClinicId');
+            localStorage.removeItem('selectedWorkspaceName');
+            localStorage.removeItem('selectedClinicName');
+
+            // Limpiar cookies también
+            if (typeof document !== 'undefined') {
+              document.cookie = 'workspaceId=; path=/; max-age=0';
+              document.cookie = 'clinicId=; path=/; max-age=0';
+            }
+
+            console.log('[workspace-context] ✅ LocalStorage limpiado exitosamente');
+          }
+        } catch (err) {
+          console.error('[workspace-context] Error limpiando localStorage:', err);
+        }
       } else {
         let preferredId: string | null = null;
         try {
@@ -128,25 +152,40 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           }
         } catch {}
 
-        const currentStillValid = workspace && data.some(ws => ws.id === workspace.id);
+        // 🔥 VALIDACIÓN: Si el workspace preferido no existe en BD, limpiarlo
         const matchPreferred = preferredId ? data.find(ws => ws.id === preferredId) : undefined;
+        if (preferredId && !matchPreferred) {
+          console.warn(`[workspace-context] 🧹 Workspace ID ${preferredId} no existe en BD. Auto-limpiando...`);
+          try {
+            localStorage.removeItem('selectedWorkspaceId');
+            localStorage.removeItem('selectedClinicId');
+            localStorage.removeItem('selectedWorkspaceName');
+            localStorage.removeItem('selectedClinicName');
+            if (typeof document !== 'undefined') {
+              document.cookie = 'workspaceId=; path=/; max-age=0';
+              document.cookie = 'clinicId=; path=/; max-age=0';
+            }
+          } catch {}
+        }
+
+        const currentStillValid = workspace && data.some(ws => ws.id === workspace.id);
         const next = (matchPreferred || (currentStillValid ? workspace! : data[0]));
         if (!workspace || next.id !== workspace.id) {
           setWorkspace(next as any);
         }
       }
-      
+
       // Si no hay workspaces y no estamos en onboarding o auth, redirigir
       const isProtectedRoute = !pathname?.includes('/onboarding') &&
                                !pathname?.includes('/auth') &&
                                !pathname?.includes('/test-auth') &&
                                !pathname?.includes('/setup');
-      
+
       if ((!data || data.length === 0) && isProtectedRoute) {
         router.push('/onboarding');
         return;
       }
-      
+
     } catch (err: any) {
       console.error('Error refreshing workspaces:', err);
       setError(err.message);
@@ -172,7 +211,23 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
 
       setClinics(data || []);
-      
+
+      // 🔥 VALIDACIÓN: Si hay clinicId en localStorage pero no existe en BD, limpiarlo
+      if (currentClinic) {
+        const clinicStillExists = data && data.some(c => c.id === currentClinic.id);
+        if (!clinicStillExists) {
+          console.warn(`[workspace-context] 🧹 Clínica ID ${currentClinic.id} no existe en BD. Auto-limpiando...`);
+          try {
+            localStorage.removeItem('selectedClinicId');
+            localStorage.removeItem('selectedClinicName');
+            if (typeof document !== 'undefined') {
+              document.cookie = 'clinicId=; path=/; max-age=0';
+            }
+            setCurrentClinic(null);
+          } catch {}
+        }
+      }
+
       // Si no hay clínica seleccionada, seleccionar la primera
       if (!currentClinic && data && data.length > 0) {
         setCurrentClinic(data[0]);
@@ -265,14 +320,15 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
     // If no workspaces yet but we have hints (just created), allow staying on /setup
     if (workspaces.length === 0) {
+      // 🔥 IMPORTANTE: Solo confiar en cookies/localStorage si hay workspaces reales en BD
+      // Si no hay workspaces en BD, esos hints son "fantasma" y debemos ignorarlos
+      // La auto-limpieza ya se hizo en refreshWorkspaces()
       if (wsCookie || wsLocal) {
-        if (path.startsWith('/onboarding') && !redirectingRef.current) {
-          redirectingRef.current = true;
-          router.replace('/setup');
-          setTimeout(() => { redirectingRef.current = false; }, 1500);
-        }
-        return; // don't bounce anywhere; let data load
+        console.warn('[workspace-context] 🔍 Hints de localStorage encontrados pero no hay workspaces en BD');
+        console.warn('[workspace-context] ℹ️  Ignorando hints (probablemente datos fantasma de reset)');
       }
+
+      // Sin workspaces en BD, siempre ir a onboarding
       if (!path.startsWith('/onboarding') && !redirectingRef.current) {
         redirectingRef.current = true;
         router.replace('/onboarding');

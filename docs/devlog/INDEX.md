@@ -19,9 +19,11 @@ Cada entrada sigue la estructura:
 
 ### 2025-10-18
 
+- **[2025-10-18-fix-services-revenue-rls-errors.md](2025-10-18-fix-services-revenue-rls-errors.md)** - Fix P0 crítico: Errores en /api/services y /api/dashboard/revenue por políticas RLS faltantes en tablas operacionales (services, supplies, treatments, expenses)
 - **[2025-10-18-fix-onboarding-triggers-rls.md](2025-10-18-fix-onboarding-triggers-rls.md)** - Fix P0 crítico: Triggers de clinics fallaban por falta de políticas RLS en custom_categories y patient_sources
 - **[2025-10-18-fix-onboarding-multiple-issues.md](2025-10-18-fix-onboarding-multiple-issues.md)** - Fix P0 crítico: Múltiples problemas que bloqueaban el onboarding (RLS, diálogo molesto, errores genéricos)
 - **[2025-10-18-fix-onboarding-skip-clinic-step.md](2025-10-18-fix-onboarding-skip-clinic-step.md)** - Fix crítico: Bug donde el onboarding saltaba los pasos de workspace y clínica, causando "access denied" en assets
+- **[Troubleshooting: Clínicas Fantasma](../TROUBLESHOOTING-RESET-AND-CACHE.md)** - Investigación y solución del problema de "clínicas fantasma" que aparecen después de resetear la base de datos (combinación de script SQL incompleto + caché del navegador)
 
 ### 2025-08-09
 
@@ -42,6 +44,7 @@ Cada entrada sigue la estructura:
 - [2025-10-18-fix-onboarding-skip-clinic-step.md](2025-10-18-fix-onboarding-skip-clinic-step.md) - Fix del guard que permitía saltar pasos críticos
 
 ### Base de Datos / RLS
+- [2025-10-18-fix-services-revenue-rls-errors.md](2025-10-18-fix-services-revenue-rls-errors.md) - Políticas RLS completas para tablas operacionales + funciones helper adaptativas
 - [2025-10-18-fix-onboarding-triggers-rls.md](2025-10-18-fix-onboarding-triggers-rls.md) - Políticas RLS para custom_categories y patient_sources (triggers)
 - [2025-10-18-fix-onboarding-multiple-issues.md](2025-10-18-fix-onboarding-multiple-issues.md) - Políticas RLS faltantes para workspaces e INSERT en clinics
 
@@ -60,8 +63,11 @@ Cada entrada sigue la estructura:
 ### Base de Datos
 - [2025-08-09-supplies-services-module.md](2025-08-09-supplies-services-module.md) - Esquema de insumos, servicios y recetas
 
+### API Endpoints
+- [2025-10-18-fix-services-revenue-rls-errors.md](2025-10-18-fix-services-revenue-rls-errors.md) - Fix de errores en /api/services y /api/dashboard/revenue
+
 ## Stats
 
-- **Total entradas**: 8
+- **Total entradas**: 9
 - **Última actualización**: 2025-10-18
-- **Archivos documentados**: 88+
+- **Archivos documentados**: 95+
