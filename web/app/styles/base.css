@@ -33,25 +33,41 @@
 }
 
 .dark {
-  --background: 240 10% 3.9%;
-  --foreground: 0 0% 98%;
-  --card: 240 10% 3.9%;
-  --card-foreground: 0 0% 98%;
-  --popover: 240 10% 3.9%;
-  --popover-foreground: 0 0% 98%;
-  --primary: 221 83% 53%;
-  --primary-foreground: 210 40% 98%;
-  --secondary: 240 3.7% 15.9%;
-  --secondary-foreground: 0 0% 98%;
-  --muted: 240 3.7% 15.9%;
-  --muted-foreground: 240 5% 64.9%;
-  --accent: 240 3.7% 15.9%;
-  --accent-foreground: 0 0% 98%;
-  --destructive: 0 62.8% 50%;
+  /* Premium dark mode - comfortable, enjoyable, modern */
+  /* Inspired by Notion, Linear, Arc Browser, and Vercel */
+
+  /* Base surfaces - warm charcoal, not too dark */
+  --background: 0 0% 12%;             /* Charcoal gray - comfortable base */
+  --foreground: 0 0% 85%;             /* Soft light gray text */
+
+  /* Elevated surfaces - subtle hierarchy */
+  --card: 0 0% 15%;                   /* Elevated cards - subtle depth */
+  --card-foreground: 0 0% 85%;
+  --popover: 0 0% 17%;                /* Popovers slightly more elevated */
+  --popover-foreground: 0 0% 87%;
+
+  /* Primary - balanced blue, not too saturated */
+  --primary: 217 91% 60%;             /* Vibrant but comfortable */
+  --primary-foreground: 0 0% 100%;
+
+  /* Secondary/muted - subtle warm grays */
+  --secondary: 0 0% 18%;              /* Subtle elevation */
+  --secondary-foreground: 0 0% 85%;
+  --muted: 0 0% 18%;
+  --muted-foreground: 0 0% 60%;       /* Comfortable secondary text */
+
+  /* Accent */
+  --accent: 0 0% 20%;
+  --accent-foreground: 0 0% 87%;
+
+  /* Destructive - warm red */
+  --destructive: 0 72% 58%;           /* Warm red, not harsh */
   --destructive-foreground: 0 0% 98%;
-  --border: 240 3.7% 20%;
-  --input: 240 3.7% 18%;
-  --ring: 221 83% 53%;
+
+  /* Borders and inputs - subtle but present */
+  --border: 0 0% 25%;                 /* Subtle warm border */
+  --input: 0 0% 14%;                  /* Slightly darker than background */
+  --ring: 217 91% 60%;                /* Match primary */
 }
 
 * {
@@ -60,4 +76,84 @@
 
 body {
   @apply bg-background text-foreground;
+}
+
+/* Premium dark mode enhancements */
+.dark {
+  color-scheme: dark;
+}
+
+/* Ultra-subtle shadows for premium feel */
+.dark [class*="shadow-sm"] {
+  --tw-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.08);
+  --tw-shadow-colored: 0 1px 2px 0 var(--tw-shadow-color);
+}
+
+.dark [class*="shadow"]:not([class*="shadow-sm"]):not([class*="shadow-none"]) {
+  --tw-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.15), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --tw-shadow-colored: 0 4px 6px -1px var(--tw-shadow-color), 0 2px 4px -2px var(--tw-shadow-color);
+}
+
+/* Cards with subtle border glow */
+.dark .rounded-xl,
+.dark .rounded-2xl,
+.dark [class*="Card"] {
+  background: linear-gradient(
+    to bottom,
+    hsl(0 0% 16%),
+    hsl(0 0% 14%)
+  );
+}
+
+/* Premium focus states */
+.dark :focus-visible {
+  outline-color: hsl(var(--primary));
+  outline-offset: 2px;
+  outline-width: 2px;
+}
+
+/* Comfortable selection */
+.dark ::selection {
+  background-color: hsl(217 91% 60% / 0.25);
+  color: hsl(var(--foreground));
+}
+
+/* Smooth, modern scrollbar */
+.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: hsl(0 0% 30%);
+  border-radius: 4px;
+  border: 2px solid hsl(0 0% 12%);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: hsl(0 0% 35%);
+}
+
+/* Subtle backdrop blur for modals/popovers (premium feel) */
+.dark [role="dialog"],
+.dark [data-radix-popper-content-wrapper] {
+  backdrop-filter: blur(8px);
+}
+
+/* Better input states */
+.dark input:focus,
+.dark textarea:focus {
+  background: hsl(0 0% 13%);
+  border-color: hsl(var(--primary) / 0.5);
+}
+
+/* Hover states more subtle */
+.dark button:hover:not(:disabled),
+.dark [role="button"]:hover {
+  background-color: hsl(0 0% 18%);
+  transition: background-color 150ms ease-in-out;
 }

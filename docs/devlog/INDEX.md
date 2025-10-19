@@ -19,6 +19,8 @@ Cada entrada sigue la estructura:
 
 ### 2025-10-18
 
+- **[2025-10-18-improve-dark-mode-ux.md](2025-10-18-improve-dark-mode-ux.md)** - Mejora P2 UX: Dark mode rediseñado con técnicas modernas - eliminado "alto contraste" molesto, implementada paleta suave inspirada en GitHub/Material Design
+- **[2025-10-18-fix-service-recipe-requirement-too-strict.md](2025-10-18-fix-service-recipe-requirement-too-strict.md)** - Fix P1 crítico: Requirement service_recipe era demasiado estricto, exigía que servicios tuvieran supplies cuando muchos servicios dentales no los necesitan
 - **[2025-10-18-fix-setup-wizard-redirect-loop.md](2025-10-18-fix-setup-wizard-redirect-loop.md)** - Fix P0 crítico: Wizard de setup redirigía inmediatamente al hacer click en "Configure assets", creando un loop que impedía completar el onboarding
 - **[2025-10-18-fix-services-revenue-rls-errors.md](2025-10-18-fix-services-revenue-rls-errors.md)** - Fix P0 crítico: Errores en /api/services y /api/dashboard/revenue por políticas RLS faltantes en tablas operacionales (services, supplies, treatments, expenses)
 - **[2025-10-18-fix-onboarding-triggers-rls.md](2025-10-18-fix-onboarding-triggers-rls.md)** - Fix P0 crítico: Triggers de clinics fallaban por falta de políticas RLS en custom_categories y patient_sources
@@ -40,6 +42,8 @@ Cada entrada sigue la estructura:
 - [2025-08-09-bootstrap-proyecto.md](2025-08-09-bootstrap-proyecto.md) - Setup inicial completo
 
 ### Onboarding & Auth
+- [2025-10-18-fix-service-recipe-requirement-too-strict.md](2025-10-18-fix-service-recipe-requirement-too-strict.md) - Fix de requirement excesivamente estricto que bloqueaba el wizard
+- [2025-10-18-fix-setup-wizard-redirect-loop.md](2025-10-18-fix-setup-wizard-redirect-loop.md) - Fix de redirect loop en configuración de assets
 - [2025-10-18-fix-onboarding-triggers-rls.md](2025-10-18-fix-onboarding-triggers-rls.md) - Fix de políticas RLS en triggers automáticos de clinics
 - [2025-10-18-fix-onboarding-multiple-issues.md](2025-10-18-fix-onboarding-multiple-issues.md) - Fix de RLS policies, UX del modal, y mensajes de error
 - [2025-10-18-fix-onboarding-skip-clinic-step.md](2025-10-18-fix-onboarding-skip-clinic-step.md) - Fix del guard que permitía saltar pasos críticos
@@ -54,6 +58,7 @@ Cada entrada sigue la estructura:
 - [2025-08-09-supplies-services-module.md](2025-08-09-supplies-services-module.md) - Cálculos de costos variables y tratamientos
 
 ### UI/UX
+- [2025-10-18-improve-dark-mode-ux.md](2025-10-18-improve-dark-mode-ux.md) - Rediseño completo de dark mode con paleta moderna
 - [2025-08-09-bootstrap-proyecto.md](2025-08-09-bootstrap-proyecto.md) - Sistema de componentes estilo Apple
 - [2025-08-09-supplies-services-module.md](2025-08-09-supplies-services-module.md) - Páginas de insumos y servicios con preview en vivo
 
@@ -69,6 +74,6 @@ Cada entrada sigue la estructura:
 
 ## Stats
 
-- **Total entradas**: 10
+- **Total entradas**: 12
 - **Última actualización**: 2025-10-18
-- **Archivos documentados**: 96+
+- **Archivos documentados**: 98+

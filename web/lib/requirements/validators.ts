@@ -125,18 +125,11 @@ export async function hasAnySupply(ctx: GuardContext): Promise<boolean> {
 }
 
 export async function hasAnyServiceRecipe(ctx: GuardContext): Promise<boolean> {
-  // If a specific serviceId is provided, fetch services list (with embedded supplies)
-  // and verify the target service has a non-empty recipe.
-  if (ctx.serviceId) {
-    const list = await apiGet<any[]>(buildUrl('/api/services', ctx.clinicId, { limit: 200 }, ctx.cacheKeySuffix));
-    const svc = (list || []).find((s: any) => s?.id === ctx.serviceId);
-    const recipe = Array.isArray(svc?.service_supplies) ? svc.service_supplies : [];
-    return recipe.length > 0;
-  }
-  // Otherwise check if any service has recipe
-  const list = await apiGet<any[]>(buildUrl('/api/services', ctx.clinicId, { limit: 50 }, ctx.cacheKeySuffix));
-  const has = (list || []).some((s: any) => Array.isArray(s?.service_supplies) ? s.service_supplies.length > 0 : (Number(s?.variable_cost_cents) || 0) > 0);
-  return has;
+  // Just verify that at least one service exists.
+  // Services don't need to have supplies - some services are consultation-only
+  // or have minimal material costs that aren't worth tracking.
+  const list = await apiGet<any[]>(buildUrl('/api/services', ctx.clinicId, { limit: 1 }, ctx.cacheKeySuffix));
+  return (list || []).length > 0;
 }
 
 export async function hasAnyTariff(ctx: GuardContext): Promise<boolean> {
