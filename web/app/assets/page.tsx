@@ -206,11 +206,26 @@ export default function AssetsPage() {
     if (!clinicId || crud.loading) return;
     if (!crud.items || crud.items.length === 0) return;
 
+    // 🔥 ONLY auto-redirect if user explicitly came from setup wizard
+    let shouldAutoRedirect = false;
+    try {
+      if (typeof sessionStorage !== 'undefined') {
+        shouldAutoRedirect = sessionStorage.getItem('return_to_setup') === '1';
+      }
+    } catch {}
+
+    if (!shouldAutoRedirect) return;
+
     let cancelled = false;
     (async () => {
       try {
         const res = await evaluateRequirements({ clinicId, cacheKeySuffix: Date.now().toString() }, ['depreciation']);
         if (!cancelled && !(res.missing || []).includes('depreciation')) {
+          // Clear the flag so we don't redirect again
+          try {
+            sessionStorage.removeItem('return_to_setup');
+          } catch {}
+
           toast.success(setupT('toasts.finishSuccess'));
           router.push('/setup');
         }
