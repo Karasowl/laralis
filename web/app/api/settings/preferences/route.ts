@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 
+export const dynamic = 'force-dynamic'
+
+
 const preferencesSchema = z.object({
   locale: z.string().min(2).max(10),
   timezone: z.string().min(2).max(80),

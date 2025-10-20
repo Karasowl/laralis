@@ -4,6 +4,9 @@ import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { z } from 'zod';
 
+export const dynamic = 'force-dynamic'
+
+
 const createCampaignSchema = z.object({
   platform_id: z.string().uuid(),
   name: z.string().min(1),

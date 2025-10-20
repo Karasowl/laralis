@@ -3,6 +3,9 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { startOfWeek, format, addDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 
+export const dynamic = 'force-dynamic'
+
+
 function monthKey(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }

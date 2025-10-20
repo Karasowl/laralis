@@ -3,6 +3,9 @@ import { cookies } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { resolveClinicContext } from '@/lib/clinic'
 
+export const dynamic = 'force-dynamic'
+
+
 const DEFAULT_LOOKBACK_DAYS = 90
 
 export async function GET(request: NextRequest) {

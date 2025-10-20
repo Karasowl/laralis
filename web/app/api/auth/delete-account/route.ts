@@ -4,6 +4,9 @@ import { deleteClinicData } from '@/lib/clinic-tables';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
+export const dynamic = 'force-dynamic'
+
+
 export async function DELETE(request: NextRequest) {
   try {
     const { email, code } = await request.json();

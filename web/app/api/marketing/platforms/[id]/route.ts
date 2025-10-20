@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
+export const dynamic = 'force-dynamic'
+
+
 // Proxy for update/delete using a dynamic route, to match client calls like
 // fetch('/api/marketing/platforms/:id', { method: 'PUT' | 'DELETE' })
 

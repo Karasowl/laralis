@@ -3,6 +3,9 @@ import { cookies } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { resolveClinicContext } from '@/lib/clinic'
 
+export const dynamic = 'force-dynamic'
+
+
 export async function GET(_request: NextRequest) {
   try {
     const cookieStore = cookies()

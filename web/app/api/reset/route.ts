@@ -5,6 +5,9 @@ import { createServerClient } from '@supabase/ssr';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { deleteClinicData } from '@/lib/clinic-tables';
 
+export const dynamic = 'force-dynamic'
+
+
 async function deleteWorkspaceData(workspaceId: string) {
   const { data: clinicRows, error: clinicQueryError } = await supabaseAdmin
     .from('clinics')

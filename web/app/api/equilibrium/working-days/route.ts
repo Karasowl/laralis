@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { detectWorkingDayPattern, type TreatmentRecord } from '@/lib/calc/dates'
 
+export const dynamic = 'force-dynamic'
+
+
 /**
  * GET /api/equilibrium/working-days
  *

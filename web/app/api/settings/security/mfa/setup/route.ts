@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { encryptSecret, generateTotpSetup } from '@/lib/security/totp';
 
+export const dynamic = 'force-dynamic'
+
+
 function ensurePreferences(input: unknown): Record<string, any> {
   if (typeof input === 'object' && input !== null) {
     return input as Record<string, any>;

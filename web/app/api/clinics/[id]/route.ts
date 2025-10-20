@@ -3,6 +3,9 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
+export const dynamic = 'force-dynamic'
+
+
 async function ensureClinicOwnership(userId: string, clinicId: string) {
   // Load clinic to get workspace_id
   const { data: clinic, error: clinicErr } = await supabaseAdmin

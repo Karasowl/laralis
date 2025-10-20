@@ -3,6 +3,9 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { z } from 'zod';
+
+export const dynamic = 'force-dynamic'
+
 // import { createSupabaseClient } from '@/lib/supabase';
 
 const serviceSupplySchema = z.object({

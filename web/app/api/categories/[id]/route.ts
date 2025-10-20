@@ -4,6 +4,9 @@ import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { createClient } from '@/lib/supabase/server';
 
+export const dynamic = 'force-dynamic'
+
+
 const diacriticRegex = /[\u0300-\u036f]/g;
 
 function slugify(input: string) {

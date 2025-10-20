@@ -5,6 +5,9 @@ import type { Asset, ApiResponse } from '@/lib/types';
 import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 
+export const dynamic = 'force-dynamic'
+
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }

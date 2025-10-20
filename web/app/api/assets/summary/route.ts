@@ -5,6 +5,9 @@ import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { calculateMonthlyDepreciation } from '@/lib/calc/depreciacion';
 
+export const dynamic = 'force-dynamic'
+
+
 type SummaryResponse = {
   monthly_depreciation_cents: number;
   total_investment_cents: number;

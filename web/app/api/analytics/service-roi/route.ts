@@ -3,6 +3,9 @@ import { cookies } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { resolveClinicContext } from '@/lib/clinic'
 
+export const dynamic = 'force-dynamic'
+
+
 export interface ServiceROI {
   service_id: string
   service_name: string
