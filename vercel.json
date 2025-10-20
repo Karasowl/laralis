@@ -4,7 +4,7 @@
   "devCommand": "cd web && npm run dev",
   "installCommand": "cd web && npm install",
   "framework": "nextjs",
-  "regions": ["iad1"],
+  "regions": ["sfo1"],
   "headers": [
     {
       "source": "/api/:path*",
