@@ -1,3 +1,4 @@
+.gitignore
 # Dependencies
 node_modules/
 web/node_modules/
@@ -96,3 +97,12 @@ supabase/.branches
 # Excel temp files
 ~$*.xlsx
 ~$*.xls
+
+# Windows reserved names
+nul
+null
+con
+prn
+aux
+com[1-9]
+lpt[1-9]
