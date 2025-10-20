@@ -3,15 +3,14 @@ import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import {
-
-export const dynamic = 'force-dynamic'
-
   CLINIC_DELETE_SEQUENCE,
   CLINIC_INSERT_SEQUENCE,
   CLINIC_SUMMARY_KEYS,
   MARKETING_STATUS_KEY,
   fetchCampaignStatusHistory,
 } from '@/lib/clinic-tables';
+
+export const dynamic = 'force-dynamic'
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
