@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
-import { 
-
-export const dynamic = 'force-dynamic'
-
-  expenseFormSchema, 
-  type CreateExpenseRequest, 
+import {
+  expenseFormSchema,
+  type CreateExpenseRequest,
   type ExpenseFilters,
   type ExpenseWithRelations
 } from '@/lib/types/expenses'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {

@@ -2,14 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import {
-
-export const dynamic = 'force-dynamic'
-
   decryptSecret,
   encryptSecret,
   generateRecoveryCodes,
   verifyTotpToken,
 } from '@/lib/security/totp';
+
+export const dynamic = 'force-dynamic'
 
 const confirmSchema = z.object({
   code: z.string().min(6).max(10),

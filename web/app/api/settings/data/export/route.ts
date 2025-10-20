@@ -3,13 +3,12 @@ import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import {
-
-export const dynamic = 'force-dynamic'
-
   CLINIC_DATA_TABLES,
   MARKETING_STATUS_KEY,
   fetchCampaignStatusHistory,
 } from '@/lib/clinic-tables';
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
