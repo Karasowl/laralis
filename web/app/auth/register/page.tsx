@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect } from 'react'
+import React, { useEffect, useMemo } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { AuthLayout } from '@/components/auth/AuthLayout'
@@ -21,31 +21,35 @@ type RegisterFormData = {
   acceptTerms: boolean
 }
 
-// Password strength indicator component
-function PasswordStrength({ password }: { password: string }) {
+// PERFORMANCE FIX: Memoized password strength indicator
+const PasswordStrength = React.memo(function PasswordStrength({ password }: { password: string }) {
   const t = useTranslations('auth.register')
-  
-  const checks = [
+
+  // PERFORMANCE: Memoize expensive checks calculation
+  const checks = useMemo(() => [
     { label: t('passwordMinLength'), valid: password.length >= 8 },
     { label: t('passwordUppercase'), valid: /[A-Z]/.test(password) },
     { label: t('passwordLowercase'), valid: /[a-z]/.test(password) },
     { label: t('passwordNumber'), valid: /[0-9]/.test(password) }
-  ]
+  ], [password, t])
 
-  const strength = checks.filter(c => c.valid).length
-  const strengthLabel = 
+  const strength = useMemo(() => checks.filter(c => c.valid).length, [checks])
+
+  const strengthLabel = useMemo(() =>
     strength === 0 ? '' :
     strength === 1 ? t('weak') :
     strength === 2 ? t('fair') :
     strength === 3 ? t('good') :
     t('strong')
+  , [strength, t])
 
-  const strengthColor = 
+  const strengthColor = useMemo(() =>
     strength === 0 ? 'bg-gray-200' :
     strength === 1 ? 'bg-red-500' :
     strength === 2 ? 'bg-yellow-500' :
     strength === 3 ? 'bg-blue-500' :
     'bg-green-500'
+  , [strength])
 
   if (!password) return null
 
@@ -81,7 +85,7 @@ function PasswordStrength({ password }: { password: string }) {
       </div>
     </div>
   )
-}
+})
 
 export default function RegisterPage() {
   const t = useTranslations('auth.register')
@@ -117,10 +121,12 @@ export default function RegisterPage() {
       password: '',
       confirmPassword: '',
       acceptTerms: false
-    }
+    },
+    mode: 'onBlur', // PERFORMANCE: Validate only on blur
   })
 
-  const password = form.watch('password')
+  // PERFORMANCE FIX: Use useWatch instead of form.watch for better performance
+  const password = useWatch({ control: form.control, name: 'password', defaultValue: '' })
 
   // Clear error when form values change
   useEffect(() => {
@@ -133,7 +139,8 @@ export default function RegisterPage() {
       email: data.email,
       password: data.password,
       confirmPassword: data.confirmPassword,
-      name: `${data.firstName} ${data.lastName}`
+      firstName: data.firstName,
+      lastName: data.lastName
     })
 
     // The register function will handle the redirect to verify-email page
@@ -167,7 +174,10 @@ export default function RegisterPage() {
                 label={t('firstName')}
                 placeholder={t('firstNamePlaceholder')}
                 value={form.watch('firstName')}
-                onChange={(value) => form.setValue('firstName', value as string)}
+                onChange={(e) => {
+                  const val = typeof e === 'object' && 'target' in e ? e.target.value : e
+                  form.setValue('firstName', val as string)
+                }}
                 error={form.formState.errors.firstName?.message}
                 className="pl-10"
                 required
@@ -181,7 +191,10 @@ export default function RegisterPage() {
                 label={t('lastName')}
                 placeholder={t('lastNamePlaceholder')}
                 value={form.watch('lastName')}
-                onChange={(value) => form.setValue('lastName', value as string)}
+                onChange={(e) => {
+                  const val = typeof e === 'object' && 'target' in e ? e.target.value : e
+                  form.setValue('lastName', val as string)
+                }}
                 error={form.formState.errors.lastName?.message}
                 className="pl-10"
                 required
@@ -196,7 +209,10 @@ export default function RegisterPage() {
               label={t('email')}
               placeholder={t('emailPlaceholder')}
               value={form.watch('email')}
-              onChange={(value) => form.setValue('email', value as string)}
+              onChange={(e) => {
+                const val = typeof e === 'object' && 'target' in e ? e.target.value : e
+                form.setValue('email', val as string)
+              }}
               error={form.formState.errors.email?.message}
               className="pl-10"
               required
@@ -211,7 +227,10 @@ export default function RegisterPage() {
                 label={t('password')}
                 placeholder={t('passwordPlaceholder')}
                 value={form.watch('password')}
-                onChange={(value) => form.setValue('password', value as string)}
+                onChange={(e) => {
+                  const val = typeof e === 'object' && 'target' in e ? e.target.value : e
+                  form.setValue('password', val as string)
+                }}
                 error={form.formState.errors.password?.message}
                 className="pl-10"
                 required
@@ -227,7 +246,10 @@ export default function RegisterPage() {
               label={t('confirmPassword')}
               placeholder={t('confirmPasswordPlaceholder')}
               value={form.watch('confirmPassword')}
-              onChange={(value) => form.setValue('confirmPassword', value as string)}
+              onChange={(e) => {
+                const val = typeof e === 'object' && 'target' in e ? e.target.value : e
+                form.setValue('confirmPassword', val as string)
+              }}
               error={form.formState.errors.confirmPassword?.message}
               className="pl-10"
               required

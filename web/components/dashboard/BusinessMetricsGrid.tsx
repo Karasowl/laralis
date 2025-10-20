@@ -24,6 +24,8 @@ interface BusinessMetricsGridProps {
   ingresosHoyCents: number
   ingresosHoyChange?: number
   workDays?: number
+  monthlyTargetCents?: number
+  daysElapsed?: number
 }
 
 export function BusinessMetricsGrid({
@@ -34,12 +36,29 @@ export function BusinessMetricsGrid({
   pacientesChange,
   ingresosHoyCents,
   ingresosHoyChange,
-  workDays = 20
+  workDays = 20,
+  monthlyTargetCents,
+  daysElapsed
 }: BusinessMetricsGridProps) {
   const t = useTranslations('dashboardComponents.businessMetrics')
 
-  // Calculate if we're on track
-  const pacientesStatus = pacientesActualesPorDia >= pacientesNecesariosPorDia ? 'success' : 'warning'
+  // Calculate if we're on track based on progress vs. expected progress
+  let pacientesStatus: 'success' | 'warning' = 'warning'
+
+  if (monthlyTargetCents && monthlyTargetCents > 0 && daysElapsed !== undefined && workDays > 0) {
+    // Calculate expected progress based on days elapsed
+    const expectedProgressPercent = (daysElapsed / workDays) * 100
+    // Calculate actual progress
+    const actualProgressPercent = (ingresosHoyCents / monthlyTargetCents) * 100
+
+    // We're on track if actual progress >= 80% of expected progress
+    // (allowing 20% tolerance for early-month variations)
+    pacientesStatus = actualProgressPercent >= (expectedProgressPercent * 0.8) ? 'success' : 'warning'
+  } else {
+    // Fallback to simple comparison if we don't have monthly target data
+    pacientesStatus = pacientesActualesPorDia >= pacientesNecesariosPorDia ? 'success' : 'warning'
+  }
+
   const pacientesDiff = pacientesActualesPorDia - pacientesNecesariosPorDia
   const pacientesDiffPercent = pacientesNecesariosPorDia > 0
     ? ((pacientesDiff / pacientesNecesariosPorDia) * 100)

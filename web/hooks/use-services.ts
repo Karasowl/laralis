@@ -11,7 +11,7 @@ export interface Service {
   name: string
   description?: string
   category?: string
-  duration_minutes: number
+  est_minutes: number
   base_price_cents: number
   created_at: string
   updated_at: string

@@ -47,6 +47,7 @@ interface UseDashboardOptions {
   period?: 'day' | 'week' | 'month' | 'year' | 'custom'
   from?: string
   to?: string
+  chartGranularity?: 'day' | 'week' | 'biweek' | 'month'
 }
 
 interface DashboardState {
@@ -171,7 +172,7 @@ export class DashboardAggregator {
 
 // Main hook following Dependency Inversion
 export function useDashboard(options: UseDashboardOptions = {}): DashboardState {
-  const { clinicId, period = 'month', from, to } = options
+  const { clinicId, period = 'month', from, to, chartGranularity = 'month' } = options
   
   const [state, setState] = useState<DashboardState>({
     metrics: {
@@ -214,7 +215,7 @@ export function useDashboard(options: UseDashboardOptions = {}): DashboardState 
         { endpoint: `/api/dashboard/treatments?clinicId=${clinicId}&period=${period}${range}` },
         { endpoint: `/api/dashboard/supplies?clinicId=${clinicId}` },
         { endpoint: `/api/dashboard/appointments?clinicId=${clinicId}` },
-        { endpoint: `/api/dashboard/charts/revenue?clinicId=${clinicId}&period=${period}${range}` },
+        { endpoint: `/api/dashboard/charts/revenue?clinicId=${clinicId}&period=${period}&granularity=${chartGranularity}${range}` },
         { endpoint: `/api/dashboard/charts/categories?clinicId=${clinicId}&period=${period}${range}` },
         { endpoint: `/api/dashboard/charts/services?clinicId=${clinicId}` },
         { endpoint: `/api/dashboard/activities?clinicId=${clinicId}&limit=10` }
@@ -358,7 +359,7 @@ export function useDashboard(options: UseDashboardOptions = {}): DashboardState 
       setState(prev => ({ ...prev, error: errorMsg, loading: false }))
       console.error('Dashboard error:', err)
     }
-  }, [clinicId, period, fetchAll])
+  }, [clinicId, period, from, to, chartGranularity, fetchAll])
 
   // Run once on mount and whenever clinicId changes.
   // Also set up auto-refresh only when a clinic is selected.

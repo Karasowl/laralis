@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useMemo, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
-import { UseFormReturn } from 'react-hook-form'
+import { UseFormReturn, useWatch } from 'react-hook-form'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   Form,
@@ -18,9 +18,9 @@ import {
   FormGrid,
   FormSection,
 } from '@/components/ui/form-field'
-import { 
+import {
   ExpenseFormData,
-  EXPENSE_SUBCATEGORIES 
+  EXPENSE_SUBCATEGORIES
 } from '@/lib/types/expenses'
 
 interface Supply {
@@ -37,18 +37,56 @@ interface CreateExpenseFormProps {
   setShowAssetFields: (show: boolean) => void
 }
 
-export function CreateExpenseForm({ 
-  form, 
-  supplies, 
+export function CreateExpenseForm({
+  form,
+  supplies,
   categories = [],
-  showAssetFields, 
-  setShowAssetFields 
+  showAssetFields,
+  setShowAssetFields
 }: CreateExpenseFormProps) {
   const t = useTranslations('expenses')
   const tFields = useTranslations('fields')
-  
-  const watchCategory = form.watch('category')
-  const watchCreateAsset = form.watch('create_asset')
+
+  // PERFORMANCE FIX: Use useWatch for selective subscriptions
+  const watchCategory = useWatch({ control: form.control, name: 'category' })
+  const watchCreateAsset = useWatch({ control: form.control, name: 'create_asset' })
+
+  // PERFORMANCE FIX: Memoize category options to avoid recreation on every render
+  const categoryOptions = useMemo(
+    () => (categories || []).map((c: any) => ({
+      value: c.display_name || c.name,
+      label: c.display_name || c.name
+    })),
+    [categories]
+  )
+
+  // PERFORMANCE FIX: Memoize supply options mapping
+  const supplyOptions = useMemo(
+    () => supplies.map((supply) => ({
+      value: supply.id,
+      label: `${supply.name} (${supply.category})`
+    })),
+    [supplies]
+  )
+
+  // PERFORMANCE FIX: Memoize subcategory calculation
+  const subcategoryOptions = useMemo(() => {
+    const subcategoryMap: Record<string, string[]> = {
+      'Equipos': ['DENTAL', 'MOBILIARIO', 'TECNOLOGIA', 'HERRAMIENTAS'],
+      'Insumos': ['ANESTESIA', 'MATERIALES', 'LIMPIEZA', 'PROTECCION'],
+      'Servicios': ['ELECTRICIDAD', 'AGUA', 'INTERNET', 'TELEFONO', 'GAS'],
+      'Mantenimiento': ['EQUIPOS_MANT', 'INSTALACIONES', 'SOFTWARE'],
+      'Marketing': ['PUBLICIDAD', 'PROMOCIONES', 'EVENTOS'],
+      'Administrativos': ['PAPELERIA', 'CONTABILIDAD', 'LEGAL'],
+      'Personal': ['NOMINA', 'BENEFICIOS', 'CAPACITACION']
+    }
+
+    const subcats = subcategoryMap[watchCategory || ''] || []
+    return subcats.map((subcat) => ({
+      value: EXPENSE_SUBCATEGORIES[subcat as keyof typeof EXPENSE_SUBCATEGORIES],
+      label: EXPENSE_SUBCATEGORIES[subcat as keyof typeof EXPENSE_SUBCATEGORIES]
+    }))
+  }, [watchCategory])
 
   // Show asset fields when category is "Equipos"
   useEffect(() => {
@@ -61,20 +99,6 @@ export function CreateExpenseForm({
       form.setValue('asset_useful_life_years', undefined)
     }
   }, [watchCategory, form, setShowAssetFields])
-
-  const getSubcategoriesForCategory = (category: string) => {
-    const subcategoryMap: Record<string, string[]> = {
-      'Equipos': ['DENTAL', 'MOBILIARIO', 'TECNOLOGIA', 'HERRAMIENTAS'],
-      'Insumos': ['ANESTESIA', 'MATERIALES', 'LIMPIEZA', 'PROTECCION'],
-      'Servicios': ['ELECTRICIDAD', 'AGUA', 'INTERNET', 'TELEFONO', 'GAS'],
-      'Mantenimiento': ['EQUIPOS_MANT', 'INSTALACIONES', 'SOFTWARE'],
-      'Marketing': ['PUBLICIDAD', 'PROMOCIONES', 'EVENTOS'],
-      'Administrativos': ['PAPELERIA', 'CONTABILIDAD', 'LEGAL'],
-      'Personal': ['NOMINA', 'BENEFICIOS', 'CAPACITACION']
-    }
-
-    return subcategoryMap[category] || []
-  }
 
   return (
     <Form {...form}>
@@ -138,10 +162,7 @@ export function CreateExpenseForm({
                       form.setValue('category_id', match.id)
                     }
                   }}
-                  options={(categories || []).map((c: any) => ({
-                    value: c.display_name || c.name,
-                    label: c.display_name || c.name
-                  }))}
+                  options={categoryOptions}
                   error={fieldState.error?.message}
                   required
                 />
@@ -157,10 +178,7 @@ export function CreateExpenseForm({
                   placeholder={t('select_subcategory')}
                   value={field.value || ''}
                   onChange={field.onChange}
-                  options={getSubcategoriesForCategory(watchCategory).map((subcat) => ({
-                    value: EXPENSE_SUBCATEGORIES[subcat as keyof typeof EXPENSE_SUBCATEGORIES],
-                    label: EXPENSE_SUBCATEGORIES[subcat as keyof typeof EXPENSE_SUBCATEGORIES]
-                  }))}
+                  options={subcategoryOptions}
                   error={fieldState.error?.message}
                 />
               )}
@@ -231,10 +249,7 @@ export function CreateExpenseForm({
                     placeholder={t('select_supply')}
                     value={field.value || ''}
                     onChange={field.onChange}
-                    options={supplies.map((supply) => ({
-                      value: supply.id,
-                      label: `${supply.name} (${supply.category})`
-                    }))}
+                    options={supplyOptions}
                     error={fieldState.error?.message}
                   />
                 )}

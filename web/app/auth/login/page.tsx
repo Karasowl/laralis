@@ -37,7 +37,8 @@ export default function LoginPage() {
     defaultValues: {
       email: '',
       password: ''
-    }
+    },
+    mode: 'onBlur', // PERFORMANCE: Validate only on blur
   })
 
   // Clear error when form values change

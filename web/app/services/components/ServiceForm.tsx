@@ -2,9 +2,11 @@
 
 import * as React from 'react'
 import { Plus, Trash2 } from 'lucide-react'
+import { useWatch } from 'react-hook-form'
 import { Button } from '@/components/ui/button'
 import { InputField, TextareaField, FormGrid, FormSection } from '@/components/ui/form-field'
 import { SelectWithCreate } from '@/components/ui/select-with-create'
+import { CategorySelect } from '@/components/ui/category-select'
 import { formatCurrency } from '@/lib/money'
 
 interface ServiceFormProps {
@@ -37,6 +39,34 @@ export function ServiceForm({
   t
 }: ServiceFormProps) {
   const quantityRefs = React.useRef<Array<HTMLInputElement | null>>([])
+
+  // PERFORMANCE FIX: Only watch fields needed for display calculations
+  const categoryValue = useWatch({ control: form.control, name: 'category' })
+  const estMinutes = useWatch({ control: form.control, name: 'est_minutes' })
+  const descriptionValue = useWatch({ control: form.control, name: 'description' })
+
+  // PERFORMANCE FIX: Memoize category options mapping to avoid recreation on every render
+  const categoryOptions = React.useMemo(
+    () => categories.map((cat: any) => ({
+      value: cat.id || cat.code || cat.name,
+      label: cat.display_name || cat.name || cat.code || ''
+    })),
+    [categories]
+  )
+
+  // PERFORMANCE FIX: Memoize supply options with formatCurrency - CRITICAL optimization
+  // This was causing major lag because formatCurrency ran on every keystroke
+  const supplyOptions = React.useMemo(
+    () => supplies.map((supply: any) => {
+      const costCents = supply.cost_per_portion_cents ?? supply.cost_per_unit_cents ?? supply.price_cents ?? 0
+      const labelCost = Number.isFinite(costCents) ? formatCurrency(costCents) : t('unknown_cost')
+      return {
+        value: supply.id,
+        label: `${supply.name} - ${labelCost}`
+      }
+    }),
+    [supplies, t]
+  )
 
   const handleSupplySelect = React.useCallback((value: string, index: number) => {
     const updated = [...serviceSupplies]
@@ -72,8 +102,7 @@ export function ServiceForm({
           <InputField
             label={t('fields.name')}
             placeholder={t('namePlaceholder')}
-            value={form.watch('name')}
-            onChange={(value) => form.setValue('name', value)}
+            {...form.register('name')}
             error={form.formState.errors.name?.message}
             required
           />
@@ -81,33 +110,11 @@ export function ServiceForm({
             <label className="text-sm font-medium">
               {t('fields.category')}
             </label>
-            <SelectWithCreate
-              value={form.watch('category')}
+            <CategorySelect
+              type="services"
+              value={categoryValue}
               onValueChange={(value) => form.setValue('category', value)}
-              options={categories.map((cat: any) => ({
-                value: cat.id || cat.code || cat.name,
-                label: cat.display_name || cat.name || cat.code || ''
-              }))}
               placeholder={t('select_category')}
-              canCreate={true}
-              entityName={t('entities.category')}
-              createDialogTitle={t('categories.create_title')}
-              createDialogDescription={t('categories.create_description')}
-              createFields={[
-                {
-                  name: 'name',
-                  label: t('fields.name'),
-                  type: 'text',
-                  required: true
-                },
-                {
-                  name: 'description',
-                  label: t('fields.description'),
-                  type: 'textarea',
-                  required: false
-                }
-              ]}
-              onCreateSubmit={onCreateCategory}
             />
             {form.formState.errors.category?.message && (
               <p className="text-sm text-red-500 mt-1">{form.formState.errors.category?.message}</p>
@@ -117,32 +124,47 @@ export function ServiceForm({
             type="number"
             label={t('fields.duration')}
             placeholder={t('durationPlaceholder')}
-            value={form.watch('duration_minutes')}
-            onChange={(value) => form.setValue('duration_minutes', typeof value === 'number' ? value : parseInt(String(value), 10) || 0)}
+            {...form.register('est_minutes', { valueAsNumber: true })}
             helperText={t('duration_helper')}
-            error={form.formState.errors.duration_minutes?.message}
+            error={form.formState.errors.est_minutes?.message}
             required
           />
           <InputField
             type="number"
             step="0.01"
             label={t('fields.base_price_auto')}
-            value={(form.watch('base_price_cents') || 0) / 100}
-            onChange={() => {}}
+            {...form.register('base_price_cents', {
+              setValueAs: (v: any) => (typeof v === 'number' ? v / 100 : 0),
+              valueAsNumber: true
+            })}
             readOnly
             className="bg-muted text-muted-foreground"
             helperText={t('auto_base_price_hint')}
             error={form.formState.errors.base_price_cents?.message}
           />
         </FormGrid>
-        <TextareaField
-          label={t('fields.description')}
-          value={form.watch('description')}
-          onChange={(value) => form.setValue('description', value)}
-          placeholder={t('description_placeholder')}
-          rows={3}
-          error={form.formState.errors.description?.message}
-        />
+        <div className="space-y-1">
+          <label className="text-sm font-medium">
+            {t('fields.description')}
+          </label>
+          <textarea
+            id="description"
+            name="description"
+            value={descriptionValue || ''}
+            onChange={(e) => {
+              form.setValue('description', e.target.value, {
+                shouldValidate: false,
+                shouldDirty: true
+              })
+            }}
+            placeholder={t('description_placeholder')}
+            rows={3}
+            className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          />
+          {form.formState.errors.description?.message && (
+            <p className="text-sm text-red-600 mt-1">{form.formState.errors.description?.message}</p>
+          )}
+        </div>
       </FormSection>
 
       <FormSection title={t('supplies_section')} description={t('supplies_section_hint')}>
@@ -159,14 +181,7 @@ export function ServiceForm({
                   <SelectWithCreate
                     value={ss.supply_id}
                     onValueChange={(value) => handleSupplySelect(value, index)}
-                    options={supplies.map((supply: any) => {
-                      const costCents = supply.cost_per_portion_cents ?? supply.cost_per_unit_cents ?? supply.price_cents ?? 0
-                      const labelCost = Number.isFinite(costCents) ? formatCurrency(costCents) : t('unknown_cost')
-                      return ({
-                        value: supply.id,
-                        label: `${supply.name} - ${labelCost}`
-                      })
-                    })}
+                    options={supplyOptions}
                     placeholder={t('select_supply')}
                     canCreate={true}
                     entityName={t('entities.supply')}
@@ -190,7 +205,7 @@ export function ServiceForm({
                         name: 'cost_per_unit',
                         label: t('fields.cost_per_unit'),
                         type: 'number',
-                                                placeholder: '0.00',
+                        placeholder: '0.00',
                         required: true
                       }
                     ]}
@@ -203,7 +218,10 @@ export function ServiceForm({
                   type="number"
                   label={index === 0 ? t('fields.quantity') : ''}
                   value={ss.quantity ?? 0}
-                  onChange={(value) => handleQuantityChange(index, value)}
+                  onChange={(e) => {
+                    const val = typeof e === 'object' && 'target' in e ? e.target.value : e
+                    handleQuantityChange(index, val)
+                  }}
                   min={0}
                   inputRef={(node) => handleQuantityRef(index, node)}
                 />
@@ -231,32 +249,21 @@ export function ServiceForm({
         </div>
       </FormSection>
 
-      <FormSection title={t('additional_details')}>
-        <TextareaField
-          label={t('fields.description')}
-          value={form.watch('description')}
-          onChange={(value) => form.setValue('description', value)}
-          placeholder={t('description_placeholder')}
-          rows={3}
-          error={form.formState.errors.description?.message}
-        />
-      </FormSection>
-
       <FormSection title={t('costSummary')}>
         <p className="text-sm text-muted-foreground">{t('cost_summary_note')}</p>
         <div className="grid gap-4 sm:grid-cols-3 pt-4">
-          <div className="rounded-lg border bg-white p-4 shadow-sm">
+          <div className="rounded-lg border bg-card dark:bg-slate-800/50 p-4 shadow-sm">
             <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('variableCost')}</p>
             <p className="mt-1 text-xl font-semibold">{formatCurrency(variableCostCents)}</p>
           </div>
-          <div className="rounded-lg border bg-white p-4 shadow-sm">
+          <div className="rounded-lg border bg-card dark:bg-slate-800/50 p-4 shadow-sm">
             <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('fixedCostTreatment')}</p>
             <p className="mt-1 text-xl font-semibold">{formatCurrency(totalFixedCostCents)}</p>
-            <p className="text-xs text-muted-foreground mt-1">{t('fixedPerMinute')}: {formatCurrency(fixedCostPerMinuteCents)} x {form.watch('duration_minutes') || 0} min</p>
+            <p className="text-xs text-muted-foreground mt-1">{t('fixedPerMinute')}: {formatCurrency(fixedCostPerMinuteCents)} x {estMinutes || 0} min</p>
           </div>
-          <div className="rounded-lg border bg-blue-50 p-4 shadow-sm">
-            <p className="text-xs uppercase tracking-wide text-blue-700">{t('baseCost')}</p>
-            <p className="mt-1 text-2xl font-bold text-blue-700">{formatCurrency(totalServiceCostCents)}</p>
+          <div className="rounded-lg border bg-blue-50 dark:bg-blue-950/30 p-4 shadow-sm">
+            <p className="text-xs uppercase tracking-wide text-blue-700 dark:text-blue-400">{t('baseCost')}</p>
+            <p className="mt-1 text-2xl font-bold text-blue-700 dark:text-blue-400">{formatCurrency(totalServiceCostCents)}</p>
           </div>
         </div>
         {fixedCostPerMinuteCents === 0 && (

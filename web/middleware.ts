@@ -146,12 +146,12 @@ export async function middleware(request: NextRequest) {
     }
   }
   
-  // Limit debug logs to development only
-  if (process.env.NODE_ENV !== 'production') {
-    if (pathname === '/' || pathname.startsWith('/auth')) {
-      console.log(`[Middleware] Path: ${pathname}, User: ${user?.email || 'none'}, Error: ${error?.message || 'none'}`)
-    }
-  }
+  // Limit debug logs to development only (disabled for performance)
+  // if (process.env.NODE_ENV !== 'production') {
+  //   if (pathname === '/' || pathname.startsWith('/auth')) {
+  //     console.log(`[Middleware] Path: ${pathname}, User: ${user?.email || 'none'}, Error: ${error?.message || 'none'}`)
+  //   }
+  // }
 
   // Public paths that don't require authentication
   const publicPaths = [
@@ -161,6 +161,9 @@ export async function middleware(request: NextRequest) {
     '/auth/reset-password',
     '/auth/callback',
     '/auth/logout',
+    '/auth/verify-email',
+    '/terms',
+    '/privacy',
   ];
 
   const isPublicPath = publicPaths.some(path => pathname.startsWith(path));
@@ -174,19 +177,21 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
-  // If has user and trying to access auth pages (except logout/callback/reset-password)
-  if (user && isPublicPath && 
-      !pathname.includes('/logout') && 
-      !pathname.includes('/callback') && 
-      !pathname.includes('/reset-password')) {
-    // Check if user has workspace
+  // If has user and trying to access auth pages (except logout/callback/reset-password/verify-email)
+  if (user && isPublicPath &&
+      !pathname.includes('/logout') &&
+      !pathname.includes('/callback') &&
+      !pathname.includes('/reset-password') &&
+      !pathname.includes('/verify-email')) {
+    // Check if user has workspace (cached check)
     const { data: workspaces } = await supabase
       .from('workspaces')
       .select('id')
       .eq('owner_id', user.id)
-      .limit(1);
+      .limit(1)
+      .maybeSingle();
 
-    if (!workspaces || workspaces.length === 0) {
+    if (!workspaces) {
       return NextResponse.redirect(new URL('/onboarding', request.url));
     } else {
       return NextResponse.redirect(new URL('/', request.url));
@@ -200,8 +205,9 @@ export async function middleware(request: NextRequest) {
       .from('workspaces')
       .select('id')
       .eq('owner_id', user.id)
-      .limit(1);
-    if (hasWorkspace && hasWorkspace.length > 0) {
+      .limit(1)
+      .maybeSingle();
+    if (hasWorkspace) {
       return NextResponse.redirect(new URL('/setup', request.url));
     }
   }
@@ -210,16 +216,19 @@ export async function middleware(request: NextRequest) {
   // Do not bounce away from setup while the just-created workspace propagates.
   if (user && !isPublicPath && !isOnboarding && !isSetup) {
     const cookieWs = request.cookies.get('workspaceId')?.value
-    const { data: workspaces } = await supabase
-      .from('workspaces')
-      .select('id')
-      .eq('owner_id', user.id)
-      .limit(1);
 
-    // Si todavía no aparece el workspace en la consulta (p. ej. creación inmediata),
-    // pero tenemos cookie de contexto, permitimos continuar sin redirigir.
-    if ((!workspaces || workspaces.length === 0) && !cookieWs) {
-      return NextResponse.redirect(new URL('/onboarding', request.url));
+    // Only check database if no workspace cookie exists
+    if (!cookieWs) {
+      const { data: workspace } = await supabase
+        .from('workspaces')
+        .select('id')
+        .eq('owner_id', user.id)
+        .limit(1)
+        .maybeSingle();
+
+      if (!workspace) {
+        return NextResponse.redirect(new URL('/onboarding', request.url));
+      }
     }
   }
 

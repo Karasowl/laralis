@@ -39,7 +39,7 @@ const resolveSupplyCost = (supply: any): number => {
 const DEFAULT_SERVICE_FORM_VALUES: ServiceFormData = {
   name: '',
   category: 'otros',
-  duration_minutes: 30,
+  est_minutes: 30,
   base_price_cents: 0,
   description: ''
 };
@@ -90,7 +90,8 @@ export default function ServicesPage() {
   // Form
   const form = useForm<ServiceFormData>({
     resolver: zodResolver(serviceSchema),
-    defaultValues: DEFAULT_SERVICE_FORM_VALUES
+    defaultValues: DEFAULT_SERVICE_FORM_VALUES,
+    mode: 'onBlur', // PERFORMANCE: Validate only on blur instead of every keystroke
   })
 
   // Guard for create_service (ensures supplies exist or opens importer)
@@ -194,8 +195,8 @@ export default function ServicesPage() {
     }, 0)
   }, [serviceSupplies, supplies])
 
-  const durationMinutes = form.watch('duration_minutes') || 0
-  const totalFixedCostCents = Math.max(0, Math.round(durationMinutes * fixedCostPerMinuteCents))
+  const estMinutes = form.watch('est_minutes') || 0
+  const totalFixedCostCents = Math.max(0, Math.round(estMinutes * fixedCostPerMinuteCents))
   const totalServiceCostCents = totalFixedCostCents + variableCostCents
 
   useEffect(() => {
@@ -223,7 +224,7 @@ export default function ServicesPage() {
     form.reset({
       name: service.name,
       category: service.category || 'otros',
-      duration_minutes: service.est_minutes || service.duration_minutes || 30,
+      est_minutes: service.est_minutes || service.duration_minutes || 30,
       base_price_cents: service.base_price_cents || service.price_cents || 0,
       description: service.description || ''
     })

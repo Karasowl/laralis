@@ -95,11 +95,13 @@ export default function ExpensesPage() {
   const createForm = useForm<ExpenseFormValues>({
     resolver: zodResolver(expenseFormSchema),
     defaultValues: getDefaultFormValues(),
+    mode: 'onBlur', // PERFORMANCE: Validate only on blur
   })
 
   const editForm = useForm<ExpenseFormValues>({
     resolver: zodResolver(expenseFormSchema),
     defaultValues: getDefaultFormValues(),
+    mode: 'onBlur', // PERFORMANCE: Validate only on blur
   })
 
   const categoryOptions: Option[] = useMemo(() => {

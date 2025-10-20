@@ -38,10 +38,44 @@ export const clinicFormSchema = z.object({
 })
 
 // ==================== TIME & SETTINGS SCHEMAS ====================
+export const dayPatternSchema = z.object({
+  monday: z.boolean(),
+  tuesday: z.boolean(),
+  wednesday: z.boolean(),
+  thursday: z.boolean(),
+  friday: z.boolean(),
+  saturday: z.boolean(),
+  sunday: z.boolean()
+})
+
+export const detectedPatternFrequencySchema = z.object({
+  monday: z.number().min(0).max(1),
+  tuesday: z.number().min(0).max(1),
+  wednesday: z.number().min(0).max(1),
+  thursday: z.number().min(0).max(1),
+  friday: z.number().min(0).max(1),
+  saturday: z.number().min(0).max(1),
+  sunday: z.number().min(0).max(1)
+})
+
+export const detectedWorkingDaysSchema = z.object({
+  pattern: detectedPatternFrequencySchema,
+  confidence: z.number().min(0).max(100),
+  sampleSize: z.number().min(0),
+  lastUpdated: z.string()
+}).nullable()
+
+export const workingDaysConfigSchema = z.object({
+  manual: dayPatternSchema,
+  detected: detectedWorkingDaysSchema,
+  useHistorical: z.boolean()
+})
+
 export const timeSettingsSchema = z.object({
   work_days: z.number().min(1).max(31),
   hours_per_day: z.number().min(1).max(24),
-  real_pct: z.number().min(1).max(100)
+  real_pct: z.number().min(1).max(100),
+  working_days_config: workingDaysConfigSchema.optional()
 })
 
 export const equilibriumSettingsSchema = z.object({
@@ -74,7 +108,7 @@ export const patientSourceSchema = z.object({
 export const serviceSchema = z.object({
   name: z.string().min(1, 'Service name is required'),
   category: z.string().default('otros'),
-  duration_minutes: z.number().min(5, 'Minimum duration is 5 minutes').max(480, 'Maximum duration is 8 hours'),
+  est_minutes: z.number().min(5, 'Minimum duration is 5 minutes').max(480, 'Maximum duration is 8 hours'),
   base_price_cents: z.number().min(0),
   description: z.string().optional()
 })

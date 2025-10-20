@@ -16,7 +16,10 @@ interface BreakEvenProgressProps {
   dailyTargetCents: number
   daysToBreakEven: number
   revenueGapCents: number
-  workDays?: number
+  actualDaysWorked: number
+  totalWorkDaysInPeriod: number
+  elapsedDays: number
+  remainingWorkingDays: number
 }
 
 export function BreakEvenProgress({
@@ -26,23 +29,42 @@ export function BreakEvenProgress({
   dailyTargetCents,
   daysToBreakEven,
   revenueGapCents,
-  workDays = 20
+  actualDaysWorked,
+  totalWorkDaysInPeriod,
+  elapsedDays,
+  remainingWorkingDays
 }: BreakEvenProgressProps) {
   const t = useTranslations('dashboardComponents.breakEvenProgress')
 
-  // Calculate days worked (approximate based on progress)
-  const daysWorked = useMemo(() => {
-    if (dailyTargetCents <= 0) return 0
-    return Math.round(currentRevenueCents / dailyTargetCents)
-  }, [currentRevenueCents, dailyTargetCents])
-
-  // Determine status and messaging
+  // Determine status and messaging - SMART: Compare progress vs time elapsed
   const status = useMemo(() => {
     if (progressPercentage >= 100) return 'success'
-    if (progressPercentage >= 80) return 'ontrack'
-    if (progressPercentage >= 50) return 'warning'
-    return 'danger'
-  }, [progressPercentage])
+
+    // Calculate expected progress based on time elapsed
+    const timeElapsedPercentage = totalWorkDaysInPeriod > 0
+      ? (actualDaysWorked / totalWorkDaysInPeriod) * 100
+      : 0
+
+    // Calculate how far ahead/behind we are
+    const progressDelta = progressPercentage - timeElapsedPercentage
+
+    // If we have minimal revenue, always show danger regardless of time
+    if (currentRevenueCents < (monthlyTargetCents * 0.05)) {
+      return 'danger'
+    }
+
+    // Status based on progress vs expected progress
+    if (progressDelta >= 0) {
+      // Ahead or on track
+      return progressPercentage >= 80 ? 'ontrack' : 'warning'
+    } else if (progressDelta >= -15) {
+      // Slightly behind (within 15%)
+      return 'warning'
+    } else {
+      // Significantly behind
+      return 'danger'
+    }
+  }, [progressPercentage, actualDaysWorked, totalWorkDaysInPeriod, currentRevenueCents, monthlyTargetCents])
 
   const statusConfig = {
     success: {
@@ -80,9 +102,9 @@ export function BreakEvenProgress({
 
   // Calculate suggestion (patients needed per day)
   const suggestedDailyRevenue = useMemo(() => {
-    const remainingDays = Math.max(1, workDays - daysWorked)
+    const remainingDays = Math.max(1, remainingWorkingDays)
     return Math.ceil(revenueGapCents / remainingDays)
-  }, [revenueGapCents, workDays, daysWorked])
+  }, [revenueGapCents, remainingWorkingDays])
 
   return (
     <Card className={cn('border-2', config.borderColor)}>
@@ -153,13 +175,13 @@ export function BreakEvenProgress({
               {t('daysWorked')}
             </div>
             <div className="text-xl font-bold text-foreground">
-              {daysWorked} / {workDays}
+              {actualDaysWorked} / {totalWorkDaysInPeriod}
             </div>
           </div>
         </div>
 
         {/* Projection Message */}
-        {progressPercentage < 100 && (
+        {progressPercentage < 100 && currentRevenueCents > 0 && (
           <div className={cn('rounded-lg p-4 space-y-2', config.bgColor)}>
             <div className="flex items-start gap-2">
               <TrendingUp className={cn('h-4 w-4 mt-0.5 flex-shrink-0', config.color)} />
@@ -167,14 +189,31 @@ export function BreakEvenProgress({
                 <p className={cn('text-sm font-medium', config.color)}>
                   {t('projection', {
                     days: daysToBreakEven,
-                    remaining: workDays - daysWorked
+                    remaining: remainingWorkingDays
                   })}
                 </p>
-                {daysToBreakEven > (workDays - daysWorked) && (
+                {daysToBreakEven > remainingWorkingDays && (
                   <p className="text-xs text-muted-foreground">
                     {t('atRisk')}
                   </p>
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* No Revenue Yet Message */}
+        {progressPercentage < 100 && currentRevenueCents === 0 && (
+          <div className={cn('rounded-lg p-4', config.bgColor)}>
+            <div className="flex items-start gap-2">
+              <AlertCircle className={cn('h-4 w-4 mt-0.5 flex-shrink-0', config.color)} />
+              <div>
+                <p className={cn('text-sm font-medium', config.color)}>
+                  {t('noRevenueYet')}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {t('noRevenueHelp', { remaining: remainingWorkingDays })}
+                </p>
               </div>
             </div>
           </div>
@@ -211,7 +250,7 @@ export function BreakEvenProgress({
                 <p className="text-muted-foreground">
                   {t('suggestion.message', {
                     daily: formatCurrency(suggestedDailyRevenue),
-                    remainingDays: Math.max(1, workDays - daysWorked)
+                    remainingDays: Math.max(1, remainingWorkingDays)
                   })}
                 </p>
               </div>

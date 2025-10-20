@@ -30,42 +30,49 @@ interface BaseFieldProps {
 interface InputFieldProps extends BaseFieldProps {
   type?: 'text' | 'email' | 'password' | 'number' | 'date' | 'time' | 'datetime-local';
   placeholder?: string;
-  value: string | number;
-  onChange: (value: string | number) => void;
+  value?: string | number;
+  onChange?: (valueOrEvent: string | number | React.ChangeEvent<HTMLInputElement>) => void;
   min?: number;
   max?: number;
   step?: number | string;
   inputRef?: React.Ref<HTMLInputElement>;
   readOnly?: boolean;
+  name?: string;
+  onBlur?: React.FocusEventHandler<HTMLInputElement>;
 }
 
-export function InputField({
-  id,
-  label,
-  error,
-  helperText,
-  required,
-  disabled,
-  className,
-  containerClassName,
-  type = 'text',
-  placeholder,
-  value,
-  onChange,
-  min,
-  max,
-  step,
-  inputRef,
-  readOnly,
-}: InputFieldProps) {
+// PERFORMANCE: Wrapped in React.memo and forwardRef for React Hook Form compatibility
+export const InputField = React.memo(
+  React.forwardRef<HTMLInputElement, InputFieldProps>(function InputField({
+    id,
+    label,
+    error,
+    helperText,
+    required,
+    disabled,
+    className,
+    containerClassName,
+    type = 'text',
+    placeholder,
+    value,
+    onChange,
+    min,
+    max,
+    step,
+    inputRef,
+    readOnly,
+    name,
+    onBlur,
+  }: InputFieldProps, ref) {
   const fieldId = id || label?.toLowerCase().replace(/\s+/g, '-');
   const [showPassword, setShowPassword] = useState(false);
   const dateInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Determinar el tipo real del input basado en si es password y si se debe mostrar
   const inputType = type === 'password' ? (showPassword ? 'text' : 'password') : type;
-  
-  const displayValue = ((): string | number => {
+
+  const displayValue = ((): string | number | undefined => {
+    if (value === undefined) return undefined
     if (type === 'number') {
       if (value === '' as any) return ''
       // Preserve 0 explicitly; otherwise allow empty string while typing
@@ -76,16 +83,29 @@ export function InputField({
   })()
 
   const handleRef = React.useCallback((node: HTMLInputElement | null) => {
+    // Handle date input ref
     if (type === 'date' && dateInputRef) {
       try { (dateInputRef as React.MutableRefObject<HTMLInputElement | null>).current = node } catch {}
     }
-    if (!inputRef) return
-    if (typeof inputRef === 'function') {
-      inputRef(node)
-    } else {
-      try { (inputRef as React.MutableRefObject<HTMLInputElement | null>).current = node } catch {}
+
+    // Forward ref from forwardRef (React Hook Form needs this)
+    if (ref) {
+      if (typeof ref === 'function') {
+        ref(node)
+      } else {
+        try { (ref as React.MutableRefObject<HTMLInputElement | null>).current = node } catch {}
+      }
     }
-  }, [inputRef, type])
+
+    // Handle inputRef prop
+    if (inputRef) {
+      if (typeof inputRef === 'function') {
+        inputRef(node)
+      } else {
+        try { (inputRef as React.MutableRefObject<HTMLInputElement | null>).current = node } catch {}
+      }
+    }
+  }, [ref, inputRef, type])
 
   return (
     <div className={cn('space-y-1', containerClassName)}>
@@ -99,20 +119,12 @@ export function InputField({
         <Input
           ref={handleRef}
           id={fieldId}
+          name={name}
           type={inputType}
           value={displayValue}
           readOnly={readOnly}
-          onChange={(e) => {
-            if (type === 'number') {
-              const raw = e.target.value
-              // Allow clearing the field without forcing 0
-              if (raw === '') { onChange(''); return }
-              const n = Number(raw)
-              if (!Number.isNaN(n)) onChange(n)
-              return
-            }
-            onChange(e.target.value)
-          }}
+          onChange={onChange}
+          onBlur={onBlur}
           onFocus={(e) => {
             // Facilita reemplazar el 0 inicial: selecciona todo al enfocar
             try { (e.target as HTMLInputElement).select() } catch {}
@@ -159,61 +171,72 @@ export function InputField({
       )}
     </div>
   );
-}
+  })
+);
 
 interface TextareaFieldProps extends BaseFieldProps {
   placeholder?: string;
-  value: string;
-  onChange: (value: string) => void;
+  value?: string;
+  onChange?: (valueOrEvent: string | React.ChangeEvent<HTMLTextAreaElement>) => void;
   rows?: number;
+  name?: string;
+  onBlur?: React.FocusEventHandler<HTMLTextAreaElement>;
 }
 
-export function TextareaField({
-  id,
-  label,
-  error,
-  helperText,
-  required,
-  disabled,
-  className,
-  containerClassName,
-  placeholder,
-  value,
-  onChange,
-  rows = 3,
-}: TextareaFieldProps) {
-  const fieldId = id || label?.toLowerCase().replace(/\s+/g, '-');
-  
-  return (
-    <div className={cn('space-y-1', containerClassName)}>
-      {label && (
-        <Label htmlFor={fieldId} className="text-sm font-medium">
-          {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
-        </Label>
-      )}
-      <Textarea
-        id={fieldId}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        disabled={disabled}
-        rows={rows}
-        className={cn(
-          'mt-1',
-          error && 'border-red-500 focus:ring-red-500',
-          className
+// PERFORMANCE: Wrapped in React.memo and forwardRef for React Hook Form compatibility
+export const TextareaField = React.memo(
+  React.forwardRef<HTMLTextAreaElement, TextareaFieldProps>(function TextareaField({
+    id,
+    label,
+    error,
+    helperText,
+    required,
+    disabled,
+    className,
+    containerClassName,
+    placeholder,
+    value,
+    onChange,
+    rows = 3,
+    name,
+    onBlur,
+  }: TextareaFieldProps, ref) {
+    const fieldId = id || label?.toLowerCase().replace(/\s+/g, '-');
+
+    return (
+      <div className={cn('space-y-1', containerClassName)}>
+        {label && (
+          <Label htmlFor={fieldId} className="text-sm font-medium">
+            {label}
+            {required && <span className="text-red-500 ml-1">*</span>}
+          </Label>
         )}
-      />
-      {error && (
-        <p className="text-sm text-red-600 mt-1">{error}</p>
-      )}
-      {helperText && !error && (
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{helperText}</p>
-      )}
-    </div>
-  );
-}
+        <Textarea
+          ref={ref}
+          id={fieldId}
+          name={name}
+          value={value ?? ''}
+          onChange={onChange}
+          onBlur={onBlur}
+          placeholder={placeholder}
+          disabled={disabled}
+          rows={rows}
+          className={cn(
+            'mt-1',
+            error && 'border-red-500 focus:ring-red-500',
+            className
+          )}
+        />
+        {error && (
+          <p className="text-sm text-red-600 mt-1">{error}</p>
+        )}
+        {helperText && !error && (
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{helperText}</p>
+        )}
+      </div>
+    );
+  })
+);
 
 interface SelectOption {
   value: string;
@@ -223,11 +246,12 @@ interface SelectOption {
 interface SelectFieldProps extends BaseFieldProps {
   placeholder?: string;
   value: string;
-  onChange: (value: string) => void;
+  onChange?: (value: string) => void;
   options: SelectOption[];
 }
 
-export function SelectField({
+// PERFORMANCE: Wrapped in React.memo to prevent unnecessary re-renders when props don't change
+export const SelectField = React.memo(function SelectField({
   id,
   label,
   error,
@@ -251,7 +275,7 @@ export function SelectField({
           {required && <span className="text-red-500 ml-1">*</span>}
         </Label>
       )}
-      <Select value={value} onValueChange={onChange} disabled={disabled}>
+      <Select value={value} onValueChange={onChange || (() => {})} disabled={disabled}>
         <SelectTrigger
           id={fieldId}
           className={cn(
@@ -284,7 +308,7 @@ export function SelectField({
       )}
     </div>
   );
-}
+});
 
 // Grid wrapper for responsive form layouts
 interface FormGridProps {

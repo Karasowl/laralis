@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft } from 'lucide-react'
 import { LucideIcon } from 'lucide-react'
+import { VersionBadge } from '@/components/ui/VersionBadge'
 
 interface SidebarItem {
   href: string
@@ -116,6 +117,11 @@ export function Sidebar({
           ))}
         </div>
       </nav>
+
+      {/* Version Badge - Footer */}
+      <div className="mt-auto border-t p-3 flex-shrink-0">
+        <VersionBadge />
+      </div>
     </aside>
   )
 }

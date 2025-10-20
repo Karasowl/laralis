@@ -154,8 +154,14 @@ export async function GET(request: NextRequest) {
       averageMargin: Math.round(averageMargin),
     }
 
+    // Calculate elapsed days in current month for accurate avgPatientsPerDay
+    const elapsedDaysInMonth = now.getDate()
+
     const insights = generateBusinessInsights(treatments, patients)
-    const kpis = calculateKPIs(treatments, patients)
+    const kpis = calculateKPIs(treatments, patients, {
+      daysInPeriod: elapsedDaysInMonth,
+      totalPatients: monthPatients.length
+    })
 
     return NextResponse.json({
       data: {

@@ -57,8 +57,8 @@ const MobileModalContent = React.forwardRef<
     const originalTarget: HTMLElement | null = (e?.detail?.originalEvent?.target as HTMLElement) || (e?.target as HTMLElement) || null
     const allowOutside = originalTarget?.closest?.('[data-allow-interact-outside]')
     // Permitir clicks en superposiciones amigas (Popover/Dialog/Drawer internos)
+    // NO prevenir - simplemente retornar para permitir la interacción
     if (allowOutside) {
-      e.preventDefault?.()
       return
     }
     // Ignora interacciones fuera en los primeros 250ms tras abrir

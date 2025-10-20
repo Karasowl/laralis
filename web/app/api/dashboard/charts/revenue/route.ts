@@ -1,8 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { startOfWeek, format, addDays } from 'date-fns'
+import { es } from 'date-fns/locale'
 
 function monthKey(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+function weekKey(d: Date) {
+  const weekStart = startOfWeek(d, { weekStartsOn: 1 }) // Monday
+  return format(weekStart, 'yyyy-MM-dd')
+}
+
+function dayKey(d: Date) {
+  return format(d, 'yyyy-MM-dd')
+}
+
+function biweekKey(d: Date) {
+  const day = d.getDate()
+  const period = day <= 15 ? '01-15' : '16-31'
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${period}`
 }
 
 function monthLabelEs(monthIndex: number) {
@@ -10,11 +27,31 @@ function monthLabelEs(monthIndex: number) {
   return labels[monthIndex]
 }
 
+function formatLabel(key: string, granularity: string): string {
+  if (granularity === 'day') {
+    const date = new Date(key)
+    return format(date, 'd MMM', { locale: es })
+  } else if (granularity === 'week') {
+    const date = new Date(key)
+    const endDate = addDays(date, 6)
+    return `${format(date, 'd MMM', { locale: es })}`
+  } else if (granularity === 'biweek') {
+    const [year, month, period] = key.split('-')
+    const monthName = monthLabelEs(parseInt(month) - 1)
+    return period === '01' ? `${monthName} 1-15` : `${monthName} 16-31`
+  } else {
+    // month
+    const [y, m] = key.split('-').map(Number)
+    return monthLabelEs(m - 1)
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const sp = request.nextUrl.searchParams
     const clinicId = sp.get('clinicId')
     const period = sp.get('period') || 'month'
+    const granularity = sp.get('granularity') || 'month' // day, week, biweek, month
     const dateFrom = sp.get('date_from')
     const dateTo = sp.get('date_to')
 
@@ -28,6 +65,22 @@ export async function GET(request: NextRequest) {
       start = new Date(dateFrom)
       end = new Date(dateTo)
       end.setHours(23, 59, 59, 999)
+    } else if (granularity === 'day') {
+      // Last 30 days for daily view
+      start = new Date(now)
+      start.setDate(start.getDate() - 29)
+      start.setHours(0, 0, 0, 0)
+      end = new Date(now)
+    } else if (granularity === 'week') {
+      // Last 12 weeks
+      start = new Date(now)
+      start.setDate(start.getDate() - (12 * 7))
+      start.setHours(0, 0, 0, 0)
+      end = new Date(now)
+    } else if (granularity === 'biweek') {
+      // Last 6 biweeks (3 months)
+      start = new Date(now.getFullYear(), now.getMonth() - 3, 1)
+      end = new Date(now)
     } else {
       // Last 6 months including current
       start = new Date(now.getFullYear(), now.getMonth() - 5, 1)
@@ -58,36 +111,69 @@ export async function GET(request: NextRequest) {
 
     if (eErr) throw eErr
 
-    // Build months map
-    const months: string[] = []
-    const cursor = new Date(start.getFullYear(), start.getMonth(), 1)
-    while (cursor <= end) {
-      months.push(monthKey(cursor))
-      cursor.setMonth(cursor.getMonth() + 1)
+    // Build periods map based on granularity
+    const getKeyForDate = (d: Date): string => {
+      if (granularity === 'day') return dayKey(d)
+      if (granularity === 'week') return weekKey(d)
+      if (granularity === 'biweek') return biweekKey(d)
+      return monthKey(d)
     }
-    const revenueByMonth: Record<string, number> = Object.fromEntries(months.map(k => [k, 0]))
-    const expensesByMonth: Record<string, number> = Object.fromEntries(months.map(k => [k, 0]))
+
+    const periods: string[] = []
+    const cursor = new Date(start)
+
+    // Generate all periods in range
+    if (granularity === 'day') {
+      while (cursor <= end) {
+        periods.push(dayKey(cursor))
+        cursor.setDate(cursor.getDate() + 1)
+      }
+    } else if (granularity === 'week') {
+      const weekStart = startOfWeek(cursor, { weekStartsOn: 1 })
+      cursor.setTime(weekStart.getTime())
+      while (cursor <= end) {
+        periods.push(weekKey(cursor))
+        cursor.setDate(cursor.getDate() + 7)
+      }
+    } else if (granularity === 'biweek') {
+      // Generate biweekly periods
+      cursor.setDate(1) // Start at beginning of month
+      while (cursor <= end) {
+        periods.push(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-01-15`)
+        periods.push(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-16-31`)
+        cursor.setMonth(cursor.getMonth() + 1)
+      }
+    } else {
+      // Monthly
+      cursor.setDate(1)
+      while (cursor <= end) {
+        periods.push(monthKey(cursor))
+        cursor.setMonth(cursor.getMonth() + 1)
+      }
+    }
+
+    const revenueByPeriod: Record<string, number> = Object.fromEntries(periods.map(k => [k, 0]))
+    const expensesByPeriod: Record<string, number> = Object.fromEntries(periods.map(k => [k, 0]))
 
     for (const t of treatments || []) {
       if (!t.treatment_date) continue
       const d = new Date(t.treatment_date as string)
       if (Number.isNaN(d.getTime())) continue
-      const k = monthKey(d)
-      if (k in revenueByMonth) revenueByMonth[k] += Math.round((t.price_cents || 0) / 100)
+      const k = getKeyForDate(d)
+      if (k in revenueByPeriod) revenueByPeriod[k] += (t.price_cents || 0)
     }
 
     for (const ex of expenses || []) {
       const d = new Date(ex.expense_date as string)
-      const k = monthKey(d)
-      if (k in expensesByMonth) expensesByMonth[k] += Math.round((ex.amount_cents || 0) / 100)
+      const k = getKeyForDate(d)
+      if (k in expensesByPeriod) expensesByPeriod[k] += (ex.amount_cents || 0)
     }
 
-    const result = months.map(k => {
-      const [y, m] = k.split('-').map(Number)
+    const result = periods.map(k => {
       return {
-        month: monthLabelEs(m - 1),
-        revenue: revenueByMonth[k] || 0,
-        expenses: expensesByMonth[k] || 0,
+        month: formatLabel(k, granularity),
+        revenue: revenueByPeriod[k] || 0,
+        expenses: expensesByPeriod[k] || 0,
       }
     })
 

@@ -40,7 +40,8 @@ const DialogContent = React.forwardRef<
     const elapsed = Date.now() - openedAtRef.current
     const originalTarget: HTMLElement | null = (e?.detail?.originalEvent?.target as HTMLElement) || (e?.target as HTMLElement) || null
     const allowOutside = originalTarget?.closest?.('[data-allow-interact-outside]')
-    if (allowOutside) { e.preventDefault?.(); return }
+    // NO prevenir - simplemente retornar para permitir la interacción
+    if (allowOutside) { return }
     if (elapsed < 250) { e.preventDefault?.() }
   }
 

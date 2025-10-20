@@ -25,6 +25,7 @@ import { TimeMetricCard } from './components/TimeMetricCard'
 import { CostBreakdown } from './components/CostBreakdown'
 import { TimeSettingsForm } from './components/TimeSettingsForm'
 import { useRouter } from 'next/navigation'
+import { workingDaysConfigSchema } from '@/lib/schemas'
 
 // Schema for time settings
 // Guard rails aligned with server zod (hours_per_day max 16) and
@@ -45,6 +46,7 @@ const timeSettingsSchema = z.object({
     .number({ invalid_type_error: 'time.validation.must_be_number' })
     .min(50, 'time.validation.min_pct')
     .max(95, 'time.validation.max_pct'),
+  working_days_config: workingDaysConfigSchema.optional()
 })
 
 export default function TimeSettingsPage() {
@@ -81,6 +83,47 @@ export default function TimeSettingsPage() {
   })
 
   // Handlers
+  const handleRefreshWorkingDays = async () => {
+    if (!currentClinic?.id) return
+
+    try {
+      const response = await fetch(
+        `/api/equilibrium/working-days?clinicId=${currentClinic.id}&lookbackDays=60`
+      )
+
+      if (!response.ok) {
+        console.error('Failed to fetch working days pattern')
+        return
+      }
+
+      const data = await response.json()
+
+      if (data.detected) {
+        // Update the form with detected pattern
+        const currentConfig = settingsForm.getValues('working_days_config') || {
+          manual: {
+            monday: true,
+            tuesday: true,
+            wednesday: true,
+            thursday: true,
+            friday: true,
+            saturday: true,
+            sunday: false
+          },
+          detected: null,
+          useHistorical: true
+        }
+
+        settingsForm.setValue('working_days_config', {
+          ...currentConfig,
+          detected: data.detected
+        })
+      }
+    } catch (error) {
+      console.error('Error refreshing working days:', error)
+    }
+  }
+
   const handleUpdateSettings = async (data: z.infer<typeof timeSettingsSchema>) => {
     const valid = await settingsForm.trigger()
     if (!valid) {
@@ -241,23 +284,23 @@ export default function TimeSettingsPage() {
               <CardDescription>{t('fixed_cost_allocation')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="p-4 bg-blue-50 rounded-lg">
+              <div className="p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 rounded-lg transition-colors">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium">{t('cost_per_minute')}</p>
+                    <p className="text-sm font-medium text-foreground">{t('cost_per_minute')}</p>
                     <p className="text-xs text-muted-foreground">{t('productive_minute')}</p>
                   </div>
-                  <p className="text-2xl font-bold text-blue-600">{hasRecord ? formatCurrency(calculations.fixedCostPerMinuteCents) : '—'}</p>
+                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{hasRecord ? formatCurrency(calculations.fixedCostPerMinuteCents) : '—'}</p>
                 </div>
               </div>
-              
-              <div className="p-4 bg-green-50 rounded-lg">
+
+              <div className="p-4 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900/50 rounded-lg transition-colors">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium">{t('cost_per_hour')}</p>
+                    <p className="text-sm font-medium text-foreground">{t('cost_per_hour')}</p>
                     <p className="text-xs text-muted-foreground">{t('productive_hour')}</p>
                   </div>
-                  <p className="text-2xl font-bold text-green-600">{hasRecord ? formatCurrency(calculations.fixedCostPerHourCents) : '—'}</p>
+                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">{hasRecord ? formatCurrency(calculations.fixedCostPerHourCents) : '—'}</p>
                 </div>
               </div>
 
@@ -312,9 +355,13 @@ export default function TimeSettingsPage() {
           title={t('time_settings')}
           onSubmit={settingsForm.handleSubmit(handleUpdateSettings)}
           isSubmitting={saving}
-          maxWidth="sm"
+          maxWidth="lg"
         >
-          <TimeSettingsForm form={settingsForm} />
+          <TimeSettingsForm
+            form={settingsForm}
+            clinicId={currentClinic?.id}
+            onRefreshWorkingDays={handleRefreshWorkingDays}
+          />
         </FormModal>
       </div>
     </AppLayout>
