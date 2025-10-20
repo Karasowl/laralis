@@ -8,6 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { CrudPageLayout } from '@/components/ui/crud-page-layout';
 import { FormModal } from '@/components/ui/form-modal';
 import { InputField, FormGrid } from '@/components/ui/form-field';
+import { CategorySelect } from '@/components/ui/category-select';
 import { SummaryCards } from '@/components/ui/summary-cards';
 import { Card } from '@/components/ui/card';
 import { useCrudOperations } from '@/hooks/use-crud-operations';
@@ -48,14 +49,17 @@ export default function AssetsPage() {
     resolver: zodResolver(zAssetForm),
     defaultValues: {
       name: '',
+      category: '',
       purchase_price_pesos: 0,
       depreciation_months: 36,
       purchase_date: todayIso
-    }
+    },
+    mode: 'onBlur', // PERFORMANCE: Validate only on blur
   });
 
   const assetInitialValues: AssetFormData = {
     name: '',
+    category: '',
     purchase_price_pesos: 0,
     depreciation_months: 36,
     purchase_date: todayIso
@@ -88,6 +92,7 @@ export default function AssetsPage() {
   const onSubmit = async (data: AssetFormData) => {
     const payload = {
       name: data.name,
+      category: data.category || undefined,
       purchase_price_pesos: data.purchase_price_pesos,
       depreciation_months: data.depreciation_months,
       purchase_date: data.purchase_date || undefined,
@@ -279,7 +284,19 @@ export default function AssetsPage() {
               error={errors.name?.message}
               required
             />
-            
+
+            <div>
+              <label className="text-sm font-medium mb-2 block">
+                {t('assets.formCategoryLabel')}
+              </label>
+              <CategorySelect
+                type="assets"
+                value={watch('category')}
+                onValueChange={(v) => setValue('category', v)}
+                placeholder={t('categories.selectCategory')}
+              />
+            </div>
+
             <FormGrid columns={2}>
               <InputField
                 label={t('assets.formPriceLabel')}

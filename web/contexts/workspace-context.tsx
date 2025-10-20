@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { useRouter, usePathname } from 'next/navigation';
 import type { User } from '@supabase/supabase-js';
@@ -38,6 +38,7 @@ interface WorkspaceContextType {
   setCurrentClinic: (clinic: Clinic) => void;
   refreshWorkspaces: () => Promise<void>;
   refreshClinics: () => Promise<void>;
+  refreshUser: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -53,6 +54,7 @@ const WorkspaceContext = createContext<WorkspaceContextType>({
   setCurrentClinic: () => {},
   refreshWorkspaces: async () => {},
   refreshClinics: async () => {},
+  refreshUser: async () => {},
   signOut: async () => {},
 });
 
@@ -68,25 +70,31 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const redirectingRef = (typeof window !== 'undefined') ? (window as any).__routeRedirectingRef ?? ((window as any).__routeRedirectingRef = { current: false }) : { current: false };
   const pathname = usePathname();
 
-  // Crear cliente de Supabase para el browser
-  const supabase = createSupabaseBrowserClient();
+  // PERFORMANCE: Create Supabase client once using useRef to avoid recreating on every render
+  // This prevents ALL useEffects that depend on supabase from re-running unnecessarily
+  const supabaseRef = useRef<ReturnType<typeof createSupabaseBrowserClient> | null>(null);
+  if (!supabaseRef.current) {
+    supabaseRef.current = createSupabaseBrowserClient();
+  }
+  const supabase = supabaseRef.current;
 
-  const signOut = async () => {
+  // PERFORMANCE: Memoize signOut to prevent recreating on every render
+  const signOut = useCallback(async () => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      
+
       // Limpiar estado local
       setUser(null);
       setWorkspace(null);
       setWorkspaces([]);
       setCurrentClinic(null);
       setClinics([]);
-      
+
       // Limpiar almacenamiento local
       localStorage.clear();
       sessionStorage.clear();
-      
+
       // Forzar recarga completa para limpiar todo el estado
       window.location.href = '/auth/login';
     } catch (err: any) {
@@ -96,9 +104,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       sessionStorage.clear();
       window.location.href = '/auth/login';
     }
-  };
+  }, [supabase]);
 
-  const refreshWorkspaces = async () => {
+  // PERFORMANCE: Memoize refreshWorkspaces to prevent recreating on every render
+  const refreshWorkspaces = useCallback(async () => {
     if (!user) {
       setWorkspaces([]);
       setLoading(false);
@@ -192,9 +201,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, workspace, pathname, router, supabase]);
 
-  const refreshClinics = async () => {
+  // PERFORMANCE: Memoize refreshClinics to prevent recreating on every render
+  const refreshClinics = useCallback(async () => {
     if (!workspace) {
       setClinics([]);
       return;
@@ -235,7 +245,19 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     } catch (err: any) {
       setError(err.message);
     }
-  };
+  }, [workspace, currentClinic, supabase]);
+
+  // PERFORMANCE: Memoize refreshUser to prevent recreating on every render
+  const refreshUser = useCallback(async () => {
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error) throw error;
+      setUser(user);
+    } catch (err: any) {
+      console.error('Error refreshing user:', err);
+      setError(err.message);
+    }
+  }, [supabase]);
 
   // Manejar autenticación
   useEffect(() => {
@@ -302,6 +324,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspace]);
 
+  // PERFORMANCE: Split routing logic into two separate effects to reduce re-renders
+  // Effect 1: Handle redirect when no workspaces exist
   useEffect(() => {
     if (loading) return;
     if (!user) return;
@@ -309,20 +333,17 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     const isAuthRoute = path.startsWith('/auth') || path.startsWith('/test-auth');
     if (isAuthRoute) return;
 
-    // Context hints from cookies/localStorage to avoid early redirects
-    let wsCookie: string | null = null;
-    let wsLocal: string | null = null;
-    try {
-      wsLocal = typeof localStorage !== 'undefined' ? localStorage.getItem('selectedWorkspaceId') : null;
-      const m = typeof document !== 'undefined' ? document.cookie.match(/(?:^|; )workspaceId=([^;]+)/) : null;
-      wsCookie = m ? decodeURIComponent(m[1]) : null;
-    } catch {}
-
-    // If no workspaces yet but we have hints (just created), allow staying on /setup
     if (workspaces.length === 0) {
+      // Context hints from cookies/localStorage to avoid early redirects
+      let wsCookie: string | null = null;
+      let wsLocal: string | null = null;
+      try {
+        wsLocal = typeof localStorage !== 'undefined' ? localStorage.getItem('selectedWorkspaceId') : null;
+        const m = typeof document !== 'undefined' ? document.cookie.match(/(?:^|; )workspaceId=([^;]+)/) : null;
+        wsCookie = m ? decodeURIComponent(m[1]) : null;
+      } catch {}
+
       // 🔥 IMPORTANTE: Solo confiar en cookies/localStorage si hay workspaces reales en BD
-      // Si no hay workspaces en BD, esos hints son "fantasma" y debemos ignorarlos
-      // La auto-limpieza ya se hizo en refreshWorkspaces()
       if (wsCookie || wsLocal) {
         console.warn('[workspace-context] 🔍 Hints de localStorage encontrados pero no hay workspaces en BD');
         console.warn('[workspace-context] ℹ️  Ignorando hints (probablemente datos fantasma de reset)');
@@ -332,10 +353,20 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       if (!path.startsWith('/onboarding') && !redirectingRef.current) {
         redirectingRef.current = true;
         router.replace('/onboarding');
-        setTimeout(() => { redirectingRef.current = false; }, 1500);
+        const timer = setTimeout(() => { redirectingRef.current = false; }, 1500);
+        return () => clearTimeout(timer);
       }
-      return;
     }
+  }, [loading, user, workspaces.length, pathname, router]); // Router is stable, no need to include
+
+  // PERFORMANCE: Effect 2: Handle redirect when workspace exists but onboarding incomplete
+  useEffect(() => {
+    if (loading) return;
+    if (!user) return;
+    const path = pathname || '';
+    const isAuthRoute = path.startsWith('/auth') || path.startsWith('/test-auth');
+    if (isAuthRoute) return;
+    if (workspaces.length === 0) return; // Handled by effect 1
 
     const completed = Boolean(workspace?.onboarding_completed);
     if (workspace && !completed) {
@@ -344,10 +375,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       if (!isAllowed && !redirectingRef.current) {
         redirectingRef.current = true;
         router.replace('/setup');
-        setTimeout(() => { redirectingRef.current = false; }, 1500);
+        const timer = setTimeout(() => { redirectingRef.current = false; }, 1500);
+        return () => clearTimeout(timer);
       }
     }
-  }, [loading, user, workspaces, workspace, pathname, router]);
+  }, [loading, user, workspaces.length, workspace?.id, workspace?.onboarding_completed, pathname, router]); // Only depend on specific workspace properties
 
   // Guardar selección en localStorage
   useEffect(() => {
@@ -365,23 +397,37 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
   }, [currentClinic]);
 
+  // PERFORMANCE: Memoize context value to prevent unnecessary re-renders of all consumers
+  const contextValue = useMemo(() => ({
+    user,
+    workspace,
+    workspaces,
+    currentClinic,
+    clinics,
+    loading,
+    error,
+    setWorkspace,
+    setCurrentClinic,
+    refreshWorkspaces,
+    refreshClinics,
+    refreshUser,
+    signOut,
+  }), [
+    user,
+    workspace,
+    workspaces,
+    currentClinic,
+    clinics,
+    loading,
+    error,
+    refreshWorkspaces,
+    refreshClinics,
+    refreshUser,
+    signOut
+  ]);
+
   return (
-    <WorkspaceContext.Provider
-      value={{
-        user,
-        workspace,
-        workspaces,
-        currentClinic,
-        clinics,
-        loading,
-        error,
-        setWorkspace,
-        setCurrentClinic,
-        refreshWorkspaces,
-        refreshClinics,
-        signOut,
-      }}
-    >
+    <WorkspaceContext.Provider value={contextValue}>
       {children}
     </WorkspaceContext.Provider>
   );

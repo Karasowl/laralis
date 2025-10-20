@@ -8,8 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Edit3, Save, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslations } from 'next-intl';
-import { createSupabaseClient } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
+import { useWorkspace } from '@/contexts/workspace-context';
 
 interface ProfileClientProps {
   user: any;
@@ -26,12 +27,16 @@ export function ProfileClient({ user }: ProfileClientProps) {
   const { toast } = useToast();
   const router = useRouter();
   const t = useTranslations('profile');
+  const tCommon = useTranslations('common');
+  const { refreshUser } = useWorkspace();
 
   const handleSaveProfile = async () => {
+    console.log('[ProfileClient] Saving profile...', formData);
     setIsLoading(true);
-    const supabase = createSupabaseClient();
+    const supabase = createClient();
 
     try {
+      console.log('[ProfileClient] Updating user...');
       const { error } = await supabase.auth.updateUser({
         data: {
           first_name: formData.first_name,
@@ -41,7 +46,17 @@ export function ProfileClient({ user }: ProfileClientProps) {
         phone: formData.phone || undefined,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('[ProfileClient] Update error:', error);
+        throw error;
+      }
+
+      console.log('[ProfileClient] User updated successfully');
+
+      // Refresh user context to get updated metadata immediately
+      console.log('[ProfileClient] Refreshing user context...');
+      await refreshUser();
+      console.log('[ProfileClient] User context refreshed');
 
       toast({
         title: t('profileUpdated'),
@@ -51,6 +66,7 @@ export function ProfileClient({ user }: ProfileClientProps) {
       setIsEditing(false);
       router.refresh();
     } catch (error) {
+      console.error('[ProfileClient] Error saving profile:', error);
       toast({
         title: t('error'),
         description: t('updateError'),
@@ -88,9 +104,14 @@ export function ProfileClient({ user }: ProfileClientProps) {
                 <X className="mr-2 h-4 w-4" />
                 {t('cancel')}
               </Button>
-              <Button size="sm" onClick={handleSaveProfile} disabled={isLoading}>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleSaveProfile}
+                disabled={isLoading}
+              >
                 <Save className="mr-2 h-4 w-4" />
-                {t('save')}
+                {isLoading ? tCommon('saving') : t('save')}
               </Button>
             </div>
           )}

@@ -126,7 +126,8 @@ export default function PatientsPage() {
 
   const form = useForm<ZPatientForm>({
     resolver: zodResolver(zPatientForm),
-    defaultValues: initialValues
+    defaultValues: initialValues,
+    mode: 'onBlur', // PERFORMANCE: Validate only on blur
   })
 
   // Load related data (sources, campaigns, platforms) on mount/clinic change
@@ -522,6 +523,7 @@ export default function PatientsPage() {
           campaigns={campaigns}
           platforms={platforms}
           patients={patients}
+          patientSources={patientSources}
           t={t}
           onCreateCampaign={handleCreateCampaign}
         />
@@ -541,6 +543,7 @@ export default function PatientsPage() {
           campaigns={campaigns}
           platforms={platforms}
           patients={patients}
+          patientSources={patientSources}
           t={t}
           onCreateCampaign={handleCreateCampaign}
         />

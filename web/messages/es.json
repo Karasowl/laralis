@@ -400,22 +400,22 @@
       "checkSpam": "Si no ves el correo, revisa tu carpeta de spam"
     },
     "verifyEmail": {
-      "title": "¡Revisa tu correo electrónico!",
+      "title": "Confirma tu cuenta",
       "subtitle": "Ya casi terminas de crear tu cuenta",
-      "successTitle": "Te enviamos un correo de verificación",
+      "successTitle": "Te enviamos un enlace de verificación",
       "sentTo": "Hemos enviado un enlace de verificación a {email}",
       "checkInbox": "Por favor revisa tu bandeja de entrada",
-      "instructions": "Haz clic en el enlace del correo para activar tu cuenta y comenzar a usar Laralis.",
+      "instructions": "Haz clic en el enlace del correo electrónico para activar tu cuenta y comenzar a usar Laralis.",
       "whatToDo": "¿Qué hacer ahora?",
-      "step1Title": "Abre tu correo electrónico",
-      "step1Description": "Busca un mensaje de Laralis en tu bandeja de entrada",
-      "step2Title": "Haz clic en el enlace de verificación",
-      "step2Description": "El enlace te llevará de vuelta a Laralis para confirmar tu cuenta",
+      "step1Title": "Revisa tu correo",
+      "step1Description": "Busca un mensaje de Laralis con tu enlace de verificación",
+      "step2Title": "Haz clic en el enlace",
+      "step2Description": "Haz clic en el botón de verificación del correo electrónico",
       "step3Title": "¡Comienza a usar Laralis!",
-      "step3Description": "Una vez verificado, podrás acceder a todas las funciones",
+      "step3Description": "Una vez verificado, podrás iniciar sesión en Laralis",
       "importantTitle": "Importante",
       "checkSpam": "Si no ves el correo en tu bandeja de entrada, revisa tu carpeta de spam o correo no deseado.",
-      "linkExpiry": "El enlace de verificación expirará en 24 horas.",
+      "linkExpiry": "El enlace de verificación expirará en 60 minutos.",
       "resendEmail": "Reenviar correo de verificación",
       "resending": "Enviando...",
       "waitTime": "Espera {seconds} segundos",
@@ -428,6 +428,7 @@
       "issue1": "El correo puede tardar unos minutos en llegar",
       "issue2": "Verifica que el correo esté escrito correctamente",
       "issue3": "Algunos proveedores de correo pueden bloquear correos automáticos",
+      "issue4": "Asegúrate de hacer clic en el enlace, no busques un código",
       "contactSupport": "Si sigues teniendo problemas, contáctanos en",
       "supportEmail": "soporte@laralis.com"
     },
@@ -649,7 +650,12 @@
     "supplies": "Insumos",
     "services": "Servicios",
     "recentActivity": "Actividad Reciente",
-    "latestTreatments": "Últimos tratamientos y citas"
+    "latestTreatments": "Últimos tratamientos y citas",
+    "day": "Día",
+    "error_generic": "Ha ocurrido un error",
+    "period_selector": "Periodo",
+    "chart_revenue": "Ingresos",
+    "chart_expenses": "Gastos"
   },
   "onboarding": {
     "welcomeTitle": "¡Bienvenido a Laralis! 🎉",
@@ -859,6 +865,58 @@
     "calculating": "Calculando...",
     "results": "Resultados",
     "preview": "Vista Previa",
+    "workingDays": {
+      "title": "Días Laborales",
+      "subtitle": "Configura qué días de la semana trabajas normalmente",
+      "refresh": "Actualizar Patrón",
+      "detected": {
+        "title": "Patrón Histórico Detectado",
+        "description": "Basado en {sampleSize} tratamientos completados",
+        "confidence": "Confianza",
+        "useHistorical": "Usar patrón histórico automáticamente",
+        "useHistoricalHelp": "El sistema actualizará automáticamente los días laborales según tu actividad real"
+      },
+      "manual": {
+        "title": "Configuración Manual",
+        "subtitle": "Selecciona los días que trabajas",
+        "titleDisabled": "Configuración Manual (Deshabilitada)",
+        "subtitleDisabled": "Usando patrón histórico automáticamente"
+      },
+      "days": {
+        "monday": {
+          "short": "Lun",
+          "full": "Lunes"
+        },
+        "tuesday": {
+          "short": "Mar",
+          "full": "Martes"
+        },
+        "wednesday": {
+          "short": "Mié",
+          "full": "Miércoles"
+        },
+        "thursday": {
+          "short": "Jue",
+          "full": "Jueves"
+        },
+        "friday": {
+          "short": "Vie",
+          "full": "Viernes"
+        },
+        "saturday": {
+          "short": "Sáb",
+          "full": "Sábado"
+        },
+        "sunday": {
+          "short": "Dom",
+          "full": "Domingo"
+        }
+      },
+      "summary": {
+        "usingHistorical": "✓ Usando patrón histórico detectado automáticamente",
+        "usingManual": "Trabajas {count} días por semana según configuración manual"
+      }
+    },
     "fixedCostPerMinute": "Costo Fijo por Minuto",
     "formTitle": "Configuración de Tiempo",
     "livePreviewDescription": "Valores calculados en tiempo real",
@@ -1127,10 +1185,17 @@
     }
   },
   "fixedCosts": {
+    "title": "Costos Fijos",
+    "subtitle": "Gastos mensuales recurrentes de tu clínica",
+    "addCost": "Agregar Costo Fijo",
     "create": "Crear Costo Fijo",
     "edit": "Editar Costo Fijo",
     "delete": "Eliminar Costo Fijo",
     "deleteConfirm": "¿Estás seguro de que deseas eliminar este costo fijo?",
+    "category": "Categoría",
+    "concept": "Concepto",
+    "amount": "Monto",
+    "categoryBreakdown": "Desglose por Categoría",
     "conceptPlaceholder": "ej., Renta del local",
     "noFixedCosts": "No hay costos fijos registrados",
     "noFixedCostsDescription": "Agrega tus gastos mensuales recurrentes para calcular el punto de equilibrio",
@@ -1149,8 +1214,30 @@
       "yearlyHint": "Pagas este monto una vez al año."
     },
     "summary": {
+      "totalMonthly": "Total de Costos Fijos Mensuales",
+      "breakdown": "Desglose por categoría",
       "local": "Gastos del Local",
+      "manualCosts": "Costos Fijos Manuales",
+      "includingDepreciation": "Incluye depreciación de activos",
+      "concepts": "conceptos",
+      "depreciation": "Depreciación de Activos",
+      "autoAddedNote": "Agregado automáticamente desde activos"
+    },
+    "categories": {
+      "rent": "Renta",
+      "salaries": "Salarios",
+      "utilities": "Servicios Públicos",
+      "insurance": "Seguros",
+      "maintenance": "Mantenimiento",
+      "education": "Educación y Capacitación",
+      "advertising": "Publicidad",
+      "equipment": "Equipo",
+      "other": "Otros",
       "depreciation": "Depreciación de Activos"
+    },
+    "breakdownSections": {
+      "manual": "Costos Fijos Manuales",
+      "automatic": "Costos Automáticos"
     }
   },
   "assets": {
@@ -1168,6 +1255,7 @@
     "form": {
       "nameLabel": "Nombre del activo",
       "namePlaceholder": "ej., Sillón dental",
+      "categoryLabel": "Categoría",
       "purchasePriceLabel": "Precio de compra (pesos)",
       "purchasePricePlaceholder": "0.00",
       "depreciationMonthsLabel": "Meses de depreciación",
@@ -1905,6 +1993,7 @@
     "subtitle": "Visualiza análisis financieros y operacionales",
     "tabs": {
       "overview": "Resumen",
+      "profitability": "Rentabilidad",
       "advanced": "Avanzado",
       "marketing": "Marketing"
     },
@@ -2097,6 +2186,44 @@
         "fixedCosts": "✓ Todos los costos fijos",
         "timeCosts": "✓ Configuración de tiempo de trabajo"
       }
+    },
+    "go_to_time_settings": "Ir a Configuración de Tiempo",
+    "summary": {
+      "title": "Resumen en Lenguaje Claro",
+      "subtitle": "Entendiendo tu punto de equilibrio en términos simples",
+      "line1": "Tu clínica necesita {breakEven} al mes para cubrir todos los costos fijos (punto de equilibrio).",
+      "line2": "Con un margen de seguridad del {safetyMargin}, tu meta mensual es {monthlyTarget}, lo que significa {dailyTarget} por día a lo largo de {workDays} días laborales.",
+      "line3": "Actualmente tienes {currentRevenue} en ingresos este mes. Necesitas {revenueGap} más para alcanzar tu meta, lo que requiere aproximadamente {days} días al ritmo actual.",
+      "line3_goalReached": "¡Felicidades! Has alcanzado tu meta mensual de {monthlyTarget}. ¡Sigue con el excelente trabajo!",
+      "goalBadge": "¡Meta Alcanzada!",
+      "gapBadge": "{days} días restantes",
+      "daysLabel": "{days} días",
+      "goalMessage": "¡Has alcanzado exitosamente tu meta mensual! Continúa monitoreando para mantener la rentabilidad."
+    },
+    "simulation": {
+      "title": "Simular Escenarios",
+      "description": "Ajusta los parámetros para ver cómo los cambios afectan tu punto de equilibrio y metas",
+      "work_days_label": "Días Laborales por Mes",
+      "work_days_hint": "Valor base: {value} días",
+      "variable_cost_label": "Porcentaje de Costo Variable",
+      "variable_cost_calculated": "Calculado: {value} (basado en {sample} tratamientos de los últimos {days} días)",
+      "variable_cost_fallback": "Estimación predeterminada: {value}",
+      "variable_cost_calculated_short": "Auto: {value} ({sample} tratamientos, {days} días)",
+      "variable_cost_fallback_short": "Predeterminado: {value}",
+      "safety_margin_label": "Margen de Seguridad (%)",
+      "safety_margin_hint": "Colchón adicional por encima del punto de equilibrio",
+      "safety_margin_custom_hint": "Usando margen personalizado: {percentage}",
+      "manual_target_label": "Meta Mensual Manual (opcional)",
+      "manual_target_hint": "Sobreescribe la meta calculada con un monto específico",
+      "manual_target_active_hint": "Meta manual activa: {amount}",
+      "apply": "Aplicar Simulación",
+      "reset": "Restablecer a Valores Base"
+    },
+    "validation": {
+      "workDays": "Los días laborales deben estar entre 1 y 31",
+      "variableCost": "El porcentaje de costo variable debe estar entre 0 y 100",
+      "safetyMargin": "El margen de seguridad debe estar entre 0 y 200",
+      "manualTarget": "La meta manual debe ser un número positivo"
     }
   },
   "settings_duplicate2": {
@@ -2557,6 +2684,459 @@
       "updated": "{entity} actualizado exitosamente",
       "deleted": "{entity} eliminado exitosamente",
       "fetched": "{entity} obtenido exitosamente"
+    }
+  },
+  "version": {
+    "title": "Versión y Actualizaciones",
+    "current": "Versión Actual",
+    "viewChangelog": "Ver Registro de Cambios",
+    "whatsNew": "Novedades",
+    "updates": "Actualizaciones",
+    "close": "Cerrar",
+    "types": {
+      "added": "Agregado",
+      "improved": "Mejorado",
+      "fixed": "Corregido",
+      "removed": "Eliminado",
+      "security": "Seguridad",
+      "ui": "UI/UX",
+      "performance": "Rendimiento",
+      "documentation": "Documentación"
+    },
+    "releases": {
+      "v0_2_0": {
+        "date": "18 de Octubre, 2025",
+        "title": "Dark Mode Premium y Wizard de Configuración",
+        "added": [
+          "Dark Mode Premium: Rediseño completo con paleta moderna inspirada en Notion/Linear",
+          "Wizard de Configuración: Sistema completo de onboarding paso a paso",
+          "Auto-limpieza: Detección automática de datos fantasma en localStorage",
+          "Diagnóstico RLS: Scripts SQL para verificar estado de políticas",
+          "Sistema de Requirements: Validación progresiva de configuración inicial"
+        ],
+        "improved": [
+          "Requirement service_recipe ahora más flexible (permite servicios sin insumos)",
+          "Dark mode con mejor contraste y jerarquía visual",
+          "Validación de recetas de servicios menos estricta"
+        ],
+        "fixed": [
+          "Arreglado loop infinito en configuración de activos",
+          "Arregladas políticas RLS faltantes en tablas operacionales",
+          "Arreglados triggers que fallaban por falta de SECURITY DEFINER",
+          "Arreglado problema de clínicas fantasma después de reset de base de datos",
+          "Arreglado guard que permitía saltar pasos críticos del onboarding",
+          "Arreglados múltiples problemas de UX en modal de onboarding"
+        ],
+        "removed": [
+          "Validación obligatoria de insumos en servicios"
+        ]
+      },
+      "v0_1_0": {
+        "date": "9 de Agosto, 2025",
+        "title": "Lanzamiento Inicial",
+        "added": [
+          "Configuración inicial del proyecto con Next.js 14 + TypeScript",
+          "Sistema de internacionalización (i18n) con next-intl (EN/ES)",
+          "Motor de cálculos de costos y pricing",
+          "Módulo de Insumos con CRUD completo",
+          "Módulo de Servicios con recetas",
+          "Módulo de Activos con depreciación",
+          "Módulo de Costos Fijos",
+          "Módulo de Configuración de Tiempo",
+          "Sistema de autenticación con Supabase",
+          "Multi-tenancy con workspaces y clínicas",
+          "UI estilo Apple con Tailwind CSS + shadcn/ui",
+          "Tests unitarios con Vitest"
+        ],
+        "ui": [
+          "Sistema de diseño modular y reutilizable",
+          "Componentes base: DataTable, FormModal, PageHeader, etc.",
+          "Modo oscuro (primera versión)",
+          "Diseño responsive mobile-first"
+        ],
+        "security": [
+          "Row Level Security (RLS) en Supabase",
+          "Políticas de acceso multi-tenant",
+          "Triggers automáticos para datos iniciales"
+        ]
+      }
+    }
+  },
+  "terms": {
+    "title": "Términos de Servicio",
+    "lastUpdated": "Última actualización: {date}",
+    "backToHome": "Volver al inicio",
+    "sections": {
+      "acceptance": {
+        "title": "1. Aceptación de los Términos",
+        "content": "Al acceder y utilizar Laralis, aceptas y te comprometes a cumplir los términos y disposiciones de este acuerdo. Si no estás de acuerdo con estos Términos de Servicio, por favor no utilices nuestro servicio."
+      },
+      "description": {
+        "title": "2. Descripción del Servicio",
+        "content": "Laralis es una plataforma de gestión de consultorios dentales que proporciona herramientas para la gestión de pacientes, seguimiento de tratamientos, control de gastos y análisis financiero. Nos reservamos el derecho de modificar o discontinuar el servicio en cualquier momento sin previo aviso."
+      },
+      "registration": {
+        "title": "3. Registro de Usuario",
+        "content": "Para utilizar Laralis, debes registrarte y crear una cuenta. Eres responsable de mantener la confidencialidad de tus credenciales de acceso y de todas las actividades que ocurran bajo tu cuenta. Aceptas proporcionar información precisa y completa durante el registro."
+      },
+      "dataUsage": {
+        "title": "4. Uso de Datos",
+        "content": "Conservas todos los derechos sobre los datos que ingresas en Laralis. No reclamamos la propiedad de tus datos y no los utilizaremos para fines distintos a proporcionar y mejorar nuestro servicio. Eres responsable de mantener copias de seguridad de tus datos."
+      },
+      "privacy": {
+        "title": "5. Privacidad",
+        "content": "Tu uso de Laralis también está regido por nuestra Política de Privacidad. Por favor, revisa nuestra Política de Privacidad para comprender nuestras prácticas respecto a la recopilación y uso de tu información personal."
+      },
+      "prohibitedUse": {
+        "title": "6. Uso Prohibido",
+        "content": "Aceptas no utilizar Laralis para ningún propósito ilegal o de manera que pueda dañar, deshabilitar o perjudicar el servicio. No debes intentar obtener acceso no autorizado a ninguna parte del servicio o a cualquier sistema o red conectados al servicio."
+      },
+      "liability": {
+        "title": "7. Limitación de Responsabilidad",
+        "content": "Laralis se proporciona \"tal cual\" sin garantías de ningún tipo. No somos responsables de ningún daño que surja del uso o la imposibilidad de usar el servicio, incluida la pérdida de datos, ganancias u oportunidades comerciales."
+      },
+      "modifications": {
+        "title": "8. Modificaciones a los Términos",
+        "content": "Nos reservamos el derecho de modificar estos Términos de Servicio en cualquier momento. Notificaremos a los usuarios sobre cambios significativos a través de la plataforma o por correo electrónico. El uso continuo del servicio después de las modificaciones constituye la aceptación de los nuevos términos."
+      },
+      "termination": {
+        "title": "9. Terminación",
+        "content": "Nos reservamos el derecho de suspender o cancelar tu cuenta si violas estos Términos de Servicio. Puedes cancelar tu cuenta en cualquier momento a través de la página de configuración."
+      },
+      "contact": {
+        "title": "10. Contacto",
+        "content": "Si tienes preguntas sobre estos Términos de Servicio, contáctanos en support@laralis.com"
+      }
+    }
+  },
+  "privacy": {
+    "title": "Política de Privacidad",
+    "lastUpdated": "Última actualización: {date}",
+    "backToHome": "Volver al inicio",
+    "sections": {
+      "introduction": {
+        "title": "1. Introducción",
+        "content": "En Laralis, respetamos tu privacidad y estamos comprometidos a proteger tus datos personales. Esta Política de Privacidad explica cómo recopilamos, usamos y protegemos tu información cuando utilizas nuestra plataforma de gestión de consultorios dentales."
+      },
+      "dataCollection": {
+        "title": "2. Información que Recopilamos",
+        "content": "Recopilamos información que nos proporcionas directamente, incluyendo:\n• Información de cuenta (nombre, correo electrónico, contraseña)\n• Información del consultorio (nombre de clínica, dirección, datos de contacto)\n• Datos de pacientes (nombres, información de contacto, registros de tratamiento)\n• Datos financieros (gastos, ingresos, costos)\n• Datos de uso (cómo interactúas con nuestra plataforma)"
+      },
+      "dataUse": {
+        "title": "3. Cómo Usamos tu Información",
+        "content": "Utilizamos la información recopilada para:\n• Proporcionar y mantener nuestro servicio\n• Mejorar y personalizar tu experiencia\n• Comunicarnos contigo sobre actualizaciones y soporte\n• Garantizar la seguridad y prevenir fraudes\n• Cumplir con obligaciones legales"
+      },
+      "dataStorage": {
+        "title": "4. Almacenamiento y Seguridad de Datos",
+        "content": "Tus datos se almacenan de forma segura utilizando prácticas de cifrado y seguridad estándar de la industria. Utilizamos Supabase como proveedor de base de datos, que implementa medidas de seguridad de nivel empresarial. Implementamos controles de acceso para garantizar que solo los usuarios autorizados puedan acceder a tus datos."
+      },
+      "dataSharing": {
+        "title": "5. Compartir Información",
+        "content": "No vendemos tu información personal. Podemos compartir tu información solo en las siguientes circunstancias:\n• Con tu consentimiento explícito\n• Para cumplir con obligaciones legales\n• Con proveedores de servicios que ayudan a operar nuestra plataforma (bajo estrictos acuerdos de confidencialidad)\n• Para proteger los derechos y la seguridad de Laralis y nuestros usuarios"
+      },
+      "userRights": {
+        "title": "6. Tus Derechos",
+        "content": "Tienes derecho a:\n• Acceder a tus datos personales\n• Corregir datos inexactos\n• Solicitar la eliminación de tus datos\n• Exportar tus datos\n• Oponerte al procesamiento de tus datos\n• Retirar el consentimiento en cualquier momento"
+      },
+      "cookies": {
+        "title": "7. Cookies y Seguimiento",
+        "content": "Utilizamos cookies y tecnologías similares para mejorar tu experiencia, analizar el uso y mantener tu sesión. Puedes controlar la configuración de cookies a través de tu navegador, pero algunas funciones pueden no funcionar correctamente si las cookies están deshabilitadas."
+      },
+      "dataRetention": {
+        "title": "8. Retención de Datos",
+        "content": "Conservamos tus datos personales solo durante el tiempo necesario para proporcionar nuestros servicios y cumplir con obligaciones legales. Cuando eliminas tu cuenta, eliminaremos o anonimizaremos tus datos personales en un plazo de 90 días, a menos que la ley requiera conservarlos por más tiempo."
+      },
+      "changes": {
+        "title": "9. Cambios a esta Política",
+        "content": "Podemos actualizar esta Política de Privacidad de vez en cuando. Te notificaremos sobre cambios significativos por correo electrónico o mediante un aviso destacado en nuestra plataforma. Te recomendamos que revises esta política periódicamente."
+      },
+      "contact": {
+        "title": "10. Contáctanos",
+        "content": "Si tienes preguntas o inquietudes sobre esta Política de Privacidad o nuestras prácticas de datos, contáctanos en:\n\nCorreo electrónico: privacy@laralis.com\n\nResponderemos a tu consulta en un plazo de 30 días."
+      }
+    }
+  },
+  "categories": {
+    "selectCategory": "Seleccionar categoría",
+    "searchCategory": "Buscar categoría...",
+    "noCategories": "No hay categorías disponibles",
+    "createNew": "Nueva categoría",
+    "createTitle": "Crear categoría",
+    "createDescription": "Ingresa el nombre de la nueva categoría",
+    "categoryName": "Nombre de la categoría",
+    "categoryPlaceholder": "Ej: Ortodoncia, Endodoncia, etc.",
+    "category": "categoría"
+  },
+  "dashboardComponents": {
+    "heroPricing": {
+      "title": "Tu Sistema de Precios Inteligente",
+      "subtitle": "Calculamos cada precio automáticamente basado en tus costos reales",
+      "fixedCosts": "Costos Fijos",
+      "materials": "Materiales",
+      "margin": "Margen",
+      "howItWorks": "¿Cómo funciona?",
+      "modal": {
+        "title": "¿Cómo funciona el Sistema de Precios?",
+        "subtitle": "Entender cómo calculamos tus precios automáticamente",
+        "step1": {
+          "title": "Paso 1: Costos Fijos por Minuto",
+          "description": "Sumamos todos tus gastos mensuales (renta, salarios, depreciación de equipos) y los dividimos entre los minutos efectivos de trabajo.",
+          "example": "Renta: {rent} + Salarios: {salaries} + Depreciación: {depreciation} = Total: {total}\nDividido entre {minutes} minutos = {perMinute}/minuto"
+        },
+        "step2": {
+          "title": "Paso 2: Costos Variables (Materiales)",
+          "description": "Sumamos el costo de todos los materiales e insumos necesarios para realizar el procedimiento según la receta del servicio."
+        },
+        "step3": {
+          "title": "Paso 3: Agregar tu Margen de Ganancia",
+          "description": "Sumamos el porcentaje de margen que deseas ganar. Este margen cubre imprevistos, inversión y utilidad neta."
+        },
+        "value": {
+          "title": "¿Por qué esto es valioso?",
+          "point1": "Nunca pierdes dinero: Cada precio cubre TODOS tus costos reales",
+          "point2": "Precios justos y competitivos: Basados en matemáticas, no en suposiciones",
+          "point3": "Actualización automática: Si tus costos cambian, los precios se actualizan",
+          "point4": "Transparencia total: Sabes exactamente qué incluye cada precio"
+        },
+        "close": "Entendido"
+      }
+    },
+    "breakEvenProgress": {
+      "title": "Meta Mensual",
+      "subtitle": "Progreso hacia tu punto de equilibrio",
+      "progress": "Progreso",
+      "remaining": "Te faltan",
+      "daysWorked": "Días trabajados",
+      "projection": "Al ritmo actual, alcanzarás la meta en {days} días de los {remaining} restantes",
+      "atRisk": "⚠️ Necesitas acelerar el ritmo para alcanzar la meta este mes",
+      "congratulations": "¡Felicitaciones! 🎉",
+      "goalReached": "Superaste tu meta por {excess}",
+      "suggestion": {
+        "title": "💡 Sugerencia para alcanzar la meta",
+        "message": "Necesitas generar {daily} diarios en los próximos {remainingDays} días"
+      },
+      "status": {
+        "success": "¡Meta alcanzada!",
+        "ontrack": "Bien encaminado",
+        "warning": "Requiere atención",
+        "danger": "Urgente"
+      },
+      "noRevenueYet": "Sin ingresos registrados aún",
+      "noRevenueHelp": "Tienes {remaining} días laborales restantes para alcanzar tu meta. Comienza a registrar tratamientos para ver tu progreso real."
+    },
+    "businessMetrics": {
+      "avgTicket": "Ticket Promedio",
+      "perTreatment": "por tratamiento",
+      "patientsNeeded": "Pacientes Necesarios",
+      "day": "día",
+      "toReachBreakEven": "para alcanzar punto de equilibrio",
+      "currentPatients": "Pacientes Actuales",
+      "onTrack": "✓ Vas bien encaminado",
+      "belowTarget": "⚠️ {diff} pacientes menos que la meta",
+      "revenueToday": "Ingresos del Mes",
+      "thisMonth": "acumulado"
+    },
+    "dateFilter": {
+      "selectPeriod": "Seleccionar período",
+      "from": "Desde",
+      "to": "Hasta",
+      "breakdown": "Desglosar por",
+      "compareWith": "Comparar con",
+      "summary": "Viendo {period} desglosado por {granularity}, comparado con {comparison}",
+      "periods": {
+        "today": "Hoy",
+        "week": "Esta Semana",
+        "month": "Este Mes",
+        "quarter": "Trimestre",
+        "year": "Este Año",
+        "custom": "Personalizado"
+      },
+      "granularity": {
+        "day": "Día",
+        "week": "Semana",
+        "month": "Mes"
+      },
+      "comparison": {
+        "none": "Sin comparación",
+        "previous": "Período anterior",
+        "lastYear": "Mismo período año pasado"
+      }
+    },
+    "breakdown": {
+      "title": "Desglose por {granularity}",
+      "description": "Análisis detallado del período seleccionado",
+      "currentPeriod": "Período Actual",
+      "previousPeriod": "Período Anterior",
+      "legend": {
+        "current": "Período actual",
+        "previous": "Período anterior"
+      },
+      "granularity": {
+        "day": "Día",
+        "week": "Semana",
+        "month": "Mes"
+      }
+    },
+    "marketingROI": {
+      "title": "ROI de Marketing",
+      "description": "Retorno de inversión por período mensual",
+      "noData": "No hay gastos de marketing registrados",
+      "noDataHint": "Registra gastos con categoría 'Marketing' o 'Publicidad' para ver el análisis de ROI",
+      "totalInvestment": "Inversión Total",
+      "totalRevenue": "Ingresos Generados",
+      "totalROI": "ROI Total",
+      "overview": {
+        "totalInvestment": "Inversión Total",
+        "totalRevenue": "Ingresos Generados",
+        "avgROI": "ROI Promedio",
+        "totalPatients": "Pacientes Nuevos"
+      },
+      "insights": {
+        "bestMonth": "Mejor Mes",
+        "trend": "Tendencia (3 meses)",
+        "trendDescription": "Últimos 3 meses vs 3 anteriores",
+        "costPerPatient": "Costo por Paciente",
+        "revenuePerPatient": "Ingreso/Paciente",
+        "revenue": "Ingresos"
+      },
+      "table": {
+        "title": "Desglose Mensual",
+        "description": "Análisis de ROI por mes",
+        "period": "Período",
+        "investment": "Inversión",
+        "revenue": "Ingresos",
+        "patients": "Pacientes",
+        "roi": "ROI"
+      },
+      "help": {
+        "title": "¿Cómo funciona este análisis?",
+        "description": "Calcula el ROI basándose en gastos de marketing registrados y los ingresos/pacientes del mismo período. Asegúrate de categorizar tus gastos de marketing correctamente."
+      },
+      "status": {
+        "active": "Activa",
+        "paused": "Pausada",
+        "completed": "Completada"
+      }
+    },
+    "marketingTimeline": {
+      "title": "Timeline de Marketing",
+      "description": "Correlación entre eventos de marketing e ingresos",
+      "noData": "No hay datos de timeline",
+      "legend": {
+        "revenue": "Ingresos",
+        "events": "Eventos de marketing"
+      },
+      "summary": {
+        "totalEvents": "Total Eventos",
+        "avgRevenue": "Ingreso Promedio"
+      }
+    },
+    "marketingCorrelation": {
+      "title": "Impacto de Marketing",
+      "description": "Análisis completo del retorno de inversión en marketing",
+      "noData": "No hay datos de marketing disponibles",
+      "noDataHint": "Registra tus campañas y verás el análisis de ROI aquí",
+      "overview": {
+        "avgROI": "ROI Promedio",
+        "active": "activas",
+        "costPerPatient": "Costo por Paciente",
+        "revenuePerPatient": "Ingreso por Paciente",
+        "totalPatients": "Total Pacientes"
+      },
+      "insights": {
+        "bestPlatform": "Mejor Plataforma",
+        "needsAttention": "Necesita Atención",
+        "revenue": "Ingresos",
+        "lowROIWarning": "Considera optimizar o pausar esta plataforma"
+      },
+      "tabs": {
+        "roi": "Tabla de ROI",
+        "timeline": "Timeline"
+      }
+    },
+    "serviceROI": {
+      "title": "Análisis de Rentabilidad por Servicio",
+      "description": "Análisis basado en datos reales de tratamientos completados",
+      "noData": "No hay tratamientos completados para analizar",
+      "noDataHint": "Completa algunos tratamientos para ver el análisis de rentabilidad",
+      "summary": {
+        "totalProfit": "Ganancia Total",
+        "totalSales": "Ventas Totales",
+        "avgROI": "ROI Promedio",
+        "period": "Período",
+        "lastDays": "Últimos {days} días"
+      },
+      "tabs": {
+        "total": "Ganancia Total",
+        "unit": "Por Venta",
+        "matrix": "Matriz",
+        "opportunities": "Oportunidades"
+      },
+      "totalProfit": {
+        "title": "Servicios por Ganancia Total",
+        "description": "Ordenados por la ganancia total generada (lo más importante)",
+        "sales": "{count} ventas",
+        "avgPerSale": "{amount}/venta"
+      },
+      "profitPerUnit": {
+        "title": "Servicios por Ganancia por Venta",
+        "description": "Identifica joyas ocultas: alta ganancia pero pocas ventas",
+        "lowVolume": "Bajo volumen",
+        "sold": "{count} vendidos",
+        "perSale": "por venta"
+      },
+      "matrix": {
+        "stars": "⭐ Estrellas",
+        "starsDesc": "Alta ganancia, alta frecuencia - ¡Mantener!",
+        "gems": "💎 Joyas Ocultas",
+        "gemsDesc": "Alta ganancia, baja frecuencia - ¡Promocionar!",
+        "volume": "🔄 Volumen",
+        "volumeDesc": "Baja ganancia, alta frecuencia - Optimizar precio",
+        "review": "⚠️ Revisar",
+        "reviewDesc": "Baja ganancia, baja frecuencia - Evaluar si mantener",
+        "sales": "ventas",
+        "perSale": "venta"
+      },
+      "opportunities": {
+        "title": "Oportunidades de Crecimiento",
+        "description": "Dinero que estás dejando sobre la mesa",
+        "hiddenGems": "💎 Joyas Ocultas - Potencial sin explotar",
+        "needsAction": "⚠️ Servicios que Necesitan Acción",
+        "current": "Ganancia actual",
+        "ifDouble": "Si duplicas ventas",
+        "potential": "Potencial anual",
+        "belowExpected": "debajo del esperado",
+        "profitPerSale": "Ganancia/venta",
+        "suggestion": "Sugerencia",
+        "reviewPricing": "Revisar precio o reducir costos",
+        "sales": "ventas",
+        "month": "mes",
+        "year": "año"
+      }
+    },
+    "profitSimulator": {
+      "title": "Simulador de Ganancia Mensual",
+      "description": "Calcula cuánto ganarás según los pacientes que atiendas",
+      "daysRemaining": "Días restantes",
+      "days": "días",
+      "patientsNeeded": "Pacientes para equilibrio",
+      "patients": "pacientes",
+      "simulator": {
+        "title": "¿Y si atiendo más pacientes?",
+        "description": "Selecciona cuántos pacientes extra atenderías (además de los necesarios para equilibrio)",
+        "custom": "Personalizado",
+        "totalPatients": "Total a atender",
+        "additionalRevenue": "Ingresos adicionales",
+        "netProfit": "Ganancia neta",
+        "aboveBreakEven": "sobre equilibrio"
+      },
+      "breakdown": {
+        "title": "Tu Ganancia Real Hasta Hoy",
+        "revenue": "Ingresos del mes",
+        "fixedCosts": "Costos fijos",
+        "variableCosts": "Costos variables",
+        "netProfit": "Ganancia Neta"
+      }
     }
   }
 }

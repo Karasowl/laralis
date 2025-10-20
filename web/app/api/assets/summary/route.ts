@@ -47,19 +47,40 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
 
     const assets = data || [];
 
+    // Debug logging
+    console.log(`[Assets Summary] Found ${assets.length} assets for clinic ${clinicId}`);
+    if (assets.length > 0) {
+      console.log('[Assets Summary] Sample asset:', {
+        purchase_price_cents: assets[0].purchase_price_cents,
+        depreciation_months: assets[0].depreciation_months
+      });
+    }
+
     const minimal_asset_present = assets.length > 0;
-    const total_investment_cents = assets.reduce((sum, a) => sum + (a.purchase_price_cents || 0), 0);
+    const total_investment_cents = assets.reduce((sum, a) => sum + (Number(a.purchase_price_cents) || 0), 0);
 
     const monthly_depreciation_cents = assets.reduce((sum, a) => {
       const price = Number(a.purchase_price_cents || 0);
       const months = Number(a.depreciation_months || 0);
-      if (price <= 0 || months <= 0) return sum;
+
+      console.log(`[Assets Summary] Processing asset: price=${price}, months=${months}`);
+
+      if (price <= 0 || months <= 0) {
+        console.log('[Assets Summary] Skipping asset with invalid price or months');
+        return sum;
+      }
+
       try {
-        return sum + calculateMonthlyDepreciation(price, months);
-      } catch {
+        const depreciation = calculateMonthlyDepreciation(price, months);
+        console.log(`[Assets Summary] Calculated monthly depreciation: ${depreciation}`);
+        return sum + depreciation;
+      } catch (err) {
+        console.error('[Assets Summary] Error calculating depreciation:', err);
         return sum;
       }
     }, 0);
+
+    console.log(`[Assets Summary] Total monthly depreciation: ${monthly_depreciation_cents}`);
 
     const asset_count = assets.length;
 

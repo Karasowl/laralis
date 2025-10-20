@@ -25,7 +25,7 @@ import {
   Eye,
   EyeOff,
 } from 'lucide-react';
-import { createSupabaseClient } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/client';
 
 interface MfaStatus {
   enabled: boolean;
@@ -131,7 +131,7 @@ export function SecuritySettingsClient() {
 
     setPasswordErrors({});
     setPasswordLoading(true);
-    const supabase = createSupabaseClient();
+    const supabase = createClient();
 
     try {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
@@ -353,7 +353,7 @@ export function SecuritySettingsClient() {
 
   const signOutOtherDevices = async () => {
     setSignOutLoading(true);
-    const supabase = createSupabaseClient();
+    const supabase = createClient();
     try {
       const { error } = await supabase.auth.signOut({ scope: 'others' as any });
       if (error) throw error;

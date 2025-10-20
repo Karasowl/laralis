@@ -1,8 +1,12 @@
 'use client'
 
+import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import { formatCurrency } from '@/lib/format'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 interface RevenueChartProps {
   data: Array<{
@@ -12,21 +16,34 @@ interface RevenueChartProps {
   }>
   title?: string
   description?: string
+  onGranularityChange?: (granularity: 'day' | 'week' | 'biweek' | 'month') => void
+  currentGranularity?: 'day' | 'week' | 'biweek' | 'month'
 }
 
-export function RevenueChart({ 
-  data, 
+export function RevenueChart({
+  data,
   title = 'Revenue vs Expenses',
-  description = 'Monthly comparison'
+  description = 'Monthly comparison',
+  onGranularityChange,
+  currentGranularity = 'month'
 }: RevenueChartProps) {
+  const t = useTranslations('dashboard')
+
+  const granularityOptions = [
+    { value: 'day' as const, label: t('day') || 'Día' },
+    { value: 'week' as const, label: t('week') || 'Semana' },
+    { value: 'biweek' as const, label: 'Quincena' },
+    { value: 'month' as const, label: t('month') || 'Mes' },
+  ]
+
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white p-3 border rounded-lg shadow-lg">
-          <p className="font-medium">{label}</p>
+        <div className="bg-white dark:bg-gray-800 p-3 border border-border rounded-lg shadow-lg">
+          <p className="font-medium text-foreground">{label}</p>
           {payload.map((entry: any, index: number) => (
             <p key={index} className="text-sm" style={{ color: entry.color }}>
-              {entry.name}: {formatCurrency(entry.value * 100)}
+              {entry.name}: {formatCurrency(entry.value)}
             </p>
           ))}
         </div>
@@ -38,8 +55,30 @@ export function RevenueChart({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
+        <div className="flex items-start justify-between">
+          <div>
+            <CardTitle>{title}</CardTitle>
+            <CardDescription>{description}</CardDescription>
+          </div>
+          {onGranularityChange && (
+            <div className="flex gap-1">
+              {granularityOptions.map((option) => (
+                <Button
+                  key={option.value}
+                  variant={currentGranularity === option.value ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => onGranularityChange(option.value)}
+                  className={cn(
+                    'text-xs px-2 py-1 h-7',
+                    currentGranularity === option.value && 'font-semibold'
+                  )}
+                >
+                  {option.label}
+                </Button>
+              ))}
+            </div>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>
@@ -77,7 +116,7 @@ export function RevenueChart({
               stroke="#3B82F6"
               fillOpacity={1}
               fill="url(#colorRevenue)"
-              name="Ingresos"
+              name={t('chart_revenue')}
             />
             <Area
               type="monotone"
@@ -85,7 +124,7 @@ export function RevenueChart({
               stroke="#EF4444"
               fillOpacity={1}
               fill="url(#colorExpenses)"
-              name="Gastos"
+              name={t('chart_expenses')}
             />
           </AreaChart>
         </ResponsiveContainer>

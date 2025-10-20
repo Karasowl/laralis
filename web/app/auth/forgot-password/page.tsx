@@ -32,6 +32,7 @@ export default function ForgotPasswordPage() {
     defaultValues: {
       email: '',
     },
+    mode: 'onBlur', // PERFORMANCE: Validate only on blur
   })
 
   const onSubmit = async (data: ForgotPasswordForm) => {
@@ -97,8 +98,7 @@ export default function ForgotPasswordPage() {
             label={t('emailLabel')}
             type="email"
             placeholder={t('emailPlaceholder')}
-            value={form.watch('email')}
-            onChange={(value) => form.setValue('email', value as string)}
+            {...form.register('email')}
             error={form.formState.errors.email?.message}
             required
             className="pl-10"

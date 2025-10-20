@@ -2,6 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useParallelApi } from '@/hooks/use-api'
+import {
+  calculateCurrentMonthWorkingDays,
+  getDefaultWorkingDaysConfig,
+  type WorkingDaysConfig
+} from '@/lib/calc/dates'
 
 export interface EquilibriumData {
   fixedCostsCents: number
@@ -26,6 +31,11 @@ export interface EquilibriumData {
   revenueGapCents: number
   daysToBreakEven: number
   progressPercentage: number
+  // New fields for smart working days
+  actualDaysWorked: number
+  totalWorkDaysInPeriod: number
+  elapsedDays: number
+  remainingWorkingDays: number
 }
 
 interface UseEquilibriumOptions {
@@ -99,15 +109,30 @@ export class EquilibriumCalculator {
   static calculateProgress(
     currentRevenueCents: number,
     targetRevenueCents: number,
-    dailyTargetCents: number
+    dailyTargetCents: number,
+    actualDaysWorked?: number
   ): {
     revenueGapCents: number
     daysToBreakEven: number
     progressPercentage: number
   } {
     const revenueGapCents = Math.max(0, targetRevenueCents - currentRevenueCents)
-    const daysToBreakEven =
-      dailyTargetCents > 0 ? Math.ceil(revenueGapCents / dailyTargetCents) : 0
+
+    // Calculate days to break even based on ACTUAL current pace, not ideal target
+    let daysToBreakEven = 0
+    if (actualDaysWorked && actualDaysWorked > 0) {
+      const currentDailyRevenue = currentRevenueCents / actualDaysWorked
+      if (currentDailyRevenue > 0) {
+        daysToBreakEven = Math.ceil(revenueGapCents / currentDailyRevenue)
+      } else {
+        // No revenue yet, use ideal target as reference
+        daysToBreakEven = dailyTargetCents > 0 ? Math.ceil(revenueGapCents / dailyTargetCents) : 0
+      }
+    } else {
+      // Fallback to ideal target if no actual days data
+      daysToBreakEven = dailyTargetCents > 0 ? Math.ceil(revenueGapCents / dailyTargetCents) : 0
+    }
+
     const progressPercentage =
       targetRevenueCents > 0
         ? Math.min(100, (currentRevenueCents / targetRevenueCents) * 100)
@@ -155,7 +180,11 @@ export function useEquilibrium(options: UseEquilibriumOptions = {}): IEquilibriu
     currentRevenueCents: 0,
     revenueGapCents: 0,
     daysToBreakEven: 0,
-    progressPercentage: 0
+    progressPercentage: 0,
+    actualDaysWorked: 0,
+    totalWorkDaysInPeriod: defaultWorkDays,
+    elapsedDays: 0,
+    remainingWorkingDays: defaultWorkDays
   })
 
   const [loading, setLoading] = useState(true)
@@ -222,6 +251,12 @@ export function useEquilibrium(options: UseEquilibriumOptions = {}): IEquilibriu
       const workDays =
         Number(timeSettings?.work_days ?? defaultWorkDays) || defaultWorkDays
 
+      // Calculate real working days based on config
+      const workingDaysConfig: WorkingDaysConfig =
+        timeSettings?.working_days_config || getDefaultWorkingDaysConfig()
+
+      const workingDaysResult = calculateCurrentMonthWorkingDays(workingDaysConfig)
+
       const revenuePayload = toObject(revenueRes)
       const currentRevenueCents = Number(
         revenuePayload?.revenue?.current ??
@@ -253,7 +288,8 @@ export function useEquilibrium(options: UseEquilibriumOptions = {}): IEquilibriu
       const progress = EquilibriumCalculator.calculateProgress(
         currentRevenueCents,
         calculations.monthlyTargetCents ?? 0,
-        calculations.dailyTargetCents ?? 0
+        calculations.dailyTargetCents ?? 0,
+        workingDaysResult.elapsedWorkingDays
       )
 
       setData({
@@ -278,7 +314,11 @@ export function useEquilibrium(options: UseEquilibriumOptions = {}): IEquilibriu
         currentRevenueCents,
         revenueGapCents: progress.revenueGapCents,
         daysToBreakEven: progress.daysToBreakEven,
-        progressPercentage: progress.progressPercentage
+        progressPercentage: progress.progressPercentage,
+        actualDaysWorked: workingDaysResult.elapsedWorkingDays,
+        totalWorkDaysInPeriod: workingDaysResult.workingDays,
+        elapsedDays: workingDaysResult.elapsedDays,
+        remainingWorkingDays: workingDaysResult.remainingWorkingDays
       })
     } catch (err) {
       const errorMsg =
@@ -328,7 +368,8 @@ export function useEquilibrium(options: UseEquilibriumOptions = {}): IEquilibriu
       const progress = EquilibriumCalculator.calculateProgress(
         prev.currentRevenueCents,
         calculations.monthlyTargetCents ?? 0,
-        calculations.dailyTargetCents ?? 0
+        calculations.dailyTargetCents ?? 0,
+        prev.actualDaysWorked
       )
 
       return {
@@ -368,7 +409,8 @@ export function useEquilibrium(options: UseEquilibriumOptions = {}): IEquilibriu
       const progress = EquilibriumCalculator.calculateProgress(
         prev.currentRevenueCents,
         calculations.monthlyTargetCents ?? 0,
-        calculations.dailyTargetCents ?? 0
+        calculations.dailyTargetCents ?? 0,
+        prev.actualDaysWorked
       )
 
       return {

@@ -1,6 +1,6 @@
 {
   "name": "laralis-web",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "kill-node": "taskkill /F /IM node.exe 2>nul || echo No hay procesos Node activos",

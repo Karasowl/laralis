@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useT } from '@/lib/i18n'
+import { useTranslations } from 'next-intl'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { useWorkspace } from '@/contexts/workspace-context'
@@ -26,6 +27,7 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const t = useT()
+  const tProfile = useTranslations('profile')
   const pathname = usePathname()
   const router = useRouter()
   const { workspace, currentClinic, user, signOut } = useWorkspace()
@@ -65,9 +67,9 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   // Map user data for UserMenu component
   const userData = user ? {
-    name: user.user_metadata?.full_name || 
-          `${user.user_metadata?.first_name || ''} ${user.user_metadata?.last_name || ''}`.trim() || 
-          t('profile.defaultUser'),
+    name: user.user_metadata?.full_name ||
+          `${user.user_metadata?.first_name || ''} ${user.user_metadata?.last_name || ''}`.trim() ||
+          tProfile('defaultUser'),
     email: user.email || '',
     avatar: user.user_metadata?.avatar_url
   } : undefined
@@ -119,29 +121,6 @@ export function AppLayout({ children }: AppLayoutProps) {
           onToggleCollapse={handleCollapse}
           className="w-full"
         />
-        
-        {/* Desktop Quick Actions */}
-        <div className="absolute top-4 right-4 flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="h-8 w-8"
-            title={theme === 'dark' ? t('light_mode') : t('dark_mode')}
-          >
-            {theme === 'dark' ? (
-              <Sun className="h-4 w-4" />
-            ) : (
-              <Moon className="h-4 w-4" />
-            )}
-          </Button>
-          
-          <LanguageSwitcher compact={sidebarCollapsed} />
-          
-          {!sidebarCollapsed && (
-            <UserMenu user={userData} showLabel={false} />
-          )}
-        </div>
       </aside>
 
       {/* Mobile Sidebar */}
@@ -159,36 +138,6 @@ export function AppLayout({ children }: AppLayoutProps) {
             />
           </div>
           
-          {/* Mobile User Info - Above bottom navigation space */}
-          <div className="p-4 border-t bg-card mb-16">
-            <div className="space-y-3">
-              {/* Language Switcher for Mobile */}
-              <div className="flex items-center justify-between px-2">
-                <span className="text-sm text-muted-foreground">{t('settings.language')}</span>
-                <LanguageSwitcher compact={true} />
-              </div>
-              
-              {/* Theme Switcher for Mobile */}
-              <div className="flex items-center justify-between px-2">
-                <span className="text-sm text-muted-foreground">{t('settings.theme')}</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                  className="gap-2"
-                >
-                  {theme === 'dark' ? (
-                    <><Sun className="h-4 w-4" /><span>Light</span></>
-                  ) : (
-                    <><Moon className="h-4 w-4" /><span>Dark</span></>
-                  )}
-                </Button>
-              </div>
-              
-              {/* User Menu */}
-              <UserMenu user={userData} showLabel={true} />
-            </div>
-          </div>
         </div>
       </div>
 

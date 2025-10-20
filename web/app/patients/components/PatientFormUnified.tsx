@@ -11,17 +11,19 @@ interface PatientFormUnifiedProps {
   campaigns: any[]
   platforms: any[]
   patients: any[]
+  patientSources: any[]
   t: (key: string) => string
   onCreateCampaign?: (data: any) => Promise<any>
 }
 
-export function PatientFormUnified({ 
-  form, 
-  campaigns, 
+export function PatientFormUnified({
+  form,
+  campaigns,
   patients,
   platforms,
-  t, 
-  onCreateCampaign 
+  patientSources,
+  t,
+  onCreateCampaign
 }: PatientFormUnifiedProps) {
   const tCommon = useTranslations('common')
   const [acquisitionType, setAcquisitionType] = useState<string>('')
@@ -38,6 +40,27 @@ export function PatientFormUnified({
     form.setValue('campaign_id', '')
     form.setValue('referred_by_patient_id', '')
     form.setValue('platform_id', '')
+
+    // MAPEO DE ACQUISITION TYPE A SOURCE
+    // Mapeo correcto según los nombres creados por el trigger insert_default_patient_sources
+    const sourceMap: Record<string, string> = {
+      'direct': 'Otro',  // Genérico para directo
+      'campaign': 'Campaña',
+      'referral': 'Recomendación',
+      'organic': 'Google'  // Por defecto Google para orgánico
+    }
+
+    // Buscar el patient_source por nombre
+    const sourceName = sourceMap[value]
+    if (sourceName && patientSources) {
+      const source = patientSources.find((s: any) =>
+        s.name?.toLowerCase() === sourceName.toLowerCase()
+      )
+      if (source) {
+        form.setValue('source_id', source.id)
+      }
+    }
+
     // Activar modo creación si no hay campañas activas
     if (value === 'campaign') {
       setCreateCampaignMode(activeCampaigns.length === 0)
@@ -87,14 +110,20 @@ export function PatientFormUnified({
           <InputField
             label={t('fields.first_name')}
             value={form.watch('first_name')}
-            onChange={(value) => form.setValue('first_name', value)}
+            onChange={(e) => {
+              const val = typeof e === 'object' && 'target' in e ? e.target.value : e
+              form.setValue('first_name', val)
+            }}
             error={form.formState.errors.first_name?.message}
             required
           />
           <InputField
             label={t('fields.last_name')}
             value={form.watch('last_name')}
-            onChange={(value) => form.setValue('last_name', value)}
+            onChange={(e) => {
+              const val = typeof e === 'object' && 'target' in e ? e.target.value : e
+              form.setValue('last_name', val)
+            }}
             error={form.formState.errors.last_name?.message}
             required
           />
@@ -102,21 +131,30 @@ export function PatientFormUnified({
             type="email"
             label={t('fields.email')}
             value={form.watch('email')}
-            onChange={(value) => form.setValue('email', value)}
+            onChange={(e) => {
+              const val = typeof e === 'object' && 'target' in e ? e.target.value : e
+              form.setValue('email', val)
+            }}
             error={form.formState.errors.email?.message}
           />
           <InputField
             type="text"
             label={t('fields.phone')}
             value={form.watch('phone')}
-            onChange={(value) => form.setValue('phone', value)}
+            onChange={(e) => {
+              const val = typeof e === 'object' && 'target' in e ? e.target.value : e
+              form.setValue('phone', val)
+            }}
             error={form.formState.errors.phone?.message}
           />
           <InputField
             type="date"
             label={t('fields.birth_date')}
             value={form.watch('birth_date')}
-            onChange={(value) => form.setValue('birth_date', value)}
+            onChange={(e) => {
+              const val = typeof e === 'object' && 'target' in e ? e.target.value : e
+              form.setValue('birth_date', val)
+            }}
             error={form.formState.errors.birth_date?.message}
           />
           <div>
@@ -144,7 +182,10 @@ export function PatientFormUnified({
           <InputField
             label={t('fields.address')}
             value={form.watch('address')}
-            onChange={(value) => form.setValue('address', value)}
+            onChange={(e) => {
+              const val = typeof e === 'object' && 'target' in e ? e.target.value : e
+              form.setValue('address', val)
+            }}
             error={form.formState.errors.address?.message}
           />
         </FormGrid>
@@ -152,13 +193,19 @@ export function PatientFormUnified({
           <InputField
             label={t('fields.city')}
             value={form.watch('city')}
-            onChange={(value) => form.setValue('city', value)}
+            onChange={(e) => {
+              const val = typeof e === 'object' && 'target' in e ? e.target.value : e
+              form.setValue('city', val)
+            }}
             error={form.formState.errors.city?.message}
           />
           <InputField
             label={t('fields.postal_code')}
             value={form.watch('postal_code')}
-            onChange={(value) => form.setValue('postal_code', value)}
+            onChange={(e) => {
+              const val = typeof e === 'object' && 'target' in e ? e.target.value : e
+              form.setValue('postal_code', val)
+            }}
             error={form.formState.errors.postal_code?.message}
           />
         </FormGrid>
@@ -170,7 +217,10 @@ export function PatientFormUnified({
             type="date"
             label={t('fields.first_visit_date')}
             value={form.watch('first_visit_date')}
-            onChange={(value) => form.setValue('first_visit_date', value)}
+            onChange={(e) => {
+              const val = typeof e === 'object' && 'target' in e ? e.target.value : e
+              form.setValue('first_visit_date', val)
+            }}
             error={form.formState.errors.first_visit_date?.message}
           />
 
@@ -262,7 +312,10 @@ export function PatientFormUnified({
                 <InputField
                   label={t('fields.name')}
                   value={newCampaignName}
-                  onChange={(v) => setNewCampaignName(String(v))}
+                  onChange={(e) => {
+                    const val = typeof e === 'object' && 'target' in e ? e.target.value : e
+                    setNewCampaignName(String(val))
+                  }}
                   placeholder={t('campaign_name_placeholder')}
                   inputRef={newCampaignNameRef}
                   required
@@ -346,7 +399,10 @@ export function PatientFormUnified({
         <TextareaField
           label={t('fields.notes')}
           value={form.watch('notes')}
-          onChange={(value) => form.setValue('notes', value)}
+          onChange={(e) => {
+            const val = typeof e === 'object' && 'target' in e ? e.target.value : e
+            form.setValue('notes', val)
+          }}
           placeholder={t('notes_placeholder')}
           rows={3}
           error={form.formState.errors.notes?.message}

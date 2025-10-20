@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -16,15 +17,28 @@ interface SuppliesManagerProps {
   t: (key: string) => string
 }
 
-export function SuppliesManager({ 
-  supplies, 
-  serviceSupplies, 
-  onAdd, 
-  onRemove, 
-  onUpdate, 
-  variableCost, 
-  t 
+export function SuppliesManager({
+  supplies,
+  serviceSupplies,
+  onAdd,
+  onRemove,
+  onUpdate,
+  variableCost,
+  t
 }: SuppliesManagerProps) {
+  // PERFORMANCE FIX: Memoize supply options to avoid calling formatCurrency on every keystroke
+  // This was the MAIN CAUSE of lag with 50+ supplies
+  const supplyOptions = React.useMemo(
+    () => supplies.map((supply: any) => {
+      const costCents = supply.cost_per_portion_cents ?? supply.cost_per_unit_cents ?? supply.price_cents ?? 0
+      return {
+        value: supply.id,
+        label: `${supply.name} - ${formatCurrency(costCents)}`
+      }
+    }),
+    [supplies]
+  )
+
   return (
     <div className="space-y-4">
       <Card>
@@ -43,13 +57,7 @@ export function SuppliesManager({
               <SelectField
                 value={ss.supply_id}
                 onChange={(value) => onUpdate(index, 'supply_id', value)}
-                options={supplies.map((supply: any) => {
-                  const costCents = supply.cost_per_portion_cents ?? supply.cost_per_unit_cents ?? supply.price_cents ?? 0
-                  return ({
-                    value: supply.id,
-                    label: `${supply.name} - ${formatCurrency(costCents)}`
-                  })
-                })}
+                options={supplyOptions}
                 placeholder={t('select_supply')}
               />
             </div>

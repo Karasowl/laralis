@@ -38,6 +38,7 @@ function ResetPasswordContent() {
       password: '',
       confirmPassword: '',
     },
+    mode: 'onBlur', // PERFORMANCE: Validate only on blur
   })
 
   useEffect(() => {
@@ -245,8 +246,7 @@ function ResetPasswordContent() {
               label={t('passwordLabel')}
               type="password"
               placeholder={t('passwordPlaceholder')}
-              value={form.watch('password')}
-              onChange={(value) => form.setValue('password', value as string)}
+              {...form.register('password')}
               error={form.formState.errors.password?.message}
               required
               className="pl-10"
@@ -259,8 +259,7 @@ function ResetPasswordContent() {
               label={t('confirmPasswordLabel')}
               type="password"
               placeholder={t('confirmPasswordPlaceholder')}
-              value={form.watch('confirmPassword')}
-              onChange={(value) => form.setValue('confirmPassword', value as string)}
+              {...form.register('confirmPassword')}
               error={form.formState.errors.confirmPassword?.message}
               required
               className="pl-10"

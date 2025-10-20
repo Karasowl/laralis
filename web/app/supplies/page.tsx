@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -14,18 +14,12 @@ import { Supply, SupplyCategory } from '@/lib/types';
 import { zSupplyForm } from '@/lib/zod';
 import { Package } from 'lucide-react';
 import { z } from 'zod';
-import { useCategories } from '@/hooks/use-categories';
+import { useCategories, CategoryRow } from '@/hooks/use-categories';
 import { CategoryModal } from '@/app/services/components/CategoryModal';
 import { useWorkspace } from '@/contexts/workspace-context';
 import { useRouter } from 'next/navigation';
 
 type SupplyFormData = z.infer<typeof zSupplyForm>;
-
-// Legacy fallback kept for label mapping; options now come from categories API
-const legacyCategories: SupplyCategory[] = [
-  'insumo', 'bioseguridad', 'consumibles', 'materiales', 
-  'medicamentos', 'equipos', 'otros'
-];
 
 export default function SuppliesPage() {
   const t = useTranslations();
@@ -62,7 +56,8 @@ export default function SuppliesPage() {
       presentation: '',
       price_pesos: 0,
       portions: 1
-    }
+    },
+    mode: 'onBlur', // PERFORMANCE: Validate only on blur
   });
 
   const supplyInitialValues: SupplyFormData = {
@@ -116,13 +111,10 @@ export default function SuppliesPage() {
   // Handle edit
   const handleEdit = (supply: Supply) => {
     crud.handleEdit(supply);
-    const validCategory = legacyCategories.includes(supply.category as SupplyCategory) 
-      ? supply.category as SupplyCategory 
-      : 'otros';
-    
+
     reset({
       name: supply.name,
-      category: validCategory,
+      category: (supply.category || 'insumo') as SupplyCategory,
       presentation: supply.presentation || '',
       price_pesos: supply.price_cents / 100,
       portions: supply.portions
@@ -184,11 +176,17 @@ export default function SuppliesPage() {
     }
   ];
 
-  // Category options for select
-  const categoryOptions = (catList && catList.length > 0
-    ? (catList as CategoryRow[]).map((c) => ({ value: c.display_name || c.name || c.code || '', label: c.display_name || c.name || c.code || '' })).filter(option => option.value)
-    : legacyCategories.map(cat => ({ value: cat, label: t(`supplies.categories.${cat}`) }))
-  );
+  // Category options from categories table (system + custom)
+  const categoryOptions = useMemo(() => {
+    const categories: CategoryRow[] = catList || []
+    return categories
+      .map((c) => ({
+        value: c.display_name || c.name || '',
+        label: c.display_name || c.name || '',
+        isSystem: c.is_system || false
+      }))
+      .filter(option => option.value);
+  }, [catList]);
 
   return (
     <>

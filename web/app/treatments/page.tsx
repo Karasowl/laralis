@@ -90,6 +90,7 @@ export default function TreatmentsPage() {
   const form = useForm<TreatmentFormData>({
     resolver: zodResolver(treatmentFormSchema),
     defaultValues: treatmentInitialValues,
+    mode: 'onBlur', // PERFORMANCE: Validate only on blur instead of every keystroke
   })
 
   // Guard: ensure financial prerequisites before creating treatment
@@ -307,7 +308,7 @@ export default function TreatmentsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: data?.name,
-          est_minutes: Number(data?.duration_minutes || data?.est_minutes || 0),
+          est_minutes: Number(data?.est_minutes || data?.duration_minutes || 0),
           description: data?.description || undefined,
           category: data?.category || undefined,
           clinic_id: currentClinic?.id

@@ -13,7 +13,8 @@ interface AuthCredentials {
 
 interface RegisterCredentials extends AuthCredentials {
   confirmPassword?: string
-  name?: string
+  firstName?: string
+  lastName?: string
 }
 
 interface AuthState {
@@ -122,11 +123,19 @@ export function useAuth(): UseAuthReturn {
         return false
       }
 
+      const fullName = `${credentials.firstName || ''} ${credentials.lastName || ''}`.trim()
+
       const { error: signUpError, data } = await supabase.auth.signUp({
         email: credentials.email,
         password: credentials.password,
         options: {
-          data: { name: credentials.name }
+          data: {
+            first_name: credentials.firstName,
+            last_name: credentials.lastName,
+            full_name: fullName
+          },
+          // IMPORTANT: Tell Supabase where to redirect after email confirmation
+          emailRedirectTo: `${window.location.origin}/auth/callback`
         }
       })
 

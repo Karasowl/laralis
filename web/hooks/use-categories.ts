@@ -16,8 +16,12 @@ export interface CategoryRow {
   is_active?: boolean
 }
 
+interface CategoriesResponse {
+  data: CategoryRow[]
+}
+
 export function useCategories(type: CategoryType) {
-  const categoriesApi = useApi<CategoryRow[]>(`/api/categories?type=${type}&active=true`, { autoFetch: true })
+  const categoriesApi = useApi<CategoriesResponse>(`/api/categories?type=${type}&active=true`, { autoFetch: true })
 
   const refresh = () => categoriesApi.get()
 
@@ -56,8 +60,13 @@ export function useCategories(type: CategoryType) {
     } catch { return false }
   }
 
+  // Extract the array from the nested data structure
+  const categoriesArray = Array.isArray(categoriesApi.data)
+    ? categoriesApi.data
+    : (categoriesApi.data?.data || [])
+
   return {
-    categories: categoriesApi.data || [],
+    categories: categoriesArray,
     loading: categoriesApi.loading,
     error: categoriesApi.error,
     refresh,

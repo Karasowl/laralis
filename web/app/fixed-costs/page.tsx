@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { ActionDropdown, createEditAction, createDeleteAction } from '@/components/ui/ActionDropdown'
 import { InputField, SelectField, FormGrid, FormSection } from '@/components/ui/form-field'
+import { CategorySelect } from '@/components/ui/category-select'
 import { SummaryCards } from '@/components/ui/summary-cards'
 import { useCurrentClinic } from '@/hooks/use-current-clinic'
 import { useWorkspace } from '@/contexts/workspace-context'
@@ -31,16 +32,8 @@ import { toast } from 'sonner'
 
 type FixedCostFormData = z.infer<typeof zFixedCostForm>
 
-const categories: { value: FixedCostCategory; label: string }[] = [
-  { value: 'rent', label: 'fixedCosts.categories.rent' },
-  { value: 'utilities', label: 'fixedCosts.categories.utilities' },
-  { value: 'salaries', label: 'fixedCosts.categories.salaries' },
-  { value: 'insurance', label: 'fixedCosts.categories.insurance' },
-  { value: 'maintenance', label: 'fixedCosts.categories.maintenance' },
-  { value: 'education', label: 'fixedCosts.categories.education' },
-  { value: 'advertising', label: 'fixedCosts.categories.advertising' },
-  { value: 'other', label: 'fixedCosts.categories.other' },
-]
+// Categories now come from database (system + custom)
+// Legacy hardcoded array removed - use CategorySelect instead
 
 const frequencyOptions: { value: FixedCostFrequency; label: string; descriptionKey: string }[] = [
   { value: 'monthly', label: 'fixedCosts.frequency.monthly', descriptionKey: 'fixedCosts.frequency.monthlyHint' },
@@ -84,7 +77,7 @@ export default function FixedCostsPage() {
 
   // Form
   const fixedCostInitialValues: FixedCostFormData = {
-    category: 'other',
+    category: '',
     concept: '',
     amount_pesos: 0,
     frequency: 'monthly',
@@ -93,6 +86,7 @@ export default function FixedCostsPage() {
   const form = useForm<FixedCostFormData>({
     resolver: zodResolver(zFixedCostForm),
     defaultValues: fixedCostInitialValues,
+    mode: 'onBlur', // PERFORMANCE: Validate only on blur
   })
 
   // Submit handlers
@@ -204,32 +198,49 @@ export default function FixedCostsPage() {
 
   // Category breakdown
   const getCategoryBreakdown = () => {
-    const breakdown: Array<{ category: string; label: string; total: number; percentage: number }> = categories.map((category) => {
+    // Get unique categories from actual fixed costs (manual only)
+    const uniqueCategories = Array.from(new Set(fixedCosts.map(cost => cost.category)))
+
+    const breakdown: Array<{
+      category: string
+      label: string
+      total: number
+      percentage: number
+      type: 'manual' | 'depreciation'
+    }> = uniqueCategories.map((categoryValue) => {
       const categoryTotal = fixedCosts
-        .filter(cost => cost.category === category.value)
+        .filter(cost => cost.category === categoryValue)
         .reduce((sum, cost) => sum + cost.amount_cents, 0)
-      
+
       const percentage = summary.totalCosts > 0 ? (categoryTotal / summary.totalCosts) * 100 : 0
-      
+
       return {
-        category: category.value,
-        label: t(category.label),
+        category: categoryValue,
+        label: getCategoryDisplayName(categoryValue, t),
         total: categoryTotal,
-        percentage
+        percentage,
+        type: 'manual'
       }
     }).filter(item => item.total > 0)
 
-    // Add depreciation
+    // Add depreciation as separate entry
     if (summary.monthlyDepreciation > 0) {
       breakdown.push({
         category: 'depreciation',
         label: t('fixedCosts.categories.depreciation'),
         total: summary.monthlyDepreciation,
-        percentage: (summary.monthlyDepreciation / summary.totalCosts) * 100
+        percentage: (summary.monthlyDepreciation / summary.totalCosts) * 100,
+        type: 'depreciation'
       })
     }
 
-    return breakdown
+    // Sort: manual categories first (alphabetically), then depreciation
+    return breakdown.sort((a, b) => {
+      if (a.type === b.type) {
+        return a.label.localeCompare(b.label)
+      }
+      return a.type === 'manual' ? -1 : 1
+    })
   }
 
   const categoryColors: Record<string, string> = {
@@ -263,21 +274,21 @@ export default function FixedCostsPage() {
             {
               label: t('fixedCosts.summary.totalMonthly'),
               value: formatCurrency(summary.totalCosts),
-              subtitle: t('fixedCosts.summary.breakdown'),
+              subtitle: t('fixedCosts.summary.includingDepreciation'),
               icon: Receipt,
               color: 'primary'
             },
             {
-              label: t('fixedCosts.summary.local'),
+              label: t('fixedCosts.summary.manualCosts'),
               value: formatCurrency(summary.totalManualCosts),
               subtitle: `${summary.manualCount} ${t('fixedCosts.summary.concepts')}`,
-              icon: DollarSign,
+              icon: Calculator,
               color: 'success'
             },
             {
               label: t('fixedCosts.summary.depreciation'),
               value: formatCurrency(summary.monthlyDepreciation),
-              subtitle: t('fixedCosts.summary.autoAddedNote'),
+              subtitle: `${summary.assetsCount} ${summary.assetsCount === 1 ? t('assets.entity') : t('assets.entity')}`,
               icon: TrendingUp,
               color: 'info'
             },
@@ -305,30 +316,83 @@ export default function FixedCostsPage() {
             <Card>
               <div className="p-6">
                 <h3 className="text-lg font-semibold mb-4">{t('fixedCosts.categoryBreakdown')}</h3>
-                <div className="space-y-4">
-                  {getCategoryBreakdown().map(item => (
-                    <div key={item.category} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-4 h-4 rounded-full ${categoryColors[item.category]}`} />
-                          <span className="text-sm font-medium">{item.label}</span>
-                        </div>
-                        <span className="text-sm font-semibold">
-                          {formatCurrency(item.total)}
-                        </span>
+
+                {/* Manual Fixed Costs Section */}
+                {(() => {
+                  const manualBreakdown = getCategoryBreakdown().filter(item => item.type === 'manual')
+                  return manualBreakdown.length > 0 && (
+                    <>
+                      <h4 className="text-sm font-medium text-muted-foreground mb-3">
+                        {t('fixedCosts.breakdownSections.manual')}
+                      </h4>
+                      <div className="space-y-4">
+                        {manualBreakdown.map(item => (
+                          <div key={item.category} className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-4 h-4 rounded-full ${categoryColors[item.category] || 'bg-gray-500'}`} />
+                                <span className="text-sm font-medium">{item.label}</span>
+                              </div>
+                              <span className="text-sm font-semibold">
+                                {formatCurrency(item.total)}
+                              </span>
+                            </div>
+                            <div className="w-full bg-muted rounded-full h-2">
+                              <div
+                                className={`h-2 rounded-full ${categoryColors[item.category] || 'bg-gray-500'}`}
+                                style={{ width: `${Math.min(item.percentage, 100)}%` }}
+                              />
+                            </div>
+                            <div className="text-xs text-muted-foreground text-right">
+                              {item.percentage.toFixed(1)}%
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                      <div className="w-full bg-muted rounded-full h-2">
-                        <div
-                          className={`h-2 rounded-full ${categoryColors[item.category]}`}
-                          style={{ width: `${Math.min(item.percentage, 100)}%` }}
-                        />
+                    </>
+                  )
+                })()}
+
+                {/* Separator */}
+                {summary.monthlyDepreciation > 0 && fixedCosts.length > 0 && (
+                  <div className="my-6 border-t border-border" />
+                )}
+
+                {/* Depreciation Section */}
+                {(() => {
+                  const depreciationBreakdown = getCategoryBreakdown().filter(item => item.type === 'depreciation')
+                  return depreciationBreakdown.length > 0 && (
+                    <>
+                      <h4 className="text-sm font-medium text-muted-foreground mb-3">
+                        {t('fixedCosts.breakdownSections.automatic')}
+                      </h4>
+                      <div className="space-y-4">
+                        {depreciationBreakdown.map(item => (
+                          <div key={item.category} className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="w-4 h-4 rounded-full bg-blue-500" />
+                                <span className="text-sm font-medium">{item.label}</span>
+                              </div>
+                              <span className="text-sm font-semibold">
+                                {formatCurrency(item.total)}
+                              </span>
+                            </div>
+                            <div className="w-full bg-muted rounded-full h-2">
+                              <div
+                                className="h-2 rounded-full bg-blue-500"
+                                style={{ width: `${Math.min(item.percentage, 100)}%` }}
+                              />
+                            </div>
+                            <div className="text-xs text-muted-foreground text-right">
+                              {item.percentage.toFixed(1)}%
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                      <div className="text-xs text-muted-foreground text-right">
-                        {item.percentage.toFixed(1)}%
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    </>
+                  )
+                })()}
               </div>
             </Card>
           </div>
@@ -341,7 +405,7 @@ export default function FixedCostsPage() {
           title={t('fixedCosts.create')}
           onSubmit={form.handleSubmit(handleCreate)}
         >
-            <FixedCostForm form={form} categories={categories} frequencyOptions={frequencyOptions} t={t} />
+            <FixedCostForm form={form} frequencyOptions={frequencyOptions} t={t} />
         </FormModal>
 
         {/* Edit Modal */}
@@ -351,7 +415,7 @@ export default function FixedCostsPage() {
           title={t('fixedCosts.edit')}
           onSubmit={form.handleSubmit(handleEdit)}
         >
-          <FixedCostForm form={form} categories={categories} frequencyOptions={frequencyOptions} t={t} />
+          <FixedCostForm form={form} frequencyOptions={frequencyOptions} t={t} />
         </FormModal>
 
         {/* Delete Confirmation */}
@@ -373,12 +437,11 @@ export default function FixedCostsPage() {
 // Fixed Cost Form Component
 interface FixedCostFormProps {
   form: UseFormReturn<FixedCostFormData>
-  categories: { value: FixedCostCategory; label: string }[]
   frequencyOptions: { value: FixedCostFrequency; label: string; descriptionKey: string }[]
   t: (key: string) => string
 }
 
-function FixedCostForm({ form, categories, frequencyOptions, t }: FixedCostFormProps) {
+function FixedCostForm({ form, frequencyOptions, t }: FixedCostFormProps) {
   const amountValue = form.watch('amount_pesos') ?? 0
   const frequencyValue = form.watch('frequency') ?? 'monthly'
 
@@ -394,22 +457,28 @@ function FixedCostForm({ form, categories, frequencyOptions, t }: FixedCostFormP
   return (
     <FormSection>
       <FormGrid columns={1}>
-        <SelectField
-          label={t('fixedCosts.category')}
-          value={form.watch('category')}
-          onChange={(value) => form.setValue('category', value)}
-          options={categories.map((cat) => ({
-            value: cat.value,
-            label: t(cat.label)
-          }))}
-          error={form.formState.errors.category?.message}
-          required
-        />
+        <div>
+          <label className="text-sm font-medium mb-2 block">
+            {t('fixedCosts.category')} <span className="text-red-500">*</span>
+          </label>
+          <CategorySelect
+            type="fixed_costs"
+            value={form.watch('category')}
+            onValueChange={(value) => form.setValue('category', value)}
+            placeholder={t('categories.selectCategory')}
+          />
+          {form.formState.errors.category?.message && (
+            <p className="text-sm text-red-500 mt-1">{form.formState.errors.category.message}</p>
+          )}
+        </div>
 
         <InputField
           label={t('fixedCosts.concept')}
           value={form.watch('concept')}
-          onChange={(value) => form.setValue('concept', value)}
+          onChange={(e) => {
+            const val = typeof e === 'object' && 'target' in e ? e.target.value : e
+            form.setValue('concept', val)
+          }}
           placeholder={t('fixedCosts.conceptPlaceholder')}
           error={form.formState.errors.concept?.message}
           required

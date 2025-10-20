@@ -12,6 +12,13 @@ import { MetricCard } from '@/components/dashboard/MetricCard'
 import { RevenueChart } from '@/components/dashboard/RevenueChart'
 import { CategoryBreakdown } from '@/components/dashboard/CategoryBreakdown'
 import { RecentActivity } from '@/components/dashboard/RecentActivity'
+import { BreakEvenProgress } from '@/components/dashboard/BreakEvenProgress'
+import { BusinessMetricsGrid } from '@/components/dashboard/BusinessMetricsGrid'
+import { DateFilterBar } from '@/components/dashboard/DateFilterBar'
+import { PeriodBreakdown } from '@/components/dashboard/PeriodBreakdown'
+import { MarketingROISimple } from '@/components/dashboard/MarketingROISimple'
+import { ServiceROIAnalysis } from '@/components/dashboard/ServiceROIAnalysis'
+import { MonthlyProfitSimulator } from '@/components/dashboard/MonthlyProfitSimulator'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -19,31 +26,21 @@ import { Progress } from '@/components/ui/progress'
 import { useWorkspace } from '@/contexts/workspace-context'
 import { useDashboard } from '@/hooks/use-dashboard'
 import { useReports } from '@/hooks/use-reports'
+import { useEquilibrium } from '@/hooks/use-equilibrium'
+import { useDateFilter } from '@/hooks/use-date-filter'
+import { useServiceROI } from '@/hooks/use-service-roi'
 import { formatCurrency } from '@/lib/format'
 import { ReportsAdvanced } from '@/app/reports/ReportsAdvanced'
 import { ReportsMarketing } from '@/app/reports/ReportsMarketing'
 import {
   Users,
   DollarSign,
-  TrendingUp,
   Receipt,
   Activity,
-  Package,
   ShoppingCart,
   AlertCircle,
-  AlertTriangle,
-  RefreshCw,
-  ArrowUpRight,
-  ArrowUpCircle
+  RefreshCw
 } from 'lucide-react'
-
-type PredictionKey = 'next_month' | 'next_quarter' | 'year_end'
-
-const confidenceToneClass: Record<'success' | 'info' | 'warning', string> = {
-  success: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  info: 'bg-blue-100 text-blue-700 border-blue-200',
-  warning: 'bg-amber-100 text-amber-800 border-amber-200'
-}
 
 function DashboardSkeleton() {
   return (
@@ -70,56 +67,57 @@ function DashboardSkeleton() {
   )
 }
 
-function QuickActions({ onRefresh }: { onRefresh: () => void }) {
-  const t = useTranslations('dashboard')
-  const tNav = useTranslations('navigation')
-  const router = useRouter()
+// Componente removido - acciones disponibles desde el menú principal
+// function QuickActions({ onRefresh }: { onRefresh: () => void }) {
+//   const t = useTranslations('dashboard')
+//   const tNav = useTranslations('navigation')
+//   const router = useRouter()
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t('quick_actions')}</CardTitle>
-        <CardDescription>{t('common_tasks')}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 gap-2">
-          <Button
-            variant="outline"
-            className="justify-start"
-            onClick={() => router.push('/treatments/new')}
-          >
-            <Activity className="h-4 w-4 mr-2" />
-            {t('new_treatment')}
-          </Button>
-          <Button
-            variant="outline"
-            className="justify-start"
-            onClick={() => router.push('/patients/new')}
-          >
-            <Users className="h-4 w-4 mr-2" />
-            {t('new_patient')}
-          </Button>
-          <Button
-            variant="outline"
-            className="justify-start"
-            onClick={() => router.push('/expenses/new')}
-          >
-            <Receipt className="h-4 w-4 mr-2" />
-            {t('record_expense')}
-          </Button>
-          <Button
-            variant="outline"
-            className="justify-start"
-            onClick={onRefresh}
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            {t('refresh_data')}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
+//   return (
+//     <Card>
+//       <CardHeader>
+//         <CardTitle>{t('quick_actions')}</CardTitle>
+//         <CardDescription>{t('common_tasks')}</CardDescription>
+//       </CardHeader>
+//       <CardContent>
+//         <div className="grid grid-cols-2 gap-2">
+//           <Button
+//             variant="outline"
+//             className="justify-start"
+//             onClick={() => router.push('/treatments/new')}
+//           >
+//             <Activity className="h-4 w-4 mr-2" />
+//             {t('new_treatment')}
+//           </Button>
+//           <Button
+//             variant="outline"
+//             className="justify-start"
+//             onClick={() => router.push('/patients/new')}
+//           >
+//             <Users className="h-4 w-4 mr-2" />
+//             {t('new_patient')}
+//           </Button>
+//           <Button
+//             variant="outline"
+//             className="justify-start"
+//             onClick={() => router.push('/expenses/new')}
+//           >
+//             <Receipt className="h-4 w-4 mr-2" />
+//             {t('record_expense')}
+//           </Button>
+//           <Button
+//             variant="outline"
+//             className="justify-start"
+//             onClick={onRefresh}
+//           >
+//             <RefreshCw className="h-4 w-4 mr-2" />
+//             {t('refresh_data')}
+//           </Button>
+//         </div>
+//       </CardContent>
+//     </Card>
+//   )
+// }
 
 function AlertsSection({ lowStockCount }: { lowStockCount: number }) {
   const t = useTranslations('dashboard')
@@ -162,10 +160,21 @@ export default function InsightsPage() {
   const tReports = useTranslations('reports')
   const router = useRouter()
   const { currentClinic } = useWorkspace()
-  const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'year' | 'custom'>('month')
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
   const [mounted, setMounted] = useState(false)
+
+  // Use centralized date filter hook
+  const {
+    period: filterPeriod,
+    granularity,
+    comparison,
+    customRange,
+    currentRange,
+    previousRange,
+    setPeriod: setFilterPeriod,
+    setGranularity,
+    setComparison,
+    setCustomRange
+  } = useDateFilter()
 
   const {
     metrics,
@@ -175,9 +184,10 @@ export default function InsightsPage() {
     error: dashboardError
   } = useDashboard({
     clinicId: currentClinic?.id,
-    period,
-    from: dateFrom || undefined,
-    to: dateTo || undefined
+    period: filterPeriod,
+    from: customRange?.from || undefined,
+    to: customRange?.to || undefined,
+    chartGranularity: granularity
   })
 
   const {
@@ -188,6 +198,16 @@ export default function InsightsPage() {
     fetchReportsData
   } = useReports({ clinicId: currentClinic?.id })
 
+  const {
+    data: equilibriumData,
+    loading: equilibriumLoading
+  } = useEquilibrium({ clinicId: currentClinic?.id })
+
+  const {
+    data: roiData,
+    loading: roiLoading
+  } = useServiceROI({ clinicId: currentClinic?.id, days: 30 })
+
   useEffect(() => {
     setMounted(true)
   }, [])
@@ -197,18 +217,48 @@ export default function InsightsPage() {
     window.location.reload()
   }
 
-  const isLoading = (dashboardLoading && !mounted) || reportsLoading
-  const hasInsights = Boolean(insights)
-  const predictions = insights?.revenue_predictions
-  const serviceAnalysis = insights?.service_analysis
-  const mostProfitable = serviceAnalysis?.most_profitable?.slice(0, 2) ?? []
-  const growthOpportunities = serviceAnalysis?.growth_opportunities?.slice(0, 2) ?? []
-  const decliningServices = serviceAnalysis?.declining_services?.slice(0, 3) ?? []
+  // Dynamic labels based on selected period
+  const getPeriodLabels = useMemo(() => {
+    switch (filterPeriod) {
+      case 'day':
+        return {
+          revenue: t('daily_revenue'),
+          expenses: t('daily_expenses'),
+          comparison: t('vs_previous_day'),
+          newPatients: t('new_today'),
+        }
+      case 'week':
+        return {
+          revenue: t('weekly_revenue'),
+          expenses: t('weekly_expenses'),
+          comparison: t('vs_previous_week'),
+          newPatients: t('new_this_week'),
+        }
+      case 'year':
+        return {
+          revenue: t('yearly_revenue'),
+          expenses: t('yearly_expenses'),
+          comparison: t('vs_previous_year'),
+          newPatients: t('new_this_year'),
+        }
+      case 'custom':
+        return {
+          revenue: t('period_revenue'),
+          expenses: t('period_expenses'),
+          comparison: t('vs_previous_period'),
+          newPatients: t('new_in_period'),
+        }
+      default: // 'month'
+        return {
+          revenue: t('monthly_revenue'),
+          expenses: t('monthly_expenses'),
+          comparison: t('vs_previous_month'),
+          newPatients: t('new_this_month'),
+        }
+    }
+  }, [filterPeriod, t])
 
-  const predictionOrder: PredictionKey[] = useMemo(
-    () => ['next_month', 'next_quarter', 'year_end'],
-    []
-  )
+  const isLoading = (dashboardLoading && !mounted) || reportsLoading
 
   return (
     <AppLayout>
@@ -217,46 +267,17 @@ export default function InsightsPage() {
           title={t('title')}
           subtitle={t('subtitle', { clinic: currentClinic?.name || '' })}
           actions={
-            <div className="flex items-center gap-2">
-              <select
-                className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                value={period}
-                onChange={(e) => setPeriod(e.target.value as typeof period)}
-                aria-label="Periodo"
-              >
-                <option value="day">{t('today')}</option>
-                <option value="week">{t('this_week')}</option>
-                <option value="month">{t('this_month')}</option>
-                <option value="year">{t('this_year')}</option>
-                <option value="custom">{t('custom')}</option>
-              </select>
-              {period === 'custom' && (
-                <>
-                  <input
-                    type="date"
-                    className="h-9 rounded-md border px-2 text-sm"
-                    value={dateFrom}
-                    onChange={(e) => setDateFrom(e.target.value)}
-                  />
-                  <input
-                    type="date"
-                    className="h-9 rounded-md border px-2 text-sm"
-                    value={dateTo}
-                    onChange={(e) => setDateTo(e.target.value)}
-                  />
-                </>
-              )}
-              <Button onClick={handleRefresh} variant="outline">
-                <RefreshCw className="h-4 w-4 mr-2" />
-                {t('refresh')}
-              </Button>
-            </div>
+            <Button onClick={handleRefresh} variant="outline">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              {t('refresh')}
+            </Button>
           }
         />
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 md:max-w-xl">
+          <TabsList className="grid w-full grid-cols-4 md:max-w-2xl">
             <TabsTrigger value="overview">{tReports('tabs.overview')}</TabsTrigger>
+            <TabsTrigger value="profitability">{tReports('tabs.profitability')}</TabsTrigger>
             <TabsTrigger value="advanced">{tReports('tabs.advanced')}</TabsTrigger>
             <TabsTrigger value="marketing">{tReports('tabs.marketing')}</TabsTrigger>
           </TabsList>
@@ -283,25 +304,106 @@ export default function InsightsPage() {
                   <AlertsSection lowStockCount={metrics.supplies.lowStock} />
                 )}
 
+                {/* Break-Even Progress */}
+                {!equilibriumLoading && equilibriumData && equilibriumData.monthlyTargetCents > 0 && (
+                  <BreakEvenProgress
+                    monthlyTargetCents={equilibriumData.monthlyTargetCents}
+                    currentRevenueCents={equilibriumData.currentRevenueCents}
+                    progressPercentage={equilibriumData.progressPercentage}
+                    dailyTargetCents={equilibriumData.dailyTargetCents}
+                    daysToBreakEven={equilibriumData.daysToBreakEven}
+                    revenueGapCents={equilibriumData.revenueGapCents}
+                    actualDaysWorked={equilibriumData.actualDaysWorked}
+                    totalWorkDaysInPeriod={equilibriumData.totalWorkDaysInPeriod}
+                    elapsedDays={equilibriumData.elapsedDays}
+                    remainingWorkingDays={equilibriumData.remainingWorkingDays}
+                  />
+                )}
+
+                {/* Business Metrics Grid */}
+                {kpis && !equilibriumLoading && equilibriumData && (
+                  <BusinessMetricsGrid
+                    ticketPromedioCents={kpis.avgTreatmentValue}
+                    pacientesNecesariosPorDia={(() => {
+                      // SMART CALCULATION: Based on remaining days, not ideal daily target
+                      const remainingDays = Math.max(1, equilibriumData.remainingWorkingDays || 1)
+                      const revenueNeeded = Math.max(0, equilibriumData.revenueGapCents)
+                      const dailyRevenueNeeded = revenueNeeded / remainingDays
+
+                      // Use actual ticket average if we have enough data (at least 5 treatments)
+                      // Otherwise use assumed minimum ticket of $500 MXN (50000 cents)
+                      const MIN_SAMPLE_SIZE = 5
+                      const ASSUMED_TICKET_CENTS = 50000 // $500 MXN
+
+                      const ticketToUse = kpis.totalTreatments >= MIN_SAMPLE_SIZE && kpis.avgTreatmentValue > 0
+                        ? kpis.avgTreatmentValue
+                        : ASSUMED_TICKET_CENTS
+
+                      return ticketToUse > 0
+                        ? Math.ceil(dailyRevenueNeeded / ticketToUse)
+                        : 0
+                    })()}
+                    pacientesActualesPorDia={kpis.avgPatientsPerDay || 0}
+                    ingresosHoyCents={metrics.revenue.current}
+                    workDays={equilibriumData.workDays}
+                    monthlyTargetCents={equilibriumData.monthlyTargetCents}
+                    daysElapsed={equilibriumData.elapsedDays}
+                  />
+                )}
+
+                {/* Date Filter Bar */}
+                <DateFilterBar
+                  period={filterPeriod}
+                  granularity={granularity}
+                  comparison={comparison}
+                  customRange={customRange}
+                  onPeriodChange={setFilterPeriod}
+                  onGranularityChange={setGranularity}
+                  onComparisonChange={setComparison}
+                  onCustomRangeChange={setCustomRange}
+                />
+
+                {/* Period Breakdown */}
+                {charts.revenue && charts.revenue.length > 0 && (
+                  <PeriodBreakdown
+                    data={{
+                      current: charts.revenue.slice(0, 7).map((item, idx) => ({
+                        label: `${t('day')} ${idx + 1}`,
+                        value: item.revenue || 0,
+                        date: new Date(Date.now() - (6 - idx) * 24 * 60 * 60 * 1000).toISOString()
+                      })),
+                      previous: comparison !== 'none' ? charts.revenue.slice(7, 14).map((item, idx) => ({
+                        label: `${t('day')} ${idx + 1}`,
+                        value: item.revenue || 0,
+                        date: new Date(Date.now() - (13 - idx) * 24 * 60 * 60 * 1000).toISOString()
+                      })) : undefined
+                    }}
+                    granularity={granularity}
+                    showComparison={comparison !== 'none'}
+                  />
+                )}
+
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                   <MetricCard
-                    title={t('monthly_revenue')}
+                    title={getPeriodLabels.revenue}
                     value={formatCurrency(metrics.revenue.current)}
+                    valueInCents={metrics.revenue.current}
                     change={metrics.revenue.change}
                     changeType={metrics.revenue.change > 0 ? 'increase' : 'decrease'}
                     icon={DollarSign}
                     color="text-green-600"
-                    subtitle={t('vs_previous_month')}
+                    subtitle={getPeriodLabels.comparison}
                   />
 
                   <MetricCard
-                    title={t('monthly_expenses')}
+                    title={getPeriodLabels.expenses}
                     value={formatCurrency(metrics.expenses.current)}
+                    valueInCents={metrics.expenses.current}
                     change={metrics.expenses.change}
                     changeType={metrics.expenses.change > 0 ? 'increase' : 'decrease'}
                     icon={Receipt}
                     color="text-red-600"
-                    subtitle={t('vs_previous_month')}
+                    subtitle={getPeriodLabels.comparison}
                   />
 
                   <MetricCard
@@ -311,7 +413,7 @@ export default function InsightsPage() {
                     changeType="increase"
                     icon={Users}
                     color="text-blue-600"
-                    subtitle={`${metrics.patients.new} ${t('new_this_month')}`}
+                    subtitle={`${metrics.patients.new} ${getPeriodLabels.newPatients}`}
                   />
 
                   <MetricCard
@@ -328,6 +430,8 @@ export default function InsightsPage() {
                     data={charts.revenue}
                     title={t('revenue_vs_expenses')}
                     description={t('monthly_comparison')}
+                    onGranularityChange={setGranularity}
+                    currentGranularity={granularity}
                   />
                   <CategoryBreakdown
                     data={charts.categories}
@@ -336,170 +440,20 @@ export default function InsightsPage() {
                   />
                 </div>
 
-                {hasInsights && (
-                  <div className="grid gap-4 md:grid-cols-3">
-                    {predictionOrder.map((key) => {
-                      const prediction = predictions?.[key]
-                      if (!prediction) return null
-
-                      const score = typeof (prediction as any).confidence_score === 'number'
-                        ? (prediction as any).confidence_score
-                        : typeof (prediction as any).confidence === 'number'
-                          ? (prediction as any).confidence
-                          : 0
-
-                      const amount = (prediction as any).amount ?? (prediction as any).predictedValue ?? 0
-
-                      const getTone = (s: number): 'success' | 'info' | 'warning' => {
-                        if (s >= 0.8) return 'success'
-                        if (s >= 0.6) return 'info'
-                        return 'warning'
-                      }
-
-                      const tone = confidenceToneClass[getTone(score)]
-
-                      return (
-                        <Card key={key} className="border border-dashed">
-                          <CardHeader>
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <CardTitle className="text-base">
-                                  {tReports(`overview.predictions.${key}.title`)}
-                                </CardTitle>
-                                <CardDescription>
-                                  {tReports(`overview.predictions.${key}.subtitle`)}
-                                </CardDescription>
-                              </div>
-                              <Badge className={tone}>
-                                {tReports('overview.predictions.confidence', {
-                                  value: Math.round((score || 0) * 100)
-                                })}
-                              </Badge>
-                            </div>
-                          </CardHeader>
-                          <CardContent className="space-y-2">
-                            <div className="text-2xl font-semibold">
-                              {formatCurrency(amount || 0)}
-                            </div>
-                            <p className="text-sm text-muted-foreground">
-                              {prediction.comment ||
-                                tReports(`overview.predictions.${key}.description`)}
-                            </p>
-                            <Progress value={(score || 0) * 100} />
-                          </CardContent>
-                        </Card>
-                      )
-                    })}
-                  </div>
-                )}
-
-                {hasInsights && (mostProfitable.length > 0 || growthOpportunities.length > 0) && (
-                  <Card>
-                    <CardHeader>
-                      <div className="flex items-center justify-between gap-2">
-                        <div>
-                          <CardTitle>{tReports('overview.highlights.title')}</CardTitle>
-                          <CardDescription>{tReports('overview.highlights.subtitle')}</CardDescription>
-                        </div>
-                        <Badge variant="outline" className="gap-1 text-xs uppercase tracking-wide">
-                          <TrendingUp className="h-3.5 w-3.5" />
-                          {tReports('overview.highlights.metric')}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="grid gap-4 md:grid-cols-2">
-                      {mostProfitable.map((service) => (
-                        <div key={service.service_id} className="rounded-lg border p-4">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="font-semibold">
-                                {service.service_name || service.service_id}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {tReports('overview.highlights.margin', {
-                                  margin: service.average_margin.toFixed(1)
-                                })}
-                              </p>
-                            </div>
-                            <Badge variant="outline" className="bg-emerald-100 text-emerald-700">
-                              <ArrowUpCircle className="h-3.5 w-3.5 mr-1" />
-                              {service.roi.toFixed(1)}% ROI
-                            </Badge>
-                          </div>
-                        </div>
-                      ))}
-
-                      {growthOpportunities.map((service) => (
-                        <div
-                          key={`${service.service_id}-opportunity`}
-                          className="rounded-lg border border-dashed p-4"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="font-semibold">
-                                {service.service_name || service.service_id}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {tReports('overview.highlights.frequency', {
-                                  count: service.frequency
-                                })}
-                              </p>
-                            </div>
-                            <Badge variant="outline" className="bg-sky-100 text-sky-700">
-                              <ArrowUpRight className="h-3.5 w-3.5 mr-1" />
-                              {tReports('overview.highlights.potential', {
-                                value: formatCurrency(service.potential_revenue)
-                              })}
-                            </Badge>
-                          </div>
-                        </div>
-                      ))}
-                    </CardContent>
-                  </Card>
-                )}
-
-                {hasInsights && decliningServices.length > 0 && (
-                  <Card className="border-amber-200 bg-amber-50">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-amber-700">
-                        <AlertTriangle className="h-5 w-5" />
-                        {tReports('overview.alerts.title')}
-                      </CardTitle>
-                      <CardDescription>{tReports('overview.alerts.subtitle')}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      {decliningServices.map((service) => (
-                        <div
-                          key={`${service.service_id}-decline`}
-                          className="flex items-center justify-between rounded-lg border border-amber-200 bg-white p-3"
-                        >
-                          <div>
-                            <p className="font-medium text-amber-700">
-                              {service.service_name || service.service_id}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {tReports('overview.alerts.message')}
-                            </p>
-                          </div>
-                          <span className="text-sm font-semibold text-amber-700">
-                            -{(service.decline_rate * 100).toFixed(1)}%
-                          </span>
-                        </div>
-                      ))}
-                    </CardContent>
-                  </Card>
-                )}
-
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 md:grid-cols-1">
                   <RecentActivity
                     activities={activities}
                     title={t('recent_activity')}
                     description={t('latest_clinic_actions')}
                   />
-                  <QuickActions onRefresh={handleRefresh} />
+                  {/* <QuickActions onRefresh={handleRefresh} /> */}
                 </div>
               </>
             )}
+          </TabsContent>
+
+          <TabsContent value="profitability">
+            <ServiceROIAnalysis data={roiData} loading={roiLoading} />
           </TabsContent>
 
           <TabsContent value="advanced">
@@ -507,10 +461,9 @@ export default function InsightsPage() {
           </TabsContent>
 
           <TabsContent value="marketing">
-            <ReportsMarketing
+            <MarketingROISimple
               clinicId={currentClinic?.id}
-              insights={insights}
-              loading={reportsLoading}
+              months={6}
             />
           </TabsContent>
         </Tabs>

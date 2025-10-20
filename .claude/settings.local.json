@@ -15,7 +15,8 @@
       "Bash(tracert:*)",
       "Bash(dir:*)",
       "Bash(node:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(git add CHANGELOG.md docs/ scripts/ supabase/migrations/ web/app/ web/components/ web/hooks/ web/lib/ web/messages/*.backup)"
     ],
     "deny": []
   }

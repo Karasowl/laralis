@@ -8,7 +8,10 @@ import { resolveClinicContext } from '@/lib/clinic'
 const tariffItemSchema = z.object({
   service_id: z.string().min(1, 'service_id is required'),
   clinic_id: z.string().min(1, 'clinic_id is required'),
-  margin_percentage: z.coerce.number().min(0).max(100),
+  margin_percentage: z.coerce
+    .number()
+    .min(0, 'Margin must be at least 0% (allows promotions/offers)')
+    .max(300, 'Margin must not exceed 300% (check for input errors)'),
   final_price_cents: z.coerce.number().int().nonnegative(),
   is_active: z.boolean().optional()
 })
@@ -155,6 +158,22 @@ export async function POST(request: NextRequest) {
       const clinicCosts = await getClinicCostContext(item.clinic_id)
       if (!clinicCosts.ready) {
         return NextResponse.json({ error: 'precondition_failed', message: 'Time settings and fixed costs must be configured before saving tariffs.' }, { status: 412 })
+      }
+
+      // Critical validation: Ensure cost per minute is not zero
+      if (clinicCosts.costPerMinuteCents <= 0) {
+        return NextResponse.json({
+          error: 'invalid_cost_structure',
+          message: 'Cost per minute is zero or negative. Please configure at least one fixed cost or asset before creating tariffs.',
+          details: {
+            costPerMinuteCents: clinicCosts.costPerMinuteCents
+          }
+        }, { status: 400 })
+      }
+
+      // Warning: Low cost per minute (less than $0.50/min = 50 cents)
+      if (clinicCosts.costPerMinuteCents < 50) {
+        console.warn(`[tariffs] Low cost per minute detected for clinic ${item.clinic_id}: ${clinicCosts.costPerMinuteCents} cents/min. This may result in unrealistic pricing.`)
       }
 
       const serviceCosts = await getServiceCosts(item.service_id, item.clinic_id)
