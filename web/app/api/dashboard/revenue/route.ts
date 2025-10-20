@@ -3,6 +3,9 @@ import { cookies } from 'next/headers'
 import { resolveClinicContext } from '@/lib/clinic'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
+export const dynamic = 'force-dynamic'
+
+
 type SupportedPeriod = 'today' | 'day' | 'week' | 'month' | 'year' | 'custom'
 
 function normalisePeriod(input: string | null): SupportedPeriod {

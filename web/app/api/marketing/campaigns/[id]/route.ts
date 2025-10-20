@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
+export const dynamic = 'force-dynamic'
+
+
 // GET /api/marketing/campaigns/[id] - Get a specific campaign
 export async function GET(
   request: NextRequest,

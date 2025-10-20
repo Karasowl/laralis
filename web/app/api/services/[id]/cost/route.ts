@@ -5,6 +5,9 @@ import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { calcularCostoVariable } from '@/lib/calc/variable';
 
+export const dynamic = 'force-dynamic'
+
+
 interface RouteParams {
   params: {
     id: string;

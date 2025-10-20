@@ -3,6 +3,9 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
+export const dynamic = 'force-dynamic'
+
+
 // GET /api/workspaces/[id]/clinics - list clinics for a workspace owned by the user
 export async function GET(
   request: NextRequest,

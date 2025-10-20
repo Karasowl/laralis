@@ -3,6 +3,9 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 
+export const dynamic = 'force-dynamic'
+
+
 interface RouteParams {
   params: { id: string };
 }

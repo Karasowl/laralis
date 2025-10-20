@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic'
+
+
 export async function GET() {
   // Crear una respuesta HTML simple que fuerce el logout usando JavaScript del lado del cliente
   const html = `

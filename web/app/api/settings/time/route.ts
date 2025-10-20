@@ -6,6 +6,9 @@ import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { isSupabaseConfigured } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic'
+
+
 type TimeSettingsRecord = SettingsTime & { clinic_id: string; created_at?: string; updated_at?: string };
 
 const LOCAL_STORE_KEY = '__laralisTimeSettingsStore__';

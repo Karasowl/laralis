@@ -5,6 +5,9 @@ import { resolveClinicContext } from '@/lib/clinic';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 
+export const dynamic = 'force-dynamic'
+
+
 const diacriticRegex = /[\u0300-\u036f]/g;
 
 const categorySchema = z.object({

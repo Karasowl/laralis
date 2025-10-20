@@ -6,6 +6,9 @@ import { setClinicIdCookie } from '@/lib/clinic'
 import { createClient } from '@/lib/supabase/server'
 import { createServerClient } from '@supabase/ssr'
 
+export const dynamic = 'force-dynamic'
+
+
 export async function GET(request: Request) {
   try {
     const cookieStore = cookies()

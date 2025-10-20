@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import {
+
+export const dynamic = 'force-dynamic'
+
   decryptSecret,
   encryptSecret,
   generateRecoveryCodes,

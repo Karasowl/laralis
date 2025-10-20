@@ -5,6 +5,9 @@ import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import type { Service, ServiceSupply, ApiResponse } from '@/lib/types';
 
+export const dynamic = 'force-dynamic'
+
+
 const normalizeSupplyList = (supplies?: Array<{ supply_id?: string; qty?: number | null; quantity?: number | null }>) => {
   if (!Array.isArray(supplies)) return [] as Array<{ supply_id: string; qty: number }>
 

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { expenseFormSchema, type UpdateExpenseRequest } from '@/lib/types/expenses'
 
+export const dynamic = 'force-dynamic'
+
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }

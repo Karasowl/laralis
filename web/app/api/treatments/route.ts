@@ -5,6 +5,9 @@ import { resolveClinicContext } from '@/lib/clinic';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 
+export const dynamic = 'force-dynamic'
+
+
 const treatmentSchema = z.object({
   clinic_id: z.string().optional(),
   patient_id: z.string().min(1, 'Patient is required'),
