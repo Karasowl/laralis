@@ -367,19 +367,15 @@ export default function InsightsPage() {
                 {charts.revenue && charts.revenue.length > 0 && (
                   <PeriodBreakdown
                     data={{
-                      current: charts.revenue.slice(0, 7).map((item, idx) => ({
-                        label: `${t('day')} ${idx + 1}`,
+                      current: charts.revenue.map((item) => ({
+                        label: item.month || '',
                         value: item.revenue || 0,
-                        date: new Date(Date.now() - (6 - idx) * 24 * 60 * 60 * 1000).toISOString()
+                        date: item.month || new Date().toISOString()
                       })),
-                      previous: comparison !== 'none' ? charts.revenue.slice(7, 14).map((item, idx) => ({
-                        label: `${t('day')} ${idx + 1}`,
-                        value: item.revenue || 0,
-                        date: new Date(Date.now() - (13 - idx) * 24 * 60 * 60 * 1000).toISOString()
-                      })) : undefined
+                      previous: undefined // Backend doesn't provide comparison data yet
                     }}
                     granularity={granularity}
-                    showComparison={comparison !== 'none'}
+                    showComparison={false}
                   />
                 )}
 
