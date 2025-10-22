@@ -111,6 +111,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Server-side preconditions: block creation if financial base not ready
+    let calculatedCostPerMinute = 0;
     try {
       // 1) Cost per minute must be derivable and > 0
       const { data: timeRow } = await supabaseAdmin
@@ -135,8 +136,8 @@ export async function POST(request: NextRequest) {
       const rpDec = rp > 1 ? rp / 100 : rp; // tolerate decimal or percent
       const minutesMonth = wd * hpd * 60;
       const effectiveMinutes = Math.round(minutesMonth * Math.max(0, Math.min(1, rpDec)));
-      const cpm = effectiveMinutes > 0 && totalFixed > 0 ? Math.round(totalFixed / effectiveMinutes) : 0;
-      if (cpm <= 0) {
+      const calculatedCostPerMinute = effectiveMinutes > 0 && totalFixed > 0 ? Math.round(totalFixed / effectiveMinutes) : 0;
+      if (calculatedCostPerMinute <= 0) {
         return NextResponse.json({ error: 'precondition_failed', message: 'Cost per minute is not configured. Complete time and fixed costs.' }, { status: 412 });
       }
 
@@ -187,7 +188,7 @@ export async function POST(request: NextRequest) {
       treatment_date: payloadBody.treatment_date || new Date().toISOString().split('T')[0],
       duration_minutes: minutesVal || 30,
       fixed_cost_per_minute_cents:
-        payloadBody.fixed_cost_per_minute_cents ?? payloadBody.fixed_per_minute_cents ?? 0,
+        payloadBody.fixed_cost_per_minute_cents ?? payloadBody.fixed_per_minute_cents ?? calculatedCostPerMinute,
       variable_cost_cents: payloadBody.variable_cost_cents ?? 0,
       margin_pct: marginVal || 60,
       price_cents: priceVal || 0,

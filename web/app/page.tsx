@@ -18,6 +18,13 @@ import { DateFilterBar } from '@/components/dashboard/DateFilterBar'
 import { PeriodBreakdown } from '@/components/dashboard/PeriodBreakdown'
 import { MarketingROISimple } from '@/components/dashboard/MarketingROISimple'
 import { ServiceROIAnalysis } from '@/components/dashboard/ServiceROIAnalysis'
+import { ProfitabilitySummary } from '@/components/dashboard/profitability/ProfitabilitySummary'
+import { ProfitTrendsChart } from '@/components/dashboard/profitability/ProfitTrendsChart'
+import { ServiceComparison } from '@/components/dashboard/profitability/ServiceComparison'
+import { MarketingMetrics } from '@/components/dashboard/marketing/MarketingMetrics'
+import { AcquisitionTrendsChart } from '@/components/dashboard/marketing/AcquisitionTrendsChart'
+import { ChannelROIChart } from '@/components/dashboard/marketing/ChannelROIChart'
+import { CACTrendChart } from '@/components/dashboard/marketing/CACTrendChart'
 import { MonthlyProfitSimulator } from '@/components/dashboard/MonthlyProfitSimulator'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -29,6 +36,9 @@ import { useReports } from '@/hooks/use-reports'
 import { useEquilibrium } from '@/hooks/use-equilibrium'
 import { useDateFilter } from '@/hooks/use-date-filter'
 import { useServiceROI } from '@/hooks/use-service-roi'
+import { useMarketingMetrics } from '@/hooks/use-marketing-metrics'
+import { useCACTrend } from '@/hooks/use-cac-trend'
+import { useChannelROI } from '@/hooks/use-channel-roi'
 import { formatCurrency } from '@/lib/format'
 import { ReportsAdvanced } from '@/app/reports/ReportsAdvanced'
 import { ReportsMarketing } from '@/app/reports/ReportsMarketing'
@@ -208,6 +218,26 @@ export default function InsightsPage() {
     loading: roiLoading
   } = useServiceROI({ clinicId: currentClinic?.id, days: 30 })
 
+  // Marketing hooks
+  const {
+    data: marketingMetrics,
+    loading: marketingMetricsLoading
+  } = useMarketingMetrics({ clinicId: currentClinic?.id, period: 30 })
+
+  const {
+    data: cacTrendData,
+    loading: cacTrendLoading
+  } = useCACTrend({ clinicId: currentClinic?.id, months: 12 })
+
+  const {
+    data: channelROIData,
+    loading: channelROILoading
+  } = useChannelROI({ clinicId: currentClinic?.id, period: 30 })
+
+  useEffect(() => {
+    console.log('[Dashboard] useServiceROI - clinicId:', currentClinic?.id, 'data:', roiData, 'loading:', roiLoading)
+  }, [currentClinic?.id, roiData, roiLoading])
+
   useEffect(() => {
     setMounted(true)
   }, [])
@@ -320,65 +350,7 @@ export default function InsightsPage() {
                   />
                 )}
 
-                {/* Business Metrics Grid */}
-                {kpis && !equilibriumLoading && equilibriumData && (
-                  <BusinessMetricsGrid
-                    ticketPromedioCents={kpis.avgTreatmentValue}
-                    pacientesNecesariosPorDia={(() => {
-                      // SMART CALCULATION: Based on remaining days, not ideal daily target
-                      const remainingDays = Math.max(1, equilibriumData.remainingWorkingDays || 1)
-                      const revenueNeeded = Math.max(0, equilibriumData.revenueGapCents)
-                      const dailyRevenueNeeded = revenueNeeded / remainingDays
-
-                      // Use actual ticket average if we have enough data (at least 5 treatments)
-                      // Otherwise use assumed minimum ticket of $500 MXN (50000 cents)
-                      const MIN_SAMPLE_SIZE = 5
-                      const ASSUMED_TICKET_CENTS = 50000 // $500 MXN
-
-                      const ticketToUse = kpis.totalTreatments >= MIN_SAMPLE_SIZE && kpis.avgTreatmentValue > 0
-                        ? kpis.avgTreatmentValue
-                        : ASSUMED_TICKET_CENTS
-
-                      return ticketToUse > 0
-                        ? Math.ceil(dailyRevenueNeeded / ticketToUse)
-                        : 0
-                    })()}
-                    pacientesActualesPorDia={kpis.avgPatientsPerDay || 0}
-                    ingresosHoyCents={metrics.revenue.current}
-                    workDays={equilibriumData.workDays}
-                    monthlyTargetCents={equilibriumData.monthlyTargetCents}
-                    daysElapsed={equilibriumData.elapsedDays}
-                  />
-                )}
-
-                {/* Date Filter Bar */}
-                <DateFilterBar
-                  period={filterPeriod}
-                  granularity={granularity}
-                  comparison={comparison}
-                  customRange={customRange}
-                  onPeriodChange={setFilterPeriod}
-                  onGranularityChange={setGranularity}
-                  onComparisonChange={setComparison}
-                  onCustomRangeChange={setCustomRange}
-                />
-
-                {/* Period Breakdown */}
-                {charts.revenue && charts.revenue.length > 0 && (
-                  <PeriodBreakdown
-                    data={{
-                      current: charts.revenue.map((item) => ({
-                        label: item.month || '',
-                        value: item.revenue || 0,
-                        date: item.month || new Date().toISOString()
-                      })),
-                      previous: undefined // Backend doesn't provide comparison data yet
-                    }}
-                    granularity={granularity}
-                    showComparison={false}
-                  />
-                )}
-
+                {/* 4 Key Metrics Cards */}
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                   <MetricCard
                     title={getPeriodLabels.revenue}
@@ -421,6 +393,38 @@ export default function InsightsPage() {
                   />
                 </div>
 
+                {/* Business Metrics Grid */}
+                {kpis && !equilibriumLoading && equilibriumData && (
+                  <BusinessMetricsGrid
+                    ticketPromedioCents={kpis.avgTreatmentValue}
+                    pacientesNecesariosPorDia={(() => {
+                      // SMART CALCULATION: Based on remaining days, not ideal daily target
+                      const remainingDays = Math.max(1, equilibriumData.remainingWorkingDays || 1)
+                      const revenueNeeded = Math.max(0, equilibriumData.revenueGapCents)
+                      const dailyRevenueNeeded = revenueNeeded / remainingDays
+
+                      // Use actual ticket average if we have enough data (at least 5 treatments)
+                      // Otherwise use assumed minimum ticket of $500 MXN (50000 cents)
+                      const MIN_SAMPLE_SIZE = 5
+                      const ASSUMED_TICKET_CENTS = 50000 // $500 MXN
+
+                      const ticketToUse = kpis.totalTreatments >= MIN_SAMPLE_SIZE && kpis.avgTreatmentValue > 0
+                        ? kpis.avgTreatmentValue
+                        : ASSUMED_TICKET_CENTS
+
+                      return ticketToUse > 0
+                        ? Math.ceil(dailyRevenueNeeded / ticketToUse)
+                        : 0
+                    })()}
+                    pacientesActualesPorDia={kpis.avgPatientsPerDay || 0}
+                    ingresosHoyCents={metrics.revenue.current}
+                    workDays={equilibriumData.workDays}
+                    monthlyTargetCents={equilibriumData.monthlyTargetCents}
+                    daysElapsed={equilibriumData.elapsedDays}
+                  />
+                )}
+
+                {/* GRÁFICOS PRINCIPALES - CRÍTICO PARA CONTEXTO HISTÓRICO */}
                 <div className="grid gap-4 md:grid-cols-2">
                   <RevenueChart
                     data={charts.revenue}
@@ -436,31 +440,118 @@ export default function InsightsPage() {
                   />
                 </div>
 
+                {/* Alertas y Actividad Reciente */}
                 <div className="grid gap-4 md:grid-cols-1">
                   <RecentActivity
                     activities={activities}
                     title={t('recent_activity')}
                     description={t('latest_clinic_actions')}
                   />
-                  {/* <QuickActions onRefresh={handleRefresh} /> */}
                 </div>
               </>
             )}
           </TabsContent>
 
-          <TabsContent value="profitability">
+          <TabsContent value="profitability" className="space-y-6">
+            {/* Summary Cards */}
+            <ProfitabilitySummary services={roiData?.services || []} loading={roiLoading} />
+
+            {/* Full ROI Analysis Table */}
             <ServiceROIAnalysis data={roiData} loading={roiLoading} />
+
+            {/* Profit Trends and Comparison */}
+            <div className="grid gap-4 md:grid-cols-2">
+              {/* Profit Trends Chart - Mock data for now */}
+              <ProfitTrendsChart
+                data={roiData?.services && roiData.services.length > 0 ? (() => {
+                  // Generate mock 6-month trend data
+                  const months = ['Ago', 'Sep', 'Oct', 'Nov', 'Dic', 'Ene']
+                  return months.map((month) => {
+                    const dataPoint: any = { month }
+                    roiData.services.slice(0, 5).forEach(service => {
+                      // Mock margin with slight variation
+                      const baseMargin = (service.total_profit_cents / service.total_revenue_cents) * 100
+                      dataPoint[service.service_id] = baseMargin + (Math.random() * 10 - 5)
+                    })
+                    return dataPoint
+                  })
+                })() : []}
+                services={roiData?.services && roiData.services.length > 0 ? roiData.services.slice(0, 5).map((s, i) => ({
+                  id: s.service_id,
+                  name: s.service_name,
+                  color: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444'][i],
+                  currentMargin: (s.total_profit_cents / s.total_revenue_cents) * 100,
+                  previousMargin: (s.total_profit_cents / s.total_revenue_cents) * 100 - (Math.random() * 10 - 5),
+                  change: Math.random() * 20 - 10
+                })) : []}
+                loading={roiLoading}
+              />
+
+              {/* Service Comparison */}
+              <ServiceComparison services={roiData?.services || []} loading={roiLoading} />
+            </div>
           </TabsContent>
 
           <TabsContent value="advanced">
             <ReportsAdvanced insights={insights} kpis={kpis} loading={reportsLoading} />
           </TabsContent>
 
-          <TabsContent value="marketing">
-            <MarketingROISimple
-              clinicId={currentClinic?.id}
-              months={6}
+          <TabsContent value="marketing" className="space-y-6">
+            {/* Marketing Metrics Summary */}
+            <MarketingMetrics
+              cac={marketingMetrics?.metrics.cac.cents || 0}
+              ltv={marketingMetrics?.metrics.ltv.cents || 0}
+              conversionRate={marketingMetrics?.metrics.conversionRate.value || 0}
+              loading={marketingMetricsLoading}
             />
+
+            {/* Acquisition Trends - Mantener mock por ahora (requiere endpoint adicional) */}
+            <AcquisitionTrendsChart
+              data={(() => {
+                // Mock 12 months + 3 projection months
+                const months = ['Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic', 'Ene']
+                const projectionMonths = ['Feb', 'Mar', 'Abr']
+
+                const historical = months.map((month, i) => ({
+                  month,
+                  patients: Math.floor(15 + Math.random() * 10 + (i * 0.5))
+                }))
+
+                const projection = projectionMonths.map((month, i) => ({
+                  month,
+                  projection: Math.floor(25 + Math.random() * 5 + (i * 0.5))
+                }))
+
+                return [...historical, ...projection]
+              })()}
+              loading={false}
+            />
+
+            {/* Charts Grid */}
+            <div className="grid gap-4 md:grid-cols-2">
+              {/* Channel ROI */}
+              <ChannelROIChart
+                data={(channelROIData?.channels || []).map(channel => ({
+                  channel: channel.source.name,
+                  roi: channel.roi.value,
+                  spent_cents: channel.investmentCents,
+                  revenue_cents: channel.revenueCents,
+                  patients: channel.patients,
+                  trend: [] // Trend histórico requiere endpoint adicional
+                }))}
+                loading={channelROILoading}
+              />
+
+              {/* CAC Evolution */}
+              <CACTrendChart
+                data={(cacTrendData?.trend || []).map(month => ({
+                  month: month.month,
+                  cac_cents: month.cacCents
+                }))}
+                targetCAC={cacTrendData?.summary.averageCACCents || 0}
+                loading={cacTrendLoading}
+              />
+            </div>
           </TabsContent>
         </Tabs>
       </div>

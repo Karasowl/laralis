@@ -4,9 +4,9 @@ import { useTranslations } from 'next-intl'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { 
-  TrendingUp, 
-  TrendingDown, 
+import {
+  TrendingUp,
+  TrendingDown,
   AlertTriangle,
   Target,
   Zap,
@@ -25,6 +25,8 @@ import {
 import { formatCurrency } from '@/lib/money'
 import type { BusinessInsights } from '@/lib/analytics'
 import type { ReportsKpis } from '@/hooks/use-reports'
+import { PatientAnalysis } from '@/components/dashboard/advanced/PatientAnalysis'
+import { CapacityUtilization } from '@/components/dashboard/advanced/CapacityUtilization'
 
 interface ReportsAdvancedProps {
   insights: BusinessInsights | null
@@ -198,50 +200,11 @@ export function ReportsAdvanced({ insights, kpis, loading }: ReportsAdvancedProp
         </Card>
       </div>
 
-      {/* Patient Insights */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-green-600" />
-            {t('advanced.patients.title')}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="text-center">
-              <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-2">
-                <DollarSign className="h-8 w-8 text-green-600" />
-              </div>
-              <p className="text-2xl font-bold">{formatCurrency(insights.patient_insights.lifetime_value)}</p>
-              <p className="text-sm text-muted-foreground">{t('advanced.patients.lifetimeValue')}</p>
-            </div>
-            
-            <div className="text-center">
-              <div className="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-2">
-                <Activity className="h-8 w-8 text-blue-600" />
-              </div>
-              <p className="text-2xl font-bold">{(insights.patient_insights.retention_rate * 100).toFixed(0)}%</p>
-              <p className="text-sm text-muted-foreground">{t('advanced.patients.retentionRate')}</p>
-            </div>
-            
-            <div className="text-center">
-              <div className="h-16 w-16 rounded-full bg-purple-100 flex items-center justify-center mx-auto mb-2">
-                <TrendingUp className="h-8 w-8 text-purple-600" />
-              </div>
-              <p className="text-2xl font-bold">{insights.patient_insights.acquisition_rate}</p>
-              <p className="text-sm text-muted-foreground">{t('advanced.patients.newPerMonth')}</p>
-            </div>
-            
-            <div className="text-center">
-              <div className="h-16 w-16 rounded-full bg-orange-100 flex items-center justify-center mx-auto mb-2">
-                <Target className="h-8 w-8 text-orange-600" />
-              </div>
-              <p className="text-2xl font-bold">{(insights.operational_metrics.capacity_utilization * 100).toFixed(0)}%</p>
-              <p className="text-sm text-muted-foreground">{t('advanced.patients.capacityUtilization')}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Patient Analysis - New Component */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <PatientAnalysis insights={insights.patient_insights} />
+        <CapacityUtilization metrics={insights.operational_metrics} />
+      </div>
 
       {/* Declining Services Alert */}
       {insights.service_analysis.declining_services.length > 0 && (

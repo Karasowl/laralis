@@ -106,8 +106,8 @@ function computeRanges(period: SupportedPeriod, from?: string | null, to?: strin
 
 const toDateParam = (date: Date) => date.toISOString().split('T')[0]
 
-const sumRevenue = (rows: Array<{ price_cents?: number | null; final_price_cents?: number | null }>) =>
-  rows.reduce((acc, row) => acc + (row.price_cents ?? row.final_price_cents ?? 0), 0)
+const sumRevenue = (rows: Array<{ price_cents?: number | null }>) =>
+  rows.reduce((acc, row) => acc + (row.price_cents ?? 0), 0)
 
 export async function GET(request: NextRequest) {
   try {
@@ -123,30 +123,48 @@ export async function GET(request: NextRequest) {
     const dateFrom = searchParams.get('date_from')
     const dateTo = searchParams.get('date_to')
 
+    console.log('[revenue] Fetching for clinic:', clinicId, 'period:', period)
+
     const ranges = computeRanges(period, dateFrom, dateTo)
+    console.log('[revenue] Date ranges - Current:', toDateParam(ranges.current.start), 'to', toDateParam(ranges.current.end))
 
     const { data: currentTreatments, error: currentErr } = await supabaseAdmin
       .from('treatments')
-      .select('price_cents, final_price_cents, status, treatment_date')
+      .select('price_cents, status, treatment_date')
       .eq('clinic_id', clinicId)
       .eq('status', 'completed')
       .gte('treatment_date', toDateParam(ranges.current.start))
       .lte('treatment_date', toDateParam(ranges.current.end))
 
-    if (currentErr) throw currentErr
+    if (currentErr) {
+      console.error('[revenue] Error fetching current treatments:', currentErr)
+      throw currentErr
+    }
+
+    console.log('[revenue] Found current treatments:', currentTreatments?.length || 0)
+    if (currentTreatments && currentTreatments.length > 0) {
+      console.log('[revenue] First current treatment:', currentTreatments[0])
+    }
 
     const { data: previousTreatments, error: previousErr } = await supabaseAdmin
       .from('treatments')
-      .select('price_cents, final_price_cents, status, treatment_date')
+      .select('price_cents, status, treatment_date')
       .eq('clinic_id', clinicId)
       .eq('status', 'completed')
       .gte('treatment_date', toDateParam(ranges.previous.start))
       .lte('treatment_date', toDateParam(ranges.previous.end))
 
-    if (previousErr) throw previousErr
+    if (previousErr) {
+      console.error('[revenue] Error fetching previous treatments:', previousErr)
+      throw previousErr
+    }
+
+    console.log('[revenue] Found previous treatments:', previousTreatments?.length || 0)
 
     const currentTotal = sumRevenue(currentTreatments || [])
     const previousTotal = sumRevenue(previousTreatments || [])
+
+    console.log('[revenue] Totals - Current:', currentTotal, 'Previous:', previousTotal)
 
     return NextResponse.json({
       revenue: {

@@ -15,10 +15,10 @@ export function useServiceROI(options: UseServiceROIOptions = {}) {
   if (clinicId) params.set('clinicId', clinicId)
   params.set('days', days.toString())
 
-  const endpoint = `/api/analytics/service-roi?${params.toString()}`
+  const endpoint = clinicId ? `/api/analytics/service-roi?${params.toString()}` : null
 
   const { data, loading, error, refetch } = useApi<ROIAnalysis>(endpoint, {
-    enabled: !!clinicId
+    autoFetch: true
   })
 
   return {

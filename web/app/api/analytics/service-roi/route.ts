@@ -107,6 +107,9 @@ export async function GET(request: NextRequest) {
     const endDateStr = endDate.toISOString().split('T')[0]
 
     // Fetch completed treatments with service information
+    console.log('[service-roi] Fetching treatments for clinic:', clinicId)
+    console.log('[service-roi] Date range:', startDateStr, 'to', endDateStr)
+
     const { data: treatments, error: treatmentsError } = await supabaseAdmin
       .from('treatments')
       .select(`
@@ -116,6 +119,8 @@ export async function GET(request: NextRequest) {
         fixed_cost_per_minute_cents,
         variable_cost_cents,
         minutes,
+        treatment_date,
+        status,
         services!inner (
           id,
           name
@@ -126,6 +131,11 @@ export async function GET(request: NextRequest) {
       .gte('treatment_date', startDateStr)
       .lte('treatment_date', endDateStr)
 
+    console.log('[service-roi] Found treatments:', treatments?.length || 0)
+    if (treatments && treatments.length > 0) {
+      console.log('[service-roi] First treatment:', JSON.stringify(treatments[0], null, 2))
+    }
+
     if (treatmentsError) {
       console.error('[service-roi] Error fetching treatments:', treatmentsError)
       return NextResponse.json(
@@ -135,6 +145,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (!treatments || treatments.length === 0) {
+      console.log('[service-roi] No treatments found, returning empty analysis')
       return NextResponse.json<ROIAnalysis>({
         services: [],
         period_start: startDateStr,
