@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
         const map: Record<string, string> = {
           services: 'service',
           supplies: 'supply',
-          expenses: 'fixed_cost',
+          expenses: 'expense',  // Fixed: was 'fixed_cost', should be 'expense'
           assets: 'asset',
         };
         const legacyType = map[typeCode];
@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
       const entityTypeMap: Record<string, string> = {
         services: 'service',
         supplies: 'supply',
-        expenses: 'fixed_cost',
+        expenses: 'expense',  // Fixed: was 'fixed_cost', should be 'expense'
         assets: 'asset',
       };
       const entity_type = entityTypeMap[typeCode] || 'service';

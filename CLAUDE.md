@@ -92,6 +92,40 @@ If present, link to devlog index: @docs/devlog/INDEX.md
 
 
 
+\## Database Schema Documentation (CRITICAL)
+
+\- **Current schema:** Always reference @docs/database/SCHEMA-CURRENT.md before making ANY database changes.
+
+\- **Schema versioning:** Schema is versioned in `docs/database/schemas/SCHEMA-vX-YYYY-MM-DD.md`
+
+\- **When making migrations or schema changes:**
+  1. Check current schema first (@docs/database/SCHEMA-CURRENT.md)
+  2. Make the migration changes
+  3. Create new schema version file: `docs/database/schemas/SCHEMA-v{N+1}-{TODAY}.md`
+  4. Update `docs/database/SCHEMA-CURRENT.md` to reference new version
+  5. Add entry to `docs/database/SCHEMA-CHANGELOG.md` documenting changes
+  6. Notify user that schema documentation has been updated
+
+\- **Auto-update behavior:** When you detect schema changes (new migrations, table modifications, column additions), IMMEDIATELY:
+  - Create new versioned schema file
+  - Update SCHEMA-CURRENT.md
+  - Update SCHEMA-CHANGELOG.md
+  - Tell user: "📊 Schema documentation updated to v{X} - {description of changes}"
+
+\- **Schema check triggers:**
+  - Creating/modifying migration files in `supabase/migrations/`
+  - Discussing table structure or relationships
+  - Adding/removing columns or tables
+  - Changing foreign keys or constraints
+
+\- **Always read schema before:**
+  - Writing RLS policies
+  - Creating new API endpoints that query database
+  - Discussing data models or relationships
+  - Debugging database-related issues
+
+
+
 \## Server vs Client
 
 \- Default to Server Components. Mark Client only for interactive forms/tables.

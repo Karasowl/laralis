@@ -2,6 +2,19 @@
 
 ## En Progreso
 
+- [ ] TASK-20251021-marketing-categories - Implementar sistema de categorías de marketing para CAC
+  - **Priority**: P1 - Crítico
+  - **Estimate**: L (2-3 días)
+  - **Subtasks**:
+    1. Migración SQL con trigger de auto-creación de categorías
+    2. Motor de cálculos `lib/calc/marketing.ts` con tests
+    3. Endpoints `/api/analytics/marketing-metrics`, `cac-trend`, `channel-roi`
+    4. Actualizar dashboard para usar datos reales
+    5. Formulario de gastos con categorías
+    6. Seeds de datos de prueba
+  - Ver: `tasks/TASK-20251021-marketing-categories.md`
+  - Ver: `docs/design/marketing-categories-implementation.md`
+
 - [ ] TASK-20250817-pr-template-upgrade - Alinear `docs/memories/PR.md` con memorias y reglas
   - Incorporar cadena de dependencias (Depreciación → Fijos → Tiempo → Equilibrio → Insumos → Servicios → Tarifas → Tratamientos)
   - Contexto multi-tenant (Workspaces/Clinics) y snapshots en tratamientos

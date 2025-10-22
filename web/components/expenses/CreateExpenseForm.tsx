@@ -51,13 +51,28 @@ export function CreateExpenseForm({
   const watchCategory = useWatch({ control: form.control, name: 'category' })
   const watchCreateAsset = useWatch({ control: form.control, name: 'create_asset' })
 
+  // DEBUG: Ver qué categorías llegan
+  console.log('=== DEBUG CreateExpenseForm ===');
+  console.log('Total categories received:', categories?.length);
+  console.log('Categories sample:', categories?.slice(0, 3));
+
+  // PERFORMANCE FIX: Memoize parent categories (no parent_id)
+  const parentCategories = useMemo(
+    () => {
+      const parents = (categories || []).filter((c: any) => !c.parent_id);
+      console.log('Parent categories:', parents.length, parents.map(p => p.display_name || p.name));
+      return parents;
+    },
+    [categories]
+  )
+
   // PERFORMANCE FIX: Memoize category options to avoid recreation on every render
   const categoryOptions = useMemo(
-    () => (categories || []).map((c: any) => ({
+    () => parentCategories.map((c: any) => ({
       value: c.display_name || c.name,
       label: c.display_name || c.name
     })),
-    [categories]
+    [parentCategories]
   )
 
   // PERFORMANCE FIX: Memoize supply options mapping
@@ -69,24 +84,45 @@ export function CreateExpenseForm({
     [supplies]
   )
 
-  // PERFORMANCE FIX: Memoize subcategory calculation
+  // PERFORMANCE FIX: Memoize subcategory calculation using dynamic filtering
   const subcategoryOptions = useMemo(() => {
-    const subcategoryMap: Record<string, string[]> = {
-      'Equipos': ['DENTAL', 'MOBILIARIO', 'TECNOLOGIA', 'HERRAMIENTAS'],
-      'Insumos': ['ANESTESIA', 'MATERIALES', 'LIMPIEZA', 'PROTECCION'],
-      'Servicios': ['ELECTRICIDAD', 'AGUA', 'INTERNET', 'TELEFONO', 'GAS'],
-      'Mantenimiento': ['EQUIPOS_MANT', 'INSTALACIONES', 'SOFTWARE'],
-      'Marketing': ['PUBLICIDAD', 'PROMOCIONES', 'EVENTOS'],
-      'Administrativos': ['PAPELERIA', 'CONTABILIDAD', 'LEGAL'],
-      'Personal': ['NOMINA', 'BENEFICIOS', 'CAPACITACION']
+    console.log('=== CALCULATING SUBCATEGORIES ===');
+    console.log('watchCategory:', watchCategory);
+
+    if (!watchCategory) {
+      console.log('No category selected, returning empty');
+      return []
     }
 
-    const subcats = subcategoryMap[watchCategory || ''] || []
-    return subcats.map((subcat) => ({
-      value: EXPENSE_SUBCATEGORIES[subcat as keyof typeof EXPENSE_SUBCATEGORIES],
-      label: EXPENSE_SUBCATEGORIES[subcat as keyof typeof EXPENSE_SUBCATEGORIES]
-    }))
-  }, [watchCategory])
+    // Find the selected parent category
+    const selectedParent = parentCategories.find(
+      (c: any) => (c.display_name || c.name) === watchCategory
+    )
+
+    console.log('Selected parent:', selectedParent);
+
+    if (!selectedParent) {
+      console.log('Selected parent not found!');
+      return []
+    }
+
+    // Filter subcategories that have this category as parent
+    const subcategories = (categories || []).filter(
+      (c: any) => c.parent_id === selectedParent.id
+    )
+
+    console.log(`Subcategories for ${watchCategory}:`, subcategories.length);
+    console.log('Subcategory names:', subcategories.map(s => s.display_name || s.name));
+
+    // Map to options format
+    const options = subcategories.map((c: any) => ({
+      value: c.display_name || c.name,
+      label: c.display_name || c.name
+    }));
+
+    console.log('Subcategory options:', options);
+    return options;
+  }, [watchCategory, categories, parentCategories])
 
   // Show asset fields when category is "Equipos"
   useEffect(() => {
