@@ -102,7 +102,7 @@
     "account": "Cuenta",
     "preferences": "Preferencias",
     "security": "Seguridad",
-    "dataMaintenance": "Mantenimiento de datos",
+    "exportImport": "Exportar e Importar",
     "reset": "Reiniciar y Eliminar"
   },
   "dark_mode": "Modo Oscuro",
@@ -2417,6 +2417,10 @@
       "title": "Datos y mantenimiento",
       "description": "Exporta, importa o respalda la información de tu clínica"
     },
+    "exportImport": {
+      "title": "Exportar e Importar",
+      "description": "Respaldo y restauración completa de los datos de tu workspace"
+    },
     "exportDesc": "Descarga todos tus datos",
     "importDesc": "Restaura datos desde archivo",
     "resetDesc": "Elimina todos los datos de la clínica",
@@ -2621,6 +2625,40 @@
     "status": {
       "paid": "Pagado",
       "pending": "Pendiente"
+    },
+    "form": {
+      "createTitle": "Crear Gasto",
+      "editTitle": "Editar Gasto",
+      "fields": {
+        "expenseDate": "Fecha",
+        "category": "Categoría",
+        "subcategory": "Subcategoría",
+        "description": "Descripción",
+        "notes": "Notas",
+        "vendor": "Proveedor o Beneficiario",
+        "invoiceNumber": "Número de Factura",
+        "amount": "Monto",
+        "isRecurring": "Repetir cada período",
+        "relatedSupply": "Insumo Relacionado",
+        "relatedSupplyNone": "Sin insumo",
+        "campaign": "Campaña de Marketing",
+        "campaignHelp": "Vincula este gasto a una campaña de marketing para tracking de ROI",
+        "noCampaign": "Sin campaña",
+        "quantity": "Cantidad",
+        "createAsset": "Crear activo para depreciación",
+        "assetName": "Nombre del Activo",
+        "usefulLifeYears": "Vida Útil (años)"
+      },
+      "submit": {
+        "create": "Crear Gasto",
+        "update": "Actualizar Gasto"
+      },
+      "sections": {
+        "basicInfo": "Información Básica",
+        "classification": "Clasificación",
+        "details": "Detalles",
+        "inventory": "Inventario"
+      }
     }
   },
   "settings_duplicate3": {
@@ -3298,6 +3336,90 @@
         "variableCosts": "Costos variables",
         "netProfit": "Ganancia Neta"
       }
+    },
+    "export": {
+      "pageTitle": "Exportar e Importar Datos",
+      "pageDescription": "Respalda y restaura los datos de tu workspace con nuestro sistema seguro de exportación/importación",
+      "title": "Exportar Datos",
+      "description": "Exporta todos los datos de tu workspace para respaldo o migración",
+      "export": {
+        "title": "Exportar Workspace",
+        "subtitle": "Descarga un respaldo completo de todos tus datos incluyendo clínicas, pacientes, tratamientos y más"
+      },
+      "options": {
+        "includeHistorical": "Incluir datos históricos",
+        "includeHistoricalDesc": "Incluir todos los tratamientos y gastos (recomendado)",
+        "includeAuditLogs": "Incluir registros de auditoría",
+        "includeAuditLogsDesc": "Incluir historial de actividad y registros"
+      },
+      "actions": {
+        "export": "Exportar Datos",
+        "exporting": "Exportando..."
+      },
+      "success": {
+        "title": "Exportación Exitosa",
+        "description": "Tu archivo de respaldo se ha descargado exitosamente"
+      },
+      "errors": {
+        "title": "Error en la Exportación",
+        "noWorkspace": "No hay workspace seleccionado",
+        "exportFailed": "Error al exportar datos",
+        "unknown": "Ocurrió un error desconocido"
+      },
+      "stats": {
+        "totalRecords": "Registros Totales",
+        "fileSize": "Tamaño del Archivo",
+        "duration": "Duración"
+      },
+      "info": {
+        "title": "Información Importante",
+        "point1": "El archivo de exportación contiene TODOS los datos de tu workspace en formato JSON",
+        "point2": "Mantén tu archivo de respaldo seguro - contiene información sensible",
+        "point3": "Los archivos de exportación son compatibles con versiones futuras de la aplicación",
+        "point4": "Puedes importar este respaldo en cualquier workspace más adelante"
+      }
+    },
+    "import": {
+      "title": "Importar Datos",
+      "description": "Restaura tus datos desde un archivo de respaldo",
+      "upload": {
+        "title": "Importar Workspace",
+        "subtitle": "Sube un archivo de respaldo para restaurar tus datos",
+        "dragDrop": "Arrastra y suelta tu archivo de respaldo aquí, o haz clic para buscar",
+        "fileFormat": "Solo archivos JSON (.json)"
+      },
+      "validating": "Validando archivo de respaldo...",
+      "importing": "Importando datos...",
+      "confirm": "Confirmar Importación",
+      "tryAnother": "Probar Otro Archivo",
+      "success": {
+        "title": "Importación Exitosa",
+        "description": "Tus datos se han importado exitosamente",
+        "goToWorkspace": "Ir al Workspace"
+      },
+      "errors": {
+        "invalidFile": "Formato de archivo de respaldo inválido",
+        "invalidFileType": "Por favor selecciona un archivo JSON",
+        "validationFailed": "Error al validar el respaldo",
+        "importFailed": "Error al importar datos"
+      }
+    },
+    "validation": {
+      "valid": "Respaldo Válido",
+      "invalid": "Respaldo con Errores",
+      "validDescription": "Este archivo de respaldo está listo para ser importado",
+      "invalidDescription": "Por favor corrige los errores antes de importar",
+      "bundleInfo": "Información del Respaldo",
+      "workspaceName": "Workspace",
+      "exportDate": "Fecha de Exportación",
+      "clinicCount": "Clínicas",
+      "migrationRequired": "Migración Requerida",
+      "migrationDescription": "Este respaldo será migrado de la versión {from} a {to}",
+      "errors": "Errores",
+      "warnings": "Advertencias",
+      "importStats": "Estadísticas de Importación",
+      "estimatedDuration": "Tiempo Estimado",
+      "diskSpace": "Espacio en Disco"
     }
   }
 }

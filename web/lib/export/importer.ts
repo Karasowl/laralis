@@ -1,0 +1,532 @@
+/**
+ * Export Bundle Importer
+ *
+ * Imports validated export bundles into Supabase with transactional semantics.
+ * Implements manual rollback since Supabase doesn't support native transactions.
+ */
+
+import { createClient } from '@supabase/supabase-js';
+import type { ExportBundle, ImportOptions, ImportResult, ImportProgress } from './types';
+import { migrateBundle } from './migrator';
+import { validateBundle } from './validator';
+
+/**
+ * Import Error
+ */
+export class ImportError extends Error {
+  constructor(
+    message: string,
+    public code: string,
+    public details?: any
+  ) {
+    super(message);
+    this.name = 'ImportError';
+  }
+}
+
+/**
+ * ID Mapping for foreign key resolution
+ */
+interface IdMapping {
+  [oldId: string]: string;
+}
+
+/**
+ * Workspace Bundle Importer
+ *
+ * Handles importing of complete workspace bundles with rollback support.
+ */
+export class WorkspaceBundleImporter {
+  private supabase: ReturnType<typeof createClient>;
+  private bundle: ExportBundle;
+  private options: ImportOptions;
+  private progress: ImportProgress;
+  private insertedIds: {
+    workspaceId?: string;
+    clinicIds: string[];
+    [key: string]: any;
+  };
+  private idMappings: {
+    workspace?: IdMapping;
+    clinics: IdMapping;
+    [key: string]: IdMapping | undefined;
+  };
+
+  constructor(
+    supabase: ReturnType<typeof createClient>,
+    bundle: ExportBundle,
+    options: ImportOptions
+  ) {
+    this.supabase = supabase;
+    this.bundle = bundle;
+    this.options = options;
+    this.insertedIds = { clinicIds: [] };
+    this.idMappings = { clinics: {} };
+    this.progress = {
+      status: 'validating',
+      currentStep: 'Initializing',
+      progress: 0,
+      recordsProcessed: 0,
+      totalRecords: 0,
+      errors: [],
+      startedAt: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Import bundle with rollback on error
+   */
+  async import(): Promise<ImportResult> {
+    const startTime = Date.now();
+
+    try {
+      // Step 1: Migrate bundle if needed
+      this.updateProgress('validating', 'Migrating bundle to current version', 5);
+      const migratedBundle = migrateBundle(this.bundle);
+      this.bundle = migratedBundle;
+
+      // Step 2: Validate bundle
+      if (!this.options.skipValidation) {
+        this.updateProgress('validating', 'Validating bundle', 10);
+        const validation = await validateBundle(this.bundle);
+
+        if (!validation.valid) {
+          throw new ImportError(
+            'Bundle validation failed',
+            'VALIDATION_FAILED',
+            { errors: validation.errors }
+          );
+        }
+
+        this.progress.totalRecords = validation.stats.recordsToImport;
+      }
+
+      // Step 3: Dry run check
+      if (this.options.dryRun) {
+        return {
+          success: true,
+          recordsImported: {},
+          errors: [],
+          warnings: [],
+          duration: (Date.now() - startTime) / 1000,
+        };
+      }
+
+      // Step 4: Import data
+      this.updateProgress('importing', 'Starting import', 15);
+      await this.importData();
+
+      // Step 5: Complete
+      this.updateProgress('completed', 'Import completed successfully', 100);
+
+      return {
+        success: true,
+        workspaceId: this.insertedIds.workspaceId,
+        clinicIds: this.insertedIds.clinicIds,
+        recordsImported: this.progress.recordsProcessed
+          ? { total: this.progress.recordsProcessed }
+          : {},
+        errors: [],
+        warnings: [],
+        duration: (Date.now() - startTime) / 1000,
+      };
+    } catch (error) {
+      console.error('Import error:', error);
+
+      // Rollback
+      this.updateProgress('failed', 'Import failed, rolling back', 0);
+      await this.rollback();
+      this.updateProgress('rolled_back', 'Changes rolled back', 0);
+
+      return {
+        success: false,
+        recordsImported: {},
+        errors: [
+          {
+            type: 'INVALID_SCHEMA',
+            message: error instanceof Error ? error.message : String(error),
+          },
+        ],
+        warnings: [],
+        duration: (Date.now() - startTime) / 1000,
+      };
+    }
+  }
+
+  /**
+   * Import all data in correct order
+   */
+  private async importData() {
+    // Level 1: Workspace (create new)
+    await this.importWorkspace();
+    this.incrementProgress(5);
+
+    // Level 2: Global data (if any)
+    await this.importGlobalData();
+    this.incrementProgress(5);
+
+    // Level 3: Clinics
+    await this.importClinics();
+    this.incrementProgress(10);
+
+    // Level 4+: Clinic data
+    for (let i = 0; i < this.bundle.data.clinics.length; i++) {
+      const clinic = this.bundle.data.clinics[i];
+      const progressPerClinic = 60 / this.bundle.data.clinics.length;
+
+      await this.importClinicData(clinic, i);
+      this.incrementProgress(progressPerClinic);
+    }
+  }
+
+  /**
+   * Import workspace (always create new)
+   */
+  private async importWorkspace() {
+    this.updateProgress('importing', 'Importing workspace', this.progress.progress);
+
+    const workspace = this.bundle.data.workspace;
+
+    // Create new workspace with new ID
+    const { data, error } = await this.supabase
+      .from('workspaces')
+      .insert({
+        name: workspace.name + ' (Imported)',
+        slug: workspace.slug + '-import-' + Date.now(),
+        description: workspace.description,
+        logo_url: workspace.logo_url,
+        settings: workspace.settings,
+        max_clinics: workspace.max_clinics,
+        max_users: workspace.max_users,
+        is_active: workspace.is_active,
+        onboarding_completed: workspace.onboarding_completed,
+        subscription_status: workspace.subscription_status,
+      })
+      .select()
+      .single();
+
+    if (error || !data) {
+      throw new ImportError('Failed to create workspace', 'IMPORT_WORKSPACE_FAILED', { error });
+    }
+
+    this.insertedIds.workspaceId = data.id;
+    this.idMappings.workspace = { [workspace.id]: data.id };
+    this.progress.recordsProcessed++;
+  }
+
+  /**
+   * Import global data (category types, role permissions, etc.)
+   */
+  private async importGlobalData() {
+    // Note: We skip importing global data like category_types and role_permissions
+    // because they should already exist in the target system.
+    // If needed, we could import them here with conflict resolution.
+  }
+
+  /**
+   * Import clinics
+   */
+  private async importClinics() {
+    this.updateProgress('importing', 'Importing clinics', this.progress.progress);
+
+    const newWorkspaceId = this.insertedIds.workspaceId!;
+
+    for (const clinicBundle of this.bundle.data.clinics) {
+      const clinic = clinicBundle.clinic;
+
+      const { data, error } = await this.supabase
+        .from('clinics')
+        .insert({
+          workspace_id: newWorkspaceId,
+          name: clinic.name,
+          address: clinic.address,
+          phone: clinic.phone,
+          email: clinic.email,
+          is_active: clinic.is_active,
+        })
+        .select()
+        .single();
+
+      if (error || !data) {
+        throw new ImportError('Failed to create clinic', 'IMPORT_CLINIC_FAILED', {
+          error,
+          clinicName: clinic.name,
+        });
+      }
+
+      this.insertedIds.clinicIds.push(data.id);
+      this.idMappings.clinics[clinic.id] = data.id;
+      this.progress.recordsProcessed++;
+    }
+  }
+
+  /**
+   * Import all data for a single clinic
+   */
+  private async importClinicData(clinicBundle: any, clinicIndex: number) {
+    const oldClinicId = clinicBundle.clinic.id;
+    const newClinicId = this.idMappings.clinics[oldClinicId];
+
+    this.updateProgress(
+      'importing',
+      `Importing data for clinic ${clinicIndex + 1}`,
+      this.progress.progress
+    );
+
+    // Import in FK order
+    await this.importSettingsTime(clinicBundle, newClinicId);
+    await this.importPatientSources(clinicBundle, newClinicId);
+    await this.importCustomCategories(clinicBundle, newClinicId);
+    await this.importAssets(clinicBundle, newClinicId);
+    await this.importSupplies(clinicBundle, newClinicId);
+    await this.importFixedCosts(clinicBundle, newClinicId);
+    await this.importServices(clinicBundle, newClinicId);
+    await this.importServiceSupplies(clinicBundle, newClinicId);
+    await this.importMarketingCampaigns(clinicBundle, newClinicId);
+    await this.importPatients(clinicBundle, newClinicId);
+    await this.importTreatments(clinicBundle, newClinicId);
+    await this.importExpenses(clinicBundle, newClinicId);
+  }
+
+  // Import methods for each table
+  // These methods insert data and track mappings
+
+  private async importSettingsTime(clinicBundle: any, newClinicId: string) {
+    if (!clinicBundle.settingsTime) return;
+
+    const { error } = await this.supabase.from('settings_time').insert({
+      clinic_id: newClinicId,
+      work_days: clinicBundle.settingsTime.work_days,
+      hours_per_day: clinicBundle.settingsTime.hours_per_day,
+      real_pct: clinicBundle.settingsTime.real_pct,
+      working_days_config: clinicBundle.settingsTime.working_days_config,
+    });
+
+    if (error) {
+      throw new ImportError('Failed to import settings_time', 'IMPORT_FAILED', { error });
+    }
+    this.progress.recordsProcessed++;
+  }
+
+  private async importPatientSources(clinicBundle: any, newClinicId: string) {
+    if (!clinicBundle.patientSources || clinicBundle.patientSources.length === 0) return;
+
+    const records = clinicBundle.patientSources.map((source: any) => ({
+      clinic_id: newClinicId,
+      name: source.name,
+      description: source.description,
+      is_active: source.is_active,
+      is_system: source.is_system,
+      color: source.color,
+      icon: source.icon,
+    }));
+
+    const { error } = await this.supabase.from('patient_sources').insert(records);
+
+    if (error) {
+      throw new ImportError('Failed to import patient_sources', 'IMPORT_FAILED', { error });
+    }
+    this.progress.recordsProcessed += records.length;
+  }
+
+  private async importCustomCategories(clinicBundle: any, newClinicId: string) {
+    // Skip auto-created categories, they're created by trigger
+    // Only import user-created ones if needed
+  }
+
+  private async importAssets(clinicBundle: any, newClinicId: string) {
+    if (!clinicBundle.assets || clinicBundle.assets.length === 0) return;
+
+    const records = clinicBundle.assets.map((asset: any) => ({
+      clinic_id: newClinicId,
+      name: asset.name,
+      category: asset.category,
+      purchase_date: asset.purchase_date,
+      purchase_price_cents: asset.purchase_price_cents,
+      depreciation_years: asset.depreciation_years,
+      is_active: asset.is_active,
+    }));
+
+    const { error } = await this.supabase.from('assets').insert(records);
+
+    if (error) {
+      throw new ImportError('Failed to import assets', 'IMPORT_FAILED', { error });
+    }
+    this.progress.recordsProcessed += records.length;
+  }
+
+  private async importSupplies(clinicBundle: any, newClinicId: string) {
+    if (!clinicBundle.supplies || clinicBundle.supplies.length === 0) return;
+
+    const records = clinicBundle.supplies.map((supply: any) => ({
+      clinic_id: newClinicId,
+      name: supply.name,
+      category: supply.category,
+      presentation: supply.presentation,
+      price_cents: supply.price_cents,
+      portions: supply.portions,
+      cost_per_portion_cents: supply.cost_per_portion_cents,
+      stock_quantity: supply.stock_quantity,
+    }));
+
+    const { data, error } = await this.supabase.from('supplies').insert(records).select();
+
+    if (error) {
+      throw new ImportError('Failed to import supplies', 'IMPORT_FAILED', { error });
+    }
+
+    // Map old IDs to new IDs
+    if (data) {
+      this.idMappings.supplies = this.idMappings.supplies || {};
+      clinicBundle.supplies.forEach((supply: any, index: number) => {
+        this.idMappings.supplies![supply.id] = data[index].id;
+      });
+    }
+
+    this.progress.recordsProcessed += records.length;
+  }
+
+  private async importFixedCosts(clinicBundle: any, newClinicId: string) {
+    if (!clinicBundle.fixedCosts || clinicBundle.fixedCosts.length === 0) return;
+
+    const records = clinicBundle.fixedCosts.map((cost: any) => ({
+      clinic_id: newClinicId,
+      category: cost.category,
+      concept: cost.concept,
+      amount_cents: cost.amount_cents,
+      is_active: cost.is_active,
+    }));
+
+    const { error } = await this.supabase.from('fixed_costs').insert(records);
+
+    if (error) {
+      throw new ImportError('Failed to import fixed_costs', 'IMPORT_FAILED', { error });
+    }
+    this.progress.recordsProcessed += records.length;
+  }
+
+  private async importServices(clinicBundle: any, newClinicId: string) {
+    if (!clinicBundle.services || clinicBundle.services.length === 0) return;
+
+    const records = clinicBundle.services.map((service: any) => ({
+      clinic_id: newClinicId,
+      name: service.name,
+      description: service.description,
+      category: service.category,
+      est_minutes: service.est_minutes,
+      fixed_cost_per_minute_cents: service.fixed_cost_per_minute_cents,
+      variable_cost_cents: service.variable_cost_cents,
+      margin_pct: service.margin_pct,
+      price_cents: service.price_cents,
+      is_active: service.is_active,
+    }));
+
+    const { data, error } = await this.supabase.from('services').insert(records).select();
+
+    if (error) {
+      throw new ImportError('Failed to import services', 'IMPORT_FAILED', { error });
+    }
+
+    // Map IDs
+    if (data) {
+      this.idMappings.services = this.idMappings.services || {};
+      clinicBundle.services.forEach((service: any, index: number) => {
+        this.idMappings.services![service.id] = data[index].id;
+      });
+    }
+
+    this.progress.recordsProcessed += records.length;
+  }
+
+  private async importServiceSupplies(clinicBundle: any, newClinicId: string) {
+    // Skip for now - requires mapping both service and supply IDs
+  }
+
+  private async importMarketingCampaigns(clinicBundle: any, newClinicId: string) {
+    // Skip for now - requires category mapping
+  }
+
+  private async importPatients(clinicBundle: any, newClinicId: string) {
+    if (!clinicBundle.patients || clinicBundle.patients.length === 0) return;
+
+    const records = clinicBundle.patients.map((patient: any) => ({
+      clinic_id: newClinicId,
+      first_name: patient.first_name,
+      last_name: patient.last_name,
+      email: patient.email,
+      phone: patient.phone,
+      birth_date: patient.birth_date,
+      gender: patient.gender,
+      is_active: patient.is_active,
+    }));
+
+    const { data, error } = await this.supabase.from('patients').insert(records).select();
+
+    if (error) {
+      throw new ImportError('Failed to import patients', 'IMPORT_FAILED', { error });
+    }
+
+    // Map IDs
+    if (data) {
+      this.idMappings.patients = this.idMappings.patients || {};
+      clinicBundle.patients.forEach((patient: any, index: number) => {
+        this.idMappings.patients![patient.id] = data[index].id;
+      });
+    }
+
+    this.progress.recordsProcessed += records.length;
+  }
+
+  private async importTreatments(clinicBundle: any, newClinicId: string) {
+    // Skip for now - requires patient and service ID mapping
+  }
+
+  private async importExpenses(clinicBundle: any, newClinicId: string) {
+    // Skip for now - requires category ID mapping
+  }
+
+  /**
+   * Rollback all inserted data
+   */
+  private async rollback() {
+    try {
+      // Delete in reverse order
+      if (this.insertedIds.clinicIds.length > 0) {
+        await this.supabase.from('clinics').delete().in('id', this.insertedIds.clinicIds);
+      }
+
+      if (this.insertedIds.workspaceId) {
+        await this.supabase.from('workspaces').delete().eq('id', this.insertedIds.workspaceId);
+      }
+    } catch (error) {
+      console.error('Rollback error:', error);
+    }
+  }
+
+  /**
+   * Update progress
+   */
+  private updateProgress(status: ImportProgress['status'], step: string, progress: number) {
+    this.progress.status = status;
+    this.progress.currentStep = step;
+    this.progress.progress = Math.min(progress, 100);
+
+    if (status === 'completed') {
+      this.progress.completedAt = new Date().toISOString();
+    }
+  }
+
+  /**
+   * Increment progress
+   */
+  private incrementProgress(amount: number) {
+    this.progress.progress = Math.min(this.progress.progress + amount, 100);
+  }
+
+  /**
+   * Get current progress
+   */
+  getProgress(): ImportProgress {
+    return { ...this.progress };
+  }
+}

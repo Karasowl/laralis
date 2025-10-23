@@ -15,6 +15,7 @@ export interface Expense {
   // Optional free-text notes for the expense
   notes?: string
   is_recurring: boolean
+  campaign_id?: string
   related_asset_id?: string
   related_supply_id?: string
   quantity?: number
@@ -96,6 +97,7 @@ export const expenseFormSchema = z.object({
   vendor: z.string().optional(),
   invoice_number: z.string().optional(),
   is_recurring: z.boolean().default(false),
+  campaign_id: z.string().uuid().optional(),
   quantity: z.number().int().positive().optional(),
   related_supply_id: z.string().optional(),
   create_asset: z.boolean().default(false),
@@ -124,6 +126,11 @@ export interface ExpenseWithRelations extends Expense {
     id: string
     name: string
     category: string
+  }
+  campaign?: {
+    id: string
+    name: string
+    platform_name?: string
   }
 }
 
