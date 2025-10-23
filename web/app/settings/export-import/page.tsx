@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ExportSection } from './components/ExportSection';
 import { ImportSection } from './components/ImportSection';
-import { Database, Download, Upload } from 'lucide-react';
+import { Download, Upload } from 'lucide-react';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('export');
@@ -30,7 +30,6 @@ export default async function ExportImportPage() {
       <PageHeader
         title={t('pageTitle')}
         description={t('pageDescription')}
-        icon={Database}
       />
 
       {/* Tabs */}
