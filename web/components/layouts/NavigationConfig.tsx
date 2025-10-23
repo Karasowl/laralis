@@ -14,7 +14,8 @@ import {
   Wrench,
   XCircle,
   BarChart3,
-  Shield
+  Shield,
+  PackageOpen
 } from 'lucide-react'
 
 export interface NavigationItem {
@@ -129,9 +130,9 @@ export function getNavigationSections(t: any, options: { onboardingCompleted?: b
           icon: Shield
         },
         {
-          href: '/settings/data',
-          label: t('navigation.dataMaintenance'),
-          icon: Receipt
+          href: '/settings/export-import',
+          label: t('navigation.exportImport'),
+          icon: PackageOpen
         },
         {
           href: '/settings/reset',

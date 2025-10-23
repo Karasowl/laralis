@@ -10,9 +10,9 @@ import {
   SlidersHorizontal,
   ShieldCheck,
   Building2,
-  Database,
   RefreshCw,
   ChevronRight,
+  PackageOpen,
 } from 'lucide-react';
 
 export default function SettingsPage() {
@@ -71,12 +71,12 @@ export default function SettingsPage() {
       subtitle: t('settings.groups.maintenance.subtitle'),
       items: [
         {
-          id: 'data',
-          title: t('settings.data.title'),
-          description: t('settings.data.description'),
-          href: '/settings/data',
-          icon: Database,
-          color: 'text-sky-600',
+          id: 'export-import',
+          title: t('settings.exportImport.title'),
+          description: t('settings.exportImport.description'),
+          href: '/settings/export-import',
+          icon: PackageOpen,
+          color: 'text-purple-600',
         },
         {
           id: 'reset',

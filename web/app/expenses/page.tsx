@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -32,6 +32,8 @@ import { Progress } from '@/components/ui/progress'
 import { ActionDropdown, createDeleteAction, createEditAction } from '@/components/ui/ActionDropdown'
 import { useExpenses } from '@/hooks/use-expenses'
 import { useApi } from '@/hooks/use-api'
+import { useCategories } from '@/hooks/use-categories'
+import { useCampaigns } from '@/hooks/use-campaigns'
 import {
   expenseFormSchema,
   type ExpenseFormData,
@@ -74,6 +76,9 @@ export default function ExpensesPage() {
     clinicId,
   } = useExpenses()
 
+  const { categories: expenseCategories } = useCategories('expenses')
+  const { campaigns } = useCampaigns({ activeOnly: true })
+
   const suppliesEndpoint = clinicId ? `/api/supplies?clinicId=${clinicId}&limit=200` : null
   const suppliesApi = useApi<{ data: Array<{ id: string; name: string; category?: string }> }>(suppliesEndpoint, {
     autoFetch: Boolean(clinicId),
@@ -104,31 +109,60 @@ export default function ExpensesPage() {
     mode: 'onBlur', // PERFORMANCE: Validate only on blur
   })
 
+  // Calculate parent categories (for dropdowns)
+  const parentCategories = useMemo(
+    () => (expenseCategories || []).filter((c: any) => !c.parent_id),
+    [expenseCategories]
+  )
+
+  // Category options for filters and forms
   const categoryOptions: Option[] = useMemo(() => {
     const base: Option[] = [
       { value: 'all', label: t('filters.categoryAll') },
     ]
 
-    const entries = Object.entries(EXPENSE_CATEGORIES).map(([key, value]) => ({
-      value,
-      label: t(`categories.${key.toLowerCase()}`),
+    const entries = parentCategories.map((c: any) => ({
+      value: c.display_name || c.name,
+      label: c.display_name || c.name,
     }))
 
     return [...base, ...entries]
-  }, [t])
+  }, [parentCategories, t])
 
+  // Subcategory options for filters (all subcategories)
   const subcategoryOptions: Option[] = useMemo(() => {
     const base: Option[] = [
       { value: 'all', label: t('filters.subcategoryAll') },
     ]
 
-    const entries = Object.entries(EXPENSE_SUBCATEGORIES).map(([key, value]) => ({
-      value,
-      label: t(`subcategories.${key.toLowerCase()}`),
+    const subcats = (expenseCategories || []).filter((c: any) => c.parent_id)
+    const entries = subcats.map((c: any) => ({
+      value: c.display_name || c.name,
+      label: c.display_name || c.name,
     }))
 
     return [...base, ...entries]
-  }, [t])
+  }, [expenseCategories, t])
+
+  // Dynamic subcategory options based on selected category in forms
+  const getSubcategoriesForCategory = useCallback((categoryName: string) => {
+    if (!categoryName) return []
+
+    const selectedParent = parentCategories.find(
+      (c: any) => (c.display_name || c.name) === categoryName
+    )
+
+    if (!selectedParent) return []
+
+    const subcats = (expenseCategories || []).filter(
+      (c: any) => c.parent_id === selectedParent.id
+    )
+
+    return subcats.map((c: any) => ({
+      value: c.display_name || c.name,
+      label: c.display_name || c.name,
+    }))
+  }, [parentCategories, expenseCategories])
 
   const supplyOptions: Option[] = useMemo(() => {
     const data = suppliesApi.data?.data || []
@@ -137,6 +171,18 @@ export default function ExpensesPage() {
       ...data.map((item) => ({ value: item.id, label: item.name })),
     ]
   }, [suppliesApi.data, t])
+
+  const campaignOptions: Option[] = useMemo(() => {
+    return [
+      { value: 'none', label: t('form.fields.noCampaign') },
+      ...campaigns.map((campaign) => ({
+        value: campaign.id,
+        label: campaign.platform?.display_name
+          ? `${campaign.name} (${campaign.platform.display_name})`
+          : campaign.name,
+      })),
+    ]
+  }, [campaigns, t])
 
   const handleMinAmountChange = (value: string | number) => {
     if (value === '' || value === null) {
@@ -563,7 +609,7 @@ export default function ExpensesPage() {
                       <span className="font-semibold">{formatCurrency(category.amount)}</span>
                     </div>
                     <Progress value={category.percentage} />
-                    <p className="text-xs text-muted-foreground">{category.count} {t('charts.byCategory.transactions')}</p>
+                    <p className="text-xs text-muted-foreground">{t('charts.byCategory.transactions', { count: category.count })}</p>
                   </div>
                 ))
               )}
@@ -622,8 +668,9 @@ export default function ExpensesPage() {
             form={createForm}
             t={t}
             categoryOptions={categoryOptions.slice(1)}
-            subcategoryOptions={subcategoryOptions.slice(1)}
+            getSubcategoriesForCategory={getSubcategoriesForCategory}
             supplyOptions={supplyOptions}
+            campaignOptions={campaignOptions}
           />
         </FormModal>
 
@@ -643,8 +690,9 @@ export default function ExpensesPage() {
             form={editForm}
             t={t}
             categoryOptions={categoryOptions.slice(1)}
-            subcategoryOptions={subcategoryOptions.slice(1)}
+            getSubcategoriesForCategory={getSubcategoriesForCategory}
             supplyOptions={supplyOptions}
+            campaignOptions={campaignOptions}
           />
         </FormModal>
 
@@ -678,6 +726,7 @@ function getDefaultFormValues(): ExpenseFormValues {
     vendor: '',
     invoice_number: '',
     is_recurring: false,
+    campaign_id: undefined,
     quantity: undefined,
     related_supply_id: undefined,
     create_asset: false,
@@ -702,6 +751,7 @@ function mapExpenseToFormValues(expense?: ExpenseWithRelations | null): ExpenseF
     vendor: expense.vendor || '',
     invoice_number: expense.invoice_number || '',
     is_recurring: Boolean(expense.is_recurring),
+    campaign_id: expense.campaign_id || undefined,
     quantity: expense.quantity ?? undefined,
     related_supply_id: expense.related_supply_id || undefined,
     create_asset: false,
@@ -715,13 +765,22 @@ interface ExpenseFormProps {
   form: ReturnType<typeof useForm<ExpenseFormValues>>
   t: ReturnType<typeof useTranslations>
   categoryOptions: Option[]
-  subcategoryOptions: Option[]
+  getSubcategoriesForCategory: (categoryName: string) => Option[]
   supplyOptions: Option[]
+  campaignOptions: Option[]
 }
 
-function ExpenseForm({ form, t, categoryOptions, subcategoryOptions, supplyOptions }: ExpenseFormProps) {
+function ExpenseForm({ form, t, categoryOptions, getSubcategoriesForCategory, supplyOptions, campaignOptions }: ExpenseFormProps) {
+  const selectedCategory = form.watch('category')
   const selectedSupply = form.watch('related_supply_id') || 'none'
+  const selectedCampaign = form.watch('campaign_id') || 'none'
   const createAsset = form.watch('create_asset')
+
+  // Calculate subcategories dynamically based on selected category
+  const subcategoryOptions = useMemo(
+    () => getSubcategoriesForCategory(selectedCategory || ''),
+    [selectedCategory, getSubcategoriesForCategory]
+  )
 
   return (
     <div className="space-y-6">
@@ -827,6 +886,17 @@ function ExpenseForm({ form, t, categoryOptions, subcategoryOptions, supplyOptio
             onChange={(value) => form.setValue('subcategory', value)}
             options={subcategoryOptions}
           />
+          {selectedCategory === 'Marketing' && (
+            <SelectField
+              label={t('form.fields.campaign')}
+              value={selectedCampaign}
+              onChange={(value) => {
+                form.setValue('campaign_id', value === 'none' ? undefined : value)
+              }}
+              options={campaignOptions}
+              helperText={t('form.fields.campaignHelp')}
+            />
+          )}
         </FormGrid>
         <Controller
           control={form.control}

@@ -28,6 +28,10 @@ Cada entrada sigue la estructura:
 - **[2025-10-18-fix-onboarding-skip-clinic-step.md](2025-10-18-fix-onboarding-skip-clinic-step.md)** - Fix crítico: Bug donde el onboarding saltaba los pasos de workspace y clínica, causando "access denied" en assets
 - **[Troubleshooting: Clínicas Fantasma](../TROUBLESHOOTING-RESET-AND-CACHE.md)** - Investigación y solución del problema de "clínicas fantasma" que aparecen después de resetear la base de datos (combinación de script SQL incompleto + caché del navegador)
 
+### 2025-10-22
+
+- **[2025-10-22-export-import-system.md](2025-10-22-export-import-system.md)** - Feature P1: Sistema completo de exportación e importación con versionado de esquema, migraciones automáticas, validación exhaustiva (8 tipos), checksums SHA-256, y rollback manual. Cobertura de 25 tablas con compatibilidad hacia adelante.
+
 ### 2025-08-09
 
 - **[2025-08-09-bootstrap-proyecto.md](2025-08-09-bootstrap-proyecto.md)** - Arranque inicial del proyecto con Next.js, i18n, motor de cálculos y shell de UI estilo Apple
@@ -40,6 +44,7 @@ Cada entrada sigue la estructura:
 
 ### Infraestructura
 - [2025-08-09-bootstrap-proyecto.md](2025-08-09-bootstrap-proyecto.md) - Setup inicial completo
+- [2025-10-22-export-import-system.md](2025-10-22-export-import-system.md) - Sistema completo de export/import con migraciones
 
 ### Onboarding & Auth
 - [2025-10-18-fix-service-recipe-requirement-too-strict.md](2025-10-18-fix-service-recipe-requirement-too-strict.md) - Fix de requirement excesivamente estricto que bloqueaba el wizard
@@ -61,19 +66,25 @@ Cada entrada sigue la estructura:
 - [2025-10-18-improve-dark-mode-ux.md](2025-10-18-improve-dark-mode-ux.md) - Rediseño completo de dark mode con paleta moderna
 - [2025-08-09-bootstrap-proyecto.md](2025-08-09-bootstrap-proyecto.md) - Sistema de componentes estilo Apple
 - [2025-08-09-supplies-services-module.md](2025-08-09-supplies-services-module.md) - Páginas de insumos y servicios con preview en vivo
+- [2025-10-22-export-import-system.md](2025-10-22-export-import-system.md) - UI de export/import con tabs, drag & drop, y validación visual
 
 ### Internacionalización
 - [2025-08-09-bootstrap-proyecto.md](2025-08-09-bootstrap-proyecto.md) - Setup de next-intl con EN/ES
 - [2025-08-09-supplies-services-module.md](2025-08-09-supplies-services-module.md) - Strings para módulo de insumos y servicios
+- [2025-10-22-export-import-system.md](2025-10-22-export-import-system.md) - 90 keys para export, import, y validación (EN + ES)
 
 ### Base de Datos
 - [2025-08-09-supplies-services-module.md](2025-08-09-supplies-services-module.md) - Esquema de insumos, servicios y recetas
 
+### Data Management / Export-Import
+- [2025-10-22-export-import-system.md](2025-10-22-export-import-system.md) - Sistema completo con versionado, migraciones, validación (8 tipos), checksums SHA-256
+
 ### API Endpoints
 - [2025-10-18-fix-services-revenue-rls-errors.md](2025-10-18-fix-services-revenue-rls-errors.md) - Fix de errores en /api/services y /api/dashboard/revenue
+- [2025-10-22-export-import-system.md](2025-10-22-export-import-system.md) - Endpoints /api/export/generate, /validate, /import
 
 ## Stats
 
-- **Total entradas**: 12
-- **Última actualización**: 2025-10-18
-- **Archivos documentados**: 98+
+- **Total entradas**: 13
+- **Última actualización**: 2025-10-22
+- **Archivos documentados**: 113+
