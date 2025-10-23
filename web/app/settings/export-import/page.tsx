@@ -8,7 +8,7 @@ import { Metadata } from 'next';
 import { Suspense } from 'react';
 import { getTranslations } from 'next-intl/server';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PageHeader } from '@/components/ui/page-header';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { ExportSection } from './components/ExportSection';
 import { ImportSection } from './components/ImportSection';
 import { Database, Download, Upload } from 'lucide-react';
