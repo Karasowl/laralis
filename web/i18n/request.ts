@@ -1,11 +1,21 @@
 import { getRequestConfig } from 'next-intl/server';
 import { cookies } from 'next/headers';
+import enMessages from '../messages/en.json';
+import esMessages from '../messages/es.json';
+import enOverrides from '../messages/en-overrides.json';
+import esOverrides from '../messages/es-overrides.json';
+import tariffsEn from '../messages/tariffs.en.json';
+import tariffsEs from '../messages/tariffs.es.json';
+import reportsEn from '../messages/reports.en.json';
+import reportsEs from '../messages/reports.es.json';
+import expensesEn from '../messages/expenses.en.json';
+import expensesEs from '../messages/expenses.es.json';
 
 export default getRequestConfig(async () => {
   const cookieStore = cookies();
   const locale = cookieStore.get('locale')?.value || 'en';
 
-  const base = (await import(`../messages/${locale}.json`)).default as Record<string, any>;
+  const base = (locale === 'es' ? esMessages : enMessages) as Record<string, any>;
 
   // Lightweight deep merge helper
   const deepMerge = (target: any, source: any) => {
@@ -23,38 +33,21 @@ export default getRequestConfig(async () => {
 
   let messages = base;
   if (locale === 'es') {
-    try {
-      // Fallback to English for any missing keys, then apply ES overrides
-      const en = (await import('../messages/en.json')).default as Record<string, any>;
-      const merged = deepMerge({ ...en }, base);
-      try {
-        const overrides = (await import('../messages/es-overrides.json')).default as Record<string, any>;
-        messages = deepMerge(merged, overrides);
-      } catch (_e) {
-        messages = merged;
-      }
-    } catch (_e) {
-      // If something fails, keep base
-      messages = base;
-    }
+    // Fallback to English for any missing keys, then apply ES overrides
+    const merged = deepMerge({ ...enMessages }, base);
+    messages = deepMerge(merged, esOverrides);
   } else if (locale === 'en') {
-    try {
-      const overrides = (await import('../messages/en-overrides.json')).default as Record<string, any>;
-      messages = deepMerge({ ...base }, overrides);
-    } catch (_e) {
-      // no overrides for en
-    }
+    messages = deepMerge({ ...base }, enOverrides);
   }
 
-  // Merge section-specific bundles if present (e.g., tariffs.es.json, reports.es.json)
-  for (const sectionName of ['tariffs', 'reports', 'expenses']) {
-    try {
-      const section = (await import(`../messages/${sectionName}.${locale}.json`)).default as Record<string, any>;
-      if (section && typeof section === 'object') {
-        messages = deepMerge(messages, section);
-      }
-    } catch (_e) {
-      // optional bundle; ignore if missing
+  // Merge section-specific bundles
+  const sectionBundles = locale === 'es'
+    ? [tariffsEs, reportsEs, expensesEs]
+    : [tariffsEn, reportsEn, expensesEn];
+
+  for (const section of sectionBundles) {
+    if (section && typeof section === 'object') {
+      messages = deepMerge(messages, section);
     }
   }
 
