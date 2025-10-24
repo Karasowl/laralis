@@ -2786,6 +2786,91 @@
     "categoryPlaceholder": "E.g: Orthodontics, Endodontics, etc.",
     "category": "category"
   },
+  "export": {
+    "pageTitle": "Export & Import Data",
+    "pageDescription": "Backup and restore your workspace data with our secure export/import system",
+    "title": "Export Data",
+    "description": "Export all your workspace data for backup or migration purposes",
+    "export": {
+      "title": "Export Workspace",
+      "subtitle": "Download a complete backup of all your data including clinics, patients, treatments, and more"
+    },
+    "options": {
+      "includeHistorical": "Include historical data",
+      "includeHistoricalDesc": "Include all treatments and expenses (recommended)",
+      "includeAuditLogs": "Include audit logs",
+      "includeAuditLogsDesc": "Include activity history and logs"
+    },
+    "actions": {
+      "export": "Export Data",
+      "exporting": "Exporting..."
+    },
+    "success": {
+      "title": "Export Successful",
+      "description": "Your backup file has been downloaded successfully"
+    },
+    "errors": {
+      "title": "Export Failed",
+      "noWorkspace": "No workspace selected",
+      "exportFailed": "Failed to export data",
+      "unknown": "An unknown error occurred"
+    },
+    "stats": {
+      "totalRecords": "Total Records",
+      "fileSize": "File Size",
+      "duration": "Duration"
+    },
+    "info": {
+      "title": "Important Information",
+      "point1": "The export file contains ALL your workspace data in JSON format",
+      "point2": "Keep your backup file secure - it contains sensitive information",
+      "point3": "Export files are compatible with future versions of the application",
+      "point4": "You can import this backup into any workspace later"
+    },
+    "import": {
+      "title": "Import Data",
+      "description": "Restore your data from a backup file",
+      "upload": {
+        "title": "Import Workspace",
+        "subtitle": "Upload a backup file to restore your data",
+        "dragDrop": "Drag and drop your backup file here, or click to browse",
+        "fileFormat": "JSON files only (.json)"
+      },
+      "validating": "Validating backup file...",
+      "importing": "Importing data...",
+      "confirm": "Confirm Import",
+      "tryAnother": "Try Another File",
+      "success": {
+        "title": "Import Successful",
+        "description": "Your data has been imported successfully",
+        "goToWorkspace": "Go to Workspace"
+      },
+      "errors": {
+        "invalidFile": "Invalid backup file format",
+        "invalidFileType": "Please select a JSON file",
+        "validationFailed": "Backup validation failed",
+        "importFailed": "Failed to import data",
+        "unknown": "An unknown error occurred"
+      }
+    },
+    "validation": {
+      "valid": "Backup is Valid",
+      "invalid": "Backup Has Errors",
+      "validDescription": "This backup file is ready to be imported",
+      "invalidDescription": "Please fix the errors before importing",
+      "bundleInfo": "Backup Information",
+      "workspaceName": "Workspace",
+      "exportDate": "Export Date",
+      "clinicCount": "Clinics",
+      "migrationRequired": "Migration Required",
+      "migrationDescription": "This backup will be migrated from version {from} to {to}",
+      "errors": "Errors",
+      "warnings": "Warnings",
+      "importStats": "Import Statistics",
+      "estimatedDuration": "Estimated Time",
+      "diskSpace": "Disk Space"
+    }
+  },
   "dashboardComponents": {
     "heroPricing": {
       "title": "Your Intelligent Pricing System",

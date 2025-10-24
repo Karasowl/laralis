@@ -24,6 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function ExportImportPage() {
   const t = await getTranslations('export');
+  const tCommon = await getTranslations('common');
 
   return (
     <AppLayout>
@@ -49,14 +50,14 @@ export default async function ExportImportPage() {
 
           {/* Export Tab */}
           <TabsContent value="export" className="mt-6">
-            <Suspense fallback={<div className="text-center py-12">Loading...</div>}>
+            <Suspense fallback={<div className="text-center py-12">{tCommon('loading')}</div>}>
               <ExportSection />
             </Suspense>
           </TabsContent>
 
           {/* Import Tab */}
           <TabsContent value="import" className="mt-6">
-            <Suspense fallback={<div className="text-center py-12">Loading...</div>}>
+            <Suspense fallback={<div className="text-center py-12">{tCommon('loading')}</div>}>
               <ImportSection />
             </Suspense>
           </TabsContent>
