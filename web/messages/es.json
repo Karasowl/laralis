@@ -1464,7 +1464,8 @@
       "deleteSuccess": "Espacio de Trabajo Eliminado",
       "deleteSuccessDesc": "Espacio de trabajo eliminado exitosamente",
       "deleteConfirm": "¿Estás seguro de que quieres eliminar este espacio de trabajo?",
-      "summary": "{name} - {clinicCount, plural, one {# clínica} other {# clínicas}}"
+      "summary": "{name} - {clinicCount, plural, one {# clínica} other {# clínicas}}",
+      "switched": "Cambiado a {name}"
     },
     "time": {
       "title": "Configuración de Tiempo",

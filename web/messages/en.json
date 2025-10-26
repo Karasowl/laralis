@@ -1352,7 +1352,8 @@
       "createSuccessDesc": "New workspace added successfully",
       "deleteSuccess": "Workspace Deleted",
       "deleteSuccessDesc": "Workspace removed successfully",
-      "deleteConfirm": "Are you sure you want to delete this workspace?"
+      "deleteConfirm": "Are you sure you want to delete this workspace?",
+      "switched": "Switched to {name}"
     },
     "clinics": {
       "title": "Clinics",
