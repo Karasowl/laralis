@@ -58,6 +58,11 @@ export default function WorkspacesClinicsSettingsClient() {
   const [clinicForm, setClinicForm] = useState<ClinicFormState>(emptyClinicForm)
   const [savingClinic, setSavingClinic] = useState<boolean>(false)
 
+  const [deleteWorkspaceModal, setDeleteWorkspaceModal] = useState<boolean>(false)
+  const [workspaceToDelete, setWorkspaceToDelete] = useState<Workspace | null>(null)
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState<string>('')
+  const [deletingWorkspace, setDeletingWorkspace] = useState<boolean>(false)
+
   const selectedWorkspace = useMemo(() =>
     workspaces.find(ws => ws.id === selectedWorkspaceId) || null,
     [workspaces, selectedWorkspaceId]
@@ -207,16 +212,58 @@ export default function WorkspacesClinicsSettingsClient() {
     }
   }
 
-  const handleDeleteWorkspace = async (workspace: Workspace) => {
-    const confirmed = window.confirm(tSettings('workspaces.deleteConfirm', { defaultValue: 'Are you sure you want to delete this workspace?' }))
-    if (!confirmed) return
+  const openDeleteWorkspaceModal = async (workspace: Workspace) => {
+    // First check if workspace has clinics
     try {
-      const res = await fetch(`/api/workspaces/${workspace.id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/workspaces/${workspace.id}/clinics`)
+      const payload = await res.json().catch(() => ({} as any))
+      const clinicsList: Clinic[] = Array.isArray(payload) ? payload : payload?.data || []
+
+      if (clinicsList.length > 0) {
+        toast.error(
+          tSettings('workspaces.hasClinicsCantDelete', {
+            defaultValue: 'Cannot delete workspace with clinics. Delete all clinics first.',
+            count: clinicsList.length
+          })
+        )
+        return
+      }
+
+      // No clinics, open confirmation modal
+      setWorkspaceToDelete(workspace)
+      setDeleteConfirmationText('')
+      setDeleteWorkspaceModal(true)
+    } catch (error: any) {
+      console.error('[Workspaces] check clinics error', error)
+      toast.error(tCommon('error'))
+    }
+  }
+
+  const confirmDeleteWorkspace = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!workspaceToDelete) return
+
+    if (deleteConfirmationText !== workspaceToDelete.name) {
+      toast.error(tSettings('workspaces.deleteNameMismatch', {
+        defaultValue: 'Workspace name does not match. Please type the exact name to confirm.'
+      }))
+      return
+    }
+
+    try {
+      setDeletingWorkspace(true)
+      const res = await fetch(`/api/workspaces/${workspaceToDelete.id}`, { method: 'DELETE' })
       if (!res.ok) {
         const err = await res.json().catch(() => ({} as any))
         throw new Error(err?.message || err?.error || 'Failed to delete workspace')
       }
+
       toast.success(tCommon('deleteSuccess', { entity: tSettings('workspaces.entity', { defaultValue: 'Workspace' }) }))
+
+      // Close modal
+      setDeleteWorkspaceModal(false)
+      setWorkspaceToDelete(null)
+      setDeleteConfirmationText('')
 
       // Reload workspaces
       const loadWorkspaces = async () => {
@@ -228,7 +275,7 @@ export default function WorkspacesClinicsSettingsClient() {
           setWorkspaces(list)
 
           // If deleted workspace was selected, select first remaining workspace
-          if (selectedWorkspaceId === workspace.id) {
+          if (selectedWorkspaceId === workspaceToDelete.id) {
             if (list.length > 0) {
               setSelectedWorkspaceId(list[0].id)
               setGlobalWorkspace(list[0] as any)
@@ -249,6 +296,8 @@ export default function WorkspacesClinicsSettingsClient() {
     } catch (error: any) {
       console.error('[Workspaces] delete error', error)
       toast.error(error?.message || tCommon('error'))
+    } finally {
+      setDeletingWorkspace(false)
     }
   }
 
@@ -323,7 +372,7 @@ export default function WorkspacesClinicsSettingsClient() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => handleDeleteWorkspace(ws)}
+                    onClick={() => openDeleteWorkspaceModal(ws)}
                     className="h-8 w-8 text-destructive hover:text-destructive"
                   >
                     <Trash className="h-4 w-4" />
@@ -436,6 +485,55 @@ export default function WorkspacesClinicsSettingsClient() {
               onChange={(value) => handleClinicFieldChange('email', String(value))}
             />
           </FormGrid>
+        </div>
+      </FormModal>
+
+      {/* Delete Workspace Confirmation Modal */}
+      <FormModal
+        open={deleteWorkspaceModal}
+        onOpenChange={(open) => {
+          setDeleteWorkspaceModal(open)
+          if (!open) {
+            setWorkspaceToDelete(null)
+            setDeleteConfirmationText('')
+          }
+        }}
+        title={tSettings('workspaces.deleteTitle', { defaultValue: 'Delete Workspace' })}
+        submitLabel={tCommon('delete', { defaultValue: 'Delete' })}
+        cancelLabel={tCommon('cancel')}
+        isSubmitting={deletingWorkspace}
+        onSubmit={confirmDeleteWorkspace}
+        maxWidth="md"
+        destructive
+      >
+        <div className="space-y-4">
+          <div className="rounded-lg bg-destructive/10 p-4 text-sm text-destructive">
+            <p className="font-semibold">{tSettings('workspaces.deleteWarning', { defaultValue: 'This action cannot be undone!' })}</p>
+            <p className="mt-1">
+              {tSettings('workspaces.deleteWarningText', {
+                defaultValue: 'This will permanently delete the workspace and all its data.'
+              })}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-sm text-muted-foreground mb-2">
+              {tSettings('workspaces.deleteConfirmInstructions', {
+                defaultValue: 'Please type the workspace name to confirm:',
+                name: workspaceToDelete?.name
+              })}
+            </p>
+            <p className="text-sm font-mono font-semibold mb-3 p-2 bg-muted rounded">
+              {workspaceToDelete?.name}
+            </p>
+            <InputField
+              label={tSettings('workspaces.deleteConfirmLabel', { defaultValue: 'Workspace name' })}
+              value={deleteConfirmationText}
+              onChange={(value) => setDeleteConfirmationText(String(value))}
+              placeholder={workspaceToDelete?.name}
+              required
+            />
+          </div>
         </div>
       </FormModal>
     </div>
