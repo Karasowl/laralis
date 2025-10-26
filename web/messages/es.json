@@ -3076,10 +3076,8 @@
       "subtitle": "Descarga un respaldo completo de todos tus datos incluyendo clínicas, pacientes, tratamientos y más"
     },
     "options": {
-      "includeHistorical": "Incluir datos históricos",
-      "includeHistoricalDesc": "Incluir todos los tratamientos y gastos (recomendado)",
-      "includeAuditLogs": "Incluir registros de auditoría",
-      "includeAuditLogsDesc": "Incluir historial de actividad y registros"
+      "includeAuditLogs": "Incluir registros de actividad",
+      "includeAuditLogsDesc": "Incluir registro de quién hizo cambios y cuándo (opcional, aumenta el tamaño del archivo)"
     },
     "actions": {
       "export": "Exportar Datos",

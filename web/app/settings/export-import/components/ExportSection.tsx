@@ -35,7 +35,6 @@ export function ExportSection() {
   const [stats, setStats] = useState<ExportStats | null>(null);
   const [options, setOptions] = useState<ExportOptions>({
     includeAuditLogs: false,
-    includeHistorical: true,
   });
 
   /**
@@ -144,26 +143,6 @@ export function ExportSection() {
 
           {/* Options */}
           <div className="space-y-3 border-t border-border pt-4">
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={options.includeHistorical}
-                onChange={(e) =>
-                  setOptions({ ...options, includeHistorical: e.target.checked })
-                }
-                className="w-4 h-4 text-primary border-border rounded focus:ring-primary"
-                disabled={isExporting}
-              />
-              <div>
-                <div className="text-sm font-medium text-foreground">
-                  {t('options.includeHistorical')}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {t('options.includeHistoricalDesc')}
-                </div>
-              </div>
-            </label>
-
             <label className="flex items-center gap-3 cursor-pointer">
               <input
                 type="checkbox"
