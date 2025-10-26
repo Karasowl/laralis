@@ -113,17 +113,22 @@ export function ChannelROIChart({ data, loading }: ChannelROIChartProps) {
                   borderRadius: '8px'
                 }}
                 labelStyle={{ color: 'hsl(var(--foreground))' }}
-                formatter={(value: number, name: string, props: any) => {
-                  const channel = props.payload
-                  return [
-                    <div key="tooltip" className="space-y-1">
-                      <p className="font-medium">ROI: {value.toFixed(0)}%</p>
-                      <p className="text-xs">{t('spent')}: {formatCurrency(channel.spent_cents)}</p>
-                      <p className="text-xs">{t('revenue')}: {formatCurrency(channel.revenue_cents)}</p>
-                      <p className="text-xs">{t('patients')}: {channel.patients}</p>
-                    </div>,
-                    ''
-                  ]
+                content={({ active, payload, label }: any) => {
+                  if (active && payload && payload.length) {
+                    const channel = payload[0].payload
+                    return (
+                      <div className="bg-card p-3 border border-border rounded-lg shadow-lg">
+                        <p className="font-medium text-foreground mb-2">{label}</p>
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium">ROI: {payload[0].value.toFixed(0)}%</p>
+                          <p className="text-xs text-muted-foreground">{t('spent')}: {formatCurrency(channel.spent_cents)}</p>
+                          <p className="text-xs text-muted-foreground">{t('revenue')}: {formatCurrency(channel.revenue_cents)}</p>
+                          <p className="text-xs text-muted-foreground">{t('patients')}: {channel.patients}</p>
+                        </div>
+                      </div>
+                    )
+                  }
+                  return null
                 }}
               />
               <Bar dataKey="roi" radius={[0, 8, 8, 0]}>
