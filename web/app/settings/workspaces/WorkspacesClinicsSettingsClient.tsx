@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { FormModal } from '@/components/ui/form-modal'
 import { FormGrid, InputField } from '@/components/ui/form-field'
 import { toast } from 'sonner'
+import { useWorkspace } from '@/contexts/workspace-context'
 
 type Workspace = {
   id: string
@@ -43,6 +44,7 @@ export default function WorkspacesClinicsSettingsClient() {
   const t = useTranslations()
   const tCommon = useTranslations('common')
   const tSettings = useTranslations('settings')
+  const { setWorkspace: setGlobalWorkspace } = useWorkspace()
 
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
   const [loadingWorkspaces, setLoadingWorkspaces] = useState<boolean>(true)
@@ -256,7 +258,14 @@ export default function WorkspacesClinicsSettingsClient() {
             {workspaces.map(ws => (
               <button
                 key={ws.id}
-                onClick={() => setSelectedWorkspaceId(ws.id)}
+                onClick={() => {
+                  setSelectedWorkspaceId(ws.id)
+                  setGlobalWorkspace(ws as any) // Change active workspace globally
+                  toast.success(t('settings.workspaces.switched', {
+                    defaultValue: `Switched to ${ws.name}`,
+                    name: ws.name
+                  }))
+                }}
                 className={`w-full rounded border p-3 text-left transition hover:bg-muted ${selectedWorkspaceId === ws.id ? 'bg-muted' : ''}`}
               >
                 <div className="font-medium">{ws.name}</div>
