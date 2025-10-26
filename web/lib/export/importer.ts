@@ -337,8 +337,43 @@ export class WorkspaceBundleImporter {
   }
 
   private async importCustomCategories(clinicBundle: any, newClinicId: string) {
-    // Skip auto-created categories, they're created by trigger
-    // Only import user-created ones if needed
+    if (!clinicBundle.customCategories || clinicBundle.customCategories.length === 0) return;
+
+    const records = clinicBundle.customCategories.map((category: any) => ({
+      clinic_id: newClinicId,
+      category_type_id: category.category_type_id,
+      name: category.name,
+      display_name: category.display_name,
+      description: category.description,
+      color: category.color,
+      icon: category.icon,
+      sort_order: category.sort_order,
+      is_active: category.is_active,
+      is_system: category.is_system,
+    }));
+
+    // Use upsert to handle auto-created categories from clinic trigger
+    const { data, error } = await this.supabase
+      .from('custom_categories')
+      .upsert(records, {
+        onConflict: 'clinic_id,category_type_id,name',
+        ignoreDuplicates: false,
+      })
+      .select();
+
+    if (error) {
+      throw new ImportError('Failed to import custom_categories', 'IMPORT_FAILED', { error });
+    }
+
+    // Map old IDs to new IDs
+    if (data) {
+      this.idMappings.customCategories = this.idMappings.customCategories || {};
+      clinicBundle.customCategories.forEach((category: any, index: number) => {
+        this.idMappings.customCategories![category.id] = data[index].id;
+      });
+    }
+
+    this.progress.recordsProcessed += records.length;
   }
 
   private async importAssets(clinicBundle: any, newClinicId: string) {
@@ -446,11 +481,69 @@ export class WorkspaceBundleImporter {
   }
 
   private async importServiceSupplies(clinicBundle: any, newClinicId: string) {
-    // Skip for now - requires mapping both service and supply IDs
+    if (!clinicBundle.serviceSupplies || clinicBundle.serviceSupplies.length === 0) return;
+
+    const records = clinicBundle.serviceSupplies.map((ss: any) => {
+      const newServiceId = this.idMappings.services?.[ss.service_id];
+      const newSupplyId = this.idMappings.supplies?.[ss.supply_id];
+
+      if (!newServiceId || !newSupplyId) {
+        console.warn(`[importer] Skipping service_supply: service ${ss.service_id} or supply ${ss.supply_id} not found in mappings`);
+        return null;
+      }
+
+      return {
+        service_id: newServiceId,
+        supply_id: newSupplyId,
+        qty: ss.qty,
+        unit_cost_cents: ss.unit_cost_cents,
+      };
+    }).filter(Boolean); // Remove nulls
+
+    if (records.length === 0) return;
+
+    const { error } = await this.supabase.from('service_supplies').insert(records);
+
+    if (error) {
+      throw new ImportError('Failed to import service_supplies', 'IMPORT_FAILED', { error });
+    }
+
+    this.progress.recordsProcessed += records.length;
   }
 
   private async importMarketingCampaigns(clinicBundle: any, newClinicId: string) {
-    // Skip for now - requires category mapping
+    if (!clinicBundle.marketingCampaigns || clinicBundle.marketingCampaigns.length === 0) return;
+
+    const records = clinicBundle.marketingCampaigns.map((campaign: any) => {
+      const newCategoryId = this.idMappings.customCategories?.[campaign.platform_category_id];
+
+      if (!newCategoryId) {
+        console.warn(`[importer] Skipping marketing campaign: category ${campaign.platform_category_id} not found in mappings`);
+        return null;
+      }
+
+      return {
+        clinic_id: newClinicId,
+        platform_category_id: newCategoryId,
+        platform_id: campaign.platform_id,
+        name: campaign.name,
+        code: campaign.code,
+        is_active: campaign.is_active,
+        is_archived: campaign.is_archived,
+        archived_at: campaign.archived_at,
+        reactivated_at: campaign.reactivated_at,
+      };
+    }).filter(Boolean); // Remove nulls
+
+    if (records.length === 0) return;
+
+    const { error } = await this.supabase.from('marketing_campaigns').insert(records);
+
+    if (error) {
+      throw new ImportError('Failed to import marketing_campaigns', 'IMPORT_FAILED', { error });
+    }
+
+    this.progress.recordsProcessed += records.length;
   }
 
   private async importPatients(clinicBundle: any, newClinicId: string) {
@@ -485,11 +578,84 @@ export class WorkspaceBundleImporter {
   }
 
   private async importTreatments(clinicBundle: any, newClinicId: string) {
-    // Skip for now - requires patient and service ID mapping
+    if (!clinicBundle.treatments || clinicBundle.treatments.length === 0) return;
+
+    const records = clinicBundle.treatments.map((treatment: any) => {
+      const newPatientId = this.idMappings.patients?.[treatment.patient_id];
+      const newServiceId = this.idMappings.services?.[treatment.service_id];
+
+      if (!newPatientId || !newServiceId) {
+        console.warn(`[importer] Skipping treatment: patient ${treatment.patient_id} or service ${treatment.service_id} not found in mappings`);
+        return null;
+      }
+
+      return {
+        clinic_id: newClinicId,
+        patient_id: newPatientId,
+        service_id: newServiceId,
+        treatment_date: treatment.treatment_date,
+        treatment_time: treatment.treatment_time,
+        status: treatment.status,
+        tooth_number: treatment.tooth_number,
+        notes: treatment.notes,
+        minutes: treatment.minutes,
+        fixed_cost_per_minute_cents: treatment.fixed_cost_per_minute_cents,
+        variable_cost_cents: treatment.variable_cost_cents,
+        margin_pct: treatment.margin_pct,
+        price_cents: treatment.price_cents,
+        tariff_version: treatment.tariff_version,
+      };
+    }).filter(Boolean); // Remove nulls
+
+    if (records.length === 0) return;
+
+    const { error } = await this.supabase.from('treatments').insert(records);
+
+    if (error) {
+      throw new ImportError('Failed to import treatments', 'IMPORT_FAILED', { error });
+    }
+
+    this.progress.recordsProcessed += records.length;
   }
 
   private async importExpenses(clinicBundle: any, newClinicId: string) {
-    // Skip for now - requires category ID mapping
+    if (!clinicBundle.expenses || clinicBundle.expenses.length === 0) return;
+
+    const records = clinicBundle.expenses.map((expense: any) => {
+      const newCategoryId = this.idMappings.customCategories?.[expense.category_id];
+
+      if (!newCategoryId) {
+        console.warn(`[importer] Skipping expense: category ${expense.category_id} not found in mappings`);
+        return null;
+      }
+
+      return {
+        clinic_id: newClinicId,
+        expense_date: expense.expense_date,
+        category_id: newCategoryId,
+        category: expense.category,
+        subcategory: expense.subcategory,
+        description: expense.description,
+        amount_cents: expense.amount_cents,
+        vendor: expense.vendor,
+        invoice_number: expense.invoice_number,
+        is_recurring: expense.is_recurring,
+        is_paid: expense.is_paid,
+        payment_date: expense.payment_date,
+        payment_method: expense.payment_method,
+        notes: expense.notes,
+      };
+    }).filter(Boolean); // Remove nulls
+
+    if (records.length === 0) return;
+
+    const { error } = await this.supabase.from('expenses').insert(records);
+
+    if (error) {
+      throw new ImportError('Failed to import expenses', 'IMPORT_FAILED', { error });
+    }
+
+    this.progress.recordsProcessed += records.length;
   }
 
   /**
