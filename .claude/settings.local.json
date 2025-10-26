@@ -16,7 +16,8 @@
       "Bash(dir:*)",
       "Bash(node:*)",
       "Bash(sed:*)",
-      "Bash(git add CHANGELOG.md docs/ scripts/ supabase/migrations/ web/app/ web/components/ web/hooks/ web/lib/ web/messages/*.backup)"
+      "Bash(git add CHANGELOG.md docs/ scripts/ supabase/migrations/ web/app/ web/components/ web/hooks/ web/lib/ web/messages/*.backup)",
+      "Bash(findstr:*)"
     ],
     "deny": []
   }
