@@ -71,10 +71,8 @@ export function MarketingMetrics({ cac, ltv, conversionRate, loading }: Marketin
               <div className="flex items-center gap-1.5">
                 <p className="text-sm text-muted-foreground">{t('cac')}</p>
                 <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button type="button" className="inline-flex">
-                      <Info className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
-                    </button>
+                  <TooltipTrigger className="inline-flex cursor-help">
+                    <Info className="h-3.5 w-3.5 text-muted-foreground/60" />
                   </TooltipTrigger>
                   <TooltipContent className="max-w-xs">
                     <p className="text-xs">{t('cac_tooltip')}</p>
@@ -99,10 +97,8 @@ export function MarketingMetrics({ cac, ltv, conversionRate, loading }: Marketin
               <div className="flex items-center gap-1.5">
                 <p className="text-sm text-muted-foreground">{t('ltv')}</p>
                 <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button type="button" className="inline-flex">
-                      <Info className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
-                    </button>
+                  <TooltipTrigger className="inline-flex cursor-help">
+                    <Info className="h-3.5 w-3.5 text-muted-foreground/60" />
                   </TooltipTrigger>
                   <TooltipContent className="max-w-xs">
                     <p className="text-xs">{t('ltv_tooltip')}</p>
@@ -130,10 +126,8 @@ export function MarketingMetrics({ cac, ltv, conversionRate, loading }: Marketin
               <div className="flex items-center gap-1.5">
                 <p className="text-sm text-muted-foreground">{t('ltv_cac_ratio')}</p>
                 <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button type="button" className="inline-flex">
-                      <Info className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
-                    </button>
+                  <TooltipTrigger className="inline-flex cursor-help">
+                    <Info className="h-3.5 w-3.5 text-muted-foreground/60" />
                   </TooltipTrigger>
                   <TooltipContent className="max-w-xs">
                     <p className="text-xs">{t('ratio_tooltip')}</p>
@@ -167,10 +161,8 @@ export function MarketingMetrics({ cac, ltv, conversionRate, loading }: Marketin
               <div className="flex items-center gap-1.5">
                 <p className="text-sm text-muted-foreground">{t('conversion_rate')}</p>
                 <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button type="button" className="inline-flex">
-                      <Info className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
-                    </button>
+                  <TooltipTrigger className="inline-flex cursor-help">
+                    <Info className="h-3.5 w-3.5 text-muted-foreground/60" />
                   </TooltipTrigger>
                   <TooltipContent className="max-w-xs">
                     <p className="text-xs">{t('conversion_tooltip')}</p>
