@@ -141,31 +141,8 @@ export function ExportSection() {
             </div>
           </div>
 
-          {/* Options */}
-          <div className="space-y-3 border-t border-border pt-4">
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={options.includeAuditLogs}
-                onChange={(e) =>
-                  setOptions({ ...options, includeAuditLogs: e.target.checked })
-                }
-                className="w-4 h-4 text-primary border-border rounded focus:ring-primary"
-                disabled={isExporting}
-              />
-              <div>
-                <div className="text-sm font-medium text-foreground">
-                  {t('options.includeAuditLogs')}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {t('options.includeAuditLogsDesc')}
-                </div>
-              </div>
-            </label>
-          </div>
-
           {/* Export Button */}
-          <div className="border-t border-border pt-4">
+          <div className="border-t border-border pt-6">
             <Button
               onClick={handleExport}
               disabled={isExporting || !workspace}
