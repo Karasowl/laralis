@@ -21,8 +21,8 @@ interface BusinessMetricsGridProps {
   pacientesNecesariosPorDia: number
   pacientesActualesPorDia: number
   pacientesChange?: number
-  ingresosHoyCents: number
-  ingresosHoyChange?: number
+  gananciaNetaCents: number // Cambio: ingresos - gastos (no duplicar "Ingresos del Mes")
+  gananciaNetaChange?: number
   workDays?: number
   monthlyTargetCents?: number
   daysElapsed?: number
@@ -34,30 +34,22 @@ export function BusinessMetricsGrid({
   pacientesNecesariosPorDia,
   pacientesActualesPorDia,
   pacientesChange,
-  ingresosHoyCents,
-  ingresosHoyChange,
+  gananciaNetaCents,
+  gananciaNetaChange,
   workDays = 20,
   monthlyTargetCents,
   daysElapsed
 }: BusinessMetricsGridProps) {
   const t = useTranslations('dashboardComponents.businessMetrics')
 
-  // Calculate if we're on track based on progress vs. expected progress
-  let pacientesStatus: 'success' | 'warning' = 'warning'
+  // Calculate if we're on track based on patients/day
+  const pacientesStatus: 'success' | 'warning' = pacientesActualesPorDia >= pacientesNecesariosPorDia ? 'success' : 'warning'
 
-  if (monthlyTargetCents && monthlyTargetCents > 0 && daysElapsed !== undefined && workDays > 0) {
-    // Calculate expected progress based on days elapsed
-    const expectedProgressPercent = (daysElapsed / workDays) * 100
-    // Calculate actual progress
-    const actualProgressPercent = (ingresosHoyCents / monthlyTargetCents) * 100
-
-    // We're on track if actual progress >= 80% of expected progress
-    // (allowing 20% tolerance for early-month variations)
-    pacientesStatus = actualProgressPercent >= (expectedProgressPercent * 0.8) ? 'success' : 'warning'
-  } else {
-    // Fallback to simple comparison if we don't have monthly target data
-    pacientesStatus = pacientesActualesPorDia >= pacientesNecesariosPorDia ? 'success' : 'warning'
-  }
+  // Determine net profit status
+  const netProfitStatus: 'success' | 'warning' | 'danger' =
+    gananciaNetaCents > 0 ? 'success'
+    : gananciaNetaCents === 0 ? 'warning'
+    : 'danger'
 
   const pacientesDiff = pacientesActualesPorDia - pacientesNecesariosPorDia
   const pacientesDiffPercent = pacientesNecesariosPorDia > 0
@@ -196,31 +188,64 @@ export function BusinessMetricsGrid({
         </CardContent>
       </Card>
 
-      {/* Ingresos Hoy */}
-      <Card className="relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-24 h-24 bg-green-500/10 rounded-full blur-2xl" />
+      {/* Ganancia Neta */}
+      <Card className={cn(
+        'relative overflow-hidden border-2',
+        netProfitStatus === 'success'
+          ? 'border-emerald-200 dark:border-emerald-900'
+          : netProfitStatus === 'warning'
+          ? 'border-amber-200 dark:border-amber-900'
+          : 'border-red-200 dark:border-red-900'
+      )}>
+        <div className={cn(
+          'absolute top-0 right-0 w-24 h-24 rounded-full blur-2xl',
+          netProfitStatus === 'success' ? 'bg-emerald-500/10'
+          : netProfitStatus === 'warning' ? 'bg-amber-500/10'
+          : 'bg-red-500/10'
+        )} />
         <CardContent className="p-6 relative">
           <div className="flex items-center justify-between mb-4">
-            <div className="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-950/30 flex items-center justify-center">
-              <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+            <div className={cn(
+              'w-10 h-10 rounded-lg flex items-center justify-center',
+              netProfitStatus === 'success'
+                ? 'bg-emerald-100 dark:bg-emerald-950/30'
+                : netProfitStatus === 'warning'
+                ? 'bg-amber-100 dark:bg-amber-950/30'
+                : 'bg-red-100 dark:bg-red-950/30'
+            )}>
+              <DollarSign className={cn(
+                'h-5 w-5',
+                netProfitStatus === 'success'
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : netProfitStatus === 'warning'
+                  ? 'text-amber-600 dark:text-amber-400'
+                  : 'text-red-600 dark:text-red-400'
+              )} />
             </div>
-            {ingresosHoyChange !== undefined && (
-              <Badge variant="outline" className={cn('gap-1', getTrendColor(ingresosHoyChange))}>
-                {getTrendIcon(ingresosHoyChange)({ className: 'h-3 w-3' })}
-                {formatCurrency(Math.abs(ingresosHoyChange))}
+            {gananciaNetaChange !== undefined && (
+              <Badge variant="outline" className={cn('gap-1', getTrendColor(gananciaNetaChange))}>
+                {getTrendIcon(gananciaNetaChange)({ className: 'h-3 w-3' })}
+                {Math.abs(gananciaNetaChange).toFixed(1)}%
               </Badge>
             )}
           </div>
 
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground uppercase tracking-wide">
-              {t('revenueToday')}
+              {t('netProfit')}
             </p>
             <p className="text-2xl font-bold text-foreground">
-              {formatCurrency(ingresosHoyCents)}
+              {formatCurrency(gananciaNetaCents)}
             </p>
-            <p className="text-xs text-muted-foreground">
-              {t('thisMonth')}
+            <p className={cn(
+              'text-xs font-medium',
+              netProfitStatus === 'success' ? 'text-emerald-600'
+              : netProfitStatus === 'warning' ? 'text-amber-600'
+              : 'text-red-600'
+            )}>
+              {netProfitStatus === 'success' ? t('profitable')
+               : netProfitStatus === 'warning' ? t('breakEven')
+               : t('losses')}
             </p>
           </div>
         </CardContent>

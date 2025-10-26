@@ -724,11 +724,15 @@
     "marketing": {
       "cac": "CAC",
       "cac_description": "Costo de adquisición por cliente",
+      "cac_tooltip": "Cuánto gastas en promedio (marketing, publicidad, etc.) para conseguir un nuevo paciente",
       "ltv": "LTV",
       "ltv_description": "Valor de vida del paciente",
+      "ltv_tooltip": "Cuánto dinero genera un paciente en promedio durante todo el tiempo que es tu cliente",
       "ltv_cac_ratio": "Ratio LTV/CAC",
+      "ratio_tooltip": "Por cada peso que inviertes en conseguir un paciente, cuántos pesos ganas. Un ratio de 3x significa que por cada $1 invertido, ganas $3",
       "conversion_rate": "Tasa de Conversión",
       "conversion_description": "Leads a pacientes",
+      "conversion_tooltip": "De cada 100 personas interesadas, cuántas se convierten en pacientes reales",
       "excellent": "Excelente",
       "good": "Bueno",
       "acceptable": "Aceptable",
@@ -2163,7 +2167,7 @@
     "tabs": {
       "overview": "Resumen",
       "profitability": "Rentabilidad",
-      "advanced": "Avanzado",
+      "patientsCapacity": "Pacientes & Capacidad",
       "marketing": "Marketing"
     },
     "overview": {
@@ -3223,8 +3227,10 @@
       "currentPatients": "Pacientes Actuales",
       "onTrack": "✓ Vas bien encaminado",
       "belowTarget": "⚠️ {diff} pacientes menos que la meta",
-      "revenueToday": "Ingresos del Mes",
-      "thisMonth": "acumulado"
+      "netProfit": "Ganancia Neta",
+      "profitable": "Con ganancia",
+      "breakEven": "En equilibrio",
+      "losses": "Con pérdidas"
     },
     "dateFilter": {
       "selectPeriod": "Seleccionar período",

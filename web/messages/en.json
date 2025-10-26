@@ -597,11 +597,15 @@
     "marketing": {
       "cac": "CAC",
       "cac_description": "Customer acquisition cost",
+      "cac_tooltip": "How much you spend on average (marketing, advertising, etc.) to acquire a new patient",
       "ltv": "LTV",
       "ltv_description": "Patient lifetime value",
+      "ltv_tooltip": "How much revenue a patient generates on average during their entire time as your customer",
       "ltv_cac_ratio": "LTV/CAC Ratio",
+      "ratio_tooltip": "For every dollar you invest in acquiring a patient, how many dollars you earn. A 3x ratio means for every $1 invested, you earn $3",
       "conversion_rate": "Conversion Rate",
       "conversion_description": "Leads to patients",
+      "conversion_tooltip": "Out of every 100 interested people, how many become actual patients",
       "excellent": "Excellent",
       "good": "Good",
       "acceptable": "Acceptable",
@@ -1967,7 +1971,7 @@
     "tabs": {
       "overview": "Overview",
       "profitability": "Profitability",
-      "advanced": "Advanced",
+      "patientsCapacity": "Patients & Capacity",
       "marketing": "Marketing"
     },
     "overview": {
@@ -2943,8 +2947,10 @@
       "currentPatients": "Current Patients",
       "onTrack": "✓ On track",
       "belowTarget": "⚠️ {diff} patients below target",
-      "revenueToday": "Monthly Revenue",
-      "thisMonth": "accumulated"
+      "netProfit": "Net Profit",
+      "profitable": "Profitable",
+      "breakEven": "Break Even",
+      "losses": "Losses"
     },
     "dateFilter": {
       "selectPeriod": "Select period",

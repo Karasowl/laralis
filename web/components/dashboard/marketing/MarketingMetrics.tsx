@@ -3,8 +3,14 @@
 import { useTranslations } from 'next-intl'
 import { Card, CardContent } from '@/components/ui/card'
 import { formatCurrency } from '@/lib/money'
-import { DollarSign, TrendingUp, Target, Users } from 'lucide-react'
+import { DollarSign, TrendingUp, Target, Users, Info } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 
 interface MarketingMetricsProps {
   cac: number // Customer Acquisition Cost in cents
@@ -51,87 +57,129 @@ export function MarketingMetrics({ cac, ltv, conversionRate, loading }: Marketin
     : { label: t('low'), color: 'text-amber-600' }
 
   return (
-    <div className="grid gap-4 md:grid-cols-4">
-      {/* CAC - Customer Acquisition Cost */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-2 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600">
-              <DollarSign className="h-4 w-4 text-white" />
+    <TooltipProvider>
+      <div className="grid gap-4 md:grid-cols-4">
+        {/* CAC - Customer Acquisition Cost */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-2">
+              <div className="p-2 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600">
+                <DollarSign className="h-4 w-4 text-white" />
+              </div>
             </div>
-          </div>
-          <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">{t('cac')}</p>
-            <p className="text-2xl font-bold">{formatCurrency(cac)}</p>
-            <p className="text-xs text-muted-foreground">{t('cac_description')}</p>
-          </div>
-        </CardContent>
-      </Card>
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5">
+                <p className="text-sm text-muted-foreground">{t('cac')}</p>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="text-xs">{t('cac_tooltip')}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <p className="text-2xl font-bold">{formatCurrency(cac)}</p>
+              <p className="text-xs text-muted-foreground">{t('cac_description')}</p>
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* LTV - Lifetime Value */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-2 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600">
-              <TrendingUp className="h-4 w-4 text-white" />
+        {/* LTV - Lifetime Value */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-2">
+              <div className="p-2 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600">
+                <TrendingUp className="h-4 w-4 text-white" />
+              </div>
             </div>
-          </div>
-          <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">{t('ltv')}</p>
-            <p className="text-2xl font-bold">{formatCurrency(ltv)}</p>
-            <p className="text-xs text-muted-foreground">{t('ltv_description')}</p>
-          </div>
-        </CardContent>
-      </Card>
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5">
+                <p className="text-sm text-muted-foreground">{t('ltv')}</p>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="text-xs">{t('ltv_tooltip')}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <p className="text-2xl font-bold">{formatCurrency(ltv)}</p>
+              <p className="text-xs text-muted-foreground">{t('ltv_description')}</p>
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* LTV/CAC Ratio */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-2 rounded-lg bg-gradient-to-r from-purple-500 to-purple-600">
-              <Target className="h-4 w-4 text-white" />
+        {/* LTV/CAC Ratio */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-2">
+              <div className="p-2 rounded-lg bg-gradient-to-r from-purple-500 to-purple-600">
+                <Target className="h-4 w-4 text-white" />
+              </div>
+              <Badge variant={ratioStatus.variant} className={ratioStatus.color + ' text-white'}>
+                {ratioStatus.label}
+              </Badge>
             </div>
-            <Badge variant={ratioStatus.variant} className={ratioStatus.color + ' text-white'}>
-              {ratioStatus.label}
-            </Badge>
-          </div>
-          <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">{t('ltv_cac_ratio')}</p>
-            <p className="text-2xl font-bold">{ltvCacRatio.toFixed(2)}x</p>
-            <p className="text-xs text-muted-foreground">
-              {ltvCacRatio >= 3
-                ? t('ratio_excellent_desc')
-                : ltvCacRatio >= 2
-                ? t('ratio_good_desc')
-                : ltvCacRatio >= 1
-                ? t('ratio_acceptable_desc')
-                : t('ratio_critical_desc')
-              }
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5">
+                <p className="text-sm text-muted-foreground">{t('ltv_cac_ratio')}</p>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="text-xs">{t('ratio_tooltip')}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <p className="text-2xl font-bold">{ltvCacRatio.toFixed(2)}x</p>
+              <p className="text-xs text-muted-foreground">
+                {ltvCacRatio >= 3
+                  ? t('ratio_excellent_desc')
+                  : ltvCacRatio >= 2
+                  ? t('ratio_good_desc')
+                  : ltvCacRatio >= 1
+                  ? t('ratio_acceptable_desc')
+                  : t('ratio_critical_desc')
+                }
+              </p>
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* Conversion Rate */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-2 rounded-lg bg-gradient-to-r from-orange-500 to-orange-600">
-              <Users className="h-4 w-4 text-white" />
+        {/* Conversion Rate */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-2">
+              <div className="p-2 rounded-lg bg-gradient-to-r from-orange-500 to-orange-600">
+                <Users className="h-4 w-4 text-white" />
+              </div>
             </div>
-          </div>
-          <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">{t('conversion_rate')}</p>
-            <div className="flex items-baseline gap-2">
-              <p className="text-2xl font-bold">{conversionRate.toFixed(1)}%</p>
-              <span className={`text-xs font-medium ${conversionStatus.color}`}>
-                {conversionStatus.label}
-              </span>
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5">
+                <p className="text-sm text-muted-foreground">{t('conversion_rate')}</p>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="text-xs">{t('conversion_tooltip')}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <p className="text-2xl font-bold">{conversionRate.toFixed(1)}%</p>
+                <span className={`text-xs font-medium ${conversionStatus.color}`}>
+                  {conversionStatus.label}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">{t('conversion_description')}</p>
             </div>
-            <p className="text-xs text-muted-foreground">{t('conversion_description')}</p>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+          </CardContent>
+        </Card>
+      </div>
+    </TooltipProvider>
   )
 }

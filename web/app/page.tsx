@@ -19,8 +19,6 @@ import { PeriodBreakdown } from '@/components/dashboard/PeriodBreakdown'
 import { MarketingROISimple } from '@/components/dashboard/MarketingROISimple'
 import { ServiceROIAnalysis } from '@/components/dashboard/ServiceROIAnalysis'
 import { ProfitabilitySummary } from '@/components/dashboard/profitability/ProfitabilitySummary'
-import { ProfitTrendsChart } from '@/components/dashboard/profitability/ProfitTrendsChart'
-import { ServiceComparison } from '@/components/dashboard/profitability/ServiceComparison'
 import { MarketingMetrics } from '@/components/dashboard/marketing/MarketingMetrics'
 import { AcquisitionTrendsChart } from '@/components/dashboard/marketing/AcquisitionTrendsChart'
 import { ChannelROIChart } from '@/components/dashboard/marketing/ChannelROIChart'
@@ -308,7 +306,7 @@ export default function InsightsPage() {
           <TabsList className="grid w-full grid-cols-4 md:max-w-2xl">
             <TabsTrigger value="overview">{tReports('tabs.overview')}</TabsTrigger>
             <TabsTrigger value="profitability">{tReports('tabs.profitability')}</TabsTrigger>
-            <TabsTrigger value="advanced">{tReports('tabs.advanced')}</TabsTrigger>
+            <TabsTrigger value="advanced">{tReports('tabs.patientsCapacity')}</TabsTrigger>
             <TabsTrigger value="marketing">{tReports('tabs.marketing')}</TabsTrigger>
           </TabsList>
 
@@ -417,7 +415,8 @@ export default function InsightsPage() {
                         : 0
                     })()}
                     pacientesActualesPorDia={kpis.avgPatientsPerDay || 0}
-                    ingresosHoyCents={metrics.revenue.current}
+                    gananciaNetaCents={metrics.revenue.current - metrics.expenses.current}
+                    gananciaNetaChange={metrics.revenue.change - metrics.expenses.change}
                     workDays={equilibriumData.workDays}
                     monthlyTargetCents={equilibriumData.monthlyTargetCents}
                     daysElapsed={equilibriumData.elapsedDays}
@@ -458,38 +457,6 @@ export default function InsightsPage() {
 
             {/* Full ROI Analysis Table */}
             <ServiceROIAnalysis data={roiData} loading={roiLoading} />
-
-            {/* Profit Trends and Comparison */}
-            <div className="grid gap-4 md:grid-cols-2">
-              {/* Profit Trends Chart - Mock data for now */}
-              <ProfitTrendsChart
-                data={roiData?.services && roiData.services.length > 0 ? (() => {
-                  // Generate mock 6-month trend data
-                  const months = ['Ago', 'Sep', 'Oct', 'Nov', 'Dic', 'Ene']
-                  return months.map((month) => {
-                    const dataPoint: any = { month }
-                    roiData.services.slice(0, 5).forEach(service => {
-                      // Mock margin with slight variation
-                      const baseMargin = (service.total_profit_cents / service.total_revenue_cents) * 100
-                      dataPoint[service.service_id] = baseMargin + (Math.random() * 10 - 5)
-                    })
-                    return dataPoint
-                  })
-                })() : []}
-                services={roiData?.services && roiData.services.length > 0 ? roiData.services.slice(0, 5).map((s, i) => ({
-                  id: s.service_id,
-                  name: s.service_name,
-                  color: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444'][i],
-                  currentMargin: (s.total_profit_cents / s.total_revenue_cents) * 100,
-                  previousMargin: (s.total_profit_cents / s.total_revenue_cents) * 100 - (Math.random() * 10 - 5),
-                  change: Math.random() * 20 - 10
-                })) : []}
-                loading={roiLoading}
-              />
-
-              {/* Service Comparison */}
-              <ServiceComparison services={roiData?.services || []} loading={roiLoading} />
-            </div>
           </TabsContent>
 
           <TabsContent value="advanced">
