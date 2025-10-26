@@ -207,6 +207,51 @@ export default function WorkspacesClinicsSettingsClient() {
     }
   }
 
+  const handleDeleteWorkspace = async (workspace: Workspace) => {
+    const confirmed = window.confirm(tSettings('workspaces.deleteConfirm', { defaultValue: 'Are you sure you want to delete this workspace?' }))
+    if (!confirmed) return
+    try {
+      const res = await fetch(`/api/workspaces/${workspace.id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({} as any))
+        throw new Error(err?.message || err?.error || 'Failed to delete workspace')
+      }
+      toast.success(tCommon('deleteSuccess', { entity: tSettings('workspaces.entity', { defaultValue: 'Workspace' }) }))
+
+      // Reload workspaces
+      const loadWorkspaces = async () => {
+        try {
+          setLoadingWorkspaces(true)
+          const res = await fetch('/api/workspaces?list=true')
+          const payload = await res.json().catch(() => []) as any
+          const list: Workspace[] = Array.isArray(payload) ? payload : payload?.data || []
+          setWorkspaces(list)
+
+          // If deleted workspace was selected, select first remaining workspace
+          if (selectedWorkspaceId === workspace.id) {
+            if (list.length > 0) {
+              setSelectedWorkspaceId(list[0].id)
+              setGlobalWorkspace(list[0] as any)
+              setCurrentClinic(null)
+            } else {
+              setSelectedWorkspaceId('')
+            }
+          }
+        } catch (error) {
+          console.error('[Workspaces] load error', error)
+          toast.error(tCommon('loadError', { entity: tSettings('workspaces.entity', { defaultValue: 'Workspace' }) }))
+        } finally {
+          setLoadingWorkspaces(false)
+        }
+      }
+
+      await loadWorkspaces()
+    } catch (error: any) {
+      console.error('[Workspaces] delete error', error)
+      toast.error(error?.message || tCommon('error'))
+    }
+  }
+
   const handleDeleteClinic = async (clinic: Clinic) => {
     const confirmed = window.confirm(t('settings.clinics.deleteConfirm', { defaultValue: 'Delete clinic?' }))
     if (!confirmed) return
@@ -256,21 +301,35 @@ export default function WorkspacesClinicsSettingsClient() {
         ) : (
           <div className="space-y-2">
             {workspaces.map(ws => (
-              <button
+              <div
                 key={ws.id}
-                onClick={() => {
-                  setSelectedWorkspaceId(ws.id)
-                  setGlobalWorkspace(ws as any) // Change active workspace globally
-                  setCurrentClinic(null) // Reset clinic so context auto-selects first clinic of new workspace
-                  toast.success(tSettings('workspaces.switched', {
-                    name: ws.name
-                  }))
-                }}
-                className={`w-full rounded border p-3 text-left transition hover:bg-muted ${selectedWorkspaceId === ws.id ? 'bg-muted' : ''}`}
+                className={`w-full rounded border p-3 transition ${selectedWorkspaceId === ws.id ? 'bg-muted' : ''}`}
               >
-                <div className="font-medium">{ws.name}</div>
-                <div className="text-xs text-muted-foreground">{ws.slug}</div>
-              </button>
+                <div className="flex items-start justify-between gap-2">
+                  <button
+                    onClick={() => {
+                      setSelectedWorkspaceId(ws.id)
+                      setGlobalWorkspace(ws as any) // Change active workspace globally
+                      setCurrentClinic(null) // Reset clinic so context auto-selects first clinic of new workspace
+                      toast.success(tSettings('workspaces.switched', {
+                        name: ws.name
+                      }))
+                    }}
+                    className="flex-1 text-left"
+                  >
+                    <div className="font-medium">{ws.name}</div>
+                    <div className="text-xs text-muted-foreground">{ws.slug}</div>
+                  </button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleDeleteWorkspace(ws)}
+                    className="h-8 w-8 text-destructive hover:text-destructive"
+                  >
+                    <Trash className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
             ))}
             {workspaces.length === 0 && (
               <div className="text-sm text-muted-foreground">
