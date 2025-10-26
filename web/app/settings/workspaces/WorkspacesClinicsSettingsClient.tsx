@@ -44,7 +44,7 @@ export default function WorkspacesClinicsSettingsClient() {
   const t = useTranslations()
   const tCommon = useTranslations('common')
   const tSettings = useTranslations('settings')
-  const { setWorkspace: setGlobalWorkspace } = useWorkspace()
+  const { setWorkspace: setGlobalWorkspace, setCurrentClinic } = useWorkspace()
 
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
   const [loadingWorkspaces, setLoadingWorkspaces] = useState<boolean>(true)
@@ -261,8 +261,8 @@ export default function WorkspacesClinicsSettingsClient() {
                 onClick={() => {
                   setSelectedWorkspaceId(ws.id)
                   setGlobalWorkspace(ws as any) // Change active workspace globally
-                  toast.success(t('settings.workspaces.switched', {
-                    defaultValue: `Switched to ${ws.name}`,
+                  setCurrentClinic(null) // Reset clinic so context auto-selects first clinic of new workspace
+                  toast.success(tSettings('workspaces.switched', {
                     name: ws.name
                   }))
                 }}
