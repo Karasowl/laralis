@@ -1353,7 +1353,14 @@
       "deleteSuccess": "Workspace Deleted",
       "deleteSuccessDesc": "Workspace removed successfully",
       "deleteConfirm": "Are you sure you want to delete this workspace?",
-      "switched": "Switched to {name}"
+      "switched": "Switched to {name}",
+      "hasClinicsCantDelete": "Cannot delete workspace with {count, plural, one {# clinic} other {# clinics}}. Delete all clinics first.",
+      "deleteNameMismatch": "Workspace name does not match. Please type the exact name to confirm.",
+      "deleteTitle": "Delete Workspace",
+      "deleteWarning": "This action cannot be undone!",
+      "deleteWarningText": "This will permanently delete the workspace and all its data.",
+      "deleteConfirmInstructions": "Please type the workspace name to confirm:",
+      "deleteConfirmLabel": "Workspace name"
     },
     "clinics": {
       "title": "Clinics",

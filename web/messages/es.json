@@ -1465,7 +1465,14 @@
       "deleteSuccessDesc": "Espacio de trabajo eliminado exitosamente",
       "deleteConfirm": "¿Estás seguro de que quieres eliminar este espacio de trabajo?",
       "summary": "{name} - {clinicCount, plural, one {# clínica} other {# clínicas}}",
-      "switched": "Cambiado a {name}"
+      "switched": "Cambiado a {name}",
+      "hasClinicsCantDelete": "No se puede eliminar el espacio de trabajo con {count, plural, one {# clínica} other {# clínicas}}. Elimina todas las clínicas primero.",
+      "deleteNameMismatch": "El nombre del espacio de trabajo no coincide. Escribe el nombre exacto para confirmar.",
+      "deleteTitle": "Eliminar Espacio de Trabajo",
+      "deleteWarning": "¡Esta acción no se puede deshacer!",
+      "deleteWarningText": "Esto eliminará permanentemente el espacio de trabajo y todos sus datos.",
+      "deleteConfirmInstructions": "Escribe el nombre del espacio de trabajo para confirmar:",
+      "deleteConfirmLabel": "Nombre del espacio de trabajo"
     },
     "time": {
       "title": "Configuración de Tiempo",
