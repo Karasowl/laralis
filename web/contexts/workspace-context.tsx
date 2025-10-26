@@ -222,24 +222,29 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
       setClinics(data || []);
 
-      // 🔥 VALIDACIÓN: Si hay clinicId en localStorage pero no existe en BD, limpiarlo
+      // 🔥 VALIDACIÓN: Verificar si la clínica actual pertenece a este workspace
+      let needsNewClinic = false;
+
       if (currentClinic) {
         const clinicStillExists = data && data.some(c => c.id === currentClinic.id);
         if (!clinicStillExists) {
-          console.warn(`[workspace-context] 🧹 Clínica ID ${currentClinic.id} no existe en BD. Auto-limpiando...`);
+          console.warn(`[workspace-context] 🧹 Clínica ID ${currentClinic.id} no pertenece al workspace actual. Auto-limpiando...`);
           try {
             localStorage.removeItem('selectedClinicId');
             localStorage.removeItem('selectedClinicName');
             if (typeof document !== 'undefined') {
               document.cookie = 'clinicId=; path=/; max-age=0';
             }
-            setCurrentClinic(null);
           } catch {}
+          needsNewClinic = true;
         }
+      } else {
+        needsNewClinic = true;
       }
 
-      // Si no hay clínica seleccionada, seleccionar la primera
-      if (!currentClinic && data && data.length > 0) {
+      // Seleccionar primera clínica si es necesario
+      if (needsNewClinic && data && data.length > 0) {
+        console.log(`[workspace-context] 📍 Seleccionando primera clínica del workspace: ${data[0].name}`);
         setCurrentClinic(data[0]);
       }
     } catch (err: any) {
