@@ -65,6 +65,23 @@ export function CategoryBreakdown({
     )
   }
 
+  // Don't render chart if no data
+  if (!data || data.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>{title}</CardTitle>
+          <CardDescription>{description}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+            No data available
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -85,9 +102,9 @@ export function CategoryBreakdown({
               dataKey="value"
             >
               {data.map((entry, index) => (
-                <Cell 
-                  key={`cell-${index}`} 
-                  fill={entry.color || colors[index % colors.length]} 
+                <Cell
+                  key={`cell-${index}`}
+                  fill={entry.color || colors[index % colors.length]}
                 />
               ))}
             </Pie>
