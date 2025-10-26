@@ -682,6 +682,12 @@ export interface ImportOptions {
 
   /** Overwrite existing records with same ID */
   overwrite?: boolean;
+
+  /** User ID performing the import */
+  userId?: string;
+
+  /** User email performing the import */
+  userEmail?: string;
 }
 
 /**
