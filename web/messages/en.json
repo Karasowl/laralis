@@ -2796,10 +2796,8 @@
       "subtitle": "Download a complete backup of all your data including clinics, patients, treatments, and more"
     },
     "options": {
-      "includeHistorical": "Include historical data",
-      "includeHistoricalDesc": "Include all treatments and expenses (recommended)",
-      "includeAuditLogs": "Include audit logs",
-      "includeAuditLogsDesc": "Include activity history and logs"
+      "includeAuditLogs": "Include activity logs",
+      "includeAuditLogsDesc": "Include a record of who made changes and when (optional, increases file size)"
     },
     "actions": {
       "export": "Export Data",
