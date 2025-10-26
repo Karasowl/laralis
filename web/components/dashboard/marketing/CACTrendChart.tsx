@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Area, AreaChart } from 'recharts'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
 import { formatCurrency } from '@/lib/money'
 import { DollarSign, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
