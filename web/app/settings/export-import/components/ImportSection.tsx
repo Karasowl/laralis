@@ -277,7 +277,7 @@ export function ImportSection() {
                 {t('import.success.description')}
               </p>
               <Button
-                onClick={() => (window.location.href = `/dashboard`)}
+                onClick={() => (window.location.href = `/`)}
                 variant="outline"
                 size="sm"
                 className="mt-3"
