@@ -322,7 +322,13 @@ export class WorkspaceBundleImporter {
       icon: source.icon,
     }));
 
-    const { error } = await this.supabase.from('patient_sources').insert(records);
+    // Use upsert to handle auto-created patient_sources from clinic trigger
+    const { error } = await this.supabase
+      .from('patient_sources')
+      .upsert(records, {
+        onConflict: 'clinic_id,name',
+        ignoreDuplicates: false, // Update existing records with backup data
+      });
 
     if (error) {
       throw new ImportError('Failed to import patient_sources', 'IMPORT_FAILED', { error });
