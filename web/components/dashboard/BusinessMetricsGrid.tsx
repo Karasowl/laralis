@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import { useTranslations } from 'next-intl'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -78,7 +79,7 @@ export function BusinessMetricsGrid({
             </div>
             {ticketChange !== undefined && (
               <Badge variant="outline" className={cn('gap-1', getTrendColor(ticketChange))}>
-                {getTrendIcon(ticketChange)({ className: 'h-3 w-3' })}
+                {React.createElement(getTrendIcon(ticketChange), { className: 'h-3 w-3' })}
                 {Math.abs(ticketChange).toFixed(1)}%
               </Badge>
             )}
@@ -224,7 +225,7 @@ export function BusinessMetricsGrid({
             </div>
             {gananciaNetaChange !== undefined && (
               <Badge variant="outline" className={cn('gap-1', getTrendColor(gananciaNetaChange))}>
-                {getTrendIcon(gananciaNetaChange)({ className: 'h-3 w-3' })}
+                {React.createElement(getTrendIcon(gananciaNetaChange), { className: 'h-3 w-3' })}
                 {Math.abs(gananciaNetaChange).toFixed(1)}%
               </Badge>
             )}
