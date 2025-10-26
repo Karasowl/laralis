@@ -104,6 +104,8 @@ export async function POST(request: NextRequest) {
       skipValidation: options.skipValidation || false,
       dryRun: options.dryRun || false,
       overwrite: options.overwrite || false,
+      userId: user.id,
+      userEmail: user.email || '',
     };
 
     // Create importer

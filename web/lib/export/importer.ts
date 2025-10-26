@@ -194,6 +194,7 @@ export class WorkspaceBundleImporter {
         name: workspace.name + ' (Imported)',
         slug: workspace.slug + '-import-' + Date.now(),
         description: workspace.description,
+        owner_id: this.options.userId, // Set the importing user as owner
         logo_url: workspace.logo_url,
         settings: workspace.settings,
         max_clinics: workspace.max_clinics,
