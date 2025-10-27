@@ -128,13 +128,42 @@ export async function POST(request: NextRequest) {
       ...expenseData
     } = validationResult.data as any
 
-    // If category_id provided but category string missing, try to resolve name
+    // Resolve category_id if only category string is provided
+    let resolvedCategoryId = category_id
     let resolvedCategory = expenseData.category
-    if (!resolvedCategory && category_id) {
+
+    if (!resolvedCategoryId && resolvedCategory) {
+      // Try to find the category by name or display_name
+      const { data: cat } = await supabase
+        .from('categories')
+        .select('id, name, display_name')
+        .eq('entity_type', 'expense')
+        .eq('is_system', true)
+        .is('clinic_id', null)
+        .is('parent_id', null) // Only parent categories
+        .or(`name.ilike.${resolvedCategory},display_name.ilike.${resolvedCategory}`)
+        .single()
+
+      if (cat) {
+        resolvedCategoryId = cat.id
+        resolvedCategory = (cat as any).display_name || (cat as any).name
+      }
+    } else if (resolvedCategoryId && !resolvedCategory) {
+      // If category_id provided but category string missing, resolve name
       const { data: cat } = await supabase
         .from('categories')
         .select('name, display_name')
-        .eq('id', category_id)
+        .eq('id', resolvedCategoryId)
+        .single()
+      if (cat) {
+        resolvedCategory = (cat as any).display_name || (cat as any).name
+      }
+    } else if (resolvedCategoryId && !resolvedCategory) {
+      // If category_id provided but category string missing, resolve name
+      const { data: cat } = await supabase
+        .from('categories')
+        .select('name, display_name')
+        .eq('id', resolvedCategoryId)
         .single()
       if (cat) {
         resolvedCategory = (cat as any).display_name || (cat as any).name
@@ -151,7 +180,7 @@ export async function POST(request: NextRequest) {
         ...expenseData,
         amount_cents: amountCents,
         category: resolvedCategory || expenseData.category,
-        category_id: category_id || null,
+        category_id: resolvedCategoryId || category_id || null,
         clinic_id: body.clinic_id
       })
       .select()
@@ -163,7 +192,7 @@ export async function POST(request: NextRequest) {
         ...expenseData,
         amount_cents: amountCents,
         category: resolvedCategory || expenseData.category,
-        category_id: category_id || null,
+        category_id: resolvedCategoryId || category_id || null,
         clinic_id: body.clinic_id
       })
       return NextResponse.json({ error: 'Failed to create expense', message: expenseError.message }, { status: 500 })
