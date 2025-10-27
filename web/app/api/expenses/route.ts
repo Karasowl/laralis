@@ -141,17 +141,35 @@ export async function POST(request: NextRequest) {
       // Try to find the category by name or display_name
       console.log('[Category Resolution] Attempting to resolve category:', resolvedCategory)
 
-      const { data: cat, error: catError } = await supabase
+      // First try exact match on display_name
+      let { data: cat, error: catError } = await supabase
         .from('categories')
         .select('id, name, display_name')
         .eq('entity_type', 'expense')
         .eq('is_system', true)
         .is('clinic_id', null)
-        .is('parent_id', null) // Only parent categories
-        .or(`name.ilike.${resolvedCategory},display_name.ilike.${resolvedCategory}`)
-        .single()
+        .is('parent_id', null)
+        .ilike('display_name', resolvedCategory)
+        .maybeSingle()
 
-      console.log('[Category Resolution] Query result:', { cat, catError })
+      console.log('[Category Resolution] Query by display_name result:', { cat, catError })
+
+      // If not found, try by name (lowercase)
+      if (!cat) {
+        const result = await supabase
+          .from('categories')
+          .select('id, name, display_name')
+          .eq('entity_type', 'expense')
+          .eq('is_system', true)
+          .is('clinic_id', null)
+          .is('parent_id', null)
+          .ilike('name', resolvedCategory)
+          .maybeSingle()
+
+        cat = result.data
+        catError = result.error
+        console.log('[Category Resolution] Query by name result:', { cat, catError })
+      }
 
       if (cat) {
         resolvedCategoryId = cat.id
