@@ -106,9 +106,10 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    
+
     // Extract amount_pesos BEFORE validation (because schema transforms it)
     const originalAmountPesos = body.amount_pesos
+    console.log('[Expense Creation] Raw body amount_pesos:', originalAmountPesos)
 
     // Validate input
     const validationResult = expenseFormSchema.safeParse(body)
@@ -197,6 +198,12 @@ export async function POST(request: NextRequest) {
 
     // Use the already transformed amount (schema converts pesos to cents)
     const amountCents = amount_pesos || expenseData.amount_cents || 0
+    console.log('[Expense Creation] After Zod transform:', {
+      originalAmountPesos,
+      amount_pesos,
+      amountCents,
+      'expenseData.amount_cents': expenseData.amount_cents
+    })
 
     // Create expense record
     const { data: expense, error: expenseError } = await supabaseAdmin
