@@ -132,9 +132,16 @@ export async function POST(request: NextRequest) {
     let resolvedCategoryId = category_id
     let resolvedCategory = expenseData.category
 
+    console.log('[Category Resolution] Initial values:', {
+      category_id,
+      category: expenseData.category
+    })
+
     if (!resolvedCategoryId && resolvedCategory) {
       // Try to find the category by name or display_name
-      const { data: cat } = await supabase
+      console.log('[Category Resolution] Attempting to resolve category:', resolvedCategory)
+
+      const { data: cat, error: catError } = await supabase
         .from('categories')
         .select('id, name, display_name')
         .eq('entity_type', 'expense')
@@ -144,19 +151,18 @@ export async function POST(request: NextRequest) {
         .or(`name.ilike.${resolvedCategory},display_name.ilike.${resolvedCategory}`)
         .single()
 
+      console.log('[Category Resolution] Query result:', { cat, catError })
+
       if (cat) {
         resolvedCategoryId = cat.id
         resolvedCategory = (cat as any).display_name || (cat as any).name
-      }
-    } else if (resolvedCategoryId && !resolvedCategory) {
-      // If category_id provided but category string missing, resolve name
-      const { data: cat } = await supabase
-        .from('categories')
-        .select('name, display_name')
-        .eq('id', resolvedCategoryId)
-        .single()
-      if (cat) {
-        resolvedCategory = (cat as any).display_name || (cat as any).name
+        console.log('[Category Resolution] Resolved to:', { id: resolvedCategoryId, name: resolvedCategory })
+      } else {
+        console.error('[Category Resolution] Failed to find category:', resolvedCategory, catError)
+        return NextResponse.json(
+          { error: 'Invalid category', details: `Category "${resolvedCategory}" not found in system categories` },
+          { status: 400 }
+        )
       }
     } else if (resolvedCategoryId && !resolvedCategory) {
       // If category_id provided but category string missing, resolve name
