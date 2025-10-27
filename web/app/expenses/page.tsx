@@ -366,9 +366,10 @@ export default function ExpensesPage() {
   ], [locale, t, tCommon, getCategoryLabel, getSubcategoryLabel])
 
   const mobileColumns: Column<ExpenseWithRelations>[] = useMemo(() => [
-    columns[0],
-    columns[3],
-    columns[2],
+    columns[0],  // date
+    columns[3],  // amount
+    columns[2],  // description
+    columns[5],  // actions
   ], [columns])
 
   const totalSpent = stats?.total_amount ?? 0
