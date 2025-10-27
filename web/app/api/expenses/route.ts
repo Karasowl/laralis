@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import {
-  expenseFormSchema,
+  expenseDbSchema,
   type CreateExpenseRequest,
   type ExpenseFilters,
   type ExpenseWithRelations
@@ -118,8 +118,8 @@ export async function POST(request: NextRequest) {
       delete dataToValidate.amount_pesos
     }
 
-    // Validate input
-    const validationResult = expenseFormSchema.safeParse(dataToValidate)
+    // Validate input using DB schema (with amount_cents)
+    const validationResult = expenseDbSchema.safeParse(dataToValidate)
     if (!validationResult.success) {
       return NextResponse.json(
         { error: 'Invalid input', details: validationResult.error.flatten() },

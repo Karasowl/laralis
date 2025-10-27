@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
-import { expenseFormSchema, type UpdateExpenseRequest } from '@/lib/types/expenses'
+import { expenseDbSchema, type UpdateExpenseRequest } from '@/lib/types/expenses'
 
 export const dynamic = 'force-dynamic'
 
@@ -71,8 +71,8 @@ export async function PUT(
       delete dataToValidate.amount_pesos
     }
 
-    // Validate input (partial update)
-    const validationResult = expenseFormSchema.partial().safeParse(dataToValidate)
+    // Validate input using DB schema (partial update)
+    const validationResult = expenseDbSchema.partial().safeParse(dataToValidate)
     if (!validationResult.success) {
       return NextResponse.json(
         { error: 'Invalid input', details: validationResult.error.flatten() },
