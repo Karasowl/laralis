@@ -203,6 +203,8 @@ export function useExpenses(options: UseExpensesOptions = {}) {
 
   const handleRequest = useCallback(
     async (method: 'POST' | 'PUT' | 'DELETE', endpoint: string, body?: any) => {
+      console.log('[use-expenses] Making request:', { method, endpoint, body })
+
       const response = await fetch(endpoint, {
         method,
         credentials: 'include',
@@ -211,8 +213,12 @@ export function useExpenses(options: UseExpensesOptions = {}) {
       })
 
       const payload = await response.json().catch(() => null)
+      console.log('[use-expenses] Response:', { status: response.status, ok: response.ok, payload })
+
       if (!response.ok) {
-        throw new Error(payload?.error || payload?.message || 'Request failed')
+        const errorMsg = payload?.error || payload?.message || 'Request failed'
+        console.error('[use-expenses] Request failed:', errorMsg, payload)
+        throw new Error(errorMsg)
       }
 
       return payload
