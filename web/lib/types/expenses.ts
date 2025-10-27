@@ -80,7 +80,7 @@ export const EXPENSE_SUBCATEGORIES = {
 export type ExpenseCategory = keyof typeof EXPENSE_CATEGORIES
 export type ExpenseSubcategory = keyof typeof EXPENSE_SUBCATEGORIES
 
-// Form validation schemas
+// Form validation schema (for client-side forms with pesos)
 export const expenseFormSchema = z.object({
   expense_date: z.string().min(1, 'La fecha es requerida'),
   category_id: z.string().uuid().optional(),
@@ -108,6 +108,26 @@ export const expenseFormSchema = z.object({
 })
 
 export type ExpenseFormData = z.infer<typeof expenseFormSchema>
+
+// Database validation schema (for API with amount_cents)
+export const expenseDbSchema = z.object({
+  expense_date: z.string().min(1, 'La fecha es requerida'),
+  category_id: z.string().uuid().optional(),
+  category: z.string().min(1, 'La categoría es requerida'),
+  subcategory: z.string().optional(),
+  description: z.string().optional(),
+  notes: z.string().optional(),
+  amount_cents: z.number().int().positive('El monto debe ser mayor a 0'),
+  vendor: z.string().optional(),
+  invoice_number: z.string().optional(),
+  is_recurring: z.boolean().default(false),
+  campaign_id: z.string().uuid().optional(),
+  quantity: z.number().int().positive().optional(),
+  related_supply_id: z.string().optional(),
+  create_asset: z.boolean().default(false),
+  asset_name: z.string().optional(),
+  asset_useful_life_years: z.number().int().positive().optional()
+})
 
 // API request/response types
 export interface CreateExpenseRequest extends Omit<ExpenseFormData, 'create_asset' | 'asset_name' | 'asset_useful_life_years'> {
