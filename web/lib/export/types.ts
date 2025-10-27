@@ -357,8 +357,7 @@ export interface Tariff {
 export interface MarketingCampaign {
   id: string;
   clinic_id: string;
-  platform_category_id: string;
-  platform_id: string | null;
+  platform_id: string;
   name: string;
   code: string | null;
   is_active: boolean;

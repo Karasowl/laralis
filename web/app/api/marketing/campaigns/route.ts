@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
       .from('marketing_campaigns')
       .select(`
         *,
-        platform:platform_category_id (
+        platform:platform_id (
           id,
           display_name,
           name
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
       query = query.eq('is_archived', false);
     }
     if (platformId) {
-      query = query.eq('platform_category_id', platformId);
+      query = query.eq('platform_id', platformId);
     }
 
     const { data, error } = await query;
@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
 
     const insertData = {
       clinic_id: clinicId,
-      platform_category_id: validation.data.platform_id,  // La columna en la DB es platform_category_id
+      platform_id: validation.data.platform_id,
       name: validation.data.name,
       code: validation.data.code || null,
     };

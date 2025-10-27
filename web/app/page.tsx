@@ -23,6 +23,7 @@ import { MarketingMetrics } from '@/components/dashboard/marketing/MarketingMetr
 import { AcquisitionTrendsChart } from '@/components/dashboard/marketing/AcquisitionTrendsChart'
 import { ChannelROIChart } from '@/components/dashboard/marketing/ChannelROIChart'
 import { CACTrendChart } from '@/components/dashboard/marketing/CACTrendChart'
+import { CampaignROISection } from '@/components/dashboard/CampaignROISection'
 import { MonthlyProfitSimulator } from '@/components/dashboard/MonthlyProfitSimulator'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -471,6 +472,9 @@ export default function InsightsPage() {
               conversionRate={marketingMetrics?.metrics.conversionRate.value || 0}
               loading={marketingMetricsLoading}
             />
+
+            {/* Campaign ROI Analysis */}
+            <CampaignROISection />
 
             {/* Acquisition Trends - Mantener mock por ahora (requiere endpoint adicional) */}
             <AcquisitionTrendsChart
