@@ -722,7 +722,7 @@ function getDefaultFormValues(): ExpenseFormValues {
     subcategory: '',
     description: '',
     notes: '',
-    amount_pesos: undefined as any, // Start with undefined to allow empty field
+    amount_pesos: 0, // Start with 0 as required by schema
     vendor: '',
     invoice_number: '',
     is_recurring: false,

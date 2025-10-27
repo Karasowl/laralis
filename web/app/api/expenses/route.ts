@@ -138,7 +138,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const amountCents = typeof amount_pesos === 'number' ? amount_pesos : expenseData.amount_cents
+    // Convert pesos to cents - handle all cases
+    const amountCents = amount_pesos !== undefined && amount_pesos !== null
+      ? Math.round(Number(amount_pesos) * 100)
+      : expenseData.amount_cents || 0
 
     // Create expense record
     const { data: expense, error: expenseError } = await supabaseAdmin
