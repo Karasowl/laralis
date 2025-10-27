@@ -107,6 +107,9 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     
+    // Extract amount_pesos BEFORE validation (because schema transforms it)
+    const originalAmountPesos = body.amount_pesos
+
     // Validate input
     const validationResult = expenseFormSchema.safeParse(body)
     if (!validationResult.success) {
@@ -121,7 +124,7 @@ export async function POST(request: NextRequest) {
       asset_name,
       asset_useful_life_years,
       category_id,
-      amount_pesos,
+      amount_pesos, // This is now already in cents from the schema transform
       ...expenseData
     } = validationResult.data as any
 
@@ -138,10 +141,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Convert pesos to cents - handle all cases
-    const amountCents = amount_pesos !== undefined && amount_pesos !== null
-      ? Math.round(Number(amount_pesos) * 100)
-      : expenseData.amount_cents || 0
+    // Use the already transformed amount (schema converts pesos to cents)
+    const amountCents = amount_pesos || expenseData.amount_cents || 0
 
     // Create expense record
     const { data: expense, error: expenseError } = await supabaseAdmin
@@ -157,7 +158,14 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (expenseError) {
-      console.error('Error creating expense:', expenseError)
+      console.error('Error creating expense:', JSON.stringify(expenseError, null, 2))
+      console.error('Expense data being inserted:', {
+        ...expenseData,
+        amount_cents: amountCents,
+        category: resolvedCategory || expenseData.category,
+        category_id: category_id || null,
+        clinic_id: body.clinic_id
+      })
       return NextResponse.json({ error: 'Failed to create expense', message: expenseError.message }, { status: 500 })
     }
 
