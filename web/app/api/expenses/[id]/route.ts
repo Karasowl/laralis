@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { expenseFormSchema, type UpdateExpenseRequest } from '@/lib/types/expenses'
 
 export const dynamic = 'force-dynamic'
@@ -85,26 +86,64 @@ export async function PUT(
 
     const updateData = validationResult.data as any
 
-    // If category_id provided but category string not provided, resolve category name for compatibility
-    if (updateData.category_id && !updateData.category) {
-      const { data: cat } = await supabase
+    // Resolve category if needed (similar to POST endpoint)
+    let resolvedCategoryId = updateData.category_id
+    let resolvedCategory = updateData.category
+
+    if (!resolvedCategoryId && resolvedCategory) {
+      // Try to find the category by name or display_name using supabaseAdmin
+      let { data: cat } = await supabaseAdmin
+        .from('categories')
+        .select('id, name, display_name')
+        .eq('entity_type', 'expense')
+        .eq('is_system', true)
+        .is('clinic_id', null)
+        .is('parent_id', null)
+        .ilike('display_name', resolvedCategory)
+        .maybeSingle()
+
+      // If not found, try by name
+      if (!cat) {
+        const result = await supabaseAdmin
+          .from('categories')
+          .select('id, name, display_name')
+          .eq('entity_type', 'expense')
+          .eq('is_system', true)
+          .is('clinic_id', null)
+          .is('parent_id', null)
+          .ilike('name', resolvedCategory)
+          .maybeSingle()
+        cat = result.data
+      }
+
+      if (cat) {
+        resolvedCategoryId = cat.id
+        resolvedCategory = (cat as any).display_name || (cat as any).name
+      }
+    } else if (resolvedCategoryId && !resolvedCategory) {
+      // If category_id provided but category string not provided, resolve category name
+      const { data: cat } = await supabaseAdmin
         .from('categories')
         .select('name, display_name')
-        .eq('id', updateData.category_id)
+        .eq('id', resolvedCategoryId)
         .single()
       if (cat) {
-        updateData.category = (cat as any).display_name || (cat as any).name
+        resolvedCategory = (cat as any).display_name || (cat as any).name
       }
     }
 
-    // Map amount_pesos to amount_cents for DB
+    // Update the data with resolved values
+    if (resolvedCategoryId) updateData.category_id = resolvedCategoryId
+    if (resolvedCategory) updateData.category = resolvedCategory
+
+    // amount_pesos is already transformed by Zod schema (pesos -> cents)
     if (typeof updateData.amount_pesos === 'number') {
       updateData.amount_cents = updateData.amount_pesos
       delete updateData.amount_pesos
     }
 
-    // Update expense
-    const { data: updatedExpense, error: updateError } = await supabase
+    // Update expense using supabaseAdmin
+    const { data: updatedExpense, error: updateError } = await supabaseAdmin
       .from('expenses')
       .update({
         ...updateData,
@@ -135,7 +174,7 @@ export async function PUT(
         
         // Revert old supply inventory if it existed
         if (oldSupplyId && oldQuantity > 0) {
-          const { data: oldSupply } = await supabase
+          const { data: oldSupply } = await supabaseAdmin
             .from('supplies')
             .select('stock_quantity, portions_per_presentation')
             .eq('id', oldSupplyId)
@@ -143,7 +182,7 @@ export async function PUT(
 
           if (oldSupply) {
             const oldPortions = oldQuantity * (oldSupply.portions_per_presentation || 1)
-            await supabase
+            await supabaseAdmin
               .from('supplies')
               .update({
                 stock_quantity: Math.max(0, (oldSupply.stock_quantity || 0) - oldPortions)
@@ -154,7 +193,7 @@ export async function PUT(
 
         // Add to new supply inventory
         if (newSupplyId && newQuantity > 0) {
-          const { data: newSupply } = await supabase
+          const { data: newSupply } = await supabaseAdmin
             .from('supplies')
             .select('stock_quantity, portions_per_presentation')
             .eq('id', newSupplyId)
@@ -163,8 +202,8 @@ export async function PUT(
           if (newSupply) {
             const newPortions = newQuantity * (newSupply.portions_per_presentation || 1)
             const pricePerUnit = Math.round((updateData.amount_cents || currentExpense.amount_cents) / newQuantity)
-            
-            await supabase
+
+            await supabaseAdmin
               .from('supplies')
               .update({
                 stock_quantity: (newSupply.stock_quantity || 0) + newPortions,
@@ -215,7 +254,7 @@ export async function DELETE(
 
     // Revert inventory changes if this was a supply purchase
     if (expense.related_supply_id && expense.quantity && expense.auto_processed) {
-      const { data: supply } = await supabase
+      const { data: supply } = await supabaseAdmin
         .from('supplies')
         .select('stock_quantity, portions_per_presentation')
         .eq('id', expense.related_supply_id)
@@ -223,7 +262,7 @@ export async function DELETE(
 
       if (supply) {
         const portions = expense.quantity * (supply.portions_per_presentation || 1)
-        await supabase
+        await supabaseAdmin
           .from('supplies')
           .update({
             stock_quantity: Math.max(0, (supply.stock_quantity || 0) - portions)
@@ -232,8 +271,8 @@ export async function DELETE(
       }
     }
 
-    // Delete the expense
-    const { error: deleteError } = await supabase
+    // Delete the expense using supabaseAdmin
+    const { error: deleteError } = await supabaseAdmin
       .from('expenses')
       .delete()
       .eq('id', params.id)
