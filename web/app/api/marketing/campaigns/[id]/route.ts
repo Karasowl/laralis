@@ -65,16 +65,9 @@ export async function PATCH(
 
     const body = await request.json()
 
-    // Map platform_id to platform_category_id if present
-    const mappedBody = { ...body }
-    if (body.platform_id) {
-      mappedBody.platform_category_id = body.platform_id
-      delete mappedBody.platform_id
-    }
-
     // Normalize archive toggling: if archived_at provided, set is_archived accordingly
     const nowIso = new Date().toISOString()
-    const patch: any = { ...mappedBody, updated_at: nowIso }
+    const patch: any = { ...body, updated_at: nowIso }
     if (Object.prototype.hasOwnProperty.call(body, 'archived_at')) {
       const arch = body.archived_at
       patch.archived_at = arch

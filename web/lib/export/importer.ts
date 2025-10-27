@@ -515,17 +515,16 @@ export class WorkspaceBundleImporter {
     if (!clinicBundle.marketingCampaigns || clinicBundle.marketingCampaigns.length === 0) return;
 
     const records = clinicBundle.marketingCampaigns.map((campaign: any) => {
-      const newCategoryId = this.idMappings.customCategories?.[campaign.platform_category_id];
+      const newPlatformId = this.idMappings.customCategories?.[campaign.platform_id];
 
-      if (!newCategoryId) {
-        console.warn(`[importer] Skipping marketing campaign: category ${campaign.platform_category_id} not found in mappings`);
+      if (!newPlatformId) {
+        console.warn(`[importer] Skipping marketing campaign: platform ${campaign.platform_id} not found in mappings`);
         return null;
       }
 
       return {
         clinic_id: newClinicId,
-        platform_category_id: newCategoryId,
-        platform_id: campaign.platform_id,
+        platform_id: newPlatformId,
         name: campaign.name,
         code: campaign.code,
         is_active: campaign.is_active,

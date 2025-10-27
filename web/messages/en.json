@@ -3028,6 +3028,9 @@
         "title": "How does this analysis work?",
         "description": "Calculates ROI based on registered marketing expenses and revenue/patients from the same period. Make sure to categorize your marketing expenses correctly."
       },
+      "campaign_roi_analysis": "Campaign ROI Analysis",
+      "individual_campaign_performance": "Performance of each marketing campaign",
+      "error_loading_campaigns": "Error loading campaign data",
       "status": {
         "active": "Active",
         "paused": "Paused",

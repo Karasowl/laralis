@@ -3308,6 +3308,9 @@
         "title": "¿Cómo funciona este análisis?",
         "description": "Calcula el ROI basándose en gastos de marketing registrados y los ingresos/pacientes del mismo período. Asegúrate de categorizar tus gastos de marketing correctamente."
       },
+      "campaign_roi_analysis": "Análisis de ROI por Campaña",
+      "individual_campaign_performance": "Rendimiento de cada campaña de marketing",
+      "error_loading_campaigns": "Error al cargar datos de campañas",
       "status": {
         "active": "Activa",
         "paused": "Pausada",

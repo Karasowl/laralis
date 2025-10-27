@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
 
     const insertData = {
       clinic_id: clinicId,
-      platform_category_id: body.platform_id,
+      platform_id: body.platform_id,
       name: body.name,
       code: body.code || null,
     };
