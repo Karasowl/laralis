@@ -139,10 +139,11 @@ export async function POST(request: NextRequest) {
 
     if (!resolvedCategoryId && resolvedCategory) {
       // Try to find the category by name or display_name
+      // Use supabaseAdmin to bypass RLS for system categories
       console.log('[Category Resolution] Attempting to resolve category:', resolvedCategory)
 
       // First try exact match on display_name
-      let { data: cat, error: catError } = await supabase
+      let { data: cat, error: catError } = await supabaseAdmin
         .from('categories')
         .select('id, name, display_name')
         .eq('entity_type', 'expense')
@@ -156,7 +157,7 @@ export async function POST(request: NextRequest) {
 
       // If not found, try by name (lowercase)
       if (!cat) {
-        const result = await supabase
+        const result = await supabaseAdmin
           .from('categories')
           .select('id, name, display_name')
           .eq('entity_type', 'expense')
@@ -184,7 +185,7 @@ export async function POST(request: NextRequest) {
       }
     } else if (resolvedCategoryId && !resolvedCategory) {
       // If category_id provided but category string missing, resolve name
-      const { data: cat } = await supabase
+      const { data: cat } = await supabaseAdmin
         .from('categories')
         .select('name, display_name')
         .eq('id', resolvedCategoryId)
