@@ -88,12 +88,14 @@ export const expenseFormSchema = z.object({
   subcategory: z.string().optional(),
   description: z.string().optional(),
   notes: z.string().optional(),
-  // UX: el formulario trabaja en pesos (número con decimales),
-  // pero transformamos a centavos como entero para el backend
+  // UX: el formulario trabaja en pesos (número con decimales)
+  // La conversión a centavos se hace manualmente en los endpoints API
   amount_pesos: z
     .number({ invalid_type_error: 'El monto debe ser un número' })
     .positive('El monto debe ser mayor a 0')
-    .transform((pesos) => Math.round(pesos * 100)),
+    .refine((v) => Math.round(v * 100) <= Number.MAX_SAFE_INTEGER, {
+      message: 'El monto es demasiado grande',
+    }),
   vendor: z.string().optional(),
   invoice_number: z.string().optional(),
   is_recurring: z.boolean().default(false),

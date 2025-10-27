@@ -59,9 +59,20 @@ export async function PUT(
     }
 
     const body = await request.json()
-    
+
+    // Convert price_pesos to price_cents BEFORE validation (same pattern as supplies)
+    let dataToValidate = { ...body }
+    if ('amount_pesos' in body) {
+      dataToValidate.amount_cents = Math.round(body.amount_pesos * 100)
+      console.log('[Expense Update] Converting pesos to cents:', {
+        amount_pesos: body.amount_pesos,
+        amount_cents: dataToValidate.amount_cents
+      })
+      delete dataToValidate.amount_pesos
+    }
+
     // Validate input (partial update)
-    const validationResult = expenseFormSchema.partial().safeParse(body)
+    const validationResult = expenseFormSchema.partial().safeParse(dataToValidate)
     if (!validationResult.success) {
       return NextResponse.json(
         { error: 'Invalid input', details: validationResult.error.flatten() },
@@ -136,11 +147,7 @@ export async function PUT(
     if (resolvedCategoryId) updateData.category_id = resolvedCategoryId
     if (resolvedCategory) updateData.category = resolvedCategory
 
-    // amount_pesos is already transformed by Zod schema (pesos -> cents)
-    if (typeof updateData.amount_pesos === 'number') {
-      updateData.amount_cents = updateData.amount_pesos
-      delete updateData.amount_pesos
-    }
+    // amount_cents was already converted before validation (no need to transform)
 
     // Update expense using supabaseAdmin
     const { data: updatedExpense, error: updateError } = await supabaseAdmin

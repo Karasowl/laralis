@@ -107,12 +107,19 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
 
-    // Extract amount_pesos BEFORE validation (because schema transforms it)
-    const originalAmountPesos = body.amount_pesos
-    console.log('[Expense Creation] Raw body amount_pesos:', originalAmountPesos)
+    // Convert price_pesos to price_cents BEFORE validation (same pattern as supplies)
+    let dataToValidate = { ...body }
+    if ('amount_pesos' in body) {
+      dataToValidate.amount_cents = Math.round(body.amount_pesos * 100)
+      console.log('[Expense Creation] Converting pesos to cents:', {
+        amount_pesos: body.amount_pesos,
+        amount_cents: dataToValidate.amount_cents
+      })
+      delete dataToValidate.amount_pesos
+    }
 
     // Validate input
-    const validationResult = expenseFormSchema.safeParse(body)
+    const validationResult = expenseFormSchema.safeParse(dataToValidate)
     if (!validationResult.success) {
       return NextResponse.json(
         { error: 'Invalid input', details: validationResult.error.flatten() },
@@ -125,7 +132,7 @@ export async function POST(request: NextRequest) {
       asset_name,
       asset_useful_life_years,
       category_id,
-      amount_pesos, // This is now already in cents from the schema transform
+      amount_cents,
       ...expenseData
     } = validationResult.data as any
 
@@ -196,13 +203,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Use the already transformed amount (schema converts pesos to cents)
-    const amountCents = amount_pesos || expenseData.amount_cents || 0
-    console.log('[Expense Creation] After Zod transform:', {
-      originalAmountPesos,
-      amount_pesos,
-      amountCents,
-      'expenseData.amount_cents': expenseData.amount_cents
+    // Use the converted amount_cents
+    const amountCents = amount_cents || 0
+    console.log('[Expense Creation] Final amount:', {
+      amount_cents: amountCents
     })
 
     // Create expense record
