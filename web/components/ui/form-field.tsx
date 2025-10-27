@@ -123,7 +123,18 @@ export const InputField = React.memo(
           type={inputType}
           value={displayValue}
           readOnly={readOnly}
-          onChange={onChange}
+          onChange={(e) => {
+            if (onChange) {
+              if (type === 'number') {
+                // For number inputs, pass the numeric value
+                const val = e.target.value;
+                onChange(val === '' ? '' : val);
+              } else {
+                // For other inputs, pass the event or the value
+                onChange(e.target.value);
+              }
+            }
+          }}
           onBlur={onBlur}
           onFocus={(e) => {
             // Facilita reemplazar el 0 inicial: selecciona todo al enfocar
