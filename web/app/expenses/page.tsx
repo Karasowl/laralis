@@ -722,7 +722,7 @@ function getDefaultFormValues(): ExpenseFormValues {
     subcategory: '',
     description: '',
     notes: '',
-    amount_pesos: 0,
+    amount_pesos: undefined as any, // Start with undefined to allow empty field
     vendor: '',
     invoice_number: '',
     is_recurring: false,
@@ -807,8 +807,15 @@ function ExpenseForm({ form, t, categoryOptions, getSubcategoriesForCategory, su
               <InputField
                 type="number"
                 label={t('form.fields.amount')}
-                value={field.value}
-                onChange={(value) => field.onChange(value === '' ? 0 : Number(value))}
+                value={field.value || ''}
+                onChange={(value) => {
+                  const numValue = value === '' || value === null || value === undefined
+                    ? 0
+                    : typeof value === 'string'
+                      ? parseFloat(value) || 0
+                      : Number(value) || 0
+                  field.onChange(numValue)
+                }}
                 min={0}
                 step={0.01}
                 error={fieldState.error?.message}
