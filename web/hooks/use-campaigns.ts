@@ -27,12 +27,12 @@ interface UseCampaignsOptions {
 export function useCampaigns(options: UseCampaignsOptions = {}) {
   const { activeOnly = true } = options
 
-  const endpoint = `/api/campaigns${activeOnly ? '?active=true' : ''}`
+  const endpoint = `/api/marketing/campaigns${activeOnly ? '?active=true' : ''}`
 
-  const { data, loading, error, refetch } = useApi<Campaign[]>(endpoint)
+  const { data, loading, error, refetch } = useApi<{ data: Campaign[] }>(endpoint)
 
   return {
-    campaigns: data || [],
+    campaigns: data?.data || [],
     loading,
     error,
     refetch,
