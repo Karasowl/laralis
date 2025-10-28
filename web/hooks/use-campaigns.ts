@@ -29,7 +29,9 @@ export function useCampaigns(options: UseCampaignsOptions = {}) {
 
   const endpoint = `/api/marketing/campaigns${activeOnly ? '?active=true' : ''}`
 
-  const { data, loading, error, refetch } = useApi<{ data: Campaign[] }>(endpoint)
+  const { data, loading, error, refetch } = useApi<{ data: Campaign[] }>(endpoint, {
+    autoFetch: true
+  })
 
   return {
     campaigns: data?.data || [],
