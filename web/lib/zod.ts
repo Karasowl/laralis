@@ -48,7 +48,7 @@ export const zSupply = z.object({
   id: z.string().uuid().optional(),
   clinic_id: z.string().uuid(),
   name: z.string().min(1, 'Name is required'),
-  category: z.enum(['insumo', 'bioseguridad', 'consumibles', 'materiales', 'medicamentos', 'equipos', 'otros']),
+  category: z.string().min(1, 'Category is required'), // Changed from enum to string to support dynamic categories from DB
   presentation: z.string().min(1, 'Presentation is required'),
   price_cents: z.number().int().nonnegative('Price must be non-negative'),
   portions: z.number().int().positive('Portions must be positive'),
@@ -101,7 +101,7 @@ export const zFixedCostForm = z.object({
 
 export const zSupplyForm = z.object({
   name: z.string().min(1, 'Name is required'),
-  category: z.enum(['insumo', 'bioseguridad', 'consumibles', 'materiales', 'medicamentos', 'equipos', 'otros']),
+  category: z.string().min(1, 'Category is required'), // Changed from enum to string to support dynamic categories from DB
   presentation: z.string().min(1, 'Presentation is required'),
   price_pesos: z
     .coerce
