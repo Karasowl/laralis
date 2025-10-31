@@ -620,18 +620,53 @@ export class WorkspaceBundleImporter {
   private async importExpenses(clinicBundle: any, newClinicId: string) {
     if (!clinicBundle.expenses || clinicBundle.expenses.length === 0) return;
 
-    const records = clinicBundle.expenses.map((expense: any) => {
-      const newCategoryId = this.idMappings.customCategories?.[expense.category_id];
+    // Find "Otros" (Others) system category as fallback for unmapped categories
+    const { data: otrosCategory } = await this.supabase
+      .from('categories')
+      .select('id')
+      .eq('entity_type', 'expense')
+      .eq('is_system', true)
+      .eq('name', 'otros')
+      .is('clinic_id', null)
+      .is('parent_id', null)
+      .single();
 
-      if (!newCategoryId) {
-        console.warn(`[importer] Skipping expense: category ${expense.category_id} not found in mappings`);
-        return null;
+    const fallbackCategoryId = otrosCategory?.id;
+
+    if (!fallbackCategoryId) {
+      throw new ImportError(
+        'Cannot import expenses: system category "otros" not found',
+        'MISSING_SYSTEM_CATEGORY'
+      );
+    }
+
+    let reclassifiedCount = 0;
+    const records = clinicBundle.expenses.map((expense: any) => {
+      // Try to map category_id to new ID
+      let newCategoryId = expense.category_id
+        ? this.idMappings.customCategories?.[expense.category_id]
+        : null;
+
+      // If expense has category_id but we can't map it, assign to "Otros"
+      if (expense.category_id && !newCategoryId) {
+        console.warn(
+          `[importer] Expense category ${expense.category_id} not found, assigning to "Otros" category`
+        );
+        newCategoryId = fallbackCategoryId;
+        reclassifiedCount++;
       }
 
+      // If expense has no category_id at all, also assign to "Otros"
+      if (!newCategoryId) {
+        newCategoryId = fallbackCategoryId;
+        reclassifiedCount++;
+      }
+
+      // Import expense with mapped category_id (or "Otros" as fallback)
       return {
         clinic_id: newClinicId,
         expense_date: expense.expense_date,
-        category_id: newCategoryId,
+        category_id: newCategoryId, // Always has a valid category
         category: expense.category,
         subcategory: expense.subcategory,
         description: expense.description,
@@ -644,7 +679,7 @@ export class WorkspaceBundleImporter {
         payment_method: expense.payment_method,
         notes: expense.notes,
       };
-    }).filter(Boolean); // Remove nulls
+    });
 
     if (records.length === 0) return;
 
@@ -655,6 +690,15 @@ export class WorkspaceBundleImporter {
     }
 
     this.progress.recordsProcessed += records.length;
+
+    // Add warning if some expenses were reclassified
+    if (reclassifiedCount > 0) {
+      this.progress.errors.push({
+        type: 'DATA_LOSS',
+        field: 'category_id',
+        message: `${reclassifiedCount} expense(s) reclassified to "Otros" (original category not found in backup)`,
+      });
+    }
   }
 
   /**
