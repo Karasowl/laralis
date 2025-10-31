@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { startOfWeek, format, addDays } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { parseLocalDate } from '@/lib/date-utils'
 
 export const dynamic = 'force-dynamic'
-
 
 function monthKey(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
@@ -160,14 +160,16 @@ export async function GET(request: NextRequest) {
 
     for (const t of treatments || []) {
       if (!t.treatment_date) continue
-      const d = new Date(t.treatment_date as string)
+      const d = parseLocalDate(t.treatment_date as string)
       if (Number.isNaN(d.getTime())) continue
       const k = getKeyForDate(d)
       if (k in revenueByPeriod) revenueByPeriod[k] += (t.price_cents || 0)
     }
 
     for (const ex of expenses || []) {
-      const d = new Date(ex.expense_date as string)
+      if (!ex.expense_date) continue
+      const d = parseLocalDate(ex.expense_date as string)
+      if (Number.isNaN(d.getTime())) continue
       const k = getKeyForDate(d)
       if (k in expensesByPeriod) expensesByPeriod[k] += (ex.amount_cents || 0)
     }
