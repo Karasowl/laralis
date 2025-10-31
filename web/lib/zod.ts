@@ -88,6 +88,7 @@ export const zFixedCostForm = z.object({
   concept: z.string().min(1, 'Concept is required'),
   frequency: z.enum(['monthly', 'weekly', 'biweekly', 'quarterly', 'yearly']).default('monthly'),
   amount_pesos: z
+    .coerce
     .number()
     .positive('Amount must be positive')
     // Prevent exceeding Postgres BIGINT limit (9,223,372,036,854,775,807 cents)
@@ -103,29 +104,30 @@ export const zSupplyForm = z.object({
   category: z.enum(['insumo', 'bioseguridad', 'consumibles', 'materiales', 'medicamentos', 'equipos', 'otros']),
   presentation: z.string().min(1, 'Presentation is required'),
   price_pesos: z
+    .coerce
     .number()
     .positive('Price must be positive')
     .refine((v) => Math.round(v * 100) <= Number.MAX_SAFE_INTEGER, {
       message: 'Price too large',
     }),
-  portions: z.number().int().min(1, 'Portions must be at least 1')
+  portions: z.coerce.number().int().min(1, 'Portions must be at least 1')
 });
 
 export const zServiceForm = z.object({
   name: z.string().min(1, 'Name is required'),
-  est_minutes: z.number().int().positive('Duration must be greater than 0')
+  est_minutes: z.coerce.number().int().positive('Duration must be greater than 0')
 });
 
 export const zServiceSupplyForm = z.object({
   service_id: z.string().uuid(),
   supply_id: z.string().uuid(),
-  qty: z.number().nonnegative('Quantity must be non-negative')
+  qty: z.coerce.number().nonnegative('Quantity must be non-negative')
 });
 
 export const zSettingsTimeForm = z.object({
-  work_days: z.number().int().min(1, 'Must be at least 1 day').max(31, 'Cannot exceed 31 days'),
-  hours_per_day: z.number().min(1, 'Must be at least 1 hour').max(16, 'Cannot exceed 16 hours'),
-  real_pct: z.number().min(0, 'Cannot be negative').max(100, 'Cannot exceed 100%'), // Cambiado a 0-100
+  work_days: z.coerce.number().int().min(1, 'Must be at least 1 day').max(31, 'Cannot exceed 31 days'),
+  hours_per_day: z.coerce.number().min(1, 'Must be at least 1 hour').max(16, 'Cannot exceed 16 hours'),
+  real_pct: z.coerce.number().min(0, 'Cannot be negative').max(100, 'Cannot exceed 100%'), // Cambiado a 0-100
 });
 
 // Validation schema for Asset (server-side)
@@ -148,12 +150,14 @@ export const zAsset = z.object({
 export const zAssetForm = z.object({
   name: z.string().min(1, 'Name is required'),
   purchase_price_pesos: z
+    .coerce
     .number()
     .positive('Price must be positive')
     .refine((v) => Math.round(v * 100) <= Number.MAX_SAFE_INTEGER, {
       message: 'Price too large',
     }),
   depreciation_months: z
+    .coerce
     .number()
     .int()
     .min(1, 'Months must be at least 1')
