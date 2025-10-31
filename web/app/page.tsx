@@ -304,11 +304,19 @@ export default function InsightsPage() {
         />
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 md:max-w-2xl gap-2">
-            <TabsTrigger value="overview">{tReports('tabs.overview')}</TabsTrigger>
-            <TabsTrigger value="profitability">{tReports('tabs.profitability')}</TabsTrigger>
-            <TabsTrigger value="advanced">{tReports('tabs.patientsCapacity')}</TabsTrigger>
-            <TabsTrigger value="marketing">{tReports('tabs.marketing')}</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 md:max-w-2xl gap-2 h-auto p-2">
+            <TabsTrigger value="overview" className="h-auto py-3 whitespace-normal text-xs md:text-sm">
+              {tReports('tabs.overview')}
+            </TabsTrigger>
+            <TabsTrigger value="profitability" className="h-auto py-3 whitespace-normal text-xs md:text-sm">
+              {tReports('tabs.profitability')}
+            </TabsTrigger>
+            <TabsTrigger value="advanced" className="h-auto py-3 whitespace-normal text-xs md:text-sm">
+              {tReports('tabs.patientsCapacity')}
+            </TabsTrigger>
+            <TabsTrigger value="marketing" className="h-auto py-3 whitespace-normal text-xs md:text-sm">
+              {tReports('tabs.marketing')}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
