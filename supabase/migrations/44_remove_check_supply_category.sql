@@ -17,7 +17,10 @@
 --
 -- This migration fixes the issue by removing the correct constraint.
 
--- STEP 1: Check if the constraint exists and remove it
+-- STEP 1: Drop the view that depends on supplies.category
+DROP VIEW IF EXISTS public.low_stock_alerts;
+
+-- STEP 2: Check if the constraint exists and remove it
 DO $$
 BEGIN
   -- Check if constraint exists
@@ -38,19 +41,37 @@ BEGIN
   END IF;
 END $$;
 
--- STEP 2: Ensure category column is flexible VARCHAR
+-- STEP 3: Ensure category column is flexible VARCHAR
 ALTER TABLE public.supplies
 ALTER COLUMN category TYPE VARCHAR(100);
 
--- STEP 3: Update column comment for documentation
+-- STEP 4: Update column comment for documentation
 COMMENT ON COLUMN public.supplies.category IS
   'Flexible category field that accepts both system categories (from categories table) and custom categories. No longer restricted by CHECK constraint.';
 
--- STEP 4: Verification
+-- STEP 5: Recreate the low_stock_alerts view with the same definition
+CREATE OR REPLACE VIEW public.low_stock_alerts AS
+SELECT
+    s.id,
+    s.name,
+    s.category,
+    s.stock_quantity,
+    s.min_stock_alert,
+    s.clinic_id,
+    c.name as clinic_name
+FROM public.supplies s
+JOIN public.clinics c ON s.clinic_id = c.id
+WHERE s.stock_quantity <= s.min_stock_alert
+  AND s.stock_quantity >= 0;
+
+COMMENT ON VIEW public.low_stock_alerts IS 'View for supplies with low stock levels';
+
+-- STEP 6: Verification
 DO $$
 DECLARE
   constraint_count INTEGER;
   column_type TEXT;
+  view_exists BOOLEAN;
 BEGIN
   -- Verify constraint was removed
   SELECT COUNT(*) INTO constraint_count
@@ -68,6 +89,12 @@ BEGIN
     AND table_name = 'supplies'
     AND column_name = 'category';
 
+  -- Check if view was recreated
+  SELECT EXISTS (
+    SELECT 1 FROM pg_views
+    WHERE schemaname = 'public' AND viewname = 'low_stock_alerts'
+  ) INTO view_exists;
+
   RAISE NOTICE '========================================';
   RAISE NOTICE 'MIGRATION 44 - VERIFICATION';
   RAISE NOTICE '========================================';
@@ -80,10 +107,17 @@ BEGIN
 
   RAISE NOTICE '✓ Column type: %', column_type;
 
-  IF constraint_count = 0 AND column_type = 'character varying' THEN
+  IF view_exists THEN
+    RAISE NOTICE '✓ View low_stock_alerts: RECREATED';
+  ELSE
+    RAISE WARNING '✗ View low_stock_alerts: NOT FOUND!';
+  END IF;
+
+  IF constraint_count = 0 AND column_type = 'character varying' AND view_exists THEN
     RAISE NOTICE '';
     RAISE NOTICE '✓✓✓ MIGRATION SUCCESSFUL ✓✓✓';
     RAISE NOTICE 'supplies.category now accepts dynamic values';
+    RAISE NOTICE 'low_stock_alerts view recreated successfully';
   ELSE
     RAISE EXCEPTION 'Migration verification failed!';
   END IF;
