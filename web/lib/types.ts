@@ -105,15 +105,9 @@ export type FixedCostFrequency =
     | 'quarterly'
     | 'yearly';
 
-// Supply categories
-export type SupplyCategory = 
-  | 'insumo'
-  | 'bioseguridad'
-  | 'consumibles'
-  | 'materiales'
-  | 'medicamentos'
-  | 'equipos'
-  | 'otros';
+// Supply categories - now flexible to support dynamic categories from database
+// Previously was a fixed union type, but changed to string to support custom categories
+export type SupplyCategory = string;
 
 // Patient interface
 export interface Patient {
