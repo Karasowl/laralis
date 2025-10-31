@@ -13,6 +13,7 @@ import {
   TreatmentData,
   PatientData,
 } from '@/lib/analytics'
+import { parseLocalDate, extractDatePart } from '@/lib/date-utils'
 
 const querySchema = z.object({
   clinicId: z.string().optional(),
@@ -134,12 +135,15 @@ export async function GET(request: NextRequest) {
     const currentYear = now.getFullYear()
 
     const monthTreatments = treatments.filter(t => {
-      const date = new Date(t.treatment_date)
+      if (!t.treatment_date) return false
+      const date = parseLocalDate(t.treatment_date)
       return date.getMonth() === currentMonth && date.getFullYear() === currentYear
     })
 
     const monthPatients = patients.filter(p => {
-      const date = new Date(p.created_at)
+      if (!p.created_at) return false
+      const dateStr = extractDatePart(p.created_at) // Extract YYYY-MM-DD part from ISO string
+      const date = parseLocalDate(dateStr)
       return date.getMonth() === currentMonth && date.getFullYear() === currentYear
     })
 
