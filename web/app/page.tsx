@@ -304,7 +304,7 @@ export default function InsightsPage() {
         />
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 md:max-w-2xl">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 md:max-w-2xl gap-2">
             <TabsTrigger value="overview">{tReports('tabs.overview')}</TabsTrigger>
             <TabsTrigger value="profitability">{tReports('tabs.profitability')}</TabsTrigger>
             <TabsTrigger value="advanced">{tReports('tabs.patientsCapacity')}</TabsTrigger>
