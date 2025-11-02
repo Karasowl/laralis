@@ -209,8 +209,8 @@ export async function POST(request: NextRequest) {
     // Calculate price WITH margin
     // base_price_cents already includes fixed costs (time-based) + variable costs (supplies)
     // Now we apply the margin to get the final sale price
-    const base_price = Math.round(base_price_cents);
-    const price_with_margin = Math.round(base_price * (1 + margin_pct / 100));
+    const base_price = Math.round(base_price_cents || 0);
+    const price_with_margin = base_price > 0 ? Math.round(base_price * (1 + margin_pct / 100)) : 0;
 
     // Create the service with new fields
     const { data: serviceData, error: serviceError } = await supabaseAdmin
