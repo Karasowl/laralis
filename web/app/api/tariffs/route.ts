@@ -197,18 +197,25 @@ export async function POST(request: NextRequest) {
       const fixedCostCents = Math.round(fixedPerMinute * estMinutes)
       const variableCostCents = serviceCosts.variableCostCents
       const baseCostCents = fixedCostCents + variableCostCents
-      const marginPct = item.margin_percentage
-      const marginAmountCents = Math.round(baseCostCents * (marginPct / 100))
-      const priceCents = baseCostCents + marginAmountCents
+
+      // FIX: Use the FIXED price configured by user, not recalculated price
+      // The user decides the price, we calculate the REAL margin based on current costs
+      const userConfiguredPriceCents = item.final_price_cents
+
+      // Calculate REAL margin percentage based on configured price and current costs
+      // realMarginPct = (price - cost) / cost × 100
+      const realMarginPct = baseCostCents > 0
+        ? ((userConfiguredPriceCents - baseCostCents) / baseCostCents) * 100
+        : 0
 
       // Calculate discounted price if discount is provided
       const discountType = item.discount_type || 'none'
       const discountValue = item.discount_value || 0
-      let finalPriceWithDiscountCents = priceCents
+      let finalPriceWithDiscountCents = userConfiguredPriceCents
 
       if (discountType !== 'none' && discountValue > 0) {
         finalPriceWithDiscountCents = calcularPrecioConDescuento(
-          priceCents,
+          userConfiguredPriceCents,
           discountType,
           discountValue
         )
@@ -222,9 +229,9 @@ export async function POST(request: NextRequest) {
         valid_until: null,
         fixed_cost_per_minute_cents: fixedPerMinute,
         variable_cost_cents: variableCostCents,
-        margin_pct: marginPct,
-        price_cents: priceCents,
-        rounded_price_cents: item.final_price_cents,
+        margin_pct: realMarginPct,  // Store REAL margin, not configured margin
+        price_cents: userConfiguredPriceCents,  // Store user's FIXED price
+        rounded_price_cents: userConfiguredPriceCents,  // Same as price_cents
         is_active: item.is_active ?? true,
         discount_type: discountType,
         discount_value: discountValue,
