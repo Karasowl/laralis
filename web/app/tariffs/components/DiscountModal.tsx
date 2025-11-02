@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -29,6 +30,11 @@ interface DiscountModalProps {
   onOpenChange: (open: boolean) => void
   serviceName?: string
   basePrice: number
+  existingDiscount?: {
+    type: 'none' | 'percentage' | 'fixed'
+    value: number
+    reason?: string
+  }
   onApply: (discount: {
     type: 'none' | 'percentage' | 'fixed'
     value: number
@@ -41,6 +47,7 @@ export function DiscountModal({
   onOpenChange,
   serviceName,
   basePrice,
+  existingDiscount,
   onApply
 }: DiscountModalProps) {
   const t = useTranslations('tariffs')
@@ -55,19 +62,47 @@ export function DiscountModal({
     }
   })
 
+  // Load existing discount when modal opens
+  useEffect(() => {
+    if (open && existingDiscount) {
+      // Convert centavos → pesos for fixed discounts (display in pesos)
+      const displayValue = existingDiscount.type === 'fixed'
+        ? existingDiscount.value / 100
+        : existingDiscount.value
+
+      form.setValue('type', existingDiscount.type as 'none' | 'percentage' | 'fixed')
+      form.setValue('value', displayValue)
+      form.setValue('reason', existingDiscount.reason || '')
+    } else if (open) {
+      // Reset to defaults when opening without existing discount
+      form.reset()
+    }
+  }, [open, existingDiscount, form])
+
   const watchedType = form.watch('type')
   const watchedValue = form.watch('value')
 
+  // For calculations, convert pesos → centavos if type is 'fixed'
+  const calculationValue = watchedType === 'fixed'
+    ? watchedValue * 100
+    : watchedValue
+
   const discountAmount = watchedType !== 'none' && watchedValue > 0
-    ? calculateDiscountAmount(basePrice, watchedType, watchedValue)
+    ? calculateDiscountAmount(basePrice, watchedType, calculationValue)
     : 0
 
   const finalPrice = watchedType !== 'none' && watchedValue > 0
-    ? calcularPrecioConDescuento(basePrice, watchedType, watchedValue)
+    ? calcularPrecioConDescuento(basePrice, watchedType, calculationValue)
     : basePrice
 
   const handleSubmit = (data: z.infer<typeof discountSchema>) => {
-    onApply(data)
+    // Convert pesos → centavos for fixed discounts before saving
+    const discountData = {
+      type: data.type,
+      value: data.type === 'fixed' ? data.value * 100 : data.value,
+      reason: data.reason
+    }
+    onApply(discountData)
     onOpenChange(false)
     form.reset()
   }
@@ -107,15 +142,15 @@ export function DiscountModal({
                 <label className="text-sm font-medium mb-2 block">
                   {watchedType === 'percentage'
                     ? t('discount_percentage_label')
-                    : t('discount_fixed_label')}
+                    : `${t('discount_fixed_label')} (MXN)`}
                 </label>
                 <input
                   type="number"
                   {...form.register('value', { valueAsNumber: true })}
-                  placeholder={watchedType === 'percentage' ? '10' : '5000'}
+                  placeholder={watchedType === 'percentage' ? '10' : '500'}
                   min={0}
                   max={watchedType === 'percentage' ? 100 : undefined}
-                  step={watchedType === 'percentage' ? 1 : 100}
+                  step={watchedType === 'percentage' ? 1 : 10}
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 />
                 {form.formState.errors.value && (

@@ -635,6 +635,11 @@ export default function TariffsPage() {
         onOpenChange={setDiscountModalOpen}
         serviceName={selectedTariff?.name}
         basePrice={selectedTariff?.rounded_price || 0}
+        existingDiscount={selectedTariff ? {
+          type: selectedTariff.discount_type || 'none',
+          value: selectedTariff.discount_value || 0,
+          reason: selectedTariff.discount_reason
+        } : undefined}
         onApply={handleApplyDiscount}
       />
 
