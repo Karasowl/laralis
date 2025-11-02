@@ -177,6 +177,26 @@ export default function TariffsPage() {
       )
     },
     {
+      key: 'profit',
+      label: t('profit_amount'),
+      render: (_value: unknown, tariff: TariffRow) => {
+        const totalCost = (tariff.fixed_cost_cents || 0) + (tariff.variable_cost_cents || 0)
+        const profit = tariff.rounded_price - totalCost
+        const profitPct = totalCost > 0 ? ((profit / totalCost) * 100).toFixed(1) : '0.0'
+
+        return (
+          <div className="text-right">
+            <div className="font-semibold text-emerald-600">
+              {formatCurrency(profit)}
+            </div>
+            <div className="text-xs text-emerald-600/70">
+              {profitPct}%
+            </div>
+          </div>
+        )
+      }
+    },
+    {
       key: 'price',
       label: t('final_price'),
       render: (_value: number, tariff: TariffRow) => (

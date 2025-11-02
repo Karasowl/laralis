@@ -140,7 +140,7 @@ export function ServicesTable({
     },
     {
       key: 'sale_price',
-      label: t('sale_price'),
+      label: t('price_with_margin'),
       render: (_value: any, service: any) => {
         const costBase = service?.total_cost_cents || 0;
         const marginPct = service?.margin_pct || 30;
@@ -174,7 +174,7 @@ export function ServicesTable({
                     <span className="font-bold text-emerald-700 dark:text-emerald-300">{formatCurrency(profit)}</span>
                   </div>
                   <div className="border-t pt-2 mt-2 flex justify-between gap-4">
-                    <span className="font-bold text-base">{t('sale_price')}:</span>
+                    <span className="font-bold text-base">{t('price_with_margin')}:</span>
                     <span className="font-bold text-base">{formatCurrency(salePrice)}</span>
                   </div>
                 </div>
