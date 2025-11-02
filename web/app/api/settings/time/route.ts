@@ -37,7 +37,8 @@ const normalizePayload = (body: any) => {
   const hours_per_day = Number(numberOrZero(body?.hours_per_day).toFixed(2));
   const rawRealPct = body?.real_pct ?? body?.real_pct_decimal ?? body?.realPct ?? 0;
   const real_pct = clamp(numberOrZero(rawRealPct), 0, 1);
-  return { work_days, hours_per_day, real_pct };
+  const working_days_config = body?.working_days_config || null;
+  return { work_days, hours_per_day, real_pct, working_days_config };
 };
 
 export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<SettingsTime>>> {
@@ -171,6 +172,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     }
 
     const { work_days, hours_per_day, real_pct, clinic_id } = validationResult.data;
+    const working_days_config = normalized.working_days_config;
 
     const { data: existing } = await supabaseAdmin
       .from('settings_time')
@@ -188,6 +190,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
           work_days,
           hours_per_day,
           real_pct,
+          working_days_config,
           updated_at: new Date().toISOString()
         })
         .eq('id', existing.id)
@@ -196,7 +199,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     } else {
       result = await supabaseAdmin
         .from('settings_time')
-        .insert({ clinic_id, work_days, hours_per_day, real_pct })
+        .insert({ clinic_id, work_days, hours_per_day, real_pct, working_days_config })
         .select()
         .single();
     }
