@@ -1329,6 +1329,7 @@
       "margin_pct": "Utility (%)"
     },
     "margin_pct_helper": "Utility percentage over base cost (e.g., 30 = 30% utility)",
+    "target_price": "Target Price",
     "target_price_helper": "Desired final price - utility adjusts automatically",
     "select_category": "Select a category",
     "entities": {

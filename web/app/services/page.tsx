@@ -237,9 +237,20 @@ export default function ServicesPage() {
       console.error('Service is invalid:', service)
       return
     }
-    const baseCost = service.base_price_cents || service.price_cents || 0
-    const margin = service.margin_pct ?? 30
-    const targetPriceCents = calcularPrecioFinal(baseCost, margin)
+
+    // Get margin_pct from service or use default
+    const margin = service.margin_pct !== undefined && service.margin_pct !== null ? service.margin_pct : 30
+
+    // Calculate base cost from final price and margin
+    // If price_cents = baseCost * (1 + margin/100)
+    // Then baseCost = price_cents / (1 + margin/100)
+    const finalPriceCents = service.price_cents || 0
+    const baseCost = finalPriceCents > 0 && margin >= 0
+      ? Math.round(finalPriceCents / (1 + margin / 100))
+      : finalPriceCents
+
+    // Target price is just the final price in pesos
+    const targetPricePesos = Math.round(finalPriceCents / 100)
 
     form.reset({
       name: service.name,
@@ -248,7 +259,7 @@ export default function ServicesPage() {
       base_price_cents: baseCost,
       description: service.description || '',
       margin_pct: margin,
-      target_price: Math.round(targetPriceCents / 100)
+      target_price: targetPricePesos
     })
     setSelectedServiceId(service.id)
     setEditService(service)

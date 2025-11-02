@@ -179,7 +179,7 @@ export function ServiceForm({
             <div className="relative">
               <input
                 type="number"
-                value={marginPct ?? 30}
+                value={marginPct !== undefined && marginPct !== null ? marginPct : 30}
                 onChange={handleMarginChange}
                 placeholder="30"
                 min={0}
@@ -188,6 +188,7 @@ export function ServiceForm({
               />
               <span className="absolute right-3 top-2.5 text-sm text-muted-foreground">%</span>
             </div>
+            <input type="hidden" {...form.register('margin_pct', { valueAsNumber: true })} />
             <p className="text-xs text-muted-foreground mt-1">{t('margin_pct_helper')}</p>
             {form.formState.errors.margin_pct?.message && (
               <p className="text-sm text-red-600 mt-1">{form.formState.errors.margin_pct?.message}</p>
@@ -203,7 +204,7 @@ export function ServiceForm({
               <span className="absolute left-3 top-2.5 text-sm text-muted-foreground">$</span>
               <input
                 type="number"
-                value={targetPrice ?? 0}
+                value={targetPrice !== undefined && targetPrice !== null ? targetPrice : 0}
                 onChange={handleTargetPriceChange}
                 placeholder="500"
                 min={0}
@@ -211,6 +212,7 @@ export function ServiceForm({
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pl-8 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               />
             </div>
+            <input type="hidden" {...form.register('target_price', { valueAsNumber: true })} />
             <p className="text-xs text-muted-foreground mt-1">{t('target_price_helper')}</p>
           </div>
         </FormGrid>
