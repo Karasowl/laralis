@@ -1314,6 +1314,11 @@
     "total_cost": "Total Cost",
     "margin_label": "Utility %",
     "profit_label": "Profit",
+    "real_margin": "Real Margin",
+    "configured_margin": "Configured margin",
+    "margin_warning": "This service is losing money",
+    "suggested_price_for_margin": "Suggested price for {margin}% margin",
+    "low_margin_warning": "Low margin, consider adjusting the price",
     "fields": {
       "name": "Name",
       "category": "Category",

@@ -241,25 +241,26 @@ export default function ServicesPage() {
     // Get margin_pct from service or use default
     const margin = service.margin_pct !== undefined && service.margin_pct !== null ? service.margin_pct : 30
 
-    // Calculate base cost from final price and margin
-    // If price_cents = baseCost * (1 + margin/100)
-    // Then baseCost = price_cents / (1 + margin/100)
-    const finalPriceCents = service.price_cents || 0
-    const baseCost = finalPriceCents > 0 && margin >= 0
-      ? Math.round(finalPriceCents / (1 + margin / 100))
-      : finalPriceCents
+    // Use the REAL base cost recalculated by the backend
+    // The backend already calculates: total_cost_cents = fixed_cost_cents + variable_cost_cents
+    const baseCost = service.total_cost_cents || 0
 
-    // Target price is just the final price in pesos
-    const targetPricePesos = Math.round(finalPriceCents / 100)
+    // Current price from DB (may be outdated if costs changed)
+    const currentPriceCents = service.price_cents || 0
+    const currentPricePesos = Math.round(currentPriceCents / 100)
+
+    // Calculate suggested price based on current costs and configured margin
+    const suggestedPriceCents = Math.round(baseCost * (1 + margin / 100))
+    const suggestedPricePesos = Math.round(suggestedPriceCents / 100)
 
     form.reset({
       name: service.name,
       category: service.category || 'otros',
       est_minutes: service.est_minutes || service.duration_minutes || 30,
-      base_price_cents: baseCost,
+      base_price_cents: baseCost,  // Use real recalculated cost
       description: service.description || '',
       margin_pct: margin,
-      target_price: targetPricePesos
+      target_price: currentPricePesos  // Show current price, user can adjust manually
     })
     setSelectedServiceId(service.id)
     setEditService(service)

@@ -335,15 +335,30 @@ export default function TariffsPage() {
       render: (_value: unknown, tariff: TariffRow) => {
         const totalCost = (tariff.fixed_cost_cents || 0) + (tariff.variable_cost_cents || 0)
         const profit = tariff.rounded_price - totalCost
-        const profitPct = totalCost > 0 ? ((profit / totalCost) * 100).toFixed(1) : '0.0'
+        const realMarginPct = totalCost > 0 ? ((profit / totalCost) * 100) : 0
+        const hasLoss = realMarginPct < 0
+        const hasLowMargin = realMarginPct >= 0 && realMarginPct < 10
 
         return (
           <div className="text-right">
-            <div className="font-semibold text-emerald-600">
+            <div className={`font-semibold ${
+              hasLoss
+                ? 'text-red-600 dark:text-red-400'
+                : hasLowMargin
+                ? 'text-amber-600 dark:text-amber-400'
+                : 'text-emerald-600 dark:text-emerald-400'
+            }`}>
               {formatCurrency(profit)}
+              {hasLoss && ' ⚠️'}
             </div>
-            <div className="text-xs text-emerald-600/70">
-              {profitPct}%
+            <div className={`text-xs ${
+              hasLoss
+                ? 'text-red-600/70 dark:text-red-400/70'
+                : hasLowMargin
+                ? 'text-amber-600/70 dark:text-amber-400/70'
+                : 'text-emerald-600/70 dark:text-emerald-400/70'
+            }`}>
+              {realMarginPct.toFixed(1)}%
             </div>
           </div>
         )

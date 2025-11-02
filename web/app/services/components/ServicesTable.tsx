@@ -146,16 +146,30 @@ export function ServicesTable({
       label: t('price_with_margin'),
       render: (_value: any, service: any) => {
         const costBase = service?.total_cost_cents || 0;
-        const marginPct = service?.margin_pct || 30;
-        const salePrice = service?.price_cents || 0;  // Use saved price (already has margin)
+        const configuredMarginPct = service?.margin_pct || 30;
+        const salePrice = service?.price_cents || 0;
         const profit = salePrice - costBase;
+
+        // Calculate REAL margin
+        const realMarginPct = costBase > 0 ? ((profit / costBase) * 100) : 0;
+        const hasLoss = realMarginPct < 0;
+        const hasLowMargin = realMarginPct >= 0 && realMarginPct < 10;
+
+        // Calculate suggested price for configured margin
+        const suggestedPrice = Math.round(costBase * (1 + configuredMarginPct / 100));
 
         return (
           <div className="flex flex-col gap-1">
             <span className="text-xs text-muted-foreground font-medium sm:hidden">{t('price_with_margin')}</span>
             <Popover>
               <PopoverTrigger asChild>
-                <button className="text-right font-bold flex items-center justify-end gap-1.5 cursor-pointer text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors">
+                <button className={`text-right font-bold flex items-center justify-end gap-1.5 cursor-pointer transition-colors ${
+                  hasLoss
+                    ? 'text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300'
+                    : hasLowMargin
+                    ? 'text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300'
+                    : 'text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300'
+                }`}>
                   {formatCurrency(salePrice)}
                   <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors" />
                 </button>
@@ -171,17 +185,62 @@ export function ServicesTable({
                     <span className="font-semibold">{formatCurrency(costBase)}</span>
                   </div>
                   <div className="flex justify-between gap-4">
-                    <span className="text-muted-foreground font-medium">{t('margin_label')}:</span>
-                    <span className="font-semibold">{marginPct}%</span>
+                    <span className="text-muted-foreground font-medium">{t('price_with_margin')}:</span>
+                    <span className="font-semibold">{formatCurrency(salePrice)}</span>
                   </div>
-                  <div className="flex justify-between gap-4 bg-emerald-50 dark:bg-emerald-950/30 p-2 rounded">
-                    <span className="text-emerald-700 dark:text-emerald-300 font-semibold">{t('profit_label')}:</span>
-                    <span className="font-bold text-emerald-700 dark:text-emerald-300">{formatCurrency(profit)}</span>
+                  <div className="border-t pt-2 mt-2"></div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-muted-foreground font-medium">{t('real_margin')}:</span>
+                    <span className={`font-bold ${hasLoss ? 'text-red-600 dark:text-red-400' : hasLowMargin ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                      {realMarginPct.toFixed(1)}%
+                      {hasLoss && ' ⚠️'}
+                    </span>
                   </div>
-                  <div className="border-t pt-2 mt-2 flex justify-between gap-4">
-                    <span className="font-bold text-base">{t('price_with_margin')}:</span>
-                    <span className="font-bold text-base">{formatCurrency(salePrice)}</span>
+                  <div className="flex justify-between gap-4 text-xs">
+                    <span className="text-muted-foreground">{t('configured_margin')}:</span>
+                    <span className="text-muted-foreground">{configuredMarginPct}%</span>
                   </div>
+                  <div className={`flex justify-between gap-4 p-2 rounded ${
+                    hasLoss
+                      ? 'bg-red-50 dark:bg-red-950/30'
+                      : hasLowMargin
+                      ? 'bg-amber-50 dark:bg-amber-950/30'
+                      : 'bg-emerald-50 dark:bg-emerald-950/30'
+                  }`}>
+                    <span className={`font-semibold ${
+                      hasLoss
+                        ? 'text-red-700 dark:text-red-300'
+                        : hasLowMargin
+                        ? 'text-amber-700 dark:text-amber-300'
+                        : 'text-emerald-700 dark:text-emerald-300'
+                    }`}>{t('profit_label')}:</span>
+                    <span className={`font-bold ${
+                      hasLoss
+                        ? 'text-red-700 dark:text-red-300'
+                        : hasLowMargin
+                        ? 'text-amber-700 dark:text-amber-300'
+                        : 'text-emerald-700 dark:text-emerald-300'
+                    }`}>{formatCurrency(profit)}</span>
+                  </div>
+
+                  {hasLoss && (
+                    <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 p-3 rounded-md space-y-2">
+                      <p className="text-xs font-semibold text-red-700 dark:text-red-300">
+                        ⚠️ {t('margin_warning')}
+                      </p>
+                      <p className="text-xs text-red-600 dark:text-red-400">
+                        {t('suggested_price_for_margin', { margin: configuredMarginPct })}: <span className="font-bold">{formatCurrency(suggestedPrice)}</span>
+                      </p>
+                    </div>
+                  )}
+
+                  {hasLowMargin && (
+                    <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 p-2 rounded-md">
+                      <p className="text-xs text-amber-700 dark:text-amber-300">
+                        {t('low_margin_warning')}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </PopoverContent>
