@@ -122,7 +122,7 @@ export function ServicesTable({
   return (
     <DataTable
       columns={columns}
-      mobileColumns={[columns[0], columns[4]]}
+      mobileColumns={[columns[0], columns[1], columns[2], columns[3], columns[4]]}
       data={services || []}
       loading={loading}
       searchPlaceholder={t('search_services')}
