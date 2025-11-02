@@ -111,6 +111,12 @@ export default function TariffsPage() {
   }
 
   // Summary cards data
+  const totalRevenue = tariffs.reduce((acc, t) => acc + t.rounded_price, 0)
+  const totalProfit = tariffs.reduce((acc, t) => {
+    const cost = (t.fixed_cost_cents || 0) + (t.variable_cost_cents || 0)
+    return acc + (t.rounded_price - cost)
+  }, 0)
+
   const summaryCards = [
     {
       title: t('total_services'),
@@ -119,17 +125,15 @@ export default function TariffsPage() {
     },
     {
       title: t('average_margin'),
-      value: tariffs.length > 0 
+      value: tariffs.length > 0
         ? `${Math.round(tariffs.reduce((acc, t) => acc + t.margin_pct, 0) / tariffs.length)}%`
         : '0%',
       description: t('across_all_services')
     },
     {
-      title: t('total_revenue'),
-      value: formatCurrency(
-        tariffs.reduce((acc, t) => acc + t.rounded_price, 0)
-      ),
-      description: t('if_all_sold_once')
+      title: t('potential_profit'),
+      value: formatCurrency(totalProfit),
+      description: `${t('total_revenue')}: ${formatCurrency(totalRevenue)}`
     }
   ]
 
