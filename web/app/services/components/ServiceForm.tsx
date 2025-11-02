@@ -148,6 +148,16 @@ export function ServiceForm({
               <p className="text-sm text-red-600 mt-1">{form.formState.errors.base_price_cents?.message}</p>
             )}
           </div>
+          <InputField
+            type="number"
+            label={t('fields.margin_pct')}
+            placeholder="30"
+            {...form.register('margin_pct', { valueAsNumber: true })}
+            helperText={t('margin_pct_helper')}
+            error={form.formState.errors.margin_pct?.message}
+            min={0}
+            max={500}
+          />
         </FormGrid>
         <div className="space-y-1">
           <label className="text-sm font-medium">

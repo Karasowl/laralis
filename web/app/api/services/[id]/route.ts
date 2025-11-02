@@ -132,18 +132,29 @@ export async function PUT(
     const category = body.category || 'otros';
     const description = body.description || null;
 
-    // Use base_price_cents from the form (already calculated with fixed + variable costs)
-    // Fall back to price_cents for backwards compatibility
-    const price_cents = Math.round(body.base_price_cents || body.price_cents || 0);
+    // Get margin percentage, default to 30%
+    const margin_pct = typeof body.margin_pct === 'number' ? body.margin_pct : 30;
+
+    // Calculate price WITH margin
+    // If base_price_cents is provided, use it and apply margin
+    // Otherwise fall back to price_cents (backwards compatibility)
+    let price_cents;
+    if (body.base_price_cents) {
+      const base_price = Math.round(body.base_price_cents);
+      price_cents = Math.round(base_price * (1 + margin_pct / 100));
+    } else {
+      price_cents = Math.round(body.price_cents || 0);
+    }
 
     const { data, error } = await supabaseAdmin
       .from('services')
-      .update({ 
-        name, 
+      .update({
+        name,
         est_minutes,
         category,
         description,
         price_cents,
+        margin_pct,
         updated_at: new Date().toISOString()
       })
       .eq('id', params.id)

@@ -1264,8 +1264,10 @@
       "quantity": "Quantity",
       "unit": "Unit",
       "cost_per_unit": "Cost per Unit",
-      "base_price_auto": "Base Price (auto)"
+      "base_price_auto": "Base Price (auto)",
+      "margin_pct": "Profit Margin (%)"
     },
+    "margin_pct_helper": "Profit percentage over base cost (e.g., 30 = 30% margin)",
     "select_category": "Select a category",
     "entities": {
       "category": "Category",

@@ -41,7 +41,8 @@ const DEFAULT_SERVICE_FORM_VALUES: ServiceFormData = {
   category: 'otros',
   est_minutes: 30,
   base_price_cents: 0,
-  description: ''
+  description: '',
+  margin_pct: 30
 };
 
 export default function ServicesPage() {
