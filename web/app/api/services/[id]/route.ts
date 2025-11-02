@@ -55,6 +55,7 @@ export async function GET(
       .select('*')
       .eq('id', params.id)
       .eq('clinic_id', clinicId)
+      .eq('is_active', true)  // Only fetch active services (not soft-deleted)
       .single();
 
     if (serviceError) {
