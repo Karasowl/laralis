@@ -129,19 +129,25 @@ export function ServiceForm({
             error={form.formState.errors.est_minutes?.message}
             required
           />
-          <InputField
-            type="number"
-            step="0.01"
-            label={t('fields.base_price_auto')}
-            {...form.register('base_price_cents', {
-              setValueAs: (v: any) => (typeof v === 'number' ? v / 100 : 0),
-              valueAsNumber: true
-            })}
-            readOnly
-            className="bg-muted text-muted-foreground"
-            helperText={t('auto_base_price_hint')}
-            error={form.formState.errors.base_price_cents?.message}
-          />
+          <div>
+            <label className="text-sm font-medium block mb-2">
+              {t('fields.base_price_auto')}
+            </label>
+            <input
+              type="text"
+              value={formatCurrency(totalServiceCostCents)}
+              readOnly
+              className="flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground ring-offset-background"
+            />
+            <input
+              type="hidden"
+              {...form.register('base_price_cents', { valueAsNumber: true })}
+            />
+            <p className="text-xs text-muted-foreground mt-1">{t('auto_base_price_hint')}</p>
+            {form.formState.errors.base_price_cents?.message && (
+              <p className="text-sm text-red-600 mt-1">{form.formState.errors.base_price_cents?.message}</p>
+            )}
+          </div>
         </FormGrid>
         <div className="space-y-1">
           <label className="text-sm font-medium">
