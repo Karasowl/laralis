@@ -153,13 +153,16 @@ export default function TariffsPage() {
       render: (_value: unknown, tariff: TariffRow) => {
         const totalCost = (tariff.fixed_cost_cents || 0) + (tariff.variable_cost_cents || 0)
         return (
-          <div className="text-right">
-            <div>{formatCurrency(totalCost)}</div>
-            <div className="text-xs text-muted-foreground">
-              {t('fixed')}: {formatCurrency(tariff.fixed_cost_cents || 0)}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {t('variable')}: {formatCurrency(tariff.variable_cost_cents || 0)}
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-muted-foreground font-medium sm:hidden">{t('costs')}</span>
+            <div className="text-right">
+              <div className="font-semibold">{formatCurrency(totalCost)}</div>
+              <div className="text-xs text-muted-foreground">
+                {t('fixed')}: {formatCurrency(tariff.fixed_cost_cents || 0)}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {t('variable')}: {formatCurrency(tariff.variable_cost_cents || 0)}
+              </div>
             </div>
           </div>
         )
@@ -169,10 +172,13 @@ export default function TariffsPage() {
       key: 'margin',
       label: t('margin'),
       render: (_value: number, tariff: TariffRow) => (
-        <div className="text-center">
-          <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-sm font-medium">
-            {tariff.margin_pct}%
-          </span>
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground font-medium sm:hidden">{t('margin')}</span>
+          <div className="text-center">
+            <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-sm font-medium">
+              {tariff.margin_pct}%
+            </span>
+          </div>
         </div>
       )
     },
@@ -200,15 +206,18 @@ export default function TariffsPage() {
       key: 'price',
       label: t('final_price'),
       render: (_value: number, tariff: TariffRow) => (
-        <div className="text-right">
-          <div className="font-semibold text-lg">
-            {formatCurrency(tariff.rounded_price)}
-          </div>
-          {tariff.rounded_price !== tariff.final_price && (
-            <div className="text-xs text-muted-foreground line-through">
-              {formatCurrency(tariff.final_price)}
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground font-medium sm:hidden">{t('final_price')}</span>
+          <div className="text-right">
+            <div className="font-semibold text-lg">
+              {formatCurrency(tariff.rounded_price)}
             </div>
-          )}
+            {tariff.rounded_price !== tariff.final_price && (
+              <div className="text-xs text-muted-foreground line-through">
+                {formatCurrency(tariff.final_price)}
+              </div>
+            )}
+          </div>
         </div>
       )
     },
@@ -216,15 +225,18 @@ export default function TariffsPage() {
       key: 'actions',
       label: tRoot('common.actions'),
       render: (_value: unknown, tariff: TariffRow) => (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => openEditModal(tariff)}
-          className="whitespace-nowrap"
-        >
-          <Calculator className="h-4 w-4 lg:mr-2" />
-          <span className="hidden lg:inline">{t('adjust')}</span>
-        </Button>
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground font-medium sm:hidden invisible">.</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => openEditModal(tariff)}
+            className="whitespace-nowrap"
+          >
+            <Calculator className="h-4 w-4 lg:mr-2" />
+            <span className="hidden lg:inline">{t('adjust')}</span>
+          </Button>
+        </div>
       )
     }
   ]
