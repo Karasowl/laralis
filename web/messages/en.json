@@ -1141,6 +1141,7 @@
     "variableCost": "Variable Cost",
     "totalCost": "Total Cost",
     "margin": "Utility %",
+    "target_price": "Target Price",
     "finalPrice": "Final Price",
     "roundedPrice": "Rounded Price",
     "defaultMargin": "Default Utility (%)",
@@ -1328,6 +1329,7 @@
       "margin_pct": "Utility (%)"
     },
     "margin_pct_helper": "Utility percentage over base cost (e.g., 30 = 30% utility)",
+    "target_price_helper": "Desired final price - utility adjusts automatically",
     "select_category": "Select a category",
     "entities": {
       "category": "Category",

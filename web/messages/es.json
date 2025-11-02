@@ -1169,6 +1169,7 @@
     "variableCost": "Costo Variable",
     "totalCost": "Costo Total",
     "margin": "Utilidad %",
+    "target_price": "Precio Deseado",
     "finalPrice": "Precio Final",
     "roundedPrice": "Precio Redondeado",
     "defaultMargin": "Utilidad Predeterminada (%)",
@@ -1354,6 +1355,7 @@
       "margin_pct": "Utilidad (%)"
     },
     "margin_pct_helper": "Porcentaje de utilidad sobre el costo base (ej: 30 = 30% de utilidad)",
+    "target_price_helper": "Precio final deseado - la utilidad se ajusta automáticamente",
     "select_category": "Selecciona una categoría",
     "entities": {
       "category": "Categoría",

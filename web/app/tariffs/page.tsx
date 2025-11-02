@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { formatCurrency } from '@/lib/format'
 import { Calculator, RefreshCw, Save, Tag, Percent } from 'lucide-react'
 import { useTariffs, TariffRow } from '@/hooks/use-tariffs'
+import { calculateRequiredMargin, calcularPrecioFinal } from '@/lib/calc/tarifa'
 import { useRequirementsGuard } from '@/lib/requirements/useGuard'
 import { toast } from 'sonner'
 import { Form } from '@/components/ui/form'
@@ -29,7 +30,8 @@ const bulkOperationSchema = z.object({
 // Schema for individual tariff edit
 const tariffEditSchema = z.object({
   serviceId: z.string(),
-  margin: z.number().min(0).max(100)
+  margin: z.number().min(0).max(300),
+  targetPrice: z.number().min(0).optional()
 })
 
 export default function TariffsPage() {
@@ -78,7 +80,8 @@ export default function TariffsPage() {
     resolver: zodResolver(tariffEditSchema),
     defaultValues: {
       serviceId: '',
-      margin: 30
+      margin: 30,
+      targetPrice: 0
     }
   })
 
@@ -112,8 +115,11 @@ export default function TariffsPage() {
       return
     }
     setSelectedTariff(tariff)
+    const baseCost = (tariff.fixed_cost_cents || 0) + (tariff.variable_cost_cents || 0)
+    const targetPrice = calcularPrecioFinal(baseCost, tariff.margin_pct)
     editForm.setValue('serviceId', tariff.id)
     editForm.setValue('margin', tariff.margin_pct)
+    editForm.setValue('targetPrice', Math.round(targetPrice / 100)) // Convert to pesos
     setEditModalOpen(true)
   }
 
@@ -493,55 +499,117 @@ export default function TariffsPage() {
       {/* Individual Edit Modal */}
       <FormModal
         open={editModalOpen}
-        onOpenChange={(open) => { setEditModalOpen(open); if (!open) { editForm.reset({ serviceId: '', margin: 30 }); setSelectedTariff(null) } }}
-        title={selectedTariff ? `${t('adjust_tariff')}: ${selectedTariff.name}` : t('adjust_tariff')}
+        onOpenChange={(open) => {
+          setEditModalOpen(open)
+          if (!open) {
+            editForm.reset({ serviceId: '', margin: 30, targetPrice: 0 })
+            setSelectedTariff(null)
+          }
+        }}
+        title={selectedTariff ? `${t('adjust')}: ${selectedTariff.name}` : t('adjust')}
         onSubmit={editForm.handleSubmit(handleIndividualEdit)}
-        maxWidth="sm"
+        maxWidth="md"
       >
         <Form {...editForm}>
           <FormSection>
-            <div>
-              <label className="text-sm font-medium mb-2 block">{t('margin_percentage')}</label>
-              <input
-                type="number"
-                {...editForm.register('margin', { valueAsNumber: true })}
-                placeholder="30"
-                min={0}
-                max={100}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              />
-              {editForm.formState.errors.margin?.message && (
-                <p className="text-sm text-red-600 mt-1">{editForm.formState.errors.margin?.message}</p>
-              )}
-            </div>
+            {selectedTariff && (() => {
+              const baseCostCents = (selectedTariff.fixed_cost_cents || 0) + (selectedTariff.variable_cost_cents || 0)
+              const watchedMargin = editForm.watch('margin')
+              const watchedTargetPrice = editForm.watch('targetPrice')
 
-            {selectedTariff && (
-              <div className="mt-4 p-4 bg-muted rounded-lg">
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span>{t('total_cost')}:</span>
-                    <span className="font-medium">
-                      {formatCurrency(
-                        (selectedTariff.fixed_cost_cents || 0) +
-                        (selectedTariff.variable_cost_cents || 0)
+              // Sync: When margin changes, update target price
+              const handleMarginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+                const newMargin = parseFloat(e.target.value) || 0
+                const newPriceCents = calcularPrecioFinal(baseCostCents, newMargin)
+                editForm.setValue('margin', newMargin)
+                editForm.setValue('targetPrice', Math.round(newPriceCents / 100), { shouldValidate: false })
+              }
+
+              // Sync: When target price changes, update margin
+              const handleTargetPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+                const newPricePesos = parseFloat(e.target.value) || 0
+                const newPriceCents = newPricePesos * 100
+                const requiredMargin = baseCostCents > 0
+                  ? calculateRequiredMargin(baseCostCents, newPriceCents) * 100
+                  : 0
+                editForm.setValue('targetPrice', newPricePesos)
+                editForm.setValue('margin', Math.round(requiredMargin * 10) / 10, { shouldValidate: false })
+              }
+
+              const calculatedPriceCents = calcularPrecioFinal(baseCostCents, watchedMargin)
+              const profitCents = calculatedPriceCents - baseCostCents
+
+              return (
+                <div className="space-y-4">
+                  {/* Two-column grid for margin and target price */}
+                  <FormGrid columns={2}>
+                    {/* Utilidad % */}
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">
+                        {t('margin')}
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          value={watchedMargin}
+                          onChange={handleMarginChange}
+                          placeholder="30"
+                          min={0}
+                          step={0.1}
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pr-8 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        />
+                        <span className="absolute right-3 top-2.5 text-sm text-muted-foreground">%</span>
+                      </div>
+                      {editForm.formState.errors.margin?.message && (
+                        <p className="text-sm text-red-600 mt-1">{editForm.formState.errors.margin.message}</p>
                       )}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>{t('with_margin')} {editForm.watch('margin')}%:</span>
-                    <span className="font-medium">
-                      {formatCurrency(
-                        Math.round(
-                          ((selectedTariff.fixed_cost_cents || 0) +
-                           (selectedTariff.variable_cost_cents || 0)) *
-                          (1 + editForm.watch('margin') / 100)
-                        )
+                    </div>
+
+                    {/* Precio Deseado */}
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">
+                        {t('target_price')}
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-2.5 text-sm text-muted-foreground">$</span>
+                        <input
+                          type="number"
+                          value={watchedTargetPrice}
+                          onChange={handleTargetPriceChange}
+                          placeholder="500"
+                          min={0}
+                          step={10}
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pl-8 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        />
+                      </div>
+                      {editForm.formState.errors.targetPrice?.message && (
+                        <p className="text-sm text-red-600 mt-1">{editForm.formState.errors.targetPrice.message}</p>
                       )}
-                    </span>
+                    </div>
+                  </FormGrid>
+
+                  {/* Preview Card */}
+                  <div className="p-4 bg-muted rounded-lg">
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">{t('total_cost')}:</span>
+                        <span className="font-medium">{formatCurrency(baseCostCents)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">{t('profit_amount')}:</span>
+                        <span className="font-semibold text-emerald-600">
+                          +{formatCurrency(profitCents)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between border-t pt-2">
+                        <span className="font-medium">{t('final_price')}:</span>
+                        <span className="font-bold text-lg">{formatCurrency(calculatedPriceCents)}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )
+            })()}
           </FormSection>
         </Form>
       </FormModal>

@@ -8,6 +8,7 @@ import { InputField, TextareaField, FormGrid, FormSection } from '@/components/u
 import { SelectWithCreate } from '@/components/ui/select-with-create'
 import { CategorySelect } from '@/components/ui/category-select'
 import { formatCurrency } from '@/lib/money'
+import { calculateRequiredMargin, calcularPrecioFinal } from '@/lib/calc/tarifa'
 
 interface ServiceFormProps {
   form: any
@@ -46,6 +47,8 @@ export function ServiceForm({
   const categoryValue = useWatch({ control: form.control, name: 'category' })
   const estMinutes = useWatch({ control: form.control, name: 'est_minutes' })
   const descriptionValue = useWatch({ control: form.control, name: 'description' })
+  const marginPct = useWatch({ control: form.control, name: 'margin_pct' })
+  const targetPrice = useWatch({ control: form.control, name: 'target_price' })
 
   // PERFORMANCE FIX: Memoize category options mapping to avoid recreation on every render
   const categoryOptions = React.useMemo(
@@ -96,6 +99,24 @@ export function ServiceForm({
       quantityRefs.current[serviceSupplies.length]?.focus()
     }, 0)
   }, [serviceSupplies, onSuppliesChange])
+
+  // Sync handlers for margin_pct <-> target_price
+  const handleMarginChange = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const newMargin = parseFloat(e.target.value) || 0
+    const newPriceCents = calcularPrecioFinal(totalServiceCostCents, newMargin)
+    form.setValue('margin_pct', newMargin)
+    form.setValue('target_price', Math.round(newPriceCents / 100), { shouldValidate: false })
+  }, [totalServiceCostCents, form])
+
+  const handleTargetPriceChange = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const newPricePesos = parseFloat(e.target.value) || 0
+    const newPriceCents = newPricePesos * 100
+    const requiredMargin = totalServiceCostCents > 0
+      ? calculateRequiredMargin(totalServiceCostCents, newPriceCents) * 100
+      : 0
+    form.setValue('target_price', newPricePesos)
+    form.setValue('margin_pct', Math.round(requiredMargin * 10) / 10, { shouldValidate: false })
+  }, [totalServiceCostCents, form])
 
   return (
     <div className="space-y-6">
@@ -150,16 +171,48 @@ export function ServiceForm({
               <p className="text-sm text-red-600 mt-1">{form.formState.errors.base_price_cents?.message}</p>
             )}
           </div>
-          <InputField
-            type="number"
-            label={t('fields.margin_pct')}
-            placeholder="30"
-            {...form.register('margin_pct', { valueAsNumber: true })}
-            helperText={t('margin_pct_helper')}
-            error={form.formState.errors.margin_pct?.message}
-            min={0}
-            max={500}
-          />
+          {/* Utilidad % */}
+          <div>
+            <label className="text-sm font-medium mb-2 block">
+              {t('fields.margin_pct')}
+            </label>
+            <div className="relative">
+              <input
+                type="number"
+                value={marginPct ?? 30}
+                onChange={handleMarginChange}
+                placeholder="30"
+                min={0}
+                step={0.1}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pr-8 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              />
+              <span className="absolute right-3 top-2.5 text-sm text-muted-foreground">%</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">{t('margin_pct_helper')}</p>
+            {form.formState.errors.margin_pct?.message && (
+              <p className="text-sm text-red-600 mt-1">{form.formState.errors.margin_pct?.message}</p>
+            )}
+          </div>
+
+          {/* Precio Deseado */}
+          <div>
+            <label className="text-sm font-medium mb-2 block">
+              {t('target_price')}
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-2.5 text-sm text-muted-foreground">$</span>
+              <input
+                type="number"
+                value={targetPrice ?? 0}
+                onChange={handleTargetPriceChange}
+                placeholder="500"
+                min={0}
+                step={10}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pl-8 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">{t('target_price_helper')}</p>
+          </div>
         </FormGrid>
         <div className="space-y-1">
           <label className="text-sm font-medium">
