@@ -142,3 +142,79 @@ export function calcularPrecioFinal(
   const marginCents = calculateMargin(baseCostCents, marginDecimal);
   return calculateFinalPrice(baseCostCents, marginCents);
 }
+
+/**
+ * Calculates discount amount based on type
+ */
+export function calculateDiscountAmount(
+  basePriceCents: number,
+  discountType: 'none' | 'percentage' | 'fixed',
+  discountValue: number
+): number {
+  if (discountType === 'none' || discountValue === 0) {
+    return 0;
+  }
+
+  if (discountType === 'percentage') {
+    // Percentage discount: value is 0-100
+    if (discountValue < 0 || discountValue > 100) {
+      throw new Error('Percentage discount must be between 0 and 100');
+    }
+    return Math.round(basePriceCents * (discountValue / 100));
+  }
+
+  if (discountType === 'fixed') {
+    // Fixed discount: value is amount in cents
+    if (discountValue < 0) {
+      throw new Error('Fixed discount cannot be negative');
+    }
+    // Discount cannot exceed base price
+    return Math.min(discountValue, basePriceCents);
+  }
+
+  return 0;
+}
+
+/**
+ * Calculates final price after applying discount
+ * @param basePriceCents - Price before discount (in cents)
+ * @param discountType - Type of discount ('none', 'percentage', 'fixed')
+ * @param discountValue - Discount value (0-100 for percentage, cents for fixed)
+ * @returns Final price in cents (never negative)
+ */
+export function calcularPrecioConDescuento(
+  basePriceCents: number,
+  discountType: 'none' | 'percentage' | 'fixed',
+  discountValue: number
+): number {
+  if (basePriceCents < 0) {
+    throw new Error('Base price cannot be negative');
+  }
+
+  const discountAmount = calculateDiscountAmount(
+    basePriceCents,
+    discountType,
+    discountValue
+  );
+
+  const finalPrice = basePriceCents - discountAmount;
+
+  // Ensure price never goes below 0
+  return Math.max(0, finalPrice);
+}
+
+/**
+ * Calculates discount percentage from original and final prices
+ * Useful for displaying effective discount rate
+ */
+export function calculateEffectiveDiscountPercentage(
+  originalPriceCents: number,
+  finalPriceCents: number
+): number {
+  if (originalPriceCents <= 0) {
+    return 0;
+  }
+
+  const discountAmount = originalPriceCents - finalPriceCents;
+  return (discountAmount / originalPriceCents) * 100;
+}

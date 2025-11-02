@@ -152,8 +152,31 @@ export const expenseFormSchema = z.object({
 })
 
 // ==================== TARIFF SCHEMAS ====================
+export const discountConfigSchema = z.object({
+  enabled: z.boolean(),
+  type: z.enum(['percentage', 'fixed']),
+  value: z.number().min(0)
+})
+
 export const tariffEditSchema = z.object({
-  margin_pct: z.number().min(0).max(1000)
+  margin_pct: z.number().min(0).max(1000),
+  discount_type: z.enum(['none', 'percentage', 'fixed']).optional(),
+  discount_value: z.number().min(0).optional(),
+  discount_reason: z.string().optional()
+})
+
+export const tariffDiscountSchema = z.object({
+  discount_type: z.enum(['none', 'percentage', 'fixed']),
+  discount_value: z.number().min(0),
+  discount_reason: z.string().optional()
+}).refine((data) => {
+  if (data.discount_type === 'percentage' && data.discount_value > 100) {
+    return false
+  }
+  return true
+}, {
+  message: 'Percentage discount cannot exceed 100%',
+  path: ['discount_value']
 })
 
 export const bulkOperationSchema = z.object({
@@ -190,7 +213,9 @@ export type ServiceFormData = z.infer<typeof serviceSchema>
 export type CategoryData = z.infer<typeof categorySchema>
 export type TreatmentFormData = z.infer<typeof treatmentFormSchema>
 export type ExpenseFormData = z.infer<typeof expenseFormSchema>
+export type DiscountConfigData = z.infer<typeof discountConfigSchema>
 export type TariffEditData = z.infer<typeof tariffEditSchema>
+export type TariffDiscountData = z.infer<typeof tariffDiscountSchema>
 export type BulkOperationData = z.infer<typeof bulkOperationSchema>
 export type PlatformData = z.infer<typeof platformSchema>
 export type CampaignData = z.infer<typeof campaignSchema>

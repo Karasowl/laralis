@@ -5,10 +5,17 @@ export interface Organization {
   created_at?: string;
 }
 
+export interface DiscountConfig {
+  enabled: boolean;
+  type: 'percentage' | 'fixed';
+  value: number;
+}
+
 export interface Clinic {
   id: string;
   org_id: string;
   name: string;
+  global_discount_config?: DiscountConfig;
   created_at?: string;
 }
 
@@ -71,6 +78,27 @@ export interface ServiceWithCost extends Service {
   variable_cost_cents?: number;
   fixed_cost_cents?: number;
   total_cost_cents?: number;
+}
+
+export interface Tariff {
+  id: string;
+  clinic_id: string;
+  service_id: string;
+  version: number;
+  valid_from: string;
+  valid_until?: string | null;
+  fixed_cost_per_minute_cents: number;
+  variable_cost_cents: number;
+  margin_pct: number;
+  price_cents: number;
+  rounded_price_cents: number;
+  discount_type?: 'none' | 'percentage' | 'fixed';
+  discount_value?: number;
+  discount_reason?: string | null;
+  final_price_with_discount_cents?: number;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Asset {
