@@ -279,11 +279,18 @@ export default function ServicesPage() {
           title={t('title')}
           subtitle={t('subtitle')}
           actions={
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setCategoryModalOpen(true)}>
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <Button
+                variant="outline"
+                onClick={() => setCategoryModalOpen(true)}
+                className="w-full sm:w-auto h-10"
+              >
                 {t('manage_categories')}
               </Button>
-              <Button onClick={async () => { const { allowed } = await ensureReady('create_service'); if (allowed) setCreateOpen(true) }}>
+              <Button
+                onClick={async () => { const { allowed } = await ensureReady('create_service'); if (allowed) setCreateOpen(true) }}
+                className="w-full sm:w-auto h-10"
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 {t('add_service')}
               </Button>
