@@ -281,6 +281,7 @@ export default function ServicesPage() {
           services={services}
           loading={loading}
           categories={categories}
+          fixedCostPerMinuteCents={fixedCostPerMinuteCents}
           onManageSupplies={handleManageSupplies}
           onEdit={handleEditService}
           onDelete={handleDeleteService}

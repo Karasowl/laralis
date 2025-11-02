@@ -68,7 +68,8 @@
     "systemTheme": "Sistema",
     "status": "Estado",
     "created": "Creado",
-    "srClose": "Cerrar"
+    "srClose": "Cerrar",
+    "total": "Total"
   },
   "navigation": {
     "dashboard": "Inicio",
@@ -1269,6 +1270,9 @@
     "search_services": "Buscar servicios...",
     "no_services": "No hay servicios",
     "no_services_description": "Agrega tu primer servicio para comenzar",
+    "price_breakdown": "Desglose de Precio",
+    "fixed_cost_label": "Costo Fijo",
+    "variable_cost_label": "Costo Variable",
     "fields": {
       "name": "Nombre",
       "category": "Categoría",
