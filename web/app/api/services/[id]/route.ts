@@ -141,8 +141,8 @@ export async function PUT(
     // Otherwise fall back to price_cents (backwards compatibility)
     let price_cents;
     if (body.base_price_cents) {
-      const base_price = Math.round(body.base_price_cents);
-      price_cents = Math.round(base_price * (1 + margin_pct / 100));
+      const base_price = Math.round(body.base_price_cents || 0);
+      price_cents = base_price > 0 ? Math.round(base_price * (1 + margin_pct / 100)) : 0;
     } else {
       price_cents = Math.round(body.price_cents || 0);
     }
