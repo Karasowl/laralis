@@ -49,7 +49,12 @@ export interface Service {
   clinic_id: string;
   name: string;
   est_minutes: number;
+  price_cents?: number;
+  margin_pct?: number;
+  category?: string;
+  description?: string | null;
   created_at?: string;
+  updated_at?: string;
 }
 
 export interface ServiceSupply {

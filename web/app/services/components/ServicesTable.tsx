@@ -98,14 +98,16 @@ export function ServicesTable({
         const minutes = service?.est_minutes || service?.duration_minutes || 0;
 
         return (
-          <Popover>
-            <PopoverTrigger asChild>
-              <button className="text-right font-medium flex items-center justify-end gap-1.5 cursor-pointer text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 transition-colors">
-                {formatCurrency(costBase)}
-                <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-80" side="left" align="start">
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-muted-foreground font-medium sm:hidden">{t('base_cost')}</span>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="text-right font-medium flex items-center justify-end gap-1.5 cursor-pointer text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 transition-colors">
+                  {formatCurrency(costBase)}
+                  <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors" />
+                </button>
+              </PopoverTrigger>
+            <PopoverContent className="w-[calc(100vw-2rem)] sm:w-80 max-w-sm" side="bottom" align="end" sideOffset={4}>
               <div className="space-y-3 text-sm">
                 <div className="font-semibold border-b pb-2 text-base">
                   {t('cost_breakdown')}
@@ -135,6 +137,7 @@ export function ServicesTable({
               </div>
             </PopoverContent>
           </Popover>
+          </div>
         )
       }
     },
@@ -148,14 +151,16 @@ export function ServicesTable({
         const profit = salePrice - costBase;
 
         return (
-          <Popover>
-            <PopoverTrigger asChild>
-              <button className="text-right font-bold flex items-center justify-end gap-1.5 cursor-pointer text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors">
-                {formatCurrency(salePrice)}
-                <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-80" side="left" align="start">
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-muted-foreground font-medium sm:hidden">{t('price_with_margin')}</span>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="text-right font-bold flex items-center justify-end gap-1.5 cursor-pointer text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors">
+                  {formatCurrency(salePrice)}
+                  <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors" />
+                </button>
+              </PopoverTrigger>
+            <PopoverContent className="w-[calc(100vw-2rem)] sm:w-80 max-w-sm" side="bottom" align="end" sideOffset={4}>
               <div className="space-y-3 text-sm">
                 <div className="font-semibold border-b pb-2 text-base">
                   {t('profit_breakdown')}
@@ -181,6 +186,7 @@ export function ServicesTable({
               </div>
             </PopoverContent>
           </Popover>
+          </div>
         )
       }
     },

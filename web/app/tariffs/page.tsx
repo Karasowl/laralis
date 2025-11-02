@@ -220,9 +220,10 @@ export default function TariffsPage() {
           variant="outline"
           size="sm"
           onClick={() => openEditModal(tariff)}
+          className="whitespace-nowrap"
         >
-          <Calculator className="h-4 w-4 mr-2" />
-          {t('adjust')}
+          <Calculator className="h-4 w-4 lg:mr-2" />
+          <span className="hidden lg:inline">{t('adjust')}</span>
         </Button>
       )
     }
@@ -263,6 +264,7 @@ export default function TariffsPage() {
         items={tariffs}
         loading={loading}
         columns={columns}
+        mobileColumns={[columns[0], columns[1], columns[2], columns[4], columns[5]]}
         searchable={true}
         searchPlaceholder={t('search_services')}
         emptyTitle={t('no_services')}
