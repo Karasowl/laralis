@@ -256,12 +256,12 @@ export function ServiceForm({
               </Button>
             </div>
           ))}
-          <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex flex-col sm:flex-row gap-3">
             <Button
               type="button"
               variant="default"
               onClick={onOpenMultiSelector}
-              className="flex-1"
+              className="flex-1 h-11 px-4"
             >
               <ListChecks className="h-4 w-4 mr-2" />
               {t('add_multiple_supplies_button')}
@@ -270,7 +270,7 @@ export function ServiceForm({
               type="button"
               variant="outline"
               onClick={handleAddSupplyRow}
-              className="flex-1"
+              className="flex-1 h-11 px-4"
             >
               <Plus className="h-4 w-4 mr-2" />
               {t('add_single_supply')}
