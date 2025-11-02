@@ -1,18 +1,28 @@
 # Current Database Schema
 
-**Current Version:** v1
-**Date:** 2025-10-21
-**File:** [SCHEMA-v1-2025-10-21.md](schemas/SCHEMA-v1-2025-10-21.md)
+**Current Version:** v2
+**Date:** 2025-11-02
+**File:** [SCHEMA-v2-2025-11-02.md](schemas/SCHEMA-v2-2025-11-02.md)
+**Previous Version:** [v1 (2025-10-21)](schemas/SCHEMA-v1-2025-10-21.md)
 
 ---
 
 This file always points to the most recent schema version. When the schema changes, this file will be updated to reference the new version.
 
+## What's New in v2
+
+🆕 **Discount System** (Migration 45):
+- Global discount configuration at clinic level (`clinics.global_discount_config`)
+- Individual service discounts in tariffs (`tariffs.discount_*` fields)
+- Support for percentage and fixed-amount discounts
+- Database function for discount calculations (`calculate_discounted_price()`)
+
 ## Quick Links
 
-- 📄 [Current Schema (v1)](schemas/SCHEMA-v1-2025-10-21.md)
+- 📄 [Current Schema (v2)](schemas/SCHEMA-v2-2025-11-02.md)
 - 📋 [Schema Changelog](SCHEMA-CHANGELOG.md)
 - 🔄 [All Schema Versions](schemas/)
+- 📜 [Previous Version (v1)](schemas/SCHEMA-v1-2025-10-21.md)
 
 ## How to Update Schema
 

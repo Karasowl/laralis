@@ -4,9 +4,76 @@ This file tracks all changes to the database schema across versions.
 
 ---
 
-## Version 1 (2025-10-21)
+## Version 2 (2025-11-02)
 
 **Status:** ✅ Current
+**Migration:** 45 (add_discount_system)
+**File:** [SCHEMA-v2-2025-11-02.md](schemas/SCHEMA-v2-2025-11-02.md)
+
+### Discount System Implementation
+
+This version adds comprehensive support for discounts at both clinic (global) and tariff (individual service) levels.
+
+#### Modified Tables
+
+**`clinics`**
+- ➕ Added `global_discount_config` (jsonb): Global discount configuration
+  - Structure: `{enabled: bool, type: "percentage"|"fixed", value: number}`
+  - Allows setting a clinic-wide default discount for all services
+  - Can be overridden by individual tariff discounts
+
+**`tariffs`**
+- ➕ Added `discount_type` (varchar): Type of discount (none, percentage, fixed)
+- ➕ Added `discount_value` (numeric): Discount value (% or cents)
+- ➕ Added `discount_reason` (text): Optional description/justification
+- ➕ Added `final_price_with_discount_cents` (integer): Final price after discount
+
+#### Added Database Functions
+
+**`calculate_discounted_price()`**
+- Signature: `(base_price_cents INT, discount_type VARCHAR, discount_value NUMERIC) → INTEGER`
+- Purpose: Calculate final price after applying discount
+- Logic:
+  - `none` or `value=0` → return base price
+  - `percentage` → discount = base × (value/100)
+  - `fixed` → discount = value (in cents)
+  - Returns base - discount (never negative)
+
+#### Added Indexes
+
+- `idx_tariffs_discount_type` on `tariffs(discount_type)` where `discount_type != 'none'`
+  - Optimizes queries for services with active discounts
+
+#### Data Migration
+
+- Updated existing tariffs: Set `final_price_with_discount_cents = rounded_price_cents`
+- No discount applied to historical data (maintains `discount_type = 'none'`)
+
+#### Business Rules
+
+**Discount Priority:**
+1. Individual tariff discount (if `discount_type != 'none'`)
+2. Global clinic discount (if enabled)
+3. No discount
+
+**Discount Types:**
+- **Percentage**: 0-100% off the rounded price
+- **Fixed**: Fixed amount in cents (cannot exceed price)
+
+**Application Point:**
+- Discounts apply **after margin** is calculated
+- Applied at **tariff level** (price catalog)
+- **Before** treatment creation (snapshot includes discounted price)
+
+#### Breaking Changes
+
+⚠️ None. This is a non-breaking additive change.
+
+---
+
+## Version 1 (2025-10-21)
+
+**Status:** 📦 Archived
 **Migration:** Up to migration 41 (auto_create_clinic_categories)
 **File:** [SCHEMA-v1-2025-10-21.md](schemas/SCHEMA-v1-2025-10-21.md)
 
