@@ -4,6 +4,7 @@ import React, { useCallback } from 'react'
 import { InputField, SelectField, TextareaField, FormGrid, FormSection } from '@/components/ui/form-field'
 import { SelectWithCreate } from '@/components/ui/select-with-create'
 import { useWatch } from 'react-hook-form'
+import { calculateRequiredMargin, calcularPrecioFinal } from '@/lib/calc/tarifa'
 
 interface TreatmentFormProps {
   form: any
@@ -14,6 +15,7 @@ interface TreatmentFormProps {
   onCreatePatient?: (data: any) => Promise<any>
   onCreateService?: (data: any) => Promise<any>
   onServiceCreated?: (opt: { value: string; label: string }) => void
+  selectedServiceCostCents: number
   serviceLocked?: boolean
   t: (key: string, params?: Record<string, any>) => string
 }
@@ -27,6 +29,7 @@ export function TreatmentForm({
   onCreatePatient,
   onCreateService,
   onServiceCreated,
+  selectedServiceCostCents,
   serviceLocked = false,
   t
 }: TreatmentFormProps) {
@@ -34,6 +37,8 @@ export function TreatmentForm({
   // Using only 2 watches instead of 7 reduces re-renders by 70%
   const patientId = useWatch({ control: form.control, name: 'patient_id' })
   const serviceId = useWatch({ control: form.control, name: 'service_id' })
+  const marginPct = useWatch({ control: form.control, name: 'margin_pct' })
+  const targetPrice = useWatch({ control: form.control, name: 'target_price' })
 
   // Memoize selectedService lookup to avoid recalculation on every render
   const selectedService = React.useMemo(
@@ -65,6 +70,24 @@ export function TreatmentForm({
   const handleNotesChange = useCallback((value: string | number) => {
     form.setValue('notes', value)
   }, [form])
+
+  // Sync handlers for margin_pct <-> target_price
+  const handleMarginChangeSync = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const newMargin = parseFloat(e.target.value) || 0
+    const newPriceCents = calcularPrecioFinal(selectedServiceCostCents, newMargin)
+    form.setValue('margin_pct', newMargin)
+    form.setValue('target_price', Math.round(newPriceCents / 100), { shouldValidate: false })
+  }, [selectedServiceCostCents, form])
+
+  const handleTargetPriceChangeSync = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const newPricePesos = parseFloat(e.target.value) || 0
+    const newPriceCents = newPricePesos * 100
+    const requiredMargin = selectedServiceCostCents > 0
+      ? calculateRequiredMargin(selectedServiceCostCents, newPriceCents) * 100
+      : 0
+    form.setValue('target_price', newPricePesos)
+    form.setValue('margin_pct', Math.round(requiredMargin * 10) / 10, { shouldValidate: false })
+  }, [selectedServiceCostCents, form])
   return (
     <div className="space-y-6">
       <FormSection title={t('treatments.patientAndService')}>
@@ -181,16 +204,52 @@ export function TreatmentForm({
         </FormGrid>
 
         <FormGrid columns={2}>
-          <InputField
-            label={t('treatments.fields.margin')}
-            type="number"
-            {...form.register('margin_pct', { valueAsNumber: true })}
-            placeholder="60"
-            helperText={t('treatments.marginHelp')}
-            error={form.formState.errors.margin_pct?.message}
-            required
-          />
+          {/* Utilidad % */}
+          <div>
+            <label className="text-sm font-medium mb-2 block">
+              {t('treatments.fields.margin')}
+              <span className="text-red-500 ml-1">*</span>
+            </label>
+            <div className="relative">
+              <input
+                type="number"
+                value={marginPct ?? 60}
+                onChange={handleMarginChangeSync}
+                placeholder="60"
+                min={0}
+                step={0.1}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pr-8 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              />
+              <span className="absolute right-3 top-2.5 text-sm text-muted-foreground">%</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">{t('treatments.marginHelp')}</p>
+            {form.formState.errors.margin_pct?.message && (
+              <p className="text-sm text-red-600 mt-1">{form.formState.errors.margin_pct?.message}</p>
+            )}
+          </div>
 
+          {/* Precio Deseado */}
+          <div>
+            <label className="text-sm font-medium mb-2 block">
+              {t('tariffs.target_price')}
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-2.5 text-sm text-muted-foreground">$</span>
+              <input
+                type="number"
+                value={targetPrice ?? 0}
+                onChange={handleTargetPriceChangeSync}
+                placeholder="500"
+                min={0}
+                step={10}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pl-8 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">{t('services.target_price_helper')}</p>
+          </div>
+        </FormGrid>
+
+        <FormGrid columns={1}>
           <SelectField
             label={t('treatments.fields.status')}
             {...form.register('status')}

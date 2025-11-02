@@ -23,6 +23,7 @@ import { useRequirementsGuard } from '@/lib/requirements/useGuard'
 import { toast } from 'sonner'
 import { serviceSchema, type ServiceFormData } from '@/lib/schemas'
 import { Plus } from 'lucide-react'
+import { calcularPrecioFinal } from '@/lib/calc/tarifa'
 
 interface ServiceSupply {
   supply_id: string
@@ -43,7 +44,8 @@ const DEFAULT_SERVICE_FORM_VALUES: ServiceFormData = {
   est_minutes: 30,
   base_price_cents: 0,
   description: '',
-  margin_pct: 30
+  margin_pct: 30,
+  target_price: 0
 };
 
 export default function ServicesPage() {
@@ -235,13 +237,18 @@ export default function ServicesPage() {
       console.error('Service is invalid:', service)
       return
     }
+    const baseCost = service.base_price_cents || service.price_cents || 0
+    const margin = service.margin_pct ?? 30
+    const targetPriceCents = calcularPrecioFinal(baseCost, margin)
+
     form.reset({
       name: service.name,
       category: service.category || 'otros',
       est_minutes: service.est_minutes || service.duration_minutes || 30,
-      base_price_cents: service.base_price_cents || service.price_cents || 0,
+      base_price_cents: baseCost,
       description: service.description || '',
-      margin_pct: service.margin_pct ?? 30  // FIX: Load margin from service or default to 30%
+      margin_pct: margin,
+      target_price: Math.round(targetPriceCents / 100)
     })
     setSelectedServiceId(service.id)
     setEditService(service)

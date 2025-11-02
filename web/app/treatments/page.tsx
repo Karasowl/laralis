@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { AppLayout } from '@/components/layouts/AppLayout'
@@ -25,6 +25,7 @@ import { getLocalDateISO } from '@/lib/utils'
 import { formatDate } from '@/lib/format'
 import { Calendar, User, DollarSign, FileText, Activity, Clock, Plus } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { calcularPrecioFinal } from '@/lib/calc/tarifa'
 
 // Treatment form schema
 const treatmentFormSchema = z.object({
@@ -33,6 +34,7 @@ const treatmentFormSchema = z.object({
   treatment_date: z.string().min(1),
   minutes: z.number().min(1),
   margin_pct: z.number().min(0).max(100),
+  target_price: z.number().min(0).optional(),
   status: z.enum(['pending', 'completed', 'cancelled']),
   notes: z.string().optional(),
 })
@@ -83,6 +85,7 @@ export default function TreatmentsPage() {
     treatment_date: getLocalDateISO(),
     minutes: 30,
     margin_pct: 60,
+    target_price: 0,
     status: 'pending',
     notes: '',
   }
@@ -92,6 +95,13 @@ export default function TreatmentsPage() {
     defaultValues: treatmentInitialValues,
     mode: 'onBlur', // PERFORMANCE: Validate only on blur instead of every keystroke
   })
+
+  // Watch selected service to calculate base cost
+  const selectedServiceId = useWatch({ control: form.control, name: 'service_id' })
+  const selectedServiceCostCents = useMemo(() => {
+    const service = services.find(s => s.id === selectedServiceId)
+    return service?.base_price_cents || service?.price_cents || 0
+  }, [services, selectedServiceId])
 
   // Guard: ensure financial prerequisites before creating treatment
   const { ensureReady } = useRequirementsGuard(() => ({
@@ -236,12 +246,17 @@ export default function TreatmentsPage() {
           <ActionDropdown
             actions={[
             createEditAction(() => {
+              const baseCost = treatment?.snapshot_costs?.base_price_cents || treatment?.price_cents || 0
+              const margin = treatment?.margin_pct ?? 60
+              const targetPriceCents = calcularPrecioFinal(baseCost, margin)
+
               form.reset({
                 patient_id: treatment?.patient_id || '',
                 service_id: treatment?.service_id || '',
                 treatment_date: treatment?.treatment_date || getLocalDateISO(),
                 minutes: treatment?.minutes ?? 30,
-                margin_pct: treatment?.margin_pct ?? 60,
+                margin_pct: margin,
+                target_price: Math.round(targetPriceCents / 100),
                 status: treatment?.status || 'pending',
                 notes: treatment?.notes || '',
               })
@@ -446,8 +461,8 @@ export default function TreatmentsPage() {
               </div>
             </div>
           )}
-          <TreatmentForm 
-            form={form} 
+          <TreatmentForm
+            form={form}
             patients={patientOptions}
             services={serviceOptions}
             statusOptions={statusFormOptions}
@@ -455,6 +470,7 @@ export default function TreatmentsPage() {
             onCreatePatient={handleCreatePatient}
             onCreateService={handleCreateService}
             onServiceCreated={handleServiceCreated}
+            selectedServiceCostCents={selectedServiceCostCents}
             t={t}
           />
         </FormModal>
@@ -468,8 +484,8 @@ export default function TreatmentsPage() {
           isSubmitting={isSubmitting}
           maxWidth="2xl"
         >
-          <TreatmentForm 
-            form={form} 
+          <TreatmentForm
+            form={form}
             patients={patientOptions}
             services={serviceOptions}
             statusOptions={statusFormOptions}
@@ -477,6 +493,7 @@ export default function TreatmentsPage() {
             onCreatePatient={handleCreatePatient}
             onCreateService={handleCreateService}
             onServiceCreated={handleServiceCreated}
+            selectedServiceCostCents={selectedServiceCostCents}
             serviceLocked
             t={t}
           />
