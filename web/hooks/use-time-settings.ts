@@ -6,10 +6,13 @@ import { useApi } from '@/hooks/use-api'
 import { toast } from 'sonner'
 import { useTranslations } from 'next-intl'
 
+import type { WorkingDaysConfig } from '@/lib/calc/dates'
+
 export interface TimeSettings {
   work_days: number
   hours_per_day: number
   real_pct: number
+  working_days_config?: WorkingDaysConfig | null
   created_at?: string
   updated_at?: string
 }
@@ -120,7 +123,8 @@ export function useTimeSettings(options: UseTimeSettingsOptions = {}) {
       const nextSettings: TimeSettings = {
         work_days: apiSettings.work_days,
         hours_per_day: apiSettings.hours_per_day,
-        real_pct: Math.round((apiSettings.real_pct || 0) * 100)
+        real_pct: Math.round((apiSettings.real_pct || 0) * 100),
+        working_days_config: apiSettings.working_days_config || null
       }
       try { console.log('[useTimeSettings] loaded from API', apiSettings) } catch {}
       setSettings(nextSettings)
@@ -152,13 +156,15 @@ export function useTimeSettings(options: UseTimeSettingsOptions = {}) {
     const draft: TimeSettings = {
       work_days: base.work_days,
       hours_per_day: base.hours_per_day,
-      real_pct: base.real_pct
+      real_pct: base.real_pct,
+      working_days_config: base.working_days_config
     }
 
     if (payload) {
       if (typeof payload.work_days === 'number') draft.work_days = payload.work_days
       if (typeof payload.hours_per_day === 'number') draft.hours_per_day = payload.hours_per_day
       if (typeof payload.real_pct === 'number') draft.real_pct = payload.real_pct
+      if (payload.working_days_config !== undefined) draft.working_days_config = payload.working_days_config
     }
 
     try {
@@ -170,6 +176,7 @@ export function useTimeSettings(options: UseTimeSettingsOptions = {}) {
           work_days: Number(draft.work_days) || 0,
           hours_per_day: Number(draft.hours_per_day) || 0,
           real_pct: Math.max(0, Number(draft.real_pct) || 0) / 100,
+          working_days_config: draft.working_days_config,
           clinic_id: cid
         })
       })

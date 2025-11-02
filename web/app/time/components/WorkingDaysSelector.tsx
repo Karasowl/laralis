@@ -25,13 +25,13 @@ interface WorkingDaySelectorProps {
 }
 
 const DAYS_ORDER = [
+  'sunday',
   'monday',
   'tuesday',
   'wednesday',
   'thursday',
   'friday',
-  'saturday',
-  'sunday'
+  'saturday'
 ] as const
 
 export function WorkingDaysSelector({
@@ -44,8 +44,8 @@ export function WorkingDaysSelector({
   const t = useTranslations('time.workingDays')
   const [refreshing, setRefreshing] = useState(false)
 
-  const hasDetectedPattern = value.detected && value.detected.confidence >= 60
-  const isUsingHistorical = value.useHistorical && hasDetectedPattern
+  const hasDetectedPattern = !!(value.detected && value.detected.confidence >= 60)
+  const isUsingHistorical = !!(value.useHistorical && hasDetectedPattern)
 
   const handleToggleDay = (day: keyof WorkingDaysConfig['manual']) => {
     onChange({

@@ -15,7 +15,8 @@ import {
   XCircle,
   BarChart3,
   Shield,
-  PackageOpen
+  PackageOpen,
+  Clock
 } from 'lucide-react'
 
 export interface NavigationItem {
@@ -83,6 +84,11 @@ export function getNavigationSections(t: any, options: { onboardingCompleted?: b
           href: '/fixed-costs',
           label: t('navigation.fixed_costs'),
           icon: DollarSign
+        },
+        {
+          href: '/time',
+          label: t('navigation.time'),
+          icon: Clock
         },
         {
           href: '/tariffs',
