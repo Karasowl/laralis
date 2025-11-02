@@ -186,82 +186,86 @@ export function ServiceForm({
       </FormSection>
 
       <FormSection title={t('supplies_section')} description={t('supplies_section_hint')}>
-        <div className="space-y-4">
+        <div className="space-y-3">
           {serviceSupplies.map((ss: any, index: number) => (
-            <div key={index} className="flex gap-2 items-end">
-              <div className="flex-1">
-                <div>
-                  {index === 0 && (
-                    <label className="text-sm font-medium mb-2 block">
-                      {t('fields.supply')}
-                    </label>
-                  )}
-                  <SelectWithCreate
-                    value={ss.supply_id}
-                    onValueChange={(value) => handleSupplySelect(value, index)}
-                    options={supplyOptions}
-                    placeholder={t('select_supply')}
-                    canCreate={true}
-                    entityName={t('entities.supply')}
-                    createDialogTitle={t('supplies.create_title')}
-                    createDialogDescription={t('supplies.create_quick_description')}
-                    createFields={[
-                      {
-                        name: 'name',
-                        label: t('fields.name'),
-                        type: 'text',
-                        required: true
-                      },
-                      {
-                        name: 'unit',
-                        label: t('fields.unit'),
-                        type: 'text',
-                        placeholder: 'pza, ml, gr',
-                        required: true
-                      },
-                      {
-                        name: 'cost_per_unit',
-                        label: t('fields.cost_per_unit'),
-                        type: 'number',
-                        placeholder: '0.00',
-                        required: true
-                      }
-                    ]}
-                    onCreateSubmit={onCreateSupply}
-                  />
-                </div>
-              </div>
-              <div className="w-32">
-                <InputField
-                  type="number"
-                  label={index === 0 ? t('fields.quantity') : ''}
-                  value={ss.quantity ?? 0}
-                  onChange={(e) => {
-                    const val = typeof e === 'object' && 'target' in e ? e.target.value : e
-                    handleQuantityChange(index, val)
-                  }}
-                  min={0}
-                  inputRef={(node) => handleQuantityRef(index, node)}
+            <div key={index} className="space-y-2">
+              {/* Supply selector - full width on mobile */}
+              <div>
+                {index === 0 && (
+                  <label className="text-sm font-medium mb-2 block">
+                    {t('fields.supply')}
+                  </label>
+                )}
+                <SelectWithCreate
+                  value={ss.supply_id}
+                  onValueChange={(value) => handleSupplySelect(value, index)}
+                  options={supplyOptions}
+                  placeholder={t('select_supply')}
+                  canCreate={true}
+                  entityName={t('entities.supply')}
+                  createDialogTitle={t('supplies.create_title')}
+                  createDialogDescription={t('supplies.create_quick_description')}
+                  createFields={[
+                    {
+                      name: 'name',
+                      label: t('fields.name'),
+                      type: 'text',
+                      required: true
+                    },
+                    {
+                      name: 'unit',
+                      label: t('fields.unit'),
+                      type: 'text',
+                      placeholder: 'pza, ml, gr',
+                      required: true
+                    },
+                    {
+                      name: 'cost_per_unit',
+                      label: t('fields.cost_per_unit'),
+                      type: 'number',
+                      placeholder: '0.00',
+                      required: true
+                    }
+                  ]}
+                  onCreateSubmit={onCreateSupply}
                 />
               </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  onSuppliesChange(serviceSupplies.filter((_: any, i: number) => i !== index))
-                }}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+
+              {/* Quantity + Delete button on same row */}
+              <div className="flex gap-2 items-end">
+                <div className="flex-1 max-w-[120px]">
+                  <InputField
+                    type="number"
+                    label={index === 0 ? t('fields.quantity') : ''}
+                    value={ss.quantity ?? 0}
+                    onChange={(e) => {
+                      const val = typeof e === 'object' && 'target' in e ? e.target.value : e
+                      handleQuantityChange(index, val)
+                    }}
+                    min={0}
+                    inputRef={(node) => handleQuantityRef(index, node)}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    onSuppliesChange(serviceSupplies.filter((_: any, i: number) => i !== index))
+                  }}
+                  className="mb-0"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           ))}
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-col sm:flex-row gap-3 pt-2">
             <Button
               type="button"
               variant="default"
               onClick={onOpenMultiSelector}
-              className="flex-1 h-11 px-4"
+              className="flex-1 h-12 px-4 py-3"
             >
               <ListChecks className="h-4 w-4 mr-2" />
               {t('add_multiple_supplies_button')}
@@ -270,7 +274,7 @@ export function ServiceForm({
               type="button"
               variant="outline"
               onClick={handleAddSupplyRow}
-              className="flex-1 h-11 px-4"
+              className="flex-1 h-12 px-4 py-3"
             >
               <Plus className="h-4 w-4 mr-2" />
               {t('add_single_supply')}
