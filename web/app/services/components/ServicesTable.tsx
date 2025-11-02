@@ -91,10 +91,11 @@ export function ServicesTable({
       key: 'cost',
       label: t('base_cost'),
       render: (_value: any, service: any) => {
-        const costBase = service?.base_price_cents || service?.price_cents || 0;
+        // Use the calculated costs from backend
+        const costBase = service?.total_cost_cents || 0;
+        const fixedCost = service?.fixed_cost_cents || 0;
+        const variableCost = service?.variable_cost_cents || 0;
         const minutes = service?.est_minutes || service?.duration_minutes || 0;
-        const fixedCost = Math.round(minutes * fixedCostPerMinuteCents);
-        const variableCost = costBase - fixedCost;
 
         return (
           <Popover>
@@ -124,7 +125,7 @@ export function ServicesTable({
                   </div>
                   <div className="flex justify-between gap-4">
                     <span className="text-muted-foreground font-medium">{t('variable_cost_label')}:</span>
-                    <span className="font-semibold">{formatCurrency(Math.max(0, variableCost))}</span>
+                    <span className="font-semibold">{formatCurrency(variableCost)}</span>
                   </div>
                   <div className="border-t pt-2 mt-2 flex justify-between gap-4">
                     <span className="font-bold text-base">{t('total_cost')}:</span>
@@ -141,9 +142,9 @@ export function ServicesTable({
       key: 'sale_price',
       label: t('sale_price'),
       render: (_value: any, service: any) => {
-        const costBase = service?.base_price_cents || service?.price_cents || 0;
+        const costBase = service?.total_cost_cents || 0;
         const marginPct = service?.margin_pct || 30;
-        const salePrice = Math.round(costBase * (1 + marginPct / 100));
+        const salePrice = service?.price_cents || 0;  // Use saved price (already has margin)
         const profit = salePrice - costBase;
 
         return (

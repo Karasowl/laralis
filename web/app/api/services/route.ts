@@ -125,7 +125,6 @@ export async function GET(request: NextRequest) {
         )
       `)
       .eq('clinic_id', clinicId)
-      .eq('is_active', true)  // Only fetch active services (not soft-deleted)
       .order('name', { ascending: true });
 
     // Apply search filter
@@ -222,14 +221,22 @@ export async function POST(request: NextRequest) {
         est_minutes,
         description: description ?? null,
         price_cents: price_with_margin,  // Save sale price (with margin)
-        margin_pct: margin_pct,           // Save margin for reference
-        is_active: true
+        margin_pct: margin_pct            // Save margin for reference
       })
       .select()
       .single();
 
     if (serviceError) {
       console.error('Error creating service:', serviceError);
+
+      // Check for duplicate service name
+      if (serviceError.code === '23505' && serviceError.message.includes('services_clinic_id_name_key')) {
+        return NextResponse.json(
+          { error: 'duplicate_service_name', message: 'Ya existe un servicio con ese nombre. Por favor, usa un nombre diferente.' },
+          { status: 409 }
+        );
+      }
+
       return NextResponse.json(
         { error: 'Failed to create service', message: serviceError.message },
         { status: 500 }

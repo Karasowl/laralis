@@ -55,7 +55,6 @@ export async function GET(
       .select('*')
       .eq('id', params.id)
       .eq('clinic_id', clinicId)
-      .eq('is_active', true)  // Only fetch active services (not soft-deleted)
       .single();
 
     if (serviceError) {
@@ -297,37 +296,20 @@ export async function DELETE(
       )
     }
 
-    // Soft delete - marcar como inactivo; si la columna no existe, borrar duro
-    let result = await supabaseAdmin
+    // Hard delete - eliminar físicamente de la base de datos
+    // (solo llega aquí si no tiene tratamientos ni tarifas asociadas)
+    const { error: deleteError } = await supabaseAdmin
       .from('services')
-      .update({ is_active: false })
+      .delete()
       .eq('id', params.id)
       .eq('clinic_id', clinicId);
 
-    if (result.error) {
-      const msg = result.error.message || '';
-      const missingCol = /column .*is_active.* does not exist/i.test(msg);
-      if (missingCol) {
-        // Fallback: eliminar registro
-        const hard = await supabaseAdmin
-          .from('services')
-          .delete()
-          .eq('id', params.id)
-          .eq('clinic_id', clinicId);
-        if (hard.error) {
-          console.error('Error hard-deleting service:', hard.error);
-          return NextResponse.json(
-            { error: 'Failed to delete service', message: hard.error.message },
-            { status: 500 }
-          );
-        }
-      } else {
-        console.error('Error soft-deleting service:', result.error);
-        return NextResponse.json(
-          { error: 'Failed to delete service', message: result.error.message },
-          { status: 500 }
-        );
-      }
+    if (deleteError) {
+      console.error('Error deleting service:', deleteError);
+      return NextResponse.json(
+        { error: 'Failed to delete service', message: deleteError.message },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({ 
