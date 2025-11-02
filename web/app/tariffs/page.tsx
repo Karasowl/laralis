@@ -276,30 +276,39 @@ export default function TariffsPage() {
         <Form {...bulkForm}>
           <FormSection title={t('adjustment_settings')}>
             <FormGrid columns={2}>
-              <InputField
-                type="number"
-                label={t('default_margin')}
-                value={bulkForm.watch('margin')}
-                onChange={(value) => bulkForm.setValue('margin', parseInt(value as string))}
-                placeholder="30"
-                min={0}
-                max={100}
-                error={bulkForm.formState.errors.margin?.message}
-              />
-              
-              <SelectField
-                label={t('round_to')}
-                value={bulkForm.watch('roundTo').toString()}
-                onChange={(value) => bulkForm.setValue('roundTo', parseInt(value))}
-                options={[
-                  { value: '1', label: '$1' },
-                  { value: '5', label: '$5' },
-                  { value: '10', label: '$10' },
-                  { value: '50', label: '$50' },
-                  { value: '100', label: '$100' }
-                ]}
-                error={bulkForm.formState.errors.roundTo?.message}
-              />
+              <div>
+                <label className="text-sm font-medium mb-2 block">{t('default_margin')}</label>
+                <input
+                  type="number"
+                  {...bulkForm.register('margin', { valueAsNumber: true })}
+                  placeholder="30"
+                  min={0}
+                  max={100}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                />
+                {bulkForm.formState.errors.margin?.message && (
+                  <p className="text-sm text-red-600 mt-1">{bulkForm.formState.errors.margin?.message}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-2 block">{t('round_to')}</label>
+                <select
+                  {...bulkForm.register('roundTo', {
+                    setValueAs: (v) => parseInt(v, 10)
+                  })}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <option value="1">$1</option>
+                  <option value="5">$5</option>
+                  <option value="10">$10</option>
+                  <option value="50">$50</option>
+                  <option value="100">$100</option>
+                </select>
+                {bulkForm.formState.errors.roundTo?.message && (
+                  <p className="text-sm text-red-600 mt-1">{bulkForm.formState.errors.roundTo?.message}</p>
+                )}
+              </div>
             </FormGrid>
           </FormSection>
         </Form>
@@ -315,17 +324,21 @@ export default function TariffsPage() {
       >
         <Form {...editForm}>
           <FormSection>
-            <InputField
-              type="number"
-              label={t('margin_percentage')}
-              value={editForm.watch('margin')}
-              onChange={(value) => editForm.setValue('margin', parseInt(value as string))}
-              placeholder="30"
-              min={0}
-              max={100}
-              error={editForm.formState.errors.margin?.message}
-            />
-            
+            <div>
+              <label className="text-sm font-medium mb-2 block">{t('margin_percentage')}</label>
+              <input
+                type="number"
+                {...editForm.register('margin', { valueAsNumber: true })}
+                placeholder="30"
+                min={0}
+                max={100}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              />
+              {editForm.formState.errors.margin?.message && (
+                <p className="text-sm text-red-600 mt-1">{editForm.formState.errors.margin?.message}</p>
+              )}
+            </div>
+
             {selectedTariff && (
               <div className="mt-4 p-4 bg-muted rounded-lg">
                 <div className="space-y-2 text-sm">
@@ -333,7 +346,7 @@ export default function TariffsPage() {
                     <span>{t('total_cost')}:</span>
                     <span className="font-medium">
                       {formatCurrency(
-                        (selectedTariff.fixed_cost_cents || 0) + 
+                        (selectedTariff.fixed_cost_cents || 0) +
                         (selectedTariff.variable_cost_cents || 0)
                       )}
                     </span>
@@ -343,8 +356,8 @@ export default function TariffsPage() {
                     <span className="font-medium">
                       {formatCurrency(
                         Math.round(
-                          ((selectedTariff.fixed_cost_cents || 0) + 
-                           (selectedTariff.variable_cost_cents || 0)) * 
+                          ((selectedTariff.fixed_cost_cents || 0) +
+                           (selectedTariff.variable_cost_cents || 0)) *
                           (1 + editForm.watch('margin') / 100)
                         )
                       )}

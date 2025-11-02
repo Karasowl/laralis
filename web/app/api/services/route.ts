@@ -53,13 +53,58 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
-    
+
     const cookieStore = cookies();
     const clinicContext = await resolveClinicContext({ requestedClinicId: searchParams.get('clinicId'), cookieStore });
     if ('error' in clinicContext) {
       return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
     const { clinicId } = clinicContext;
+
+    // Get time settings to calculate fixed costs
+    const { data: timeSettings } = await supabaseAdmin
+      .from('settings_time')
+      .select('*')
+      .eq('clinic_id', clinicId)
+      .single();
+
+    // Get fixed costs
+    const { data: fixedCosts } = await supabaseAdmin
+      .from('fixed_costs')
+      .select('amount_cents')
+      .eq('clinic_id', clinicId);
+
+    // Get assets depreciation
+    const { data: assets } = await supabaseAdmin
+      .from('assets')
+      .select('purchase_price_cents, depreciation_months')
+      .eq('clinic_id', clinicId);
+
+    // Calculate total fixed costs per month
+    const totalFixedCostsCents = (fixedCosts || []).reduce((sum, cost) =>
+      sum + (cost.amount_cents || 0), 0
+    );
+
+    const totalDepreciationCents = (assets || []).reduce((sum, asset) => {
+      const months = asset.depreciation_months || 1;
+      return sum + Math.round((asset.purchase_price_cents || 0) / months);
+    }, 0);
+
+    const monthlyFixedCostsCents = totalFixedCostsCents + totalDepreciationCents;
+
+    // Calculate fixed cost per minute
+    let fixedCostPerMinuteCents = 0;
+    if (timeSettings) {
+      const workDays = timeSettings.work_days || 0;
+      const hoursPerDay = timeSettings.hours_per_day || 0;
+      const realPct = timeSettings.real_pct || 0;
+      const minutesMonth = workDays * hoursPerDay * 60;
+      const effectiveMinutes = minutesMonth * realPct;
+
+      if (effectiveMinutes > 0 && monthlyFixedCostsCents > 0) {
+        fixedCostPerMinuteCents = Math.round(monthlyFixedCostsCents / effectiveMinutes);
+      }
+    }
 
     // Get services with their supplies relationship
     // Using explicit relationship hint to avoid ambiguity
@@ -97,7 +142,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Calculate variable cost for each service
+    // Calculate variable and fixed costs for each service
     const servicesWithCost = (data || []).map(service => {
       const variableCostCents = service.service_supplies?.reduce((total: number, ss: any) => {
         const supply = ss?.supplies;
@@ -111,9 +156,14 @@ export async function GET(request: NextRequest) {
         return total;
       }, 0) || 0;
 
+      const estMinutes = service.est_minutes || 0;
+      const fixedCostCents = Math.round(estMinutes * fixedCostPerMinuteCents);
+
       return {
         ...service,
-        variable_cost_cents: Math.round(variableCostCents)
+        fixed_cost_cents: fixedCostCents,
+        variable_cost_cents: Math.round(variableCostCents),
+        total_cost_cents: fixedCostCents + Math.round(variableCostCents)
       };
     });
 
