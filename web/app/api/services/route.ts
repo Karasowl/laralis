@@ -23,6 +23,8 @@ const serviceSchema = z.object({
     .trim()
     .optional()
     .transform((value) => (value && value.length > 0 ? value : null)),
+  base_price_cents: z.coerce.number().int().nonnegative().optional(),
+  margin_pct: z.coerce.number().nonnegative().max(500).optional(),
   supplies: z.array(serviceSupplySchema).optional(),
 });
 
