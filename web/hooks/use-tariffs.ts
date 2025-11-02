@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import { ServiceWithCost } from '@/lib/types'
-import { calcularPrecioFinal } from '@/lib/calc/tarifa'
+import { calcularPrecioFinal, calcularPrecioConDescuento } from '@/lib/calc/tarifa'
 import { redondearA } from '@/lib/money'
 import { useApi } from '@/hooks/use-api'
 
@@ -15,6 +15,10 @@ export interface TariffRow extends ServiceWithCost {
   rounded_price: number
   stored_price_cents?: number | null
   stored_margin_pct?: number | null
+  discount_type?: 'none' | 'percentage' | 'fixed'
+  discount_value?: number
+  discount_reason?: string | null
+  final_price_with_discount?: number
 }
 
 interface UseTariffsOptions {
@@ -33,6 +37,10 @@ interface StoredTariff {
   fixed_cost_per_minute_cents: number
   variable_cost_cents: number
   is_active: boolean
+  discount_type?: 'none' | 'percentage' | 'fixed'
+  discount_value?: number
+  discount_reason?: string | null
+  final_price_with_discount_cents?: number
 }
 
 const normalizeList = <T,>(value: any): T[] => {
@@ -41,13 +49,20 @@ const normalizeList = <T,>(value: any): T[] => {
   return []
 }
 
+interface LocalDiscount {
+  type: 'none' | 'percentage' | 'fixed'
+  value: number
+  reason?: string
+}
+
 export function useTariffs(options: UseTariffsOptions = {}) {
   const { clinicId, defaultMargin = 30, defaultRoundTo = 10, autoLoad = true } = options
   const t = useTranslations()
-  
+
   const [margin, setMargin] = useState(defaultMargin)
   const [roundTo, setRoundTo] = useState(defaultRoundTo)
   const [localMargins, setLocalMargins] = useState<Record<string, number>>({})
+  const [localDiscounts, setLocalDiscounts] = useState<Record<string, LocalDiscount>>({})
   
   // Resolve clinic id robustly: prop -> cookie -> localStorage
   const resolvedClinicId = useMemo(() => {
@@ -82,7 +97,7 @@ export function useTariffs(options: UseTariffsOptions = {}) {
   
   const tariffs = useMemo((): TariffRow[] => {
     const services = normalizeList<ServiceWithCost>(servicesApi.data)
-    
+
     return services.map(service => {
       const stored = storedTariffsByService.get(service.id)
       const storedMargin = stored ? Number(stored.margin_pct) : null
@@ -92,6 +107,21 @@ export function useTariffs(options: UseTariffsOptions = {}) {
       const calculatedFinalPrice = calcularPrecioFinal(totalCost, serviceMargin)
       const calculatedRounded = redondearA(calculatedFinalPrice, roundTo * 100)
 
+      // Handle discount
+      const localDiscount = localDiscounts[service.id]
+      const discountType = localDiscount?.type ?? stored?.discount_type ?? 'none'
+      const discountValue = localDiscount?.value ?? stored?.discount_value ?? 0
+      const discountReason = localDiscount?.reason ?? stored?.discount_reason ?? null
+
+      let finalPriceWithDiscount = calculatedFinalPrice
+      if (discountType !== 'none' && discountValue > 0) {
+        finalPriceWithDiscount = calcularPrecioConDescuento(
+          calculatedFinalPrice,
+          discountType,
+          discountValue
+        )
+      }
+
       return {
         ...service,
         margin_pct: serviceMargin,
@@ -99,9 +129,13 @@ export function useTariffs(options: UseTariffsOptions = {}) {
         rounded_price: stored?.rounded_price_cents ?? calculatedRounded,
         stored_price_cents: stored?.price_cents ?? null,
         stored_margin_pct: storedMargin,
+        discount_type: discountType,
+        discount_value: discountValue,
+        discount_reason: discountReason,
+        final_price_with_discount: stored?.final_price_with_discount_cents ?? finalPriceWithDiscount
       }
     })
-  }, [servicesApi.data, storedTariffsByService, localMargins, margin, roundTo])
+  }, [servicesApi.data, storedTariffsByService, localMargins, localDiscounts, margin, roundTo])
   
   const updateMargin = useCallback((serviceId: string, newMargin: number) => {
     setLocalMargins(prev => ({
@@ -109,14 +143,32 @@ export function useTariffs(options: UseTariffsOptions = {}) {
       [serviceId]: newMargin
     }))
   }, [])
-  
+
   const updateAllMargins = useCallback((newMargin: number) => {
     setMargin(newMargin)
     setLocalMargins({})
   }, [])
-  
+
   const updateRounding = useCallback((newRoundTo: number) => {
     setRoundTo(newRoundTo)
+  }, [])
+
+  const updateDiscount = useCallback((
+    serviceId: string,
+    discount: LocalDiscount
+  ) => {
+    setLocalDiscounts(prev => ({
+      ...prev,
+      [serviceId]: discount
+    }))
+  }, [])
+
+  const removeDiscount = useCallback((serviceId: string) => {
+    setLocalDiscounts(prev => {
+      const newDiscounts = { ...prev }
+      delete newDiscounts[serviceId]
+      return newDiscounts
+    })
   }, [])
   
   const saveTariffs = useCallback(async () => {
@@ -136,21 +188,24 @@ export function useTariffs(options: UseTariffsOptions = {}) {
         clinic_id: resolvedClinicId!,
         margin_percentage: tariff.margin_pct,
         final_price_cents: tariff.rounded_price,
-        is_active: true
+        is_active: true,
+        discount_type: tariff.discount_type || 'none',
+        discount_value: tariff.discount_value || 0,
+        discount_reason: tariff.discount_reason || null
       }))
-      
+
       const response = await fetch('/api/tariffs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tariffs: tariffData })
       })
-      
+
       if (!response.ok) {
         const payload = await response.json().catch(() => null)
         const message = payload?.message || 'Failed to save tariffs'
         throw new Error(message)
       }
-      
+
       toast.success(t('tariffs.saved_successfully'))
       await tariffsApi.get()
     } catch (err) {
@@ -176,6 +231,8 @@ export function useTariffs(options: UseTariffsOptions = {}) {
     updateMargin,
     updateAllMargins,
     updateRounding,
+    updateDiscount,
+    removeDiscount,
     saveTariffs,
     refreshTariffs
   }
