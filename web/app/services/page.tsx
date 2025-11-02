@@ -106,7 +106,7 @@ export default function ServicesPage() {
           supply_id: s.supply_id,
           quantity: s.quantity
         }))
-        setServiceSupplies(mapped.length > 0 ? mapped : [{ supply_id: '', quantity: 0 }])
+        setServiceSupplies(mapped.length > 0 ? mapped : [{ supply_id: '', quantity: 1 }])
       })
     }
   }, [selectedServiceId, fetchServiceSupplies])
@@ -173,7 +173,7 @@ export default function ServicesPage() {
 
   // Add/remove supplies helpers
   const addSupply = () => {
-    setServiceSupplies([...serviceSupplies, { supply_id: '', quantity: 0 }])
+    setServiceSupplies([...serviceSupplies, { supply_id: '', quantity: 1 }])
   }
 
   const removeSupply = (index: number) => {
@@ -295,7 +295,7 @@ export default function ServicesPage() {
             setCreateOpen(open)
             if (open) {
               form.reset(DEFAULT_SERVICE_FORM_VALUES)
-              setServiceSupplies([{ supply_id: '', quantity: 0 }])
+              setServiceSupplies([{ supply_id: '', quantity: 1 }])
             } else {
               setServiceSupplies([])
               form.reset(DEFAULT_SERVICE_FORM_VALUES)

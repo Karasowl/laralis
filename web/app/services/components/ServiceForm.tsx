@@ -89,7 +89,7 @@ export function ServiceForm({
   }, [])
 
   const handleAddSupplyRow = React.useCallback(() => {
-    onSuppliesChange([...serviceSupplies, { supply_id: '', quantity: 0 }])
+    onSuppliesChange([...serviceSupplies, { supply_id: '', quantity: 1 }])
     setTimeout(() => {
       quantityRefs.current[serviceSupplies.length]?.focus()
     }, 0)
