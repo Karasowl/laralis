@@ -65,6 +65,10 @@ export const zService = z.object({
   clinic_id: z.string().uuid(),
   name: z.string().min(1, 'Name is required'),
   est_minutes: z.number().int().positive('Estimated minutes must be positive'),
+  category: z.string().optional(),
+  description: z.string().nullable().optional(),
+  base_price_cents: z.number().int().nonnegative().optional(),
+  margin_pct: z.number().nonnegative().max(500).optional(),
   created_at: z.string().optional(),
 });
 
