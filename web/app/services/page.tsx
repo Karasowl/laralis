@@ -240,7 +240,8 @@ export default function ServicesPage() {
       category: service.category || 'otros',
       est_minutes: service.est_minutes || service.duration_minutes || 30,
       base_price_cents: service.base_price_cents || service.price_cents || 0,
-      description: service.description || ''
+      description: service.description || '',
+      margin_pct: service.margin_pct ?? 30  // FIX: Load margin from service or default to 30%
     })
     setSelectedServiceId(service.id)
     setEditService(service)

@@ -7,8 +7,9 @@ import { CrudPageLayout } from '@/components/ui/crud-page-layout'
 import { FormModal } from '@/components/ui/form-modal'
 import { FormSection, FormGrid, InputField, SelectField } from '@/components/ui/form-field'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { formatCurrency } from '@/lib/format'
-import { Calculator, RefreshCw, Save } from 'lucide-react'
+import { Calculator, RefreshCw, Save, Tag, Percent } from 'lucide-react'
 import { useTariffs, TariffRow } from '@/hooks/use-tariffs'
 import { useRequirementsGuard } from '@/lib/requirements/useGuard'
 import { toast } from 'sonner'
@@ -16,6 +17,8 @@ import { Form } from '@/components/ui/form'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { DiscountModal } from './components/DiscountModal'
+import { GlobalDiscountModal } from './components/GlobalDiscountModal'
 
 // Schema for bulk operations
 const bulkOperationSchema = z.object({
@@ -42,6 +45,8 @@ export default function TariffsPage() {
     updateMargin,
     updateAllMargins,
     updateRounding,
+    updateDiscount,
+    removeDiscount,
     saveTariffs,
     refreshTariffs
   } = useTariffs({
@@ -55,6 +60,8 @@ export default function TariffsPage() {
   // Modal states
   const [bulkModalOpen, setBulkModalOpen] = useState(false)
   const [editModalOpen, setEditModalOpen] = useState(false)
+  const [discountModalOpen, setDiscountModalOpen] = useState(false)
+  const [globalDiscountModalOpen, setGlobalDiscountModalOpen] = useState(false)
   const [selectedTariff, setSelectedTariff] = useState<TariffRow | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -110,6 +117,21 @@ export default function TariffsPage() {
     setEditModalOpen(true)
   }
 
+  const openDiscountModal = (tariff: TariffRow) => {
+    setSelectedTariff(tariff)
+    setDiscountModalOpen(true)
+  }
+
+  const handleApplyDiscount = (discount: {
+    type: 'none' | 'percentage' | 'fixed'
+    value: number
+    reason?: string
+  }) => {
+    if (selectedTariff) {
+      updateDiscount(selectedTariff.id, discount)
+    }
+  }
+
   // Summary cards data
   const totalRevenue = tariffs.reduce((acc, t) => acc + t.rounded_price, 0)
   const totalProfit = tariffs.reduce((acc, t) => {
@@ -145,6 +167,7 @@ export default function TariffsPage() {
       const totalCost = (tariff.fixed_cost_cents || 0) + (tariff.variable_cost_cents || 0)
       const profit = tariff.rounded_price - totalCost
       const profitPct = totalCost > 0 ? ((profit / totalCost) * 100).toFixed(1) : '0.0'
+      const hasDiscount = tariff.discount_type && tariff.discount_type !== 'none' && (tariff.discount_value || 0) > 0
 
       return (
         <div className="space-y-4">
@@ -178,13 +201,22 @@ export default function TariffsPage() {
                   {tariff.margin_pct}%
                 </span>
               </div>
+              {hasDiscount && (
+                <div className="mt-2">
+                  <Badge variant="secondary" className="bg-amber-100 text-amber-700 text-xs">
+                    {tariff.discount_type === 'percentage'
+                      ? `${t('discount')}: ${tariff.discount_value}%`
+                      : `${t('discount')}: ${formatCurrency(tariff.discount_value || 0)}`}
+                  </Badge>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Precio Final - Destacado */}
           <div className="pt-3 border-t">
             <div className="flex items-center justify-between">
-              <div>
+              <div className="flex-1">
                 <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   {t('final_price')}
                 </div>
@@ -197,14 +229,22 @@ export default function TariffsPage() {
                   </div>
                 )}
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => openEditModal(tariff)}
-                className="shrink-0"
-              >
-                <Calculator className="h-4 w-4" />
-              </Button>
+              <div className="flex gap-2 shrink-0">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => openDiscountModal(tariff)}
+                >
+                  <Tag className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openEditModal(tariff)}
+                >
+                  <Calculator className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -254,6 +294,34 @@ export default function TariffsPage() {
           </span>
         </div>
       )
+    },
+    {
+      key: 'discount',
+      label: t('discount'),
+      render: (_value: unknown, tariff: TariffRow) => {
+        const hasDiscount = tariff.discount_type && tariff.discount_type !== 'none' && (tariff.discount_value || 0) > 0
+
+        return (
+          <div className="text-center">
+            {hasDiscount ? (
+              <Badge variant="secondary" className="bg-amber-100 text-amber-700">
+                {tariff.discount_type === 'percentage'
+                  ? `${tariff.discount_value}%`
+                  : formatCurrency(tariff.discount_value || 0)}
+              </Badge>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => openDiscountModal(tariff)}
+                className="h-8"
+              >
+                <Tag className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+        )
+      }
     },
     {
       key: 'profit',
@@ -310,7 +378,14 @@ export default function TariffsPage() {
 
   // Actions for the page
   const actions = (
-    <div className="flex gap-2">
+    <div className="flex gap-2 flex-wrap">
+      <Button
+        variant="outline"
+        onClick={() => setGlobalDiscountModalOpen(true)}
+      >
+        <Percent className="h-4 w-4 mr-2" />
+        {t('configure_global_discount')}
+      </Button>
       <Button
         variant="outline"
         onClick={() => setBulkModalOpen(true)}
@@ -470,6 +545,22 @@ export default function TariffsPage() {
           </FormSection>
         </Form>
       </FormModal>
+
+      {/* Discount Modals */}
+      <DiscountModal
+        open={discountModalOpen}
+        onOpenChange={setDiscountModalOpen}
+        serviceName={selectedTariff?.name}
+        basePrice={selectedTariff?.rounded_price || 0}
+        onApply={handleApplyDiscount}
+      />
+
+      <GlobalDiscountModal
+        open={globalDiscountModalOpen}
+        onOpenChange={setGlobalDiscountModalOpen}
+        clinicId={currentClinic?.id}
+        servicesCount={tariffs.length}
+      />
     </>
   )
 }

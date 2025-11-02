@@ -7,6 +7,7 @@ export const dynamic = 'force-dynamic'
 
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { resolveClinicContext } from '@/lib/clinic'
+import { calcularPrecioConDescuento } from '@/lib/calc/tarifa'
 
 const tariffItemSchema = z.object({
   service_id: z.string().min(1, 'service_id is required'),
@@ -16,7 +17,10 @@ const tariffItemSchema = z.object({
     .min(0, 'Margin must be at least 0% (allows promotions/offers)')
     .max(300, 'Margin must not exceed 300% (check for input errors)'),
   final_price_cents: z.coerce.number().int().nonnegative(),
-  is_active: z.boolean().optional()
+  is_active: z.boolean().optional(),
+  discount_type: z.enum(['none', 'percentage', 'fixed']).optional(),
+  discount_value: z.coerce.number().min(0).optional(),
+  discount_reason: z.string().optional()
 })
 
 const saveTariffsSchema = z.object({
@@ -197,6 +201,19 @@ export async function POST(request: NextRequest) {
       const marginAmountCents = Math.round(baseCostCents * (marginPct / 100))
       const priceCents = baseCostCents + marginAmountCents
 
+      // Calculate discounted price if discount is provided
+      const discountType = item.discount_type || 'none'
+      const discountValue = item.discount_value || 0
+      let finalPriceWithDiscountCents = priceCents
+
+      if (discountType !== 'none' && discountValue > 0) {
+        finalPriceWithDiscountCents = calcularPrecioConDescuento(
+          priceCents,
+          discountType,
+          discountValue
+        )
+      }
+
       rows.push({
         clinic_id: item.clinic_id,
         service_id: item.service_id,
@@ -208,7 +225,11 @@ export async function POST(request: NextRequest) {
         margin_pct: marginPct,
         price_cents: priceCents,
         rounded_price_cents: item.final_price_cents,
-        is_active: item.is_active ?? true
+        is_active: item.is_active ?? true,
+        discount_type: discountType,
+        discount_value: discountValue,
+        discount_reason: item.discount_reason || null,
+        final_price_with_discount_cents: finalPriceWithDiscountCents
       })
     }
 
