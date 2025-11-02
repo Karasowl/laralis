@@ -1292,8 +1292,10 @@
       "quantity": "Cantidad",
       "unit": "Unidad",
       "cost_per_unit": "Costo por Unidad",
-      "base_price_auto": "Precio base (auto)"
+      "base_price_auto": "Precio base (auto)",
+      "margin_pct": "Margen de Ganancia (%)"
     },
+    "margin_pct_helper": "Porcentaje de ganancia sobre el costo base (ej: 30 = 30% de margen)",
     "select_category": "Selecciona una categoría",
     "entities": {
       "category": "Categoría",

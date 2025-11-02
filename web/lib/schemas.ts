@@ -110,7 +110,13 @@ export const serviceSchema = z.object({
   category: z.string().default('otros'),
   est_minutes: z.number().min(5, 'Minimum duration is 5 minutes').max(480, 'Maximum duration is 8 hours'),
   base_price_cents: z.number().min(0),
-  description: z.string().optional()
+  margin_pct: z.number().min(0).max(500).default(30),
+  description: z.string().optional(),
+  supplies: z.array(z.object({
+    supply_id: z.string(),
+    quantity: z.number().optional(),
+    qty: z.number().optional()
+  })).optional()
 })
 
 export const categorySchema = z.object({

@@ -202,9 +202,14 @@ export async function POST(request: NextRequest) {
     
     const { supplies, name, category, est_minutes, description, base_price_cents } = parseResult.data;
 
-    // Use the calculated base_price_cents from the frontend
-    // It already includes fixed costs (time-based) + variable costs (supplies)
-    const price_cents = Math.round(base_price_cents);
+    // Get margin percentage from body, default to 30%
+    const margin_pct = typeof rawBody.margin_pct === 'number' ? rawBody.margin_pct : 30;
+
+    // Calculate price WITH margin
+    // base_price_cents already includes fixed costs (time-based) + variable costs (supplies)
+    // Now we apply the margin to get the final sale price
+    const base_price = Math.round(base_price_cents);
+    const price_with_margin = Math.round(base_price * (1 + margin_pct / 100));
 
     // Create the service with new fields
     const { data: serviceData, error: serviceError } = await supabaseAdmin
@@ -215,7 +220,8 @@ export async function POST(request: NextRequest) {
         category,
         est_minutes,
         description: description ?? null,
-        price_cents: price_cents,
+        price_cents: price_with_margin,  // Save sale price (with margin)
+        margin_pct: margin_pct,           // Save margin for reference
         is_active: true
       })
       .select()
