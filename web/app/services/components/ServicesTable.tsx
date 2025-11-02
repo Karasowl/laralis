@@ -5,25 +5,28 @@ import { useTranslations } from 'next-intl'
 import { DataTable } from '@/components/ui/DataTable'
 import { Badge } from '@/components/ui/badge'
 import { ActionDropdown, createEditAction, createDeleteAction } from '@/components/ui/ActionDropdown'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { formatCurrency } from '@/lib/money'
-import { Briefcase, Package, Clock } from 'lucide-react'
+import { Briefcase, Package, Clock, Info } from 'lucide-react'
 
 interface ServicesTableProps {
   services: any[]
   loading: boolean
   categories?: Array<{ id?: string; code?: string; name?: string; display_name?: string }>
+  fixedCostPerMinuteCents?: number
   onManageSupplies: (service: any) => void
   onEdit: (service: any) => void
   onDelete: (service: any) => void
 }
 
-export function ServicesTable({ 
-  services, 
-  loading, 
+export function ServicesTable({
+  services,
+  loading,
   categories = [],
-  onManageSupplies, 
-  onEdit, 
-  onDelete 
+  fixedCostPerMinuteCents = 0,
+  onManageSupplies,
+  onEdit,
+  onDelete
 }: ServicesTableProps) {
   const t = useTranslations('services')
   const tRoot = useTranslations()
@@ -89,10 +92,47 @@ export function ServicesTable({
       label: tFields('price'),
       render: (_value: any, service: any) => {
         const price = service?.base_price_cents || service?.price_cents || 0;
+        const minutes = service?.est_minutes || service?.duration_minutes || 0;
+        const fixedCost = Math.round(minutes * fixedCostPerMinuteCents);
+        const variableCost = price - fixedCost;
+
         return (
-          <div className="text-right font-semibold">
-            {formatCurrency(price)}
-          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="text-right font-semibold flex items-center justify-end gap-1.5 cursor-help">
+                  {formatCurrency(price)}
+                  <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors" />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs" side="left">
+                <div className="space-y-2 text-xs">
+                  <div className="font-semibold border-b pb-1.5 mb-2">
+                    {t('price_breakdown')}
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-start gap-4">
+                      <span className="text-muted-foreground">{t('fixed_cost_label')}:</span>
+                      <span className="font-medium text-right">
+                        {formatCurrency(fixedCost)}
+                        <div className="text-[10px] text-muted-foreground font-normal">
+                          {minutes} {tRoot('common.minutes')} × {formatCurrency(fixedCostPerMinuteCents)}/min
+                        </div>
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-muted-foreground">{t('variable_cost_label')}:</span>
+                      <span className="font-medium">{formatCurrency(Math.max(0, variableCost))}</span>
+                    </div>
+                    <div className="border-t pt-1.5 mt-2 flex justify-between gap-4">
+                      <span className="font-semibold">{tRoot('common.total')}:</span>
+                      <span className="font-semibold">{formatCurrency(price)}</span>
+                    </div>
+                  </div>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )
       }
     },

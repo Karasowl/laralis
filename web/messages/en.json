@@ -66,6 +66,7 @@
     "status": "Status",
     "created": "Created",
     "srClose": "Close",
+    "total": "Total",
     "active": "Active",
     "inactive": "Inactive",
     "success": "Success"
@@ -1241,6 +1242,9 @@
     "search_services": "Search services...",
     "no_services": "No services",
     "no_services_description": "Add your first service to get started",
+    "price_breakdown": "Price Breakdown",
+    "fixed_cost_label": "Fixed Cost",
+    "variable_cost_label": "Variable Cost",
     "fields": {
       "name": "Name",
       "category": "Category",
