@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button'
 import { InputField, TextareaField, FormGrid, FormSection } from '@/components/ui/form-field'
 import { SelectWithCreate } from '@/components/ui/select-with-create'
 import { CategorySelect } from '@/components/ui/category-select'
-import { SupplyMultiSelector } from './SupplyMultiSelector'
 import { formatCurrency } from '@/lib/money'
 
 interface ServiceFormProps {
@@ -18,6 +17,7 @@ interface ServiceFormProps {
   onSuppliesChange: (supplies: Array<{ supply_id: string; quantity: number }>) => void
   onCreateCategory?: (data: any) => Promise<any>
   onCreateSupply?: (data: any) => Promise<any>
+  onOpenMultiSelector?: () => void
   fixedCostPerMinuteCents: number
   totalFixedCostCents: number
   variableCostCents: number
@@ -33,6 +33,7 @@ export function ServiceForm({
   onSuppliesChange,
   onCreateCategory,
   onCreateSupply,
+  onOpenMultiSelector,
   fixedCostPerMinuteCents,
   totalFixedCostCents,
   variableCostCents,
@@ -40,7 +41,6 @@ export function ServiceForm({
   t
 }: ServiceFormProps) {
   const quantityRefs = React.useRef<Array<HTMLInputElement | null>>([])
-  const [multiSelectorOpen, setMultiSelectorOpen] = React.useState(false)
 
   // PERFORMANCE FIX: Only watch fields needed for display calculations
   const categoryValue = useWatch({ control: form.control, name: 'category' })
@@ -96,16 +96,6 @@ export function ServiceForm({
       quantityRefs.current[serviceSupplies.length]?.focus()
     }, 0)
   }, [serviceSupplies, onSuppliesChange])
-
-  const handleMultiSelectConfirm = React.useCallback((selectedIds: string[]) => {
-    const newSupplies = selectedIds.map(id => ({ supply_id: id, quantity: 1 }))
-    onSuppliesChange([...serviceSupplies, ...newSupplies])
-  }, [serviceSupplies, onSuppliesChange])
-
-  const alreadySelectedIds = React.useMemo(
-    () => serviceSupplies.map(ss => ss.supply_id).filter(Boolean),
-    [serviceSupplies]
-  )
 
   return (
     <div className="space-y-6">
@@ -270,7 +260,7 @@ export function ServiceForm({
             <Button
               type="button"
               variant="default"
-              onClick={() => setMultiSelectorOpen(true)}
+              onClick={onOpenMultiSelector}
               className="flex-1"
             >
               <ListChecks className="h-4 w-4 mr-2" />
@@ -288,16 +278,6 @@ export function ServiceForm({
           </div>
         </div>
       </FormSection>
-
-      {/* Multi-select supplies dialog */}
-      <SupplyMultiSelector
-        open={multiSelectorOpen}
-        onOpenChange={setMultiSelectorOpen}
-        supplies={supplies}
-        onConfirm={handleMultiSelectConfirm}
-        alreadySelectedIds={alreadySelectedIds}
-        t={t}
-      />
 
       <FormSection title={t('costSummary')}>
         <p className="text-sm text-muted-foreground">{t('cost_summary_note')}</p>
