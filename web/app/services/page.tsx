@@ -13,6 +13,7 @@ import { ServiceForm } from './components/ServiceForm'
 import { SuppliesManager } from './components/SuppliesManager'
 import { ServicesTable } from './components/ServicesTable'
 import { CategoryModal } from './components/CategoryModal'
+import { SupplyMultiSelector } from './components/SupplyMultiSelector'
 import { useCurrentClinic } from '@/hooks/use-current-clinic'
 import { useWorkspace } from '@/contexts/workspace-context'
 import { useRouter } from 'next/navigation'
@@ -81,6 +82,7 @@ export default function ServicesPage() {
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null)
   const [serviceSupplies, setServiceSupplies] = useState<ServiceSupply[]>([])
   const [categoryModalOpen, setCategoryModalOpen] = useState(false)
+  const [multiSelectorOpen, setMultiSelectorOpen] = useState(false)
 
   useEffect(() => {
     if (currentClinic?.id) {
@@ -185,6 +187,17 @@ export default function ServicesPage() {
     updated[index] = { ...updated[index], [field]: value }
     setServiceSupplies(updated)
   }
+
+  // Multi-select handlers
+  const handleMultiSelectConfirm = (selectedIds: string[]) => {
+    const newSupplies = selectedIds.map(id => ({ supply_id: id, quantity: 1 }))
+    setServiceSupplies([...serviceSupplies, ...newSupplies])
+  }
+
+  const alreadySelectedIds = useMemo(
+    () => serviceSupplies.map(ss => ss.supply_id).filter(Boolean),
+    [serviceSupplies]
+  )
 
   const variableCostCents = useMemo(() => {
     return serviceSupplies.reduce((total, ss) => {
@@ -307,12 +320,13 @@ export default function ServicesPage() {
           cancelLabel={tCommon('cancel')}
           submitLabel={tCommon('save')}
         >
-          <ServiceForm 
-            form={form} 
+          <ServiceForm
+            form={form}
             categories={categories}
             supplies={supplies}
             serviceSupplies={serviceSupplies}
             onSuppliesChange={setServiceSupplies}
+            onOpenMultiSelector={() => setMultiSelectorOpen(true)}
             fixedCostPerMinuteCents={fixedCostPerMinuteCents}
             totalFixedCostCents={totalFixedCostCents}
             variableCostCents={variableCostCents}
@@ -338,12 +352,13 @@ export default function ServicesPage() {
           cancelLabel={tCommon('cancel')}
           submitLabel={tCommon('save')}
         >
-          <ServiceForm 
-            form={form} 
+          <ServiceForm
+            form={form}
             categories={categories}
             supplies={supplies}
             serviceSupplies={serviceSupplies}
             onSuppliesChange={setServiceSupplies}
+            onOpenMultiSelector={() => setMultiSelectorOpen(true)}
             fixedCostPerMinuteCents={fixedCostPerMinuteCents}
             totalFixedCostCents={totalFixedCostCents}
             variableCostCents={variableCostCents}
@@ -393,6 +408,16 @@ export default function ServicesPage() {
           })}
           onConfirm={handleDelete}
           variant="destructive"
+        />
+
+        {/* Multi-select supplies dialog */}
+        <SupplyMultiSelector
+          open={multiSelectorOpen}
+          onOpenChange={setMultiSelectorOpen}
+          supplies={supplies}
+          onConfirm={handleMultiSelectConfirm}
+          alreadySelectedIds={alreadySelectedIds}
+          t={t}
         />
       </div>
     </AppLayout>
