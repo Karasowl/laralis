@@ -150,19 +150,16 @@ export async function POST(request: NextRequest) {
     }
     const { clinicId } = clinicContext;
     
-    const { supplies, name, category, est_minutes, description } = parseResult.data;
+    const { supplies, name, category, est_minutes, description, base_price_cents } = parseResult.data;
 
-    // Calculate initial price (can be updated later in tariffs)
-    // For now, use a default calculation based on time and a standard margin
-    const minuteRate = 1000; // Default rate per minute in cents (10 pesos)
-    const basePrice = est_minutes * minuteRate;
-    const defaultMargin = 1.6; // 60% margin
-    const price_cents = Math.round(basePrice * defaultMargin);
+    // Use the calculated base_price_cents from the frontend
+    // It already includes fixed costs (time-based) + variable costs (supplies)
+    const price_cents = Math.round(base_price_cents);
 
     // Create the service with new fields
     const { data: serviceData, error: serviceError } = await supabaseAdmin
       .from('services')
-      .insert({ 
+      .insert({
         clinic_id: clinicId,
         name,
         category,

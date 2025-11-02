@@ -131,15 +131,10 @@ export async function PUT(
     const { name, est_minutes } = validationResult.data;
     const category = body.category || 'otros';
     const description = body.description || null;
-    
-    // Calculate price if not provided
-    let price_cents = body.price_cents;
-    if (!price_cents) {
-      const minuteRate = 1000; // Default rate per minute in cents
-      const basePrice = est_minutes * minuteRate;
-      const defaultMargin = 1.6; // 60% margin
-      price_cents = Math.round(basePrice * defaultMargin);
-    }
+
+    // Use base_price_cents from the form (already calculated with fixed + variable costs)
+    // Fall back to price_cents for backwards compatibility
+    const price_cents = Math.round(body.base_price_cents || body.price_cents || 0);
 
     const { data, error } = await supabaseAdmin
       .from('services')
