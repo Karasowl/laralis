@@ -372,9 +372,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     const isAuthRoute = path.startsWith('/auth') || path.startsWith('/test-auth');
     if (isAuthRoute) return;
     if (workspaces.length === 0) return; // Handled by effect 1
+    if (!workspace) return; // FIX: Prevent race condition during workspace reload
 
-    const completed = Boolean(workspace?.onboarding_completed);
-    if (workspace && !completed) {
+    const completed = Boolean(workspace.onboarding_completed);
+    if (!completed) {
       const allowedPrefixes = ['/setup', '/onboarding', '/assets', '/fixed-costs', '/time', '/supplies', '/services', '/tariffs'];
       const isAllowed = allowedPrefixes.some(prefix => path === prefix || path.startsWith(`${prefix}/`));
       if (!isAllowed && !redirectingRef.current) {
