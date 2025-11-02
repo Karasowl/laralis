@@ -1340,6 +1340,11 @@
     "total_cost": "Costo Total",
     "margin_label": "Utilidad %",
     "profit_label": "Utilidad",
+    "real_margin": "Margen Real",
+    "configured_margin": "Margen configurado",
+    "margin_warning": "Este servicio tiene pérdidas",
+    "suggested_price_for_margin": "Precio sugerido para {margin}% margen",
+    "low_margin_warning": "Margen bajo, considera ajustar el precio",
     "fields": {
       "name": "Nombre",
       "category": "Categoría",
