@@ -139,10 +139,16 @@ export default function TariffsPage() {
   }
 
   // Summary cards data
-  const totalRevenue = tariffs.reduce((acc, t) => acc + t.rounded_price, 0)
+  const totalRevenue = tariffs.reduce((acc, t) => {
+    const hasDiscount = t.discount_type && t.discount_type !== 'none' && (t.discount_value || 0) > 0
+    const finalPrice = hasDiscount ? (t.final_price_with_discount || t.rounded_price) : t.rounded_price
+    return acc + finalPrice
+  }, 0)
   const totalProfit = tariffs.reduce((acc, t) => {
     const cost = (t.fixed_cost_cents || 0) + (t.variable_cost_cents || 0)
-    return acc + (t.rounded_price - cost)
+    const hasDiscount = t.discount_type && t.discount_type !== 'none' && (t.discount_value || 0) > 0
+    const finalPrice = hasDiscount ? (t.final_price_with_discount || t.rounded_price) : t.rounded_price
+    return acc + (finalPrice - cost)
   }, 0)
 
   const summaryCards = [
@@ -171,9 +177,10 @@ export default function TariffsPage() {
     label: '',
     render: (_value: unknown, tariff: TariffRow) => {
       const totalCost = (tariff.fixed_cost_cents || 0) + (tariff.variable_cost_cents || 0)
-      const profit = tariff.rounded_price - totalCost
-      const profitPct = totalCost > 0 ? ((profit / totalCost) * 100).toFixed(1) : '0.0'
       const hasDiscount = tariff.discount_type && tariff.discount_type !== 'none' && (tariff.discount_value || 0) > 0
+      const finalPrice = hasDiscount ? (tariff.final_price_with_discount || tariff.rounded_price) : tariff.rounded_price
+      const profit = finalPrice - totalCost
+      const profitPct = totalCost > 0 ? ((profit / totalCost) * 100).toFixed(1) : '0.0'
 
       return (
         <div className="space-y-4">
@@ -226,12 +233,20 @@ export default function TariffsPage() {
                 <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   {t('final_price')}
                 </div>
-                <div className="text-2xl font-bold text-primary">
-                  {formatCurrency(tariff.rounded_price)}
+                {hasDiscount && (
+                  <div className="text-sm text-muted-foreground line-through">
+                    {formatCurrency(tariff.rounded_price)}
+                  </div>
+                )}
+                <div className={`text-2xl font-bold ${hasDiscount ? 'text-emerald-600' : 'text-primary'}`}>
+                  {formatCurrency(hasDiscount ? (tariff.final_price_with_discount || tariff.rounded_price) : tariff.rounded_price)}
                 </div>
-                {tariff.rounded_price !== tariff.final_price && (
-                  <div className="text-xs text-muted-foreground line-through">
-                    {formatCurrency(tariff.final_price)}
+                {hasDiscount && (
+                  <div className="text-xs text-emerald-600 font-medium mt-0.5">
+                    {tariff.discount_type === 'percentage'
+                      ? `${tariff.discount_value}% ${t('tariffs.discount_applied')}`
+                      : `${formatCurrency(tariff.discount_value || 0)} ${t('tariffs.discount_applied')}`
+                    }
                   </div>
                 )}
               </div>
@@ -334,7 +349,9 @@ export default function TariffsPage() {
       label: t('profit_amount'),
       render: (_value: unknown, tariff: TariffRow) => {
         const totalCost = (tariff.fixed_cost_cents || 0) + (tariff.variable_cost_cents || 0)
-        const profit = tariff.rounded_price - totalCost
+        const hasDiscount = tariff.discount_type && tariff.discount_type !== 'none' && (tariff.discount_value || 0) > 0
+        const finalPrice = hasDiscount ? (tariff.final_price_with_discount || tariff.rounded_price) : tariff.rounded_price
+        const profit = finalPrice - totalCost
         const realMarginPct = totalCost > 0 ? ((profit / totalCost) * 100) : 0
         const hasLoss = realMarginPct < 0
         const hasLowMargin = realMarginPct >= 0 && realMarginPct < 10
@@ -367,18 +384,31 @@ export default function TariffsPage() {
     {
       key: 'price',
       label: t('final_price'),
-      render: (_value: number, tariff: TariffRow) => (
-        <div className="text-right">
-          <div className="font-semibold text-lg">
-            {formatCurrency(tariff.rounded_price)}
-          </div>
-          {tariff.rounded_price !== tariff.final_price && (
-            <div className="text-xs text-muted-foreground line-through">
-              {formatCurrency(tariff.final_price)}
+      render: (_value: number, tariff: TariffRow) => {
+        const hasDiscount = tariff.discount_type && tariff.discount_type !== 'none' && (tariff.discount_value || 0) > 0
+        const priceToShow = hasDiscount ? (tariff.final_price_with_discount || tariff.rounded_price) : tariff.rounded_price
+
+        return (
+          <div className="text-right">
+            {hasDiscount && (
+              <div className="text-xs text-muted-foreground line-through mb-0.5">
+                {formatCurrency(tariff.rounded_price)}
+              </div>
+            )}
+            <div className={`font-semibold text-lg ${hasDiscount ? 'text-emerald-600' : ''}`}>
+              {formatCurrency(priceToShow)}
             </div>
-          )}
-        </div>
-      )
+            {hasDiscount && (
+              <div className="text-xs text-emerald-600 font-medium">
+                {tariff.discount_type === 'percentage'
+                  ? `${tariff.discount_value}% ${t('tariffs.discount_applied')}`
+                  : `${formatCurrency(tariff.discount_value || 0)} ${t('tariffs.discount_applied')}`
+                }
+              </div>
+            )}
+          </div>
+        )
+      }
     },
     {
       key: 'actions',
