@@ -185,7 +185,7 @@ export const PROVIDER_ENDPOINTS = {
     tts: '/audio/speech',
   },
   kimi: {
-    base: 'https://api.moonshot.cn/v1',
+    base: 'https://api.moonshot.ai/v1',
     chat: '/chat/completions',
   },
   deepseek: {
