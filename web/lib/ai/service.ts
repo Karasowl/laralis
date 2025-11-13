@@ -158,11 +158,13 @@ export class AIService {
         expensesData,
         servicesData,
         patientsData,
+        fixedCostsData,
+        tariffsData,
       ] = await Promise.all([
         // Revenue from treatments
         supabase
           .from('treatments')
-          .select('price_cents, treatment_date, notes')
+          .select('price_cents, treatment_date, notes, service_id')
           .eq('clinic_id', clinicId)
           .gte('treatment_date', thirtyDaysAgo.toISOString())
           .order('treatment_date', { ascending: false }),
@@ -175,13 +177,17 @@ export class AIService {
           .gte('date', thirtyDaysAgo.toISOString())
           .order('date', { ascending: false }),
 
-        // Services performance
+        // Services performance with full details
         supabase
           .from('treatments')
           .select(`
             service_id,
             price_cents,
-            services!inner(name)
+            services!inner(
+              name,
+              variable_cost_cents,
+              minutes
+            )
           `)
           .eq('clinic_id', clinicId)
           .gte('treatment_date', thirtyDaysAgo.toISOString()),
@@ -192,7 +198,27 @@ export class AIService {
           .select('id, created_at, source')
           .eq('clinic_id', clinicId)
           .gte('created_at', thirtyDaysAgo.toISOString()),
+
+        // Fixed costs for break-even analysis
+        supabase
+          .from('fixed_costs')
+          .select('name, monthly_cost_cents')
+          .eq('clinic_id', clinicId),
+
+        // Current tariffs (prices) for each service
+        supabase
+          .from('tariffs')
+          .select(`
+            service_id,
+            price_cents,
+            services!inner(name)
+          `)
+          .eq('clinic_id', clinicId)
+          .order('created_at', { ascending: false }),
       ])
+
+      // Calculate total fixed costs
+      const totalFixedCosts = fixedCostsData.data?.reduce((sum, fc) => sum + (fc.monthly_cost_cents || 0), 0) || 0
 
       return {
         period: 'last_30_days',
@@ -206,8 +232,13 @@ export class AIService {
           count: expensesData.data?.length || 0,
           by_category: this.groupByCategory(expensesData.data || []),
         },
+        fixed_costs: {
+          monthly_total_cents: totalFixedCosts,
+          items: fixedCostsData.data || [],
+        },
         services: {
-          top_services: this.getTopServices(servicesData.data || []),
+          top_services: this.getTopServicesWithMargins(servicesData.data || []),
+          current_prices: tariffsData.data || [],
         },
         patients: {
           new_count: patientsData.data?.length || 0,
@@ -236,19 +267,35 @@ export class AIService {
     }, {})
   }
 
-  private getTopServices(treatments: any[]): any[] {
+  private getTopServicesWithMargins(treatments: any[]): any[] {
     const serviceStats = treatments.reduce((acc: any, t) => {
       const serviceName = t.services?.name || 'Unknown'
+      const variableCost = t.services?.variable_cost_cents || 0
+      const price = t.price_cents || 0
+      const margin = price - variableCost
+
       if (!acc[serviceName]) {
-        acc[serviceName] = { name: serviceName, revenue: 0, count: 0 }
+        acc[serviceName] = {
+          name: serviceName,
+          revenue: 0,
+          count: 0,
+          total_margin: 0,
+          variable_cost_cents: variableCost,
+        }
       }
-      acc[serviceName].revenue += t.price_cents || 0
+      acc[serviceName].revenue += price
+      acc[serviceName].total_margin += margin
       acc[serviceName].count += 1
       return acc
     }, {})
 
     return Object.values(serviceStats)
-      .sort((a: any, b: any) => b.revenue - a.revenue)
+      .map((s: any) => ({
+        ...s,
+        avg_margin_cents: s.count > 0 ? Math.round(s.total_margin / s.count) : 0,
+        avg_price_cents: s.count > 0 ? Math.round(s.revenue / s.count) : 0,
+      }))
+      .sort((a: any, b: any) => b.total_margin - a.total_margin) // Sort by total margin, not revenue
       .slice(0, 5)
   }
 
@@ -331,8 +378,16 @@ EXPENSES:
 - Number of expenses: ${snapshot.expenses?.count || 0}
 - By category: ${JSON.stringify(snapshot.expenses?.by_category || {}, null, 2)}
 
-TOP SERVICES:
-${snapshot.services?.top_services?.map((s: any) => `- ${s.name}: $${(s.revenue / 100).toFixed(2)} (${s.count} treatments)`).join('\n') || 'No services data'}
+FIXED COSTS (Monthly):
+- Total: $${((snapshot.fixed_costs?.monthly_total_cents || 0) / 100).toFixed(2)}
+${snapshot.fixed_costs?.items?.map((fc: any) => `  - ${fc.name}: $${(fc.monthly_cost_cents / 100).toFixed(2)}`).join('\n') || '  (No fixed costs registered)'}
+
+TOP SERVICES (by profit margin):
+${snapshot.services?.top_services?.map((s: any) => `- ${s.name}:
+  Revenue: $${(s.revenue / 100).toFixed(2)} (${s.count} treatments)
+  Avg Price: $${(s.avg_price_cents / 100).toFixed(2)}
+  Avg Margin: $${(s.avg_margin_cents / 100).toFixed(2)}
+  Variable Cost: $${(s.variable_cost_cents / 100).toFixed(2)}`).join('\n') || 'No services data'}
 
 PATIENTS:
 - New patients: ${snapshot.patients?.new_count || 0}
@@ -349,24 +404,35 @@ ${dataContext}
 
 IMPORTANT RULES:
 1. The data above is REAL data from the clinic - USE IT DIRECTLY in your answers
-2. NEVER say "no tenemos datos" or "no es posible" - the data is right there above
-3. When asked about "best treatment" or "punto de equilibrio", analyze the TOP SERVICES section
-4. When asked about revenue/income, use the REVENUE section
-5. When asked about expenses, use the EXPENSES section
+2. NEVER say "no tenemos datos" - analyze what IS available
+3. If treatments=0 but services/costs ARE configured, analyze THOSE instead:
+   - For "best treatment": Compare profit margins from SERVICES configuration (Avg Margin)
+   - For "punto de equilibrio": Use FIXED COSTS and average margins from services
+4. When asked about "best treatment", look at:
+   - If treatments > 0: Use TOP SERVICES with actual performance
+   - If treatments = 0: Use service configurations and explain based on potential margins
+5. When asked about "punto de equilibrio":
+   - Use FIXED COSTS total
+   - Calculate: Fixed Costs ÷ Average Margin = treatments needed
+   - Even with 0 treatments, you can calculate this!
 6. ALWAYS cite specific numbers from the data above
 7. Be direct and actionable - avoid generic advice
-8. If the data shows zeros, acknowledge the clinic is new and provide guidance for when they have data
 
-Examples of GOOD responses:
-- "Según los datos, tu servicio más rentable es [name] con $[amount] en ingresos y [count] tratamientos realizados."
-- "Tu ingreso neto es de $[amount] (ingresos $[X] - gastos $[Y])."
+Approach for NEW clinic (0 treatments but services configured):
+- Acknowledge lack of historical data briefly
+- Immediately pivot to analyzing configured services
+- Calculate based on potential: service prices minus variable costs
+- Provide actionable numbers for break-even analysis
+- Be optimistic and forward-looking
 
 Examples of BAD responses (NEVER do this):
-- "No tenemos datos sobre los tratamientos..." ❌
+- "No hay información disponible..." ❌
 - "No es posible identificar..." ❌
-- "Comienza por recopilar datos..." ❌ (the data is already there!)
+- "Comienza por recopilar datos..." ❌
+- Long explanations about needing data ❌
+- Generic advice without numbers ❌
 
-NEVER ask for clarification unless the question is completely ambiguous. Always provide direct analysis based on the data shown above.`
+NEVER ask for clarification unless the question is completely ambiguous. Always provide direct analysis based on available data - even if it's just configuration data.`
   }
 
   /**
