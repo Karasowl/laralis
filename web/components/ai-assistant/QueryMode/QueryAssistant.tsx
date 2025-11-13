@@ -104,32 +104,41 @@ export function QueryAssistant({ onClose }: QueryAssistantProps) {
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
       let accumulatedText = ''
+      let buffer = '' // Buffer for incomplete chunks
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
 
-        const chunk = decoder.decode(value, { stream: true })
-        const lines = chunk.split('\n')
+        // Append to buffer
+        buffer += decoder.decode(value, { stream: true })
+
+        // Process complete lines (ending with \n\n for SSE)
+        const lines = buffer.split('\n\n')
+        buffer = lines.pop() || '' // Keep incomplete line in buffer
 
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             try {
-              const data = JSON.parse(line.slice(6))
-              if (data.content) {
-                accumulatedText += data.content
-                // Update message in real-time
-                setConversation((prev) => {
-                  const newConv = [...prev]
-                  newConv[streamingMessageIndex] = {
-                    role: 'assistant',
-                    text: accumulatedText,
-                  }
-                  return newConv
-                })
+              const jsonStr = line.slice(6).trim()
+              if (jsonStr) {
+                const data = JSON.parse(jsonStr)
+                if (data.content) {
+                  accumulatedText += data.content
+                  // Update message in real-time
+                  setConversation((prev) => {
+                    const newConv = [...prev]
+                    newConv[streamingMessageIndex] = {
+                      role: 'assistant',
+                      text: accumulatedText,
+                    }
+                    return newConv
+                  })
+                }
               }
             } catch (e) {
               // Skip invalid JSON
+              console.warn('[QueryAssistant] Failed to parse SSE data:', e)
             }
           }
         }
