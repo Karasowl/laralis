@@ -5,6 +5,8 @@
  * Follows Strategy Pattern to allow switching providers without code changes.
  */
 
+import type { SupabaseClient } from '@supabase/supabase-js'
+
 // ============================================================================
 // Common Types
 // ============================================================================
@@ -62,14 +64,14 @@ export interface AIFunction {
   description: string
   parameters: {
     type: 'object'
-    properties: Record<string, any>
+    properties: Record<string, unknown>
     required?: string[]
   }
 }
 
 export interface FunctionCall {
   name: string
-  arguments: Record<string, any>
+  arguments: Record<string, unknown>
 }
 
 export interface LLMResponse {
@@ -138,9 +140,9 @@ export interface TTSProvider {
 
 export interface EntryContext {
   entityType: string
-  schema: Record<string, any>
+  schema: Record<string, unknown>
   currentField?: string
-  collectedData?: Record<string, any>
+  collectedData?: Record<string, unknown>
   locale: string
 }
 
@@ -148,11 +150,12 @@ export interface QueryContext {
   clinicId: string
   availableFunctions: AIFunction[]
   locale: string
+  supabase?: SupabaseClient // Supabase client for direct queries
 }
 
 export interface QueryResult {
   answer: string
-  data?: any
+  data?: unknown
   thinking?: string
-  visualizations?: any[]
+  visualizations?: unknown[]
 }

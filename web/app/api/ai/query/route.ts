@@ -69,11 +69,15 @@ export async function POST(request: NextRequest) {
 
     const { clinicId, userId } = clinicContext
 
+    // Create Supabase client with auth
+    const supabase = await createClient()
+
     // Build context for AI
     const context: QueryContext = {
       clinicId,
       locale,
       availableFunctions: [], // Will be filled by aiService
+      supabase, // Pass authenticated Supabase client
     }
 
     // Query database using AI

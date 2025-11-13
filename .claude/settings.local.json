@@ -17,7 +17,8 @@
       "Bash(node:*)",
       "Bash(sed:*)",
       "Bash(git add CHANGELOG.md docs/ scripts/ supabase/migrations/ web/app/ web/components/ web/hooks/ web/lib/ web/messages/*.backup)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "WebFetch(domain:platform.moonshot.ai)"
     ],
     "deny": []
   }
