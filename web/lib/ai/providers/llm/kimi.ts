@@ -71,6 +71,16 @@ export class KimiLLM implements LLMProvider {
     const model = config.llm.defaultModel || DEFAULT_MODELS.llm.kimi
 
     try {
+      // Convert functions to tools format (new OpenAI standard)
+      const tools = functions.map((fn) => ({
+        type: 'function' as const,
+        function: {
+          name: fn.name,
+          description: fn.description,
+          parameters: fn.parameters,
+        },
+      }))
+
       const response = await fetch(
         `${PROVIDER_ENDPOINTS.kimi.base}${PROVIDER_ENDPOINTS.kimi.chat}`,
         {
@@ -82,8 +92,8 @@ export class KimiLLM implements LLMProvider {
           body: JSON.stringify({
             model,
             messages,
-            functions,
-            function_call: 'auto',
+            tools,
+            tool_choice: 'auto',
             temperature: options?.temperature ?? config.llm.temperature,
             max_tokens: options?.maxTokens,
             top_p: options?.topP,
@@ -109,11 +119,12 @@ export class KimiLLM implements LLMProvider {
         content: message.content,
       }
 
-      // Parse function call if present
-      if (message.function_call) {
+      // Parse tool calls if present (new format)
+      if (message.tool_calls && message.tool_calls.length > 0) {
+        const toolCall = message.tool_calls[0]
         result.functionCall = {
-          name: message.function_call.name,
-          arguments: JSON.parse(message.function_call.arguments),
+          name: toolCall.function.name,
+          arguments: JSON.parse(toolCall.function.arguments),
         }
       }
 
