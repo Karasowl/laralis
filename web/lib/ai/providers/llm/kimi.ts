@@ -21,9 +21,7 @@ export class KimiLLM implements LLMProvider {
 
   async chat(messages: Message[], options?: LLMOptions): Promise<string> {
     const config = getAIConfig()
-    const model = options?.maxTokens
-      ? config.llm.defaultModel || DEFAULT_MODELS.llm.kimi
-      : DEFAULT_MODELS.llm.kimi
+    const model = config.llm.defaultModel || DEFAULT_MODELS.llm.kimi
 
     try {
       const response = await fetch(
@@ -40,7 +38,7 @@ export class KimiLLM implements LLMProvider {
             temperature: options?.temperature ?? config.llm.temperature,
             max_tokens: options?.maxTokens,
             top_p: options?.topP,
-            stream: options?.stream ?? false,
+            stream: false, // Non-streaming version
           }),
         }
       )
@@ -60,6 +58,47 @@ export class KimiLLM implements LLMProvider {
         `Failed to get response from Kimi: ${error instanceof Error ? error.message : 'Unknown error'}`
       )
     }
+  }
+
+  /**
+   * Chat with streaming support
+   * Returns a ReadableStream that yields SSE-formatted chunks
+   */
+  async chatStream(messages: Message[], options?: LLMOptions): Promise<ReadableStream> {
+    const config = getAIConfig()
+    const model = config.llm.defaultModel || DEFAULT_MODELS.llm.kimi
+
+    const response = await fetch(
+      `${PROVIDER_ENDPOINTS.kimi.base}${PROVIDER_ENDPOINTS.kimi.chat}`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${config.llm.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature: options?.temperature ?? config.llm.temperature,
+          max_tokens: options?.maxTokens,
+          top_p: options?.topP,
+          stream: true, // Enable streaming
+        }),
+      }
+    )
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(
+        `Kimi API error: ${response.status} - ${error.error?.message || 'Unknown error'}`
+      )
+    }
+
+    if (!response.body) {
+      throw new Error('Response body is null')
+    }
+
+    return response.body
   }
 
   async chatWithFunctions(

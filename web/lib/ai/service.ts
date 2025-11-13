@@ -121,6 +121,26 @@ export class AIService {
   }
 
   /**
+   * Query database with streaming response
+   * Returns a ReadableStream for real-time token delivery
+   */
+  async queryDatabaseStream(query: string, context: QueryContext): Promise<ReadableStream> {
+    // Pre-load ALL clinic data
+    const clinicSnapshot = await this.getClinicSnapshot(context)
+    const systemPrompt = this.buildAnalyticsSystemPromptWithData(context, clinicSnapshot)
+
+    const kimiProvider = this.getLLM() as any
+    if (!kimiProvider.chatStream) {
+      throw new Error('Streaming not supported by current LLM provider')
+    }
+
+    return kimiProvider.chatStream([
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: query },
+    ])
+  }
+
+  /**
    * Get complete clinic data snapshot for analysis
    * More efficient than multiple function calls
    */
