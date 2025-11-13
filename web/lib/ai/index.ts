@@ -30,4 +30,8 @@ export type {
 export { AIProviderFactory } from './factory'
 
 // Configuration (if you need to access config)
+// NOTE: Use getAIConfig() for lazy loading to avoid build-time errors
+export { getAIConfig, hasAIConfig, validateAIConfig, type AIConfig } from './config'
+
+// Legacy export (deprecated - use getAIConfig() instead)
 export { AI_CONFIG } from './config'

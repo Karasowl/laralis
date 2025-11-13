@@ -6,13 +6,14 @@
  */
 
 import type { TTSProvider, TTSOptions, Voice } from '../../types'
-import { AI_CONFIG, PROVIDER_ENDPOINTS, DEFAULT_MODELS } from '../../config'
+import { getAIConfig, PROVIDER_ENDPOINTS, DEFAULT_MODELS } from '../../config'
 
 export class FishAudioTTS implements TTSProvider {
   readonly name = 'fishaudio'
 
   async synthesize(text: string, options?: TTSOptions): Promise<ArrayBuffer> {
-    const voice = options?.voice || AI_CONFIG.tts.defaultVoice || DEFAULT_MODELS.tts.fishaudio
+    const config = getAIConfig()
+    const voice = options?.voice || config.tts.defaultVoice || DEFAULT_MODELS.tts.fishaudio
     const speed = options?.speed || 1.0
     const format = options?.format || 'mp3'
 
@@ -22,7 +23,7 @@ export class FishAudioTTS implements TTSProvider {
         {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${AI_CONFIG.tts.apiKey}`,
+            Authorization: `Bearer ${config.tts.apiKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -49,12 +50,13 @@ export class FishAudioTTS implements TTSProvider {
   }
 
   async getSupportedVoices(): Promise<Voice[]> {
+    const config = getAIConfig()
     try {
       const response = await fetch(
         `${PROVIDER_ENDPOINTS.fishaudio.base}${PROVIDER_ENDPOINTS.fishaudio.voices}`,
         {
           headers: {
-            Authorization: `Bearer ${AI_CONFIG.tts.apiKey}`,
+            Authorization: `Bearer ${config.tts.apiKey}`,
           },
         }
       )

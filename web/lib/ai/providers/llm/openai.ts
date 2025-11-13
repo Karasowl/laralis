@@ -12,7 +12,7 @@ import type {
   AIFunction,
   LLMResponse,
 } from '../../types'
-import { AI_CONFIG, PROVIDER_ENDPOINTS, DEFAULT_MODELS } from '../../config'
+import { getAIConfig, PROVIDER_ENDPOINTS, DEFAULT_MODELS } from '../../config'
 
 export class OpenAILLM implements LLMProvider {
   readonly name = 'openai'
@@ -20,7 +20,8 @@ export class OpenAILLM implements LLMProvider {
   readonly supportsFunctionCalling = true
 
   async chat(messages: Message[], options?: LLMOptions): Promise<string> {
-    const model = AI_CONFIG.llm.defaultModel || DEFAULT_MODELS.llm.openai
+    const config = getAIConfig()
+    const model = config.llm.defaultModel || DEFAULT_MODELS.llm.openai
 
     try {
       const response = await fetch(
@@ -28,13 +29,13 @@ export class OpenAILLM implements LLMProvider {
         {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${AI_CONFIG.llm.apiKey}`,
+            Authorization: `Bearer ${config.llm.apiKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             model,
             messages,
-            temperature: options?.temperature ?? AI_CONFIG.llm.temperature,
+            temperature: options?.temperature ?? config.llm.temperature,
             max_tokens: options?.maxTokens,
             top_p: options?.topP,
             stream: options?.stream ?? false,
@@ -64,7 +65,8 @@ export class OpenAILLM implements LLMProvider {
     functions: AIFunction[],
     options?: LLMOptions
   ): Promise<LLMResponse> {
-    const model = AI_CONFIG.llm.defaultModel || DEFAULT_MODELS.llm.openai
+    const config = getAIConfig()
+    const model = config.llm.defaultModel || DEFAULT_MODELS.llm.openai
 
     try {
       // Convert AIFunction to OpenAI tools format
@@ -82,7 +84,7 @@ export class OpenAILLM implements LLMProvider {
         {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${AI_CONFIG.llm.apiKey}`,
+            Authorization: `Bearer ${config.llm.apiKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -90,7 +92,7 @@ export class OpenAILLM implements LLMProvider {
             messages,
             tools,
             tool_choice: 'auto',
-            temperature: options?.temperature ?? AI_CONFIG.llm.temperature,
+            temperature: options?.temperature ?? config.llm.temperature,
             max_tokens: options?.maxTokens,
             top_p: options?.topP,
           }),

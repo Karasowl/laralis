@@ -6,14 +6,15 @@
  */
 
 import type { STTProvider, STTOptions } from '../../types'
-import { AI_CONFIG, PROVIDER_ENDPOINTS, DEFAULT_MODELS } from '../../config'
+import { getAIConfig, PROVIDER_ENDPOINTS, DEFAULT_MODELS } from '../../config'
 
 export class WhisperSTT implements STTProvider {
   readonly name = 'whisper'
   readonly supportsStreaming = false
 
   async transcribe(audio: Blob, options?: STTOptions): Promise<string> {
-    const language = options?.language || AI_CONFIG.stt.defaultLanguage
+    const config = getAIConfig()
+    const language = options?.language || config.stt.defaultLanguage
     const model = options?.model || DEFAULT_MODELS.stt.whisper
 
     try {
@@ -29,7 +30,7 @@ export class WhisperSTT implements STTProvider {
         {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${AI_CONFIG.stt.apiKey}`,
+            Authorization: `Bearer ${config.stt.apiKey}`,
           },
           body: formData,
         }

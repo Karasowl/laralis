@@ -8,7 +8,7 @@
  */
 
 import type { TTSProvider, TTSOptions, VoiceInfo } from '../../types'
-import { AI_CONFIG, PROVIDER_ENDPOINTS } from '../../config'
+import { getAIConfig, PROVIDER_ENDPOINTS } from '../../config'
 
 /**
  * Deepgram Aura voices available in Spanish (June 2025)
@@ -54,6 +54,7 @@ export class DeepgramTTS implements TTSProvider {
    * Synthesize text to speech using Deepgram Aura
    */
   async synthesize(text: string, options?: TTSOptions): Promise<ArrayBuffer> {
+    const config = getAIConfig()
     // Select voice (default to Celeste - Mexican female)
     const voice = options?.voice || 'aura-celeste-es'
     const encoding = options?.format || 'mp3'
@@ -70,7 +71,7 @@ export class DeepgramTTS implements TTSProvider {
         {
           method: 'POST',
           headers: {
-            Authorization: `Token ${AI_CONFIG.tts.apiKey}`,
+            Authorization: `Token ${config.tts.apiKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ text }),
