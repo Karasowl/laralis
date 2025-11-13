@@ -7,7 +7,7 @@
 
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X, MessageSquare, Send, Sparkles, ChevronDown, ChevronUp } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { VoiceRecorder } from '../VoiceRecorder'
@@ -28,14 +28,10 @@ interface QueryMessage {
 
 export function QueryAssistant({ onClose }: QueryAssistantProps) {
   const t = useTranslations('aiAssistant.query')
+  const tMessages = useTranslations('aiAssistant.messages')
   const { currentClinic } = useCurrentClinic()
 
-  const [conversation, setConversation] = useState<QueryMessage[]>([
-    {
-      role: 'assistant',
-      text: '¡Hola! Puedo ayudarte a analizar tus datos. ¿Qué te gustaría saber?',
-    },
-  ])
+  const [conversation, setConversation] = useState<QueryMessage[]>([])
   const [textInput, setTextInput] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -48,6 +44,18 @@ export function QueryAssistant({ onClose }: QueryAssistantProps) {
     t('example4'),
     t('example5'),
   ]
+
+  // Initialize conversation with greeting
+  useEffect(() => {
+    if (conversation.length === 0) {
+      setConversation([
+        {
+          role: 'assistant',
+          text: tMessages('greeting'),
+        },
+      ])
+    }
+  }, [conversation.length, tMessages])
 
   const handleQuery = async (query: string) => {
     if (!query.trim() || isProcessing) return
@@ -97,7 +105,7 @@ export function QueryAssistant({ onClose }: QueryAssistantProps) {
         ...prev,
         {
           role: 'assistant',
-          text: 'Lo siento, hubo un error al procesar tu consulta. Por favor intenta de nuevo.',
+          text: tMessages('queryError'),
         },
       ])
     } finally {

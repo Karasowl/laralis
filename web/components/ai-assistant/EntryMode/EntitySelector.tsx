@@ -140,11 +140,14 @@ export function EntitySelector({ onSelect }: EntitySelectorProps) {
     },
   ]
 
+  const tCategories = useTranslations('aiAssistant.categories')
+  const tMessages = useTranslations('aiAssistant.messages')
+
   const categories = {
-    common: 'Uso Frecuente',
-    operations: 'Operaciones',
-    marketing: 'Marketing',
-    config: 'Configuración',
+    common: tCategories('common'),
+    operations: tCategories('operations'),
+    marketing: tCategories('marketing'),
+    config: tCategories('config'),
   }
 
   const groupedEntities = Object.entries(categories).map(([key, label]) => ({
@@ -158,7 +161,7 @@ export function EntitySelector({ onSelect }: EntitySelectorProps) {
       <div>
         <h3 className="text-lg font-semibold">{t('entry.selectEntity')}</h3>
         <p className="text-sm text-muted-foreground mt-1">
-          Todas las entidades disponibles
+          {tMessages('allEntitiesAvailable')}
         </p>
       </div>
 

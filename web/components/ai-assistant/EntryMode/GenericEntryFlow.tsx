@@ -31,6 +31,7 @@ type FlowStep = 'collecting' | 'preview' | 'saving' | 'success' | 'error'
 export function GenericEntryFlow({ entityType, onComplete, onCancel }: GenericEntryFlowProps) {
   const t = useTranslations('aiAssistant.entry')
   const tCommon = useTranslations('common')
+  const tMessages = useTranslations('aiAssistant.messages')
   const router = useRouter()
   const { currentClinic } = useCurrentClinic()
 
@@ -53,10 +54,10 @@ export function GenericEntryFlow({ entityType, onComplete, onCancel }: GenericEn
     setConversation([
       {
         role: 'assistant',
-        text: `Vamos a crear un nuevo ${entityType}. Comenzamos con el primer campo.`,
+        text: tMessages('creating', { entity: entityType }),
       },
     ])
-  }, [entityType])
+  }, [entityType, tMessages])
 
   const currentField = fieldOrder[currentFieldIndex]
   const progress = fieldOrder.length > 0 ? ((currentFieldIndex + 1) / fieldOrder.length) * 100 : 0
@@ -302,7 +303,7 @@ export function GenericEntryFlow({ entityType, onComplete, onCancel }: GenericEn
       <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
         <div>
           <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-            Campo actual:
+            {tMessages('currentField')}
           </p>
           <p className="text-xs text-blue-700 dark:text-blue-300 capitalize">
             {currentField?.replace(/_/g, ' ')}
@@ -313,7 +314,7 @@ export function GenericEntryFlow({ entityType, onComplete, onCancel }: GenericEn
             onClick={moveToPreviousField}
             className="text-xs px-3 py-1 border border-blue-300 dark:border-blue-700 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30"
           >
-            ← Anterior
+            {tMessages('previousField')}
           </button>
         )}
       </div>

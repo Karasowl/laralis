@@ -3323,5 +3323,93 @@
       "estimatedDuration": "Estimated Time",
       "diskSpace": "Disk Space"
     }
+  },
+  "aiAssistant": {
+    "fab": {
+      "tooltip": "AI Voice Assistant",
+      "entry": "Create Record",
+      "query": "Ask Question"
+    },
+    "entry": {
+      "title": "AI Voice Assistant",
+      "subtitle": "Create records using your voice or text",
+      "cancel": "Cancel",
+      "selectEntity": "What would you like to create?",
+      "progress": "{completed} of {total} fields completed",
+      "tapToSpeak": "Tap to speak",
+      "speak": "Speak",
+      "recording": "Recording...",
+      "transcribing": "Transcribing...",
+      "stopRecording": "Stop recording",
+      "skipField": "Skip field",
+      "preview": "Preview",
+      "confirmAndSave": "Confirm and Save",
+      "restart": "Start over",
+      "saveSuccess": "Record saved successfully!",
+      "saveError": "Error saving record",
+      "errors": {
+        "microphonePermission": "Microphone permission denied. Please enable microphone access in your browser settings.",
+        "noAudioRecorded": "No audio recorded. Please try again.",
+        "transcriptionFailed": "Failed to transcribe audio. Please try again.",
+        "networkError": "Network error. Please check your connection and try again.",
+        "noClinicSelected": "No clinic selected. Please select a clinic first.",
+        "saveFailed": "Failed to save record. Please try again."
+      }
+    },
+    "query": {
+      "title": "Ask AI Assistant",
+      "subtitle": "Get insights and analysis from your data",
+      "askQuestion": "Type your question...",
+      "examples": "Try asking:",
+      "example1": "How many patients did I see this month?",
+      "example2": "What was my revenue last week?",
+      "example3": "Which services generate the most income?",
+      "example4": "What are my biggest expenses?",
+      "example5": "Show me my profit margin for this month",
+      "analyzing": "Analyzing...",
+      "showThinking": "Show reasoning",
+      "hideThinking": "Hide reasoning",
+      "thinkingProcess": "AI Reasoning",
+      "queryError": "Error processing your query",
+      "errors": {
+        "noClinicSelected": "No clinic selected. Please select a clinic first."
+      }
+    },
+    "entities": {
+      "patient": "Patient",
+      "treatment": "Treatment",
+      "service": "Service",
+      "supply": "Supply",
+      "asset": "Asset",
+      "fixedCost": "Fixed Cost",
+      "expense": "Expense",
+      "campaign": "Marketing Campaign",
+      "platform": "Marketing Platform",
+      "patientSource": "Patient Source",
+      "category": "Category",
+      "workspace": "Workspace",
+      "clinic": "Clinic",
+      "timeSetting": "Time Configuration"
+    },
+    "audio": {
+      "generating": "Generating...",
+      "stop": "Stop",
+      "listen": "Listen"
+    },
+    "categories": {
+      "common": "Frequently Used",
+      "operations": "Operations",
+      "marketing": "Marketing",
+      "config": "Configuration"
+    },
+    "messages": {
+      "allEntitiesAvailable": "All available entities",
+      "greeting": "Hello! I can help you analyze your data. What would you like to know?",
+      "queryError": "Sorry, there was an error processing your query. Please try again.",
+      "previousField": "← Previous",
+      "currentField": "Current field:",
+      "showingResults": "Showing 10 of {total} results",
+      "creating": "Let's create a new {entity}. Starting with the first field."
+    }
   }
 }
