@@ -71,6 +71,16 @@ export function QueryAssistant({ onClose }: QueryAssistantProps) {
     setConversation((prev) => [...prev, { role: 'user', text: query }])
     setTextInput('')
 
+    // Add placeholder for streaming response
+    const streamingMessageIndex = conversation.length + 1
+    setConversation((prev) => [
+      ...prev,
+      {
+        role: 'assistant',
+        text: '',
+      },
+    ])
+
     try {
       const response = await fetch('/api/ai/query', {
         method: 'POST',
@@ -86,28 +96,55 @@ export function QueryAssistant({ onClose }: QueryAssistantProps) {
         throw new Error('Query failed')
       }
 
-      const data = await response.json()
+      if (!response.body) {
+        throw new Error('No response body')
+      }
 
-      // Add AI response
-      setConversation((prev) => [
-        ...prev,
-        {
-          role: 'assistant',
-          text: data.answer,
-          thinking: data.thinking,
-          data: data.data,
-        },
-      ])
+      // Read streaming response
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let accumulatedText = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value, { stream: true })
+        const lines = chunk.split('\n')
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6))
+              if (data.content) {
+                accumulatedText += data.content
+                // Update message in real-time
+                setConversation((prev) => {
+                  const newConv = [...prev]
+                  newConv[streamingMessageIndex] = {
+                    role: 'assistant',
+                    text: accumulatedText,
+                  }
+                  return newConv
+                })
+              }
+            } catch (e) {
+              // Skip invalid JSON
+            }
+          }
+        }
+      }
     } catch (err) {
       console.error('[QueryAssistant] Error:', err)
       setError(t('queryError'))
-      setConversation((prev) => [
-        ...prev,
-        {
+      setConversation((prev) => {
+        const newConv = [...prev]
+        newConv[streamingMessageIndex] = {
           role: 'assistant',
           text: tMessages('queryError'),
-        },
-      ])
+        }
+        return newConv
+      })
     } finally {
       setIsProcessing(false)
     }
