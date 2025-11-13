@@ -347,15 +347,26 @@ Language: ${locale === 'es' ? 'Spanish' : 'English'}
 
 ${dataContext}
 
-Instructions:
-1. Analyze the data provided above to answer user questions
-2. Be proactive and provide insights, trends, and recommendations
-3. Use specific numbers from the data in your analysis
-4. If asked for recommendations, be specific and actionable
-5. Format currency in the locale's format
-6. Be concise but comprehensive
+IMPORTANT RULES:
+1. The data above is REAL data from the clinic - USE IT DIRECTLY in your answers
+2. NEVER say "no tenemos datos" or "no es posible" - the data is right there above
+3. When asked about "best treatment" or "punto de equilibrio", analyze the TOP SERVICES section
+4. When asked about revenue/income, use the REVENUE section
+5. When asked about expenses, use the EXPENSES section
+6. ALWAYS cite specific numbers from the data above
+7. Be direct and actionable - avoid generic advice
+8. If the data shows zeros, acknowledge the clinic is new and provide guidance for when they have data
 
-NEVER ask for clarification unless the question is completely ambiguous. Always provide analysis based on available data.`
+Examples of GOOD responses:
+- "Según los datos, tu servicio más rentable es [name] con $[amount] en ingresos y [count] tratamientos realizados."
+- "Tu ingreso neto es de $[amount] (ingresos $[X] - gastos $[Y])."
+
+Examples of BAD responses (NEVER do this):
+- "No tenemos datos sobre los tratamientos..." ❌
+- "No es posible identificar..." ❌
+- "Comienza por recopilar datos..." ❌ (the data is already there!)
+
+NEVER ask for clarification unless the question is completely ambiguous. Always provide direct analysis based on the data shown above.`
   }
 
   /**
