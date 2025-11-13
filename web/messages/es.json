@@ -3601,5 +3601,93 @@
       "estimatedDuration": "Tiempo Estimado",
       "diskSpace": "Espacio en Disco"
     }
+  },
+  "aiAssistant": {
+    "fab": {
+      "tooltip": "Asistente de Voz con IA",
+      "entry": "Crear Registro",
+      "query": "Hacer Pregunta"
+    },
+    "entry": {
+      "title": "Asistente de Voz con IA",
+      "subtitle": "Crea registros usando tu voz o texto",
+      "cancel": "Cancelar",
+      "selectEntity": "¿Qué te gustaría crear?",
+      "progress": "{completed} de {total} campos completados",
+      "tapToSpeak": "Toca para hablar",
+      "speak": "Hablar",
+      "recording": "Grabando...",
+      "transcribing": "Transcribiendo...",
+      "stopRecording": "Detener grabación",
+      "skipField": "Saltar campo",
+      "preview": "Vista Previa",
+      "confirmAndSave": "Confirmar y Guardar",
+      "restart": "Reiniciar",
+      "saveSuccess": "¡Registro guardado exitosamente!",
+      "saveError": "Error al guardar registro",
+      "errors": {
+        "microphonePermission": "Permiso de micrófono denegado. Por favor, habilita el acceso al micrófono en la configuración de tu navegador.",
+        "noAudioRecorded": "No se grabó audio. Por favor, intenta de nuevo.",
+        "transcriptionFailed": "Error al transcribir el audio. Por favor, intenta de nuevo.",
+        "networkError": "Error de red. Por favor, verifica tu conexión e intenta de nuevo.",
+        "noClinicSelected": "No hay clínica seleccionada. Por favor, selecciona una clínica primero.",
+        "saveFailed": "Error al guardar el registro. Por favor, intenta de nuevo."
+      }
+    },
+    "query": {
+      "title": "Consultar Asistente IA",
+      "subtitle": "Obtén análisis e insights de tus datos",
+      "askQuestion": "Escribe tu pregunta...",
+      "examples": "Prueba preguntar:",
+      "example1": "¿Cuántos pacientes atendí este mes?",
+      "example2": "¿Cuáles fueron mis ingresos la semana pasada?",
+      "example3": "¿Qué servicios generan más ingresos?",
+      "example4": "¿Cuáles son mis gastos más grandes?",
+      "example5": "Muéstrame mi margen de ganancia de este mes",
+      "analyzing": "Analizando...",
+      "showThinking": "Mostrar razonamiento",
+      "hideThinking": "Ocultar razonamiento",
+      "thinkingProcess": "Razonamiento de IA",
+      "queryError": "Error al procesar tu consulta",
+      "errors": {
+        "noClinicSelected": "No hay clínica seleccionada. Por favor, selecciona una clínica primero."
+      }
+    },
+    "entities": {
+      "patient": "Paciente",
+      "treatment": "Tratamiento",
+      "service": "Servicio",
+      "supply": "Insumo",
+      "asset": "Activo",
+      "fixedCost": "Costo Fijo",
+      "expense": "Gasto",
+      "campaign": "Campaña de Marketing",
+      "platform": "Plataforma de Marketing",
+      "patientSource": "Fuente de Pacientes",
+      "category": "Categoría",
+      "workspace": "Espacio de Trabajo",
+      "clinic": "Clínica",
+      "timeSetting": "Configuración de Tiempo"
+    },
+    "audio": {
+      "generating": "Generando...",
+      "stop": "Detener",
+      "listen": "Escuchar"
+    },
+    "categories": {
+      "common": "Uso Frecuente",
+      "operations": "Operaciones",
+      "marketing": "Marketing",
+      "config": "Configuración"
+    },
+    "messages": {
+      "allEntitiesAvailable": "Todas las entidades disponibles",
+      "greeting": "¡Hola! Puedo ayudarte a analizar tus datos. ¿Qué te gustaría saber?",
+      "queryError": "Lo siento, hubo un error al procesar tu consulta. Por favor intenta de nuevo.",
+      "previousField": "← Anterior",
+      "currentField": "Campo actual:",
+      "showingResults": "Mostrando 10 de {total} resultados",
+      "creating": "Vamos a crear un nuevo {entity}. Comenzamos con el primer campo."
+    }
   }
 }

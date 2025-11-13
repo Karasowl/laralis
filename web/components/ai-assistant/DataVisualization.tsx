@@ -8,6 +8,7 @@
 'use client'
 
 import { TrendingUp, TrendingDown, Minus, DollarSign, Users, Activity } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 interface DataVisualizationProps {
   data: any
@@ -15,6 +16,7 @@ interface DataVisualizationProps {
 }
 
 export function DataVisualization({ data, type = 'auto' }: DataVisualizationProps) {
+  const t = useTranslations('aiAssistant.messages')
   if (!data) return null
 
   // Auto-detect type based on data structure
@@ -144,7 +146,7 @@ export function DataVisualization({ data, type = 'auto' }: DataVisualizationProp
         </div>
         {data.length > 10 && (
           <div className="px-2 py-1 text-[10px] text-muted-foreground bg-muted text-center">
-            Mostrando 10 de {data.length} resultados
+            {t('showingResults', { total: data.length })}
           </div>
         )}
       </div>

@@ -8,6 +8,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { Volume2, VolumeX, Loader2 } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 interface AudioPlayerProps {
   text: string
@@ -16,6 +17,7 @@ interface AudioPlayerProps {
 }
 
 export function AudioPlayer({ text, autoPlay = false, onError }: AudioPlayerProps) {
+  const t = useTranslations('aiAssistant.audio')
   const [isPlaying, setIsPlaying] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -92,22 +94,22 @@ export function AudioPlayer({ text, autoPlay = false, onError }: AudioPlayerProp
       onClick={handlePlay}
       disabled={isLoading}
       className="inline-flex items-center gap-1 text-xs text-purple-600 dark:text-purple-400 hover:underline disabled:opacity-50"
-      title={isPlaying ? 'Detener' : 'Escuchar'}
+      title={isPlaying ? t('stop') : t('listen')}
     >
       {isLoading ? (
         <>
           <Loader2 className="h-3 w-3 animate-spin" />
-          <span>Generando...</span>
+          <span>{t('generating')}</span>
         </>
       ) : isPlaying ? (
         <>
           <VolumeX className="h-3 w-3" />
-          <span>Detener</span>
+          <span>{t('stop')}</span>
         </>
       ) : (
         <>
           <Volume2 className="h-3 w-3" />
-          <span>Escuchar</span>
+          <span>{t('listen')}</span>
         </>
       )}
     </button>
