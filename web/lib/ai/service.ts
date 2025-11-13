@@ -123,14 +123,33 @@ export class AIService {
       )
 
       // Get final answer with function result
-      // Note: Kimi API now uses 'tool' role instead of deprecated 'function' role
-      // and requires tool_call_id from the original tool call
+      // According to Kimi API docs, we must include:
+      // 1. Original system + user messages
+      // 2. Assistant message with tool_calls (from first response)
+      // 3. Tool result message with tool_call_id and name
       const finalResponse = await this.getLLM().chat([
         { role: 'system', content: systemPrompt },
         { role: 'user', content: query },
+        // Assistant message with tool_calls (from first response)
         {
-          role: 'tool' as any, // Cast needed as type definition may not be updated yet
+          role: 'assistant' as any,
+          content: response.content,
+          tool_calls: [
+            {
+              id: response.functionCall.toolCallId!,
+              type: 'function' as const,
+              function: {
+                name: response.functionCall.name,
+                arguments: JSON.stringify(response.functionCall.arguments),
+              },
+            },
+          ],
+        },
+        // Tool result message
+        {
+          role: 'tool' as any,
           tool_call_id: response.functionCall.toolCallId,
+          name: response.functionCall.name,
           content: JSON.stringify(functionResult),
         },
       ])
