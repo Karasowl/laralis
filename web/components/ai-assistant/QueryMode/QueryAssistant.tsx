@@ -71,16 +71,6 @@ export function QueryAssistant({ onClose }: QueryAssistantProps) {
     setConversation((prev) => [...prev, { role: 'user', text: query }])
     setTextInput('')
 
-    // Add placeholder for streaming response
-    const streamingMessageIndex = conversation.length + 1
-    setConversation((prev) => [
-      ...prev,
-      {
-        role: 'assistant',
-        text: '',
-      },
-    ])
-
     try {
       const response = await fetch('/api/ai/query', {
         method: 'POST',
@@ -96,64 +86,27 @@ export function QueryAssistant({ onClose }: QueryAssistantProps) {
         throw new Error('Query failed')
       }
 
-      if (!response.body) {
-        throw new Error('No response body')
-      }
+      const data = await response.json()
 
-      // Read streaming response
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-      let accumulatedText = ''
-      let buffer = '' // Buffer for incomplete chunks
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        // Append to buffer
-        buffer += decoder.decode(value, { stream: true })
-
-        // Process complete lines (ending with \n\n for SSE)
-        const lines = buffer.split('\n\n')
-        buffer = lines.pop() || '' // Keep incomplete line in buffer
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const jsonStr = line.slice(6).trim()
-              if (jsonStr) {
-                const data = JSON.parse(jsonStr)
-                if (data.content) {
-                  accumulatedText += data.content
-                  // Update message in real-time
-                  setConversation((prev) => {
-                    const newConv = [...prev]
-                    newConv[streamingMessageIndex] = {
-                      role: 'assistant',
-                      text: accumulatedText,
-                    }
-                    return newConv
-                  })
-                }
-              }
-            } catch (e) {
-              // Skip invalid JSON
-              console.warn('[QueryAssistant] Failed to parse SSE data:', e)
-            }
-          }
-        }
-      }
+      // Add AI response
+      setConversation((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          text: data.answer,
+          data: data.data,
+        },
+      ])
     } catch (err) {
       console.error('[QueryAssistant] Error:', err)
       setError(t('queryError'))
-      setConversation((prev) => {
-        const newConv = [...prev]
-        newConv[streamingMessageIndex] = {
+      setConversation((prev) => [
+        ...prev,
+        {
           role: 'assistant',
           text: tMessages('queryError'),
-        }
-        return newConv
-      })
+        },
+      ])
     } finally {
       setIsProcessing(false)
     }

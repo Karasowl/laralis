@@ -80,53 +80,16 @@ export async function POST(request: NextRequest) {
       supabase, // Pass authenticated Supabase client
     }
 
-    // Query database using AI with streaming
-    const stream = await aiService.queryDatabaseStream(query, context)
+    // Query database using AI (non-streaming for now - simpler and works immediately)
+    const result = await aiService.queryDatabase(query, context)
 
-    // Transform Kimi's SSE stream to our format
-    const transformedStream = new ReadableStream({
-      async start(controller) {
-        const reader = stream.getReader()
-        const decoder = new TextDecoder()
-
-        try {
-          while (true) {
-            const { done, value } = await reader.read()
-            if (done) break
-
-            const chunk = decoder.decode(value, { stream: true })
-            const lines = chunk.split('\n')
-
-            for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                const data = line.slice(6)
-                if (data === '[DONE]') continue
-
-                try {
-                  const parsed = JSON.parse(data)
-                  const content = parsed.choices?.[0]?.delta?.content
-                  if (content) {
-                    controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ content })}\n\n`))
-                  }
-                } catch (e) {
-                  // Skip invalid JSON
-                }
-              }
-            }
-          }
-        } catch (error) {
-          controller.error(error)
-        } finally {
-          controller.close()
-        }
-      },
-    })
-
-    return new Response(transformedStream, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
+    return NextResponse.json({
+      answer: result.answer,
+      data: result.data,
+      metadata: {
+        userId,
+        clinicId,
+        timestamp: new Date().toISOString(),
       },
     })
   } catch (error) {
