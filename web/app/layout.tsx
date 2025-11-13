@@ -5,6 +5,7 @@ import { WorkspaceProvider } from '@/contexts/workspace-context';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { BrowserExtensionsCleanup } from '@/components/providers/browser-extensions-cleanup';
 import { IntlProvider } from '@/components/providers/intl-provider';
+import { FloatingAssistant } from '@/components/ai-assistant/FloatingAssistant';
 
 export default async function RootLayout({
   children,
@@ -29,6 +30,7 @@ export default async function RootLayout({
           <IntlProvider messages={messages} locale={locale}>
             <WorkspaceProvider>
               {children}
+              <FloatingAssistant />
               <Toaster
                 richColors
                 position="top-right"
