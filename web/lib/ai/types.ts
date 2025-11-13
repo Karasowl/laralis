@@ -14,15 +14,15 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 export interface Message {
   role: 'system' | 'user' | 'assistant' | 'function' | 'tool'
   content: string | null
-  name?: string // For function responses (deprecated)
+  name?: string // For function responses (deprecated) and tool responses (required for tool role)
   function_call?: {
     // Deprecated - use tool_calls instead
     name: string
     arguments: string
   }
-  tool_call_id?: string // For tool responses in new API format
+  tool_call_id?: string // Required for tool role - ID from the original tool call
   tool_calls?: Array<{
-    // New format for function calling
+    // New format for function calling (assistant response)
     id: string
     type: 'function'
     function: {
