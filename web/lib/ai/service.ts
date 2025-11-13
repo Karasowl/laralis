@@ -332,7 +332,12 @@ NEVER ask for clarification unless the question is completely ambiguous. Always 
     }
 
     // Execute the function by calling the API
-    const response = await fetch(`${endpoint}?${params}`)
+    // In server-side context (Vercel), fetch requires absolute URL
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : 'http://localhost:3000'
+
+    const response = await fetch(`${baseUrl}${endpoint}?${params}`)
 
     if (!response.ok) {
       throw new Error(`API error: ${response.status}`)
