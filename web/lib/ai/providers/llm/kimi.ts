@@ -125,6 +125,7 @@ export class KimiLLM implements LLMProvider {
         result.functionCall = {
           name: toolCall.function.name,
           arguments: JSON.parse(toolCall.function.arguments),
+          toolCallId: toolCall.id, // Save tool_call_id for response
         }
       }
 

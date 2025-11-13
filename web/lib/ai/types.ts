@@ -12,13 +12,24 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 // ============================================================================
 
 export interface Message {
-  role: 'system' | 'user' | 'assistant' | 'function'
+  role: 'system' | 'user' | 'assistant' | 'function' | 'tool'
   content: string | null
-  name?: string // For function responses
+  name?: string // For function responses (deprecated)
   function_call?: {
+    // Deprecated - use tool_calls instead
     name: string
     arguments: string
   }
+  tool_call_id?: string // For tool responses in new API format
+  tool_calls?: Array<{
+    // New format for function calling
+    id: string
+    type: 'function'
+    function: {
+      name: string
+      arguments: string
+    }
+  }>
 }
 
 export interface Voice {
@@ -72,6 +83,7 @@ export interface AIFunction {
 export interface FunctionCall {
   name: string
   arguments: Record<string, unknown>
+  toolCallId?: string // For new tool-based API (Kimi, etc)
 }
 
 export interface LLMResponse {
