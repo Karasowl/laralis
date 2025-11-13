@@ -130,10 +130,34 @@ export class AIService {
       context
     )
 
-    // Build simple response with the data
-    // Skip second LLM call to save time - just return structured data
+    // Add assistant tool call and result to conversation
+    messages.push({
+      role: 'assistant',
+      content: response.content,
+      tool_calls: [
+        {
+          id: response.functionCall.toolCallId!,
+          type: 'function',
+          function: {
+            name: response.functionCall.name,
+            arguments: JSON.stringify(response.functionCall.arguments),
+          },
+        },
+      ],
+    })
+
+    messages.push({
+      role: 'tool',
+      tool_call_id: response.functionCall.toolCallId,
+      name: response.functionCall.name,
+      content: JSON.stringify(functionResult),
+    })
+
+    // Second call: Get final narrative answer with simpler chat (faster than chatWithFunctions)
+    const finalAnswer = await this.getLLM().chat(messages)
+
     return {
-      answer: response.content || `Resultados de ${response.functionCall.name}`,
+      answer: finalAnswer,
       data: functionResult,
       thinking: response.thinkingProcess,
     }
