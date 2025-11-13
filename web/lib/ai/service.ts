@@ -103,64 +103,133 @@ export class AIService {
    * For analytics/insights mode
    */
   async queryDatabase(query: string, context: QueryContext): Promise<QueryResult> {
-    const systemPrompt = this.buildAnalyticsSystemPrompt(context)
-    const functions = this.getAvailableFunctions()
+    // Pre-load ALL clinic data in one go (faster and cheaper than function calling)
+    const clinicSnapshot = await this.getClinicSnapshot(context)
 
-    // Build conversation history following Kimi API multi-turn tool calling pattern
-    const messages: Message[] = [
+    const systemPrompt = this.buildAnalyticsSystemPromptWithData(context, clinicSnapshot)
+
+    // Single LLM call with all data in context - no function calling needed
+    const response = await this.getLLM().chat([
       { role: 'system', content: systemPrompt },
       { role: 'user', content: query },
-    ]
-
-    // First call: Let model decide which function to call
-    const response = await this.getLLM().chatWithFunctions(messages, functions)
-
-    // If no function call needed, return direct answer
-    if (!response.functionCall) {
-      return {
-        answer: response.content || '',
-        thinking: response.thinkingProcess,
-      }
-    }
-
-    // Execute the single function call
-    const functionResult = await this.executeFunctionCall(
-      response.functionCall.name,
-      response.functionCall.arguments,
-      context
-    )
-
-    // Add assistant tool call and result to conversation
-    messages.push({
-      role: 'assistant',
-      content: response.content,
-      tool_calls: [
-        {
-          id: response.functionCall.toolCallId!,
-          type: 'function',
-          function: {
-            name: response.functionCall.name,
-            arguments: JSON.stringify(response.functionCall.arguments),
-          },
-        },
-      ],
-    })
-
-    messages.push({
-      role: 'tool',
-      tool_call_id: response.functionCall.toolCallId,
-      name: response.functionCall.name,
-      content: JSON.stringify(functionResult),
-    })
-
-    // Second call: Get final narrative answer with simpler chat (faster than chatWithFunctions)
-    const finalAnswer = await this.getLLM().chat(messages)
+    ])
 
     return {
-      answer: finalAnswer,
-      data: functionResult,
-      thinking: response.thinkingProcess,
+      answer: response,
+      data: clinicSnapshot,
     }
+  }
+
+  /**
+   * Get complete clinic data snapshot for analysis
+   * More efficient than multiple function calls
+   */
+  private async getClinicSnapshot(context: QueryContext): Promise<any> {
+    const { supabase, clinicId } = context
+    if (!supabase) return null
+
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
+    try {
+      // Execute all queries in parallel
+      const [
+        revenueData,
+        expensesData,
+        servicesData,
+        patientsData,
+      ] = await Promise.all([
+        // Revenue from treatments
+        supabase
+          .from('treatments')
+          .select('price_cents, treatment_date, notes')
+          .eq('clinic_id', clinicId)
+          .gte('treatment_date', thirtyDaysAgo.toISOString())
+          .order('treatment_date', { ascending: false }),
+
+        // Expenses
+        supabase
+          .from('expenses')
+          .select('amount_cents, date, category, description')
+          .eq('clinic_id', clinicId)
+          .gte('date', thirtyDaysAgo.toISOString())
+          .order('date', { ascending: false }),
+
+        // Services performance
+        supabase
+          .from('treatments')
+          .select(`
+            service_id,
+            price_cents,
+            services!inner(name)
+          `)
+          .eq('clinic_id', clinicId)
+          .gte('treatment_date', thirtyDaysAgo.toISOString()),
+
+        // Patient stats
+        supabase
+          .from('patients')
+          .select('id, created_at, source')
+          .eq('clinic_id', clinicId)
+          .gte('created_at', thirtyDaysAgo.toISOString()),
+      ])
+
+      return {
+        period: 'last_30_days',
+        revenue: {
+          total_cents: revenueData.data?.reduce((sum, t) => sum + (t.price_cents || 0), 0) || 0,
+          treatments_count: revenueData.data?.length || 0,
+          treatments: revenueData.data || [],
+        },
+        expenses: {
+          total_cents: expensesData.data?.reduce((sum, e) => sum + (e.amount_cents || 0), 0) || 0,
+          count: expensesData.data?.length || 0,
+          by_category: this.groupByCategory(expensesData.data || []),
+        },
+        services: {
+          top_services: this.getTopServices(servicesData.data || []),
+        },
+        patients: {
+          new_count: patientsData.data?.length || 0,
+          by_source: this.groupBySource(patientsData.data || []),
+        },
+      }
+    } catch (error) {
+      console.error('[AIService] Error loading clinic snapshot:', error)
+      return null
+    }
+  }
+
+  private groupByCategory(expenses: any[]): Record<string, number> {
+    return expenses.reduce((acc, exp) => {
+      const cat = exp.category || 'otros'
+      acc[cat] = (acc[cat] || 0) + exp.amount_cents
+      return acc
+    }, {})
+  }
+
+  private groupBySource(patients: any[]): Record<string, number> {
+    return patients.reduce((acc, p) => {
+      const source = p.source || 'unknown'
+      acc[source] = (acc[source] || 0) + 1
+      return acc
+    }, {})
+  }
+
+  private getTopServices(treatments: any[]): any[] {
+    const serviceStats = treatments.reduce((acc: any, t) => {
+      const serviceName = t.services?.name || 'Unknown'
+      if (!acc[serviceName]) {
+        acc[serviceName] = { name: serviceName, revenue: 0, count: 0 }
+      }
+      acc[serviceName].revenue += t.price_cents || 0
+      acc[serviceName].count += 1
+      return acc
+    }, {})
+
+    return Object.values(serviceStats)
+      .sort((a: any, b: any) => b.revenue - a.revenue)
+      .slice(0, 5)
   }
 
   // ========================================================================
@@ -222,47 +291,51 @@ Keep responses SHORT and DIRECT.`
   }
 
   /**
-   * Build system prompt for analytics mode
+   * Build system prompt with pre-loaded clinic data
    */
-  private buildAnalyticsSystemPrompt(context: QueryContext): string {
+  private buildAnalyticsSystemPromptWithData(context: QueryContext, snapshot: any): string {
     const { locale } = context
+
+    const dataContext = snapshot ? `
+
+CLINIC DATA (Last 30 Days):
+========================
+
+REVENUE:
+- Total: $${((snapshot.revenue?.total_cents || 0) / 100).toFixed(2)}
+- Treatments: ${snapshot.revenue?.treatments_count || 0}
+- Average per treatment: $${snapshot.revenue?.treatments_count > 0 ? ((snapshot.revenue.total_cents / snapshot.revenue.treatments_count) / 100).toFixed(2) : '0.00'}
+
+EXPENSES:
+- Total: $${((snapshot.expenses?.total_cents || 0) / 100).toFixed(2)}
+- Number of expenses: ${snapshot.expenses?.count || 0}
+- By category: ${JSON.stringify(snapshot.expenses?.by_category || {}, null, 2)}
+
+TOP SERVICES:
+${snapshot.services?.top_services?.map((s: any) => `- ${s.name}: $${(s.revenue / 100).toFixed(2)} (${s.count} treatments)`).join('\n') || 'No services data'}
+
+PATIENTS:
+- New patients: ${snapshot.patients?.new_count || 0}
+- By source: ${JSON.stringify(snapshot.patients?.by_source || {}, null, 2)}
+
+NET PROFIT: $${(((snapshot.revenue?.total_cents || 0) - (snapshot.expenses?.total_cents || 0)) / 100).toFixed(2)}
+` : '\n[No data available]'
 
     return `You are a proactive and intelligent data analyst for a dental clinic management system.
 
 Language: ${locale === 'es' ? 'Spanish' : 'English'}
 
-You have access to the following database functions to answer user questions:
-- query_revenue: Get revenue data
-- get_top_services: Get best performing services
-- analyze_expenses: Analyze spending patterns
-- get_patient_stats: Get patient metrics
-- compare_periods: Compare time periods
-- get_inventory_alerts: Check inventory status
-- calculate_break_even: Calculate break-even point
-- get_treatment_frequency: Analyze treatment patterns
+${dataContext}
 
 Instructions:
-1. ALWAYS be proactive - infer reasonable defaults from context
-2. Call ONLY ONE function per query - choose the most relevant one
-3. If user asks for a "resumen" or "summary" → Use query_revenue (it provides the most complete overview)
-4. For date ranges: If not specified, use last 30 days as default
-5. Provide insights based on the single function result
-6. Be concise and direct
-7. DO NOT make multiple function calls - system timeout is limited
+1. Analyze the data provided above to answer user questions
+2. Be proactive and provide insights, trends, and recommendations
+3. Use specific numbers from the data in your analysis
+4. If asked for recommendations, be specific and actionable
+5. Format currency in the locale's format
+6. Be concise but comprehensive
 
-IMPORTANT CONSTRAINT: You can call ONLY ONE function per user query due to performance limits.
-Choose the most relevant function for the user's question:
-- General summary/resumen → query_revenue
-- Service performance → get_top_services
-- Spending analysis → analyze_expenses
-- Patient metrics → get_patient_stats
-
-DEFAULT BEHAVIOR:
-- When asked for a "resumen" or "summary" → Use query_revenue with last 30 days
-- When time period is unclear → Use last 30 days as default
-- Be decisive - pick ONE function and provide insights from its results
-
-NEVER ask for clarification unless the question is completely ambiguous. Always make intelligent assumptions and act.`
+NEVER ask for clarification unless the question is completely ambiguous. Always provide analysis based on available data.`
   }
 
   /**
