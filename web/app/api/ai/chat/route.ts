@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { aiService } from '@/lib/ai'
 import type { Message, EntryContext } from '@/lib/ai'
+import { hasAIConfig, validateAIConfig } from '@/lib/ai/config'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -20,6 +21,24 @@ interface ChatRequest {
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if AI is configured
+    if (!hasAIConfig()) {
+      return NextResponse.json(
+        { error: 'AI service is not configured' },
+        { status: 503 }
+      )
+    }
+
+    // Validate configuration before using
+    try {
+      validateAIConfig()
+    } catch (error) {
+      console.error('[API /ai/chat] Configuration error:', error)
+      return NextResponse.json(
+        { error: 'AI service configuration is invalid' },
+        { status: 503 }
+      )
+    }
     const body: ChatRequest = await request.json()
     const { userInput, context, mode } = body
 

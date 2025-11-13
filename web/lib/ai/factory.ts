@@ -3,10 +3,11 @@
  *
  * Factory for creating AI providers based on configuration.
  * Uses Strategy Pattern to allow runtime provider switching.
+ * Implements lazy loading to avoid build-time errors.
  */
 
 import type { STTProvider, LLMProvider, TTSProvider } from './types'
-import { AI_CONFIG } from './config'
+import { getAIConfig } from './config'
 
 // STT Providers
 import { DeepgramSTT } from './providers/stt/deepgram'
@@ -38,7 +39,8 @@ export class AIProviderFactory {
       return this.sttInstance
     }
 
-    const provider = AI_CONFIG.stt.provider
+    const config = getAIConfig()
+    const provider = config.stt.provider
 
     switch (provider) {
       case 'deepgram':
@@ -63,7 +65,8 @@ export class AIProviderFactory {
       return this.llmInstance
     }
 
-    const provider = AI_CONFIG.llm.provider
+    const config = getAIConfig()
+    const provider = config.llm.provider
 
     switch (provider) {
       case 'kimi':
@@ -91,7 +94,8 @@ export class AIProviderFactory {
       return this.ttsInstance
     }
 
-    const provider = AI_CONFIG.tts.provider
+    const config = getAIConfig()
+    const provider = config.tts.provider
 
     switch (provider) {
       case 'deepgram':
@@ -128,10 +132,11 @@ export class AIProviderFactory {
     llm: string
     tts: string
   } {
+    const config = getAIConfig()
     return {
-      stt: AI_CONFIG.stt.provider,
-      llm: AI_CONFIG.llm.provider,
-      tts: AI_CONFIG.tts.provider,
+      stt: config.stt.provider,
+      llm: config.llm.provider,
+      tts: config.tts.provider,
     }
   }
 }

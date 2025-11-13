@@ -6,14 +6,15 @@
  */
 
 import type { STTProvider, STTOptions } from '../../types'
-import { AI_CONFIG, PROVIDER_ENDPOINTS, DEFAULT_MODELS } from '../../config'
+import { getAIConfig, PROVIDER_ENDPOINTS, DEFAULT_MODELS } from '../../config'
 
 export class DeepgramSTT implements STTProvider {
   readonly name = 'deepgram'
   readonly supportsStreaming = true
 
   async transcribe(audio: Blob, options?: STTOptions): Promise<string> {
-    const language = options?.language || AI_CONFIG.stt.defaultLanguage
+    const config = getAIConfig()
+    const language = options?.language || config.stt.defaultLanguage
     const model = options?.model || DEFAULT_MODELS.stt.deepgram
 
     try {
@@ -34,7 +35,7 @@ export class DeepgramSTT implements STTProvider {
         {
           method: 'POST',
           headers: {
-            Authorization: `Token ${AI_CONFIG.stt.apiKey}`,
+            Authorization: `Token ${config.stt.apiKey}`,
           },
           body: formData,
         }

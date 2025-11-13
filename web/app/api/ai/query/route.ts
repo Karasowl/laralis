@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { aiService } from '@/lib/ai'
 import type { QueryContext } from '@/lib/ai'
+import { hasAIConfig, validateAIConfig } from '@/lib/ai/config'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60 // Longer timeout for complex queries
@@ -22,6 +23,24 @@ interface QueryRequest {
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if AI is configured
+    if (!hasAIConfig()) {
+      return NextResponse.json(
+        { error: 'AI service is not configured' },
+        { status: 503 }
+      )
+    }
+
+    // Validate configuration before using
+    try {
+      validateAIConfig()
+    } catch (error) {
+      console.error('[API /ai/query] Configuration error:', error)
+      return NextResponse.json(
+        { error: 'AI service configuration is invalid' },
+        { status: 503 }
+      )
+    }
     const body: QueryRequest = await request.json()
     const { query, clinicId, locale = 'es' } = body
 

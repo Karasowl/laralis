@@ -12,7 +12,7 @@ import type {
   AIFunction,
   LLMResponse,
 } from '../../types'
-import { AI_CONFIG, PROVIDER_ENDPOINTS, DEFAULT_MODELS } from '../../config'
+import { getAIConfig, PROVIDER_ENDPOINTS, DEFAULT_MODELS } from '../../config'
 
 export class KimiLLM implements LLMProvider {
   readonly name = 'kimi'
@@ -20,8 +20,9 @@ export class KimiLLM implements LLMProvider {
   readonly supportsFunctionCalling = true
 
   async chat(messages: Message[], options?: LLMOptions): Promise<string> {
+    const config = getAIConfig()
     const model = options?.maxTokens
-      ? AI_CONFIG.llm.defaultModel || DEFAULT_MODELS.llm.kimi
+      ? config.llm.defaultModel || DEFAULT_MODELS.llm.kimi
       : DEFAULT_MODELS.llm.kimi
 
     try {
@@ -30,13 +31,13 @@ export class KimiLLM implements LLMProvider {
         {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${AI_CONFIG.llm.apiKey}`,
+            Authorization: `Bearer ${config.llm.apiKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             model,
             messages,
-            temperature: options?.temperature ?? AI_CONFIG.llm.temperature,
+            temperature: options?.temperature ?? config.llm.temperature,
             max_tokens: options?.maxTokens,
             top_p: options?.topP,
             stream: options?.stream ?? false,
@@ -66,7 +67,8 @@ export class KimiLLM implements LLMProvider {
     functions: AIFunction[],
     options?: LLMOptions
   ): Promise<LLMResponse> {
-    const model = AI_CONFIG.llm.defaultModel || DEFAULT_MODELS.llm.kimi
+    const config = getAIConfig()
+    const model = config.llm.defaultModel || DEFAULT_MODELS.llm.kimi
 
     try {
       const response = await fetch(
@@ -74,7 +76,7 @@ export class KimiLLM implements LLMProvider {
         {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${AI_CONFIG.llm.apiKey}`,
+            Authorization: `Bearer ${config.llm.apiKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -82,7 +84,7 @@ export class KimiLLM implements LLMProvider {
             messages,
             functions,
             function_call: 'auto',
-            temperature: options?.temperature ?? AI_CONFIG.llm.temperature,
+            temperature: options?.temperature ?? config.llm.temperature,
             max_tokens: options?.maxTokens,
             top_p: options?.topP,
           }),

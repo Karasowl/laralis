@@ -4,6 +4,9 @@
  * High-level API for AI interactions.
  * This is the main interface that UI components use.
  * Provider-agnostic - changing providers doesn't affect this API.
+ *
+ * IMPORTANT: Implements lazy initialization to avoid build-time errors
+ * when environment variables are not available during Next.js static generation.
  */
 
 import type {
@@ -19,14 +22,38 @@ import type {
 import { AIProviderFactory } from './factory'
 
 export class AIService {
-  private stt: STTProvider
-  private llm: LLMProvider
-  private tts: TTSProvider
+  private stt: STTProvider | null = null
+  private llm: LLMProvider | null = null
+  private tts: TTSProvider | null = null
 
-  constructor() {
-    this.stt = AIProviderFactory.createSTT()
-    this.llm = AIProviderFactory.createLLM()
-    this.tts = AIProviderFactory.createTTS()
+  /**
+   * Get or create STT provider (lazy initialization)
+   */
+  private getSTT(): STTProvider {
+    if (!this.stt) {
+      this.stt = AIProviderFactory.createSTT()
+    }
+    return this.stt
+  }
+
+  /**
+   * Get or create LLM provider (lazy initialization)
+   */
+  private getLLM(): LLMProvider {
+    if (!this.llm) {
+      this.llm = AIProviderFactory.createLLM()
+    }
+    return this.llm
+  }
+
+  /**
+   * Get or create TTS provider (lazy initialization)
+   */
+  private getTTS(): TTSProvider {
+    if (!this.tts) {
+      this.tts = AIProviderFactory.createTTS()
+    }
+    return this.tts
   }
 
   // ========================================================================
@@ -37,7 +64,7 @@ export class AIService {
    * Transcribe audio to text
    */
   async transcribe(audio: Blob, language?: string): Promise<string> {
-    return this.stt.transcribe(audio, { language })
+    return this.getSTT().transcribe(audio, { language })
   }
 
   // ========================================================================
@@ -48,7 +75,7 @@ export class AIService {
    * Simple chat completion
    */
   async chat(messages: Message[]): Promise<string> {
-    return this.llm.chat(messages)
+    return this.getLLM().chat(messages)
   }
 
   /**
@@ -63,7 +90,7 @@ export class AIService {
       { role: 'user', content: userInput },
     ]
 
-    return this.llm.chat(messages)
+    return this.getLLM().chat(messages)
   }
 
   // ========================================================================
@@ -78,7 +105,7 @@ export class AIService {
     const systemPrompt = this.buildAnalyticsSystemPrompt(context)
     const functions = this.getAvailableFunctions(context)
 
-    const response = await this.llm.chatWithFunctions(
+    const response = await this.getLLM().chatWithFunctions(
       [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: query },
@@ -95,7 +122,7 @@ export class AIService {
       )
 
       // Get final answer with function result
-      const finalResponse = await this.llm.chat([
+      const finalResponse = await this.getLLM().chat([
         { role: 'system', content: systemPrompt },
         { role: 'user', content: query },
         {
@@ -127,14 +154,14 @@ export class AIService {
    * Convert text to speech
    */
   async speakText(text: string, voice?: string): Promise<ArrayBuffer> {
-    return this.tts.synthesize(text, { voice })
+    return this.getTTS().synthesize(text, { voice })
   }
 
   /**
    * Get available TTS voices
    */
   async getVoices() {
-    return this.tts.getSupportedVoices()
+    return this.getTTS().getSupportedVoices()
   }
 
   // ========================================================================
@@ -310,18 +337,38 @@ If the question is vague, ask for clarification.`
 
   /**
    * Get information about current providers
+   * Uses lazy initialization to avoid build-time errors
    */
   getProviderInfo() {
+    // Safe to check if providers exist without creating them
+    const hasProviders = this.stt || this.llm || this.tts
+
+    if (!hasProviders) {
+      // Return default info during build time
+      return {
+        stt: 'not-initialized',
+        llm: 'not-initialized',
+        tts: 'not-initialized',
+        llmCapabilities: {
+          thinking: false,
+          functionCalling: false,
+        },
+        sttCapabilities: {
+          streaming: false,
+        },
+      }
+    }
+
     return {
-      stt: this.stt.name,
-      llm: this.llm.name,
-      tts: this.tts.name,
+      stt: this.getSTT().name,
+      llm: this.getLLM().name,
+      tts: this.getTTS().name,
       llmCapabilities: {
-        thinking: this.llm.supportsThinking,
-        functionCalling: this.llm.supportsFunctionCalling,
+        thinking: this.getLLM().supportsThinking,
+        functionCalling: this.getLLM().supportsFunctionCalling,
       },
       sttCapabilities: {
-        streaming: this.stt.supportsStreaming,
+        streaming: this.getSTT().supportsStreaming,
       },
     }
   }
@@ -334,5 +381,8 @@ If the question is vague, ask for clarification.`
 /**
  * Singleton instance of AIService
  * Use this in your app
+ *
+ * IMPORTANT: This instance is created immediately but providers are initialized
+ * lazily on first use to avoid build-time errors with missing env vars.
  */
 export const aiService = new AIService()
