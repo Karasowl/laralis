@@ -112,72 +112,30 @@ export class AIService {
       { role: 'user', content: query },
     ]
 
-    let thinkingProcess: string | undefined
-    const executedFunctions: Array<{ name: string; result: unknown }> = []
-    const MAX_ITERATIONS = 10 // Safety limit to prevent infinite loops
+    // First call: Let model decide which function to call
+    const response = await this.getLLM().chatWithFunctions(messages, functions)
 
-    // Loop while model wants to call tools (following Kimi API docs pattern)
-    for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
-      const response = await this.getLLM().chatWithFunctions(messages, functions)
-
-      // Save thinking process from first response
-      if (!thinkingProcess && response.thinkingProcess) {
-        thinkingProcess = response.thinkingProcess
+    // If no function call needed, return direct answer
+    if (!response.functionCall) {
+      return {
+        answer: response.content || '',
+        thinking: response.thinkingProcess,
       }
-
-      // If no function call, we have the final answer
-      if (!response.functionCall) {
-        return {
-          answer: response.content || '',
-          data: executedFunctions.length > 0 ? executedFunctions : undefined,
-          thinking: thinkingProcess,
-        }
-      }
-
-      // Execute the function
-      const functionResult = await this.executeFunctionCall(
-        response.functionCall.name,
-        response.functionCall.arguments,
-        context
-      )
-
-      executedFunctions.push({
-        name: response.functionCall.name,
-        result: functionResult,
-      })
-
-      // Add assistant message with tool_calls to conversation
-      messages.push({
-        role: 'assistant',
-        content: response.content,
-        tool_calls: [
-          {
-            id: response.functionCall.toolCallId!,
-            type: 'function',
-            function: {
-              name: response.functionCall.name,
-              arguments: JSON.stringify(response.functionCall.arguments),
-            },
-          },
-        ],
-      })
-
-      // Add tool result to conversation
-      messages.push({
-        role: 'tool',
-        tool_call_id: response.functionCall.toolCallId,
-        name: response.functionCall.name,
-        content: JSON.stringify(functionResult),
-      })
-
-      // Continue loop - model will decide if it needs more tools or can answer
     }
 
-    // If we hit max iterations, return what we have
+    // Execute the single function call
+    const functionResult = await this.executeFunctionCall(
+      response.functionCall.name,
+      response.functionCall.arguments,
+      context
+    )
+
+    // Build simple response with the data
+    // Skip second LLM call to save time - just return structured data
     return {
-      answer: 'Query completed but may be incomplete due to complexity.',
-      data: executedFunctions,
-      thinking: thinkingProcess,
+      answer: response.content || `Resultados de ${response.functionCall.name}`,
+      data: functionResult,
+      thinking: response.thinkingProcess,
     }
   }
 
@@ -261,18 +219,24 @@ You have access to the following database functions to answer user questions:
 
 Instructions:
 1. ALWAYS be proactive - infer reasonable defaults from context
-2. If user asks for a "resume" (summary), provide a comprehensive overview using ALL available data
-3. For date ranges: If not specified, use intelligent defaults (last month, last quarter, etc.)
-4. For analysis types: If user asks generally, provide the most relevant metrics (revenue, top services, expenses, patient stats)
-5. Call the necessary functions immediately with reasonable parameters
-6. Analyze the results and provide actionable insights
-7. Be concise but comprehensive
-8. Use numbers and visualizations in your explanations
+2. Call ONLY ONE function per query - choose the most relevant one
+3. If user asks for a "resumen" or "summary" → Use query_revenue (it provides the most complete overview)
+4. For date ranges: If not specified, use last 30 days as default
+5. Provide insights based on the single function result
+6. Be concise and direct
+7. DO NOT make multiple function calls - system timeout is limited
+
+IMPORTANT CONSTRAINT: You can call ONLY ONE function per user query due to performance limits.
+Choose the most relevant function for the user's question:
+- General summary/resumen → query_revenue
+- Service performance → get_top_services
+- Spending analysis → analyze_expenses
+- Patient metrics → get_patient_stats
 
 DEFAULT BEHAVIOR:
-- When asked for a "resumen" or "summary" → Query revenue, top services, expenses, and patient stats for the last 30 days
-- When time period is unclear → Use last month as default
-- When asked about "todo en general" (everything) → Provide comprehensive multi-dimensional analysis
+- When asked for a "resumen" or "summary" → Use query_revenue with last 30 days
+- When time period is unclear → Use last 30 days as default
+- Be decisive - pick ONE function and provide insights from its results
 
 NEVER ask for clarification unless the question is completely ambiguous. Always make intelligent assumptions and act.`
   }
