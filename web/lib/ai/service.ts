@@ -106,65 +106,78 @@ export class AIService {
     const systemPrompt = this.buildAnalyticsSystemPrompt(context)
     const functions = this.getAvailableFunctions()
 
-    const response = await this.getLLM().chatWithFunctions(
-      [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: query },
-      ],
-      functions
-    )
+    // Build conversation history following Kimi API multi-turn tool calling pattern
+    const messages: Message[] = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: query },
+    ]
 
-    // If LLM wants to call a function, execute it
-    if (response.functionCall) {
+    let thinkingProcess: string | undefined
+    const executedFunctions: Array<{ name: string; result: unknown }> = []
+    const MAX_ITERATIONS = 10 // Safety limit to prevent infinite loops
+
+    // Loop while model wants to call tools (following Kimi API docs pattern)
+    for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
+      const response = await this.getLLM().chatWithFunctions(messages, functions)
+
+      // Save thinking process from first response
+      if (!thinkingProcess && response.thinkingProcess) {
+        thinkingProcess = response.thinkingProcess
+      }
+
+      // If no function call, we have the final answer
+      if (!response.functionCall) {
+        return {
+          answer: response.content || '',
+          data: executedFunctions.length > 0 ? executedFunctions : undefined,
+          thinking: thinkingProcess,
+        }
+      }
+
+      // Execute the function
       const functionResult = await this.executeFunctionCall(
         response.functionCall.name,
         response.functionCall.arguments,
         context
       )
 
-      // Get final answer with function result
-      // According to Kimi API docs, we must include:
-      // 1. Original system + user messages
-      // 2. Assistant message with tool_calls (from first response)
-      // 3. Tool result message with tool_call_id and name
-      const finalResponse = await this.getLLM().chat([
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: query },
-        // Assistant message with tool_calls (from first response)
-        {
-          role: 'assistant' as any,
-          content: response.content,
-          tool_calls: [
-            {
-              id: response.functionCall.toolCallId!,
-              type: 'function' as const,
-              function: {
-                name: response.functionCall.name,
-                arguments: JSON.stringify(response.functionCall.arguments),
-              },
-            },
-          ],
-        },
-        // Tool result message
-        {
-          role: 'tool' as any,
-          tool_call_id: response.functionCall.toolCallId,
-          name: response.functionCall.name,
-          content: JSON.stringify(functionResult),
-        },
-      ])
+      executedFunctions.push({
+        name: response.functionCall.name,
+        result: functionResult,
+      })
 
-      return {
-        answer: finalResponse,
-        data: functionResult,
-        thinking: response.thinkingProcess,
-      }
+      // Add assistant message with tool_calls to conversation
+      messages.push({
+        role: 'assistant',
+        content: response.content,
+        tool_calls: [
+          {
+            id: response.functionCall.toolCallId!,
+            type: 'function',
+            function: {
+              name: response.functionCall.name,
+              arguments: JSON.stringify(response.functionCall.arguments),
+            },
+          },
+        ],
+      })
+
+      // Add tool result to conversation
+      messages.push({
+        role: 'tool',
+        tool_call_id: response.functionCall.toolCallId,
+        name: response.functionCall.name,
+        content: JSON.stringify(functionResult),
+      })
+
+      // Continue loop - model will decide if it needs more tools or can answer
     }
 
-    // No function call needed
+    // If we hit max iterations, return what we have
     return {
-      answer: response.content || '',
-      thinking: response.thinkingProcess,
+      answer: 'Query completed but may be incomplete due to complexity.',
+      data: executedFunctions,
+      thinking: thinkingProcess,
     }
   }
 
