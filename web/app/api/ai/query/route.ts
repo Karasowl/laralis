@@ -64,11 +64,10 @@ export async function POST(request: NextRequest) {
 
     // Check user membership
     const { data: membership, error: membershipError } = await supabase
-      .from('user_clinic_memberships')
+      .from('clinic_users')
       .select('role')
       .eq('user_id', user.id)
       .eq('clinic_id', clinicId)
-      .eq('is_active', true)
       .single()
 
     if (membershipError || !membership) {
