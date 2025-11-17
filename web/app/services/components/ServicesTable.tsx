@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { ActionDropdown, createEditAction, createDeleteAction } from '@/components/ui/ActionDropdown'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { formatCurrency } from '@/lib/money'
-import { Briefcase, Package, Clock, Info } from 'lucide-react'
+import { Briefcase, Package, Clock, Info, Percent } from 'lucide-react'
 
 interface ServicesTableProps {
   services: any[]
@@ -17,6 +17,7 @@ interface ServicesTableProps {
   onManageSupplies: (service: any) => void
   onEdit: (service: any) => void
   onDelete: (service: any) => void
+  onApplyDiscount: (service: any) => void
 }
 
 export function ServicesTable({
@@ -26,7 +27,8 @@ export function ServicesTable({
   fixedCostPerMinuteCents = 0,
   onManageSupplies,
   onEdit,
-  onDelete
+  onDelete,
+  onApplyDiscount
 }: ServicesTableProps) {
   const t = useTranslations('services')
   const tRoot = useTranslations()
@@ -298,6 +300,11 @@ export function ServicesTable({
                 label: t('manage_supplies'),
                 icon: <Package className="h-4 w-4" />,
                 onClick: () => service && onManageSupplies(service)
+              },
+              {
+                label: t('apply_discount'),
+                icon: <Percent className="h-4 w-4" />,
+                onClick: () => service && onApplyDiscount(service)
               },
               createEditAction(() => service && onEdit(service), tRoot('common.edit')),
               createDeleteAction(() => service && onDelete(service), tRoot('common.delete'))
