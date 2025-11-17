@@ -21,6 +21,7 @@ import type {
 } from './types'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { AIProviderFactory } from './factory'
+import { ClinicSnapshotService } from './ClinicSnapshotService'
 
 export class AIService {
   private stt: STTProvider | null = null
@@ -142,161 +143,21 @@ export class AIService {
 
   /**
    * Get complete clinic data snapshot for analysis
-   * More efficient than multiple function calls
+   * Uses ClinicSnapshotService to load ALL data and pre-computed analytics
    */
   private async getClinicSnapshot(context: QueryContext): Promise<any> {
     const { supabase, clinicId } = context
     if (!supabase) return null
 
-    const thirtyDaysAgo = new Date()
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-
     try {
-      // Execute all queries in parallel
-      const [
-        revenueData,
-        expensesData,
-        servicesData,
-        patientsData,
-        fixedCostsData,
-        tariffsData,
-      ] = await Promise.all([
-        // Revenue from treatments
-        supabase
-          .from('treatments')
-          .select('price_cents, treatment_date, notes, service_id')
-          .eq('clinic_id', clinicId)
-          .gte('treatment_date', thirtyDaysAgo.toISOString())
-          .order('treatment_date', { ascending: false }),
-
-        // Expenses
-        supabase
-          .from('expenses')
-          .select('amount_cents, date, category, description')
-          .eq('clinic_id', clinicId)
-          .gte('date', thirtyDaysAgo.toISOString())
-          .order('date', { ascending: false }),
-
-        // Services performance with full details
-        supabase
-          .from('treatments')
-          .select(`
-            service_id,
-            price_cents,
-            services!inner(
-              name,
-              variable_cost_cents,
-              minutes
-            )
-          `)
-          .eq('clinic_id', clinicId)
-          .gte('treatment_date', thirtyDaysAgo.toISOString()),
-
-        // Patient stats
-        supabase
-          .from('patients')
-          .select('id, created_at, source')
-          .eq('clinic_id', clinicId)
-          .gte('created_at', thirtyDaysAgo.toISOString()),
-
-        // Fixed costs for break-even analysis
-        supabase
-          .from('fixed_costs')
-          .select('name, monthly_cost_cents')
-          .eq('clinic_id', clinicId),
-
-        // Current tariffs (prices) for each service
-        supabase
-          .from('tariffs')
-          .select(`
-            service_id,
-            price_cents,
-            services!inner(name)
-          `)
-          .eq('clinic_id', clinicId)
-          .order('created_at', { ascending: false }),
-      ])
-
-      // Calculate total fixed costs
-      const totalFixedCosts = fixedCostsData.data?.reduce((sum, fc) => sum + (fc.monthly_cost_cents || 0), 0) || 0
-
-      return {
-        period: 'last_30_days',
-        revenue: {
-          total_cents: revenueData.data?.reduce((sum, t) => sum + (t.price_cents || 0), 0) || 0,
-          treatments_count: revenueData.data?.length || 0,
-          treatments: revenueData.data || [],
-        },
-        expenses: {
-          total_cents: expensesData.data?.reduce((sum, e) => sum + (e.amount_cents || 0), 0) || 0,
-          count: expensesData.data?.length || 0,
-          by_category: this.groupByCategory(expensesData.data || []),
-        },
-        fixed_costs: {
-          monthly_total_cents: totalFixedCosts,
-          items: fixedCostsData.data || [],
-        },
-        services: {
-          top_services: this.getTopServicesWithMargins(servicesData.data || []),
-          current_prices: tariffsData.data || [],
-        },
-        patients: {
-          new_count: patientsData.data?.length || 0,
-          by_source: this.groupBySource(patientsData.data || []),
-        },
-      }
+      const snapshotService = new ClinicSnapshotService()
+      return await snapshotService.getFullSnapshot(supabase, clinicId, {
+        period: 30, // Last 30 days
+      })
     } catch (error) {
       console.error('[AIService] Error loading clinic snapshot:', error)
       return null
     }
-  }
-
-  private groupByCategory(expenses: any[]): Record<string, number> {
-    return expenses.reduce((acc, exp) => {
-      const cat = exp.category || 'otros'
-      acc[cat] = (acc[cat] || 0) + exp.amount_cents
-      return acc
-    }, {})
-  }
-
-  private groupBySource(patients: any[]): Record<string, number> {
-    return patients.reduce((acc, p) => {
-      const source = p.source || 'unknown'
-      acc[source] = (acc[source] || 0) + 1
-      return acc
-    }, {})
-  }
-
-  private getTopServicesWithMargins(treatments: any[]): any[] {
-    const serviceStats = treatments.reduce((acc: any, t) => {
-      const serviceName = t.services?.name || 'Unknown'
-      const variableCost = t.services?.variable_cost_cents || 0
-      const price = t.price_cents || 0
-      const margin = price - variableCost
-
-      if (!acc[serviceName]) {
-        acc[serviceName] = {
-          name: serviceName,
-          revenue: 0,
-          count: 0,
-          total_margin: 0,
-          variable_cost_cents: variableCost,
-        }
-      }
-      acc[serviceName].revenue += price
-      acc[serviceName].total_margin += margin
-      acc[serviceName].count += 1
-      return acc
-    }, {})
-
-    return Object.values(serviceStats)
-      .map((s: any) => ({
-        ...s,
-        avg_margin_cents: s.count > 0 ? Math.round(s.total_margin / s.count) : 0,
-        avg_price_cents: s.count > 0 ? Math.round(s.revenue / s.count) : 0,
-      }))
-      .sort((a: any, b: any) => b.total_margin - a.total_margin) // Sort by total margin, not revenue
-      .slice(0, 5)
   }
 
   // ========================================================================
@@ -363,76 +224,144 @@ Keep responses SHORT and DIRECT.`
   private buildAnalyticsSystemPromptWithData(context: QueryContext, snapshot: any): string {
     const { locale } = context
 
-    const dataContext = snapshot ? `
+    if (!snapshot) {
+      return `You are a data analyst for a dental clinic.
 
-CLINIC DATA (Last 30 Days):
-========================
+Language: ${locale === 'es' ? 'Spanish' : 'English'}
 
-REVENUE:
-- Total: $${((snapshot.revenue?.total_cents || 0) / 100).toFixed(2)}
-- Treatments: ${snapshot.revenue?.treatments_count || 0}
-- Average per treatment: $${snapshot.revenue?.treatments_count > 0 ? ((snapshot.revenue.total_cents / snapshot.revenue.treatments_count) / 100).toFixed(2) : '0.00'}
+No data is currently available. Please ask the user to configure their clinic first.`
+    }
 
-EXPENSES:
-- Total: $${((snapshot.expenses?.total_cents || 0) / 100).toFixed(2)}
-- Number of expenses: ${snapshot.expenses?.count || 0}
-- By category: ${JSON.stringify(snapshot.expenses?.by_category || {}, null, 2)}
+    // Format currency helper
+    const fmt = (cents: number) => `$${(cents / 100).toFixed(2)}`
 
-FIXED COSTS (Monthly):
-- Total: $${((snapshot.fixed_costs?.monthly_total_cents || 0) / 100).toFixed(2)}
-${snapshot.fixed_costs?.items?.map((fc: any) => `  - ${fc.name}: $${(fc.monthly_cost_cents / 100).toFixed(2)}`).join('\n') || '  (No fixed costs registered)'}
-
-TOP SERVICES (by profit margin):
-${snapshot.services?.top_services?.map((s: any) => `- ${s.name}:
-  Revenue: $${(s.revenue / 100).toFixed(2)} (${s.count} treatments)
-  Avg Price: $${(s.avg_price_cents / 100).toFixed(2)}
-  Avg Margin: $${(s.avg_margin_cents / 100).toFixed(2)}
-  Variable Cost: $${(s.variable_cost_cents / 100).toFixed(2)}`).join('\n') || 'No services data'}
-
-PATIENTS:
-- New patients: ${snapshot.patients?.new_count || 0}
-- By source: ${JSON.stringify(snapshot.patients?.by_source || {}, null, 2)}
-
-NET PROFIT: $${(((snapshot.revenue?.total_cents || 0) - (snapshot.expenses?.total_cents || 0)) / 100).toFixed(2)}
-` : '\n[No data available]'
+    const appSchema = snapshot.app_schema
+    const clinic = snapshot.clinic
+    const data = snapshot.data
+    const analytics = snapshot.analytics
 
     return `You are a proactive and intelligent data analyst for a dental clinic management system.
 
 Language: ${locale === 'es' ? 'Spanish' : 'English'}
 
-${dataContext}
+## APPLICATION ARCHITECTURE
 
-IMPORTANT RULES:
-1. The data above is REAL data from the clinic - USE IT DIRECTLY in your answers
-2. NEVER say "no tenemos datos" - analyze what IS available
-3. If treatments=0 but services/costs ARE configured, analyze THOSE instead:
-   - For "best treatment": Compare profit margins from SERVICES configuration (Avg Margin)
-   - For "punto de equilibrio": Use FIXED COSTS and average margins from services
-4. When asked about "best treatment", look at:
-   - If treatments > 0: Use TOP SERVICES with actual performance
-   - If treatments = 0: Use service configurations and explain based on potential margins
-5. When asked about "punto de equilibrio":
-   - Use FIXED COSTS total
-   - Calculate: Fixed Costs ÷ Average Margin = treatments needed
-   - Even with 0 treatments, you can calculate this!
-6. ALWAYS cite specific numbers from the data above
-7. Be direct and actionable - avoid generic advice
+This dental clinic management system has ${Object.keys(appSchema.modules).length} core modules:
 
-Approach for NEW clinic (0 treatments but services configured):
-- Acknowledge lack of historical data briefly
-- Immediately pivot to analyzing configured services
-- Calculate based on potential: service prices minus variable costs
-- Provide actionable numbers for break-even analysis
-- Be optimistic and forward-looking
+${Object.entries(appSchema.modules)
+  .map(([name, info]: [string, any]) => `**${name.toUpperCase()}**: ${info.description}`)
+  .join('\n')}
 
-Examples of BAD responses (NEVER do this):
-- "No hay información disponible..." ❌
-- "No es posible identificar..." ❌
-- "Comienza por recopilar datos..." ❌
-- Long explanations about needing data ❌
-- Generic advice without numbers ❌
+## KEY BUSINESS FORMULAS
 
-NEVER ask for clarification unless the question is completely ambiguous. Always provide direct analysis based on available data - even if it's just configuration data.`
+${Object.entries(appSchema.business_formulas)
+  .map(([name, formula]) => `- **${name}**: ${formula}`)
+  .join('\n')}
+
+## CLINIC CONFIGURATION
+
+**Name**: ${clinic.name}
+**Work Schedule**:
+- ${clinic.time_settings.work_days_per_month} days/month
+- ${clinic.time_settings.hours_per_day} hours/day
+- ${clinic.time_settings.real_productivity_pct}% productive time
+- **Available treatment minutes**: ${clinic.time_settings.available_treatment_minutes} min/month
+
+## COMPLETE DATA SNAPSHOT (Last 30 Days)
+
+### PATIENTS
+- Total patients: ${data.patients.total}
+- New patients (last 30d): ${data.patients.new_in_period}
+- Active patients (last 30d): ${data.patients.active_in_period}
+- Sources: ${JSON.stringify(data.patients.by_source)}
+
+### TREATMENTS
+- Total treatments: ${data.treatments.total_in_period}
+- Total revenue: ${fmt(data.treatments.total_revenue_cents)}
+- Average price per treatment: ${fmt(data.treatments.avg_price_cents)}
+- By service:
+${data.treatments.by_service?.slice(0, 5).map((s: any) => `  - ${s.service_name}: ${s.count} treatments, ${fmt(s.revenue_cents)} revenue`).join('\n') || '  (No treatment data)'}
+
+### SERVICES (Configured)
+- Total services: ${data.services.total_configured}
+- Services with supplies: ${data.services.with_supplies}
+- All services with pricing:
+${data.services.list?.map((s: any) => `  - ${s.name}: ${fmt(s.current_price_cents)}, ${s.est_minutes} min, margin ${s.margin_pct}%`).join('\n') || '  (No services configured)'}
+
+### SUPPLIES
+- Total supplies: ${data.supplies.total_items}
+- Total value: ${fmt(data.supplies.total_value_cents)}
+- Linked to services: ${data.supplies.linked_to_services}
+- By category: ${JSON.stringify(data.supplies.by_category)}
+
+### ASSETS & DEPRECIATION
+- Total assets: ${data.assets.total_count}
+- Total purchase value: ${fmt(data.assets.total_purchase_value_cents)}
+- **Monthly depreciation**: ${fmt(data.assets.monthly_depreciation_cents)}
+${data.assets.items?.slice(0, 5).map((a: any) => `  - ${a.name}: ${fmt(a.monthly_depreciation_cents)}/month`).join('\n') || '  (No assets)'}
+
+### EXPENSES (Last 30 Days)
+- Total: ${fmt(data.expenses.total_in_period_cents)}
+- Count: ${data.expenses.count}
+- By category: ${JSON.stringify(data.expenses.by_category)}
+
+### FIXED COSTS (Monthly)
+- Total: ${fmt(data.fixed_costs.monthly_total_cents)}
+${data.fixed_costs.items?.map((fc: any) => `  - ${fc.name}: ${fmt(fc.amount_cents)} (${fc.type})`).join('\n') || '  (No fixed costs)'}
+
+## PRE-CALCULATED ANALYTICS
+
+### BREAK-EVEN ANALYSIS
+- **Break-even revenue**: ${fmt(analytics.break_even.revenue_cents)}/month
+- **Treatments needed**: ${analytics.break_even.treatments_needed} treatments/month
+- **Current treatments**: ${analytics.break_even.current_treatments} treatments/month
+- **Gap**: ${analytics.break_even.gap} treatments (Status: ${analytics.break_even.status})
+
+### MARGINS
+- Average variable cost: ${analytics.margins.avg_variable_cost_pct}%
+- Contribution margin: ${analytics.margins.contribution_margin_pct}%
+- Gross margin: ${analytics.margins.gross_margin_pct}%
+- Net margin: ${analytics.margins.net_margin_pct}%
+
+### PROFITABILITY
+- Net profit: ${fmt(analytics.profitability.net_profit_cents)}
+- Profit margin: ${analytics.profitability.profit_margin_pct}%
+
+### EFFICIENCY
+- Treatments per day: ${analytics.efficiency.treatments_per_day}
+- Revenue per hour: ${fmt(analytics.efficiency.revenue_per_hour_cents)}
+- Capacity utilization: ${analytics.efficiency.capacity_utilization_pct}%
+
+### TOP PERFORMERS
+- Most profitable service: ${analytics.top_performers.most_profitable_service}
+- Most revenue service: ${analytics.top_performers.most_revenue_service}
+- Most frequent service: ${analytics.top_performers.most_frequent_service}
+
+## IMPORTANT INSTRUCTIONS
+
+1. **You have COMPLETE information** - All data, formulas, and analytics are pre-computed above
+2. **NEVER say "no data available"** - Analyze what IS available:
+   - If no treatments yet, use service configurations
+   - If no expenses, analyze based on fixed costs
+   - Always provide insights from available data
+3. **Cite specific numbers** - Use exact figures from the data above
+4. **Be direct and actionable** - No generic advice
+5. **For break-even questions** - Use PRE-CALCULATED analytics.break_even (already computed)
+6. **For profitability questions** - Use analytics.profitability and analytics.margins
+7. **For recommendations** - Reference top_performers and efficiency metrics
+8. **For new clinics (0 treatments)** - Analyze service configurations, margins, and break-even potential
+
+## Examples of GOOD responses:
+✅ "Tu punto de equilibrio es ${fmt(analytics.break_even.revenue_cents)}/mes (${analytics.break_even.treatments_needed} tratamientos). Actualmente realizas ${analytics.break_even.current_treatments}, te faltan ${analytics.break_even.gap}."
+✅ "Tu servicio más rentable es '${analytics.top_performers.most_profitable_service}'. Deberías enfocarte en promoverlo más."
+✅ "Estás utilizando ${analytics.efficiency.capacity_utilization_pct}% de tu capacidad. Podrías atender más pacientes."
+
+## Examples of BAD responses (NEVER):
+❌ "No hay información disponible..."
+❌ "No es posible calcular..."
+❌ "Comienza por recopilar datos..."
+
+Answer directly, cite numbers, provide actionable insights. You have ALL the information you need above.`
   }
 
   /**
