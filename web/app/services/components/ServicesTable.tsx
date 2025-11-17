@@ -152,6 +152,10 @@ export function ServicesTable({
         const salePrice = service?.price_cents || 0;
         const profit = salePrice - costBase;
 
+        // Check if service has discount
+        const hasDiscount = service?.discount_type && service.discount_type !== 'none';
+        const finalPrice = hasDiscount ? (service?.final_price_with_discount_cents || salePrice) : salePrice;
+
         // Calculate REAL margin
         const realMarginPct = costBase > 0 ? ((profit / costBase) * 100) : 0;
         const hasLoss = realMarginPct < 0;
@@ -165,15 +169,29 @@ export function ServicesTable({
             <span className="text-xs text-muted-foreground font-medium sm:hidden">{t('price_with_margin')}</span>
             <Popover>
               <PopoverTrigger asChild>
-                <button className={`text-right font-bold flex items-center justify-end gap-1.5 cursor-pointer transition-colors ${
+                <button className={`text-right font-bold flex flex-col items-end gap-0.5 cursor-pointer transition-colors ${
                   hasLoss
                     ? 'text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300'
                     : hasLowMargin
                     ? 'text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300'
                     : 'text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300'
                 }`}>
-                  {formatCurrency(salePrice)}
-                  <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors" />
+                  {hasDiscount ? (
+                    <>
+                      <span className="text-xs line-through text-muted-foreground font-normal">
+                        {formatCurrency(salePrice)}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-base font-bold">{formatCurrency(finalPrice)}</span>
+                        <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors" />
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      {formatCurrency(salePrice)}
+                      <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors" />
+                    </div>
+                  )}
                 </button>
               </PopoverTrigger>
             <PopoverContent className="w-[calc(100vw-2rem)] sm:w-80 max-w-sm" side="bottom" align="end" sideOffset={4}>

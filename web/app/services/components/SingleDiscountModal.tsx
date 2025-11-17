@@ -203,7 +203,7 @@ export function SingleDiscountModal({
                   <p className="text-xl font-bold text-emerald-700 dark:text-emerald-400">{formatCurrency(preview.finalPrice)}</p>
                 </div>
                 <div className="rounded-lg border bg-blue-50 dark:bg-blue-950/30 p-4">
-                  <p className="text-xs text-blue-700 dark:text-blue-400 mb-1">{t('discount_savings').replace('{amount}', '')}</p>
+                  <p className="text-xs text-blue-700 dark:text-blue-400 mb-1">{t('savings_label')}</p>
                   <p className="text-xl font-bold text-blue-700 dark:text-blue-400">{formatCurrency(preview.savings)}</p>
                 </div>
               </div>
@@ -213,7 +213,7 @@ export function SingleDiscountModal({
                 <div className="flex gap-2">
                   <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
                   <div className="text-xs text-blue-800 dark:text-blue-200 space-y-1">
-                    <p>{t('bulk_discount_info')}</p>
+                    <p>{t('single_discount_info')}</p>
                     {priceRounding && priceRounding > 1 && (
                       <p className="font-medium">
                         {t('price_rounding_notice', { amount: priceRounding })}
