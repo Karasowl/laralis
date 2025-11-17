@@ -250,6 +250,42 @@ export function ServicesTable({
       }
     },
     {
+      key: 'discount',
+      label: t('discount'),
+      render: (_value: any, service: any) => {
+        const hasDiscount = service?.discount_type && service.discount_type !== 'none';
+
+        if (!hasDiscount) {
+          return (
+            <span className="text-xs text-muted-foreground">
+              {t('discount_types.none')}
+            </span>
+          );
+        }
+
+        const discountType = service.discount_type;
+        const discountValue = service.discount_value || 0;
+        const priceWithMargin = service.price_cents || 0;
+        const finalPrice = service.final_price_with_discount_cents || priceWithMargin;
+        const savings = priceWithMargin - finalPrice;
+
+        return (
+          <div className="flex flex-col gap-1">
+            <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 w-fit">
+              {discountType === 'percentage'
+                ? `${discountValue}%`
+                : formatCurrency(discountValue * 100)}
+            </Badge>
+            {savings > 0 && (
+              <div className="text-xs text-muted-foreground">
+                -{formatCurrency(savings)}
+              </div>
+            )}
+          </div>
+        );
+      }
+    },
+    {
       key: 'actions',
       label: tRoot('common.actions'),
       render: (_value: any, service: any) => {
@@ -275,7 +311,7 @@ export function ServicesTable({
   return (
     <DataTable
       columns={columns}
-      mobileColumns={[columns[0], columns[1], columns[2], columns[3], columns[4], columns[5]]}
+      mobileColumns={[columns[0], columns[1], columns[2], columns[3], columns[4], columns[5], columns[6]]}
       data={services || []}
       loading={loading}
       searchPlaceholder={t('search_services')}

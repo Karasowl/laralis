@@ -143,9 +143,36 @@ export function parseMoney(value: string | number): number {
   if (typeof value === 'number') {
     return pesosToCents(value);
   }
-  
+
   // Remove currency symbols and parse as float
   const cleanValue = value.replace(/[^0-9.-]/g, '');
   const pesos = parseFloat(cleanValue) || 0;
   return pesosToCents(pesos);
+}
+
+/**
+ * Applies clinic price rounding configuration to a price in cents
+ * @param priceCents Price in cents to round
+ * @param roundingPesos Rounding value in pesos (e.g., 10 rounds to $10, $20, $30)
+ * @param mode Rounding mode: 'nearest' | 'up' | 'down'
+ * @returns Rounded price in cents
+ * @example
+ * applyPriceRounding(12345, 10) // Returns 12000 ($120 -> $120)
+ * applyPriceRounding(12789, 10) // Returns 13000 ($127.89 -> $130)
+ * applyPriceRounding(12345, 50) // Returns 12500 ($123.45 -> $125)
+ */
+export function applyPriceRounding(
+  priceCents: number,
+  roundingPesos: number = 10,
+  mode: 'nearest' | 'up' | 'down' = 'nearest'
+): number {
+  if (!roundingPesos || roundingPesos <= 0) {
+    return priceCents; // No rounding configured
+  }
+
+  // Convert rounding from pesos to cents
+  const roundingCents = roundingPesos * 100;
+
+  // Apply rounding
+  return roundToStepCents(priceCents, roundingCents, mode);
 }

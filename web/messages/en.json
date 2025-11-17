@@ -1391,7 +1391,20 @@
     "unknown_cost": "No cost",
     "durationPlaceholder": "e.g. 45",
     "additional_details": "Additional details",
-    "supplies_section_hint": "Add the supplies you consume in this service to calculate its real cost."
+    "supplies_section_hint": "Add the supplies you consume in this service to calculate its real cost.",
+    "bulk_discount_title": "Apply Bulk Discount",
+    "bulk_discount_warning": "Warning: This will apply the discount to all services",
+    "bulk_discount_warning_description": "{count} services will be modified. This action cannot be undone.",
+    "apply_bulk_discount": "Apply Discount",
+    "discount_configuration": "Discount Configuration",
+    "bulk_discount_preview": "Impact Preview",
+    "total_services": "Services",
+    "revenue_before": "Revenue Before",
+    "revenue_after": "Revenue After",
+    "total_discount": "total discount",
+    "bulk_discount_info": "The discount will be applied on top of each service's price with margin.",
+    "price_rounding_notice": "Prices will be automatically rounded to multiples of ${amount}.",
+    "discount": "Discount"
   },
   "assets": {
     "entity": "Asset",

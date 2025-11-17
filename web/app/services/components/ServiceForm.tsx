@@ -52,6 +52,14 @@ export function ServiceForm({
   const discountType = useWatch({ control: form.control, name: 'discount_type' })
   const discountValue = useWatch({ control: form.control, name: 'discount_value' })
 
+  // FIX BUG 3: Auto-reset discount fields when user selects "none"
+  React.useEffect(() => {
+    if (discountType === 'none') {
+      form.setValue('discount_value', 0, { shouldDirty: false })
+      form.setValue('discount_reason', '', { shouldDirty: false })
+    }
+  }, [discountType, form])
+
   // PERFORMANCE FIX: Memoize category options mapping to avoid recreation on every render
   const categoryOptions = React.useMemo(
     () => categories.map((cat: any) => ({
