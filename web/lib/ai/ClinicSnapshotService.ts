@@ -277,10 +277,11 @@ export class ClinicSnapshotService {
   }
 
   private async loadServices(supabase: SupabaseClient, clinicId: string) {
-    // Get all services first
+    // Get all services with their direct price_cents field
+    // Services have price directly on the table, tariffs is for versioning/history
     const { data: services, error: servicesError } = await supabase
       .from('services')
-      .select('id, name, est_minutes, variable_cost_cents')
+      .select('id, name, est_minutes, variable_cost_cents, price_cents, is_active')
       .eq('clinic_id', clinicId)
       .order('name')
 
@@ -294,45 +295,10 @@ export class ClinicSnapshotService {
       }
     }
 
-    // For each service, get its active tariffs separately
-    const servicesWithTariffs = await Promise.all(
-      (services || []).map(async (service) => {
-        // First, check if there are ANY tariffs for this service (without filters)
-        const { data: allTariffs, error: allTariffsError } = await supabase
-          .from('tariffs')
-          .select('price_cents, version, is_active, valid_from, service_id')
-          .eq('service_id', service.id)
-
-        console.log(`[ClinicSnapshotService] All tariffs for "${service.name}" (${service.id}):`, {
-          count: allTariffs?.length || 0,
-          tariffs: allTariffs,
-          error: allTariffsError
-        })
-
-        // Now filter for active only
-        const { data: tariffs, error: tariffsError } = await supabase
-          .from('tariffs')
-          .select('price_cents, version, is_active, valid_from')
-          .eq('service_id', service.id)
-          .eq('is_active', true)
-          .order('version', { ascending: false })
-          .limit(1)
-
-        if (tariffsError) {
-          console.error(`[ClinicSnapshotService] Error loading tariffs for service ${service.name}:`, tariffsError)
-        }
-
-        console.log(`[ClinicSnapshotService] Active tariffs for "${service.name}":`, {
-          count: tariffs?.length || 0,
-          tariffs
-        })
-
-        return {
-          ...service,
-          tariffs: tariffs || [],
-        }
-      })
-    )
+    console.log('[ClinicSnapshotService] Services loaded:', {
+      count: services?.length || 0,
+      services: services?.map(s => ({ name: s.name, price_cents: s.price_cents, is_active: s.is_active }))
+    })
 
     // Count services with supplies
     const { count: withSupplies } = await supabase
@@ -340,24 +306,20 @@ export class ClinicSnapshotService {
       .select('service_id', { count: 'exact', head: true })
       .in(
         'service_id',
-        servicesWithTariffs.map((s) => s.id)
+        services?.map((s) => s.id) || []
       )
 
-    const list = servicesWithTariffs.map((s: any) => {
-      // Now tariffs is already filtered (only active, most recent)
-      const tariff = s.tariffs.length > 0 ? s.tariffs[0] : null
-
-      const price = tariff?.price_cents || 0
+    const list = (services || []).map((s: any) => {
+      // Use price directly from services table (NOT from tariffs table)
+      const price = s.price_cents || 0
       const variableCost = s.variable_cost_cents || 0
       const margin = price > 0 ? ((price - variableCost) / price) * 100 : 0
 
       // Debug logging
       console.log(`[ClinicSnapshotService] Service "${s.name}":`, {
-        tariffs_raw: s.tariffs,
-        tariffs_count: s.tariffs.length,
-        tariff_selected: tariff,
-        price,
-        has_tariff: !!tariff && price > 0,
+        price_cents: s.price_cents,
+        has_price: price > 0,
+        is_active: s.is_active,
       })
 
       return {
@@ -367,7 +329,7 @@ export class ClinicSnapshotService {
         variable_cost_cents: variableCost,
         current_price_cents: price,
         margin_pct: Math.round(margin * 100) / 100,
-        has_tariff: !!tariff && price > 0,
+        has_tariff: price > 0 && s.is_active, // Has price configured and is active
       }
     })
 
@@ -375,14 +337,14 @@ export class ClinicSnapshotService {
 
     // Summary log for debugging
     console.log('[ClinicSnapshotService] Services summary:', {
-      total: servicesWithTariffs.length,
+      total: services?.length || 0,
       with_tariffs: withTariffs,
       with_supplies: withSupplies || 0,
-      tariff_detection: list.map(s => ({ name: s.name, has_tariff: s.has_tariff, price: s.current_price_cents }))
+      pricing: list.map(s => ({ name: s.name, has_price: s.has_tariff, price: s.current_price_cents }))
     })
 
     return {
-      total_configured: servicesWithTariffs.length,
+      total_configured: services?.length || 0,
       with_tariffs: withTariffs,
       with_supplies: withSupplies || 0,
       list,
