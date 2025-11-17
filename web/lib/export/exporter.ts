@@ -324,7 +324,8 @@ export class WorkspaceExporter {
       fixedCosts,
       services,
       serviceSupplies,
-      tariffs,
+      // DEPRECATED (2025-11-17): tariffs removed - discounts now in services table
+      // tariffs,
       marketingCampaigns,
       marketingCampaignStatusHistory,
       patients,
@@ -343,7 +344,8 @@ export class WorkspaceExporter {
       this.fetchFixedCosts(clinicId),
       this.fetchServices(clinicId),
       this.fetchServiceSupplies(clinicId),
-      this.fetchTariffs(clinicId),
+      // DEPRECATED (2025-11-17): tariffs removed - discounts now in services table
+      // this.fetchTariffs(clinicId),
       this.fetchMarketingCampaigns(clinicId),
       this.fetchMarketingCampaignStatusHistory(clinicId),
       this.fetchPatients(clinicId),
@@ -365,7 +367,8 @@ export class WorkspaceExporter {
       fixed_costs: fixedCosts.length,
       services: services.length,
       service_supplies: serviceSupplies.length,
-      tariffs: tariffs.length,
+      // DEPRECATED (2025-11-17): tariffs removed
+      // tariffs: tariffs.length,
       marketing_campaigns: marketingCampaigns.length,
       marketing_campaign_status_history: marketingCampaignStatusHistory.length,
       patients: patients.length,
@@ -387,7 +390,8 @@ export class WorkspaceExporter {
       fixedCosts,
       services,
       serviceSupplies,
-      tariffs,
+      // DEPRECATED (2025-11-17): tariffs removed
+      // tariffs,
       marketingCampaigns,
       marketingCampaignStatusHistory,
       patients,
@@ -481,11 +485,13 @@ export class WorkspaceExporter {
     return data || [];
   }
 
-  private async fetchTariffs(clinicId: string) {
-    const { data } = await this.supabase.from('tariffs').select('*').eq('clinic_id', clinicId);
-    this.recordCount('tariffs', data?.length || 0);
-    return data || [];
-  }
+  // DEPRECATED (2025-11-17): Tariffs removed - discounts now in services table
+  // Migration 47 moved discount fields to services table
+  // private async fetchTariffs(clinicId: string) {
+  //   const { data } = await this.supabase.from('tariffs').select('*').eq('clinic_id', clinicId);
+  //   this.recordCount('tariffs', data?.length || 0);
+  //   return data || [];
+  // }
 
   private async fetchMarketingCampaigns(clinicId: string) {
     const { data } = await this.supabase
