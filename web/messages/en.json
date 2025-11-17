@@ -1405,7 +1405,9 @@
     "bulk_discount_info": "The discount will be applied on top of each service's price with margin.",
     "price_rounding_notice": "Prices will be automatically rounded to multiples of ${amount}.",
     "discount": "Discount",
-    "remove_discount": "Remove Discount"
+    "remove_discount": "Remove Discount",
+    "savings_label": "Savings",
+    "single_discount_info": "The discount will be applied on top of this service's price with margin."
   },
   "assets": {
     "entity": "Asset",
