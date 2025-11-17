@@ -19,12 +19,48 @@ export class KimiLLM implements LLMProvider {
   readonly supportsThinking = true
   readonly supportsFunctionCalling = true
 
+  /**
+   * Fetch with automatic retry for temporary errors (429, 503)
+   * Implements exponential backoff: 2s -> 4s -> 8s
+   */
+  private async fetchWithRetry(
+    url: string,
+    options: RequestInit,
+    maxRetries = 3
+  ): Promise<Response> {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      const response = await fetch(url, options)
+
+      // Success - return immediately
+      if (response.ok) {
+        return response
+      }
+
+      // Check if it's a retryable error (429 or 503)
+      const isRetryable = response.status === 429 || response.status === 503
+
+      if (isRetryable && attempt < maxRetries) {
+        // Exponential backoff: 2s, 4s, 8s (capped at 10s)
+        const delay = Math.min(1000 * Math.pow(2, attempt), 10000)
+        console.log(`[KimiLLM] Error ${response.status}, retrying in ${delay}ms (attempt ${attempt}/${maxRetries})`)
+
+        await new Promise(resolve => setTimeout(resolve, delay))
+        continue
+      }
+
+      // Not retryable or max retries exceeded - return error response
+      return response
+    }
+
+    throw new Error('Max retries exceeded')
+  }
+
   async chat(messages: Message[], options?: LLMOptions): Promise<string> {
     const config = getAIConfig()
     const model = config.llm.defaultModel || DEFAULT_MODELS.llm.kimi
 
     try {
-      const response = await fetch(
+      const response = await this.fetchWithRetry(
         `${PROVIDER_ENDPOINTS.kimi.base}${PROVIDER_ENDPOINTS.kimi.chat}`,
         {
           method: 'POST',
@@ -66,9 +102,9 @@ export class KimiLLM implements LLMProvider {
    */
   async chatStream(messages: Message[], options?: LLMOptions): Promise<ReadableStream> {
     const config = getAIConfig()
-    const model = config.llm.defaultModel || DEFAULT_MODELS.llm.kimi
+    const model = options?.model || config.llm.defaultModel || DEFAULT_MODELS.llm.kimi
 
-    const response = await fetch(
+    const response = await this.fetchWithRetry(
       `${PROVIDER_ENDPOINTS.kimi.base}${PROVIDER_ENDPOINTS.kimi.chat}`,
       {
         method: 'POST',
@@ -120,7 +156,7 @@ export class KimiLLM implements LLMProvider {
         },
       }))
 
-      const response = await fetch(
+      const response = await this.fetchWithRetry(
         `${PROVIDER_ENDPOINTS.kimi.base}${PROVIDER_ENDPOINTS.kimi.chat}`,
         {
           method: 'POST',

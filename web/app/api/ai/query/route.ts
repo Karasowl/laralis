@@ -23,6 +23,8 @@ interface QueryRequest {
   query: string
   clinicId?: string
   locale?: string
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
+  model?: 'kimi-k2-thinking' | 'moonshot-v1-32k'
 }
 
 export async function POST(request: NextRequest) {
@@ -47,7 +49,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body: QueryRequest = await request.json()
-    const { query, clinicId: requestedClinicId, locale = 'es' } = body
+    const { query, clinicId: requestedClinicId, locale = 'es', conversationHistory, model } = body
 
     if (!query) {
       return new Response(
@@ -81,6 +83,8 @@ export async function POST(request: NextRequest) {
       locale,
       availableFunctions: [], // Will be filled by aiService
       supabase, // Pass authenticated Supabase client
+      conversationHistory, // Optional: last 10 messages for context
+      model: model || 'kimi-k2-thinking', // Default to K2 Thinking if not specified
     }
 
     // Get streaming response from AI
@@ -189,12 +193,30 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('[API /ai/query] Error:', error)
+
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+
+    // Extract status code from Kimi error message (e.g., "Kimi API error: 429 - ...")
+    const statusMatch = errorMessage.match(/Kimi API error: (\d+)/)
+    const status = statusMatch ? parseInt(statusMatch[1]) : 500
+
+    // Determine error type for client
+    let errorType = 'server_error'
+    if (status === 429) {
+      errorType = 'overloaded'
+    } else if (status === 503) {
+      errorType = 'server_error'
+    } else if (status >= 400 && status < 500) {
+      errorType = 'client_error'
+    }
+
     return new Response(
       JSON.stringify({
-        error: 'Failed to process query',
-        message: error instanceof Error ? error.message : 'Unknown error',
+        error: errorType,
+        message: errorMessage,
+        retryable: status === 429 || status === 503, // Suggest retry for temporary errors
       }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
+      { status, headers: { 'Content-Type': 'application/json' } }
     )
   }
 }

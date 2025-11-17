@@ -3649,8 +3649,15 @@
       "hideThinking": "Ocultar razonamiento",
       "thinkingProcess": "Razonamiento de IA",
       "queryError": "Error al procesar tu consulta",
+      "newConversation": "Nueva conversación",
+      "tokenLimitReachedPlaceholder": "Límite de conversación alcanzado. Inicia una nueva conversación.",
       "errors": {
-        "noClinicSelected": "No hay clínica seleccionada. Por favor, selecciona una clínica primero."
+        "noClinicSelected": "No hay clínica seleccionada. Por favor, selecciona una clínica primero.",
+        "overloaded": "El servicio de IA está saturado en este momento. Por favor, intenta de nuevo en unos segundos.",
+        "rateLimited": "Has alcanzado el límite de consultas. Espera un momento e intenta nuevamente.",
+        "serverError": "Error temporal del servidor. Por favor, intenta de nuevo.",
+        "retryButton": "Reintentar",
+        "tokenLimitReached": "Se ha alcanzado el límite de la conversación. Por favor, inicia una nueva conversación para continuar."
       }
     },
     "entities": {
