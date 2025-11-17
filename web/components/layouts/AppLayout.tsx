@@ -12,7 +12,6 @@ import { Sidebar } from './Sidebar'
 import { MobileHeader } from './MobileHeader'
 import { UserMenu } from './UserMenu'
 import { getNavigationSections } from './NavigationConfig'
-import { MobileBottomNav } from './MobileBottomNav'
 import { Button } from '@/components/ui/button'
 import { ContextIndicator } from './ContextIndicator'
 import { Sun, Moon, Activity } from 'lucide-react'
@@ -144,7 +143,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       {/* Main Content Area */}
       <div className={cn(
         "transition-all duration-300",
-        "pt-16 pb-16 lg:pt-0 lg:pb-0",
+        "pt-16 lg:pt-0",
         sidebarCollapsed ? "lg:ml-20" : "lg:ml-64"
       )}>
         {/* Desktop Header Bar */}
@@ -179,14 +178,6 @@ export function AppLayout({ children }: AppLayoutProps) {
       </main>
     </div>
 
-      {/* Mobile Bottom Navigation */}
-      {onboardingCompleted && (
-        <MobileBottomNav 
-          user={user}
-          workspace={workspace}
-          onSignOut={handleSignOut}
-        />
-      )}
       {/* Global pricing drawer portal (client-only) */}
       <TariffDrawerLazy />
       {/* Global onboarding listeners to react to autofix events */}

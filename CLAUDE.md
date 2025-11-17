@@ -64,6 +64,33 @@ If present, link to devlog index: @docs/devlog/INDEX.md
 
 
 
+\## Pricing Architecture (CRITICAL)
+
+\- **NO TARIFFS TABLE**: The `tariffs` table is deprecated. DO NOT query or write to it.
+
+\- **Services = Price Catalog**: The `services` table IS your price catalog with discount support built-in.
+
+\- **Service pricing fields**:
+  - `price_cents` (bigint) - Final price with discount already applied (single source of truth)
+  - `discount_type` (varchar) - 'none', 'percentage', or 'fixed'
+  - `discount_value` (numeric) - Discount amount (% or cents depending on type)
+  - `discount_reason` (text) - Why discount was applied
+  - `margin_pct` (numeric) - Target profit margin percentage
+  - `variable_cost_cents` (bigint) - Material/supply costs
+  - `fixed_cost_per_minute_cents` (bigint) - Time-based costs
+
+\- **Price calculation flow**:
+  1. Calculate base cost: `variable_cost + (fixed_cost_per_minute * est_minutes)`
+  2. Apply margin: `base_cost * (1 + margin_pct/100)`
+  3. Apply discount if configured: `price - discount_amount`
+  4. Store final result in `price_cents` - this is what patients pay
+
+\- **Historical pricing**: Treatments table stores snapshots. Query treatments, NOT tariffs, for price history.
+
+\- **AI assistant queries**: When asked about prices, query `services.price_cents` directly. Never mention "tariffs".
+
+
+
 \## Calc engine first
 
 \- All business math in `lib/calc` as small pure functions with unit tests.
@@ -72,23 +99,31 @@ If present, link to devlog index: @docs/devlog/INDEX.md
 
 
 
-\## Snapshots and versioning
+\## Pricing and snapshots
 
-\- Treatments persist immutable snapshots: fixedPerMinuteCents, minutes, variableCostCents, marginPct, computed price, tariff version.
+\- **IMPORTANT**: Services now store prices directly with built-in discount support. No separate tariffs table or versioning system.
 
-\- Never recalc historical records. Service recipe or margin change => new version.
+\- **Services table**: Contains `price_cents` (final price with discount), `discount_type`, `discount_value`, `margin_pct`, and cost fields.
+
+\- **Treatments**: Store immutable snapshots at time of treatment: fixedPerMinuteCents, minutes, variableCostCents, marginPct, price_cents.
+
+\- **Historical pricing**: Treatments preserve point-in-time pricing. Service price changes do NOT affect past treatments.
+
+\- **No price versioning**: Services have single current price. If you need historical price analysis, query treatments table.
 
 
 
 \## Database modeling (lean)
 
-\- Tables: settings\_time, assets, fixed\_costs, supplies, services, service\_supplies,
+\- **Active tables**: settings\_time, assets, fixed\_costs, supplies, services, service\_supplies, patients, treatments, expenses.
 
-&nbsp; tariffs, patients, treatments, expenses.
+\- **Deprecated**: `tariffs` table exists for legacy data only. DO NOT USE in new code. Use `services` table for pricing.
+
+\- **Services pricing**: Services table now includes: `price_cents`, `discount_type`, `discount_value`, `discount_reason`, `margin_pct`, cost fields.
 
 \- Simple FKs, NOT NULL where applies. Avoid triggers initially.
 
-\- Treatments store `snapshot\_costs` JSON plus `price\_cents`.
+\- Treatments store immutable snapshots: `fixed_cost_per_minute_cents`, `variable_cost_cents`, `margin_pct`, `price_cents`.
 
 
 

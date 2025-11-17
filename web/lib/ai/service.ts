@@ -320,18 +320,18 @@ ${data.treatments.by_service?.slice(0, 5).map((s: any) => `  - ${s.service_name}
 ### SERVICES (Configured) - COMPLETE COST BREAKDOWN
 
 **Total services: ${data.services.total_configured}**
-**Services with tariffs/pricing: ${data.services.with_tariffs}**
+**Services with pricing configured: ${data.services.with_pricing || data.services.with_tariffs || 'N/A'}**
 **Services with supplies configured: ${data.services.with_supplies}**
 
 **ALL SERVICES WITH DETAILED PROFITABILITY DATA:**
 ${data.services.list?.map((s: any) => `
 📊 **${s.name}**
-   ${s.has_tariff
-     ? `• Precio: ${fmt(s.current_price_cents)}
+   ${s.has_pricing || s.has_tariff || s.current_price_cents > 0
+     ? `• Precio: ${fmt(s.current_price_cents || s.price_cents || 0)}
    • Costo variable (materiales): ${fmt(s.variable_cost_cents)}
-   • Ganancia bruta por tratamiento: ${fmt(s.current_price_cents - s.variable_cost_cents)}
+   • Ganancia bruta por tratamiento: ${fmt((s.current_price_cents || s.price_cents || 0) - s.variable_cost_cents)}
    • **MARGEN DE GANANCIA: ${s.margin_pct}%**`
-     : `• ⚠️ SIN TARIFA CONFIGURADA - necesita configurar precio en módulo de Tarifas
+     : `• ⚠️ SIN PRECIO CONFIGURADO - necesita configurar el precio del servicio en el módulo de Servicios
    • Costo variable (materiales): ${fmt(s.variable_cost_cents)}`}
    • Duración estimada: ${s.est_minutes} minutos`).join('\n') || '  (No services configured)'}
 
@@ -340,7 +340,7 @@ ${data.services.list?.map((s: any) => `
 - To find "most profitable service" or "best margin", sort by **margin_pct** (highest % = most profitable)
 - To find "most revenue generating service", check treatments.by_service for actual revenue
 - Variable costs include ONLY materials/supplies used per treatment (NOT fixed costs like rent)
-- **CRITICAL**: If a service doesn't have "has_tariff: true", tell user to configure pricing in the Tarifas (tariffs) module first
+- **CRITICAL**: If a service doesn't have pricing configured (price_cents = 0 or null), tell user to configure the price in the Services module (Servicios)
 
 ### SUPPLIES
 - Total supplies: ${data.supplies.total_items}
@@ -410,14 +410,14 @@ ${analytics.break_even.calculation_metadata.warning ? `- **⚠️ WARNING**: ${a
 
 1. **You have COMPLETE information** - All data, formulas, and analytics are pre-computed above with full transparency
 2. **NEVER say "no data available" or "no services configured"** - Analyze what IS available:
-   - If services exist but have no tariffs, say: "Tienes ${data.services.total_configured} servicios configurados pero necesitas asignarles precios en la sección de Tarifas"
+   - If services exist but have no pricing, say: "Tienes ${data.services.total_configured} servicios configurados pero necesitas asignarles precios en el módulo de Servicios"
    - If no treatments yet, use service configurations and explain based on those
    - If no expenses, analyze based on fixed costs
    - Always provide insights from available data
-3. **For services without pricing (has_tariff = false)**:
+3. **For services without pricing (price_cents = 0 or null)**:
    - Acknowledge the services exist
-   - Explain they need tariffs configured to calculate profitability
-   - Guide user to configure pricing in Tarifas module
+   - Explain they need pricing configured to calculate profitability
+   - Guide user to edit the service in the Services module (Servicios) to add the price
 
 4. **CRITICAL: ALWAYS EXPLAIN WHERE NUMBERS COME FROM** (Transparency Rule):
    When answering ANY question about break-even, treatments needed, or profitability:
