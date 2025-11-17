@@ -3371,8 +3371,15 @@
       "hideThinking": "Hide reasoning",
       "thinkingProcess": "AI Reasoning",
       "queryError": "Error processing your query",
+      "newConversation": "New conversation",
+      "tokenLimitReachedPlaceholder": "Conversation limit reached. Start a new conversation.",
       "errors": {
-        "noClinicSelected": "No clinic selected. Please select a clinic first."
+        "noClinicSelected": "No clinic selected. Please select a clinic first.",
+        "overloaded": "The AI service is currently overloaded. Please try again in a few seconds.",
+        "rateLimited": "You've reached the query limit. Please wait a moment and try again.",
+        "serverError": "Temporary server error. Please try again.",
+        "retryButton": "Retry",
+        "tokenLimitReached": "Conversation limit has been reached. Please start a new conversation to continue."
       }
     },
     "entities": {

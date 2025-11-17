@@ -7,13 +7,14 @@
 
 'use client'
 
-import { useState, useEffect } from 'react'
-import { X, MessageSquare, Send, Sparkles, ChevronDown, ChevronUp } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { X, MessageSquare, Send, Sparkles, ChevronDown, ChevronUp, AlertTriangle, RotateCcw } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { VoiceRecorder } from '../VoiceRecorder'
 import { AudioPlayer } from '../AudioPlayer'
 import { DataVisualization } from '../DataVisualization'
 import { useCurrentClinic } from '@/hooks/use-current-clinic'
+import { calculateConversationTokens, getTokenUsageStatus } from '@/lib/ai/token-counter'
 
 interface QueryAssistantProps {
   onClose: () => void
@@ -36,6 +37,7 @@ export function QueryAssistant({ onClose }: QueryAssistantProps) {
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showThinking, setShowThinking] = useState<Record<number, boolean>>({})
+  const [selectedModel, setSelectedModel] = useState<'kimi-k2-thinking' | 'moonshot-v1-32k'>('kimi-k2-thinking')
 
   const examples = [
     t('example1'),
@@ -44,6 +46,12 @@ export function QueryAssistant({ onClose }: QueryAssistantProps) {
     t('example4'),
     t('example5'),
   ]
+
+  // Calculate token usage
+  const tokenUsage = useMemo(() => {
+    const usedTokens = calculateConversationTokens(conversation)
+    return getTokenUsageStatus(usedTokens, selectedModel)
+  }, [conversation, selectedModel])
 
   // Initialize conversation with greeting
   useEffect(() => {
@@ -61,6 +69,10 @@ export function QueryAssistant({ onClose }: QueryAssistantProps) {
     if (!query.trim() || isProcessing) return
     if (!currentClinic?.id) {
       setError(t('errors.noClinicSelected'))
+      return
+    }
+    if (!tokenUsage.canSendMessage) {
+      setError(t('errors.tokenLimitReached'))
       return
     }
 
@@ -82,6 +94,12 @@ export function QueryAssistant({ onClose }: QueryAssistantProps) {
     ])
 
     try {
+      // Build conversation history from last 10 messages (excluding current query)
+      const conversationHistory = conversation.slice(-10).map(msg => ({
+        role: msg.role,
+        content: msg.text
+      }))
+
       const response = await fetch('/api/ai/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -89,11 +107,28 @@ export function QueryAssistant({ onClose }: QueryAssistantProps) {
           query,
           clinicId: currentClinic.id,
           locale: 'es',
+          conversationHistory,
+          model: selectedModel,
         }),
       })
 
       if (!response.ok) {
-        throw new Error('Query failed')
+        // Try to read error details from response
+        const errorData = await response.json().catch(() => ({ error: 'unknown', message: 'Query failed' }))
+
+        // Set specific error message based on error type
+        if (errorData.error === 'overloaded') {
+          setError(t('errors.overloaded'))
+        } else if (errorData.retryable) {
+          setError(t('errors.serverError'))
+        } else {
+          setError(t('queryError'))
+        }
+
+        // Remove empty assistant message
+        setConversation((prev) => prev.slice(0, -1))
+        setIsProcessing(false)
+        return
       }
 
       // Handle SSE streaming
@@ -174,6 +209,17 @@ export function QueryAssistant({ onClose }: QueryAssistantProps) {
     setShowThinking((prev) => ({ ...prev, [index]: !prev[index] }))
   }
 
+  const handleNewConversation = () => {
+    setConversation([
+      {
+        role: 'assistant',
+        text: tMessages('greeting'),
+      },
+    ])
+    setError(null)
+    setShowThinking({})
+  }
+
   return (
     <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm">
       <div className="fixed inset-0 flex items-center justify-center p-4">
@@ -187,13 +233,79 @@ export function QueryAssistant({ onClose }: QueryAssistantProps) {
               </h2>
               <p className="text-sm text-muted-foreground mt-1">{t('subtitle')}</p>
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-background/50 rounded-lg transition-colors"
-              aria-label="Close"
-            >
-              <X className="h-6 w-6" />
-            </button>
+
+            {/* Token Usage & Controls */}
+            <div className="flex items-center gap-3">
+              {/* Token Usage Indicator */}
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-background/50">
+                <div className="flex items-center gap-1.5">
+                  {tokenUsage.status === 'critical' && (
+                    <AlertTriangle className="h-4 w-4 text-red-500 animate-pulse" />
+                  )}
+                  {tokenUsage.status === 'warning' && (
+                    <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                  )}
+                  <span
+                    className={`text-sm font-medium ${
+                      tokenUsage.status === 'critical'
+                        ? 'text-red-600 dark:text-red-400'
+                        : tokenUsage.status === 'warning'
+                        ? 'text-yellow-600 dark:text-yellow-400'
+                        : 'text-muted-foreground'
+                    }`}
+                  >
+                    {tokenUsage.percentage}%
+                  </span>
+                </div>
+                <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-300 ${
+                      tokenUsage.status === 'critical'
+                        ? 'bg-red-500'
+                        : tokenUsage.status === 'warning'
+                        ? 'bg-yellow-500'
+                        : 'bg-purple-500'
+                    }`}
+                    style={{ width: `${Math.min(tokenUsage.percentage, 100)}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* New Conversation Button */}
+              {conversation.length > 1 && (
+                <button
+                  onClick={handleNewConversation}
+                  className="p-2 hover:bg-background/50 rounded-lg transition-colors"
+                  aria-label={t('newConversation')}
+                  title={t('newConversation')}
+                >
+                  <RotateCcw className="h-5 w-5" />
+                </button>
+              )}
+
+              {/* Model Selector */}
+              <select
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value as 'kimi-k2-thinking' | 'moonshot-v1-32k')}
+                className="text-sm border rounded-lg px-3 py-2 bg-background focus:outline-none focus:ring-2 focus:ring-purple-500"
+                disabled={isProcessing}
+              >
+                <option value="kimi-k2-thinking">
+                  🧠 K2 Thinking
+                </option>
+                <option value="moonshot-v1-32k">
+                  ⚡ Moonshot v1
+                </option>
+              </select>
+
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-background/50 rounded-lg transition-colors"
+                aria-label="Close"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
           </div>
 
           {/* Conversation */}
@@ -272,6 +384,9 @@ export function QueryAssistant({ onClose }: QueryAssistantProps) {
                       <span className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" />
                     </div>
                     <span className="text-sm text-muted-foreground">{t('analyzing')}</span>
+                    <span className="text-xs px-2 py-0.5 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded-full">
+                      {selectedModel === 'kimi-k2-thinking' ? '🧠 K2' : '⚡ v1'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -298,13 +413,17 @@ export function QueryAssistant({ onClose }: QueryAssistantProps) {
                     handleQuery(textInput)
                   }
                 }}
-                placeholder={t('askQuestion')}
-                disabled={isProcessing}
+                placeholder={
+                  !tokenUsage.canSendMessage
+                    ? t('tokenLimitReachedPlaceholder')
+                    : t('askQuestion')
+                }
+                disabled={isProcessing || !tokenUsage.canSendMessage}
                 className="flex-1 px-4 py-2 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
               />
               <button
                 onClick={() => handleQuery(textInput)}
-                disabled={!textInput.trim() || isProcessing}
+                disabled={!textInput.trim() || isProcessing || !tokenUsage.canSendMessage}
                 className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 <Send className="h-5 w-5" />

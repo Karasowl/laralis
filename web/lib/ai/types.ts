@@ -163,6 +163,8 @@ export interface QueryContext {
   availableFunctions: AIFunction[]
   locale: string
   supabase?: SupabaseClient // Supabase client for direct queries
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
+  model?: 'kimi-k2-thinking' | 'moonshot-v1-32k'
 }
 
 export interface QueryResult {

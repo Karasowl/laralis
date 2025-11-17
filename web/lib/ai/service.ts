@@ -135,10 +135,20 @@ export class AIService {
       throw new Error('Streaming not supported by current LLM provider')
     }
 
-    return kimiProvider.chatStream([
+    // Build messages array with conversation history
+    const messages = [
       { role: 'system', content: systemPrompt },
+      ...(context.conversationHistory || []).map(msg => ({
+        role: msg.role,
+        content: msg.content
+      })),
       { role: 'user', content: query },
-    ])
+    ]
+
+    // Use specified model or default to K2 Thinking
+    const model = context.model || 'kimi-k2-thinking'
+
+    return kimiProvider.chatStream(messages, { model })
   }
 
   /**
