@@ -213,8 +213,8 @@ export async function POST(request: NextRequest) {
     const base_price = Math.round(base_price_cents || 0);
     const price_with_margin = base_price > 0 ? Math.round(base_price * (1 + margin_pct / 100)) : 0;
 
-    // Create the service with new fields
-    const { data: serviceData, error: serviceError } = await supabaseAdmin
+    // Create the service with new fields (including discount fields)
+    const { data: serviceData, error: serviceError} = await supabaseAdmin
       .from('services')
       .insert({
         clinic_id: clinicId,
@@ -223,7 +223,12 @@ export async function POST(request: NextRequest) {
         est_minutes,
         description: description ?? null,
         price_cents: price_with_margin,  // Save sale price (with margin)
-        margin_pct: margin_pct            // Save margin for reference
+        margin_pct: margin_pct,          // Save margin for reference
+        // Discount fields (optional, default to none)
+        discount_type: rawBody.discount_type || 'none',
+        discount_value: rawBody.discount_value || 0,
+        discount_reason: rawBody.discount_reason || null
+        // Note: final_price_with_discount_cents is auto-calculated by trigger
       })
       .select()
       .single();
