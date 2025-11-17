@@ -1203,7 +1203,16 @@
     "individual_discount": "Individual Discount",
     "override_global": "Overrides global discount if configured",
     "effective_discount": "Effective Discount",
-    "you_save": "You save"
+    "you_save": "You save",
+    "deprecated_title": "Tariffs Module Deprecated",
+    "deprecated_description": "The tariffs functionality has been migrated to the Services module to simplify price management.",
+    "whats_new": "What's changed?",
+    "change_1": "Discounts are now configured directly on each service",
+    "change_2": "Final price is automatically calculated with discount applied",
+    "change_3": "Greater simplicity: one place to manage pricing",
+    "change_4": "All your historical data is preserved",
+    "go_to_services": "Go to Services",
+    "auto_redirect": "You will be automatically redirected in 5 seconds..."
   },
   "services": {
     "title": "Services",
