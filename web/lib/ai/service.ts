@@ -375,10 +375,10 @@ ${data.fixed_costs.items?.map((fc: any) => `  - ${fc.name}: ${fmt(fc.amount_cent
 ${analytics.break_even.calculation_metadata.warning ? `- **⚠️ WARNING**: ${analytics.break_even.calculation_metadata.warning}` : ''}
 
 **CALCULATION BREAKDOWN**:
-1. Fixed costs: ${fmt(analytics.break_even.revenue_cents * (analytics.margins.contribution_margin_pct / 100))} (includes rent, salaries, depreciation, etc.)
+1. Fixed costs: ${fmt(data.fixed_costs.monthly_total_cents + data.assets.monthly_depreciation_cents)} (manual costs + depreciation)
 2. Contribution margin: ${analytics.margins.contribution_margin_pct}% (what's left after variable costs)
 3. **Break-even revenue needed**: ${fmt(analytics.break_even.revenue_cents)}/month
-   Formula: Fixed Costs ÷ Contribution Margin = ${fmt(analytics.break_even.revenue_cents * (analytics.margins.contribution_margin_pct / 100))} ÷ ${analytics.margins.contribution_margin_pct}% = ${fmt(analytics.break_even.revenue_cents)}
+   Formula: Fixed Costs ÷ Contribution Margin = ${fmt(data.fixed_costs.monthly_total_cents + data.assets.monthly_depreciation_cents)} ÷ ${analytics.margins.contribution_margin_pct}% = ${fmt(analytics.break_even.revenue_cents)}
 4. **Treatments needed**: ${analytics.break_even.treatments_needed} treatments/month
    Formula: Break-even Revenue ÷ Avg Price = ${fmt(analytics.break_even.revenue_cents)} ÷ ${fmt(analytics.break_even.calculation_metadata.avg_treatment_price_cents)} = ${analytics.break_even.treatments_needed}
 
@@ -428,7 +428,7 @@ ${analytics.break_even.calculation_metadata.warning ? `- **⚠️ WARNING**: ${a
       - If no data: "no tienes precios configurados aún"
 
    b) **SHOW THE CALCULATION STEP-BY-STEP**:
-      Example: "Tus costos fijos son ${fmt(totalFixedCosts)} y tu margen de contribución es ${analytics.margins.contribution_margin_pct}%, entonces necesitas generar ${fmt(analytics.break_even.revenue_cents)} en ingresos. Dividiendo eso entre ${fmt(analytics.break_even.calculation_metadata.avg_treatment_price_cents)} por tratamiento = ${analytics.break_even.treatments_needed} tratamientos"
+      Example: "Tus costos fijos son ${fmt(data.fixed_costs.monthly_total_cents + data.assets.monthly_depreciation_cents)} y tu margen de contribución es ${analytics.margins.contribution_margin_pct}%, entonces necesitas generar ${fmt(analytics.break_even.revenue_cents)} en ingresos. Dividiendo eso entre ${fmt(analytics.break_even.calculation_metadata.avg_treatment_price_cents)} por tratamiento = ${analytics.break_even.treatments_needed} tratamientos"
 
    c) **WARN ABOUT DATA QUALITY** when applicable:
       - If calculation_metadata.warning exists, ALWAYS mention it
