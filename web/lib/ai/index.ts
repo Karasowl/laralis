@@ -8,6 +8,9 @@
 // Main service (use this in your app)
 export { aiService, AIService } from './service'
 
+// Clinic Snapshot Service (for generating complete data snapshots)
+export { ClinicSnapshotService } from './ClinicSnapshotService'
+
 // Types (for TypeScript users)
 export type {
   STTProvider,

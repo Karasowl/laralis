@@ -71,6 +71,16 @@ export function QueryAssistant({ onClose }: QueryAssistantProps) {
     setConversation((prev) => [...prev, { role: 'user', text: query }])
     setTextInput('')
 
+    // Add empty assistant message that we'll update with streaming
+    const assistantMessageIndex = conversation.length + 1
+    setConversation((prev) => [
+      ...prev,
+      {
+        role: 'assistant',
+        text: '',
+      },
+    ])
+
     try {
       const response = await fetch('/api/ai/query', {
         method: 'POST',
@@ -86,27 +96,67 @@ export function QueryAssistant({ onClose }: QueryAssistantProps) {
         throw new Error('Query failed')
       }
 
-      const data = await response.json()
+      // Handle SSE streaming
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
 
-      // Add AI response
-      setConversation((prev) => [
-        ...prev,
-        {
-          role: 'assistant',
-          text: data.answer,
-          data: data.data,
-        },
-      ])
+      if (!reader) {
+        throw new Error('No reader available')
+      }
+
+      let accumulatedText = ''
+      let metadata = null
+
+      while (true) {
+        const { done, value } = await reader.read()
+
+        if (done) break
+
+        const chunk = decoder.decode(value, { stream: true })
+        const lines = chunk.split('\n')
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6) // Remove 'data: ' prefix
+
+            if (data === '[DONE]') {
+              continue
+            }
+
+            try {
+              const parsed = JSON.parse(data)
+
+              if (parsed.type === 'content') {
+                // Append content chunk
+                accumulatedText += parsed.data
+                setConversation((prev) => {
+                  const updated = [...prev]
+                  updated[assistantMessageIndex] = {
+                    role: 'assistant',
+                    text: accumulatedText,
+                  }
+                  return updated
+                })
+              } else if (parsed.type === 'metadata') {
+                metadata = parsed.data
+              }
+            } catch (e) {
+              console.error('[QueryAssistant] Failed to parse SSE:', e)
+            }
+          }
+        }
+      }
     } catch (err) {
       console.error('[QueryAssistant] Error:', err)
       setError(t('queryError'))
-      setConversation((prev) => [
-        ...prev,
-        {
+      setConversation((prev) => {
+        const updated = [...prev]
+        updated[assistantMessageIndex] = {
           role: 'assistant',
           text: tMessages('queryError'),
-        },
-      ])
+        }
+        return updated
+      })
     } finally {
       setIsProcessing(false)
     }
