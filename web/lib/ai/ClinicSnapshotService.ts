@@ -297,6 +297,19 @@ export class ClinicSnapshotService {
     // For each service, get its active tariffs separately
     const servicesWithTariffs = await Promise.all(
       (services || []).map(async (service) => {
+        // First, check if there are ANY tariffs for this service (without filters)
+        const { data: allTariffs, error: allTariffsError } = await supabase
+          .from('tariffs')
+          .select('price_cents, version, is_active, valid_from, service_id')
+          .eq('service_id', service.id)
+
+        console.log(`[ClinicSnapshotService] All tariffs for "${service.name}" (${service.id}):`, {
+          count: allTariffs?.length || 0,
+          tariffs: allTariffs,
+          error: allTariffsError
+        })
+
+        // Now filter for active only
         const { data: tariffs, error: tariffsError } = await supabase
           .from('tariffs')
           .select('price_cents, version, is_active, valid_from')
@@ -308,6 +321,11 @@ export class ClinicSnapshotService {
         if (tariffsError) {
           console.error(`[ClinicSnapshotService] Error loading tariffs for service ${service.name}:`, tariffsError)
         }
+
+        console.log(`[ClinicSnapshotService] Active tariffs for "${service.name}":`, {
+          count: tariffs?.length || 0,
+          tariffs
+        })
 
         return {
           ...service,
