@@ -314,7 +314,7 @@ export class ClinicSnapshotService {
     // Load service_supplies relationships
     const { data: serviceSupplies } = await supabase
       .from('service_supplies')
-      .select('service_id, supply_id, quantity')
+      .select('service_id, supply_id, qty')
       .in(
         'service_id',
         services?.map((s) => s.id) || []
@@ -350,7 +350,7 @@ export class ClinicSnapshotService {
       const serviceSupplyItems = serviceSupplies?.filter(ss => ss.service_id === s.id) || []
       const variableCost = serviceSupplyItems.reduce((total, ss) => {
         const supply = supplies?.find(sup => sup.id === ss.supply_id)
-        const qty = ss.quantity || 0
+        const qty = ss.qty || 0  // Field is 'qty' not 'quantity'
         const supplyPrice = supply?.price_cents || 0
         const portions = supply?.portions || 0
 
