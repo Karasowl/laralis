@@ -274,6 +274,24 @@ export function ServiceForm({
       </FormSection>
 
       <FormSection title={t('discount_section')} description={t('discount_section_hint')}>
+        {/* Remove Discount Button - shown when discount is active */}
+        {discountType && discountType !== 'none' && (
+          <div className="mb-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                form.setValue('discount_type', 'none')
+                form.setValue('discount_value', 0)
+                form.setValue('discount_reason', '')
+              }}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
+            >
+              {t('remove_discount')}
+            </Button>
+          </div>
+        )}
+
         <FormGrid columns={2}>
           {/* Discount Type */}
           <div>

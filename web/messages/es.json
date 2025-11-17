@@ -1431,7 +1431,8 @@
     "total_discount": "descuento total",
     "bulk_discount_info": "El descuento se aplicará sobre el precio con utilidad de cada servicio.",
     "price_rounding_notice": "Los precios se redondearán automáticamente a múltiplos de ${amount}.",
-    "discount": "Descuento"
+    "discount": "Descuento",
+    "remove_discount": "Quitar Descuento"
   },
   "businessSetup": {
     "assets": {
