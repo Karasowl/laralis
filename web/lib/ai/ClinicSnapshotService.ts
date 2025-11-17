@@ -100,16 +100,20 @@ export class ClinicSnapshotService {
     // Load clinic info first (needed for calculations)
     const clinic = await this.loadClinicInfo(supabase, clinicId)
 
-    // Load all data in parallel
-    const [patients, treatments, services, supplies, assets, expenses, fixedCosts] =
+    // Load assets and fixed costs first (needed for services calculation)
+    const [assets, fixedCosts] = await Promise.all([
+      this.loadAssets(supabase, clinicId),
+      this.loadFixedCosts(supabase, clinicId),
+    ])
+
+    // Load remaining data in parallel
+    const [patients, treatments, services, supplies, expenses] =
       await Promise.all([
         this.loadPatients(supabase, clinicId, startDate),
         this.loadTreatments(supabase, clinicId, startDate),
-        this.loadServices(supabase, clinicId),
+        this.loadServices(supabase, clinicId, clinic, fixedCosts, assets),
         this.loadSupplies(supabase, clinicId),
-        this.loadAssets(supabase, clinicId),
         this.loadExpenses(supabase, clinicId, startDate),
-        this.loadFixedCosts(supabase, clinicId),
       ])
 
     // Calculate analytics using all the loaded data
@@ -276,12 +280,18 @@ export class ClinicSnapshotService {
     }
   }
 
-  private async loadServices(supabase: SupabaseClient, clinicId: string) {
+  private async loadServices(
+    supabase: SupabaseClient,
+    clinicId: string,
+    clinic: any,
+    fixedCosts: any,
+    assets: any
+  ) {
     // Get all services with their direct price_cents field
     // Services have pricing directly in the table (tariffs table is DEPRECATED)
     const { data: services, error: servicesError } = await supabase
       .from('services')
-      .select('id, name, est_minutes, variable_cost_cents, price_cents, is_active')
+      .select('id, name, est_minutes, price_cents, is_active')
       .eq('clinic_id', clinicId)
       .order('name')
 
@@ -295,31 +305,84 @@ export class ClinicSnapshotService {
       }
     }
 
-    console.log('[ClinicSnapshotService] Services loaded:', {
-      count: services?.length || 0,
-      services: services?.map(s => ({ name: s.name, price_cents: s.price_cents, is_active: s.is_active }))
-    })
+    // Load all supplies for cost calculation
+    const { data: supplies } = await supabase
+      .from('supplies')
+      .select('id, price_cents, portions')
+      .eq('clinic_id', clinicId)
 
-    // Count services with supplies
-    const { count: withSupplies } = await supabase
+    // Load service_supplies relationships
+    const { data: serviceSupplies } = await supabase
       .from('service_supplies')
-      .select('service_id', { count: 'exact', head: true })
+      .select('service_id, supply_id, quantity')
       .in(
         'service_id',
         services?.map((s) => s.id) || []
       )
 
+    // Calculate fixed cost per minute (same as /api/services)
+    const monthlyFixedCostsCents = fixedCosts.monthly_total_cents + assets.monthly_depreciation_cents
+    const workDays = clinic.time_settings.work_days_per_month
+    const hoursPerDay = clinic.time_settings.hours_per_day
+    const realPct = clinic.time_settings.real_productivity_pct / 100
+    const minutesMonth = workDays * hoursPerDay * 60
+    const effectiveMinutes = minutesMonth * realPct
+
+    const fixedCostPerMinuteCents = effectiveMinutes > 0 && monthlyFixedCostsCents > 0
+      ? Math.round(monthlyFixedCostsCents / effectiveMinutes)
+      : 0
+
+    console.log('[ClinicSnapshotService] Services loaded:', {
+      count: services?.length || 0,
+      supplies_count: supplies?.length || 0,
+      service_supplies_count: serviceSupplies?.length || 0,
+      fixed_cost_per_minute_cents: fixedCostPerMinuteCents,
+    })
+
+    // Count services with supplies
+    const servicesWithSupplies = new Set(serviceSupplies?.map(ss => ss.service_id) || [])
+
     const list = (services || []).map((s: any) => {
       // Use price directly from services table
       const price = s.price_cents || 0
-      const variableCost = s.variable_cost_cents || 0
-      const margin = price > 0 ? ((price - variableCost) / price) * 100 : 0
+
+      // Calculate variable cost from supplies (same logic as /api/services)
+      const serviceSupplyItems = serviceSupplies?.filter(ss => ss.service_id === s.id) || []
+      const variableCost = serviceSupplyItems.reduce((total, ss) => {
+        const supply = supplies?.find(sup => sup.id === ss.supply_id)
+        const qty = ss.quantity || 0
+        const supplyPrice = supply?.price_cents || 0
+        const portions = supply?.portions || 0
+
+        if (supply && portions > 0 && qty > 0) {
+          const costPerPortion = supplyPrice / portions
+          return total + Math.round(costPerPortion * qty)
+        }
+        return total
+      }, 0)
+
+      // Calculate fixed cost for this service
+      const estMinutes = s.est_minutes || 0
+      const fixedCost = Math.round(estMinutes * fixedCostPerMinuteCents)
+
+      // Calculate total cost (fixed + variable) - same as /api/services
+      const totalCost = fixedCost + variableCost
+
+      // IMPORTANT: margin_pct in the app is actually MARKUP, not margin!
+      // Formula: (Price - Cost) / Cost × 100 (NOT (Price - Cost) / Price)
+      // This matches calculateRequiredMargin in lib/calc/tarifa.ts
+      const markup = totalCost > 0 ? ((price - totalCost) / totalCost) * 100 : 0
 
       // Debug logging
       console.log(`[ClinicSnapshotService] Service "${s.name}":`, {
-        price_cents: s.price_cents,
+        price_cents: price,
+        fixed_cost_cents: fixedCost,
+        variable_cost_cents: variableCost,
+        total_cost_cents: totalCost,
+        markup_pct: Math.round(markup * 100) / 100,
         has_price: price > 0,
         is_active: s.is_active,
+        supplies_count: serviceSupplyItems.length,
       })
 
       return {
@@ -328,7 +391,7 @@ export class ClinicSnapshotService {
         est_minutes: s.est_minutes,
         variable_cost_cents: variableCost,
         current_price_cents: price,
-        margin_pct: Math.round(margin * 100) / 100,
+        margin_pct: Math.round(markup * 100) / 100,  // Called margin_pct but it's actually markup
         has_pricing: price > 0 && s.is_active, // Has price configured and is active
       }
     })
@@ -339,14 +402,14 @@ export class ClinicSnapshotService {
     console.log('[ClinicSnapshotService] Services summary:', {
       total: services?.length || 0,
       with_pricing: withPricing,
-      with_supplies: withSupplies || 0,
-      pricing: list.map(s => ({ name: s.name, has_price: s.has_pricing, price: s.current_price_cents }))
+      with_supplies: servicesWithSupplies.size,
+      pricing: list.map(s => ({ name: s.name, has_price: s.has_pricing, price: s.current_price_cents, variable_cost: s.variable_cost_cents }))
     })
 
     return {
       total_configured: services?.length || 0,
       with_pricing: withPricing,
-      with_supplies: withSupplies || 0,
+      with_supplies: servicesWithSupplies.size,
       list,
     }
   }
