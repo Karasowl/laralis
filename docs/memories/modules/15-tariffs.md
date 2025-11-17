@@ -1,7 +1,40 @@
 # Memoria del Módulo: Tarifas (Tariffs)
 
-## 📋 Resumen
-Sistema de gestión de versiones de tarifas que calcula precios de servicios basándose en costos fijos, variables y márgenes de ganancia, manteniendo histórico de cambios.
+---
+
+## ⚠️ **DEPRECATION NOTICE** (Noviembre 2025)
+
+**Este módulo ha sido DEPRECADO y reemplazado.**
+
+**Nueva Arquitectura:** Los precios ahora se manejan directamente en el módulo de **Servicios** (Services). Ver: [08-services.md](08-services.md)
+
+**Cambio Principal:**
+- ❌ **ANTES (v2)**: `services` → `tariffs` (versiones) → `treatments`
+- ✅ **AHORA (v3)**: `services` (con pricing integrado) → `treatments`
+
+**Razones del cambio:**
+1. El sistema de versionado nunca se utilizó en producción
+2. Complejidad innecesaria: 2 queries en lugar de 1
+3. Confusión para usuarios: "¿por qué dos páginas?"
+4. Los snapshots en treatments son suficientes para auditoría
+
+**Para información actualizada, ver:**
+- [Devlog: Migración Arquitectónica](../../devlog/2025-11-17-tariff-to-service-architecture-migration.md)
+- [Schema v3](../../database/schemas/SCHEMA-v3-2025-11-17.md)
+- [CLAUDE.md - Pricing Architecture](../../../CLAUDE.md#pricing-architecture-critical)
+
+**Estado de la tabla `tariffs`:**
+- Existe en el schema pero es **read-only**
+- Mantenida solo para auditoría fiscal
+- **NO usar en código nuevo**
+
+---
+
+## 📋 Resumen (Histórico)
+
+**NOTA:** La información siguiente es histórica y describe el sistema deprecado.
+
+Sistema de gestión de versiones de tarifas que calculaba precios de servicios basándose en costos fijos, variables y márgenes de ganancia, manteniendo histórico de cambios.
 
 ## 🎯 Propósito Principal
 Administrar la estrategia de precios mediante:

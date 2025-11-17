@@ -278,7 +278,7 @@ export class ClinicSnapshotService {
 
   private async loadServices(supabase: SupabaseClient, clinicId: string) {
     // Get all services with their direct price_cents field
-    // Services have price directly on the table, tariffs is for versioning/history
+    // Services have pricing directly in the table (tariffs table is DEPRECATED)
     const { data: services, error: servicesError } = await supabase
       .from('services')
       .select('id, name, est_minutes, variable_cost_cents, price_cents, is_active')
@@ -289,7 +289,7 @@ export class ClinicSnapshotService {
       console.error('[ClinicSnapshotService] Error loading services:', servicesError)
       return {
         total_configured: 0,
-        with_tariffs: 0,
+        with_pricing: 0,
         with_supplies: 0,
         list: [],
       }
@@ -310,7 +310,7 @@ export class ClinicSnapshotService {
       )
 
     const list = (services || []).map((s: any) => {
-      // Use price directly from services table (NOT from tariffs table)
+      // Use price directly from services table
       const price = s.price_cents || 0
       const variableCost = s.variable_cost_cents || 0
       const margin = price > 0 ? ((price - variableCost) / price) * 100 : 0
@@ -329,23 +329,23 @@ export class ClinicSnapshotService {
         variable_cost_cents: variableCost,
         current_price_cents: price,
         margin_pct: Math.round(margin * 100) / 100,
-        has_tariff: price > 0 && s.is_active, // Has price configured and is active
+        has_pricing: price > 0 && s.is_active, // Has price configured and is active
       }
     })
 
-    const withTariffs = list.filter(s => s.has_tariff).length
+    const withPricing = list.filter(s => s.has_pricing).length
 
     // Summary log for debugging
     console.log('[ClinicSnapshotService] Services summary:', {
       total: services?.length || 0,
-      with_tariffs: withTariffs,
+      with_pricing: withPricing,
       with_supplies: withSupplies || 0,
-      pricing: list.map(s => ({ name: s.name, has_price: s.has_tariff, price: s.current_price_cents }))
+      pricing: list.map(s => ({ name: s.name, has_price: s.has_pricing, price: s.current_price_cents }))
     })
 
     return {
       total_configured: services?.length || 0,
-      with_tariffs: withTariffs,
+      with_pricing: withPricing,
       with_supplies: withSupplies || 0,
       list,
     }
@@ -539,7 +539,7 @@ export class ClinicSnapshotService {
       priceDataSource = 'historical'
     } else {
       // Insufficient history - calculate average from configured service prices
-      const servicesWithPricing = services.list.filter((s: any) => s.has_tariff)
+      const servicesWithPricing = services.list.filter((s: any) => s.has_pricing)
 
       if (servicesWithPricing.length > 0) {
         avgTreatmentPrice = Math.round(
@@ -554,7 +554,7 @@ export class ClinicSnapshotService {
         // No pricing data available at all
         avgTreatmentPrice = 0
         priceDataSource = 'none'
-        calculationWarning = 'No pricing data available - configure service prices in Tariffs module'
+        calculationWarning = 'No pricing data available - configure service prices in the Services module'
       }
     }
 
@@ -620,7 +620,7 @@ export class ClinicSnapshotService {
           price_data_source: priceDataSource,
           historical_treatments_count: treatments.total_in_period,
           configured_services_count: services.total_configured,
-          services_with_pricing_count: services.list.filter((s: any) => s.has_tariff).length,
+          services_with_pricing_count: services.list.filter((s: any) => s.has_pricing).length,
           warning: calculationWarning,
         },
       },
@@ -673,9 +673,9 @@ export class ClinicSnapshotService {
           relationships: ['Belongs to patient', 'Belongs to service'],
         },
         services: {
-          description: 'Procedures offered by the clinic (cleaning, filling, etc.)',
-          key_fields: ['name', 'minutes', 'variable_cost_cents'],
-          relationships: ['Has many service_supplies', 'Has many tariffs'],
+          description: 'Procedures offered by the clinic with integrated pricing (cleaning, filling, etc.)',
+          key_fields: ['name', 'est_minutes', 'variable_cost_cents', 'price_cents', 'margin_pct'],
+          relationships: ['Has many service_supplies', 'Used in treatments'],
         },
         supplies: {
           description: 'Materials used in treatments (amalgam, cement, etc.)',
@@ -708,9 +708,9 @@ export class ClinicSnapshotService {
           relationships: ['Reduces profitability'],
         },
         tariffs: {
-          description: 'Pricing for services - can change over time',
+          description: '[DEPRECATED] Historical pricing table - use services.price_cents instead',
           key_fields: ['service_id', 'price_cents', 'created_at'],
-          relationships: ['Belongs to service'],
+          relationships: ['[Read-only] Belongs to service (for audit only)'],
         },
       },
       business_formulas: {

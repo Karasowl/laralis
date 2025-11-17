@@ -17,6 +17,10 @@ Cada entrada sigue la estructura:
 
 ## Entradas
 
+### 2025-11-17
+
+- **[2025-11-17-tariff-to-service-architecture-migration.md](2025-11-17-tariff-to-service-architecture-migration.md)** - ⚠️ BREAKING Architectural Change P0: Deprecación completa del sistema de tarifas (tariffs table) y migración de toda la lógica de pricing a la tabla services. Simplificación del 50% en queries, eliminación de versionado innecesario, single source of truth en services.price_cents.
+
 ### 2025-10-18
 
 - **[2025-10-18-improve-dark-mode-ux.md](2025-10-18-improve-dark-mode-ux.md)** - Mejora P2 UX: Dark mode rediseñado con técnicas modernas - eliminado "alto contraste" molesto, implementada paleta suave inspirada en GitHub/Material Design
@@ -43,6 +47,7 @@ Cada entrada sigue la estructura:
 ## Por Área
 
 ### Infraestructura
+- [2025-11-17-tariff-to-service-architecture-migration.md](2025-11-17-tariff-to-service-architecture-migration.md) - ⚠️ BREAKING: Deprecación de tariffs, services ahora es el pricing catalog
 - [2025-08-09-bootstrap-proyecto.md](2025-08-09-bootstrap-proyecto.md) - Setup inicial completo
 - [2025-10-22-export-import-system.md](2025-10-22-export-import-system.md) - Sistema completo de export/import con migraciones
 
@@ -85,6 +90,6 @@ Cada entrada sigue la estructura:
 
 ## Stats
 
-- **Total entradas**: 13
-- **Última actualización**: 2025-10-22
-- **Archivos documentados**: 113+
+- **Total entradas**: 14
+- **Última actualización**: 2025-11-17
+- **Archivos documentados**: 120+

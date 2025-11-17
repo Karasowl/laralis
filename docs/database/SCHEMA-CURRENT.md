@@ -1,28 +1,30 @@
 # Current Database Schema
 
-**Current Version:** v2
-**Date:** 2025-11-02
-**File:** [SCHEMA-v2-2025-11-02.md](schemas/SCHEMA-v2-2025-11-02.md)
-**Previous Version:** [v1 (2025-10-21)](schemas/SCHEMA-v1-2025-10-21.md)
+**Current Version:** v3
+**Date:** 2025-11-17
+**File:** [SCHEMA-v3-2025-11-17.md](schemas/SCHEMA-v3-2025-11-17.md)
+**Previous Version:** [v2 (2025-11-02)](schemas/SCHEMA-v2-2025-11-02.md)
 
 ---
 
 This file always points to the most recent schema version. When the schema changes, this file will be updated to reference the new version.
 
-## What's New in v2
+## What's New in v3
 
-🆕 **Discount System** (Migration 45):
-- Global discount configuration at clinic level (`clinics.global_discount_config`)
-- Individual service discounts in tariffs (`tariffs.discount_*` fields)
-- Support for percentage and fixed-amount discounts
-- Database function for discount calculations (`calculate_discounted_price()`)
+⚠️ **BREAKING ARCHITECTURAL CHANGE** (Migration 46):
+- **Tariffs table is DEPRECATED**: No longer used for active pricing
+- **Services is now the pricing catalog**: All discount fields moved from tariffs to services
+- **services.price_cents is single source of truth**: Final price with discount already applied
+- **Simplified architecture**: `services` → `treatments` (no tariffs in between)
+- **Performance improvement**: -50% queries for pricing operations
+- **Better UX**: One page for services + pricing (no separate tariffs page)
 
 ## Quick Links
 
-- 📄 [Current Schema (v2)](schemas/SCHEMA-v2-2025-11-02.md)
+- 📄 [Current Schema (v3)](schemas/SCHEMA-v3-2025-11-17.md)
 - 📋 [Schema Changelog](SCHEMA-CHANGELOG.md)
 - 🔄 [All Schema Versions](schemas/)
-- 📜 [Previous Version (v1)](schemas/SCHEMA-v1-2025-10-21.md)
+- 📜 [Previous Version (v2)](schemas/SCHEMA-v2-2025-11-02.md)
 
 ## How to Update Schema
 

@@ -888,57 +888,83 @@ Los gastos se registran para:
 
 ---
 
-### 9. Tarifas (Tariffs)
+### 9. Servicios y Pricing (Services)
+
+**⚠️ ACTUALIZACIÓN (Nov 2025):** El sistema de tarifas versionadas fue **deprecado**. Los servicios ahora contienen directamente su precio con descuentos integrados.
 
 **¿Qué son?**
-Versiones históricas de los precios de cada servicio.
+Los servicios dentales son el catálogo completo de procedimientos con sus precios actuales.
 
 **Campos clave:**
 
 ```typescript
-interface Tariff {
+interface Service {
   id: string;
   clinic_id: string;
-  service_id: string;
+  name: string;
+  description: string;
+  category: string;
 
-  version: number;                      // 1, 2, 3...
-  valid_from: Date;
-  valid_until: Date | null;
+  // Costos base
+  est_minutes: number;                      // Duración estimada
+  fixed_cost_per_minute_cents: number;      // Costo fijo por minuto
+  variable_cost_cents: number;              // Costo de materiales
+  margin_pct: number;                       // Margen de ganancia %
 
-  // Snapshot de costos
-  fixed_cost_per_minute_cents: number;
-  variable_cost_cents: number;
-  margin_pct: number;
-  price_cents: number;
-  rounded_price_cents: number;
+  // 🆕 Precio final (SINGLE SOURCE OF TRUTH)
+  price_cents: number;                      // Precio que paga el paciente
+
+  // 🆕 Descuentos integrados
+  discount_type: 'none' | 'percentage' | 'fixed';
+  discount_value: number;
+  discount_reason: string | null;
 
   is_active: boolean;
 }
 ```
 
-**¿Por qué versiones?**
+**Cálculo del Precio:**
 
-Imagina que cambias tus precios cada 6 meses:
+```typescript
+// 1. Costo base
+const baseCost = (est_minutes * fixed_cost_per_minute_cents) + variable_cost_cents
 
+// 2. Aplicar margen
+const priceWithMargin = baseCost * (1 + margin_pct/100)
+
+// 3. Aplicar descuento si existe
+let discount = 0
+if (discount_type === 'percentage') {
+  discount = priceWithMargin * (discount_value / 100)
+} else if (discount_type === 'fixed') {
+  discount = discount_value * 100  // convert to cents
+}
+
+// 4. Precio final almacenado
+service.price_cents = priceWithMargin - discount  // ← Lo que paga el paciente
 ```
-Tariff v1: Enero-Junio 2024
-  Limpieza: $500
-  Resina: $800
 
-Tariff v2: Julio-Diciembre 2024
-  Limpieza: $600 (+20%)
-  Resina: $900 (+12.5%)
+**Historial de Precios:**
 
-Tariff v3: Enero 2025
-  Limpieza: $650
-  Resina: $950
+En lugar de versiones de tarifas, el historial se obtiene de los tratamientos:
+
+```typescript
+// Query para ver historial de precios de un servicio
+SELECT DISTINCT price_cents, created_at
+FROM treatments
+WHERE service_id = 'xxx'
+ORDER BY created_at DESC
 ```
 
-**Beneficios:**
-1. Historial completo de cambios de precio
-2. Análisis de tendencias
-3. Justificación de aumentos (si tus costos subieron)
-4. Auditoría
+**Beneficios de la nueva arquitectura:**
+1. ✅ Más simple: Un solo lugar para pricing (services)
+2. ✅ Más rápido: -50% de queries (no JOIN necesario)
+3. ✅ Single source of truth: `service.price_cents`
+4. ✅ Descuentos integrados: percentage o fixed amount
+5. ✅ Historial preservado: via snapshots en treatments
+
+**Nota sobre Tabla `tariffs` (DEPRECATED):**
+La tabla `tariffs` sigue existiendo en el schema pero está **deprecada** y en modo read-only. Se mantiene solo para auditoría de datos históricos. **NO usar en código nuevo.**
 
 ---
 
