@@ -149,14 +149,18 @@ export function ServicesTable({
       render: (_value: any, service: any) => {
         const costBase = service?.total_cost_cents || 0;
         const configuredMarginPct = service?.margin_pct || 30;
-        const salePrice = service?.price_cents || 0;
-        const profit = salePrice - costBase;
 
-        // Check if service has discount
+        // Calculate original price from cost + margin (before any discount)
+        const totalCostCents = costBase || 0;
+        const originalPrice = Math.round(totalCostCents * (1 + configuredMarginPct / 100));
+
+        // price_cents now stores the final price (with discount applied if any)
+        const finalPrice = service?.price_cents || 0;
         const hasDiscount = service?.discount_type && service.discount_type !== 'none';
-        const finalPrice = hasDiscount ? (service?.final_price_with_discount_cents || salePrice) : salePrice;
 
-        // Calculate REAL margin
+        const profit = finalPrice - costBase;
+
+        // Calculate REAL margin based on final price
         const realMarginPct = costBase > 0 ? ((profit / costBase) * 100) : 0;
         const hasLoss = realMarginPct < 0;
         const hasLowMargin = realMarginPct >= 0 && realMarginPct < 10;
@@ -179,7 +183,7 @@ export function ServicesTable({
                   {hasDiscount ? (
                     <>
                       <span className="text-xs line-through text-muted-foreground font-normal">
-                        {formatCurrency(salePrice)}
+                        {formatCurrency(originalPrice)}
                       </span>
                       <div className="flex items-center gap-1.5">
                         <span className="text-base font-bold">{formatCurrency(finalPrice)}</span>
@@ -188,7 +192,7 @@ export function ServicesTable({
                     </>
                   ) : (
                     <div className="flex items-center gap-1.5">
-                      {formatCurrency(salePrice)}
+                      {formatCurrency(finalPrice)}
                       <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors" />
                     </div>
                   )}
@@ -204,9 +208,15 @@ export function ServicesTable({
                     <span className="text-muted-foreground font-medium">{t('base_cost')}:</span>
                     <span className="font-semibold">{formatCurrency(costBase)}</span>
                   </div>
+                  {hasDiscount && (
+                    <div className="flex justify-between gap-4">
+                      <span className="text-muted-foreground font-medium">{t('price_before_discount')}:</span>
+                      <span className="font-semibold line-through">{formatCurrency(originalPrice)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between gap-4">
-                    <span className="text-muted-foreground font-medium">{t('price_with_margin')}:</span>
-                    <span className="font-semibold">{formatCurrency(salePrice)}</span>
+                    <span className="text-muted-foreground font-medium">{hasDiscount ? t('final_price_with_discount') : t('price_with_margin')}:</span>
+                    <span className="font-semibold">{formatCurrency(finalPrice)}</span>
                   </div>
                   <div className="border-t pt-2 mt-2"></div>
                   <div className="flex justify-between gap-4">

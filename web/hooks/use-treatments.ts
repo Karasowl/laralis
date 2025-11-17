@@ -135,9 +135,8 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
     const fixedCost = (Number(fpm) || 0) * data.minutes
     const totalCost = fixedCost + variableCost
 
-    // Use final price with discount from service if available, otherwise calculate manually
-    const price = selectedService?.final_price_with_discount_cents
-      || selectedService?.price_cents
+    // Use price_cents which now includes discount if applied
+    const price = selectedService?.price_cents
       || Math.round(totalCost * (1 + data.margin_pct / 100))
 
     const snapshot = {
