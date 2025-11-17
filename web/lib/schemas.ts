@@ -113,11 +113,24 @@ export const serviceSchema = z.object({
   margin_pct: z.number().min(0).max(500).default(30),
   target_price: z.number().min(0).optional(),
   description: z.string().optional(),
+  // Discount fields (migrated from tariffs)
+  discount_type: z.enum(['none', 'percentage', 'fixed']).optional().default('none'),
+  discount_value: z.number().min(0).optional().default(0),
+  discount_reason: z.string().optional(),
   supplies: z.array(z.object({
     supply_id: z.string(),
     quantity: z.number().optional(),
     qty: z.number().optional()
   })).optional()
+}).refine((data) => {
+  // Validate percentage discount doesn't exceed 100%
+  if (data.discount_type === 'percentage' && (data.discount_value || 0) > 100) {
+    return false
+  }
+  return true
+}, {
+  message: 'Percentage discount cannot exceed 100%',
+  path: ['discount_value']
 })
 
 export const categorySchema = z.object({

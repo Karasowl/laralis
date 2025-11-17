@@ -45,7 +45,10 @@ const DEFAULT_SERVICE_FORM_VALUES: ServiceFormData = {
   base_price_cents: 0,
   description: '',
   margin_pct: 30,
-  target_price: 0
+  target_price: 0,
+  discount_type: 'none',
+  discount_value: 0,
+  discount_reason: ''
 };
 
 export default function ServicesPage() {
@@ -260,7 +263,10 @@ export default function ServicesPage() {
       base_price_cents: baseCost,  // Use real recalculated cost
       description: service.description || '',
       margin_pct: margin,
-      target_price: currentPricePesos  // Show current price, user can adjust manually
+      target_price: currentPricePesos,  // Show current price, user can adjust manually
+      discount_type: service.discount_type || 'none',
+      discount_value: service.discount_value || 0,
+      discount_reason: service.discount_reason || ''
     })
     setSelectedServiceId(service.id)
     setEditService(service)

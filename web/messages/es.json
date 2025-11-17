@@ -1357,11 +1357,29 @@
       "unit": "Unidad",
       "cost_per_unit": "Costo por Unidad",
       "base_price_auto": "Precio base (auto)",
-      "margin_pct": "Utilidad (%)"
+      "margin_pct": "Utilidad (%)",
+      "discount_type": "Tipo de Descuento",
+      "discount_percentage": "Descuento %",
+      "discount_amount": "Monto de Descuento",
+      "discount_reason": "Razón (opcional)"
     },
     "margin_pct_helper": "Porcentaje de utilidad sobre el costo base (ej: 30 = 30% de utilidad)",
     "target_price": "Precio Deseado",
     "target_price_helper": "Precio final deseado - la utilidad se ajusta automáticamente",
+    "discount_section": "Descuentos (Opcional)",
+    "discount_section_hint": "Aplica descuentos a este servicio. El precio final se calculará automáticamente.",
+    "discount_types": {
+      "none": "Sin descuento",
+      "percentage": "Descuento porcentual",
+      "fixed": "Descuento de monto fijo"
+    },
+    "discount_percentage_helper": "Porcentaje de descuento (0-100)",
+    "discount_amount_helper": "Monto del descuento en moneda",
+    "discount_reason_placeholder": "ej., Descuento promocional, Cliente frecuente, Campaña especial...",
+    "discount_reason_helper": "Opcional: Explica por qué se aplica este descuento",
+    "price_before_discount": "Precio antes del descuento",
+    "final_price_with_discount": "Precio Final",
+    "discount_savings": "Ahorro: {amount}",
     "select_category": "Selecciona una categoría",
     "entities": {
       "category": "Categoría",
