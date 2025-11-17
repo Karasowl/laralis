@@ -123,12 +123,20 @@ export async function POST(request: NextRequest) {
 
           try {
             const parsed = JSON.parse(data)
-            const content = parsed.choices?.[0]?.delta?.content
+            const delta = parsed.choices?.[0]?.delta
 
-            if (content) {
-              // Send content chunk
+            // Capture reasoning_content (thinking process from K2 model)
+            // This prevents timeout during long thinking phases (>60s)
+            if (delta?.reasoning_content) {
               controller.enqueue(
-                encoder.encode(`data: ${JSON.stringify({ type: 'content', data: content })}\n\n`)
+                encoder.encode(`data: ${JSON.stringify({ type: 'thinking', data: delta.reasoning_content })}\n\n`)
+              )
+            }
+
+            // Capture content (final answer)
+            if (delta?.content) {
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify({ type: 'content', data: delta.content })}\n\n`)
               )
             }
           } catch (e) {
@@ -145,10 +153,19 @@ export async function POST(request: NextRequest) {
           if (data && data !== '[DONE]') {
             try {
               const parsed = JSON.parse(data)
-              const content = parsed.choices?.[0]?.delta?.content
-              if (content) {
+              const delta = parsed.choices?.[0]?.delta
+
+              // Capture reasoning_content (thinking process)
+              if (delta?.reasoning_content) {
                 controller.enqueue(
-                  encoder.encode(`data: ${JSON.stringify({ type: 'content', data: content })}\n\n`)
+                  encoder.encode(`data: ${JSON.stringify({ type: 'thinking', data: delta.reasoning_content })}\n\n`)
+                )
+              }
+
+              // Capture content (final answer)
+              if (delta?.content) {
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify({ type: 'content', data: delta.content })}\n\n`)
                 )
               }
             } catch (e) {

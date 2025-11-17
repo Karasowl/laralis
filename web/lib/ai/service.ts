@@ -244,6 +244,31 @@ No data is currently available. Please ask the user to configure their clinic fi
 
 Language: ${locale === 'es' ? 'Spanish' : 'English'}
 
+## SCOPE AND CONSTRAINTS (CRITICAL - READ FIRST)
+
+**YOU ARE A DOMAIN-SPECIFIC ASSISTANT** - You can ONLY answer questions about THIS specific dental clinic's data and operations.
+
+**ALLOWED TOPICS** (answer these):
+- Clinic financial analysis (revenue, expenses, costs, profitability, break-even)
+- Patient statistics, demographics, and sources
+- Treatment performance, frequency, and profitability by service
+- Service pricing, margins, variable costs, and capacity utilization
+- Business recommendations and insights based on THIS clinic's actual data
+- Operational efficiency metrics for THIS clinic
+
+**FORBIDDEN TOPICS** (reject these politely):
+- General knowledge questions (science, geography, history, trivia, etc.)
+- Medical advice unrelated to clinic business operations
+- Technical topics outside clinic management
+- Personal questions unrelated to clinic data
+- Any topic not directly related to THIS clinic's business data
+
+**IF THE QUESTION IS OFF-TOPIC**, respond EXACTLY with:
+"Lo siento, solo puedo ayudarte con preguntas sobre los datos y análisis de tu clínica dental. ¿Tienes alguna pregunta sobre tus tratamientos, ingresos, gastos o pacientes?"
+
+**IF THE QUESTION IS IN ENGLISH BUT OFF-TOPIC**, respond with:
+"I'm sorry, I can only help you with questions about your dental clinic's data and analysis. Do you have any questions about your treatments, revenue, expenses, or patients?"
+
 ## APPLICATION ARCHITECTURE
 
 This dental clinic management system has ${Object.keys(appSchema.modules).length} core modules:
@@ -282,11 +307,25 @@ ${Object.entries(appSchema.business_formulas)
 - By service:
 ${data.treatments.by_service?.slice(0, 5).map((s: any) => `  - ${s.service_name}: ${s.count} treatments, ${fmt(s.revenue_cents)} revenue`).join('\n') || '  (No treatment data)'}
 
-### SERVICES (Configured)
-- Total services: ${data.services.total_configured}
-- Services with supplies: ${data.services.with_supplies}
-- All services with pricing:
-${data.services.list?.map((s: any) => `  - ${s.name}: ${fmt(s.current_price_cents)}, ${s.est_minutes} min, margin ${s.margin_pct}%`).join('\n') || '  (No services configured)'}
+### SERVICES (Configured) - COMPLETE COST BREAKDOWN
+
+**Total services: ${data.services.total_configured}**
+**Services with supplies configured: ${data.services.with_supplies}**
+
+**ALL SERVICES WITH DETAILED PROFITABILITY DATA:**
+${data.services.list?.map((s: any) => `
+📊 **${s.name}**
+   • Precio: ${fmt(s.current_price_cents)}
+   • Costo variable (materiales): ${fmt(s.variable_cost_cents)}
+   • Ganancia bruta por tratamiento: ${fmt(s.current_price_cents - s.variable_cost_cents)}
+   • **MARGEN DE GANANCIA: ${s.margin_pct}%**
+   • Duración estimada: ${s.est_minutes} minutos`).join('\n') || '  (No services configured)'}
+
+**IMPORTANT FOR PROFITABILITY QUESTIONS:**
+- Each service has a PROFIT MARGIN (margin_pct) = (Precio - Costo Variable) / Precio × 100
+- To find "most profitable service" or "best margin", sort by **margin_pct** (highest % = most profitable)
+- To find "most revenue generating service", check treatments.by_service for actual revenue
+- Variable costs include ONLY materials/supplies used per treatment (NOT fixed costs like rent)
 
 ### SUPPLIES
 - Total supplies: ${data.supplies.total_items}

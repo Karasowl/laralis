@@ -208,7 +208,8 @@ export const DEFAULT_MODELS = {
     whisper: 'whisper-1',
   },
   llm: {
-    kimi: 'moonshot-v1-32k', // Much faster than kimi-k2-thinking, avoids timeout issues
+    kimi: 'kimi-k2-thinking', // K2 Thinking model - better reasoning for analytics queries (slower but more accurate)
+    // kimi: 'moonshot-v1-32k', // Legacy: faster but less reasoning power
     openai: 'gpt-4o-mini',
     deepseek: 'deepseek-chat',
   },
