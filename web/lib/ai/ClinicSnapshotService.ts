@@ -37,6 +37,24 @@ interface TimeSettings {
   available_treatment_minutes: number
 }
 
+interface CalculationMetadata {
+  avg_treatment_price_cents: number
+  price_data_source: 'historical' | 'configured' | 'none'
+  historical_treatments_count: number
+  configured_services_count: number
+  services_with_pricing_count: number
+  warning: string | null
+}
+
+interface BreakEvenAnalytics {
+  revenue_cents: number
+  treatments_needed: number
+  current_treatments: number
+  gap: number
+  status: 'above' | 'at' | 'below'
+  calculation_metadata: CalculationMetadata
+}
+
 interface FullClinicSnapshot {
   app_schema: AppSchema
   clinic: {
@@ -54,7 +72,7 @@ interface FullClinicSnapshot {
     fixed_costs: any
   }
   analytics: {
-    break_even: any
+    break_even: BreakEvenAnalytics
     margins: any
     profitability: any
     efficiency: any
@@ -260,6 +278,7 @@ export class ClinicSnapshotService {
 
   private async loadServices(supabase: SupabaseClient, clinicId: string) {
     // Get all services with their current tariffs
+    // Use LEFT JOIN to include services even without tariffs
     const { data: services } = await supabase
       .from('services')
       .select(
@@ -268,7 +287,7 @@ export class ClinicSnapshotService {
         name,
         est_minutes,
         variable_cost_cents,
-        tariffs!inner(price_cents)
+        tariffs(price_cents)
       `
       )
       .eq('clinic_id', clinicId)
@@ -284,7 +303,9 @@ export class ClinicSnapshotService {
       )
 
     const list = (services || []).map((s: any) => {
-      const price = s.tariffs?.price_cents || 0
+      // Handle both single tariff object and array of tariffs
+      const tariff = Array.isArray(s.tariffs) ? s.tariffs[0] : s.tariffs
+      const price = tariff?.price_cents || 0
       const variableCost = s.variable_cost_cents || 0
       const margin = price > 0 ? ((price - variableCost) / price) * 100 : 0
 
@@ -295,11 +316,15 @@ export class ClinicSnapshotService {
         variable_cost_cents: variableCost,
         current_price_cents: price,
         margin_pct: Math.round(margin * 100) / 100,
+        has_tariff: !!tariff,
       }
     })
 
+    const withTariffs = list.filter(s => s.has_tariff).length
+
     return {
       total_configured: services?.length || 0,
+      with_tariffs: withTariffs,
       with_supplies: withSupplies || 0,
       list,
     }
@@ -478,7 +503,40 @@ export class ClinicSnapshotService {
         ? (totalFixedCosts / (contributionMarginPct / 100))
         : 0
 
-    const avgTreatmentPrice = treatments.avg_price_cents
+    // CRITICAL FIX: Determine correct price source for treatment calculations
+    // Problem: mixing historical treatment prices with configured service prices creates inconsistency
+    const MINIMUM_TREATMENTS_FOR_RELIABLE_HISTORY = 10
+    const hasEnoughTreatmentHistory = treatments.total_in_period >= MINIMUM_TREATMENTS_FOR_RELIABLE_HISTORY
+
+    let avgTreatmentPrice: number
+    let priceDataSource: 'historical' | 'configured' | 'none'
+    let calculationWarning: string | null = null
+
+    if (hasEnoughTreatmentHistory) {
+      // Sufficient history - use actual average from treatments
+      avgTreatmentPrice = treatments.avg_price_cents
+      priceDataSource = 'historical'
+    } else {
+      // Insufficient history - calculate average from configured service prices
+      const servicesWithPricing = services.list.filter((s: any) => s.has_tariff)
+
+      if (servicesWithPricing.length > 0) {
+        avgTreatmentPrice = Math.round(
+          servicesWithPricing.reduce((sum: number, s: any) => sum + s.current_price_cents, 0) /
+          servicesWithPricing.length
+        )
+        priceDataSource = 'configured'
+        calculationWarning = treatments.total_in_period > 0
+          ? `Using average of ${servicesWithPricing.length} configured service prices due to insufficient treatment history (only ${treatments.total_in_period} treatments recorded)`
+          : `Using average of ${servicesWithPricing.length} configured service prices (no treatments recorded yet)`
+      } else {
+        // No pricing data available at all
+        avgTreatmentPrice = 0
+        priceDataSource = 'none'
+        calculationWarning = 'No pricing data available - configure service prices in Tariffs module'
+      }
+    }
+
     const breakEvenTreatments =
       avgTreatmentPrice > 0 ? Math.ceil(breakEvenRevenue / avgTreatmentPrice) : 0
 
@@ -536,6 +594,14 @@ export class ClinicSnapshotService {
         current_treatments: currentTreatments,
         gap: Math.round(gap),
         status,
+        calculation_metadata: {
+          avg_treatment_price_cents: Math.round(avgTreatmentPrice),
+          price_data_source: priceDataSource,
+          historical_treatments_count: treatments.total_in_period,
+          configured_services_count: services.total_configured,
+          services_with_pricing_count: services.list.filter((s: any) => s.has_tariff).length,
+          warning: calculationWarning,
+        },
       },
       margins: {
         avg_variable_cost_pct: Math.round(avgVariableCostPct * 100) / 100,
