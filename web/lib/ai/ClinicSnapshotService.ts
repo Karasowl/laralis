@@ -439,25 +439,48 @@ export class ClinicSnapshotService {
     const depreciationCosts = assets.monthly_depreciation_cents
     const totalFixedCosts = manualFixedCosts + depreciationCosts
 
-    // Calculate average variable cost percentage
     const totalRevenue = treatments.total_revenue_cents
     const totalExpenses = expenses.total_in_period_cents
 
-    // Approximate variable costs from expenses (this is a simplification)
-    const avgVariableCostPct =
-      totalRevenue > 0 ? (totalExpenses / totalRevenue) * 100 : 0
+    // Calculate average variable cost percentage FROM SERVICES (not expenses)
+    // This is the CORRECT way: variable costs are materials/supplies, not all expenses
+    let totalVariableCosts = 0
+    let totalPrices = 0
 
-    // Contribution margin
+    if (treatments.by_service && treatments.by_service.length > 0) {
+      // Use actual treatment data with service variable costs
+      for (const treatmentService of treatments.by_service) {
+        const service = services.list.find((s: any) => s.name === treatmentService.service_name)
+        if (service) {
+          totalVariableCosts += service.variable_cost_cents * treatmentService.count
+          totalPrices += service.current_price_cents * treatmentService.count
+        }
+      }
+    } else {
+      // No treatments yet - use service configuration
+      for (const service of services.list) {
+        totalVariableCosts += service.variable_cost_cents
+        totalPrices += service.current_price_cents
+      }
+    }
+
+    // Calculate average variable cost percentage
+    const avgVariableCostPct =
+      totalPrices > 0 ? (totalVariableCosts / totalPrices) * 100 : 0
+
+    // Contribution margin (what's left after variable costs to cover fixed costs)
     const contributionMarginPct = 100 - avgVariableCostPct
 
-    // Break-even calculation
+    // Break-even calculation using CORRECT formula
+    // Break-even Revenue = Fixed Costs ÷ Contribution Margin
     const breakEvenRevenue =
       contributionMarginPct > 0
-        ? (totalFixedCosts / contributionMarginPct) * 100
+        ? (totalFixedCosts / (contributionMarginPct / 100))
         : 0
+
     const avgTreatmentPrice = treatments.avg_price_cents
     const breakEvenTreatments =
-      avgTreatmentPrice > 0 ? breakEvenRevenue / avgTreatmentPrice : 0
+      avgTreatmentPrice > 0 ? Math.ceil(breakEvenRevenue / avgTreatmentPrice) : 0
 
     const currentTreatments = treatments.total_in_period
     const gap = breakEvenTreatments - currentTreatments
@@ -468,8 +491,9 @@ export class ClinicSnapshotService {
           ? 'at'
           : 'below'
 
-    // Net profit
-    const netProfit = totalRevenue - totalExpenses - totalFixedCosts
+    // Net profit using REAL expenses from the period (not projected costs)
+    // totalExpenses already includes all real costs (materials, rent, utilities, etc.)
+    const netProfit = totalRevenue - totalExpenses
     const profitMarginPct = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0
 
     // Efficiency metrics
