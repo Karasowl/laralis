@@ -7,7 +7,7 @@
 
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { X, MessageSquare, Send, Sparkles, ChevronDown, ChevronUp, AlertTriangle, RotateCcw } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { VoiceRecorder } from '../VoiceRecorder'
@@ -25,6 +25,7 @@ interface QueryMessage {
   text: string
   thinking?: string
   data?: any
+  responseTimeMs?: number
 }
 
 export function QueryAssistant({ onClose }: QueryAssistantProps) {
@@ -39,6 +40,9 @@ export function QueryAssistant({ onClose }: QueryAssistantProps) {
   const [showThinking, setShowThinking] = useState<Record<number, boolean>>({})
   const [selectedModel, setSelectedModel] = useState<'kimi-k2-thinking' | 'moonshot-v1-32k'>('kimi-k2-thinking')
 
+  // Ref for auto-scroll
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
   const examples = [
     t('example1'),
     t('example2'),
@@ -52,6 +56,11 @@ export function QueryAssistant({ onClose }: QueryAssistantProps) {
     const usedTokens = calculateConversationTokens(conversation)
     return getTokenUsageStatus(usedTokens, selectedModel)
   }, [conversation, selectedModel])
+
+  // Auto-scroll to bottom when conversation updates
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [conversation])
 
   // Initialize conversation with greeting
   useEffect(() => {
@@ -92,6 +101,9 @@ export function QueryAssistant({ onClose }: QueryAssistantProps) {
         text: '',
       },
     ])
+
+    // Track response time
+    const startTime = Date.now()
 
     try {
       // Build conversation history from last 10 messages (excluding current query)
@@ -155,6 +167,16 @@ export function QueryAssistant({ onClose }: QueryAssistantProps) {
             const data = line.slice(6) // Remove 'data: ' prefix
 
             if (data === '[DONE]') {
+              // Calculate response time when done
+              const responseTimeMs = Date.now() - startTime
+              setConversation((prev) => {
+                const updated = [...prev]
+                updated[assistantMessageIndex] = {
+                  ...updated[assistantMessageIndex],
+                  responseTimeMs,
+                }
+                return updated
+              })
               continue
             }
 
@@ -370,9 +392,21 @@ export function QueryAssistant({ onClose }: QueryAssistantProps) {
                   <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
 
                   {msg.data && <DataVisualization data={msg.data} />}
+
+                  {/* Response time indicator for assistant messages */}
+                  {msg.role === 'assistant' && msg.responseTimeMs && (
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      {msg.responseTimeMs < 1000
+                        ? `${msg.responseTimeMs}ms`
+                        : `${(msg.responseTimeMs / 1000).toFixed(1)}s`}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
+
+            {/* Auto-scroll anchor */}
+            <div ref={messagesEndRef} />
 
             {isProcessing && (
               <div className="flex justify-start animate-in fade-in-0">
