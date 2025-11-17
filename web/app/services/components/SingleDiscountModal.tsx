@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -51,39 +51,69 @@ export function SingleDiscountModal({
   const form = useForm({
     resolver: zodResolver(singleDiscountSchema),
     defaultValues: {
-      discount_type: (service?.discount_type || 'none') as 'none' | 'percentage' | 'fixed',
-      discount_value: service?.discount_value || 0,
-      discount_reason: service?.discount_reason || ''
+      discount_type: 'none' as 'none' | 'percentage' | 'fixed',
+      discount_value: 0,
+      discount_reason: ''
     }
   })
+
+  // Reset form when service changes
+  useEffect(() => {
+    if (service && open) {
+      console.log('🔍 Service data in modal:', {
+        id: service.id,
+        name: service.name,
+        discount_type: service.discount_type,
+        discount_value: service.discount_value,
+        discount_reason: service.discount_reason
+      })
+      form.reset({
+        discount_type: (service.discount_type || 'none') as 'none' | 'percentage' | 'fixed',
+        discount_value: service.discount_value || 0,
+        discount_reason: service.discount_reason || ''
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [service?.id, open])
 
   const discountType = form.watch('discount_type')
   const discountValue = form.watch('discount_value')
 
   // Calculate preview with rounding
   const preview = service ? (() => {
-    const priceWithMargin = service.price_cents || 0
+    // Calculate the base price (cost + margin, without discount)
+    const totalCostCents = ((service.fixed_cost_per_minute_cents || 0) * (service.est_minutes || 0)) + (service.variable_cost_cents || 0)
+    const basePrice = Math.round(totalCostCents * (1 + (service.margin_pct || 0) / 100))
 
+    const currentFinalPrice = service.price_cents || 0
+
+    // If no new discount, return base price
     if (discountType === 'none') {
-      return { finalPrice: priceWithMargin, savings: 0 }
+      return {
+        basePrice,
+        finalPrice: basePrice,
+        savings: 0
+      }
     }
 
-    let finalPrice = priceWithMargin
+    // Calculate new final price with the new discount
+    let newFinalPrice = basePrice
 
     if (discountType === 'percentage') {
-      finalPrice = Math.round(priceWithMargin * (1 - (discountValue || 0) / 100))
+      newFinalPrice = Math.round(basePrice * (1 - (discountValue || 0) / 100))
     } else if (discountType === 'fixed') {
-      finalPrice = Math.max(0, priceWithMargin - ((discountValue || 0) * 100))
+      newFinalPrice = Math.max(0, basePrice - ((discountValue || 0) * 100))
     }
 
     // Apply clinic price rounding configuration
-    finalPrice = applyPriceRounding(finalPrice, priceRounding, 'nearest')
+    newFinalPrice = applyPriceRounding(newFinalPrice, priceRounding, 'nearest')
 
     return {
-      finalPrice,
-      savings: priceWithMargin - finalPrice
+      basePrice,
+      finalPrice: newFinalPrice,
+      savings: basePrice - newFinalPrice
     }
-  })() : { finalPrice: 0, savings: 0 }
+  })() : { basePrice: 0, finalPrice: 0, savings: 0 }
 
   const handleSubmit = async (data: z.infer<typeof singleDiscountSchema>) => {
     setIsSubmitting(true)
@@ -104,8 +134,6 @@ export function SingleDiscountModal({
 
   if (!service) return null
 
-  const priceWithMargin = service.price_cents || 0
-
   return (
     <FormModal
       open={open}
@@ -114,9 +142,9 @@ export function SingleDiscountModal({
       description={`${service.name}`}
       onSubmit={form.handleSubmit(handleSubmit)}
       submitLabel={t('apply_discount')}
-      cancelLabel={tCommon('actions.cancel')}
+      cancelLabel={tCommon('cancel')}
       isSubmitting={isSubmitting}
-      size="md"
+      maxWidth="lg"
     >
       <div className="space-y-6">
         <FormSection title={t('discount_configuration')}>
@@ -196,7 +224,7 @@ export function SingleDiscountModal({
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="rounded-lg border bg-card p-4">
                   <p className="text-xs text-muted-foreground mb-1">{t('price_before_discount')}</p>
-                  <p className="text-xl font-semibold">{formatCurrency(priceWithMargin)}</p>
+                  <p className="text-xl font-semibold">{formatCurrency(preview.basePrice)}</p>
                 </div>
                 <div className="rounded-lg border bg-emerald-50 dark:bg-emerald-950/30 p-4">
                   <p className="text-xs text-emerald-700 dark:text-emerald-400 mb-1">{t('final_price_with_discount')}</p>
