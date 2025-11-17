@@ -227,8 +227,8 @@ export function validateMoneyFields(bundle: ExportBundle): string[] {
       }
     });
 
-    // Tariffs
-    clinic.tariffs.forEach((tariff, tariffIndex) => {
+    // Tariffs (DEPRECATED 2025-11-17: optional for backwards compatibility)
+    clinic.tariffs?.forEach((tariff, tariffIndex) => {
       if (!isInteger(tariff.price_cents)) {
         errors.push(
           `Clinic ${clinicIndex}, Tariff ${tariffIndex}: price_cents must be integer, got ${typeof tariff.price_cents}`

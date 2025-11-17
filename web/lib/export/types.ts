@@ -509,7 +509,9 @@ export interface ClinicDataBundle {
   // Services (Level 6)
   services: Service[];
   serviceSupplies: ServiceSupply[];
-  tariffs: Tariff[];
+  // DEPRECATED (2025-11-17): Optional for backwards compatibility
+  // Discounts now stored in services table (migration 47)
+  tariffs?: Tariff[];
 
   // Marketing (Level 7)
   marketingCampaigns: MarketingCampaign[];
