@@ -134,15 +134,26 @@ export function SingleDiscountModal({
 
   if (!service) return null
 
+  // Pre-compute translations to avoid timing issues
+  const modalTitle = t('apply_discount')
+  const submitButtonLabel = t('apply_discount')
+  const cancelButtonLabel = tCommon('cancel')
+
+  console.log('🔍 Translations check:', {
+    modalTitle,
+    submitButtonLabel,
+    cancelButtonLabel
+  })
+
   return (
     <FormModal
       open={open}
       onOpenChange={onOpenChange}
-      title={t('apply_discount')}
+      title={modalTitle}
       description={`${service.name}`}
       onSubmit={form.handleSubmit(handleSubmit)}
-      submitLabel={t('apply_discount')}
-      cancelLabel={tCommon('cancel')}
+      submitLabel={submitButtonLabel}
+      cancelLabel={cancelButtonLabel}
       isSubmitting={isSubmitting}
       maxWidth="lg"
     >
