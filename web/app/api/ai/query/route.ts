@@ -86,48 +86,77 @@ export async function POST(request: NextRequest) {
     // Get streaming response from AI
     const stream = await aiService.queryDatabaseStream(query, context)
 
-    // Create SSE transformer to parse Kimi's streaming response
+    // Create SSE transformer to parse Kimi's streaming response with buffering
     const encoder = new TextEncoder()
+    let buffer = '' // Buffer for incomplete chunks
+
     const transformStream = new TransformStream({
       async transform(chunk, controller) {
         const decoder = new TextDecoder()
-        const text = decoder.decode(chunk)
-        const lines = text.split('\n').filter((line) => line.trim() !== '')
+        const text = decoder.decode(chunk, { stream: true })
+
+        // Add to buffer
+        buffer += text
+
+        // Split by newlines but keep the last incomplete line in buffer
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || '' // Keep last incomplete line in buffer
 
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6) // Remove 'data: ' prefix
+          if (!line.trim() || !line.startsWith('data: ')) continue
 
-            if (data === '[DONE]') {
-              // Send final metadata
-              const metadata = {
-                userId,
-                clinicId,
-                timestamp: new Date().toISOString(),
-              }
-              controller.enqueue(
-                encoder.encode(`data: ${JSON.stringify({ type: 'metadata', data: metadata })}\n\n`)
-              )
-              controller.enqueue(encoder.encode('data: [DONE]\n\n'))
-              continue
+          const data = line.slice(6).trim() // Remove 'data: ' prefix
+
+          if (data === '[DONE]') {
+            // Send final metadata
+            const metadata = {
+              userId,
+              clinicId,
+              timestamp: new Date().toISOString(),
             }
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify({ type: 'metadata', data: metadata })}\n\n`)
+            )
+            controller.enqueue(encoder.encode('data: [DONE]\n\n'))
+            continue
+          }
 
+          try {
+            const parsed = JSON.parse(data)
+            const content = parsed.choices?.[0]?.delta?.content
+
+            if (content) {
+              // Send content chunk
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify({ type: 'content', data: content })}\n\n`)
+              )
+            }
+          } catch (e) {
+            // Skip unparseable chunks (might be incomplete)
+            console.debug('[API /ai/query] Skipping unparseable chunk (might be incomplete)')
+          }
+        }
+      },
+
+      flush(controller) {
+        // Process any remaining data in buffer
+        if (buffer.trim() && buffer.startsWith('data: ')) {
+          const data = buffer.slice(6).trim()
+          if (data && data !== '[DONE]') {
             try {
               const parsed = JSON.parse(data)
               const content = parsed.choices?.[0]?.delta?.content
-
               if (content) {
-                // Send content chunk
                 controller.enqueue(
                   encoder.encode(`data: ${JSON.stringify({ type: 'content', data: content })}\n\n`)
                 )
               }
             } catch (e) {
-              console.error('[API /ai/query] Failed to parse SSE chunk:', e)
+              console.debug('[API /ai/query] Skipping final unparseable chunk')
             }
           }
         }
-      },
+      }
     })
 
     // Pipe the stream through our transformer
