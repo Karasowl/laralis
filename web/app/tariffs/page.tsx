@@ -1,684 +1,103 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { useCurrentClinic } from '@/hooks/use-current-clinic'
-import { CrudPageLayout } from '@/components/ui/crud-page-layout'
-import { FormModal } from '@/components/ui/form-modal'
-import { FormSection, FormGrid, InputField, SelectField } from '@/components/ui/form-field'
+import { AppLayout } from '@/components/layouts/AppLayout'
+import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { formatCurrency } from '@/lib/format'
-import { Calculator, RefreshCw, Save, Tag, Percent } from 'lucide-react'
-import { useTariffs, TariffRow } from '@/hooks/use-tariffs'
-import { calculateRequiredMargin, calcularPrecioFinal } from '@/lib/calc/tarifa'
-import { useRequirementsGuard } from '@/lib/requirements/useGuard'
-import { toast } from 'sonner'
-import { Form } from '@/components/ui/form'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { DiscountModal } from './components/DiscountModal'
-import { GlobalDiscountModal } from './components/GlobalDiscountModal'
+import { AlertTriangle, ArrowRight, Info } from 'lucide-react'
 
-// Schema for bulk operations
-const bulkOperationSchema = z.object({
-  margin: z.number().min(0).max(100),
-  roundTo: z.number().min(1)
-})
-
-// Schema for individual tariff edit
-const tariffEditSchema = z.object({
-  serviceId: z.string(),
-  margin: z.number().min(0).max(300),
-  targetPrice: z.number().min(0).optional()
-})
-
-export default function TariffsPage() {
+/**
+ * DEPRECATED: Tariffs page
+ *
+ * This page has been deprecated as of 2025-11-17.
+ * Discount functionality has been migrated to the Services module.
+ *
+ * Migration: 47_add_discounts_to_services.sql
+ *
+ * Users are automatically redirected to /services after 5 seconds.
+ */
+export default function TariffsDeprecatedPage() {
+  const router = useRouter()
   const t = useTranslations('tariffs')
-  const tRoot = useTranslations()
-  const { currentClinic } = useCurrentClinic()
-  
-  // Tariff management hook
-  const {
-    tariffs,
-    loading,
-    error,
-    updateMargin,
-    updateAllMargins,
-    updateRounding,
-    updateDiscount,
-    removeDiscount,
-    saveTariffs,
-    refreshTariffs
-  } = useTariffs({
-    clinicId: currentClinic?.id,
-    defaultMargin: 30,
-    defaultRoundTo: 10
-  })
+  const tCommon = useTranslations('common')
 
-  const { ensureReady } = useRequirementsGuard(() => ({ clinicId: currentClinic?.id as string }))
+  useEffect(() => {
+    // Auto-redirect after 5 seconds
+    const timer = setTimeout(() => {
+      router.push('/services')
+    }, 5000)
 
-  // Modal states
-  const [bulkModalOpen, setBulkModalOpen] = useState(false)
-  const [editModalOpen, setEditModalOpen] = useState(false)
-  const [discountModalOpen, setDiscountModalOpen] = useState(false)
-  const [globalDiscountModalOpen, setGlobalDiscountModalOpen] = useState(false)
-  const [selectedTariff, setSelectedTariff] = useState<TariffRow | null>(null)
-  const [saving, setSaving] = useState(false)
+    return () => clearTimeout(timer)
+  }, [router])
 
-  // Forms
-  const bulkForm = useForm({
-    resolver: zodResolver(bulkOperationSchema),
-    defaultValues: {
-      margin: 30,
-      roundTo: 10
-    }
-  })
-
-  const editForm = useForm({
-    resolver: zodResolver(tariffEditSchema),
-    defaultValues: {
-      serviceId: '',
-      margin: 30,
-      targetPrice: 0
-    }
-  })
-
-  // Handlers
-  const handleBulkUpdate = (data: z.infer<typeof bulkOperationSchema>) => {
-    updateAllMargins(data.margin)
-    updateRounding(data.roundTo)
-    setBulkModalOpen(false)
-    bulkForm.reset()
+  const handleRedirectNow = () => {
+    router.push('/services')
   }
-
-  const handleIndividualEdit = (data: z.infer<typeof tariffEditSchema>) => {
-    updateMargin(data.serviceId, data.margin)
-    setEditModalOpen(false)
-    editForm.reset()
-  }
-
-  const handleSave = async () => {
-    setSaving(true)
-    try {
-      await saveTariffs()
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const openEditModal = async (tariff: TariffRow) => {
-    const ready = await ensureReady('create_tariff', { serviceId: tariff.id })
-    if (!ready.allowed) {
-      toast.info(t('ensure_prereqs') || 'Completa receta y costo/minuto para tarificar')
-      return
-    }
-    setSelectedTariff(tariff)
-    const baseCost = (tariff.fixed_cost_cents || 0) + (tariff.variable_cost_cents || 0)
-    const targetPrice = calcularPrecioFinal(baseCost, tariff.margin_pct)
-    editForm.setValue('serviceId', tariff.id)
-    editForm.setValue('margin', tariff.margin_pct)
-    editForm.setValue('targetPrice', Math.round(targetPrice / 100)) // Convert to pesos
-    setEditModalOpen(true)
-  }
-
-  const openDiscountModal = (tariff: TariffRow) => {
-    setSelectedTariff(tariff)
-    setDiscountModalOpen(true)
-  }
-
-  const handleApplyDiscount = (discount: {
-    type: 'none' | 'percentage' | 'fixed'
-    value: number
-    reason?: string
-  }) => {
-    if (selectedTariff) {
-      updateDiscount(selectedTariff.id, discount)
-    }
-  }
-
-  // Summary cards data
-  const totalRevenue = tariffs.reduce((acc, t) => {
-    const hasDiscount = t.discount_type && t.discount_type !== 'none' && (t.discount_value || 0) > 0
-    const finalPrice = hasDiscount ? (t.final_price_with_discount || t.rounded_price) : t.rounded_price
-    return acc + finalPrice
-  }, 0)
-  const totalProfit = tariffs.reduce((acc, t) => {
-    const cost = (t.fixed_cost_cents || 0) + (t.variable_cost_cents || 0)
-    const hasDiscount = t.discount_type && t.discount_type !== 'none' && (t.discount_value || 0) > 0
-    const finalPrice = hasDiscount ? (t.final_price_with_discount || t.rounded_price) : t.rounded_price
-    return acc + (finalPrice - cost)
-  }, 0)
-
-  const summaryCards = [
-    {
-      title: t('total_services'),
-      value: tariffs.length.toString(),
-      description: t('active_services')
-    },
-    {
-      title: t('average_margin'),
-      value: tariffs.length > 0
-        ? `${Math.round(tariffs.reduce((acc, t) => acc + t.margin_pct, 0) / tariffs.length)}%`
-        : '0%',
-      description: t('across_all_services')
-    },
-    {
-      title: t('potential_profit'),
-      value: formatCurrency(totalProfit),
-      description: `${t('total_revenue')}: ${formatCurrency(totalRevenue)}`
-    }
-  ]
-
-  // Mobile card column - renders complete custom card
-  const mobileCardColumn = {
-    key: 'mobile_card',
-    label: '',
-    render: (_value: unknown, tariff: TariffRow) => {
-      const totalCost = (tariff.fixed_cost_cents || 0) + (tariff.variable_cost_cents || 0)
-      const hasDiscount = tariff.discount_type && tariff.discount_type !== 'none' && (tariff.discount_value || 0) > 0
-      const finalPrice = hasDiscount ? (tariff.final_price_with_discount || tariff.rounded_price) : tariff.rounded_price
-      const profit = finalPrice - totalCost
-      const profitPct = totalCost > 0 ? ((profit / totalCost) * 100).toFixed(1) : '0.0'
-
-      return (
-        <div className="space-y-4">
-          {/* Header */}
-          <div>
-            <div className="font-semibold text-base">{tariff.name}</div>
-            <div className="text-sm text-muted-foreground">{tariff.category}</div>
-          </div>
-
-          {/* Grid de información */}
-          <div className="grid grid-cols-2 gap-4">
-            {/* Costos */}
-            <div className="space-y-1">
-              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                {t('costs')}
-              </div>
-              <div className="font-semibold">{formatCurrency(totalCost)}</div>
-              <div className="text-xs text-muted-foreground space-y-0.5">
-                <div>{t('fixed')}: {formatCurrency(tariff.fixed_cost_cents || 0)}</div>
-                <div>{t('variable')}: {formatCurrency(tariff.variable_cost_cents || 0)}</div>
-              </div>
-            </div>
-
-            {/* Margen */}
-            <div className="space-y-1">
-              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                {t('margin')}
-              </div>
-              <div>
-                <span className="inline-block px-2.5 py-1 bg-blue-100 text-blue-700 rounded text-sm font-semibold">
-                  {tariff.margin_pct}%
-                </span>
-              </div>
-              {hasDiscount && (
-                <div className="mt-2">
-                  <Badge variant="secondary" className="bg-amber-100 text-amber-700 text-xs">
-                    {tariff.discount_type === 'percentage'
-                      ? `${t('discount')}: ${tariff.discount_value}%`
-                      : `${t('discount')}: ${formatCurrency(tariff.discount_value || 0)}`}
-                  </Badge>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Precio Final - Destacado */}
-          <div className="pt-3 border-t">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  {t('final_price')}
-                </div>
-                {hasDiscount && (
-                  <div className="text-sm text-muted-foreground line-through">
-                    {formatCurrency(tariff.rounded_price)}
-                  </div>
-                )}
-                <div className={`text-2xl font-bold ${hasDiscount ? 'text-emerald-600' : 'text-primary'}`}>
-                  {formatCurrency(hasDiscount ? (tariff.final_price_with_discount || tariff.rounded_price) : tariff.rounded_price)}
-                </div>
-                {hasDiscount && (
-                  <div className="text-xs text-emerald-600 font-medium mt-0.5">
-                    {tariff.discount_type === 'percentage'
-                      ? `${tariff.discount_value}% ${t('tariffs.discount_applied')}`
-                      : `${formatCurrency(tariff.discount_value || 0)} ${t('tariffs.discount_applied')}`
-                    }
-                  </div>
-                )}
-              </div>
-              <div className="flex gap-2 shrink-0">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => openDiscountModal(tariff)}
-                >
-                  <Tag className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => openEditModal(tariff)}
-                >
-                  <Calculator className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )
-    }
-  }
-
-  // Table columns
-  const columns = [
-    {
-      key: 'name',
-      label: t('service'),
-      render: (_value: string, tariff: TariffRow) => (
-        <div>
-          <div className="font-medium">{tariff.name}</div>
-          <div className="text-sm text-muted-foreground">
-            {tariff.category}
-          </div>
-        </div>
-      )
-    },
-    {
-      key: 'costs',
-      label: t('costs'),
-      render: (_value: unknown, tariff: TariffRow) => {
-        const totalCost = (tariff.fixed_cost_cents || 0) + (tariff.variable_cost_cents || 0)
-        return (
-          <div className="text-right">
-            <div className="font-semibold">{formatCurrency(totalCost)}</div>
-            <div className="text-xs text-muted-foreground">
-              {t('fixed')}: {formatCurrency(tariff.fixed_cost_cents || 0)}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {t('variable')}: {formatCurrency(tariff.variable_cost_cents || 0)}
-            </div>
-          </div>
-        )
-      }
-    },
-    {
-      key: 'margin',
-      label: t('margin'),
-      render: (_value: number, tariff: TariffRow) => (
-        <div className="text-center">
-          <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-sm font-medium">
-            {tariff.margin_pct}%
-          </span>
-        </div>
-      )
-    },
-    {
-      key: 'discount',
-      label: t('discount'),
-      render: (_value: unknown, tariff: TariffRow) => {
-        const hasDiscount = tariff.discount_type && tariff.discount_type !== 'none' && (tariff.discount_value || 0) > 0
-
-        return (
-          <div className="text-center">
-            {hasDiscount ? (
-              <Badge variant="secondary" className="bg-amber-100 text-amber-700">
-                {tariff.discount_type === 'percentage'
-                  ? `${tariff.discount_value}%`
-                  : formatCurrency(tariff.discount_value || 0)}
-              </Badge>
-            ) : (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => openDiscountModal(tariff)}
-                className="h-8"
-              >
-                <Tag className="h-3 w-3" />
-              </Button>
-            )}
-          </div>
-        )
-      }
-    },
-    {
-      key: 'profit',
-      label: t('profit_amount'),
-      render: (_value: unknown, tariff: TariffRow) => {
-        const totalCost = (tariff.fixed_cost_cents || 0) + (tariff.variable_cost_cents || 0)
-        const hasDiscount = tariff.discount_type && tariff.discount_type !== 'none' && (tariff.discount_value || 0) > 0
-        const finalPrice = hasDiscount ? (tariff.final_price_with_discount || tariff.rounded_price) : tariff.rounded_price
-        const profit = finalPrice - totalCost
-        const realMarginPct = totalCost > 0 ? ((profit / totalCost) * 100) : 0
-        const hasLoss = realMarginPct < 0
-        const hasLowMargin = realMarginPct >= 0 && realMarginPct < 10
-
-        return (
-          <div className="text-right">
-            <div className={`font-semibold ${
-              hasLoss
-                ? 'text-red-600 dark:text-red-400'
-                : hasLowMargin
-                ? 'text-amber-600 dark:text-amber-400'
-                : 'text-emerald-600 dark:text-emerald-400'
-            }`}>
-              {formatCurrency(profit)}
-              {hasLoss && ' ⚠️'}
-            </div>
-            <div className={`text-xs ${
-              hasLoss
-                ? 'text-red-600/70 dark:text-red-400/70'
-                : hasLowMargin
-                ? 'text-amber-600/70 dark:text-amber-400/70'
-                : 'text-emerald-600/70 dark:text-emerald-400/70'
-            }`}>
-              {realMarginPct.toFixed(1)}%
-            </div>
-          </div>
-        )
-      }
-    },
-    {
-      key: 'price',
-      label: t('final_price'),
-      render: (_value: number, tariff: TariffRow) => {
-        const hasDiscount = tariff.discount_type && tariff.discount_type !== 'none' && (tariff.discount_value || 0) > 0
-        const priceToShow = hasDiscount ? (tariff.final_price_with_discount || tariff.rounded_price) : tariff.rounded_price
-
-        return (
-          <div className="text-right">
-            {hasDiscount && (
-              <div className="text-xs text-muted-foreground line-through mb-0.5">
-                {formatCurrency(tariff.rounded_price)}
-              </div>
-            )}
-            <div className={`font-semibold text-lg ${hasDiscount ? 'text-emerald-600' : ''}`}>
-              {formatCurrency(priceToShow)}
-            </div>
-            {hasDiscount && (
-              <div className="text-xs text-emerald-600 font-medium">
-                {tariff.discount_type === 'percentage'
-                  ? `${tariff.discount_value}% ${t('tariffs.discount_applied')}`
-                  : `${formatCurrency(tariff.discount_value || 0)} ${t('tariffs.discount_applied')}`
-                }
-              </div>
-            )}
-          </div>
-        )
-      }
-    },
-    {
-      key: 'actions',
-      label: tRoot('common.actions'),
-      render: (_value: unknown, tariff: TariffRow) => (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => openEditModal(tariff)}
-          className="whitespace-nowrap"
-        >
-          <Calculator className="h-4 w-4 lg:mr-2" />
-          <span className="hidden lg:inline">{t('adjust')}</span>
-        </Button>
-      )
-    }
-  ]
-
-  // Actions for the page
-  const actions = (
-    <div className="flex gap-2 flex-wrap">
-      <Button
-        variant="outline"
-        onClick={() => setGlobalDiscountModalOpen(true)}
-      >
-        <Percent className="h-4 w-4 mr-2" />
-        {t('configure_global_discount')}
-      </Button>
-      <Button
-        variant="outline"
-        onClick={() => setBulkModalOpen(true)}
-      >
-        <Calculator className="h-4 w-4 mr-2" />
-        {t('bulk_adjust')}
-      </Button>
-      <Button
-        variant="outline"
-        onClick={refreshTariffs}
-      >
-        <RefreshCw className="h-4 w-4 mr-2" />
-        {t('refresh')}
-      </Button>
-      <Button
-        onClick={handleSave}
-        disabled={saving}
-      >
-        <Save className="h-4 w-4 mr-2" />
-        {saving ? t('saving') : t('save_tariffs')}
-      </Button>
-    </div>
-  )
 
   return (
-    <>
-      <CrudPageLayout
-        title={t('title')}
-        subtitle={t('subtitle')}
-        items={tariffs}
-        loading={loading}
-        columns={columns}
-        mobileColumns={[mobileCardColumn]}
-        searchable={true}
-        searchPlaceholder={t('search_services')}
-        emptyTitle={t('no_services')}
-        emptyDescription={t('no_services_description')}
-        additionalContent={
-          <div className="flex gap-2 mb-6">
-            {actions}
-          </div>
-        }
-        summaryCards={
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            {summaryCards.map((card, index) => (
-              <div key={index} className="bg-white rounded-lg border p-6">
-                <h3 className="text-sm font-medium text-muted-foreground">{card.title}</h3>
-                <p className="text-2xl font-bold">{card.value}</p>
-                <p className="text-xs text-muted-foreground">{card.description}</p>
+    <AppLayout>
+      <div className="container mx-auto p-6 max-w-4xl">
+        <div className="min-h-[60vh] flex items-center justify-center">
+          <Card className="p-8 md:p-12 max-w-2xl w-full">
+            {/* Icon */}
+            <div className="flex justify-center mb-6">
+              <div className="rounded-full bg-amber-100 dark:bg-amber-900/30 p-4">
+                <AlertTriangle className="h-12 w-12 text-amber-600 dark:text-amber-400" />
               </div>
-            ))}
-          </div>
-        }
-      />
+            </div>
 
-      {/* Bulk Operations Modal */}
-      <FormModal
-        open={bulkModalOpen}
-        onOpenChange={(open) => { setBulkModalOpen(open); if (!open) bulkForm.reset({ margin: 30, roundTo: 10 }) }}
-        title={t('bulk_operations')}
-        onSubmit={bulkForm.handleSubmit(handleBulkUpdate)}
-        maxWidth="sm"
-      >
-        <Form {...bulkForm}>
-          <FormSection title={t('adjustment_settings')}>
-            <FormGrid columns={2}>
-              <div>
-                <label className="text-sm font-medium mb-2 block">{t('default_margin')}</label>
-                <input
-                  type="number"
-                  {...bulkForm.register('margin', { valueAsNumber: true })}
-                  placeholder="30"
-                  min={0}
-                  max={100}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                />
-                {bulkForm.formState.errors.margin?.message && (
-                  <p className="text-sm text-red-600 mt-1">{bulkForm.formState.errors.margin?.message}</p>
-                )}
-              </div>
+            {/* Title */}
+            <h1 className="text-2xl md:text-3xl font-bold text-center mb-4">
+              {t('deprecated_title') || 'Módulo de Tarifas Deprecado'}
+            </h1>
 
-              <div>
-                <label className="text-sm font-medium mb-2 block">{t('round_to')}</label>
-                <select
-                  {...bulkForm.register('roundTo', {
-                    setValueAs: (v) => parseInt(v, 10)
-                  })}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                >
-                  <option value="1">$1</option>
-                  <option value="5">$5</option>
-                  <option value="10">$10</option>
-                  <option value="50">$50</option>
-                  <option value="100">$100</option>
-                </select>
-                {bulkForm.formState.errors.roundTo?.message && (
-                  <p className="text-sm text-red-600 mt-1">{bulkForm.formState.errors.roundTo?.message}</p>
-                )}
-              </div>
-            </FormGrid>
-          </FormSection>
-        </Form>
-      </FormModal>
+            {/* Description */}
+            <div className="space-y-4 text-muted-foreground mb-8">
+              <p className="text-center">
+                {t('deprecated_description') ||
+                  'La funcionalidad de tarifas ha sido migrada al módulo de Servicios para simplificar la gestión de precios.'}
+              </p>
 
-      {/* Individual Edit Modal */}
-      <FormModal
-        open={editModalOpen}
-        onOpenChange={(open) => {
-          setEditModalOpen(open)
-          if (!open) {
-            editForm.reset({ serviceId: '', margin: 30, targetPrice: 0 })
-            setSelectedTariff(null)
-          }
-        }}
-        title={selectedTariff ? `${t('adjust')}: ${selectedTariff.name}` : t('adjust')}
-        onSubmit={editForm.handleSubmit(handleIndividualEdit)}
-        maxWidth="md"
-      >
-        <Form {...editForm}>
-          <FormSection>
-            {selectedTariff && (() => {
-              const baseCostCents = (selectedTariff.fixed_cost_cents || 0) + (selectedTariff.variable_cost_cents || 0)
-              const watchedMargin = editForm.watch('margin')
-              const watchedTargetPrice = editForm.watch('targetPrice')
-
-              // Sync: When margin changes, update target price
-              const handleMarginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-                const newMargin = parseFloat(e.target.value) || 0
-                const newPriceCents = calcularPrecioFinal(baseCostCents, newMargin)
-                editForm.setValue('margin', newMargin)
-                editForm.setValue('targetPrice', Math.round(newPriceCents / 100), { shouldValidate: false })
-              }
-
-              // Sync: When target price changes, update margin
-              const handleTargetPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-                const newPricePesos = parseFloat(e.target.value) || 0
-                const newPriceCents = newPricePesos * 100
-                const requiredMargin = baseCostCents > 0
-                  ? calculateRequiredMargin(baseCostCents, newPriceCents) * 100
-                  : 0
-                editForm.setValue('targetPrice', newPricePesos)
-                editForm.setValue('margin', Math.round(requiredMargin * 10) / 10, { shouldValidate: false })
-              }
-
-              const calculatedPriceCents = calcularPrecioFinal(baseCostCents, watchedMargin)
-              const profitCents = calculatedPriceCents - baseCostCents
-
-              return (
-                <div className="space-y-4">
-                  {/* Two-column grid for margin and target price */}
-                  <FormGrid columns={2}>
-                    {/* Utilidad % */}
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">
-                        {t('margin')}
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          value={watchedMargin}
-                          onChange={handleMarginChange}
-                          placeholder="30"
-                          min={0}
-                          step={0.1}
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pr-8 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                        />
-                        <span className="absolute right-3 top-2.5 text-sm text-muted-foreground">%</span>
-                      </div>
-                      {editForm.formState.errors.margin?.message && (
-                        <p className="text-sm text-red-600 mt-1">{editForm.formState.errors.margin.message}</p>
-                      )}
-                    </div>
-
-                    {/* Precio Deseado */}
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">
-                        {t('target_price')}
-                      </label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-2.5 text-sm text-muted-foreground">$</span>
-                        <input
-                          type="number"
-                          value={watchedTargetPrice}
-                          onChange={handleTargetPriceChange}
-                          placeholder="500"
-                          min={0}
-                          step={10}
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pl-8 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                        />
-                      </div>
-                      {editForm.formState.errors.targetPrice?.message && (
-                        <p className="text-sm text-red-600 mt-1">{editForm.formState.errors.targetPrice.message}</p>
-                      )}
-                    </div>
-                  </FormGrid>
-
-                  {/* Preview Card */}
-                  <div className="p-4 bg-muted rounded-lg">
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">{t('total_cost')}:</span>
-                        <span className="font-medium">{formatCurrency(baseCostCents)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">{t('profit_amount')}:</span>
-                        <span className="font-semibold text-emerald-600">
-                          +{formatCurrency(profitCents)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between border-t pt-2">
-                        <span className="font-medium">{t('final_price')}:</span>
-                        <span className="font-bold text-lg">{formatCurrency(calculatedPriceCents)}</span>
-                      </div>
-                    </div>
+              {/* Info box */}
+              <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <div className="flex gap-3">
+                  <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                  <div className="space-y-2 text-sm">
+                    <p className="font-medium text-blue-900 dark:text-blue-100">
+                      {t('whats_new') || '¿Qué ha cambiado?'}
+                    </p>
+                    <ul className="space-y-1 text-blue-800 dark:text-blue-200">
+                      <li>• {t('change_1') || 'Los descuentos ahora se configuran directamente en cada servicio'}</li>
+                      <li>• {t('change_2') || 'El precio final se calcula automáticamente con el descuento aplicado'}</li>
+                      <li>• {t('change_3') || 'Mayor simplicidad: un solo lugar para gestionar precios'}</li>
+                      <li>• {t('change_4') || 'Todos tus datos históricos están preservados'}</li>
+                    </ul>
                   </div>
                 </div>
-              )
-            })()}
-          </FormSection>
-        </Form>
-      </FormModal>
+              </div>
+            </div>
 
-      {/* Discount Modals */}
-      <DiscountModal
-        open={discountModalOpen}
-        onOpenChange={setDiscountModalOpen}
-        serviceName={selectedTariff?.name}
-        basePrice={selectedTariff?.rounded_price || 0}
-        existingDiscount={selectedTariff ? {
-          type: selectedTariff.discount_type || 'none',
-          value: selectedTariff.discount_value || 0,
-          reason: selectedTariff.discount_reason
-        } : undefined}
-        onApply={handleApplyDiscount}
-      />
+            {/* Actions */}
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button
+                onClick={handleRedirectNow}
+                size="lg"
+                className="w-full sm:w-auto"
+              >
+                {t('go_to_services') || 'Ir a Servicios'}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
 
-      <GlobalDiscountModal
-        open={globalDiscountModalOpen}
-        onOpenChange={setGlobalDiscountModalOpen}
-        clinicId={currentClinic?.id}
-        servicesCount={tariffs.length}
-      />
-    </>
+            {/* Auto-redirect notice */}
+            <p className="text-center text-sm text-muted-foreground mt-6">
+              {t('auto_redirect') || 'Serás redirigido automáticamente en 5 segundos...'}
+            </p>
+          </Card>
+        </div>
+      </div>
+    </AppLayout>
   )
 }

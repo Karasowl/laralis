@@ -1229,7 +1229,16 @@
     "discount_preview": "Vista previa",
     "will_apply_to_services": "Se aplicará a {count} servicios",
     "individual_discount": "Descuento Individual",
-    "override_global": "Anula el descuento global si está configurado"
+    "override_global": "Anula el descuento global si está configurado",
+    "deprecated_title": "Módulo de Tarifas Deprecado",
+    "deprecated_description": "La funcionalidad de tarifas ha sido migrada al módulo de Servicios para simplificar la gestión de precios.",
+    "whats_new": "¿Qué ha cambiado?",
+    "change_1": "Los descuentos ahora se configuran directamente en cada servicio",
+    "change_2": "El precio final se calcula automáticamente con el descuento aplicado",
+    "change_3": "Mayor simplicidad: un solo lugar para gestionar precios",
+    "change_4": "Todos tus datos históricos están preservados",
+    "go_to_services": "Ir a Servicios",
+    "auto_redirect": "Serás redirigido automáticamente en 5 segundos..."
   },
   "services": {
     "title": "Servicios",

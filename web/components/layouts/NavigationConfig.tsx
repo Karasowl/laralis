@@ -90,11 +90,13 @@ export function getNavigationSections(t: any, options: { onboardingCompleted?: b
           label: t('navigation.time'),
           icon: Clock
         },
-        {
-          href: '/tariffs',
-          label: t('navigation.tariffs'),
-          icon: Calculator
-        },
+        // DEPRECATED (2025-11-17): Tariffs functionality migrated to Services module
+        // Discounts are now configured directly in each service
+        // {
+        //   href: '/tariffs',
+        //   label: t('navigation.tariffs'),
+        //   icon: Calculator
+        // },
         {
           href: '/assets',
           label: t('navigation.assets'),
