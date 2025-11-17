@@ -135,15 +135,24 @@ export async function PUT(
     // Get margin percentage, default to 30%
     const margin_pct = typeof body.margin_pct === 'number' ? body.margin_pct : 30;
 
-    // Calculate price WITH margin
-    // If base_price_cents is provided, use it and apply margin
-    // Otherwise fall back to price_cents (backwards compatibility)
+    // FIX: Calculate price_cents based on priority:
+    // 1. If target_price is provided (user's desired price), use it directly
+    // 2. If price_cents is provided explicitly, use it
+    // 3. Otherwise, calculate from base_price + margin (for backwards compatibility)
     let price_cents;
-    if (body.base_price_cents) {
+    if (body.target_price !== undefined && body.target_price !== null) {
+      // User specified a target price - convert from pesos to cents
+      price_cents = Math.round((body.target_price || 0) * 100);
+    } else if (body.price_cents !== undefined && body.price_cents !== null) {
+      // Explicit price_cents provided
+      price_cents = Math.round(body.price_cents || 0);
+    } else if (body.base_price_cents !== undefined && body.base_price_cents !== null) {
+      // Calculate from base cost + margin (fallback for old logic)
       const base_price = Math.round(body.base_price_cents || 0);
       price_cents = base_price > 0 ? Math.round(base_price * (1 + margin_pct / 100)) : 0;
     } else {
-      price_cents = Math.round(body.price_cents || 0);
+      // No price information provided, default to 0
+      price_cents = 0;
     }
 
     const { data, error } = await supabaseAdmin
@@ -155,10 +164,10 @@ export async function PUT(
         description,
         price_cents,
         margin_pct,
-        // Discount fields (if provided, otherwise keep existing)
-        ...(body.discount_type !== undefined && { discount_type: body.discount_type }),
-        ...(body.discount_value !== undefined && { discount_value: body.discount_value }),
-        ...(body.discount_reason !== undefined && { discount_reason: body.discount_reason }),
+        // FIX BUG 3: Always update discount fields to allow removal
+        discount_type: body.discount_type !== undefined ? body.discount_type : 'none',
+        discount_value: body.discount_value !== undefined ? body.discount_value : 0,
+        discount_reason: body.discount_reason !== undefined && body.discount_reason !== null ? body.discount_reason : null,
         // Note: final_price_with_discount_cents is auto-calculated by trigger
         updated_at: new Date().toISOString()
       })

@@ -16,6 +16,7 @@ export interface Clinic {
   org_id: string;
   name: string;
   global_discount_config?: DiscountConfig;
+  price_rounding?: number; // Automatic price rounding (in pesos). Default: 10
   created_at?: string;
 }
 

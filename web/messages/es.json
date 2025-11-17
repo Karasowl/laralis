@@ -1418,7 +1418,20 @@
     "please_import_supplies": "Importa insumos para crear servicios",
     "durationPlaceholder": "ej. 45",
     "additional_details": "Detalles adicionales",
-    "supplies_section_hint": "Agrega los insumos que consumes en este servicio para calcular su costo real."
+    "supplies_section_hint": "Agrega los insumos que consumes en este servicio para calcular su costo real.",
+    "bulk_discount_title": "Aplicar Descuento Masivo",
+    "bulk_discount_warning": "Atención: Esto aplicará el descuento a todos los servicios",
+    "bulk_discount_warning_description": "Se modificarán {count} servicios. Esta acción no se puede deshacer.",
+    "apply_bulk_discount": "Aplicar Descuento",
+    "discount_configuration": "Configuración del Descuento",
+    "bulk_discount_preview": "Vista Previa del Impacto",
+    "total_services": "Servicios",
+    "revenue_before": "Ingresos Antes",
+    "revenue_after": "Ingresos Después",
+    "total_discount": "descuento total",
+    "bulk_discount_info": "El descuento se aplicará sobre el precio con utilidad de cada servicio.",
+    "price_rounding_notice": "Los precios se redondearán automáticamente a múltiplos de ${amount}.",
+    "discount": "Descuento"
   },
   "businessSetup": {
     "assets": {

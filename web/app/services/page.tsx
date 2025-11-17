@@ -14,6 +14,7 @@ import { SuppliesManager } from './components/SuppliesManager'
 import { ServicesTable } from './components/ServicesTable'
 import { CategoryModal } from './components/CategoryModal'
 import { SupplyMultiSelector } from './components/SupplyMultiSelector'
+import { BulkDiscountModal } from './components/BulkDiscountModal'
 import { useCurrentClinic } from '@/hooks/use-current-clinic'
 import { useWorkspace } from '@/contexts/workspace-context'
 import { useRouter } from 'next/navigation'
@@ -22,7 +23,7 @@ import { useTimeSettings } from '@/hooks/use-time-settings'
 import { useRequirementsGuard } from '@/lib/requirements/useGuard'
 import { toast } from 'sonner'
 import { serviceSchema, type ServiceFormData } from '@/lib/schemas'
-import { Plus } from 'lucide-react'
+import { Plus, Percent } from 'lucide-react'
 import { calcularPrecioFinal } from '@/lib/calc/tarifa'
 
 interface ServiceSupply {
@@ -88,6 +89,7 @@ export default function ServicesPage() {
   const [serviceSupplies, setServiceSupplies] = useState<ServiceSupply[]>([])
   const [categoryModalOpen, setCategoryModalOpen] = useState(false)
   const [multiSelectorOpen, setMultiSelectorOpen] = useState(false)
+  const [bulkDiscountModalOpen, setBulkDiscountModalOpen] = useState(false)
 
   useEffect(() => {
     if (currentClinic?.id) {
@@ -280,6 +282,41 @@ export default function ServicesPage() {
     setDeleteServiceData(service)
   }
 
+  const handleApplyBulkDiscount = async (discount: {
+    type: 'none' | 'percentage' | 'fixed'
+    value: number
+    reason?: string
+  }) => {
+    try {
+      // Update each service with the discount
+      const updatePromises = services.map((service: any) =>
+        fetch(`/api/services/${service.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: service.name,
+            category: service.category,
+            est_minutes: service.est_minutes,
+            description: service.description,
+            price_cents: service.price_cents,
+            margin_pct: service.margin_pct,
+            discount_type: discount.type,
+            discount_value: discount.value,
+            discount_reason: discount.reason || null
+          })
+        })
+      )
+
+      await Promise.all(updatePromises)
+
+      toast.success(t('updateSuccess'))
+      fetchServices() // Refresh the list
+    } catch (error) {
+      console.error('Error applying bulk discount:', error)
+      toast.error(t('saveError'))
+    }
+  }
+
   // Onboarding autofix: open recipe wizard (use edit + supplies modal) when flagged
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -312,6 +349,15 @@ export default function ServicesPage() {
                 className="w-full sm:w-auto h-10"
               >
                 {t('manage_categories')}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setBulkDiscountModalOpen(true)}
+                className="w-full sm:w-auto h-10"
+                disabled={!services || services.length === 0}
+              >
+                <Percent className="h-4 w-4 mr-2" />
+                {t('apply_bulk_discount')}
               </Button>
               <Button
                 onClick={async () => { const { allowed } = await ensureReady('create_service'); if (allowed) setCreateOpen(true) }}
@@ -429,6 +475,15 @@ export default function ServicesPage() {
           onCreateCategory={createCategory}
           onUpdateCategory={updateCategory}
           onDeleteCategory={deleteCategory}
+        />
+
+        {/* Bulk Discount Modal */}
+        <BulkDiscountModal
+          open={bulkDiscountModalOpen}
+          onOpenChange={setBulkDiscountModalOpen}
+          services={services}
+          priceRounding={currentClinic?.price_rounding || 10}
+          onApply={handleApplyBulkDiscount}
         />
 
         {/* Delete Confirmation */}
