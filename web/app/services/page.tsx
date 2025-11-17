@@ -15,6 +15,7 @@ import { ServicesTable } from './components/ServicesTable'
 import { CategoryModal } from './components/CategoryModal'
 import { SupplyMultiSelector } from './components/SupplyMultiSelector'
 import { BulkDiscountModal } from './components/BulkDiscountModal'
+import { SingleDiscountModal } from './components/SingleDiscountModal'
 import { useCurrentClinic } from '@/hooks/use-current-clinic'
 import { useWorkspace } from '@/contexts/workspace-context'
 import { useRouter } from 'next/navigation'
@@ -46,10 +47,7 @@ const DEFAULT_SERVICE_FORM_VALUES: ServiceFormData = {
   base_price_cents: 0,
   description: '',
   margin_pct: 30,
-  target_price: 0,
-  discount_type: 'none',
-  discount_value: 0,
-  discount_reason: ''
+  target_price: 0
 };
 
 export default function ServicesPage() {
@@ -90,6 +88,8 @@ export default function ServicesPage() {
   const [categoryModalOpen, setCategoryModalOpen] = useState(false)
   const [multiSelectorOpen, setMultiSelectorOpen] = useState(false)
   const [bulkDiscountModalOpen, setBulkDiscountModalOpen] = useState(false)
+  const [singleDiscountModalOpen, setSingleDiscountModalOpen] = useState(false)
+  const [selectedServiceForDiscount, setSelectedServiceForDiscount] = useState<any>(null)
 
   useEffect(() => {
     if (currentClinic?.id) {
@@ -265,10 +265,7 @@ export default function ServicesPage() {
       base_price_cents: baseCost,  // Use real recalculated cost
       description: service.description || '',
       margin_pct: margin,
-      target_price: currentPricePesos,  // Show current price, user can adjust manually
-      discount_type: service.discount_type || 'none',
-      discount_value: service.discount_value || 0,
-      discount_reason: service.discount_reason || ''
+      target_price: currentPricePesos  // Show current price, user can adjust manually
     })
     setSelectedServiceId(service.id)
     setEditService(service)
@@ -313,6 +310,53 @@ export default function ServicesPage() {
       fetchServices() // Refresh the list
     } catch (error) {
       console.error('Error applying bulk discount:', error)
+      toast.error(t('saveError'))
+    }
+  }
+
+  const handleApplyDiscount = (service: any) => {
+    if (!service?.id) {
+      console.error('Service is invalid:', service)
+      return
+    }
+    setSelectedServiceForDiscount(service)
+    setSingleDiscountModalOpen(true)
+  }
+
+  const handleApplySingleDiscount = async (discount: {
+    type: 'none' | 'percentage' | 'fixed'
+    value: number
+    reason?: string
+  }) => {
+    if (!selectedServiceForDiscount) return
+
+    try {
+      const response = await fetch(`/api/services/${selectedServiceForDiscount.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: selectedServiceForDiscount.name,
+          category: selectedServiceForDiscount.category,
+          est_minutes: selectedServiceForDiscount.est_minutes,
+          description: selectedServiceForDiscount.description,
+          price_cents: selectedServiceForDiscount.price_cents,
+          margin_pct: selectedServiceForDiscount.margin_pct,
+          discount_type: discount.type,
+          discount_value: discount.value,
+          discount_reason: discount.reason || null
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to apply discount')
+      }
+
+      toast.success(t('updateSuccess'))
+      fetchServices() // Refresh the list
+      setSingleDiscountModalOpen(false)
+      setSelectedServiceForDiscount(null)
+    } catch (error) {
+      console.error('Error applying discount:', error)
       toast.error(t('saveError'))
     }
   }
@@ -378,6 +422,7 @@ export default function ServicesPage() {
           onManageSupplies={handleManageSupplies}
           onEdit={handleEditService}
           onDelete={handleDeleteService}
+          onApplyDiscount={handleApplyDiscount}
         />
 
         {/* Create Modal */}
@@ -484,6 +529,15 @@ export default function ServicesPage() {
           services={services}
           priceRounding={currentClinic?.price_rounding || 10}
           onApply={handleApplyBulkDiscount}
+        />
+
+        {/* Single Service Discount Modal */}
+        <SingleDiscountModal
+          open={singleDiscountModalOpen}
+          onOpenChange={setSingleDiscountModalOpen}
+          service={selectedServiceForDiscount}
+          priceRounding={currentClinic?.price_rounding || 10}
+          onApply={handleApplySingleDiscount}
         />
 
         {/* Delete Confirmation */}

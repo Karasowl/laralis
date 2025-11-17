@@ -49,16 +49,6 @@ export function ServiceForm({
   const descriptionValue = useWatch({ control: form.control, name: 'description' })
   const marginPct = useWatch({ control: form.control, name: 'margin_pct' })
   const targetPrice = useWatch({ control: form.control, name: 'target_price' })
-  const discountType = useWatch({ control: form.control, name: 'discount_type' })
-  const discountValue = useWatch({ control: form.control, name: 'discount_value' })
-
-  // FIX BUG 3: Auto-reset discount fields when user selects "none"
-  React.useEffect(() => {
-    if (discountType === 'none') {
-      form.setValue('discount_value', 0, { shouldDirty: false })
-      form.setValue('discount_reason', '', { shouldDirty: false })
-    }
-  }, [discountType, form])
 
   // PERFORMANCE FIX: Memoize category options mapping to avoid recreation on every render
   const categoryOptions = React.useMemo(
@@ -127,29 +117,6 @@ export function ServiceForm({
     form.setValue('target_price', newPricePesos)
     form.setValue('margin_pct', Math.round(requiredMargin * 10) / 10, { shouldValidate: false })
   }, [totalServiceCostCents, form])
-
-  // Calculate final price with discount
-  const priceWithMarginCents = React.useMemo(() => {
-    return calcularPrecioFinal(totalServiceCostCents, marginPct || 30)
-  }, [totalServiceCostCents, marginPct])
-
-  const finalPriceWithDiscountCents = React.useMemo(() => {
-    if (!discountType || discountType === 'none') {
-      return priceWithMarginCents
-    }
-
-    if (discountType === 'percentage') {
-      const discountPct = Number(discountValue) || 0
-      return Math.round(priceWithMarginCents * (1 - discountPct / 100))
-    }
-
-    if (discountType === 'fixed') {
-      const discountAmountCents = (Number(discountValue) || 0) * 100
-      return Math.max(0, priceWithMarginCents - discountAmountCents)
-    }
-
-    return priceWithMarginCents
-  }, [priceWithMarginCents, discountType, discountValue])
 
   return (
     <div className="space-y-6">
@@ -271,115 +238,6 @@ export function ServiceForm({
             <p className="text-sm text-red-600 mt-1">{form.formState.errors.description?.message}</p>
           )}
         </div>
-      </FormSection>
-
-      <FormSection title={t('discount_section')} description={t('discount_section_hint')}>
-        {/* Remove Discount Button - shown when discount is active */}
-        {discountType && discountType !== 'none' && (
-          <div className="mb-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                form.setValue('discount_type', 'none')
-                form.setValue('discount_value', 0)
-                form.setValue('discount_reason', '')
-              }}
-              className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
-            >
-              {t('remove_discount')}
-            </Button>
-          </div>
-        )}
-
-        <FormGrid columns={2}>
-          {/* Discount Type */}
-          <div>
-            <label className="text-sm font-medium block mb-2">
-              {t('fields.discount_type')}
-            </label>
-            <select
-              {...form.register('discount_type')}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              <option value="none">{t('discount_types.none')}</option>
-              <option value="percentage">{t('discount_types.percentage')}</option>
-              <option value="fixed">{t('discount_types.fixed')}</option>
-            </select>
-            {form.formState.errors.discount_type?.message && (
-              <p className="text-sm text-red-600 mt-1">{form.formState.errors.discount_type?.message}</p>
-            )}
-          </div>
-
-          {/* Discount Value (conditional) */}
-          {discountType && discountType !== 'none' && (
-            <div>
-              <label className="text-sm font-medium block mb-2">
-                {discountType === 'percentage' ? t('fields.discount_percentage') : t('fields.discount_amount')}
-              </label>
-              <div className="relative">
-                {discountType === 'fixed' && (
-                  <span className="absolute left-3 top-2.5 text-sm text-muted-foreground">$</span>
-                )}
-                <input
-                  type="number"
-                  {...form.register('discount_value', { valueAsNumber: true })}
-                  placeholder={discountType === 'percentage' ? '10' : '50'}
-                  min={0}
-                  max={discountType === 'percentage' ? 100 : undefined}
-                  step={discountType === 'percentage' ? 1 : 10}
-                  className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                    discountType === 'fixed' ? 'pl-8' : 'pr-8'
-                  }`}
-                />
-                {discountType === 'percentage' && (
-                  <span className="absolute right-3 top-2.5 text-sm text-muted-foreground">%</span>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {discountType === 'percentage' ? t('discount_percentage_helper') : t('discount_amount_helper')}
-              </p>
-              {form.formState.errors.discount_value?.message && (
-                <p className="text-sm text-red-600 mt-1">{form.formState.errors.discount_value?.message}</p>
-              )}
-            </div>
-          )}
-        </FormGrid>
-
-        {/* Discount Reason (full width) */}
-        {discountType && discountType !== 'none' && (
-          <div className="mt-4">
-            <label className="text-sm font-medium block mb-2">
-              {t('fields.discount_reason')}
-            </label>
-            <textarea
-              {...form.register('discount_reason')}
-              placeholder={t('discount_reason_placeholder')}
-              rows={2}
-              className="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            />
-            <p className="text-xs text-muted-foreground mt-1">{t('discount_reason_helper')}</p>
-          </div>
-        )}
-
-        {/* Price Preview with Discount */}
-        {discountType && discountType !== 'none' && (
-          <div className="mt-4 p-4 rounded-lg border bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-950/30 dark:to-green-950/30">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">{t('price_before_discount')}</p>
-                <p className="text-lg line-through text-muted-foreground">{formatCurrency(priceWithMarginCents)}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">{t('final_price_with_discount')}</p>
-                <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">{formatCurrency(finalPriceWithDiscountCents)}</p>
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              {t('discount_savings').replace('{amount}', formatCurrency(priceWithMarginCents - finalPriceWithDiscountCents))}
-            </p>
-          </div>
-        )}
       </FormSection>
 
       <FormSection title={t('supplies_section')} description={t('supplies_section_hint')}>
