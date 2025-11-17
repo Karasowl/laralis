@@ -1331,11 +1331,29 @@
       "unit": "Unit",
       "cost_per_unit": "Cost per Unit",
       "base_price_auto": "Base Price (auto)",
-      "margin_pct": "Utility (%)"
+      "margin_pct": "Utility (%)",
+      "discount_type": "Discount Type",
+      "discount_percentage": "Discount %",
+      "discount_amount": "Discount Amount",
+      "discount_reason": "Reason (optional)"
     },
     "margin_pct_helper": "Utility percentage over base cost (e.g., 30 = 30% utility)",
     "target_price": "Target Price",
     "target_price_helper": "Desired final price - utility adjusts automatically",
+    "discount_section": "Discounts (Optional)",
+    "discount_section_hint": "Apply discounts to this service. The final price will be calculated automatically.",
+    "discount_types": {
+      "none": "No discount",
+      "percentage": "Percentage discount",
+      "fixed": "Fixed amount discount"
+    },
+    "discount_percentage_helper": "Discount percentage (0-100)",
+    "discount_amount_helper": "Discount amount in currency",
+    "discount_reason_placeholder": "e.g., Promotional discount, Loyalty customer, Special campaign...",
+    "discount_reason_helper": "Optional: Explain why this discount is being applied",
+    "price_before_discount": "Price before discount",
+    "final_price_with_discount": "Final Price",
+    "discount_savings": "Savings: {amount}",
     "select_category": "Select a category",
     "entities": {
       "category": "Category",
