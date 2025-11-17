@@ -84,6 +84,7 @@ export default function ServicesPage() {
   const [deleteServiceData, setDeleteServiceData] = useState<any>(null)
   const [suppliesModalOpen, setSuppliesModalOpen] = useState(false)
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null)
+  const [selectedServiceForSupplies, setSelectedServiceForSupplies] = useState<any>(null)
   const [serviceSupplies, setServiceSupplies] = useState<ServiceSupply[]>([])
   const [categoryModalOpen, setCategoryModalOpen] = useState(false)
   const [multiSelectorOpen, setMultiSelectorOpen] = useState(false)
@@ -234,6 +235,7 @@ export default function ServicesPage() {
       return
     }
     setSelectedServiceId(service.id)
+    setSelectedServiceForSupplies(service)
     setSuppliesModalOpen(true)
   }
 
@@ -495,7 +497,7 @@ export default function ServicesPage() {
         <FormModal
           open={suppliesModalOpen}
           onOpenChange={setSuppliesModalOpen}
-          title={t('manage_supplies')}
+          title={selectedServiceForSupplies ? `${t('manage_supplies')} - ${selectedServiceForSupplies.name}` : t('manage_supplies')}
           cancelLabel={tCommon('close')}
           submitLabel={tCommon('save')}
           onSubmit={() => setSuppliesModalOpen(false)}
