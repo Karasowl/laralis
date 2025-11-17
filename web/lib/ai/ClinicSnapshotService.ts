@@ -277,30 +277,44 @@ export class ClinicSnapshotService {
   }
 
   private async loadServices(supabase: SupabaseClient, clinicId: string) {
-    // Get all services with their current (most recent) tariffs
-    // Use LEFT JOIN to include services even without tariffs
-    const { data: services, error } = await supabase
+    // Get all services first
+    const { data: services, error: servicesError } = await supabase
       .from('services')
-      .select(
-        `
-        id,
-        name,
-        est_minutes,
-        variable_cost_cents,
-        tariffs!left(
-          price_cents,
-          version,
-          is_active,
-          valid_from
-        )
-      `
-      )
+      .select('id, name, est_minutes, variable_cost_cents')
       .eq('clinic_id', clinicId)
       .order('name')
 
-    if (error) {
-      console.error('[ClinicSnapshotService] Error loading services:', error)
+    if (servicesError) {
+      console.error('[ClinicSnapshotService] Error loading services:', servicesError)
+      return {
+        total_configured: 0,
+        with_tariffs: 0,
+        with_supplies: 0,
+        list: [],
+      }
     }
+
+    // For each service, get its active tariffs separately
+    const servicesWithTariffs = await Promise.all(
+      (services || []).map(async (service) => {
+        const { data: tariffs, error: tariffsError } = await supabase
+          .from('tariffs')
+          .select('price_cents, version, is_active, valid_from')
+          .eq('service_id', service.id)
+          .eq('is_active', true)
+          .order('version', { ascending: false })
+          .limit(1)
+
+        if (tariffsError) {
+          console.error(`[ClinicSnapshotService] Error loading tariffs for service ${service.name}:`, tariffsError)
+        }
+
+        return {
+          ...service,
+          tariffs: tariffs || [],
+        }
+      })
+    )
 
     // Count services with supplies
     const { count: withSupplies } = await supabase
@@ -308,27 +322,12 @@ export class ClinicSnapshotService {
       .select('service_id', { count: 'exact', head: true })
       .in(
         'service_id',
-        services?.map((s) => s.id) || []
+        servicesWithTariffs.map((s) => s.id)
       )
 
-    const list = (services || []).map((s: any) => {
-      // Handle tariff selection
-      // Supabase LEFT JOIN returns: null, [], [tariff], or multiple [tariff1, tariff2, ...]
-      let tariff = null
-
-      if (Array.isArray(s.tariffs) && s.tariffs.length > 0) {
-        // Filter active tariffs only
-        const activeTariffs = s.tariffs.filter((t: any) => t.is_active)
-
-        if (activeTariffs.length > 0) {
-          // Sort by version descending and take the most recent
-          activeTariffs.sort((a: any, b: any) => b.version - a.version)
-          tariff = activeTariffs[0]
-        }
-      } else if (s.tariffs && !Array.isArray(s.tariffs)) {
-        // Single tariff object (shouldn't happen with LEFT JOIN, but handle it)
-        tariff = s.tariffs.is_active ? s.tariffs : null
-      }
+    const list = servicesWithTariffs.map((s: any) => {
+      // Now tariffs is already filtered (only active, most recent)
+      const tariff = s.tariffs.length > 0 ? s.tariffs[0] : null
 
       const price = tariff?.price_cents || 0
       const variableCost = s.variable_cost_cents || 0
@@ -337,8 +336,7 @@ export class ClinicSnapshotService {
       // Debug logging
       console.log(`[ClinicSnapshotService] Service "${s.name}":`, {
         tariffs_raw: s.tariffs,
-        tariffs_count: Array.isArray(s.tariffs) ? s.tariffs.length : (s.tariffs ? 1 : 0),
-        active_tariffs: Array.isArray(s.tariffs) ? s.tariffs.filter((t: any) => t.is_active).length : (s.tariffs?.is_active ? 1 : 0),
+        tariffs_count: s.tariffs.length,
         tariff_selected: tariff,
         price,
         has_tariff: !!tariff && price > 0,
@@ -351,7 +349,7 @@ export class ClinicSnapshotService {
         variable_cost_cents: variableCost,
         current_price_cents: price,
         margin_pct: Math.round(margin * 100) / 100,
-        has_tariff: !!tariff && price > 0, // Solo cuenta si tiene tarifa activa Y precio > 0
+        has_tariff: !!tariff && price > 0,
       }
     })
 
@@ -359,14 +357,14 @@ export class ClinicSnapshotService {
 
     // Summary log for debugging
     console.log('[ClinicSnapshotService] Services summary:', {
-      total: services?.length || 0,
+      total: servicesWithTariffs.length,
       with_tariffs: withTariffs,
       with_supplies: withSupplies || 0,
       tariff_detection: list.map(s => ({ name: s.name, has_tariff: s.has_tariff, price: s.current_price_cents }))
     })
 
     return {
-      total_configured: services?.length || 0,
+      total_configured: servicesWithTariffs.length,
       with_tariffs: withTariffs,
       with_supplies: withSupplies || 0,
       list,
