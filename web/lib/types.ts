@@ -60,6 +60,11 @@ export interface Service {
   margin_pct?: number;
   category?: string;
   description?: string | null;
+  // Discount fields (migrated from tariffs)
+  discount_type?: 'none' | 'percentage' | 'fixed';
+  discount_value?: number;
+  discount_reason?: string | null;
+  final_price_with_discount_cents?: number;
   created_at?: string;
   updated_at?: string;
 }

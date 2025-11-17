@@ -155,6 +155,11 @@ export async function PUT(
         description,
         price_cents,
         margin_pct,
+        // Discount fields (if provided, otherwise keep existing)
+        ...(body.discount_type !== undefined && { discount_type: body.discount_type }),
+        ...(body.discount_value !== undefined && { discount_value: body.discount_value }),
+        ...(body.discount_reason !== undefined && { discount_reason: body.discount_reason }),
+        // Note: final_price_with_discount_cents is auto-calculated by trigger
         updated_at: new Date().toISOString()
       })
       .eq('id', params.id)
@@ -269,22 +274,7 @@ export async function DELETE(
       console.error('[services DELETE] treatment usage unexpected error:', err)
     }
 
-    try {
-      const { data: tariffUsage, error: tariffError } = await supabaseAdmin
-        .from('tariffs')
-        .select('id')
-        .eq('clinic_id', clinicId)
-        .eq('service_id', params.id)
-        .limit(1)
-
-      if (tariffError) {
-        console.error('[services DELETE] tariff usage lookup failed:', tariffError)
-      } else if (tariffUsage && tariffUsage.length > 0) {
-        dependencyMessages.push('Tiene tarifas activas asociadas.')
-      }
-    } catch (err) {
-      console.error('[services DELETE] tariff usage unexpected error:', err)
-    }
+    // Tariff dependency check removed - discounts are now part of services table
 
     if (dependencyMessages.length > 0) {
       return NextResponse.json(
