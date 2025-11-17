@@ -621,7 +621,6 @@
       "acquisition_trends": "Acquisition Trends",
       "acquisition_trends_description": "New patients and projections",
       "no_data": "No data available",
-      "average": "Average",
       "actual_patients": "Actual patients",
       "projection": "Projection",
       "growth_rate": "Growth rate",
@@ -1407,7 +1406,9 @@
     "discount": "Discount",
     "remove_discount": "Remove Discount",
     "savings_label": "Savings",
-    "single_discount_info": "The discount will be applied on top of this service's price with margin."
+    "single_discount_info": "The discount will be applied on top of this service's price with margin.",
+    "apply_discount": "Apply Discount",
+    "variable_cost": "Variable Cost"
   },
   "assets": {
     "entity": "Asset",

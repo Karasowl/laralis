@@ -748,7 +748,6 @@
       "acquisition_trends": "Tendencias de Adquisición",
       "acquisition_trends_description": "Nuevos pacientes y proyecciones",
       "no_data": "Sin datos disponibles",
-      "average": "Promedio",
       "actual_patients": "Pacientes reales",
       "projection": "Proyección",
       "growth_rate": "Tasa de crecimiento",
@@ -1434,7 +1433,9 @@
     "discount": "Descuento",
     "remove_discount": "Quitar Descuento",
     "savings_label": "Ahorro",
-    "single_discount_info": "El descuento se aplicará sobre el precio con utilidad de este servicio."
+    "single_discount_info": "El descuento se aplicará sobre el precio con utilidad de este servicio.",
+    "apply_discount": "Aplicar Descuento",
+    "variable_cost": "Costo Variable"
   },
   "businessSetup": {
     "assets": {
