@@ -131,21 +131,3 @@ export async function hasAnyServiceRecipe(ctx: GuardContext): Promise<boolean> {
   const list = await apiGet<any[]>(buildUrl('/api/services', ctx.clinicId, { limit: 1 }, ctx.cacheKeySuffix));
   return (list || []).length > 0;
 }
-
-export async function hasAnyTariff(ctx: GuardContext): Promise<boolean> {
-  // Consider tariffs "ready" only when both CPM and recipe are satisfied.
-  // This makes the progress reflect prerequisites instead of just "having services".
-  const cpmOk = await hasCostPerMinute(ctx);
-  const recipeOk = await hasAnyServiceRecipe(ctx);
-  if (!cpmOk || !recipeOk) return false;
-
-  // If a specific service is provided, ensure its computed total cost is non-zero.
-  if (ctx.serviceId) {
-    const js = await apiGet<{ data?: { total_cost_cents?: number } }>(`/api/services/${ctx.serviceId}/cost`);
-    return Number(js?.data?.total_cost_cents || 0) > 0;
-  }
-
-  // Otherwise, at least one service must exist to adjust tariffs.
-  const list = await apiGet<any[]>(buildUrl('/api/services', ctx.clinicId, { limit: 1 }, ctx.cacheKeySuffix));
-  return (list || []).length > 0;
-}

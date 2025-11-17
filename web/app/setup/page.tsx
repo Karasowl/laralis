@@ -21,7 +21,6 @@ type RequirementId =
   | 'cost_per_min'
   | 'supplies'
   | 'service_recipe'
-  | 'tariffs'
 
 type StepDefinition = {
   id: RequirementId
@@ -36,8 +35,7 @@ const STEP_IDS: RequirementId[] = [
   'fixed_costs',
   'cost_per_min',
   'supplies',
-  'service_recipe',
-  'tariffs'
+  'service_recipe'
 ]
 
 const STEP_ROUTES: Record<RequirementId, string> = {
@@ -45,8 +43,7 @@ const STEP_ROUTES: Record<RequirementId, string> = {
   fixed_costs: '/fixed-costs',
   cost_per_min: '/time',
   supplies: '/supplies',
-  service_recipe: '/services',
-  tariffs: '/tariffs'
+  service_recipe: '/services'
 }
 
 export default function SetupPage() {
