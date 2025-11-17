@@ -31,11 +31,3 @@ export async function openQuickRecipeWizard(ctx: GuardContext): Promise<boolean>
   emitOnce('open-recipe-wizard', detail);
   return false;
 }
-
-// Open pricing drawer to calculate and apply a tariff
-export async function openTariffDrawer(ctx: GuardContext): Promise<boolean> {
-  const detail = { clinicId: ctx.clinicId, serviceId: ctx.serviceId };
-  emitOnce('onboarding:open-tariff-drawer', detail);
-  emitOnce('open-tariff-drawer', detail);
-  return false;
-}

@@ -16,9 +16,7 @@ import { Button } from '@/components/ui/button'
 import { ContextIndicator } from './ContextIndicator'
 import { Sun, Moon, Activity } from 'lucide-react'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
-import dynamic from 'next/dynamic'
 import { OnboardingListeners } from '@/components/onboarding/OnboardingListeners'
-const TariffDrawerLazy = dynamic(() => import('@/components/pricing/TariffDrawer').then(m => m.TariffDrawer), { ssr: false })
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -178,8 +176,6 @@ export function AppLayout({ children }: AppLayoutProps) {
       </main>
     </div>
 
-      {/* Global pricing drawer portal (client-only) */}
-      <TariffDrawerLazy />
       {/* Global onboarding listeners to react to autofix events */}
       <OnboardingListeners />
     </div>

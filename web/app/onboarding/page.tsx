@@ -116,8 +116,7 @@ export default function OnboardingPage() {
           <ChecklistStep
             items={[
               { id: 'supplies', label: 'Insumos (presentación y porciones)', href: '/supplies' },
-              { id: 'service_recipe', label: 'Recetas por servicio', href: '/services' },
-              { id: 'tariffs', label: 'Tarifas y redondeo', href: '/tariffs' }
+              { id: 'service_recipe', label: 'Recetas por servicio', href: '/services' }
             ]}
           />
         )

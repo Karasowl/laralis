@@ -6,10 +6,9 @@ export type RequirementId =
   | 'cost_per_min'
   | 'break_even'
   | 'supplies'
-  | 'service_recipe'
-  | 'tariffs';
+  | 'service_recipe';
 
-export type ActionId = 'create_service' | 'create_tariff' | 'create_treatment';
+export type ActionId = 'create_service' | 'create_treatment';
 
 export type GuardContext = {
   workspaceId?: string;
@@ -30,7 +29,6 @@ type ActionDef = {
   id: ActionId;
   minRequirements: RequirementId[];
   snapshotRequired?: boolean;
-  allowClinicalWithoutTariff?: boolean;
   defaults?: Record<string, unknown>;
 };
 
@@ -77,11 +75,10 @@ export function getNode(id: RequirementId): NodeDef {
 
 export async function tryAutofix(ctx: GuardContext, missing: RequirementId[]) {
   // Only trigger ONE autofix per ensureReady to avoid loops and UI overload.
-  const { openBulkImportSupplies, openQuickRecipeWizard, openTariffDrawer } = await import('./autofix');
+  const { openBulkImportSupplies, openQuickRecipeWizard } = await import('./autofix');
   const map: Record<string, (c: GuardContext) => Promise<boolean>> = {
     openBulkImportSupplies,
-    openQuickRecipeWizard,
-    openTariffDrawer
+    openQuickRecipeWizard
   } as any;
   // Pick first missing node that has an autofix
   for (const id of missing) {
