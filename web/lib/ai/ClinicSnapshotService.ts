@@ -277,9 +277,9 @@ export class ClinicSnapshotService {
   }
 
   private async loadServices(supabase: SupabaseClient, clinicId: string) {
-    // Get all services with their current tariffs
+    // Get all services with their current (most recent) tariffs
     // Use LEFT JOIN to include services even without tariffs
-    const { data: services } = await supabase
+    const { data: services, error } = await supabase
       .from('services')
       .select(
         `
@@ -287,11 +287,15 @@ export class ClinicSnapshotService {
         name,
         est_minutes,
         variable_cost_cents,
-        tariffs(price_cents)
+        tariffs!left(price_cents)
       `
       )
       .eq('clinic_id', clinicId)
       .order('name')
+
+    if (error) {
+      console.error('[ClinicSnapshotService] Error loading services:', error)
+    }
 
     // Count services with supplies
     const { count: withSupplies } = await supabase
@@ -304,10 +308,25 @@ export class ClinicSnapshotService {
 
     const list = (services || []).map((s: any) => {
       // Handle both single tariff object and array of tariffs
-      const tariff = Array.isArray(s.tariffs) ? s.tariffs[0] : s.tariffs
+      // tariffs puede ser: null, [], [tariff], o {tariff}
+      let tariff = null
+      if (Array.isArray(s.tariffs)) {
+        tariff = s.tariffs.length > 0 ? s.tariffs[0] : null
+      } else {
+        tariff = s.tariffs
+      }
+
       const price = tariff?.price_cents || 0
       const variableCost = s.variable_cost_cents || 0
       const margin = price > 0 ? ((price - variableCost) / price) * 100 : 0
+
+      // Debug logging
+      console.log(`[ClinicSnapshotService] Service "${s.name}":`, {
+        tariffs_raw: s.tariffs,
+        tariff_selected: tariff,
+        price,
+        has_tariff: !!tariff && price > 0,
+      })
 
       return {
         id: s.id,
@@ -316,7 +335,7 @@ export class ClinicSnapshotService {
         variable_cost_cents: variableCost,
         current_price_cents: price,
         margin_pct: Math.round(margin * 100) / 100,
-        has_tariff: !!tariff,
+        has_tariff: !!tariff && price > 0, // Solo cuenta si tiene tarifa Y precio > 0
       }
     })
 
