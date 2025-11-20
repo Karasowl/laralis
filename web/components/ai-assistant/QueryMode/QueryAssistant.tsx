@@ -537,7 +537,7 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
         )}
 
         {/* Header */}
-        <div className="flex items-center justify-between p-4 sm:p-6 border-b bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 shrink-0">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b bg-gradient-to-r from-primary/5 to-secondary/5 dark:from-primary/10 dark:to-secondary/10 backdrop-blur-xl shrink-0">
           <div className="flex items-center gap-2 min-w-0 flex-1">
             {/* Menu Button (Mobile Only) */}
             <button
@@ -563,16 +563,16 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
             <div className="flex items-center gap-2 px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg border bg-background/50">
               <div className="flex items-center gap-1.5">
                 {tokenUsage.status === 'critical' && (
-                  <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4 text-red-500 animate-pulse" />
+                  <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4 text-destructive animate-pulse" />
                 )}
-                <span className={`text-xs sm:text-sm font-medium ${tokenUsage.status === 'critical' ? 'text-red-600' : 'text-muted-foreground'
+                <span className={`text-xs sm:text-sm font-medium ${tokenUsage.status === 'critical' ? 'text-destructive' : 'text-muted-foreground'
                   }`}>
                   {tokenUsage.percentage}%
                 </span>
               </div>
               <div className="w-10 sm:w-20 h-1.5 sm:h-2 bg-muted rounded-full overflow-hidden hidden sm:block">
                 <div
-                  className={`h-full transition-all duration-300 ${tokenUsage.status === 'critical' ? 'bg-red-500' : 'bg-purple-500'
+                  className={`h-full transition-all duration-300 ${tokenUsage.status === 'critical' ? 'bg-destructive' : 'bg-primary'
                     }`}
                   style={{ width: `${Math.min(tokenUsage.percentage, 100)}%` }}
                 />
@@ -592,7 +592,7 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
             <select
               value={selectedModel}
               onChange={(e) => handleModelChange(e.target.value as 'kimi-k2-thinking' | 'moonshot-v1-32k')}
-              className="text-xs sm:text-sm border rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 bg-background focus:outline-none focus:ring-2 focus:ring-purple-500 max-w-[100px] sm:max-w-none"
+              className="text-xs sm:text-sm border rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 bg-background focus:outline-none focus:ring-2 focus:ring-primary max-w-[100px] sm:max-w-none"
               disabled={isProcessing}
             >
               <option value="kimi-k2-thinking">K2 Thinking</option>
@@ -619,7 +619,7 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
         >
           {isLoadingHistory && conversation.length === 0 && (
             <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
           )}
 
@@ -632,7 +632,7 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
                     key={idx}
                     onClick={() => handleExampleClick(example)}
                     disabled={isProcessing}
-                    className="text-left p-3 text-sm border rounded-lg hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-950/20 transition-all disabled:opacity-50"
+                    className="text-left p-3 text-sm border rounded-lg hover:border-primary hover:bg-primary/10 dark:hover:bg-primary/20 transition-all disabled:opacity-50"
                   >
                     {example}
                   </button>
@@ -648,18 +648,18 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
             >
               <div
                 className={`max-w-[95%] sm:max-w-[85%] ${msg.role === 'user'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-muted text-foreground border'
-                  } px-4 py-3 rounded-2xl`}
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted/50 text-foreground border backdrop-blur-sm'
+                  } px-4 py-3 rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-200`}
               >
                 {msg.role === 'assistant' && (
                   <div className="flex items-center gap-3 mb-2">
-                    <span className="text-xs font-medium text-purple-600 dark:text-purple-400">Lara</span>
+                    <span className="text-xs font-medium text-primary dark:text-primary/80">Lara</span>
                     {msg.text && <AudioPlayer text={msg.text} />}
                     {msg.thinking && (
                       <button
                         onClick={() => toggleThinking(idx)}
-                        className="flex items-center gap-1 text-xs text-purple-600 dark:text-purple-400 hover:underline"
+                        className="flex items-center gap-1 text-xs text-primary dark:text-primary/80 hover:underline"
                       >
                         <Sparkles className="h-3 w-3" />
                         {showThinking[idx] ? t('hideThinking') : t('showThinking')}
@@ -674,7 +674,7 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
                 )}
 
                 {msg.role === 'assistant' && msg.thinking && showThinking[idx] && (
-                  <div className="mb-3 p-2 bg-purple-50 dark:bg-purple-950/20 rounded text-xs text-muted-foreground border-l-2 border-purple-400">
+                  <div className="mb-3 p-2 bg-primary/10 dark:bg-primary/20 rounded text-xs text-muted-foreground border-l-2 border-primary/40 backdrop-blur-sm">
                     <p className="font-medium mb-1">{t('thinkingProcess')}:</p>
                     <p className="whitespace-pre-wrap">{msg.thinking}</p>
                   </div>
@@ -713,15 +713,15 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
 
           {isProcessing && (
             <div className="flex justify-start animate-in fade-in-0">
-              <div className="bg-muted px-4 py-3 rounded-2xl border">
+              <div className="bg-muted/50 px-4 py-3 rounded-2xl border backdrop-blur-sm">
                 <div className="flex items-center gap-2">
                   <div className="flex gap-1">
-                    <span className="w-2 h-2 bg-purple-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                    <span className="w-2 h-2 bg-purple-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                    <span className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" />
+                    <span className="w-2 h-2 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]" />
+                    <span className="w-2 h-2 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]" />
+                    <span className="w-2 h-2 bg-primary rounded-full animate-bounce" />
                   </div>
                   <span className="text-sm text-muted-foreground">{t('analyzing')}</span>
-                  <span className="text-xs px-2 py-0.5 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded-full">
+                  <span className="text-xs px-2 py-0.5 bg-primary/10 dark:bg-primary/20 text-primary dark:text-primary/80 rounded-full">
                     {selectedModel === 'kimi-k2-thinking' ? '🧠 K2' : '⚡ v1'}
                   </span>
                 </div>
@@ -741,7 +741,7 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
         {showScrollButton && (
           <button
             onClick={scrollToBottom}
-            className="absolute bottom-24 right-6 p-2 bg-purple-600 text-white rounded-full shadow-lg hover:bg-purple-700 transition-all animate-in fade-in zoom-in duration-200 z-10"
+            className="absolute bottom-24 right-6 p-2 bg-primary text-primary-foreground rounded-full shadow-lg hover:bg-primary/90 transition-all animate-in fade-in zoom-in duration-200 z-10"
             aria-label="Scroll to bottom"
           >
             <ArrowDown className="h-5 w-5" />
@@ -767,12 +767,12 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
                   : t('askQuestion')
               }
               disabled={isProcessing || !tokenUsage.canSendMessage}
-              className="flex-1 px-4 py-2 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
+              className="flex-1 px-4 py-2 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
             />
             <button
               onClick={() => handleQuery(textInput)}
               disabled={!textInput.trim() || isProcessing || !tokenUsage.canSendMessage}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               <Send className="h-5 w-5" />
             </button>
