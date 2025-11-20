@@ -10,6 +10,8 @@ import reportsEn from '../messages/reports.en.json';
 import reportsEs from '../messages/reports.es.json';
 import expensesEn from '../messages/expenses.en.json';
 import expensesEs from '../messages/expenses.es.json';
+import aiAssistantEn from '../messages/ai-assistant.en.json';
+import aiAssistantEs from '../messages/ai-assistant.es.json';
 
 export default getRequestConfig(async () => {
   const cookieStore = cookies();
@@ -42,8 +44,8 @@ export default getRequestConfig(async () => {
 
   // Merge section-specific bundles
   const sectionBundles = locale === 'es'
-    ? [tariffsEs, reportsEs, expensesEs]
-    : [tariffsEn, reportsEn, expensesEn];
+    ? [tariffsEs, reportsEs, expensesEs, aiAssistantEs]
+    : [tariffsEn, reportsEn, expensesEn, aiAssistantEn];
 
   for (const section of sectionBundles) {
     if (section && typeof section === 'object') {

@@ -47,8 +47,11 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
 
   // Chat History State
   const [showHistory, setShowHistory] = useState(false)
-  const [currentSessionTitle, setCurrentSessionTitle] = useState('Nueva conversación')
+  const [currentSessionTitle, setCurrentSessionTitle] = useState<string>('')
   const [hasAutoNamed, setHasAutoNamed] = useState(false)
+
+  // Set default title once translations are loaded
+  const defaultTitle = t('defaultSessionTitle')
 
   // Smart Scroll State
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -63,6 +66,13 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
     t('example4'),
     t('example5'),
   ]
+
+  // Initialize session title with default if empty
+  useEffect(() => {
+    if (!currentSessionTitle && defaultTitle) {
+      setCurrentSessionTitle(defaultTitle)
+    }
+  }, [currentSessionTitle, defaultTitle])
 
   // Calculate token usage
   const tokenUsage = useMemo(() => {
@@ -111,8 +121,8 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
             }
 
             // Update session title and auto-naming state
-            setCurrentSessionTitle(data.session.title || 'Nueva conversación')
-            setHasAutoNamed(data.session.title !== 'Nueva conversación')
+            setCurrentSessionTitle(data.session.title || defaultTitle)
+            setHasAutoNamed(data.session.title !== defaultTitle)
 
             if (data.messages && data.messages.length > 0) {
               const mappedMessages = data.messages.map((msg: any) => ({
@@ -452,7 +462,7 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
     setError(null)
     setShowThinking({})
     setHasAutoNamed(false)
-    setCurrentSessionTitle('Nueva conversación')
+    setCurrentSessionTitle(defaultTitle)
   }
 
   return (

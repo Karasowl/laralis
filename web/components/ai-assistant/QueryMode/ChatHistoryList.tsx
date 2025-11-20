@@ -206,19 +206,19 @@ export default function ChatHistoryList({
             >
               {/* Delete Confirmation Overlay */}
               {isDeleting && (
-                <div className="absolute inset-0 bg-background/95 rounded-lg flex flex-col items-center justify-center gap-3 z-10 p-4">
+                <div className="absolute inset-0 bg-background/95 backdrop-blur-sm rounded-lg flex flex-col items-center justify-center gap-3 z-10 p-4">
                   <p className="text-sm font-medium text-center">{t('confirmDelete')}</p>
                   <p className="text-xs text-muted-foreground text-center">{t('confirmDeleteDesc')}</p>
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-2 w-full max-w-xs justify-center">
                     <button
                       onClick={() => handleDeleteConfirm(session.id)}
-                      className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm"
+                      className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors"
                     >
-                      {t('confirmDelete')}
+                      {t('confirmDeleteButton')}
                     </button>
                     <button
                       onClick={() => setDeleteConfirmId(null)}
-                      className="px-3 py-1.5 bg-muted rounded-lg hover:bg-muted/70 text-sm"
+                      className="flex-1 px-4 py-2 bg-muted rounded-lg hover:bg-muted/70 text-sm font-medium transition-colors"
                     >
                       {t('cancel')}
                     </button>
