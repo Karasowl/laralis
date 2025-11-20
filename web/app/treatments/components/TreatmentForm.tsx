@@ -95,7 +95,7 @@ export function TreatmentForm({
           <div>
             <label className="text-sm font-medium">
               {t('treatments.fields.patient')}
-              <span className="text-red-500 ml-1">*</span>
+              <span className="text-destructive ml-1">*</span>
             </label>
             <SelectWithCreate
               value={patientId}
@@ -130,14 +130,14 @@ export function TreatmentForm({
               onCreateSubmit={onCreatePatient}
             />
             {form.formState.errors.patient_id?.message && (
-              <p className="text-sm text-red-500 mt-1">{form.formState.errors.patient_id?.message}</p>
+              <p className="text-sm text-destructive mt-1">{form.formState.errors.patient_id?.message}</p>
             )}
           </div>
           
           <div>
             <label className="text-sm font-medium">
               {t('treatments.fields.service')}
-              <span className="text-red-500 ml-1">*</span>
+              <span className="text-destructive ml-1">*</span>
             </label>
             <SelectWithCreate
               value={serviceId}
@@ -170,7 +170,7 @@ export function TreatmentForm({
               disabled={serviceLocked}
             />
             {form.formState.errors.service_id?.message && (
-              <p className="text-sm text-red-500 mt-1">{form.formState.errors.service_id?.message}</p>
+              <p className="text-sm text-destructive mt-1">{form.formState.errors.service_id?.message}</p>
             )}
             {serviceLocked && (
               <div className="mt-3 rounded-md border border-dashed border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
@@ -208,7 +208,7 @@ export function TreatmentForm({
           <div>
             <label className="text-sm font-medium mb-2 block">
               {t('treatments.fields.margin')}
-              <span className="text-red-500 ml-1">*</span>
+              <span className="text-destructive ml-1">*</span>
             </label>
             <div className="relative">
               <input
@@ -224,7 +224,7 @@ export function TreatmentForm({
             </div>
             <p className="text-xs text-muted-foreground mt-1">{t('treatments.marginHelp')}</p>
             {form.formState.errors.margin_pct?.message && (
-              <p className="text-sm text-red-600 mt-1">{form.formState.errors.margin_pct?.message}</p>
+              <p className="text-sm text-destructive mt-1">{form.formState.errors.margin_pct?.message}</p>
             )}
           </div>
 

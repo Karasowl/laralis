@@ -171,7 +171,7 @@ export function PatientFormUnified({
               <option value="female">{t('gender.female')}</option>
             </select>
             {form.formState.errors.gender?.message && (
-              <p className="text-sm text-red-600 mt-1">{form.formState.errors.gender?.message}</p>
+              <p className="text-sm text-destructive mt-1">{form.formState.errors.gender?.message}</p>
             )}
           </div>
         </FormGrid>
@@ -384,7 +384,7 @@ export function PatientFormUnified({
         {acquisitionType && acquisitionType !== 'direct' && (
           <div className="mt-4 p-4 bg-muted/50 rounded-lg">
             <div className="flex items-center gap-2">
-              {acquisitionType === 'campaign' && <Megaphone className="h-4 w-4 text-blue-500" />}
+              {acquisitionType === 'campaign' && <Megaphone className="h-4 w-4 text-primary" />}
               {acquisitionType === 'referral' && <Users className="h-4 w-4 text-green-500" />}
               {acquisitionType === 'organic' && <Globe className="h-4 w-4 text-purple-500" />}
               <span className="text-sm font-medium">

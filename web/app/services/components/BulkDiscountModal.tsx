@@ -177,7 +177,7 @@ export function BulkDiscountModal({
                   )}
                 </div>
                 {form.formState.errors.discount_value?.message && (
-                  <p className="text-sm text-red-600 mt-1">{form.formState.errors.discount_value?.message}</p>
+                  <p className="text-sm text-destructive mt-1">{form.formState.errors.discount_value?.message}</p>
                 )}
               </div>
             )}
@@ -224,10 +224,10 @@ export function BulkDiscountModal({
               </div>
 
               {/* Info */}
-              <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+              <div className="bg-primary/10 dark:bg-primary/20/30 border border-primary/30 dark:border-primary/40/40 rounded-lg p-3">
                 <div className="flex gap-2">
-                  <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-                  <div className="text-xs text-blue-800 dark:text-blue-200 space-y-1">
+                  <Info className="h-4 w-4 text-primary dark:text-primary/80 flex-shrink-0 mt-0.5" />
+                  <div className="text-xs text-primary dark:text-primary/90 space-y-1">
                     <p>{t('bulk_discount_info')}</p>
                     {priceRounding && priceRounding > 1 && (
                       <p className="font-medium">

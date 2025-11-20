@@ -68,7 +68,7 @@ export function ReportsAdvanced({ insights, kpis, loading }: ReportsAdvancedProp
   const getTrendIcon = (trend: string) => {
     switch (trend) {
       case 'increasing': return <ArrowUpRight className="h-4 w-4 text-green-600" />
-      case 'decreasing': return <ArrowDownRight className="h-4 w-4 text-red-600" />
+      case 'decreasing': return <ArrowDownRight className="h-4 w-4 text-destructive" />
       default: return <Minus className="h-4 w-4 text-gray-600" />
     }
   }
@@ -76,7 +76,7 @@ export function ReportsAdvanced({ insights, kpis, loading }: ReportsAdvancedProp
   const getConfidenceLevel = (confidence: number) => {
     if (confidence >= 0.8) return { label: t('advanced.confidence.high'), color: 'bg-green-500' }
     if (confidence >= 0.6) return { label: t('advanced.confidence.medium'), color: 'bg-yellow-500' }
-    return { label: t('advanced.confidence.low'), color: 'bg-red-500' }
+    return { label: t('advanced.confidence.low'), color: 'bg-destructive/100' }
   }
 
   return (
@@ -104,7 +104,7 @@ export function ReportsAdvanced({ insights, kpis, loading }: ReportsAdvancedProp
                 <div key={period.key} className="p-4 border rounded-lg">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <Icon className="h-4 w-4 text-blue-600" />
+                      <Icon className="h-4 w-4 text-primary" />
                       <span className="text-sm font-medium">{period.label}</span>
                     </div>
                     {getTrendIcon(prediction.trend)}
@@ -170,17 +170,17 @@ export function ReportsAdvanced({ insights, kpis, loading }: ReportsAdvancedProp
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Lightbulb className="h-5 w-5 text-blue-600" />
+              <Lightbulb className="h-5 w-5 text-primary" />
               {t('advanced.services.growthOpportunities')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {insights.service_analysis.growth_opportunities.slice(0, 5).map((opportunity, index) => (
-                <div key={opportunity.service_id} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                <div key={opportunity.service_id} className="flex items-center justify-between p-3 bg-primary/10 rounded-lg">
                   <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                      <TrendingUp className="h-4 w-4 text-blue-600" />
+                    <div className="h-8 w-8 rounded-full bg-primary/15 flex items-center justify-center">
+                      <TrendingUp className="h-4 w-4 text-primary" />
                     </div>
                     <div>
                       <p className="font-medium">{t('advanced.services.serviceId', { id: opportunity.service_id })}</p>
@@ -188,7 +188,7 @@ export function ReportsAdvanced({ insights, kpis, loading }: ReportsAdvancedProp
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-blue-600">
+                    <p className="font-bold text-primary">
                       {formatCurrency(opportunity.potential_revenue)}
                     </p>
                     <p className="text-xs text-muted-foreground">{t('advanced.services.potential')}</p>
@@ -250,8 +250,8 @@ export function ReportsAdvanced({ insights, kpis, loading }: ReportsAdvancedProp
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg">
-              <p className="text-sm text-blue-600 font-medium">{t('advanced.kpis.avgTreatmentValue')}</p>
-              <p className="text-xl font-bold text-blue-700">{formatCurrency(kpis.avgTreatmentValue)}</p>
+              <p className="text-sm text-primary font-medium">{t('advanced.kpis.avgTreatmentValue')}</p>
+              <p className="text-xl font-bold text-primary">{formatCurrency(kpis.avgTreatmentValue)}</p>
             </div>
             <div className="text-center p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-lg">
               <p className="text-sm text-green-600 font-medium">{t('advanced.kpis.avgMargin')}</p>

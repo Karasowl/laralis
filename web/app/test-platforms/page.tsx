@@ -47,7 +47,7 @@ export default function TestPlatforms() {
       {loading && <p>Loading...</p>}
       
       {error && (
-        <div className="bg-red-50 text-red-600 p-4 rounded mb-4">
+        <div className="bg-destructive/10 text-destructive p-4 rounded mb-4">
           Error: {error}
         </div>
       )}

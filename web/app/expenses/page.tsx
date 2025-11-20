@@ -343,7 +343,7 @@ export default function ExpensesPage() {
       className: 'text-center',
       render: (value) => (
         value ? (
-          <Badge variant="secondary" className="bg-blue-50 text-blue-600 border-blue-200">
+          <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/30">
             {t('table.recurringYes')}
           </Badge>
         ) : (
@@ -456,22 +456,22 @@ export default function ExpensesPage() {
         {alerts.low_stock.length > 0 && (
           <div className="space-y-2">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <ShoppingCart className="h-4 w-4 text-red-500" />
+              <ShoppingCart className="h-4 w-4 text-destructive" />
               {t('alerts.lowStockTitle')}
             </h4>
             <div className="space-y-2">
               {alerts.low_stock.map((item) => (
-                <div key={item.id} className="rounded-lg border border-red-200 bg-red-50 p-3 flex items-center justify-between">
+                <div key={item.id} className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-red-800">{item.name}</p>
-                    <p className="text-xs text-red-700">
+                    <p className="text-sm font-medium text-destructive">{item.name}</p>
+                    <p className="text-xs text-destructive">
                       {t('alerts.lowStockIndicator', {
                         current: item.stock_quantity,
                         minimum: item.min_stock_alert,
                       })}
                     </p>
                   </div>
-                  <Badge variant="outline" className="border-red-300 text-red-700">
+                  <Badge variant="outline" className="border-red-300 text-destructive">
                     {item.category}
                   </Badge>
                 </div>
@@ -483,21 +483,21 @@ export default function ExpensesPage() {
         {alerts.price_changes.length > 0 && (
           <div className="space-y-2">
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-blue-500" />
+              <AlertTriangle className="h-4 w-4 text-primary" />
               {t('alerts.priceChangesTitle')}
             </h4>
             <div className="space-y-2">
               {alerts.price_changes.map((item) => (
-                <div key={item.id} className="rounded-lg border border-blue-200 bg-blue-50 p-3 flex items-center justify-between">
+                <div key={item.id} className="rounded-lg border border-primary/30 bg-primary/10 p-3 flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-blue-900">{item.name}</p>
-                    <p className="text-xs text-blue-800">
+                    <p className="text-sm font-medium text-primary/95">{item.name}</p>
+                    <p className="text-xs text-primary">
                       {item.price_change_percentage > 0
                         ? t('alerts.priceChangeUp', { value: item.price_change_percentage })
                         : t('alerts.priceChangeDown', { value: Math.abs(item.price_change_percentage) })}
                     </p>
                   </div>
-                  <div className="text-xs text-blue-800">
+                  <div className="text-xs text-primary">
                     <div>{formatCurrency(item.price_per_portion_cents)} → {formatCurrency(item.last_purchase_price_cents)}</div>
                   </div>
                 </div>
@@ -537,7 +537,7 @@ export default function ExpensesPage() {
           )}
         />
 
-        <Alert className="bg-blue-50 border-blue-200 text-blue-900">
+        <Alert className="bg-primary/10 border-primary/30 text-primary/95">
           <Info className="h-5 w-5" />
           <AlertTitle>{t('summary.expenseGuidanceTitle')}</AlertTitle>
           <AlertDescription>
@@ -1115,7 +1115,7 @@ function FiltersCard({
 }
 
 function severityBadgeClass(severity: BudgetAlertSeverity): string {
-  if (severity === 'high') return 'border-red-300 text-red-700 bg-red-50'
+  if (severity === 'high') return 'border-red-300 text-destructive bg-destructive/10'
   if (severity === 'medium') return 'border-amber-300 text-amber-700 bg-amber-50'
   return 'border-green-300 text-green-700 bg-green-50'
 }

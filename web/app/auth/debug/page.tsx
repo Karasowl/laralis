@@ -97,13 +97,13 @@ export default function DebugPage() {
           <h2 className="text-lg font-semibold mb-4">Diagnóstico</h2>
           <div className="space-y-2">
             {!session && (
-              <p className="text-red-600">❌ No hay sesión activa. Debes iniciar sesión primero.</p>
+              <p className="text-destructive">❌ No hay sesión activa. Debes iniciar sesión primero.</p>
             )}
             {session && !user && (
               <p className="text-yellow-600">⚠️ Hay sesión pero no se puede obtener el usuario.</p>
             )}
             {session && user && workspaces.length === 0 && (
-              <p className="text-blue-600">📝 Tienes sesión pero no tienes workspace. Debes ir al onboarding.</p>
+              <p className="text-primary">📝 Tienes sesión pero no tienes workspace. Debes ir al onboarding.</p>
             )}
             {session && user && workspaces.length > 0 && (
               <p className="text-green-600">✅ Todo está correcto. Puedes ir al home.</p>

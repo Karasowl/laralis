@@ -140,7 +140,7 @@ export function ServiceForm({
               placeholder={t('select_category')}
             />
             {form.formState.errors.category?.message && (
-              <p className="text-sm text-red-500 mt-1">{form.formState.errors.category?.message}</p>
+              <p className="text-sm text-destructive mt-1">{form.formState.errors.category?.message}</p>
             )}
           </div>
           <InputField
@@ -168,7 +168,7 @@ export function ServiceForm({
             />
             <p className="text-xs text-muted-foreground mt-1">{t('auto_base_price_hint')}</p>
             {form.formState.errors.base_price_cents?.message && (
-              <p className="text-sm text-red-600 mt-1">{form.formState.errors.base_price_cents?.message}</p>
+              <p className="text-sm text-destructive mt-1">{form.formState.errors.base_price_cents?.message}</p>
             )}
           </div>
           {/* Utilidad % */}
@@ -191,7 +191,7 @@ export function ServiceForm({
             <input type="hidden" {...form.register('margin_pct', { valueAsNumber: true })} />
             <p className="text-xs text-muted-foreground mt-1">{t('margin_pct_helper')}</p>
             {form.formState.errors.margin_pct?.message && (
-              <p className="text-sm text-red-600 mt-1">{form.formState.errors.margin_pct?.message}</p>
+              <p className="text-sm text-destructive mt-1">{form.formState.errors.margin_pct?.message}</p>
             )}
           </div>
 
@@ -235,7 +235,7 @@ export function ServiceForm({
             className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           />
           {form.formState.errors.description?.message && (
-            <p className="text-sm text-red-600 mt-1">{form.formState.errors.description?.message}</p>
+            <p className="text-sm text-destructive mt-1">{form.formState.errors.description?.message}</p>
           )}
         </div>
       </FormSection>
@@ -350,9 +350,9 @@ export function ServiceForm({
             <p className="mt-1 text-xl font-semibold">{formatCurrency(totalFixedCostCents)}</p>
             <p className="text-xs text-muted-foreground mt-1">{t('fixedPerMinute')}: {formatCurrency(fixedCostPerMinuteCents)} x {estMinutes || 0} min</p>
           </div>
-          <div className="rounded-lg border bg-blue-50 dark:bg-blue-950/30 p-4 shadow-sm">
-            <p className="text-xs uppercase tracking-wide text-blue-700 dark:text-blue-400">{t('baseCost')}</p>
-            <p className="mt-1 text-2xl font-bold text-blue-700 dark:text-blue-400">{formatCurrency(totalServiceCostCents)}</p>
+          <div className="rounded-lg border bg-primary/10 dark:bg-primary/20 p-4 shadow-sm backdrop-blur-sm">
+            <p className="text-xs uppercase tracking-wide text-primary dark:text-primary/80">{t('baseCost')}</p>
+            <p className="mt-1 text-2xl font-bold text-primary dark:text-primary/80">{formatCurrency(totalServiceCostCents)}</p>
           </div>
         </div>
         {fixedCostPerMinuteCents === 0 && (

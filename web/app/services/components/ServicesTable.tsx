@@ -175,7 +175,7 @@ export function ServicesTable({
               <PopoverTrigger asChild>
                 <button className={`text-right font-bold flex flex-col items-end gap-0.5 cursor-pointer transition-colors ${
                   hasLoss
-                    ? 'text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300'
+                    ? 'text-destructive dark:text-destructive/80 hover:text-destructive/90'
                     : hasLowMargin
                     ? 'text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300'
                     : 'text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300'
@@ -221,7 +221,7 @@ export function ServicesTable({
                   <div className="border-t pt-2 mt-2"></div>
                   <div className="flex justify-between gap-4">
                     <span className="text-muted-foreground font-medium">{t('real_margin')}:</span>
-                    <span className={`font-bold ${hasLoss ? 'text-red-600 dark:text-red-400' : hasLowMargin ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                    <span className={`font-bold ${hasLoss ? 'text-destructive dark:text-destructive/80' : hasLowMargin ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                       {realMarginPct.toFixed(1)}%
                       {hasLoss && ' ⚠️'}
                     </span>
@@ -232,21 +232,21 @@ export function ServicesTable({
                   </div>
                   <div className={`flex justify-between gap-4 p-2 rounded ${
                     hasLoss
-                      ? 'bg-red-50 dark:bg-red-950/30'
+                      ? 'bg-destructive/10 dark:bg-destructive/20/30'
                       : hasLowMargin
                       ? 'bg-amber-50 dark:bg-amber-950/30'
                       : 'bg-emerald-50 dark:bg-emerald-950/30'
                   }`}>
                     <span className={`font-semibold ${
                       hasLoss
-                        ? 'text-red-700 dark:text-red-300'
+                        ? 'text-destructive dark:text-destructive/90'
                         : hasLowMargin
                         ? 'text-amber-700 dark:text-amber-300'
                         : 'text-emerald-700 dark:text-emerald-300'
                     }`}>{t('profit_label')}:</span>
                     <span className={`font-bold ${
                       hasLoss
-                        ? 'text-red-700 dark:text-red-300'
+                        ? 'text-destructive dark:text-destructive/90'
                         : hasLowMargin
                         ? 'text-amber-700 dark:text-amber-300'
                         : 'text-emerald-700 dark:text-emerald-300'
@@ -254,11 +254,11 @@ export function ServicesTable({
                   </div>
 
                   {hasLoss && (
-                    <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 p-3 rounded-md space-y-2">
-                      <p className="text-xs font-semibold text-red-700 dark:text-red-300">
+                    <div className="bg-destructive/10 dark:bg-destructive/20/20 border border-destructive/30 dark:border-destructive/40 p-3 rounded-md space-y-2">
+                      <p className="text-xs font-semibold text-destructive dark:text-destructive/90">
                         ⚠️ {t('margin_warning')}
                       </p>
-                      <p className="text-xs text-red-600 dark:text-red-400">
+                      <p className="text-xs text-destructive dark:text-destructive/80">
                         {t('suggested_price_for_margin', { margin: configuredMarginPct })}: <span className="font-bold">{formatCurrency(suggestedPrice)}</span>
                       </p>
                     </div>

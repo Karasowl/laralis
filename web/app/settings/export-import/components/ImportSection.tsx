@@ -291,14 +291,14 @@ export function ImportSection() {
 
       {/* Error Message */}
       {error && (
-        <Card className="p-6 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
+        <Card className="p-6 bg-destructive/10 dark:bg-destructive/20/20 border-destructive/30 dark:border-destructive/40">
           <div className="flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+            <AlertTriangle className="h-5 w-5 text-destructive dark:text-destructive/80 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-red-900 dark:text-red-200">
+              <p className="text-sm font-medium text-destructive dark:text-destructive">
                 {t('errors.title')}
               </p>
-              <p className="text-sm text-red-700 dark:text-red-300 mt-1">{error}</p>
+              <p className="text-sm text-destructive dark:text-destructive/90 mt-1">{error}</p>
             </div>
           </div>
         </Card>

@@ -61,14 +61,14 @@ export default function TariffsDeprecatedPage() {
               </p>
 
               {/* Info box */}
-              <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <div className="bg-primary/10 dark:bg-primary/20/30 border border-primary/30 dark:border-primary/40/40 rounded-lg p-4">
                 <div className="flex gap-3">
-                  <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                  <Info className="h-5 w-5 text-primary dark:text-primary/80 flex-shrink-0 mt-0.5" />
                   <div className="space-y-2 text-sm">
-                    <p className="font-medium text-blue-900 dark:text-blue-100">
+                    <p className="font-medium text-primary/95 dark:text-primary">
                       {t('whats_new') || '¿Qué ha cambiado?'}
                     </p>
-                    <ul className="space-y-1 text-blue-800 dark:text-blue-200">
+                    <ul className="space-y-1 text-primary dark:text-primary/90">
                       <li>• {t('change_1') || 'Los descuentos ahora se configuran directamente en cada servicio'}</li>
                       <li>• {t('change_2') || 'El precio final se calcula automáticamente con el descuento aplicado'}</li>
                       <li>• {t('change_3') || 'Mayor simplicidad: un solo lugar para gestionar precios'}</li>

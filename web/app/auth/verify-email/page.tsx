@@ -66,7 +66,7 @@ export default function VerifyEmailPage() {
   return (
     <AuthLayout>
       <div className="w-full max-w-md mx-auto px-4">
-        <Card className="border-2 border-primary/20 dark:border-primary/30 shadow-xl bg-card dark:bg-card">
+        <Card className="border-2 border-primary/20 dark:border-primary/40/30 shadow-xl bg-card dark:bg-card">
           <CardHeader className="text-center space-y-4 pb-6">
             <div className="mx-auto h-16 w-16 rounded-full bg-primary/10 dark:bg-primary/20 flex items-center justify-center">
               <Mail className="h-8 w-8 text-primary dark:text-primary" />

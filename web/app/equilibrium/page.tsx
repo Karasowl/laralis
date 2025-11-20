@@ -41,10 +41,10 @@ function MetricCard({
   variant?: 'default' | 'success' | 'warning' | 'danger'
 }) {
   const variantStyles = {
-    default: 'text-blue-600 bg-blue-50',
+    default: 'text-primary bg-primary/10',
     success: 'text-green-600 bg-green-50',
     warning: 'text-yellow-600 bg-yellow-50',
-    danger: 'text-red-600 bg-red-50'
+    danger: 'text-destructive bg-destructive/10'
   }
 
   return (
