@@ -166,10 +166,16 @@ export class ClinicSnapshotService {
       .single()
 
     // Calculate available treatment minutes
+    // Calculate available treatment minutes
     const workDays = timeSettings?.work_days_per_month || 22
     const hoursPerDay = timeSettings?.hours_per_day || 8
-    const realPct = (timeSettings?.real_pct || 80) / 100
-    const availableMinutes = workDays * hoursPerDay * 60 * realPct
+
+    // Normalize real_pct: if <= 1, treat as decimal (1 = 100%); if > 1, treat as percentage
+    const rawRealPct = timeSettings?.real_pct ?? 80
+    const realPctValue = rawRealPct <= 1 ? rawRealPct * 100 : rawRealPct
+    const realPctFactor = realPctValue / 100
+
+    const availableMinutes = workDays * hoursPerDay * 60 * realPctFactor
 
     return {
       id: clinic?.id || clinicId,
@@ -177,7 +183,7 @@ export class ClinicSnapshotService {
       time_settings: {
         work_days_per_month: workDays,
         hours_per_day: hoursPerDay,
-        real_productivity_pct: timeSettings?.real_pct || 80,
+        real_productivity_pct: realPctValue,
         available_treatment_minutes: Math.round(availableMinutes),
       },
     }
@@ -647,8 +653,8 @@ export class ClinicSnapshotService {
     const revenuePerHour =
       clinic.time_settings.work_days_per_month * clinic.time_settings.hours_per_day > 0
         ? totalRevenue /
-          (clinic.time_settings.work_days_per_month *
-            clinic.time_settings.hours_per_day)
+        (clinic.time_settings.work_days_per_month *
+          clinic.time_settings.hours_per_day)
         : 0
 
     // Capacity utilization

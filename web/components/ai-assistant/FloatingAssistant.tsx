@@ -19,6 +19,8 @@ export function FloatingAssistant() {
   const [isExpanded, setIsExpanded] = useState(false)
   const [activeMode, setActiveMode] = useState<AssistantMode>(null)
 
+  const [sessionId, setSessionId] = useState<string | null>(null)
+
   const handleOpenMode = (mode: AssistantMode) => {
     setActiveMode(mode)
     setIsExpanded(false)
@@ -60,11 +62,10 @@ export function FloatingAssistant() {
         {/* Main FAB Button */}
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className={`flex items-center justify-center w-14 h-14 rounded-full shadow-lg transition-all hover:scale-110 ${
-            isExpanded
+          className={`flex items-center justify-center w-14 h-14 rounded-full shadow-lg transition-all hover:scale-110 ${isExpanded
               ? 'bg-red-600 hover:bg-red-700 rotate-45'
               : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
-          }`}
+            }`}
           aria-label={t('fab.tooltip')}
         >
           {isExpanded ? (
@@ -79,7 +80,13 @@ export function FloatingAssistant() {
       {activeMode === 'entry' && <EntryAssistant onClose={handleCloseMode} />}
 
       {/* Query Mode Modal */}
-      {activeMode === 'query' && <QueryAssistant onClose={handleCloseMode} />}
+      {activeMode === 'query' && (
+        <QueryAssistant
+          onClose={handleCloseMode}
+          sessionId={sessionId}
+          onSessionCreated={setSessionId}
+        />
+      )}
     </>
   )
 }
