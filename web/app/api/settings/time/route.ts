@@ -91,12 +91,13 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
     }
 
     // Transform DB field names to TypeScript field names
+    // Handle both possible DB schemas (old and new)
     const data: SettingsTime | null = dbData ? {
       id: dbData.id,
       clinic_id: dbData.clinic_id,
-      work_days: dbData.working_days_per_month,
+      work_days: dbData.working_days_per_month ?? dbData.work_days,
       hours_per_day: dbData.hours_per_day,
-      real_pct: dbData.real_hours_percentage,
+      real_pct: dbData.real_hours_percentage ?? dbData.real_pct,
       updated_at: dbData.updated_at,
     } : null;
 
@@ -184,11 +185,13 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     const { work_days, hours_per_day, real_pct, clinic_id } = validationResult.data;
     const working_days_config = normalized.working_days_config;
 
-    // Transform TypeScript field names to DB field names
+    // Include both field name formats to support different DB schemas
     const dbPayload = {
-      working_days_per_month: work_days,
+      work_days: work_days,                           // Short names (current schema)
+      working_days_per_month: work_days,              // Long names (migration schema)
       hours_per_day: hours_per_day,
-      real_hours_percentage: real_pct,
+      real_pct: real_pct,                             // Short names (current schema)
+      real_hours_percentage: real_pct,                // Long names (migration schema)
       working_days_config,
     };
 
@@ -231,12 +234,13 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     }
 
     // Transform DB field names back to TypeScript field names for response
+    // Handle both possible DB schemas (old and new)
     const transformedData: SettingsTime = {
       id: result.data.id,
       clinic_id: result.data.clinic_id,
-      work_days: result.data.working_days_per_month,
+      work_days: result.data.working_days_per_month ?? result.data.work_days,
       hours_per_day: result.data.hours_per_day,
-      real_pct: result.data.real_hours_percentage,
+      real_pct: result.data.real_hours_percentage ?? result.data.real_pct,
       updated_at: result.data.updated_at,
     };
 
