@@ -64,124 +64,124 @@ export const InputField = React.memo(
     name,
     onBlur,
   }: InputFieldProps, ref) {
-  const fieldId = id || label?.toLowerCase().replace(/\s+/g, '-');
-  const [showPassword, setShowPassword] = useState(false);
-  const dateInputRef = useRef<HTMLInputElement>(null);
+    const fieldId = id || label?.toLowerCase().replace(/\s+/g, '-');
+    const [showPassword, setShowPassword] = useState(false);
+    const dateInputRef = useRef<HTMLInputElement>(null);
 
-  // Determinar el tipo real del input basado en si es password y si se debe mostrar
-  const inputType = type === 'password' ? (showPassword ? 'text' : 'password') : type;
+    // Determinar el tipo real del input basado en si es password y si se debe mostrar
+    const inputType = type === 'password' ? (showPassword ? 'text' : 'password') : type;
 
-  const displayValue = ((): string | number | undefined => {
-    if (value === undefined) return undefined
-    if (type === 'number') {
-      if (value === '' as any) return ''
-      // Preserve 0 explicitly; otherwise allow empty string while typing
-      if (typeof value === 'number') return Number.isFinite(value) ? value : ''
+    const displayValue = ((): string | number | undefined => {
+      if (value === undefined) return undefined
+      if (type === 'number') {
+        if (value === '' as any) return ''
+        // Preserve 0 explicitly; otherwise allow empty string while typing
+        if (typeof value === 'number') return Number.isFinite(value) ? value : ''
+        return value ?? ''
+      }
       return value ?? ''
-    }
-    return value ?? ''
-  })()
+    })()
 
-  const handleRef = React.useCallback((node: HTMLInputElement | null) => {
-    // Handle date input ref
-    if (type === 'date' && dateInputRef) {
-      try { (dateInputRef as React.MutableRefObject<HTMLInputElement | null>).current = node } catch {}
-    }
-
-    // Forward ref from forwardRef (React Hook Form needs this)
-    if (ref) {
-      if (typeof ref === 'function') {
-        ref(node)
-      } else {
-        try { (ref as React.MutableRefObject<HTMLInputElement | null>).current = node } catch {}
+    const handleRef = React.useCallback((node: HTMLInputElement | null) => {
+      // Handle date input ref
+      if (type === 'date' && dateInputRef) {
+        try { (dateInputRef as React.MutableRefObject<HTMLInputElement | null>).current = node } catch { }
       }
-    }
 
-    // Handle inputRef prop
-    if (inputRef) {
-      if (typeof inputRef === 'function') {
-        inputRef(node)
-      } else {
-        try { (inputRef as React.MutableRefObject<HTMLInputElement | null>).current = node } catch {}
+      // Forward ref from forwardRef (React Hook Form needs this)
+      if (ref) {
+        if (typeof ref === 'function') {
+          ref(node)
+        } else {
+          try { (ref as React.MutableRefObject<HTMLInputElement | null>).current = node } catch { }
+        }
       }
-    }
-  }, [ref, inputRef, type])
 
-  return (
-    <div className={cn('space-y-1', containerClassName)}>
-      {label && (
-        <Label htmlFor={fieldId} className="text-sm font-medium text-slate-700 dark:text-slate-300">
-          {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
-        </Label>
-      )}
-      <div className="relative">
-        <Input
-          ref={handleRef}
-          id={fieldId}
-          name={name}
-          type={inputType}
-          value={displayValue}
-          readOnly={readOnly}
-          onChange={(e) => {
-            if (onChange) {
-              if (type === 'number') {
-                // For number inputs, pass the numeric value
-                const val = e.target.value;
-                onChange(val === '' ? '' : val);
-              } else {
-                // For other inputs, pass the event or the value
-                onChange(e.target.value);
+      // Handle inputRef prop
+      if (inputRef) {
+        if (typeof inputRef === 'function') {
+          inputRef(node)
+        } else {
+          try { (inputRef as React.MutableRefObject<HTMLInputElement | null>).current = node } catch { }
+        }
+      }
+    }, [ref, inputRef, type])
+
+    return (
+      <div className={cn('space-y-1', containerClassName)}>
+        {label && (
+          <Label htmlFor={fieldId} className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            {label}
+            {required && <span className="text-red-500 ml-1">*</span>}
+          </Label>
+        )}
+        <div className="relative">
+          <Input
+            ref={handleRef}
+            id={fieldId}
+            name={name}
+            type={inputType}
+            value={displayValue}
+            readOnly={readOnly}
+            onChange={(e) => {
+              if (onChange) {
+                if (type === 'number') {
+                  // For number inputs, pass the numeric value
+                  const val = e.target.value;
+                  onChange(val === '' ? '' : val);
+                } else {
+                  // For other inputs, pass the event directly to support react-hook-form
+                  onChange(e);
+                }
               }
-            }
-          }}
-          onBlur={onBlur}
-          onFocus={(e) => {
-            // Facilita reemplazar el 0 inicial: selecciona todo al enfocar
-            try { (e.target as HTMLInputElement).select() } catch {}
-          }}
-          placeholder={type === 'date' ? undefined : placeholder}
-          disabled={disabled}
-          min={min}
-          max={max}
-          step={step}
-          className={cn(
-            'mt-1 h-12 bg-white/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 focus:border-blue-500 dark:focus:border-blue-400 transition-all',
-            type === 'password' && 'pr-12',
-            type === 'date' && 'cursor-pointer',
-            error && 'border-red-500 focus:ring-red-500',
-            className
-          )}
-        />
-        {/* For date inputs, rely on the native calendar indicator only (no extra icon) */}
-        {type === 'password' && value && String(value).length > 0 && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="absolute right-0 top-1 h-10 px-3 py-2 hover:bg-transparent"
-            onClick={() => setShowPassword(!showPassword)}
+            }}
+            onBlur={onBlur}
+            onFocus={(e) => {
+              // Facilita reemplazar el 0 inicial: selecciona todo al enfocar
+              try { (e.target as HTMLInputElement).select() } catch { }
+            }}
+            placeholder={type === 'date' ? undefined : placeholder}
             disabled={disabled}
-          >
-            {showPassword ? (
-              <EyeOff className="h-4 w-4 text-gray-500" />
-            ) : (
-              <Eye className="h-4 w-4 text-gray-500" />
+            min={min}
+            max={max}
+            step={step}
+            className={cn(
+              'mt-1 h-12 bg-white/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 focus:border-blue-500 dark:focus:border-blue-400 transition-all',
+              type === 'password' && 'pr-12',
+              type === 'date' && 'cursor-pointer',
+              error && 'border-red-500 focus:ring-red-500',
+              className
             )}
-            <span className="sr-only">
-              {showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-            </span>
-          </Button>
+          />
+          {/* For date inputs, rely on the native calendar indicator only (no extra icon) */}
+          {type === 'password' && value && String(value).length > 0 && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="absolute right-0 top-1 h-10 px-3 py-2 hover:bg-transparent"
+              onClick={() => setShowPassword(!showPassword)}
+              disabled={disabled}
+            >
+              {showPassword ? (
+                <EyeOff className="h-4 w-4 text-gray-500" />
+              ) : (
+                <Eye className="h-4 w-4 text-gray-500" />
+              )}
+              <span className="sr-only">
+                {showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              </span>
+            </Button>
+          )}
+        </div>
+        {error && (
+          <p className="text-sm text-red-600 mt-1">{error}</p>
+        )}
+        {helperText && !error && (
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{helperText}</p>
         )}
       </div>
-      {error && (
-        <p className="text-sm text-red-600 mt-1">{error}</p>
-      )}
-      {helperText && !error && (
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{helperText}</p>
-      )}
-    </div>
-  );
+    );
   })
 );
 
@@ -277,7 +277,7 @@ export const SelectField = React.memo(function SelectField({
   options,
 }: SelectFieldProps) {
   const fieldId = id || label?.toLowerCase().replace(/\s+/g, '-');
-  
+
   return (
     <div className={cn('space-y-1', containerClassName)}>
       {label && (
@@ -286,7 +286,7 @@ export const SelectField = React.memo(function SelectField({
           {required && <span className="text-red-500 ml-1">*</span>}
         </Label>
       )}
-      <Select value={value} onValueChange={onChange || (() => {})} disabled={disabled}>
+      <Select value={value} onValueChange={onChange || (() => { })} disabled={disabled}>
         <SelectTrigger
           id={fieldId}
           className={cn(

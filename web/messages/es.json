@@ -3739,6 +3739,22 @@
       "currentField": "Campo actual:",
       "showingResults": "Mostrando 10 de {total} resultados",
       "creating": "Vamos a crear un nuevo {entity}. Comenzamos con el primer campo."
+    },
+    "actions": {
+      "suggestion": "Sugerencia de Acción",
+      "reasoning": "Razonamiento",
+      "expectedImpact": "Impacto Esperado",
+      "executing": "Ejecutando acción...",
+      "success": "¡Acción ejecutada con éxito!",
+      "error": "Error al ejecutar acción",
+      "confirm": "Confirmar y Ejecutar",
+      "reject": "Rechazar",
+      "retry": "Reintentar",
+      "confidence": {
+        "low": "Baja Confianza",
+        "medium": "Confianza Media",
+        "high": "Alta Confianza"
+      }
     }
   }
 }

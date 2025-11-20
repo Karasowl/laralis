@@ -18,85 +18,40 @@ export function AuthLayout({ children, showLogo = true }: AuthLayoutProps) {
       {/* Animated mesh gradient background - Stripe style but medical colors */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-white via-gray-50 to-white dark:from-gray-900 dark:via-gray-900 dark:to-gray-900" />
-        
+
         {/* Animated gradient mesh */}
-        <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <pattern
-              id="grid"
-              width="60"
-              height="60"
-              patternUnits="userSpaceOnUse"
-            >
-              <path
-                d="M 60 0 L 0 0 0 60"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="0.5"
-                className="text-gray-200 dark:text-gray-800"
-              />
-            </pattern>
-            
-            <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.2">
-                <animate attributeName="stop-color" values="#06b6d4;#0ea5e9;#3b82f6;#06b6d4" dur="8s" repeatCount="indefinite" />
-              </stop>
-              <stop offset="50%" stopColor="#0ea5e9" stopOpacity="0.1">
-                <animate attributeName="stop-color" values="#0ea5e9;#3b82f6;#06b6d4;#0ea5e9" dur="8s" repeatCount="indefinite" />
-              </stop>
-              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.2">
-                <animate attributeName="stop-color" values="#3b82f6;#06b6d4;#0ea5e9;#3b82f6" dur="8s" repeatCount="indefinite" />
-              </stop>
-            </linearGradient>
-            
-            <linearGradient id="grad2" x1="100%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#14b8a6" stopOpacity="0.2">
-                <animate attributeName="stop-color" values="#14b8a6;#10b981;#06b6d4;#14b8a6" dur="10s" repeatCount="indefinite" />
-              </stop>
-              <stop offset="100%" stopColor="#10b981" stopOpacity="0.1">
-                <animate attributeName="stop-color" values="#10b981;#06b6d4;#14b8a6;#10b981" dur="10s" repeatCount="indefinite" />
-              </stop>
-            </linearGradient>
-          </defs>
-          
-          {/* Grid pattern */}
-          <rect width="100%" height="100%" fill="url(#grid)" />
-          
-          {/* Animated blobs */}
-          <circle r="400" cx="20%" cy="30%" fill="url(#grad1)">
-            <animateTransform
-              attributeName="transform"
-              type="translate"
-              values="0,0; 100,50; 0,100; -100,50; 0,0"
-              dur="20s"
-              repeatCount="indefinite"
-            />
-          </circle>
-          
-          <circle r="350" cx="80%" cy="70%" fill="url(#grad2)">
-            <animateTransform
-              attributeName="transform"
-              type="translate"
-              values="0,0; -100,50; 0,100; 100,50; 0,0"
-              dur="25s"
-              repeatCount="indefinite"
-            />
-          </circle>
-          
-          <ellipse rx="400" ry="200" cx="50%" cy="50%" fill="url(#grad1)" opacity="0.1">
-            <animateTransform
-              attributeName="transform"
-              type="rotate"
-              from="0 50 50"
-              to="360 50 50"
-              dur="30s"
-              repeatCount="indefinite"
-            />
-          </ellipse>
-        </svg>
-        
+        {/* CSS-based Animated Background - Optimized for performance */}
+        <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none">
+          {/* Animated Blobs */}
+          <div
+            className="absolute top-0 -left-4 w-96 h-96 bg-cyan-400 rounded-full mix-blend-multiply filter blur-[128px] opacity-40 animate-blob dark:mix-blend-screen dark:opacity-20"
+          />
+          <div
+            className="absolute top-0 -right-4 w-96 h-96 bg-blue-400 rounded-full mix-blend-multiply filter blur-[128px] opacity-40 animate-blob-bounce dark:mix-blend-screen dark:opacity-20"
+            style={{ animationDelay: '2s' }}
+          />
+          <div
+            className="absolute -bottom-32 left-20 w-96 h-96 bg-teal-400 rounded-full mix-blend-multiply filter blur-[128px] opacity-40 animate-blob dark:mix-blend-screen dark:opacity-20"
+            style={{ animationDelay: '4s' }}
+          />
+          <div
+            className="absolute bottom-1/4 right-10 w-64 h-64 bg-indigo-400 rounded-full mix-blend-multiply filter blur-[100px] opacity-30 animate-blob-bounce dark:mix-blend-screen dark:opacity-20"
+            style={{ animationDelay: '1s' }}
+          />
+
+          {/* Static Grid Pattern - Overlaying the blobs */}
+          <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
+                <path d="M 60 0 L 0 0 0 60" fill="none" stroke="currentColor" strokeWidth="1" className="text-gray-400/40 dark:text-gray-600/40" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#grid)" />
+          </svg>
+        </div>
+
         {/* Noise texture overlay for depth */}
-        <div 
+        <div
           className="absolute inset-0 opacity-[0.015] mix-blend-multiply dark:mix-blend-screen"
           style={{
             backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
@@ -125,11 +80,11 @@ export function AuthLayout({ children, showLogo = true }: AuthLayoutProps) {
                   </div>
                 </div>
               </div>
-              
+
               <h1 className="text-4xl font-semibold text-gray-900 dark:text-white mb-2">
                 Laralis
               </h1>
-              
+
               <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">
                 {t('mobileTagline')}
               </p>
