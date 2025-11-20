@@ -98,9 +98,9 @@ export async function GET(request: NextRequest) {
     let fixedCostPerMinuteCents = 0;
     if (timeSettings) {
       // Use correct field names from settings_time table schema
-      const workDays = timeSettings.working_days_per_month || 20;
+      const workDays = timeSettings.work_days || 20;
       const hoursPerDay = timeSettings.hours_per_day || 7;
-      const realPctValue = timeSettings.real_hours_percentage ?? 80;
+      const realPctValue = timeSettings.real_pct ?? 80;
       const realPctFactor = realPctValue / 100;
 
       const minutesMonth = workDays * hoursPerDay * 60;
