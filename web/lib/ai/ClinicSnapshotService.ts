@@ -166,13 +166,10 @@ export class ClinicSnapshotService {
       .single()
 
     // Calculate available treatment minutes
-    // Calculate available treatment minutes
-    const workDays = timeSettings?.work_days_per_month || 22
-    const hoursPerDay = timeSettings?.hours_per_day || 8
-
-    // Normalize real_pct: if <= 1, treat as decimal (1 = 100%); if > 1, treat as percentage
-    const rawRealPct = timeSettings?.real_pct ?? 80
-    const realPctValue = rawRealPct <= 1 ? rawRealPct * 100 : rawRealPct
+    // Use correct field names from settings_time table schema
+    const workDays = timeSettings?.working_days_per_month || 20
+    const hoursPerDay = timeSettings?.hours_per_day || 7
+    const realPctValue = timeSettings?.real_hours_percentage ?? 80
     const realPctFactor = realPctValue / 100
 
     const availableMinutes = workDays * hoursPerDay * 60 * realPctFactor
