@@ -93,21 +93,21 @@ export function ValidationResults({
         className={`p-4 ${
           valid
             ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
-            : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+            : 'bg-destructive/10 dark:bg-destructive/20/20 border-destructive/30 dark:border-destructive/40'
         }`}
       >
         <div className="flex items-start gap-3">
           {valid ? (
             <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
           ) : (
-            <XCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+            <XCircle className="h-5 w-5 text-destructive dark:text-destructive/80 flex-shrink-0 mt-0.5" />
           )}
           <div className="flex-1">
             <h3
               className={`text-sm font-medium ${
                 valid
                   ? 'text-green-900 dark:text-green-200'
-                  : 'text-red-900 dark:text-red-200'
+                  : 'text-destructive dark:text-destructive'
               }`}
             >
               {valid ? t('validation.valid') : t('validation.invalid')}
@@ -116,7 +116,7 @@ export function ValidationResults({
               className={`text-sm mt-1 ${
                 valid
                   ? 'text-green-700 dark:text-green-300'
-                  : 'text-red-700 dark:text-red-300'
+                  : 'text-destructive dark:text-destructive/90'
               }`}
             >
               {valid
@@ -150,14 +150,14 @@ export function ValidationResults({
 
       {/* Migration Preview */}
       {migrationPreview && migrationPreview.needsMigration && (
-        <Card className="p-4 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+        <Card className="p-4 bg-primary/10 dark:bg-primary/20/20 border-primary/30 dark:border-primary/40/40">
           <div className="flex items-start gap-3">
-            <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+            <Info className="h-5 w-5 text-primary dark:text-primary/80 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <h4 className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-1">
+              <h4 className="text-sm font-medium text-primary/95 dark:text-primary/90 mb-1">
                 {t('validation.migrationRequired')}
               </h4>
-              <p className="text-sm text-blue-700 dark:text-blue-300 mb-2">
+              <p className="text-sm text-primary dark:text-primary/80 mb-2">
                 {t('validation.migrationDescription', {
                   from: migrationPreview.currentVersion,
                   to: migrationPreview.targetVersion,
@@ -166,7 +166,7 @@ export function ValidationResults({
               {migrationPreview.migrationsSummary.length > 0 && (
                 <ul className="space-y-1">
                   {migrationPreview.migrationsSummary.map((migration, index) => (
-                    <li key={index} className="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-400">
+                    <li key={index} className="flex items-center gap-2 text-xs text-primary dark:text-primary/80">
                       <ArrowRight className="h-3 w-3" />
                       <span>{migration}</span>
                     </li>
@@ -180,18 +180,18 @@ export function ValidationResults({
 
       {/* Errors */}
       {errors.length > 0 && (
-        <Card className="p-4 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
-          <h4 className="text-sm font-medium text-red-900 dark:text-red-200 mb-3">
+        <Card className="p-4 bg-destructive/10 dark:bg-destructive/20/20 border-destructive/30 dark:border-destructive/40">
+          <h4 className="text-sm font-medium text-destructive dark:text-destructive mb-3">
             {t('validation.errors')} ({errors.length})
           </h4>
           <ul className="space-y-2">
             {errors.map((error, index) => (
-              <li key={index} className="flex items-start gap-2 text-sm text-red-700 dark:text-red-300">
+              <li key={index} className="flex items-start gap-2 text-sm text-destructive dark:text-destructive/90">
                 <XCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
                   <span>{error.message}</span>
                   {error.table && (
-                    <span className="ml-2 text-xs text-red-600 dark:text-red-400">
+                    <span className="ml-2 text-xs text-destructive dark:text-destructive/80">
                       [{error.table}{error.field && `.${error.field}`}]
                     </span>
                   )}

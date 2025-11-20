@@ -383,7 +383,7 @@ export default function InsightsPage() {
                     change={metrics.expenses.change}
                     changeType={metrics.expenses.change > 0 ? 'increase' : 'decrease'}
                     icon={Receipt}
-                    color="text-red-600"
+                    color="text-destructive"
                     subtitle={getPeriodLabels.comparison}
                   />
 
@@ -393,7 +393,7 @@ export default function InsightsPage() {
                     change={metrics.patients.change}
                     changeType="increase"
                     icon={Users}
-                    color="text-blue-600"
+                    color="text-primary"
                     subtitle={`${metrics.patients.new} ${getPeriodLabels.newPatients}`}
                   />
 

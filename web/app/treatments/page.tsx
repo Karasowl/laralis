@@ -455,9 +455,9 @@ export default function TreatmentsPage() {
               <div className="font-medium mb-1">{t('onboarding.justInTime.title')}</div>
               <div className="mb-2">{t('onboarding.justInTime.missing')} {missingReqs.join(', ')}</div>
               <div className="flex flex-wrap gap-2">
-                <a href="/time" className="underline text-blue-600">{t('time.title')}</a>
-                <a href="/fixed-costs" className="underline text-blue-600">{t('fixedCosts.title')}</a>
-                <a href="/services" className="underline text-blue-600">{t('services.title')}</a>
+                <a href="/time" className="underline text-primary">{t('time.title')}</a>
+                <a href="/fixed-costs" className="underline text-primary">{t('fixedCosts.title')}</a>
+                <a href="/services" className="underline text-primary">{t('services.title')}</a>
               </div>
             </div>
           )}

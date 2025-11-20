@@ -76,7 +76,7 @@ export function WorkingDaysSelector({
 
   const getConfidenceColor = (confidence: number) => {
     if (confidence >= 80) return 'text-emerald-600 border-emerald-200 bg-emerald-50 dark:bg-emerald-950/30'
-    if (confidence >= 60) return 'text-blue-600 border-blue-200 bg-blue-50 dark:bg-blue-950/30'
+    if (confidence >= 60) return 'text-primary border-primary/30 bg-primary/10 dark:bg-primary/20/30'
     return 'text-amber-600 border-amber-200 bg-amber-50 dark:bg-amber-950/30'
   }
 

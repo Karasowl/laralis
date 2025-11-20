@@ -162,16 +162,16 @@ export function DeleteAccountSection() {
 
   return (
     <>
-      <Alert className="bg-blue-50 border-blue-200">
-        <Shield className="h-4 w-4 text-blue-600" />
-        <AlertDescription className="text-blue-800">
+      <Alert className="bg-primary/10 border-primary/30">
+        <Shield className="h-4 w-4 text-primary" />
+        <AlertDescription className="text-primary">
           {t('settings.securityInfoDesc')}
         </AlertDescription>
       </Alert>
 
-      <Card className="border-red-200">
+      <Card className="border-destructive/30">
         <CardHeader>
-          <CardTitle className="text-red-600 text-base">{t('settings.dangerZone')}</CardTitle>
+          <CardTitle className="text-destructive text-base">{t('settings.dangerZone')}</CardTitle>
         </CardHeader>
         <CardContent>
           <MobileModal open={deleteDialogOpen} onOpenChange={handleDialogChange}>
@@ -183,7 +183,7 @@ export function DeleteAccountSection() {
             </MobileModalTrigger>
             <MobileModalContent className="sm:max-w-md">
               <MobileModalHeader>
-                <MobileModalTitle className="text-red-600">
+                <MobileModalTitle className="text-destructive">
                   {t('settings.deleteAccountTitle')}
                 </MobileModalTitle>
                 <MobileModalDescription>
@@ -273,7 +273,7 @@ export function DeleteAccountSection() {
           <MobileModal open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
             <MobileModalContent className="sm:max-w-md">
               <MobileModalHeader>
-                <MobileModalTitle className="text-red-600 flex items-center gap-2">
+                <MobileModalTitle className="text-destructive flex items-center gap-2">
                   <AlertTriangle className="h-5 w-5" />
                   {t('settings.finalConfirmation')}
                 </MobileModalTitle>

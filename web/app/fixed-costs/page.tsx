@@ -247,12 +247,12 @@ export default function FixedCostsPage() {
     rent: 'bg-green-500',
     salaries: 'bg-purple-500',
     utilities: 'bg-yellow-500',
-    insurance: 'bg-red-500',
+    insurance: 'bg-destructive/100',
     maintenance: 'bg-orange-500',
     education: 'bg-indigo-500',
     advertising: 'bg-pink-500',
     other: 'bg-gray-500',
-    depreciation: 'bg-blue-500'
+    depreciation: 'bg-primary/100'
   }
 
   return (
@@ -371,7 +371,7 @@ export default function FixedCostsPage() {
                           <div key={item.category} className="space-y-2">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-3">
-                                <div className="w-4 h-4 rounded-full bg-blue-500" />
+                                <div className="w-4 h-4 rounded-full bg-primary/100" />
                                 <span className="text-sm font-medium">{item.label}</span>
                               </div>
                               <span className="text-sm font-semibold">
@@ -380,7 +380,7 @@ export default function FixedCostsPage() {
                             </div>
                             <div className="w-full bg-muted rounded-full h-2">
                               <div
-                                className="h-2 rounded-full bg-blue-500"
+                                className="h-2 rounded-full bg-primary/100"
                                 style={{ width: `${Math.min(item.percentage, 100)}%` }}
                               />
                             </div>
@@ -459,7 +459,7 @@ function FixedCostForm({ form, frequencyOptions, t }: FixedCostFormProps) {
       <FormGrid columns={1}>
         <div>
           <label className="text-sm font-medium mb-2 block">
-            {t('fixedCosts.category')} <span className="text-red-500">*</span>
+            {t('fixedCosts.category')} <span className="text-destructive">*</span>
           </label>
           <CategorySelect
             type="fixed_costs"
@@ -468,7 +468,7 @@ function FixedCostForm({ form, frequencyOptions, t }: FixedCostFormProps) {
             placeholder={t('categories.selectCategory')}
           />
           {form.formState.errors.category?.message && (
-            <p className="text-sm text-red-500 mt-1">{form.formState.errors.category.message}</p>
+            <p className="text-sm text-destructive mt-1">{form.formState.errors.category.message}</p>
           )}
         </div>
 

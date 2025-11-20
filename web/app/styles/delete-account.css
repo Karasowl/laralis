@@ -63,9 +63,9 @@
 .progress-gradient {
   background: linear-gradient(
     90deg,
-    rgb(59, 130, 246) 0%,
-    rgb(139, 92, 246) 50%,
-    rgb(236, 72, 153) 100%
+    hsl(var(--primary)) 0%,
+    hsl(var(--secondary)) 50%,
+    hsl(var(--accent)) 100%
   );
 }
 

@@ -19,7 +19,7 @@ export function TimeMetricCard({
 }: TimeMetricCardProps) {
   const variantStyles = {
     default: 'bg-gray-50 dark:bg-gray-900/50 border-gray-200 dark:border-gray-800',
-    primary: 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900/50',
+    primary: 'bg-primary/10 dark:bg-primary/20/30 border-primary/30 dark:border-blue-900/50',
     success: 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-900/50'
   }
 

@@ -161,7 +161,7 @@ export function GlobalDiscountModal({
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   />
                   {form.formState.errors.value && (
-                    <p className="text-sm text-red-600 mt-1">
+                    <p className="text-sm text-destructive mt-1">
                       {form.formState.errors.value.message}
                     </p>
                   )}
@@ -169,12 +169,12 @@ export function GlobalDiscountModal({
 
                 {/* Preview */}
                 {watchedValue > 0 && (
-                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="p-4 bg-primary/10 border border-primary/30 rounded-lg">
                     <div className="text-sm space-y-1">
-                      <p className="font-medium text-blue-900">
+                      <p className="font-medium text-primary/95">
                         {t('will_apply_to_services', { count: servicesCount })}
                       </p>
-                      <p className="text-xs text-blue-700">
+                      <p className="text-xs text-primary">
                         {t('individual_discount')} {t('override_global').toLowerCase()}
                       </p>
                     </div>

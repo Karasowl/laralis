@@ -154,7 +154,7 @@ export function DiscountModal({
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 />
                 {form.formState.errors.value && (
-                  <p className="text-sm text-red-600 mt-1">
+                  <p className="text-sm text-destructive mt-1">
                     {form.formState.errors.value.message}
                   </p>
                 )}
@@ -185,7 +185,7 @@ export function DiscountModal({
                     <span>{t('original_price')}:</span>
                     <span className="font-medium">{formatCurrency(basePrice)}</span>
                   </div>
-                  <div className="flex justify-between text-red-600">
+                  <div className="flex justify-between text-destructive">
                     <span>{t('discount')}:</span>
                     <span className="font-medium">-{formatCurrency(discountAmount)}</span>
                   </div>

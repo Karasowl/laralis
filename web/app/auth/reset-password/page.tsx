@@ -182,8 +182,8 @@ function ResetPasswordContent() {
     return (
       <AuthLayout showLogo={false}>
         <div className="text-center space-y-6">
-          <div className="inline-flex p-4 bg-red-100 dark:bg-red-900/20 rounded-full">
-            <AlertCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
+          <div className="inline-flex p-4 bg-destructive/15 dark:bg-destructive/20/20 rounded-full">
+            <AlertCircle className="h-8 w-8 text-destructive dark:text-destructive/80" />
           </div>
           
           <div className="space-y-2">

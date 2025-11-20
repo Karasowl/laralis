@@ -194,11 +194,11 @@ export default function AssetsPage() {
   const additionalContent = crud.items.length > 0 && (
     <Card className="p-6">
       <h3 className="text-lg font-semibold mb-4">{t('businessSetup.assets.depreciationExplanation')}</h3>
-      <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-lg space-y-2">
-        <p className="text-sm text-blue-800 dark:text-blue-200">
+      <div className="bg-primary/10 dark:bg-primary/20/30 p-4 rounded-lg space-y-2">
+        <p className="text-sm text-primary dark:text-primary/90">
           <strong>{t('businessSetup.assets.formula')}:</strong> {t('businessSetup.assets.formulaExplanation')}
         </p>
-        <p className="text-xs text-blue-600 dark:text-blue-400">
+        <p className="text-xs text-primary dark:text-primary/80">
           {t('businessSetup.assets.exampleCalculation')} {formatCurrency(100000)} ÷ 36 {t('businessSetup.assets.months')} = {formatCurrency(Math.round(100000 / 36))}/{t('businessSetup.assets.month')}
         </p>
       </div>

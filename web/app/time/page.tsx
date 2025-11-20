@@ -284,13 +284,13 @@ export default function TimeSettingsPage() {
               <CardDescription>{t('fixed_cost_allocation')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 rounded-lg transition-colors">
+              <div className="p-4 bg-primary/10 dark:bg-primary/20/30 border border-primary/30 dark:border-blue-900/50 rounded-lg transition-colors">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-foreground">{t('cost_per_minute')}</p>
                     <p className="text-xs text-muted-foreground">{t('productive_minute')}</p>
                   </div>
-                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{hasRecord ? formatCurrency(calculations.fixedCostPerMinuteCents) : '—'}</p>
+                  <p className="text-2xl font-bold text-primary dark:text-primary/80">{hasRecord ? formatCurrency(calculations.fixedCostPerMinuteCents) : '—'}</p>
                 </div>
               </div>
 
