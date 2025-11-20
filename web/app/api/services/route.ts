@@ -97,11 +97,14 @@ export async function GET(request: NextRequest) {
     // Calculate fixed cost per minute
     let fixedCostPerMinuteCents = 0;
     if (timeSettings) {
-      const workDays = timeSettings.work_days || 0;
-      const hoursPerDay = timeSettings.hours_per_day || 0;
-      const realPct = timeSettings.real_pct || 0;
+      // Use correct field names from settings_time table schema
+      const workDays = timeSettings.working_days_per_month || 20;
+      const hoursPerDay = timeSettings.hours_per_day || 7;
+      const realPctValue = timeSettings.real_hours_percentage ?? 80;
+      const realPctFactor = realPctValue / 100;
+
       const minutesMonth = workDays * hoursPerDay * 60;
-      const effectiveMinutes = minutesMonth * realPct;
+      const effectiveMinutes = minutesMonth * realPctFactor;
 
       if (effectiveMinutes > 0 && monthlyFixedCostsCents > 0) {
         fixedCostPerMinuteCents = Math.round(monthlyFixedCostsCents / effectiveMinutes);
