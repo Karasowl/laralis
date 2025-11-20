@@ -60,9 +60,9 @@ export function ErrorState({
     
     if (is404) return {
       icon: FileQuestion,
-      iconColor: 'text-purple-500',
-      bgColor: 'bg-purple-50 dark:bg-purple-900/20',
-      borderColor: 'border-purple-200 dark:border-purple-800',
+      iconColor: 'text-secondary',
+      bgColor: 'bg-secondary/10 dark:bg-secondary/20',
+      borderColor: 'border-secondary/20 dark:border-secondary/30',
       title: t('errors.notFound.title'),
       description: t('errors.notFound.description'),
       actionLabel: t('goHome'),

@@ -39,10 +39,10 @@ export function Loading({ className, fullscreen, message, subtitle, compact }: L
       {fullscreen && (
         <div className="absolute inset-0 -z-10">
           {/* Subtle brand gradient and blobs */}
-          <div className="absolute inset-0 bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50 dark:from-gray-950 dark:via-teal-950/60 dark:to-cyan-950/40" />
-          <div className="absolute -top-40 -right-40 w-80 h-80 bg-teal-300/50 dark:bg-teal-700/40 rounded-full mix-blend-multiply filter blur-2xl animate-blob" />
-          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-cyan-300/50 dark:bg-cyan-700/40 rounded-full mix-blend-multiply filter blur-2xl animate-blob animation-delay-2000" />
-          <div className="absolute top-40 left-40 w-80 h-80 bg-blue-300/50 dark:bg-blue-700/40 rounded-full mix-blend-multiply filter blur-2xl animate-blob animation-delay-4000" />
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-accent/5 to-secondary/5 dark:from-background dark:via-primary/10 dark:to-accent/10" />
+          <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/30 dark:bg-primary/40 rounded-full mix-blend-multiply filter blur-2xl animate-blob" />
+          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-primary/20 dark:bg-primary/30 rounded-full mix-blend-multiply filter blur-2xl animate-blob animation-delay-2000" />
+          <div className="absolute top-40 left-40 w-80 h-80 bg-accent/30 dark:bg-accent/40 rounded-full mix-blend-multiply filter blur-2xl animate-blob animation-delay-4000" />
         </div>
       )}
 
@@ -53,7 +53,7 @@ export function Loading({ className, fullscreen, message, subtitle, compact }: L
           <div
             className={cn(
               'absolute inset-0 rounded-full',
-              'bg-gradient-to-tr from-teal-400 via-cyan-400 to-blue-500',
+              'bg-gradient-to-tr from-primary via-primary/80 to-accent',
               'opacity-80 animate-spin [animation-duration:1.2s]'
             )}
             style={{ mask: 'radial-gradient(farthest-side,transparent calc(100% - 6px),#000 0)' }}

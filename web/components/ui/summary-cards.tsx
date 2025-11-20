@@ -33,7 +33,7 @@ const colorClasses = {
   success: 'text-green-600 dark:text-green-400',
   warning: 'text-yellow-600 dark:text-yellow-400',
   danger: 'text-red-600 dark:text-red-400',
-  info: 'text-blue-600 dark:text-blue-400',
+  info: 'text-primary dark:text-primary/80',
 };
 
 const columnClasses = {

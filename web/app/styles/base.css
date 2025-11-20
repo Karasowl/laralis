@@ -82,9 +82,9 @@
   /* Warm red, not harsh */
   --destructive-foreground: 0 0% 98%;
 
-  /* Borders and inputs - subtle but present */
-  --border: 0 0% 25%;
-  /* Subtle warm border */
+  /* Borders and inputs - improved contrast */
+  --border: 0 0% 28%;
+  /* Improved visibility and contrast */
   --input: 0 0% 14%;
   /* Slightly darker than background */
   --ring: 217 91% 60%;

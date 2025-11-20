@@ -40,7 +40,7 @@ export function FloatingAssistant() {
             {/* Entry Mode Button */}
             <button
               onClick={() => handleOpenMode('entry')}
-              className="flex items-center gap-3 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-full shadow-lg transition-all hover:scale-105"
+              className="flex items-center gap-3 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-3 rounded-full shadow-lg transition-all hover:scale-105"
               aria-label={t('fab.entry')}
             >
               <FileEdit className="h-5 w-5" />
@@ -50,7 +50,7 @@ export function FloatingAssistant() {
             {/* Query Mode Button */}
             <button
               onClick={() => handleOpenMode('query')}
-              className="flex items-center gap-3 bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-full shadow-lg transition-all hover:scale-105"
+              className="flex items-center gap-3 bg-secondary hover:bg-secondary/90 text-secondary-foreground px-4 py-3 rounded-full shadow-lg transition-all hover:scale-105"
               aria-label={t('fab.query')}
             >
               <MessageSquare className="h-5 w-5" />
@@ -63,8 +63,8 @@ export function FloatingAssistant() {
         <button
           onClick={() => setIsExpanded(!isExpanded)}
           className={`flex items-center justify-center w-14 h-14 rounded-full shadow-lg transition-all hover:scale-110 ${isExpanded
-              ? 'bg-red-600 hover:bg-red-700 rotate-45'
-              : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
+              ? 'bg-destructive hover:bg-destructive/90 rotate-45'
+              : 'bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90'
             }`}
           aria-label={t('fab.tooltip')}
         >
