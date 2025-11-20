@@ -3738,7 +3738,8 @@
       "previousField": "← Anterior",
       "currentField": "Campo actual:",
       "showingResults": "Mostrando 10 de {total} resultados",
-      "creating": "Vamos a crear un nuevo {entity}. Comenzamos con el primer campo."
+      "creating": "Vamos a crear un nuevo {entity}. Comenzamos con el primer campo.",
+      "actionExecutedSuccess": "Acción ejecutada con éxito"
     },
     "actions": {
       "suggestion": "Sugerencia de Acción",

@@ -13,9 +13,11 @@ import { useTranslations } from 'next-intl'
 import { VoiceRecorder } from '../VoiceRecorder'
 import { AudioPlayer } from '../AudioPlayer'
 import { DataVisualization } from '../DataVisualization'
+import { ActionConfirmCard } from '@/components/ui/action-confirm-card'
 import { useCurrentClinic } from '@/hooks/use-current-clinic'
 import { calculateConversationTokens, getTokenUsageStatus } from '@/lib/ai/token-counter'
 import ChatHistoryList from './ChatHistoryList'
+import type { ActionSuggestion, ActionResult } from '@/lib/ai/types'
 
 interface QueryAssistantProps {
   onClose: () => void
@@ -29,6 +31,7 @@ interface QueryMessage {
   thinking?: string
   data?: any
   responseTimeMs?: number
+  suggestedAction?: ActionSuggestion
 }
 
 export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAssistantProps) {
@@ -130,7 +133,8 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
                 text: msg.content,
                 thinking: msg.metadata?.thinking,
                 data: msg.metadata?.data,
-                responseTimeMs: msg.metadata?.responseTimeMs
+                responseTimeMs: msg.metadata?.responseTimeMs,
+                suggestedAction: msg.metadata?.suggestedAction
               }))
               setConversation(mappedMessages)
               // Scroll to bottom initially
@@ -340,6 +344,9 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
                 updated[assistantMessageIndex] = {
                   ...updated[assistantMessageIndex],
                   responseTimeMs,
+                  thinking: metadata?.thinking,
+                  data: metadata?.data,
+                  suggestedAction: metadata?.suggestedAction,
                 }
                 return updated
               })
@@ -463,6 +470,48 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
     setShowThinking({})
     setHasAutoNamed(false)
     setCurrentSessionTitle(defaultTitle)
+  }
+
+  const handleActionConfirm = async (messageIndex: number, result: ActionResult) => {
+    // Add success message to conversation
+    const successMessage = result.result?.changes?.join('\n') || tMessages('actionExecutedSuccess')
+
+    setConversation((prev) => [
+      ...prev,
+      {
+        role: 'assistant',
+        text: `✅ ${successMessage}`,
+      },
+    ])
+
+    // Save success message to DB
+    saveMessageToDB('assistant', `✅ ${successMessage}`)
+
+    // Remove suggestedAction from the original message
+    setConversation((prev) => {
+      const updated = [...prev]
+      if (updated[messageIndex]) {
+        updated[messageIndex] = {
+          ...updated[messageIndex],
+          suggestedAction: undefined,
+        }
+      }
+      return updated
+    })
+  }
+
+  const handleActionReject = (messageIndex: number) => {
+    // Simply remove the suggestedAction from the message
+    setConversation((prev) => {
+      const updated = [...prev]
+      if (updated[messageIndex]) {
+        updated[messageIndex] = {
+          ...updated[messageIndex],
+          suggestedAction: undefined,
+        }
+      }
+      return updated
+    })
   }
 
   return (
@@ -644,6 +693,18 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
                   </div>
                 )}
               </div>
+
+              {/* Action Confirmation Card (below assistant message) */}
+              {msg.role === 'assistant' && msg.suggestedAction && currentClinic?.id && (
+                <div className="w-full mt-3 animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
+                  <ActionConfirmCard
+                    suggestion={msg.suggestedAction}
+                    clinicId={currentClinic.id}
+                    onConfirm={(result) => handleActionConfirm(idx, result)}
+                    onReject={() => handleActionReject(idx)}
+                  />
+                </div>
+              )}
             </div>
           ))}
 
