@@ -178,15 +178,15 @@ export function EntitySelector({ onSelect }: EntitySelectorProps) {
                 disabled={!entity.available}
                 className={`flex items-center gap-4 p-3 rounded-lg border transition-all ${
                   entity.available
-                    ? 'hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/20 cursor-pointer hover:scale-[1.02]'
+                    ? 'hover:border-primary hover:bg-primary/10 dark:hover:bg-primary/20 cursor-pointer hover:scale-[1.02]'
                     : 'opacity-50 cursor-not-allowed bg-muted'
                 }`}
               >
                 <div
                   className={`flex items-center justify-center w-10 h-10 rounded-full ${
                     entity.available
-                      ? 'bg-gradient-to-r from-blue-500 to-purple-500'
-                      : 'bg-gray-400'
+                      ? 'bg-gradient-to-r from-primary to-secondary'
+                      : 'bg-muted'
                   }`}
                 >
                   <entity.icon className="h-5 w-5 text-white" />

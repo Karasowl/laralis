@@ -122,24 +122,24 @@ export function VoiceRecorder({
       <button
         onClick={isRecording ? stopRecording : startRecording}
         disabled={disabled || isTranscribing}
-        className={`relative flex items-center justify-center w-16 h-16 rounded-full transition-all ${
+        className={`relative flex items-center justify-center w-16 h-16 rounded-full transition-all shadow-lg ${
           isRecording
-            ? 'bg-red-500 hover:bg-red-600 animate-pulse'
+            ? 'bg-destructive hover:bg-destructive/90 animate-pulse'
             : isTranscribing
-              ? 'bg-gray-400 cursor-not-allowed'
-              : 'bg-blue-600 hover:bg-blue-700 hover:scale-110'
+              ? 'bg-muted cursor-not-allowed'
+              : 'bg-primary hover:bg-primary/90 hover:scale-110'
         } disabled:opacity-50 disabled:cursor-not-allowed`}
         aria-label={isRecording ? t('stopRecording') : t('speak')}
       >
         {isRecording ? (
-          <Square className="h-6 w-6 text-white" />
+          <Square className="h-6 w-6 text-destructive-foreground" />
         ) : (
-          <Mic className="h-7 w-7 text-white" />
+          <Mic className="h-7 w-7 text-primary-foreground" />
         )}
 
         {/* Recording indicator ring */}
         {isRecording && (
-          <span className="absolute inset-0 rounded-full border-4 border-red-300 animate-ping" />
+          <span className="absolute inset-0 rounded-full border-4 border-destructive/30 animate-ping" />
         )}
       </button>
 
