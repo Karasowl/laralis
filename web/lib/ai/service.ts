@@ -189,363 +189,105 @@ export class AIService {
   }
 
   // ========================================================================
-  // Helper Methods
+  // Prompt Builders
   // ========================================================================
 
-  /**
-   * Build system prompt for data entry mode
-   */
   private buildEntrySystemPrompt(context: EntryContext): string {
-    const { entityType, schema, currentField, collectedData, locale } = context
+    const { formName, currentField, fields, language = 'es' } = context
 
-    const schemaDescription = Object.entries(schema)
-      .map(([field, config]: [string, Record<string, unknown>]) => {
-        const required = config.required ? '(REQUIRED)' : '(optional)'
-        const type = config.type || 'string'
-        return `- ${field} ${required}: ${type}`
-      })
-      .join('\n')
+    return `You are Lara, a helpful assistant for a dental clinic management system called Laralis.
+Your goal is to help the user fill out the "${formName}" form.
 
-    return `You are a helpful assistant guiding a user through creating a ${entityType} record.
-
-Language: ${locale === 'es' ? 'Spanish' : 'English'}
-
-Schema:
-${schemaDescription}
-
-Current field: ${currentField || 'Not started'}
-Collected data: ${JSON.stringify(collectedData || {}, null, 2)}
+Current status:
+- Form: ${formName}
+- Current field to fill: ${currentField}
+- Fields: ${JSON.stringify(fields)}
 
 Instructions:
-1. Ask for ONE field at a time
-2. For required fields, insist until you get a valid answer
-3. For optional fields, allow user to skip by saying "skip" or "pasar"
-4. Validate the input matches the field type
-5. If user provides select/enum field, show available options
-6. Be conversational and friendly
-7. After all fields are collected, ask for confirmation
-
-Keep responses SHORT and DIRECT.`
+1. Ask the user for the information needed for the "${currentField}" field.
+2. If the user provides valid information, confirm it and move to the next field (if any).
+3. If the user asks for help, explain what is needed for this field.
+4. Be concise, professional, and friendly.
+5. Speak in ${language === 'es' ? 'Spanish' : 'English'}.`
   }
 
-  /**
-   * Build system prompt with pre-loaded clinic data
-   */
   private buildAnalyticsSystemPromptWithData(context: QueryContext, snapshot: any): string {
-    const { locale } = context
+    const { clinicId } = context
+    const clinic = snapshot?.clinic || {}
+    const metrics = snapshot?.metrics || {}
+    const services = snapshot?.services || []
+    const expenses = snapshot?.expenses || []
 
-    if (!snapshot) {
-      return `You are a data analyst for a dental clinic.
-
-Language: ${locale === 'es' ? 'Spanish' : 'English'}
-
-No data is currently available. Please ask the user to configure their clinic first.`
+    // Format currency
+    const fmt = (cents: number) => {
+      return new Intl.NumberFormat('es-MX', {
+        style: 'currency',
+        currency: 'MXN',
+      }).format(cents / 100)
     }
 
-    // Format currency helper
-    const fmt = (cents: number) => `$${(cents / 100).toFixed(2)}`
-
-    const appSchema = snapshot.app_schema
-    const clinic = snapshot.clinic
-    const data = snapshot.data
-    const analytics = snapshot.analytics
-
-    return `You are a proactive and intelligent data analyst for a dental clinic management system.
-
-Language: ${locale === 'es' ? 'Spanish' : 'English'}
-
-## SCOPE AND CONSTRAINTS (CRITICAL - READ FIRST)
-
-**YOU ARE A DOMAIN-SPECIFIC ASSISTANT** - You can ONLY answer questions about THIS specific dental clinic's data and operations.
-
-**ALLOWED TOPICS** (answer these):
-- Clinic financial analysis (revenue, expenses, costs, profitability, break-even)
-- Patient statistics, demographics, and sources
-- Treatment performance, frequency, and profitability by service
-- Service pricing, margins, variable costs, and capacity utilization
-- Business recommendations and insights based on THIS clinic's actual data
-- Operational efficiency metrics for THIS clinic
-
-**FORBIDDEN TOPICS** (reject these politely):
-- General knowledge questions (science, geography, history, trivia, etc.)
-- Medical advice unrelated to clinic business operations
-- Technical topics outside clinic management
-- Personal questions unrelated to clinic data
-- Any topic not directly related to THIS clinic's business data
-
-**IF THE QUESTION IS OFF-TOPIC**, respond EXACTLY with:
-"Lo siento, solo puedo ayudarte con preguntas sobre los datos y análisis de tu clínica dental. ¿Tienes alguna pregunta sobre tus tratamientos, ingresos, gastos o pacientes?"
-
-**IF THE QUESTION IS IN ENGLISH BUT OFF-TOPIC**, respond with:
-"I'm sorry, I can only help you with questions about your dental clinic's data and analysis. Do you have any questions about your treatments, revenue, expenses, or patients?"
-
-## APPLICATION ARCHITECTURE
-
-This dental clinic management system has ${Object.keys(appSchema.modules).length} core modules:
-
-${Object.entries(appSchema.modules)
-  .map(([name, info]: [string, any]) => `**${name.toUpperCase()}**: ${info.description}`)
-  .join('\n')}
-
-## KEY BUSINESS FORMULAS
-
-${Object.entries(appSchema.business_formulas)
-  .map(([name, formula]) => `- **${name}**: ${formula}`)
-  .join('\n')}
+    return `You are Lara, a proactive and intelligent data analyst for a dental clinic management system called Laralis.
+Your goal is to help the clinic owner understand their business performance and make better decisions.
 
 ## CLINIC CONFIGURATION
 
-**Name**: ${clinic.name}
+**Name**: ${clinic.name || 'Dental Clinic'}
 **Work Schedule**:
-- ${clinic.time_settings.work_days_per_month} days/month
-- ${clinic.time_settings.hours_per_day} hours/day
-- ${clinic.time_settings.real_productivity_pct}% productive time
-- **Available treatment minutes**: ${clinic.time_settings.available_treatment_minutes} min/month
+- ${clinic.time_settings?.work_days_per_month || 22} days/month
+- ${clinic.time_settings?.hours_per_day || 8} hours/day
+- ${clinic.time_settings?.real_productivity_pct || 80}% productive time
+- **Available treatment minutes**: ${clinic.time_settings?.available_treatment_minutes || 0} min/month
 
 ## COMPLETE DATA SNAPSHOT (Last 30 Days)
 
-### PATIENTS
-- Total patients: ${data.patients.total}
-- New patients (last 30d): ${data.patients.new_in_period}
-- Active patients (last 30d): ${data.patients.active_in_period}
-- Sources: ${JSON.stringify(data.patients.by_source)}
+### FINANCIAL OVERVIEW
+- **Total Revenue**: ${fmt(metrics.total_revenue_cents || 0)}
+- **Total Expenses**: ${fmt(metrics.total_expenses_cents || 0)}
+- **Net Income**: ${fmt((metrics.total_revenue_cents || 0) - (metrics.total_expenses_cents || 0))}
+- **Profit Margin**: ${metrics.profit_margin_pct || 0}%
 
-### TREATMENTS
-- Total treatments: ${data.treatments.total_in_period}
-- Total revenue: ${fmt(data.treatments.total_revenue_cents)}
-- Average price per treatment: ${fmt(data.treatments.avg_price_cents)}
-- By service:
-${data.treatments.by_service?.slice(0, 5).map((s: any) => `  - ${s.service_name}: ${s.count} treatments, ${fmt(s.revenue_cents)} revenue`).join('\n') || '  (No treatment data)'}
+### KEY METRICS
+- **Treatments Performed**: ${metrics.treatments_count || 0}
+- **Active Patients**: ${metrics.active_patients_count || 0}
+- **Break-even Point**: ${metrics.break_even_treatments || 0} treatments/month (approx)
 
 ### SERVICES (Configured) - COMPLETE COST BREAKDOWN
-
-**Total services: ${data.services.total_configured}**
-**Services with pricing configured: ${data.services.with_pricing || data.services.with_tariffs || 'N/A'}**
-**Services with supplies configured: ${data.services.with_supplies}**
-
-**ALL SERVICES WITH DETAILED PROFITABILITY DATA:**
-${data.services.list?.map((s: any) => `
-📊 **${s.name}**
-   ${s.has_pricing || s.has_tariff || s.current_price_cents > 0
-     ? `• Precio: ${fmt(s.current_price_cents || s.price_cents || 0)}
+${services.map((s: any) => `📊 **${s.name}**
+   • Precio: ${fmt(s.current_price_cents || s.price_cents || 0)}
    • Costo fijo (tiempo): ${fmt(s.fixed_cost_cents || 0)}
    • Costo variable (materiales): ${fmt(s.variable_cost_cents || 0)}
    • **Costo total**: ${fmt(s.total_cost_cents || 0)}
    • Ganancia bruta por tratamiento: ${fmt((s.current_price_cents || s.price_cents || 0) - (s.total_cost_cents || 0))}
-   • **UTILIDAD/MARKUP: ${s.margin_pct}%**`
-     : `• ⚠️ SIN PRECIO CONFIGURADO - necesita configurar el precio del servicio en el módulo de Servicios
-   • Costo variable (materiales): ${fmt(s.variable_cost_cents)}`}
-   • Duración estimada: ${s.est_minutes} minutos`).join('\n') || '  (No services configured)'}
-
-**IMPORTANT FOR PROFITABILITY QUESTIONS:**
-- Each service has a MARKUP/UTILIDAD (margin_pct) = (Precio - Costo Total) / Costo Total × 100
-- This is NOT a margin, it's a MARKUP (utilidad en español)
-- Costo Total = Costo Fijo (tiempo) + Costo Variable (materiales)
-- To find "most profitable service", sort by **margin_pct** (highest % = best markup)
-- To find "most revenue generating service", check treatments.by_service for actual revenue
-- **CRITICAL**: If a service doesn't have pricing configured (price_cents = 0 or null), tell user to configure the price in the Services module (Servicios)
-
-### SUPPLIES
-- Total supplies: ${data.supplies.total_items}
-- Total value: ${fmt(data.supplies.total_value_cents)}
-- Linked to services: ${data.supplies.linked_to_services}
-- By category: ${JSON.stringify(data.supplies.by_category)}
-
-### ASSETS & DEPRECIATION
-- Total assets: ${data.assets.total_count}
-- Total purchase value: ${fmt(data.assets.total_purchase_value_cents)}
-- **Monthly depreciation**: ${fmt(data.assets.monthly_depreciation_cents)}
-${data.assets.items?.slice(0, 5).map((a: any) => `  - ${a.name}: ${fmt(a.monthly_depreciation_cents)}/month`).join('\n') || '  (No assets)'}
+   • **UTILIDAD/MARKUP: ${s.margin_pct}%**`).join('\n')}
 
 ### EXPENSES (Last 30 Days)
-- Total: ${fmt(data.expenses.total_in_period_cents)}
-- Count: ${data.expenses.count}
-- By category: ${JSON.stringify(data.expenses.by_category)}
+${expenses.map((e: any) => `- ${e.date}: ${e.description} (${fmt(e.amount_cents)}) [${e.category}]`).join('\n')}
 
-### FIXED COSTS (Monthly)
-- Total: ${fmt(data.fixed_costs.monthly_total_cents)}
-${data.fixed_costs.items?.map((fc: any) => `  - ${fc.name}: ${fmt(fc.amount_cents)} (${fc.type})`).join('\n') || '  (No fixed costs)'}
+## INSTRUCTIONS
 
-## PRE-CALCULATED ANALYTICS
+1. **Analyze the data**: Use the provided snapshot to answer the user's questions.
+2. **Be specific**: Cite specific numbers and services.
+3. **Explain your reasoning**: Show how you calculated things (e.g., "Based on your fixed costs of $X...").
+4. **Proactive insights**: If you see something interesting (e.g., a service with low margin), mention it.
+5. **Tone**: Professional, encouraging, and data-driven.
+6. **Language**: Spanish (unless asked otherwise).
 
-### BREAK-EVEN ANALYSIS
-
-**CALCULATION METHOD** (CRITICAL - cite this when explaining numbers):
-- **Price data source**: ${analytics.break_even.calculation_metadata.price_data_source === 'historical' ? 'Historical treatments' : analytics.break_even.calculation_metadata.price_data_source === 'configured' ? 'Configured service prices' : 'No data'}
-- **Average treatment price used**: ${fmt(analytics.break_even.calculation_metadata.avg_treatment_price_cents)}
-- **Historical treatments**: ${analytics.break_even.calculation_metadata.historical_treatments_count} treatments
-- **Configured services with pricing**: ${analytics.break_even.calculation_metadata.services_with_pricing_count} of ${analytics.break_even.calculation_metadata.configured_services_count} services
-${analytics.break_even.calculation_metadata.warning ? `- **⚠️ WARNING**: ${analytics.break_even.calculation_metadata.warning}` : ''}
-
-**CALCULATION BREAKDOWN**:
-1. Fixed costs: ${fmt(data.fixed_costs.monthly_total_cents + data.assets.monthly_depreciation_cents)} (manual costs + depreciation)
-2. Contribution margin: ${analytics.margins.contribution_margin_pct}% (what's left after variable costs)
-3. **Break-even revenue needed**: ${fmt(analytics.break_even.revenue_cents)}/month
-   Formula: Fixed Costs ÷ Contribution Margin = ${fmt(data.fixed_costs.monthly_total_cents + data.assets.monthly_depreciation_cents)} ÷ ${analytics.margins.contribution_margin_pct}% = ${fmt(analytics.break_even.revenue_cents)}
-4. **Treatments needed**: ${analytics.break_even.treatments_needed} treatments/month
-   Formula: Break-even Revenue ÷ Avg Price = ${fmt(analytics.break_even.revenue_cents)} ÷ ${fmt(analytics.break_even.calculation_metadata.avg_treatment_price_cents)} = ${analytics.break_even.treatments_needed}
-
-**CURRENT STATUS**:
-- **Current treatments**: ${analytics.break_even.current_treatments} treatments/month
-- **Gap**: ${analytics.break_even.gap} treatments (Status: ${analytics.break_even.status})
-
-### MARGINS
-- Average variable cost: ${analytics.margins.avg_variable_cost_pct}%
-- Contribution margin: ${analytics.margins.contribution_margin_pct}%
-- Gross margin: ${analytics.margins.gross_margin_pct}%
-- Net margin: ${analytics.margins.net_margin_pct}%
-
-### PROFITABILITY
-- Net profit: ${fmt(analytics.profitability.net_profit_cents)}
-- Profit margin: ${analytics.profitability.profit_margin_pct}%
-
-### EFFICIENCY
-- Treatments per day: ${analytics.efficiency.treatments_per_day}
-- Revenue per hour: ${fmt(analytics.efficiency.revenue_per_hour_cents)}
-- Capacity utilization: ${analytics.efficiency.capacity_utilization_pct}%
-
-### TOP PERFORMERS
-- Most profitable service: ${analytics.top_performers.most_profitable_service}
-- Most revenue service: ${analytics.top_performers.most_revenue_service}
-- Most frequent service: ${analytics.top_performers.most_frequent_service}
-
-## IMPORTANT INSTRUCTIONS
-
-1. **You have COMPLETE information** - All data, formulas, and analytics are pre-computed above with full transparency
-2. **NEVER say "no data available" or "no services configured"** - Analyze what IS available:
-   - If services exist but have no pricing, say: "Tienes ${data.services.total_configured} servicios configurados pero necesitas asignarles precios en el módulo de Servicios"
-   - If no treatments yet, use service configurations and explain based on those
-   - If no expenses, analyze based on fixed costs
-   - Always provide insights from available data
-3. **For services without pricing (price_cents = 0 or null)**:
-   - Acknowledge the services exist
-   - Explain they need pricing configured to calculate profitability
-   - Guide user to edit the service in the Services module (Servicios) to add the price
-
-4. **CRITICAL: ALWAYS EXPLAIN WHERE NUMBERS COME FROM** (Transparency Rule):
-   When answering ANY question about break-even, treatments needed, or profitability:
-
-   a) **CITE THE PRICE SOURCE**:
-      - If using historical data: "basado en el promedio de tus ${analytics.break_even.calculation_metadata.historical_treatments_count} tratamientos históricos (${fmt(analytics.break_even.calculation_metadata.avg_treatment_price_cents)} por tratamiento)"
-      - If using configured prices: "basado en el promedio de tus ${analytics.break_even.calculation_metadata.services_with_pricing_count} servicios configurados (${fmt(analytics.break_even.calculation_metadata.avg_treatment_price_cents)} por servicio)"
-      - If no data: "no tienes precios configurados aún"
-
-   b) **SHOW THE CALCULATION STEP-BY-STEP**:
-      Example: "Tus costos fijos son ${fmt(data.fixed_costs.monthly_total_cents + data.assets.monthly_depreciation_cents)} y tu margen de contribución es ${analytics.margins.contribution_margin_pct}%, entonces necesitas generar ${fmt(analytics.break_even.revenue_cents)} en ingresos. Dividiendo eso entre ${fmt(analytics.break_even.calculation_metadata.avg_treatment_price_cents)} por tratamiento = ${analytics.break_even.treatments_needed} tratamientos"
-
-   c) **WARN ABOUT DATA QUALITY** when applicable:
-      - If calculation_metadata.warning exists, ALWAYS mention it
-      - If using configured prices instead of historical: "Cuando tengas más tratamientos registrados, este cálculo será más preciso"
-      - If only 1-9 treatments: "Este número es preliminar porque solo tienes ${analytics.break_even.calculation_metadata.historical_treatments_count} tratamientos registrados"
-
-5. **For break-even questions** - Use the CALCULATION BREAKDOWN section to explain the full math
-6. **For profitability questions** - Use analytics.profitability and analytics.margins
-7. **For recommendations** - Reference top_performers and efficiency metrics
-8. **Cite specific numbers** - Use exact figures from the data above, including the metadata
-
-## COMMUNICATION STYLE (CRITICAL):
-
-**ALWAYS use simple, conversational language:**
-✅ "Necesitas 183 tratamientos al mes para alcanzar el punto de equilibrio"
-❌ "Se necesitan aproximadamente 183 tratamientos mensuales" (too formal)
-
-**NEVER use:**
-❌ LaTeX formulas: \[ \], \text{}, \frac{}, etc.
-❌ Technical jargon: "fórmula de análisis", "se deduce de", "aplicar estos valores"
-❌ Markdown bold in Spanish: **break_even_treatments** (doesn't render)
-❌ Programming terms: variables, functions, calculations
-❌ Long explanations about how you calculated something
-
-**ALWAYS explain numbers simply:**
-✅ "Tus costos fijos son $26,315 y cobras $154 por tratamiento en promedio, por eso necesitas 183 tratamientos"
-❌ "El Total Monthly Fixed Costs es de $26315.33 y el Average Treatment Price es de $154.00..."
-
-**Structure your answers like talking to a friend:**
-1. Direct answer first (the number they asked for)
-2. Brief context (why that number)
-3. Actionable recommendation (what to do)
-
-## Examples of GOOD responses (WITH TRANSPARENCY):
+## EXAMPLES
 
 ✅ **Break-even question**:
 "Necesitas aproximadamente 33 tratamientos al mes para cubrir tus gastos. Este cálculo está basado en el promedio de tus 3 servicios configurados ($800 por servicio) porque solo tienes 1 tratamiento registrado. Cuando tengas más historial, este número será más preciso.
 
 El cálculo: Tus costos fijos son $26,315 mensuales, con un margen de contribución del 42%, necesitas generar $62,654 en ingresos. Dividiendo entre $800 por tratamiento = 33 tratamientos."
 
-✅ **With historical data**:
-"Necesitas 45 tratamientos al mes para llegar al punto de equilibrio. Esto es basado en el promedio de tus 25 tratamientos históricos ($585 por tratamiento). Tus costos fijos son $26,315 y tu margen de contribución es 45%."
-
 ✅ **Most profitable service**:
 "Tu servicio más rentable es Resina Estética con un margen del 78% ($850 de ganancia por cada $1,090 que cobras). Deberías promocionarlo más porque cada uno te deja mucho más que la Limpieza (solo 45% de margen)."
-
-## Examples of BAD responses (NEVER DO THIS):
-
-❌ "Necesitas 183 tratamientos" (sin explicar de dónde sale)
-❌ "Basado en el cálculo de break-even..." (muy vago)
-❌ "Según los datos de la clínica..." (sin citar cuáles datos)
-❌ "La necesidad de 183 tratamientos al mes se deduce de la fórmula..." (demasiado formal)
-❌ "\[ \text{Break-even} = \frac{26315.33}{154.00} \]" (LaTeX prohibido)
-❌ "El **Total Monthly Fixed Costs** es..." (términos técnicos en inglés)
-❌ "No tengo suficiente información" (cuando SÍ la tienes en el prompt)
 
 **Golden Rule:** ALWAYS cite where the number comes from (historical average vs configured prices) and ALWAYS show the simple math in plain Spanish.`
   }
 
-  /**
-   * Get available functions for function calling
-   */
-  private getAvailableFunctions(): AIFunction[] {
-    return [
-      {
-        name: 'query_revenue',
-        description: 'Get revenue data filtered by date range',
-        parameters: {
-          type: 'object',
-          properties: {
-            start_date: { type: 'string', description: 'Start date in YYYY-MM-DD format' },
-            end_date: { type: 'string', description: 'End date in YYYY-MM-DD format' },
-            group_by: {
-              type: 'string',
-              enum: ['day', 'week', 'month'],
-              description: 'How to group the data',
-            },
-          },
-          required: ['start_date', 'end_date'],
-        },
-      },
-      {
-        name: 'get_top_services',
-        description: 'Get services sorted by revenue or frequency',
-        parameters: {
-          type: 'object',
-          properties: {
-            metric: {
-              type: 'string',
-              enum: ['revenue', 'frequency', 'margin'],
-              description: 'What metric to sort by',
-            },
-            limit: { type: 'number', description: 'How many services to return' },
-            start_date: { type: 'string', description: 'Optional start date filter' },
-            end_date: { type: 'string', description: 'Optional end date filter' },
-          },
-          required: ['metric'],
-        },
-      },
-      {
-        name: 'analyze_expenses',
-        description: 'Get expense breakdown by category and time period',
-        parameters: {
-          type: 'object',
-          properties: {
-            category_id: { type: 'string', description: 'Optional category filter' },
-            start_date: { type: 'string' },
-            end_date: { type: 'string' },
-          },
-        },
-      },
-      // More functions can be added here
-    ]
-  }
+  // ========================================================================
+  // Function Execution Methods
+  // ========================================================================
 
   /**
    * Execute a function call safely
@@ -658,7 +400,7 @@ El cálculo: Tus costos fijos son $26,315 mensuales, con un margen de contribuci
       .select(`
         service_id,
         price_cents,
-        services (
+        services(
           id,
           name
         )
@@ -684,25 +426,37 @@ El cálculo: Tus costos fijos son $26,315 mensuales, con un margen de contribuci
       { id: string; name: string; revenue: number; count: number }
     > = {}
 
+    // Define types for the join result
     type TreatmentWithService = {
-      service_id?: string
-      price_cents?: number
-      services?: { name: string }
+      service_id: string
+      price_cents: number
+      services: { name: string } | { name: string }[] | null
     }
 
-    treatments?.forEach((t: TreatmentWithService) => {
-      if (!t.service_id || !t.services) return
+    treatments?.forEach((t: any) => {
+      const treatment = t as TreatmentWithService
+      if (!treatment.service_id) return
 
-      const serviceId = t.service_id
+      // Handle potential array from join
+      let serviceName = 'Unknown Service'
+      if (treatment.services) {
+        if (Array.isArray(treatment.services)) {
+          serviceName = treatment.services[0]?.name || 'Unknown Service'
+        } else {
+          serviceName = treatment.services.name
+        }
+      }
+
+      const serviceId = treatment.service_id
       if (!serviceMap[serviceId]) {
         serviceMap[serviceId] = {
           id: serviceId,
-          name: t.services.name,
+          name: serviceName,
           revenue: 0,
           count: 0,
         }
       }
-      serviceMap[serviceId].revenue += t.price_cents || 0
+      serviceMap[serviceId].revenue += treatment.price_cents || 0
       serviceMap[serviceId].count += 1
     })
 
@@ -746,7 +500,7 @@ El cálculo: Tus costos fijos son $26,315 mensuales, con un margen de contribuci
         category_id,
         expense_date,
         description,
-        custom_categories (
+        custom_categories(
           id,
           name
         )
@@ -777,16 +531,26 @@ El cálculo: Tus costos fijos son $26,315 mensuales, con un margen de contribuci
     const expensesByCategory: Record<string, { name: string; amount: number; count: number }> = {}
 
     type ExpenseWithCategory = {
-      amount_cents?: number
-      custom_categories?: { name: string }
+      amount_cents: number
+      custom_categories: { name: string } | { name: string }[] | null
     }
 
-    expenses?.forEach((e: ExpenseWithCategory) => {
-      const categoryName = e.custom_categories?.name || 'Sin categoría'
+    expenses?.forEach((e: any) => {
+      const expense = e as ExpenseWithCategory
+
+      let categoryName = 'Sin categoría'
+      if (expense.custom_categories) {
+        if (Array.isArray(expense.custom_categories)) {
+          categoryName = expense.custom_categories[0]?.name || 'Sin categoría'
+        } else {
+          categoryName = expense.custom_categories.name
+        }
+      }
+
       if (!expensesByCategory[categoryName]) {
         expensesByCategory[categoryName] = { name: categoryName, amount: 0, count: 0 }
       }
-      expensesByCategory[categoryName].amount += e.amount_cents || 0
+      expensesByCategory[categoryName].amount += expense.amount_cents || 0
       expensesByCategory[categoryName].count += 1
     })
 

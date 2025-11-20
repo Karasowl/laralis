@@ -519,13 +519,14 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
             >
               <div
                 className={`max-w-[95%] sm:max-w-[85%] ${msg.role === 'user'
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-muted text-foreground border'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-muted text-foreground border'
                   } px-4 py-3 rounded-2xl`}
               >
                 {msg.role === 'assistant' && (
                   <div className="flex items-center gap-3 mb-2">
-                    <AudioPlayer text={msg.text} />
+                    <span className="text-xs font-medium text-purple-600 dark:text-purple-400">Lara</span>
+                    {msg.text && <AudioPlayer text={msg.text} />}
                     {msg.thinking && (
                       <button
                         onClick={() => toggleThinking(idx)}
