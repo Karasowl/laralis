@@ -100,8 +100,9 @@ export async function GET(request: NextRequest) {
       // Use correct field names from settings_time table schema
       const workDays = timeSettings.work_days || 20;
       const hoursPerDay = timeSettings.hours_per_day || 7;
-      const realPctValue = timeSettings.real_pct ?? 80;
-      const realPctFactor = realPctValue / 100;
+      const rawRealPct = timeSettings.real_pct ?? 0.8;
+      // DB stores as decimal (0-1), so if value <= 1, use as-is; otherwise convert from percentage
+      const realPctFactor = rawRealPct <= 1 ? rawRealPct : rawRealPct / 100;
 
       const minutesMonth = workDays * hoursPerDay * 60;
       const effectiveMinutes = minutesMonth * realPctFactor;

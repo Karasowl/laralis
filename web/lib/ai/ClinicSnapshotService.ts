@@ -169,8 +169,11 @@ export class ClinicSnapshotService {
     // Use correct field names from settings_time table schema
     const workDays = timeSettings?.work_days || 20
     const hoursPerDay = timeSettings?.hours_per_day || 7
-    const realPctValue = timeSettings?.real_pct ?? 80
-    const realPctFactor = realPctValue / 100
+    const rawRealPct = timeSettings?.real_pct ?? 0.8
+    // DB stores as decimal (0-1), so if value <= 1, use as-is; otherwise convert from percentage
+    const realPctFactor = rawRealPct <= 1 ? rawRealPct : rawRealPct / 100
+    // For display, convert to percentage (0-100)
+    const realPctDisplay = rawRealPct <= 1 ? rawRealPct * 100 : rawRealPct
 
     const availableMinutes = workDays * hoursPerDay * 60 * realPctFactor
 
@@ -180,7 +183,7 @@ export class ClinicSnapshotService {
       time_settings: {
         work_days: workDays,
         hours_per_day: hoursPerDay,
-        real_productivity_pct: realPctValue,
+        real_productivity_pct: realPctDisplay,
         available_treatment_minutes: Math.round(availableMinutes),
       },
     }
