@@ -54,7 +54,29 @@
       "newQuery": "New query",
       "showThinking": "Show reasoning",
       "hideThinking": "Hide reasoning",
-      "thinkingProcess": "Reasoning process"
+      "thinkingProcess": "Reasoning process",
+      "newConversation": "New conversation",
+      "tokenLimitReachedPlaceholder": "Token limit reached. Start a new conversation.",
+      "history": {
+        "title": "Conversation History",
+        "newChat": "New conversation",
+        "editTitle": "Edit title",
+        "deleteSession": "Delete conversation",
+        "confirmDelete": "Delete this conversation?",
+        "confirmDeleteDesc": "This action cannot be undone.",
+        "save": "Save",
+        "cancel": "Cancel",
+        "emptyHistory": "No previous conversations",
+        "emptyHistoryDesc": "Your conversations will appear here",
+        "now": "Now",
+        "justNow": "Just now",
+        "minutesAgo": "{minutes}m ago",
+        "hoursAgo": "{hours}h ago",
+        "daysAgo": "{days}d ago",
+        "weeksAgo": "{weeks}w ago",
+        "monthsAgo": "{months}mo ago",
+        "close": "Close"
+      }
     },
     "entities": {
       "patient": "Patient",
@@ -87,7 +109,10 @@
       "saveFailed": "Save failed",
       "queryFailed": "Data query failed",
       "noClinicSelected": "No clinic selected",
-      "unauthorized": "Unauthorized"
+      "unauthorized": "Unauthorized",
+      "tokenLimitReached": "You've reached the token limit for this conversation. Please start a new conversation.",
+      "overloaded": "The server is overloaded. Please try again in a few moments.",
+      "serverError": "Server error. Please try again."
     },
     "status": {
       "idle": "Ready",
@@ -124,5 +149,9 @@
       "query3": "The assistant will analyze your data and give you insights",
       "query4": "You can ask follow-up questions"
     }
+  },
+  "messages": {
+    "greeting": "Hello! I'm Lara, your AI assistant. How can I help you today?",
+    "queryError": "Sorry, there was an error processing your query. Please try again."
   }
 }

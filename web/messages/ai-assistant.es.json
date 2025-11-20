@@ -54,7 +54,29 @@
       "newQuery": "Nueva consulta",
       "showThinking": "Mostrar razonamiento",
       "hideThinking": "Ocultar razonamiento",
-      "thinkingProcess": "Proceso de razonamiento"
+      "thinkingProcess": "Proceso de razonamiento",
+      "newConversation": "Nueva conversación",
+      "tokenLimitReachedPlaceholder": "Límite de tokens alcanzado. Inicia una nueva conversación.",
+      "history": {
+        "title": "Historial de conversaciones",
+        "newChat": "Nueva conversación",
+        "editTitle": "Editar título",
+        "deleteSession": "Eliminar conversación",
+        "confirmDelete": "¿Eliminar esta conversación?",
+        "confirmDeleteDesc": "Esta acción no se puede deshacer.",
+        "save": "Guardar",
+        "cancel": "Cancelar",
+        "emptyHistory": "No hay conversaciones previas",
+        "emptyHistoryDesc": "Tus conversaciones aparecerán aquí",
+        "now": "Ahora",
+        "justNow": "Hace un momento",
+        "minutesAgo": "Hace {minutes}m",
+        "hoursAgo": "Hace {hours}h",
+        "daysAgo": "Hace {days}d",
+        "weeksAgo": "Hace {weeks}sem",
+        "monthsAgo": "Hace {months}mes",
+        "close": "Cerrar"
+      }
     },
     "entities": {
       "patient": "Paciente",
@@ -87,7 +109,10 @@
       "saveFailed": "Error al guardar",
       "queryFailed": "Error al consultar datos",
       "noClinicSelected": "No hay clínica seleccionada",
-      "unauthorized": "No autorizado"
+      "unauthorized": "No autorizado",
+      "tokenLimitReached": "Has alcanzado el límite de tokens para esta conversación. Por favor, inicia una nueva conversación.",
+      "overloaded": "El servidor está sobrecargado. Por favor, inténtalo de nuevo en unos momentos.",
+      "serverError": "Error del servidor. Por favor, inténtalo de nuevo."
     },
     "status": {
       "idle": "Listo",
@@ -124,5 +149,9 @@
       "query3": "El asistente analizará tus datos y te dará insights",
       "query4": "Puedes hacer preguntas de seguimiento"
     }
+  },
+  "messages": {
+    "greeting": "¡Hola! Soy Lara, tu asistente de IA. ¿En qué puedo ayudarte hoy?",
+    "queryError": "Lo siento, hubo un error al procesar tu consulta. Por favor, inténtalo de nuevo."
   }
 }
