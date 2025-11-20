@@ -38,6 +38,7 @@ import { useServiceROI } from '@/hooks/use-service-roi'
 import { useMarketingMetrics } from '@/hooks/use-marketing-metrics'
 import { useCACTrend } from '@/hooks/use-cac-trend'
 import { useChannelROI } from '@/hooks/use-channel-roi'
+import { useAcquisitionTrends } from '@/hooks/use-acquisition-trends'
 import { formatCurrency } from '@/lib/format'
 import { ReportsAdvanced } from '@/app/reports/ReportsAdvanced'
 import { ReportsMarketing } from '@/app/reports/ReportsMarketing'
@@ -232,6 +233,11 @@ export default function InsightsPage() {
     data: channelROIData,
     loading: channelROILoading
   } = useChannelROI({ clinicId: currentClinic?.id, period: 30 })
+
+  const {
+    data: acquisitionTrendsData,
+    loading: acquisitionTrendsLoading
+  } = useAcquisitionTrends({ clinicId: currentClinic?.id, months: 12, projectionMonths: 3 })
 
   useEffect(() => {
     console.log('[Dashboard] useServiceROI - clinicId:', currentClinic?.id, 'data:', roiData, 'loading:', roiLoading)
@@ -484,26 +490,10 @@ export default function InsightsPage() {
             {/* Campaign ROI Analysis */}
             <CampaignROISection />
 
-            {/* Acquisition Trends - Mantener mock por ahora (requiere endpoint adicional) */}
+            {/* Acquisition Trends */}
             <AcquisitionTrendsChart
-              data={(() => {
-                // Mock 12 months + 3 projection months
-                const months = ['Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic', 'Ene']
-                const projectionMonths = ['Feb', 'Mar', 'Abr']
-
-                const historical = months.map((month, i) => ({
-                  month,
-                  patients: Math.floor(15 + Math.random() * 10 + (i * 0.5))
-                }))
-
-                const projection = projectionMonths.map((month, i) => ({
-                  month,
-                  projection: Math.floor(25 + Math.random() * 5 + (i * 0.5))
-                }))
-
-                return [...historical, ...projection]
-              })()}
-              loading={false}
+              data={acquisitionTrendsData}
+              loading={acquisitionTrendsLoading}
             />
 
             {/* Charts Grid */}
