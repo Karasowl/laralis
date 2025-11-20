@@ -27,6 +27,7 @@ import type {
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { AIProviderFactory } from './factory'
 import { ClinicSnapshotService } from './ClinicSnapshotService'
+import { ACTION_FUNCTIONS, isActionFunction } from './actions-functions'
 
 export class AIService implements ActionExecutor {
   private stt: STTProvider | null = null
@@ -106,24 +107,190 @@ export class AIService implements ActionExecutor {
 
   /**
    * Query database using function calling
-   * For analytics/insights mode
+   * For analytics/insights mode with Actions System support
    */
   async queryDatabase(query: string, context: QueryContext): Promise<QueryResult> {
-    // Pre-load ALL clinic data in one go (faster and cheaper than function calling)
+    // Pre-load ALL clinic data in one go
     const clinicSnapshot = await this.getClinicSnapshot(context)
-
     const systemPrompt = this.buildAnalyticsSystemPromptWithData(context, clinicSnapshot)
 
-    // Single LLM call with all data in context - no function calling needed
-    const response = await this.getLLM().chat([
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: query },
-    ])
+    const llm = this.getLLM()
+
+    // Check if LLM supports function calling
+    if (llm.supportsFunctionCalling) {
+      // Use function calling with ACTION_FUNCTIONS
+      const messages: Message[] = [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: query },
+      ]
+
+      const llmResponse = await llm.chatWithFunctions(messages, ACTION_FUNCTIONS)
+
+      // Check if LLM wants to execute an action
+      if (llmResponse.functionCall && isActionFunction(llmResponse.functionCall.name)) {
+        // Convert function call to ActionSuggestion
+        const actionSuggestion = this.convertFunctionCallToActionSuggestion(
+          llmResponse.functionCall,
+          llmResponse.content || '',
+          clinicSnapshot
+        )
+
+        return {
+          answer: llmResponse.content || '',
+          data: clinicSnapshot,
+          thinking: llmResponse.thinkingProcess,
+          suggestedAction: actionSuggestion,
+        }
+      }
+
+      // No action suggested, return normal response
+      return {
+        answer: llmResponse.content || '',
+        data: clinicSnapshot,
+        thinking: llmResponse.thinkingProcess,
+      }
+    } else {
+      // Fallback: LLM doesn't support function calling
+      const response = await llm.chat([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: query },
+      ])
+
+      return {
+        answer: response,
+        data: clinicSnapshot,
+      }
+    }
+  }
+
+  /**
+   * Convert LLM function call to ActionSuggestion
+   * Calculates expected impact and determines confidence level
+   */
+  private convertFunctionCallToActionSuggestion(
+    functionCall: { name: string; arguments: Record<string, unknown> },
+    reasoning: string,
+    clinicSnapshot: any
+  ): ActionSuggestion {
+    const actionType = functionCall.name as ActionType
+    const params = functionCall.arguments as any
+
+    // Calculate expected impact based on action type and current data
+    const expectedImpact = this.calculateExpectedImpact(actionType, params, clinicSnapshot)
+
+    // Determine confidence level based on data quality
+    const confidence = this.determineConfidence(actionType, params, clinicSnapshot)
 
     return {
-      answer: response,
-      data: clinicSnapshot,
+      action: actionType,
+      params,
+      reasoning: reasoning || `Lara suggests executing ${actionType}`,
+      expected_impact: expectedImpact,
+      confidence,
     }
+  }
+
+  /**
+   * Calculate expected impact of an action
+   */
+  private calculateExpectedImpact(
+    action: ActionType,
+    params: any,
+    snapshot: any
+  ): Array<{ metric: string; current_value: number; new_value: number; change_pct: number }> {
+    const impact = []
+
+    try {
+      if (action === 'update_service_price') {
+        // Find the service
+        const service = snapshot?.data?.services?.list?.find((s: any) => s.id === params.service_id)
+        if (service) {
+          const currentPrice = service.price_cents || 0
+          const newPrice = params.new_price_cents
+          const changePct = currentPrice > 0 ? ((newPrice - currentPrice) / currentPrice) * 100 : 0
+
+          impact.push({
+            metric: 'Service Price',
+            current_value: currentPrice,
+            new_value: newPrice,
+            change_pct: Math.round(changePct * 100) / 100,
+          })
+        }
+      } else if (action === 'adjust_service_margin') {
+        const service = snapshot?.data?.services?.list?.find((s: any) => s.id === params.service_id)
+        if (service) {
+          const totalCost = (service.fixed_cost_cents || 0) + (service.variable_cost_cents || 0)
+          const currentPrice = service.price_cents || 0
+          const newPrice = Math.round(totalCost * (1 + params.target_margin_pct / 100))
+          const changePct = currentPrice > 0 ? ((newPrice - currentPrice) / currentPrice) * 100 : 0
+
+          impact.push({
+            metric: 'Service Price',
+            current_value: currentPrice,
+            new_value: newPrice,
+            change_pct: Math.round(changePct * 100) / 100,
+          })
+
+          impact.push({
+            metric: 'Margin (Markup)',
+            current_value: service.margin_pct || 0,
+            new_value: params.target_margin_pct,
+            change_pct:
+              service.margin_pct > 0
+                ? ((params.target_margin_pct - service.margin_pct) / service.margin_pct) * 100
+                : 0,
+          })
+        }
+      } else if (action === 'simulate_price_change') {
+        // For simulations, we can't calculate exact impact without running the simulation
+        // Return placeholder impact
+        impact.push({
+          metric: 'Estimated Revenue Change',
+          current_value: snapshot?.analytics?.break_even?.revenue_cents || 0,
+          new_value: 0, // Will be calculated in simulation
+          change_pct: params.change_value,
+        })
+      }
+    } catch (error) {
+      console.error('[AIService] Error calculating expected impact:', error)
+    }
+
+    return impact
+  }
+
+  /**
+   * Determine confidence level based on data quality and action complexity
+   */
+  private determineConfidence(
+    action: ActionType,
+    params: any,
+    snapshot: any
+  ): 'low' | 'medium' | 'high' {
+    // Simple heuristics for confidence
+    const treatmentsCount = snapshot?.data?.treatments?.total_in_period || 0
+    const hasHistoricalData = treatmentsCount > 10
+
+    if (action === 'simulate_price_change') {
+      // Simulations are always safe (read-only)
+      return 'high'
+    }
+
+    if (action === 'update_service_price') {
+      // Direct price updates are straightforward
+      return hasHistoricalData ? 'high' : 'medium'
+    }
+
+    if (action === 'adjust_service_margin') {
+      // Margin adjustments require cost data
+      const service = snapshot?.data?.services?.list?.find((s: any) => s.id === params.service_id)
+      const hasCosts =
+        service &&
+        ((service.fixed_cost_cents || 0) + (service.variable_cost_cents || 0)) > 0
+
+      return hasCosts ? 'high' : 'low'
+    }
+
+    return 'medium'
   }
 
   /**

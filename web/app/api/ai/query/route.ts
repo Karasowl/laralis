@@ -87,101 +87,46 @@ export async function POST(request: NextRequest) {
       model: model || 'kimi-k2-thinking', // Default to K2 Thinking if not specified
     }
 
-    // Get streaming response from AI
-    const stream = await aiService.queryDatabaseStream(query, context)
+    // Get full response from AI (includes function calling for actions)
+    const result = await aiService.queryDatabase(query, context)
 
-    // Create SSE transformer to parse Kimi's streaming response with buffering
+    // Create synthetic stream from result
     const encoder = new TextEncoder()
-    let buffer = '' // Buffer for incomplete chunks
+    const stream = new ReadableStream({
+      async start(controller) {
+        // Stream the answer in chunks (simulate streaming for UX)
+        const answer = result.answer || ''
+        const chunkSize = 10 // Characters per chunk
 
-    const transformStream = new TransformStream({
-      async transform(chunk, controller) {
-        const decoder = new TextDecoder()
-        const text = decoder.decode(chunk, { stream: true })
-
-        // Add to buffer
-        buffer += text
-
-        // Split by newlines but keep the last incomplete line in buffer
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || '' // Keep last incomplete line in buffer
-
-        for (const line of lines) {
-          if (!line.trim() || !line.startsWith('data: ')) continue
-
-          const data = line.slice(6).trim() // Remove 'data: ' prefix
-
-          if (data === '[DONE]') {
-            // Send final metadata
-            const metadata = {
-              userId,
-              clinicId,
-              timestamp: new Date().toISOString(),
-            }
-            controller.enqueue(
-              encoder.encode(`data: ${JSON.stringify({ type: 'metadata', data: metadata })}\n\n`)
-            )
-            controller.enqueue(encoder.encode('data: [DONE]\n\n'))
-            continue
-          }
-
-          try {
-            const parsed = JSON.parse(data)
-            const delta = parsed.choices?.[0]?.delta
-
-            // Capture reasoning_content (thinking process from K2 model)
-            // This prevents timeout during long thinking phases (>60s)
-            if (delta?.reasoning_content) {
-              controller.enqueue(
-                encoder.encode(`data: ${JSON.stringify({ type: 'thinking', data: delta.reasoning_content })}\n\n`)
-              )
-            }
-
-            // Capture content (final answer)
-            if (delta?.content) {
-              controller.enqueue(
-                encoder.encode(`data: ${JSON.stringify({ type: 'content', data: delta.content })}\n\n`)
-              )
-            }
-          } catch (e) {
-            // Skip unparseable chunks (might be incomplete)
-            console.debug('[API /ai/query] Skipping unparseable chunk (might be incomplete)')
-          }
+        for (let i = 0; i < answer.length; i += chunkSize) {
+          const chunk = answer.slice(i, i + chunkSize)
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ type: 'content', data: chunk })}\n\n`)
+          )
+          // Small delay to simulate streaming (improves perceived responsiveness)
+          await new Promise(resolve => setTimeout(resolve, 10))
         }
-      },
 
-      flush(controller) {
-        // Process any remaining data in buffer
-        if (buffer.trim() && buffer.startsWith('data: ')) {
-          const data = buffer.slice(6).trim()
-          if (data && data !== '[DONE]') {
-            try {
-              const parsed = JSON.parse(data)
-              const delta = parsed.choices?.[0]?.delta
-
-              // Capture reasoning_content (thinking process)
-              if (delta?.reasoning_content) {
-                controller.enqueue(
-                  encoder.encode(`data: ${JSON.stringify({ type: 'thinking', data: delta.reasoning_content })}\n\n`)
-                )
-              }
-
-              // Capture content (final answer)
-              if (delta?.content) {
-                controller.enqueue(
-                  encoder.encode(`data: ${JSON.stringify({ type: 'content', data: delta.content })}\n\n`)
-                )
-              }
-            } catch (e) {
-              console.debug('[API /ai/query] Skipping final unparseable chunk')
-            }
-          }
+        // Send metadata at the end
+        const metadata = {
+          thinking: result.thinking,
+          data: result.data,
+          suggestedAction: result.suggestedAction,
+          userId,
+          clinicId,
+          timestamp: new Date().toISOString(),
         }
+        controller.enqueue(
+          encoder.encode(`data: ${JSON.stringify({ type: 'metadata', data: metadata })}\n\n`)
+        )
+
+        // Send DONE signal
+        controller.enqueue(encoder.encode('data: [DONE]\n\n'))
+        controller.close()
       }
     })
 
-    // Pipe the stream through our transformer
-    const transformedStream = stream.pipeThrough(transformStream)
+    const transformedStream = stream
 
     return new Response(transformedStream, {
       headers: {
