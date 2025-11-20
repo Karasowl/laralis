@@ -644,7 +644,7 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
           {conversation.map((msg, idx) => (
             <div
               key={idx}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in-0 slide-in-from-bottom-2 duration-200`}
+              className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'} gap-3 animate-in fade-in-0 slide-in-from-bottom-2 duration-200`}
             >
               <div
                 className={`max-w-[95%] sm:max-w-[85%] ${msg.role === 'user'
@@ -696,7 +696,7 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
 
               {/* Action Confirmation Card (below assistant message) */}
               {msg.role === 'assistant' && msg.suggestedAction && currentClinic?.id && (
-                <div className="w-full mt-3 animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
+                <div className="w-full max-w-[95%] sm:max-w-[85%] animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
                   <ActionConfirmCard
                     suggestion={msg.suggestedAction}
                     clinicId={currentClinic.id}
