@@ -50,17 +50,17 @@ export function RecentActivity({
 
   const getActivityColor = (type: ActivityItem['type']) => {
     switch (type) {
-      case 'treatment': return 'bg-blue-100 text-blue-600'
-      case 'patient': return 'bg-green-100 text-green-600'
-      case 'expense': return 'bg-red-100 text-red-600'
-      case 'appointment': return 'bg-purple-100 text-purple-600'
-      case 'supply': return 'bg-yellow-100 text-yellow-600'
-      default: return 'bg-gray-100 text-gray-600'
+      case 'treatment': return 'bg-primary/10 text-primary dark:bg-primary/20 backdrop-blur-sm'
+      case 'patient': return 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-500 backdrop-blur-sm'
+      case 'expense': return 'bg-destructive/10 text-destructive dark:bg-destructive/20 backdrop-blur-sm'
+      case 'appointment': return 'bg-secondary/10 text-secondary dark:bg-secondary/20 backdrop-blur-sm'
+      case 'supply': return 'bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-500 backdrop-blur-sm'
+      default: return 'bg-muted text-muted-foreground backdrop-blur-sm'
     }
   }
 
   return (
-    <Card>
+    <Card className="transition-all duration-200 hover:shadow-lg">
       <CardHeader>
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
@@ -77,7 +77,7 @@ export function RecentActivity({
               const colorClass = getActivityColor(activity.type)
               
               return (
-                <div key={activity.id} className="flex items-start space-x-3">
+                <div key={activity.id} className="flex items-start space-x-3 p-2 -mx-2 rounded-lg transition-all duration-200 hover:bg-muted/50 hover:shadow-sm">
                   <div className={`p-2 rounded-lg ${colorClass}`}>
                     <Icon className="h-4 w-4" />
                   </div>

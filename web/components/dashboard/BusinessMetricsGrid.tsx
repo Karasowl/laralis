@@ -64,18 +64,18 @@ export function BusinessMetricsGrid({
 
   const getTrendColor = (change?: number) => {
     if (change === undefined || change === 0) return 'text-muted-foreground'
-    return change > 0 ? 'text-emerald-600' : 'text-red-600'
+    return change > 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-destructive'
   }
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       {/* Ticket Promedio */}
-      <Card className="relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl" />
+      <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:scale-[1.01]">
+        <div className="absolute top-0 right-0 w-24 h-24 bg-primary/10 rounded-full blur-2xl" />
         <CardContent className="p-6 relative">
           <div className="flex items-center justify-between mb-4">
-            <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-950/30 flex items-center justify-center">
-              <DollarSign className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            <div className="w-10 h-10 rounded-lg bg-primary/10 dark:bg-primary/20 backdrop-blur-sm flex items-center justify-center">
+              <DollarSign className="h-5 w-5 text-primary dark:text-primary/80" />
             </div>
             {ticketChange !== undefined && (
               <Badge variant="outline" className={cn('gap-1', getTrendColor(ticketChange))}>
@@ -100,12 +100,12 @@ export function BusinessMetricsGrid({
       </Card>
 
       {/* Pacientes Necesarios */}
-      <Card className="relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl" />
+      <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:scale-[1.01]">
+        <div className="absolute top-0 right-0 w-24 h-24 bg-secondary/10 rounded-full blur-2xl" />
         <CardContent className="p-6 relative">
           <div className="flex items-center justify-between mb-4">
-            <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-950/30 flex items-center justify-center">
-              <Target className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+            <div className="w-10 h-10 rounded-lg bg-secondary/10 dark:bg-secondary/20 backdrop-blur-sm flex items-center justify-center">
+              <Target className="h-5 w-5 text-secondary dark:text-secondary/80" />
             </div>
           </div>
 
@@ -128,7 +128,7 @@ export function BusinessMetricsGrid({
 
       {/* Pacientes Actuales */}
       <Card className={cn(
-        'relative overflow-hidden border-2',
+        'relative overflow-hidden border-2 transition-all duration-200 hover:shadow-lg hover:scale-[1.01]',
         pacientesStatus === 'success'
           ? 'border-emerald-200 dark:border-emerald-900'
           : 'border-amber-200 dark:border-amber-900'
@@ -191,7 +191,7 @@ export function BusinessMetricsGrid({
 
       {/* Ganancia Neta */}
       <Card className={cn(
-        'relative overflow-hidden border-2',
+        'relative overflow-hidden border-2 transition-all duration-200 hover:shadow-lg hover:scale-[1.01]',
         netProfitStatus === 'success'
           ? 'border-emerald-200 dark:border-emerald-900'
           : netProfitStatus === 'warning'

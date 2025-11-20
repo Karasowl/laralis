@@ -76,10 +76,10 @@ export function BreakEvenProgress({
     },
     ontrack: {
       icon: Flame,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-100 dark:bg-blue-950/30',
-      borderColor: 'border-blue-200 dark:border-blue-900',
-      progressColor: 'bg-blue-600'
+      color: 'text-primary dark:text-primary/80',
+      bgColor: 'bg-primary/10 dark:bg-primary/20 backdrop-blur-sm',
+      borderColor: 'border-primary/30 dark:border-primary/40',
+      progressColor: 'bg-primary'
     },
     warning: {
       icon: TrendingUp,
@@ -90,10 +90,10 @@ export function BreakEvenProgress({
     },
     danger: {
       icon: AlertCircle,
-      color: 'text-red-600',
-      bgColor: 'bg-red-100 dark:bg-red-950/30',
-      borderColor: 'border-red-200 dark:border-red-900',
-      progressColor: 'bg-red-600'
+      color: 'text-destructive',
+      bgColor: 'bg-destructive/10 dark:bg-destructive/20 backdrop-blur-sm',
+      borderColor: 'border-destructive/30 dark:border-destructive/40',
+      progressColor: 'bg-destructive'
     }
   }
 
@@ -107,7 +107,7 @@ export function BreakEvenProgress({
   }, [revenueGapCents, remainingWorkingDays])
 
   return (
-    <Card className={cn('border-2', config.borderColor)}>
+    <Card className={cn('border-2 transition-all duration-200 hover:shadow-lg', config.borderColor)}>
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
@@ -242,7 +242,7 @@ export function BreakEvenProgress({
         {progressPercentage < 100 && revenueGapCents > 0 && (
           <div className="border-t pt-4">
             <div className="flex items-start gap-2">
-              <Lightbulb className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+              <Lightbulb className="h-4 w-4 text-amber-600 dark:text-amber-500 mt-0.5 flex-shrink-0" />
               <div className="text-sm">
                 <p className="font-medium text-foreground mb-1">
                   {t('suggestion.title')}
