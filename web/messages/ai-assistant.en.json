@@ -57,6 +57,7 @@
       "thinkingProcess": "Reasoning process",
       "newConversation": "New conversation",
       "tokenLimitReachedPlaceholder": "Token limit reached. Start a new conversation.",
+      "defaultSessionTitle": "New conversation",
       "history": {
         "title": "Conversation History",
         "newChat": "New conversation",
@@ -64,6 +65,7 @@
         "deleteSession": "Delete conversation",
         "confirmDelete": "Delete this conversation?",
         "confirmDeleteDesc": "This action cannot be undone.",
+        "confirmDeleteButton": "Delete",
         "save": "Save",
         "cancel": "Cancel",
         "emptyHistory": "No previous conversations",
@@ -148,10 +150,10 @@
       "query2": "Ask a question about your data in natural language",
       "query3": "The assistant will analyze your data and give you insights",
       "query4": "You can ask follow-up questions"
+    },
+    "messages": {
+      "greeting": "Hello! I'm Lara, your AI assistant. How can I help you today?",
+      "queryError": "Sorry, there was an error processing your query. Please try again."
     }
-  },
-  "messages": {
-    "greeting": "Hello! I'm Lara, your AI assistant. How can I help you today?",
-    "queryError": "Sorry, there was an error processing your query. Please try again."
   }
 }

@@ -57,6 +57,7 @@
       "thinkingProcess": "Proceso de razonamiento",
       "newConversation": "Nueva conversación",
       "tokenLimitReachedPlaceholder": "Límite de tokens alcanzado. Inicia una nueva conversación.",
+      "defaultSessionTitle": "Nueva conversación",
       "history": {
         "title": "Historial de conversaciones",
         "newChat": "Nueva conversación",
@@ -64,6 +65,7 @@
         "deleteSession": "Eliminar conversación",
         "confirmDelete": "¿Eliminar esta conversación?",
         "confirmDeleteDesc": "Esta acción no se puede deshacer.",
+        "confirmDeleteButton": "Eliminar",
         "save": "Guardar",
         "cancel": "Cancelar",
         "emptyHistory": "No hay conversaciones previas",
@@ -148,10 +150,10 @@
       "query2": "Haz una pregunta sobre tus datos en lenguaje natural",
       "query3": "El asistente analizará tus datos y te dará insights",
       "query4": "Puedes hacer preguntas de seguimiento"
+    },
+    "messages": {
+      "greeting": "¡Hola! Soy Lara, tu asistente de IA. ¿En qué puedo ayudarte hoy?",
+      "queryError": "Lo siento, hubo un error al procesar tu consulta. Por favor, inténtalo de nuevo."
     }
-  },
-  "messages": {
-    "greeting": "¡Hola! Soy Lara, tu asistente de IA. ¿En qué puedo ayudarte hoy?",
-    "queryError": "Lo siento, hubo un error al procesar tu consulta. Por favor, inténtalo de nuevo."
   }
 }
