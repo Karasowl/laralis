@@ -72,35 +72,35 @@ export default function LoginPage() {
       >
         <div className="space-y-4">
           <div className="space-y-1">
-            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            <label className="text-sm font-medium text-foreground">
               {t('email')}
-              <span className="text-red-500 ml-1">*</span>
+              <span className="text-destructive ml-1">*</span>
             </label>
             <div className="relative">
               <input
                 type="email"
                 placeholder={t('emailPlaceholder')}
                 {...form.register('email')}
-                className="flex h-12 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 pl-10 mt-1 bg-white/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 focus:border-blue-500 dark:focus:border-blue-400 transition-all"
+                className="flex h-12 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 pl-10 mt-1 bg-background/50 backdrop-blur-sm border-border focus:border-primary transition-all"
               />
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             </div>
             {form.formState.errors.email && (
-              <p className="text-sm text-red-600 mt-1">{form.formState.errors.email.message}</p>
+              <p className="text-sm text-destructive mt-1">{form.formState.errors.email.message}</p>
             )}
           </div>
 
           <div className="space-y-1">
-            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            <label className="text-sm font-medium text-foreground">
               {t('password')}
-              <span className="text-red-500 ml-1">*</span>
+              <span className="text-destructive ml-1">*</span>
             </label>
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
                 placeholder={t('passwordPlaceholder')}
                 {...form.register('password')}
-                className="flex h-12 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 pl-10 pr-12 mt-1 bg-white/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 focus:border-blue-500 dark:focus:border-blue-400 transition-all"
+                className="flex h-12 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 pl-10 pr-12 mt-1 bg-background/50 backdrop-blur-sm border-border focus:border-primary transition-all"
               />
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <Button
@@ -111,9 +111,9 @@ export default function LoginPage() {
                 onClick={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? (
-                  <EyeOff className="h-4 w-4 text-gray-500" />
+                  <EyeOff className="h-4 w-4 text-muted-foreground" />
                 ) : (
-                  <Eye className="h-4 w-4 text-gray-500" />
+                  <Eye className="h-4 w-4 text-muted-foreground" />
                 )}
                 <span className="sr-only">
                   {showPassword ? t('hidePassword') : t('showPassword')}
@@ -121,7 +121,7 @@ export default function LoginPage() {
               </Button>
             </div>
             {form.formState.errors.password && (
-              <p className="text-sm text-red-600 mt-1">{form.formState.errors.password.message}</p>
+              <p className="text-sm text-destructive mt-1">{form.formState.errors.password.message}</p>
             )}
           </div>
 

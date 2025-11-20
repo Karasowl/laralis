@@ -57,9 +57,9 @@ export function AuthForm({
           </div>
           
           <div className="space-y-4">
-            <Button 
-              type="submit" 
-              className="w-full h-12 font-semibold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]" 
+            <Button
+              type="submit"
+              className="w-full h-12 font-semibold bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]"
               size="lg"
               disabled={isSubmitting}
             >

@@ -14,28 +14,28 @@ export function AuthLayout({ children, showLogo = true }: AuthLayoutProps) {
   const t = useTranslations('auth.layout')
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 relative overflow-hidden">
+    <div className="min-h-screen bg-background relative overflow-hidden">
       {/* Animated mesh gradient background - Stripe style but medical colors */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-white via-gray-50 to-white dark:from-gray-900 dark:via-gray-900 dark:to-gray-900" />
+        <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-background" />
 
         {/* Animated gradient mesh */}
         {/* CSS-based Animated Background - Optimized for performance */}
         <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none">
           {/* Animated Blobs */}
           <div
-            className="absolute top-0 -left-4 w-96 h-96 bg-cyan-400 rounded-full mix-blend-multiply filter blur-[128px] opacity-40 animate-blob dark:mix-blend-screen dark:opacity-20"
+            className="absolute top-0 -left-4 w-96 h-96 bg-primary/40 rounded-full mix-blend-multiply filter blur-[128px] opacity-40 animate-blob dark:mix-blend-screen dark:opacity-20"
           />
           <div
-            className="absolute top-0 -right-4 w-96 h-96 bg-blue-400 rounded-full mix-blend-multiply filter blur-[128px] opacity-40 animate-blob-bounce dark:mix-blend-screen dark:opacity-20"
+            className="absolute top-0 -right-4 w-96 h-96 bg-primary/50 rounded-full mix-blend-multiply filter blur-[128px] opacity-40 animate-blob-bounce dark:mix-blend-screen dark:opacity-20"
             style={{ animationDelay: '2s' }}
           />
           <div
-            className="absolute -bottom-32 left-20 w-96 h-96 bg-teal-400 rounded-full mix-blend-multiply filter blur-[128px] opacity-40 animate-blob dark:mix-blend-screen dark:opacity-20"
+            className="absolute -bottom-32 left-20 w-96 h-96 bg-secondary/40 rounded-full mix-blend-multiply filter blur-[128px] opacity-40 animate-blob dark:mix-blend-screen dark:opacity-20"
             style={{ animationDelay: '4s' }}
           />
           <div
-            className="absolute bottom-1/4 right-10 w-64 h-64 bg-indigo-400 rounded-full mix-blend-multiply filter blur-[100px] opacity-30 animate-blob-bounce dark:mix-blend-screen dark:opacity-20"
+            className="absolute bottom-1/4 right-10 w-64 h-64 bg-accent/40 rounded-full mix-blend-multiply filter blur-[100px] opacity-30 animate-blob-bounce dark:mix-blend-screen dark:opacity-20"
             style={{ animationDelay: '1s' }}
           />
 
@@ -43,7 +43,7 @@ export function AuthLayout({ children, showLogo = true }: AuthLayoutProps) {
           <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
-                <path d="M 60 0 L 0 0 0 60" fill="none" stroke="currentColor" strokeWidth="1" className="text-gray-400/40 dark:text-gray-600/40" />
+                <path d="M 60 0 L 0 0 0 60" fill="none" stroke="currentColor" strokeWidth="1" className="text-muted-foreground/40" />
               </pattern>
             </defs>
             <rect width="100%" height="100%" fill="url(#grid)" />
@@ -68,8 +68,8 @@ export function AuthLayout({ children, showLogo = true }: AuthLayoutProps) {
               {/* Refined logo with subtle animation */}
               <div className="inline-flex items-center justify-center mb-6">
                 <div className="relative group">
-                  <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-teal-500 rounded-2xl blur-lg opacity-50 group-hover:opacity-75 transition-opacity" />
-                  <div className="relative bg-gradient-to-r from-cyan-500 to-teal-500 text-white rounded-2xl p-3.5 shadow-xl transform transition-transform group-hover:scale-105">
+                  <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-2xl blur-lg opacity-50 group-hover:opacity-75 transition-opacity" />
+                  <div className="relative bg-gradient-to-r from-primary to-secondary text-white rounded-2xl p-3.5 shadow-xl transform transition-transform group-hover:scale-105">
                     <svg
                       className="w-8 h-8"
                       fill="currentColor"
@@ -81,11 +81,11 @@ export function AuthLayout({ children, showLogo = true }: AuthLayoutProps) {
                 </div>
               </div>
 
-              <h1 className="text-4xl font-semibold text-gray-900 dark:text-white mb-2">
+              <h1 className="text-4xl font-semibold text-foreground mb-2">
                 Laralis
               </h1>
 
-              <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">
+              <p className="text-muted-foreground text-sm font-medium">
                 {t('mobileTagline')}
               </p>
             </div>
@@ -93,24 +93,24 @@ export function AuthLayout({ children, showLogo = true }: AuthLayoutProps) {
 
           {/* Form card - elevated with glassmorphism */}
           <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 to-teal-500/10 rounded-3xl blur-xl" />
-            <div className="relative bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-3xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 p-8">
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-3xl blur-xl" />
+            <div className="relative bg-background/95 backdrop-blur-xl rounded-3xl shadow-xl border border-border/50 p-8">
               {children}
             </div>
           </div>
 
           {/* Theme and language controls - below form */}
           <div className="mt-6 flex justify-center">
-            <div className="flex items-center gap-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-full px-3 py-1.5 border border-gray-200/50 dark:border-gray-700/50 shadow-lg">
+            <div className="flex items-center gap-2 bg-background/80 backdrop-blur-xl rounded-full px-3 py-1.5 border border-border/50 shadow-lg">
               <LanguageSwitcher compact />
-              <div className="w-px h-6 bg-gray-300 dark:bg-gray-600" />
+              <div className="w-px h-6 bg-border" />
               <ThemeToggle />
             </div>
           </div>
 
           {/* Footer - refined */}
           <div className="mt-6 text-center">
-            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+            <p className="text-xs text-muted-foreground font-medium">
               © {new Date().getFullYear()} Laralis. {t('allRightsReserved')}
             </p>
           </div>

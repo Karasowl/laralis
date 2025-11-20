@@ -44,11 +44,11 @@ const PasswordStrength = React.memo(function PasswordStrength({ password }: { pa
   , [strength, t])
 
   const strengthColor = useMemo(() =>
-    strength === 0 ? 'bg-gray-200' :
-    strength === 1 ? 'bg-red-500' :
-    strength === 2 ? 'bg-yellow-500' :
-    strength === 3 ? 'bg-blue-500' :
-    'bg-green-500'
+    strength === 0 ? 'bg-muted' :
+    strength === 1 ? 'bg-destructive' :
+    strength === 2 ? 'bg-amber-500' :
+    strength === 3 ? 'bg-primary' :
+    'bg-emerald-500'
   , [strength])
 
   if (!password) return null
@@ -56,8 +56,8 @@ const PasswordStrength = React.memo(function PasswordStrength({ password }: { pa
   return (
     <div className="space-y-2 mt-2">
       <div className="flex items-center gap-2">
-        <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-          <div 
+        <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+          <div
             className={`h-full transition-all ${strengthColor}`}
             style={{ width: `${(strength / 4) * 100}%` }}
           />
@@ -71,12 +71,12 @@ const PasswordStrength = React.memo(function PasswordStrength({ password }: { pa
         {checks.map((check, index) => (
           <div key={index} className="flex items-center gap-2">
             <div className={`rounded-full p-0.5 ${
-              check.valid ? 'bg-green-500' : 'bg-gray-300'
+              check.valid ? 'bg-emerald-500' : 'bg-muted'
             }`}>
               <Check className="h-2.5 w-2.5 text-white" />
             </div>
             <span className={`text-xs ${
-              check.valid ? 'text-green-600' : 'text-muted-foreground'
+              check.valid ? 'text-emerald-600 dark:text-emerald-500' : 'text-muted-foreground'
             }`}>
               {check.label}
             </span>
@@ -276,7 +276,7 @@ export default function RegisterPage() {
               </span>
             </label>
             {form.formState.errors.acceptTerms && (
-              <p className="text-xs text-red-500">{form.formState.errors.acceptTerms.message}</p>
+              <p className="text-xs text-destructive">{form.formState.errors.acceptTerms.message}</p>
             )}
           </div>
         </div>
