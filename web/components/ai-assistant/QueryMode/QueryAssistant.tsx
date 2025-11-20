@@ -2,23 +2,20 @@
  * Query Mode Assistant
  *
  * Modal for asking questions about data and getting AI-powered insights
-/**
- * Query Mode Assistant
- *
- * Modal for asking questions about data and getting AI-powered insights
  * Uses function calling to query database and provide recommendations
  */
 
 'use client'
 
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { X, MessageSquare, Send, Sparkles, ChevronDown, ChevronUp, AlertTriangle, RotateCcw, ArrowDown, Minimize2 } from 'lucide-react'
+import { X, MessageSquare, Send, Sparkles, ChevronDown, ChevronUp, AlertTriangle, RotateCcw, ArrowDown, Minimize2, Menu } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { VoiceRecorder } from '../VoiceRecorder'
 import { AudioPlayer } from '../AudioPlayer'
 import { DataVisualization } from '../DataVisualization'
 import { useCurrentClinic } from '@/hooks/use-current-clinic'
 import { calculateConversationTokens, getTokenUsageStatus } from '@/lib/ai/token-counter'
+import ChatHistoryList from './ChatHistoryList'
 
 interface QueryAssistantProps {
   onClose: () => void
@@ -47,6 +44,11 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
   const [selectedModel, setSelectedModel] = useState<'kimi-k2-thinking' | 'moonshot-v1-32k'>('kimi-k2-thinking')
   const [isLoadingSettings, setIsLoadingSettings] = useState(true)
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+
+  // Chat History State
+  const [showHistory, setShowHistory] = useState(false)
+  const [currentSessionTitle, setCurrentSessionTitle] = useState('Nueva conversación')
+  const [hasAutoNamed, setHasAutoNamed] = useState(false)
 
   // Smart Scroll State
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -107,6 +109,10 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
             if (!sessionId && onSessionCreated) {
               onSessionCreated(data.session.id)
             }
+
+            // Update session title and auto-naming state
+            setCurrentSessionTitle(data.session.title || 'Nueva conversación')
+            setHasAutoNamed(data.session.title !== 'Nueva conversación')
 
             if (data.messages && data.messages.length > 0) {
               const mappedMessages = data.messages.map((msg: any) => ({
@@ -330,6 +336,12 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
 
               // Save assistant message to DB
               saveMessageToDB('assistant', accumulatedText, { ...metadata, responseTimeMs })
+
+              // Auto-name session after first assistant response
+              if (!hasAutoNamed && sessionId && conversation.length === 1) {
+                autoNameSession(query, accumulatedText)
+              }
+
               continue
             }
 
@@ -369,6 +381,32 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
       })
     } finally {
       setIsProcessing(false)
+    }
+  }
+
+  const autoNameSession = async (userMessage: string, assistantMessage: string) => {
+    if (!sessionId || hasAutoNamed) return
+
+    try {
+      const conversationContext = `Usuario: ${userMessage}\nAsistente: ${assistantMessage.substring(0, 200)}`
+
+      const response = await fetch('/api/ai/chat/history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'generate_title',
+          sessionId,
+          message: conversationContext
+        })
+      })
+
+      if (response.ok) {
+        const { session } = await response.json()
+        setCurrentSessionTitle(session.title)
+        setHasAutoNamed(true)
+      }
+    } catch (e) {
+      console.error('Failed to auto-name session:', e)
     }
   }
 
@@ -413,19 +451,51 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
     ])
     setError(null)
     setShowThinking({})
+    setHasAutoNamed(false)
+    setCurrentSessionTitle('Nueva conversación')
   }
 
   return (
     <div className="fixed inset-0 z-[100] bg-background sm:bg-black/50 sm:backdrop-blur-sm flex items-end sm:items-center justify-center">
       <div className="relative w-full h-full sm:h-[90vh] sm:max-w-3xl bg-background sm:border sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in-0 slide-in-from-bottom-4 duration-200">
+        {/* Chat History Sidebar (Mobile Only) */}
+        {showHistory && (
+          <div className="absolute inset-0 z-50 bg-background sm:hidden">
+            <ChatHistoryList
+              clinicId={currentClinic?.id || ''}
+              currentSessionId={sessionId || null}
+              onSelectSession={(newSessionId) => {
+                if (onSessionCreated) onSessionCreated(newSessionId)
+                setShowHistory(false)
+              }}
+              onCreateNewSession={() => {
+                handleNewConversation()
+                setShowHistory(false)
+              }}
+              onClose={() => setShowHistory(false)}
+            />
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-6 border-b bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 shrink-0">
-          <div>
-            <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
-              <MessageSquare className="h-6 w-6" />
-              {t('title')}
-            </h2>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1 hidden sm:block">{t('subtitle')}</p>
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            {/* Menu Button (Mobile Only) */}
+            <button
+              onClick={() => setShowHistory(!showHistory)}
+              className="p-2 hover:bg-background/50 rounded-lg transition-colors sm:hidden shrink-0"
+              aria-label={t('history.title')}
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+
+            <div className="min-w-0 flex-1">
+              <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2 truncate">
+                <MessageSquare className="h-6 w-6 shrink-0" />
+                <span className="truncate">{currentSessionTitle}</span>
+              </h2>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1 hidden sm:block">{t('subtitle')}</p>
+            </div>
           </div>
 
           {/* Token Usage & Controls */}
