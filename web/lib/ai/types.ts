@@ -172,4 +172,134 @@ export interface QueryResult {
   data?: unknown
   thinking?: string
   visualizations?: unknown[]
+  suggestedAction?: ActionSuggestion // New: AI can suggest an action
+}
+
+// ============================================================================
+// Actions System Types (NEW)
+// ============================================================================
+
+/**
+ * Action types that Lara can execute
+ */
+export type ActionType =
+  | 'update_service_price'
+  | 'adjust_service_margin'
+  | 'simulate_price_change'
+  | 'create_expense'
+  | 'update_time_settings'
+
+/**
+ * Action parameters for each action type
+ */
+export interface ActionParams {
+  update_service_price: {
+    service_id: string
+    new_price_cents: number
+    reason?: string
+  }
+  adjust_service_margin: {
+    service_id: string
+    target_margin_pct: number
+    adjust_price?: boolean // If true, adjust price to achieve margin
+  }
+  simulate_price_change: {
+    service_id?: string // If null, simulates for all services
+    change_type: 'percentage' | 'fixed'
+    change_value: number // % or cents
+  }
+  create_expense: {
+    amount_cents: number
+    category_id: string
+    description: string
+    expense_date: string // ISO date
+  }
+  update_time_settings: {
+    work_days?: number
+    hours_per_day?: number
+    real_productivity_pct?: number
+  }
+}
+
+/**
+ * Action suggestion from AI
+ */
+export interface ActionSuggestion {
+  action: ActionType
+  params: ActionParams[ActionType]
+  reasoning: string
+  expected_impact: {
+    metric: string
+    current_value: number
+    new_value: number
+    change_pct: number
+  }[]
+  confidence: 'low' | 'medium' | 'high'
+}
+
+/**
+ * Action execution result
+ */
+export interface ActionResult {
+  success: boolean
+  action: ActionType
+  params: ActionParams[ActionType]
+  result?: {
+    before: unknown
+    after: unknown
+    changes: string[]
+  }
+  error?: {
+    code: string
+    message: string
+    details?: unknown
+  }
+  executed_at: string // ISO timestamp
+  executed_by: string // user_id
+}
+
+/**
+ * Action execution context
+ */
+export interface ActionContext {
+  clinicId: string
+  userId: string
+  supabase: SupabaseClient
+  dryRun?: boolean // If true, simulate without executing
+}
+
+/**
+ * Action executor interface
+ */
+export interface ActionExecutor {
+  /**
+   * Execute an action
+   */
+  execute<T extends ActionType>(
+    action: T,
+    params: ActionParams[T],
+    context: ActionContext
+  ): Promise<ActionResult>
+
+  /**
+   * Validate action parameters before execution
+   */
+  validate<T extends ActionType>(
+    action: T,
+    params: ActionParams[T],
+    context: ActionContext
+  ): Promise<{ valid: boolean; errors?: string[] }>
+
+  /**
+   * Get action logs for audit
+   */
+  getActionHistory(
+    clinicId: string,
+    filters?: {
+      action?: ActionType
+      userId?: string
+      startDate?: string
+      endDate?: string
+    }
+  ): Promise<ActionResult[]>
 }

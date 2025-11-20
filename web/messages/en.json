@@ -3461,6 +3461,22 @@
       "currentField": "Current field:",
       "showingResults": "Showing 10 of {total} results",
       "creating": "Let's create a new {entity}. Starting with the first field."
+    },
+    "actions": {
+      "suggestion": "Action Suggestion",
+      "reasoning": "Reasoning",
+      "expectedImpact": "Expected Impact",
+      "executing": "Executing action...",
+      "success": "Action executed successfully!",
+      "error": "Error executing action",
+      "confirm": "Confirm and Execute",
+      "reject": "Reject",
+      "retry": "Retry",
+      "confidence": {
+        "low": "Low Confidence",
+        "medium": "Medium Confidence",
+        "high": "High Confidence"
+      }
     }
   }
 }
