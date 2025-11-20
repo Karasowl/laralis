@@ -31,7 +31,7 @@ interface ModuleInfo {
 }
 
 interface TimeSettings {
-  work_days_per_month: number
+  work_days: number
   hours_per_day: number
   real_productivity_pct: number
   available_treatment_minutes: number
@@ -167,9 +167,9 @@ export class ClinicSnapshotService {
 
     // Calculate available treatment minutes
     // Use correct field names from settings_time table schema
-    const workDays = timeSettings?.working_days_per_month || 20
+    const workDays = timeSettings?.work_days || 20
     const hoursPerDay = timeSettings?.hours_per_day || 7
-    const realPctValue = timeSettings?.real_hours_percentage ?? 80
+    const realPctValue = timeSettings?.real_pct ?? 80
     const realPctFactor = realPctValue / 100
 
     const availableMinutes = workDays * hoursPerDay * 60 * realPctFactor
@@ -178,7 +178,7 @@ export class ClinicSnapshotService {
       id: clinic?.id || clinicId,
       name: clinic?.name || 'Unknown Clinic',
       time_settings: {
-        work_days_per_month: workDays,
+        work_days: workDays,
         hours_per_day: hoursPerDay,
         real_productivity_pct: realPctValue,
         available_treatment_minutes: Math.round(availableMinutes),
@@ -325,7 +325,7 @@ export class ClinicSnapshotService {
 
     // Calculate fixed cost per minute (same as /api/services)
     const monthlyFixedCostsCents = fixedCosts.monthly_total_cents + assets.monthly_depreciation_cents
-    const workDays = clinic.time_settings.work_days_per_month
+    const workDays = clinic.time_settings.work_days
     const hoursPerDay = clinic.time_settings.hours_per_day
     const realPct = clinic.time_settings.real_productivity_pct / 100
     const minutesMonth = workDays * hoursPerDay * 60
@@ -648,9 +648,9 @@ export class ClinicSnapshotService {
     const treatmentsPerDay =
       daysInPeriod > 0 ? currentTreatments / daysInPeriod : 0
     const revenuePerHour =
-      clinic.time_settings.work_days_per_month * clinic.time_settings.hours_per_day > 0
+      clinic.time_settings.work_days * clinic.time_settings.hours_per_day > 0
         ? totalRevenue /
-        (clinic.time_settings.work_days_per_month *
+        (clinic.time_settings.work_days *
           clinic.time_settings.hours_per_day)
         : 0
 

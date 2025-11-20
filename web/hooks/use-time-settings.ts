@@ -121,9 +121,9 @@ export function useTimeSettings(options: UseTimeSettingsOptions = {}) {
     if (settingsApi.data?.data) {
       const apiSettings = settingsApi.data.data
       const nextSettings: TimeSettings = {
-        work_days: apiSettings.work_days,
-        hours_per_day: apiSettings.hours_per_day,
-        real_pct: Math.round((apiSettings.real_pct || 0) * 100),
+        work_days: apiSettings.work_days || 0,
+        hours_per_day: apiSettings.hours_per_day || 0,
+        real_pct: apiSettings.real_pct || 0,
         working_days_config: apiSettings.working_days_config || null
       }
       try { console.log('[useTimeSettings] loaded from API', apiSettings) } catch {}
@@ -175,7 +175,7 @@ export function useTimeSettings(options: UseTimeSettingsOptions = {}) {
         body: JSON.stringify({
           work_days: Number(draft.work_days) || 0,
           hours_per_day: Number(draft.hours_per_day) || 0,
-          real_pct: Math.max(0, Number(draft.real_pct) || 0) / 100,
+          real_pct: Number(draft.real_pct) || 0,
           working_days_config: draft.working_days_config,
           clinic_id: cid
         })

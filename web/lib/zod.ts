@@ -131,7 +131,7 @@ export const zServiceSupplyForm = z.object({
 export const zSettingsTimeForm = z.object({
   work_days: z.coerce.number().int().min(1, 'Must be at least 1 day').max(31, 'Cannot exceed 31 days'),
   hours_per_day: z.coerce.number().min(1, 'Must be at least 1 hour').max(16, 'Cannot exceed 16 hours'),
-  real_pct: z.coerce.number().min(0, 'Cannot be negative').max(100, 'Cannot exceed 100%'), // Cambiado a 0-100
+  real_pct: z.coerce.number().min(0, 'Cannot be negative').max(100, 'Cannot exceed 100%'),
 });
 
 // Validation schema for Asset (server-side)

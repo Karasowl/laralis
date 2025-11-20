@@ -70,7 +70,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
       return NextResponse.json({ data: localRecord });
     }
 
-    const { data, error } = await supabaseAdmin
+    const { data: dbData, error } = await supabaseAdmin
       .from('settings_time')
       .select('*')
       .eq('clinic_id', clinicId)
@@ -89,6 +89,16 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
         { status: 500 }
       );
     }
+
+    // Transform DB field names to TypeScript field names
+    const data: SettingsTime | null = dbData ? {
+      id: dbData.id,
+      clinic_id: dbData.clinic_id,
+      work_days: dbData.working_days_per_month,
+      hours_per_day: dbData.hours_per_day,
+      real_pct: dbData.real_hours_percentage,
+      updated_at: dbData.updated_at,
+    } : null;
 
     return NextResponse.json({ data });
   } catch (error) {
@@ -174,6 +184,14 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     const { work_days, hours_per_day, real_pct, clinic_id } = validationResult.data;
     const working_days_config = normalized.working_days_config;
 
+    // Transform TypeScript field names to DB field names
+    const dbPayload = {
+      working_days_per_month: work_days,
+      hours_per_day: hours_per_day,
+      real_hours_percentage: real_pct,
+      working_days_config,
+    };
+
     const { data: existing } = await supabaseAdmin
       .from('settings_time')
       .select('id')
@@ -187,10 +205,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       result = await supabaseAdmin
         .from('settings_time')
         .update({
-          work_days,
-          hours_per_day,
-          real_pct,
-          working_days_config,
+          ...dbPayload,
           updated_at: new Date().toISOString()
         })
         .eq('id', existing.id)
@@ -199,7 +214,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     } else {
       result = await supabaseAdmin
         .from('settings_time')
-        .insert({ clinic_id, work_days, hours_per_day, real_pct, working_days_config })
+        .insert({
+          clinic_id,
+          ...dbPayload
+        })
         .select()
         .single();
     }
@@ -212,8 +230,18 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       );
     }
 
+    // Transform DB field names back to TypeScript field names for response
+    const transformedData: SettingsTime = {
+      id: result.data.id,
+      clinic_id: result.data.clinic_id,
+      work_days: result.data.working_days_per_month,
+      hours_per_day: result.data.hours_per_day,
+      real_pct: result.data.real_hours_percentage,
+      updated_at: result.data.updated_at,
+    };
+
     return NextResponse.json({
-      data: result.data,
+      data: transformedData,
       message: existing ? 'Time settings updated' : 'Time settings created'
     });
 
