@@ -36,7 +36,7 @@ const normalizePayload = (body: any) => {
   const work_days = Math.round(numberOrZero(body?.work_days));
   const hours_per_day = Number(numberOrZero(body?.hours_per_day).toFixed(2));
   const rawRealPct = body?.real_pct ?? body?.real_pct_decimal ?? body?.realPct ?? 0;
-  const real_pct = clamp(numberOrZero(rawRealPct), 0, 1);
+  const real_pct = clamp(numberOrZero(rawRealPct), 0, 100);
   const working_days_config = body?.working_days_config || null;
   return { work_days, hours_per_day, real_pct, working_days_config };
 };
