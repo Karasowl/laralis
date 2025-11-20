@@ -77,7 +77,7 @@ export function ActionConfirmCard({
   // Confidence badge color
   const confidenceColor = {
     low: 'text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/30',
-    medium: 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/30',
+    medium: 'text-primary bg-primary/10 dark:text-primary/80 dark:bg-primary/20',
     high: 'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900/30',
   }[suggestion.confidence]
 
@@ -145,7 +145,7 @@ export function ActionConfirmCard({
 
         {/* Status Messages */}
         {status === 'executing' && (
-          <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 mb-4">
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/5 dark:bg-primary/20 text-primary dark:text-primary/80 mb-4">
             <Loader2 className="h-4 w-4 animate-spin" />
             <span className="text-sm">{t('executing')}</span>
           </div>

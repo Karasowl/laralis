@@ -30,9 +30,9 @@ export interface ConfirmDialogProps {
 
 const variantConfig = {
   default: {
-    icon: <Info className="h-5 w-5 text-blue-500" />,
+    icon: <Info className="h-5 w-5 text-primary" />,
     buttonClass: '',
-    iconBg: 'bg-blue-50',
+    iconBg: 'bg-primary/10',
   },
   destructive: {
     icon: <Trash2 className="h-5 w-5 text-destructive" />,
