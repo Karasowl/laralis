@@ -21,7 +21,7 @@ export function MetricCard({
   change,
   changeType = 'neutral',
   icon: Icon,
-  color = 'text-blue-600',
+  color = 'text-primary',
   subtitle,
   valueInCents
 }: MetricCardProps) {
@@ -40,9 +40,9 @@ export function MetricCard({
   }
 
   const getChangeColor = () => {
-    if (changeType === 'increase') return 'text-green-600'
-    if (changeType === 'decrease') return 'text-red-600'
-    return 'text-gray-600'
+    if (changeType === 'increase') return 'text-emerald-600 dark:text-emerald-500'
+    if (changeType === 'decrease') return 'text-destructive'
+    return 'text-muted-foreground'
   }
 
   const getChangeIcon = () => {
@@ -54,10 +54,10 @@ export function MetricCard({
   const ChangeIcon = getChangeIcon()
 
   return (
-    <Card>
+    <Card className="transition-all duration-200 hover:shadow-lg hover:scale-[1.01]">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <div className={`p-2 rounded-lg bg-opacity-10 ${color}`}>
+        <div className={`p-2 rounded-lg bg-primary/10 dark:bg-primary/20 backdrop-blur-sm`}>
           <Icon className={`h-4 w-4 ${color}`} />
         </div>
       </CardHeader>

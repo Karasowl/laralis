@@ -67,15 +67,15 @@ export function MarketingROISimple({ clinicId, months = 6 }: MarketingROISimpleP
   const getROIColor = (roi: number) => {
     if (roi >= 200) return 'text-emerald-600 dark:text-emerald-400'
     if (roi >= 100) return 'text-green-600 dark:text-green-400'
-    if (roi >= 0) return 'text-blue-600 dark:text-blue-400'
-    return 'text-red-600 dark:text-red-400'
+    if (roi >= 0) return 'text-primary dark:text-primary/80'
+    return 'text-destructive'
   }
 
   const getROIBgColor = (roi: number) => {
     if (roi >= 200) return 'bg-emerald-100 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900'
     if (roi >= 100) return 'bg-green-100 dark:bg-green-950/30 border-green-200 dark:border-green-900'
-    if (roi >= 0) return 'bg-blue-100 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900'
-    return 'bg-red-100 dark:bg-red-950/30 border-red-200 dark:border-red-900'
+    if (roi >= 0) return 'bg-primary/10 dark:bg-primary/20 border-primary/30 dark:border-primary/40 backdrop-blur-sm'
+    return 'bg-destructive/10 dark:bg-destructive/20 border-destructive/30 dark:border-destructive/40 backdrop-blur-sm'
   }
 
   const formatPeriod = (period: string) => {
@@ -132,10 +132,10 @@ export function MarketingROISimple({ clinicId, months = 6 }: MarketingROISimpleP
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+        <Card className="transition-all duration-200 hover:shadow-lg hover:scale-[1.01]">
           <CardContent className="p-4">
-            <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-950/30 flex items-center justify-center mb-2">
-              <Megaphone className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            <div className="w-10 h-10 rounded-lg bg-primary/10 dark:bg-primary/20 backdrop-blur-sm flex items-center justify-center mb-2">
+              <Megaphone className="h-5 w-5 text-primary dark:text-primary/80" />
             </div>
             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
               {t('overview.totalInvestment')}
@@ -146,7 +146,7 @@ export function MarketingROISimple({ clinicId, months = 6 }: MarketingROISimpleP
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="transition-all duration-200 hover:shadow-lg hover:scale-[1.01]">
           <CardContent className="p-4">
             <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-950/30 flex items-center justify-center mb-2">
               <Target className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
@@ -160,10 +160,10 @@ export function MarketingROISimple({ clinicId, months = 6 }: MarketingROISimpleP
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="transition-all duration-200 hover:shadow-lg hover:scale-[1.01]">
           <CardContent className="p-4">
-            <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-950/30 flex items-center justify-center mb-2">
-              <TrendingUp className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+            <div className="w-10 h-10 rounded-lg bg-secondary/10 dark:bg-secondary/20 backdrop-blur-sm flex items-center justify-center mb-2">
+              <TrendingUp className="h-5 w-5 text-secondary dark:text-secondary/80" />
             </div>
             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
               {t('overview.avgROI')}
@@ -174,7 +174,7 @@ export function MarketingROISimple({ clinicId, months = 6 }: MarketingROISimpleP
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="transition-all duration-200 hover:shadow-lg hover:scale-[1.01]">
           <CardContent className="p-4">
             <div className="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-950/30 flex items-center justify-center mb-2">
               <Users className="h-5 w-5 text-amber-600 dark:text-amber-400" />
@@ -223,16 +223,16 @@ export function MarketingROISimple({ clinicId, months = 6 }: MarketingROISimpleP
 
         {/* Trend */}
         <Card className={cn(
-          'border-2',
+          'border-2 transition-all duration-200 hover:shadow-lg hover:scale-[1.01]',
           insights.trend >= 0
-            ? 'border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20'
+            ? 'border-primary/30 dark:border-primary/40 bg-primary/5 dark:bg-primary/10'
             : 'border-amber-200 dark:border-amber-900 bg-amber-50/50 dark:bg-amber-950/20'
         )}>
           <CardHeader className="pb-3">
             <CardTitle className={cn(
               'text-base flex items-center gap-2',
               insights.trend >= 0
-                ? 'text-blue-700 dark:text-blue-400'
+                ? 'text-primary dark:text-primary/80'
                 : 'text-amber-700 dark:text-amber-400'
             )}>
               {insights.trend >= 0 ? (
@@ -247,7 +247,7 @@ export function MarketingROISimple({ clinicId, months = 6 }: MarketingROISimpleP
             <p className={cn(
               'text-2xl font-bold',
               insights.trend >= 0
-                ? 'text-blue-900 dark:text-blue-300'
+                ? 'text-primary dark:text-primary/80'
                 : 'text-amber-900 dark:text-amber-300'
             )}>
               {insights.trend >= 0 ? '+' : ''}{insights.trend.toFixed(1)}%
@@ -255,7 +255,7 @@ export function MarketingROISimple({ clinicId, months = 6 }: MarketingROISimpleP
             <p className={cn(
               'text-xs',
               insights.trend >= 0
-                ? 'text-blue-700 dark:text-blue-400'
+                ? 'text-primary dark:text-primary/80'
                 : 'text-amber-700 dark:text-amber-400'
             )}>
               {t('insights.trendDescription')}
@@ -264,18 +264,18 @@ export function MarketingROISimple({ clinicId, months = 6 }: MarketingROISimpleP
         </Card>
 
         {/* Cost per Patient */}
-        <Card className="border-2 border-purple-200 dark:border-purple-900 bg-purple-50/50 dark:bg-purple-950/20">
+        <Card className="border-2 border-secondary/30 dark:border-secondary/40 bg-secondary/5 dark:bg-secondary/10 transition-all duration-200 hover:shadow-lg hover:scale-[1.01]">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2 text-purple-700 dark:text-purple-400">
+            <CardTitle className="text-base flex items-center gap-2 text-secondary dark:text-secondary/80">
               <DollarSign className="h-4 w-4" />
               {t('insights.costPerPatient')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <p className="text-2xl font-bold text-purple-900 dark:text-purple-300">
+            <p className="text-2xl font-bold text-secondary dark:text-secondary/80">
               {formatCurrency(summary.avgInvestmentPerPatientCents)}
             </p>
-            <p className="text-xs text-purple-700 dark:text-purple-400">
+            <p className="text-xs text-secondary dark:text-secondary/80">
               {t('insights.revenuePerPatient')}: {formatCurrency(summary.avgRevenuePerPatientCents)}
             </p>
           </CardContent>
@@ -283,7 +283,7 @@ export function MarketingROISimple({ clinicId, months = 6 }: MarketingROISimpleP
       </div>
 
       {/* Monthly Breakdown Table */}
-      <Card>
+      <Card className="transition-all duration-200 hover:shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5 text-primary" />
@@ -340,10 +340,10 @@ export function MarketingROISimple({ clinicId, months = 6 }: MarketingROISimpleP
           </div>
 
           {/* Help Text */}
-          <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 rounded-lg">
+          <div className="mt-4 p-3 bg-primary/5 dark:bg-primary/10 backdrop-blur-sm border border-primary/30 dark:border-primary/40 rounded-lg">
             <div className="flex items-start gap-2">
-              <Lightbulb className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
-              <div className="text-xs text-blue-700 dark:text-blue-400">
+              <Lightbulb className="h-4 w-4 text-primary dark:text-primary/80 mt-0.5 flex-shrink-0" />
+              <div className="text-xs text-primary dark:text-primary/80">
                 <p className="font-medium mb-1">{t('help.title')}</p>
                 <p>{t('help.description')}</p>
               </div>

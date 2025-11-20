@@ -39,7 +39,7 @@ export function RevenueChart({
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white dark:bg-gray-800 p-3 border border-border rounded-lg shadow-lg">
+        <div className="bg-background/95 dark:bg-background/95 backdrop-blur-xl p-3 border border-border rounded-lg shadow-lg">
           <p className="font-medium text-foreground">{label}</p>
           {payload.map((entry: any, index: number) => (
             <p key={index} className="text-sm" style={{ color: entry.color }}>
@@ -53,7 +53,7 @@ export function RevenueChart({
   }
 
   return (
-    <Card>
+    <Card className="transition-all duration-200 hover:shadow-lg">
       <CardHeader>
         <div className="flex items-start justify-between">
           <div>
@@ -85,12 +85,12 @@ export function RevenueChart({
           <AreaChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8}/>
-                <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
+                <stop offset="5%" stopColor="hsl(221, 83%, 53%)" stopOpacity={0.8}/>
+                <stop offset="95%" stopColor="hsl(221, 83%, 53%)" stopOpacity={0}/>
               </linearGradient>
               <linearGradient id="colorExpenses" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#EF4444" stopOpacity={0.8}/>
-                <stop offset="95%" stopColor="#EF4444" stopOpacity={0}/>
+                <stop offset="5%" stopColor="hsl(0, 84%, 60%)" stopOpacity={0.8}/>
+                <stop offset="95%" stopColor="hsl(0, 84%, 60%)" stopOpacity={0}/>
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -113,7 +113,7 @@ export function RevenueChart({
             <Area
               type="monotone"
               dataKey="revenue"
-              stroke="#3B82F6"
+              stroke="hsl(221, 83%, 53%)"
               fillOpacity={1}
               fill="url(#colorRevenue)"
               name={t('chart_revenue')}
@@ -121,7 +121,7 @@ export function RevenueChart({
             <Area
               type="monotone"
               dataKey="expenses"
-              stroke="#EF4444"
+              stroke="hsl(0, 84%, 60%)"
               fillOpacity={1}
               fill="url(#colorExpenses)"
               name={t('chart_expenses')}
