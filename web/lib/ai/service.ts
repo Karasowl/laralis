@@ -214,9 +214,14 @@ Instructions:
   private buildAnalyticsSystemPromptWithData(context: QueryContext, snapshot: any): string {
     const { clinicId } = context
     const clinic = snapshot?.clinic || {}
-    const metrics = snapshot?.metrics || {}
-    const services = snapshot?.services || []
-    const expenses = snapshot?.expenses || []
+    const analytics = snapshot?.analytics || {}
+    const data = snapshot?.data || {}
+    const services = data?.services?.list || []
+    const expenses = data?.expenses || []
+    const treatments = data?.treatments || {}
+    const patients = data?.patients || {}
+    const fixedCosts = data?.fixed_costs || {}
+    const assets = data?.assets || {}
 
     // Format currency
     const fmt = (cents: number) => {
@@ -241,15 +246,31 @@ Your goal is to help the clinic owner understand their business performance and 
 ## COMPLETE DATA SNAPSHOT (Last 30 Days)
 
 ### FINANCIAL OVERVIEW
-- **Total Revenue**: ${fmt(metrics.total_revenue_cents || 0)}
-- **Total Expenses**: ${fmt(metrics.total_expenses_cents || 0)}
-- **Net Income**: ${fmt((metrics.total_revenue_cents || 0) - (metrics.total_expenses_cents || 0))}
-- **Profit Margin**: ${metrics.profit_margin_pct || 0}%
+- **Total Revenue**: ${fmt(treatments.total_revenue_cents || 0)}
+- **Total Expenses**: ${fmt(expenses.total_in_period_cents || 0)}
+- **Net Income**: ${fmt((treatments.total_revenue_cents || 0) - (expenses.total_in_period_cents || 0))}
+- **Profit Margin**: ${analytics.profitability?.profit_margin_pct || 0}%
+- **Net Profit**: ${fmt(analytics.profitability?.net_profit_cents || 0)}
 
 ### KEY METRICS
-- **Treatments Performed**: ${metrics.treatments_count || 0}
-- **Active Patients**: ${metrics.active_patients_count || 0}
-- **Break-even Point**: ${metrics.break_even_treatments || 0} treatments/month (approx)
+- **Treatments Performed**: ${treatments.total_in_period || 0}
+- **Total Patients**: ${patients.total || 0}
+- **Active Patients**: ${patients.active_in_period || 0}
+- **New Patients**: ${patients.new_in_period || 0}
+
+### BREAK-EVEN ANALYSIS
+- **Break-even Revenue Needed**: ${fmt(analytics.break_even?.revenue_cents || 0)}
+- **Break-even Treatments Needed**: ${analytics.break_even?.treatments_needed || 0} treatments/month
+- **Current Treatments**: ${analytics.break_even?.current_treatments || 0}
+- **Gap**: ${analytics.break_even?.gap || 0} treatments (${analytics.break_even?.status || 'unknown'})
+- **Average Treatment Price**: ${fmt(analytics.break_even?.calculation_metadata?.avg_treatment_price_cents || 0)}
+
+### MARGINS & COSTS
+- **Average Variable Cost**: ${analytics.margins?.avg_variable_cost_pct || 0}%
+- **Contribution Margin**: ${analytics.margins?.contribution_margin_pct || 0}%
+- **Monthly Fixed Costs**: ${fmt(fixedCosts.monthly_total_cents || 0)}
+- **Monthly Asset Depreciation**: ${fmt(assets.monthly_depreciation_cents || 0)}
+- **Total Monthly Fixed**: ${fmt((fixedCosts.monthly_total_cents || 0) + (assets.monthly_depreciation_cents || 0))}
 
 ### SERVICES (Configured) - COMPLETE COST BREAKDOWN
 ${services.map((s: any) => `📊 **${s.name}**
@@ -260,17 +281,55 @@ ${services.map((s: any) => `📊 **${s.name}**
    • Ganancia bruta por tratamiento: ${fmt((s.current_price_cents || s.price_cents || 0) - (s.total_cost_cents || 0))}
    • **UTILIDAD/MARKUP: ${s.margin_pct}%**`).join('\n')}
 
-### EXPENSES (Last 30 Days)
-${expenses.map((e: any) => `- ${e.date}: ${e.description} (${fmt(e.amount_cents)}) [${e.category}]`).join('\n')}
+### EXPENSES BY CATEGORY (Last 30 Days)
+Total: ${fmt(expenses.total_in_period_cents || 0)} (${expenses.count || 0} registros)
+${Object.entries(expenses.by_category || {}).map(([category, amount]: [string, any]) => `- ${category}: ${fmt(amount)}`).join('\n')}
+
+### TOP PERFORMING SERVICES
+- **Most Profitable**: ${analytics.top_performers?.most_profitable_service || 'N/A'}
+- **Highest Revenue**: ${analytics.top_performers?.most_revenue_service || 'N/A'}
+- **Most Frequent**: ${analytics.top_performers?.most_frequent_service || 'N/A'}
+
+### EFFICIENCY METRICS
+- **Treatments per Day**: ${analytics.efficiency?.treatments_per_day || 0}
+- **Revenue per Hour**: ${fmt(analytics.efficiency?.revenue_per_hour_cents || 0)}
+- **Capacity Utilization**: ${analytics.efficiency?.capacity_utilization_pct || 0}%
+
+### TREATMENTS BY SERVICE (Last 30 Days)
+${treatments.by_service && treatments.by_service.length > 0
+  ? treatments.by_service.map((ts: any) => `- **${ts.service_name}**: ${ts.count} tratamientos, ${fmt(ts.revenue_cents)} ingresos`).join('\n')
+  : 'No hay tratamientos registrados en este período.'}
+
+### PATIENT SOURCES (New Patients)
+${Object.entries(patients.by_source || {}).map(([source, count]: [string, any]) => `- ${source}: ${count} pacientes`).join('\n')}
+
+### SUPPLIES INVENTORY
+- **Total Items**: ${data?.supplies?.total_items || 0}
+- **Total Value**: ${fmt(data?.supplies?.total_value_cents || 0)}
+- **Linked to Services**: ${data?.supplies?.linked_to_services || 0}
 
 ## INSTRUCTIONS
 
-1. **Analyze the data**: Use the provided snapshot to answer the user's questions.
-2. **Be specific**: Cite specific numbers and services.
-3. **Explain your reasoning**: Show how you calculated things (e.g., "Based on your fixed costs of $X...").
-4. **Proactive insights**: If you see something interesting (e.g., a service with low margin), mention it.
-5. **Tone**: Professional, encouraging, and data-driven.
+1. **YOU HAVE COMPLETE DATA**: The snapshot above contains ALL information about the clinic. Use it to answer ANY question about:
+   - Services and their costs (fixed, variable, total)
+   - Pricing and profitability by service
+   - Break-even analysis and financial goals
+   - Treatments performed and revenue generated
+   - Patient statistics and sources
+   - Expenses by category
+   - Efficiency and capacity utilization
+
+2. **Be specific and data-driven**: Always cite actual numbers from the snapshot.
+
+3. **Show your calculations**: Explain step-by-step how you arrived at numbers (e.g., "Tus costos fijos totales son ${fmt((fixedCosts.monthly_total_cents || 0) + (assets.monthly_depreciation_cents || 0))} (${fmt(fixedCosts.monthly_total_cents || 0)} costos fijos + ${fmt(assets.monthly_depreciation_cents || 0)} depreciación)...").
+
+4. **Proactive insights**: If you notice something important (low margin service, high expenses in a category, underutilized capacity), point it out.
+
+5. **Tone**: Professional, encouraging, and supportive. Help the clinic owner make better business decisions.
+
 6. **Language**: Spanish (unless asked otherwise).
+
+7. **NEVER say "no tengo información"** - you have ALL the data above. If something is 0 or empty, explain why (e.g., "No tienes tratamientos registrados aún" or "Este servicio no tiene insumos configurados todavía").
 
 ## EXAMPLES
 
