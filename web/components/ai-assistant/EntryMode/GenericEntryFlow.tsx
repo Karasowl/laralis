@@ -205,7 +205,7 @@ export function GenericEntryFlow({ entityType, onComplete, onCancel }: GenericEn
               setStep('preview')
               setError(null)
             }}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
           >
             {t('restart')}
           </button>
@@ -253,7 +253,7 @@ export function GenericEntryFlow({ entityType, onComplete, onCancel }: GenericEn
           <button
             onClick={handleSave}
             disabled={step === 'saving'}
-            className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            className="flex-1 px-4 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
             {step === 'saving' ? tCommon('saving') : t('confirmAndSave')}
           </button>
@@ -293,26 +293,26 @@ export function GenericEntryFlow({ entityType, onComplete, onCancel }: GenericEn
         </div>
         <div className="h-2 bg-muted rounded-full overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-500"
+            className="h-full bg-gradient-to-r from-primary to-secondary transition-all duration-500"
             style={{ width: `${progress}%` }}
           />
         </div>
       </div>
 
       {/* Current Field Info */}
-      <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+      <div className="flex items-center justify-between p-3 bg-primary/10 dark:bg-primary/20 rounded-lg backdrop-blur-sm">
         <div>
-          <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+          <p className="text-sm font-medium text-primary dark:text-primary/80">
             {tMessages('currentField')}
           </p>
-          <p className="text-xs text-blue-700 dark:text-blue-300 capitalize">
+          <p className="text-xs text-primary dark:text-primary/80 capitalize">
             {currentField?.replace(/_/g, ' ')}
           </p>
         </div>
         {currentFieldIndex > 0 && (
           <button
             onClick={moveToPreviousField}
-            className="text-xs px-3 py-1 border border-blue-300 dark:border-blue-700 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30"
+            className="text-xs px-3 py-1 border border-primary/30 dark:border-primary/40 rounded hover:bg-primary/10 dark:hover:bg-primary/20"
           >
             {tMessages('previousField')}
           </button>
@@ -329,8 +329,8 @@ export function GenericEntryFlow({ entityType, onComplete, onCancel }: GenericEn
             <div
               className={`max-w-[80%] px-4 py-2 rounded-2xl ${
                 msg.role === 'user'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-muted text-foreground'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted/50 text-foreground backdrop-blur-sm'
               }`}
             >
               <p className="text-sm">{msg.text}</p>
@@ -367,7 +367,7 @@ export function GenericEntryFlow({ entityType, onComplete, onCancel }: GenericEn
         <button
           onClick={() => setStep('preview')}
           disabled={isProcessing || Object.keys(collectedData).length === 0}
-          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {t('preview')}
         </button>

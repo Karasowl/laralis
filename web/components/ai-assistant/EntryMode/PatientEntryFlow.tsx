@@ -181,7 +181,7 @@ export function PatientEntryFlow({ onComplete, onCancel }: PatientEntryFlowProps
         <h3 className="text-xl font-semibold">{error || t('saveError')}</h3>
         <button
           onClick={() => setStep('preview')}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
         >
           {t('restart')}
         </button>
@@ -207,7 +207,7 @@ export function PatientEntryFlow({ onComplete, onCancel }: PatientEntryFlowProps
           <button
             onClick={handleSave}
             disabled={step === 'saving'}
-            className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            className="flex-1 px-4 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50"
           >
             {step === 'saving' ? tCommon('saving') : t('confirmAndSave')}
           </button>
@@ -232,7 +232,7 @@ export function PatientEntryFlow({ onComplete, onCancel }: PatientEntryFlowProps
         </div>
         <div className="h-2 bg-muted rounded-full overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300"
+            className="h-full bg-gradient-to-r from-primary to-secondary transition-all duration-300"
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -248,8 +248,8 @@ export function PatientEntryFlow({ onComplete, onCancel }: PatientEntryFlowProps
             <div
               className={`max-w-[80%] px-4 py-2 rounded-2xl ${
                 msg.role === 'user'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-muted text-foreground'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted/50 text-foreground backdrop-blur-sm'
               }`}
             >
               <p className="text-sm">{msg.text}</p>
