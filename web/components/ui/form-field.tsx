@@ -110,9 +110,9 @@ export const InputField = React.memo(
     return (
       <div className={cn('space-y-1', containerClassName)}>
         {label && (
-          <Label htmlFor={fieldId} className="text-sm font-medium text-slate-700 dark:text-slate-300">
+          <Label htmlFor={fieldId} className="text-sm font-medium text-foreground">
             {label}
-            {required && <span className="text-red-500 ml-1">*</span>}
+            {required && <span className="text-destructive ml-1">*</span>}
           </Label>
         )}
         <div className="relative">
@@ -146,10 +146,10 @@ export const InputField = React.memo(
             max={max}
             step={step}
             className={cn(
-              'mt-1 h-12 bg-white/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 focus:border-blue-500 dark:focus:border-blue-400 transition-all',
+              'mt-1 h-12 bg-background/50 backdrop-blur-sm border-border focus:border-primary focus:ring-primary transition-all',
               type === 'password' && 'pr-12',
               type === 'date' && 'cursor-pointer',
-              error && 'border-red-500 focus:ring-red-500',
+              error && 'border-destructive focus:ring-destructive',
               className
             )}
           />
@@ -164,9 +164,9 @@ export const InputField = React.memo(
               disabled={disabled}
             >
               {showPassword ? (
-                <EyeOff className="h-4 w-4 text-gray-500" />
+                <EyeOff className="h-4 w-4 text-muted-foreground" />
               ) : (
-                <Eye className="h-4 w-4 text-gray-500" />
+                <Eye className="h-4 w-4 text-muted-foreground" />
               )}
               <span className="sr-only">
                 {showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
@@ -175,10 +175,10 @@ export const InputField = React.memo(
           )}
         </div>
         {error && (
-          <p className="text-sm text-red-600 mt-1">{error}</p>
+          <p className="text-sm text-destructive mt-1">{error}</p>
         )}
         {helperText && !error && (
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{helperText}</p>
+          <p className="text-xs text-muted-foreground mt-1">{helperText}</p>
         )}
       </div>
     );
@@ -217,9 +217,9 @@ export const TextareaField = React.memo(
     return (
       <div className={cn('space-y-1', containerClassName)}>
         {label && (
-          <Label htmlFor={fieldId} className="text-sm font-medium">
+          <Label htmlFor={fieldId} className="text-sm font-medium text-foreground">
             {label}
-            {required && <span className="text-red-500 ml-1">*</span>}
+            {required && <span className="text-destructive ml-1">*</span>}
           </Label>
         )}
         <Textarea
@@ -234,15 +234,15 @@ export const TextareaField = React.memo(
           rows={rows}
           className={cn(
             'mt-1',
-            error && 'border-red-500 focus:ring-red-500',
+            error && 'border-destructive focus:ring-destructive',
             className
           )}
         />
         {error && (
-          <p className="text-sm text-red-600 mt-1">{error}</p>
+          <p className="text-sm text-destructive mt-1">{error}</p>
         )}
         {helperText && !error && (
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{helperText}</p>
+          <p className="text-xs text-muted-foreground mt-1">{helperText}</p>
         )}
       </div>
     );
