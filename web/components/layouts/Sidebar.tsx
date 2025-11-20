@@ -62,7 +62,7 @@ export function Sidebar({
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto overscroll-contain scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700">
+      <nav className="flex-1 overflow-y-auto overscroll-contain scrollbar-thin scrollbar-thumb-muted-foreground/30">
         <div className="p-4 space-y-6 pb-8">
           {sections.map((section, sectionIndex) => (
             <div key={sectionIndex} className="space-y-1">
