@@ -389,7 +389,9 @@ export class ClinicSnapshotService {
         id: s.id,
         name: s.name,
         est_minutes: s.est_minutes,
+        fixed_cost_cents: fixedCost,
         variable_cost_cents: variableCost,
+        total_cost_cents: totalCost,
         current_price_cents: price,
         margin_pct: Math.round(markup * 100) / 100,  // Called margin_pct but it's actually markup
         has_pricing: price > 0 && s.is_active, // Has price configured and is active

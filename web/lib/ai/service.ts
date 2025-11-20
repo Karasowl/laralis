@@ -328,18 +328,21 @@ ${data.services.list?.map((s: any) => `
 📊 **${s.name}**
    ${s.has_pricing || s.has_tariff || s.current_price_cents > 0
      ? `• Precio: ${fmt(s.current_price_cents || s.price_cents || 0)}
-   • Costo variable (materiales): ${fmt(s.variable_cost_cents)}
-   • Ganancia bruta por tratamiento: ${fmt((s.current_price_cents || s.price_cents || 0) - s.variable_cost_cents)}
-   • **MARGEN DE GANANCIA: ${s.margin_pct}%**`
+   • Costo fijo (tiempo): ${fmt(s.fixed_cost_cents || 0)}
+   • Costo variable (materiales): ${fmt(s.variable_cost_cents || 0)}
+   • **Costo total**: ${fmt(s.total_cost_cents || 0)}
+   • Ganancia bruta por tratamiento: ${fmt((s.current_price_cents || s.price_cents || 0) - (s.total_cost_cents || 0))}
+   • **UTILIDAD/MARKUP: ${s.margin_pct}%**`
      : `• ⚠️ SIN PRECIO CONFIGURADO - necesita configurar el precio del servicio en el módulo de Servicios
    • Costo variable (materiales): ${fmt(s.variable_cost_cents)}`}
    • Duración estimada: ${s.est_minutes} minutos`).join('\n') || '  (No services configured)'}
 
 **IMPORTANT FOR PROFITABILITY QUESTIONS:**
-- Each service has a PROFIT MARGIN (margin_pct) = (Precio - Costo Variable) / Precio × 100
-- To find "most profitable service" or "best margin", sort by **margin_pct** (highest % = most profitable)
+- Each service has a MARKUP/UTILIDAD (margin_pct) = (Precio - Costo Total) / Costo Total × 100
+- This is NOT a margin, it's a MARKUP (utilidad en español)
+- Costo Total = Costo Fijo (tiempo) + Costo Variable (materiales)
+- To find "most profitable service", sort by **margin_pct** (highest % = best markup)
 - To find "most revenue generating service", check treatments.by_service for actual revenue
-- Variable costs include ONLY materials/supplies used per treatment (NOT fixed costs like rent)
 - **CRITICAL**: If a service doesn't have pricing configured (price_cents = 0 or null), tell user to configure the price in the Services module (Servicios)
 
 ### SUPPLIES
