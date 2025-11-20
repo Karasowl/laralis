@@ -15,7 +15,7 @@ interface CategoryBreakdownProps {
   colors?: string[]
 }
 
-const DEFAULT_COLORS = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#14B8A6', '#6366F1']
+const DEFAULT_COLORS = ['hsl(221, 83%, 53%)', 'hsl(271, 81%, 56%)', '#10B981', '#F59E0B', 'hsl(0, 84%, 60%)', '#EC4899', '#14B8A6', '#6366F1']
 
 export function CategoryBreakdown({ 
   data, 
@@ -29,7 +29,7 @@ export function CategoryBreakdown({
       const total = data.reduce((a, b) => a + b.value, 0)
       const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0'
       return (
-        <div className="bg-white p-3 border rounded-lg shadow-lg">
+        <div className="bg-background/95 dark:bg-background/95 backdrop-blur-xl p-3 border border-border rounded-lg shadow-lg">
           <p className="font-medium">{payload[0].name}</p>
           <p className="text-sm text-muted-foreground">
             {formatCurrency(value)}
@@ -83,7 +83,7 @@ export function CategoryBreakdown({
   }
 
   return (
-    <Card>
+    <Card className="transition-all duration-200 hover:shadow-lg">
       <CardHeader>
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>

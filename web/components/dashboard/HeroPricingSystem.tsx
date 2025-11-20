@@ -35,10 +35,10 @@ export function HeroPricingSystem({
 
   return (
     <>
-      <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 via-background to-background relative overflow-hidden">
+      <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 via-background to-background relative overflow-hidden transition-all duration-200 hover:shadow-lg">
         {/* Background decoration */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -z-10" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/5 rounded-full blur-3xl -z-10" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary/5 rounded-full blur-3xl -z-10" />
 
         <CardContent className="p-6 md:p-8">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
@@ -56,18 +56,18 @@ export function HeroPricingSystem({
 
               {/* Visual formula */}
               <div className="flex flex-wrap items-center gap-2 text-sm">
-                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-900">
-                  <Calculator className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                  <span className="font-medium text-blue-900 dark:text-blue-300">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 dark:bg-primary/20 backdrop-blur-sm rounded-lg border border-primary/30 dark:border-primary/40">
+                  <Calculator className="h-4 w-4 text-primary dark:text-primary/80" />
+                  <span className="font-medium text-primary dark:text-primary/80">
                     {t('fixedCosts')}: {formatCurrency(exampleFixedCost)}
                   </span>
                 </div>
 
                 <span className="text-muted-foreground font-bold">+</span>
 
-                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-100 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-900">
-                  <Calculator className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                  <span className="font-medium text-purple-900 dark:text-purple-300">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary/10 dark:bg-secondary/20 backdrop-blur-sm rounded-lg border border-secondary/30 dark:border-secondary/40">
+                  <Calculator className="h-4 w-4 text-secondary dark:text-secondary/80" />
+                  <span className="font-medium text-secondary dark:text-secondary/80">
                     {t('materials')}: {formatCurrency(exampleMaterialCostCents)}
                   </span>
                 </div>
@@ -124,7 +124,7 @@ export function HeroPricingSystem({
             {/* Step 1: Fixed Costs */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-950/30 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold">
+                <div className="w-8 h-8 rounded-full bg-primary/10 dark:bg-primary/20 backdrop-blur-sm flex items-center justify-center text-primary dark:text-primary/80 font-bold">
                   1
                 </div>
                 <h4 className="font-semibold text-foreground">{t('modal.step1.title')}</h4>
@@ -147,7 +147,7 @@ export function HeroPricingSystem({
             {/* Step 2: Variable Costs */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-950/30 flex items-center justify-center text-purple-600 dark:text-purple-400 font-bold">
+                <div className="w-8 h-8 rounded-full bg-secondary/10 dark:bg-secondary/20 backdrop-blur-sm flex items-center justify-center text-secondary dark:text-secondary/80 font-bold">
                   2
                 </div>
                 <h4 className="font-semibold text-foreground">{t('modal.step2.title')}</h4>
