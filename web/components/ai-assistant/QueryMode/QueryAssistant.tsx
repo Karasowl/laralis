@@ -696,14 +696,12 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
 
               {/* Action Confirmation Card (below assistant message) */}
               {msg.role === 'assistant' && msg.suggestedAction && currentClinic?.id && (
-                <div className="w-full max-w-[95%] sm:max-w-[85%] animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
-                  <ActionConfirmCard
-                    suggestion={msg.suggestedAction}
-                    clinicId={currentClinic.id}
-                    onConfirm={(result) => handleActionConfirm(idx, result)}
-                    onReject={() => handleActionReject(idx)}
-                  />
-                </div>
+                <ActionConfirmCard
+                  suggestion={msg.suggestedAction}
+                  clinicId={currentClinic.id}
+                  onConfirm={(result) => handleActionConfirm(idx, result)}
+                  onReject={() => handleActionReject(idx)}
+                />
               )}
             </div>
           ))}
