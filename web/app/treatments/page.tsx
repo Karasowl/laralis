@@ -249,16 +249,26 @@ export default function TreatmentsPage() {
           <ActionDropdown
             actions={[
             createEditAction(() => {
-              const margin = treatment?.margin_pct ?? 60
-              // Use the actual saved price, don't recalculate
+              // Use the actual saved price
               const actualPricePesos = Math.round((treatment?.price_cents || 0) / 100)
+              const actualPriceCents = actualPricePesos * 100
+
+              // CRITICAL FIX: Recalculate margin using CURRENT service cost
+              // Don't use historical margin_pct which may be based on old costs
+              const currentService = services.find(s => s.id === treatment?.service_id)
+              const currentCostCents = currentService?.total_cost_cents || currentService?.base_price_cents || 0
+
+              // Calculate margin: (price - cost) / cost * 100
+              const recalculatedMargin = currentCostCents > 0
+                ? ((actualPriceCents - currentCostCents) / currentCostCents) * 100
+                : (treatment?.margin_pct ?? 60)
 
               form.reset({
                 patient_id: treatment?.patient_id || '',
                 service_id: treatment?.service_id || '',
                 treatment_date: treatment?.treatment_date || getLocalDateISO(),
                 minutes: treatment?.minutes ?? 30,
-                margin_pct: margin,
+                margin_pct: Math.round(recalculatedMargin * 10) / 10,
                 sale_price: actualPricePesos,
                 status: treatment?.status || 'pending',
                 notes: treatment?.notes || '',
