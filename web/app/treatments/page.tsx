@@ -33,7 +33,7 @@ const treatmentFormSchema = z.object({
   service_id: z.string().min(1),
   treatment_date: z.string().min(1),
   minutes: z.number().min(1),
-  margin_pct: z.number().min(0).max(100),
+  margin_pct: z.number().min(0).max(500), // Allow high margins (e.g., 217% for extractions)
   sale_price: z.number().min(0).optional(), // Price in pesos (converted to cents in hook)
   status: z.enum(['pending', 'completed', 'cancelled']),
   notes: z.string().optional(),
