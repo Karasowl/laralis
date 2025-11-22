@@ -2587,12 +2587,28 @@
       "vendor": "Vendor",
       "invoice_number": "Invoice Number",
       "recurring": "Recurring",
+      "is_variable": "Variable Cost",
+      "expense_category": "Expense Type",
+      "expense_category_help": "For financial analysis (Gross Profit, EBITDA, etc.)",
       "quantity": "Quantity",
       "supply": "Supply",
       "integration": "Integration",
       "asset_name": "Asset Name",
       "useful_life": "Useful Life (years)",
       "notes": "Notes"
+    },
+    "expenseCategories": {
+      "materials": "Materials",
+      "lab_fees": "Lab Fees",
+      "supplies_dental": "Dental Supplies",
+      "rent": "Rent",
+      "salaries": "Salaries",
+      "utilities": "Utilities",
+      "insurance": "Insurance",
+      "software_subscriptions": "Software / Subscriptions",
+      "marketing": "Marketing",
+      "maintenance": "Maintenance",
+      "other": "Other"
     },
     "placeholders": {
       "description": "Describe the expense...",

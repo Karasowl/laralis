@@ -1,5 +1,30 @@
 import { z } from 'zod'
 
+// Expense categorization for financial analysis
+export const VARIABLE_EXPENSE_CATEGORIES = {
+  MATERIALS: 'materials',
+  LAB_FEES: 'lab_fees',
+  SUPPLIES_DENTAL: 'supplies_dental'
+} as const
+
+export const FIXED_EXPENSE_CATEGORIES = {
+  RENT: 'rent',
+  SALARIES: 'salaries',
+  UTILITIES: 'utilities',
+  INSURANCE: 'insurance',
+  SOFTWARE: 'software_subscriptions',
+  MARKETING: 'marketing',
+  MAINTENANCE: 'maintenance',
+  OTHER: 'other'
+} as const
+
+export const ALL_EXPENSE_CATEGORIES = {
+  ...VARIABLE_EXPENSE_CATEGORIES,
+  ...FIXED_EXPENSE_CATEGORIES
+} as const
+
+export type ExpenseCategoryType = typeof ALL_EXPENSE_CATEGORIES[keyof typeof ALL_EXPENSE_CATEGORIES]
+
 // Database types
 export interface Expense {
   id: string
@@ -15,6 +40,8 @@ export interface Expense {
   // Optional free-text notes for the expense
   notes?: string
   is_recurring: boolean
+  is_variable?: boolean  // True if variable cost (materials, lab fees), false if fixed
+  expense_category?: string  // Category: materials, lab_fees, rent, salaries, etc.
   campaign_id?: string
   related_asset_id?: string
   related_supply_id?: string
@@ -99,6 +126,8 @@ export const expenseFormSchema = z.object({
   vendor: z.string().optional(),
   invoice_number: z.string().optional(),
   is_recurring: z.boolean().default(false),
+  is_variable: z.boolean().default(false),  // For financial analysis categorization
+  expense_category: z.string().optional(),  // materials, lab_fees, rent, salaries, etc.
   campaign_id: z.string().uuid().optional(),
   quantity: z.number().int().positive().optional(),
   related_supply_id: z.string().optional(),
@@ -121,6 +150,8 @@ export const expenseDbSchema = z.object({
   vendor: z.string().optional(),
   invoice_number: z.string().optional(),
   is_recurring: z.boolean().default(false),
+  is_variable: z.boolean().default(false),  // For financial analysis categorization
+  expense_category: z.string().optional(),  // materials, lab_fees, rent, salaries, etc.
   campaign_id: z.string().uuid().optional(),
   quantity: z.number().int().positive().optional(),
   related_supply_id: z.string().optional(),

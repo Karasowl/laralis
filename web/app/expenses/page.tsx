@@ -39,6 +39,9 @@ import {
   type ExpenseFormData,
   EXPENSE_CATEGORIES,
   EXPENSE_SUBCATEGORIES,
+  ALL_EXPENSE_CATEGORIES,
+  VARIABLE_EXPENSE_CATEGORIES,
+  FIXED_EXPENSE_CATEGORIES,
   type ExpenseWithRelations,
   type ExpenseFilters,
 } from '@/lib/types/expenses'
@@ -727,6 +730,8 @@ function getDefaultFormValues(): ExpenseFormValues {
     vendor: '',
     invoice_number: '',
     is_recurring: false,
+    is_variable: false,  // Default to fixed cost
+    expense_category: '',  // User must select
     campaign_id: undefined,
     quantity: undefined,
     related_supply_id: undefined,
@@ -752,6 +757,8 @@ function mapExpenseToFormValues(expense?: ExpenseWithRelations | null): ExpenseF
     vendor: expense.vendor || '',
     invoice_number: expense.invoice_number || '',
     is_recurring: Boolean(expense.is_recurring),
+    is_variable: Boolean(expense.is_variable),  // Map from DB
+    expense_category: expense.expense_category || '',  // Map from DB
     campaign_id: expense.campaign_id || undefined,
     quantity: expense.quantity ?? undefined,
     related_supply_id: expense.related_supply_id || undefined,
@@ -922,6 +929,48 @@ function ExpenseForm({ form, t, categoryOptions, getSubcategoriesForCategory, su
             </div>
           )}
         />
+      </FormSection>
+
+      <FormSection title={t('fields.expense_category')} helperText={t('fields.expense_category_help')}>
+        <FormGrid columns={2}>
+          <Controller
+            control={form.control}
+            name="is_variable"
+            render={({ field }) => (
+              <div className="flex items-center gap-2 pt-1">
+                <Checkbox
+                  id="expense-is-variable"
+                  checked={field.value}
+                  onCheckedChange={(checked) => field.onChange(Boolean(checked))}
+                />
+                <Label htmlFor="expense-is-variable" className="text-sm">
+                  {t('fields.is_variable')}
+                </Label>
+              </div>
+            )}
+          />
+
+          <SelectField
+            label={t('fields.expense_category')}
+            value={form.watch('expense_category') || ''}
+            onChange={(value) => form.setValue('expense_category', value)}
+            options={[
+              { value: '', label: t('select_category') },
+              { value: ALL_EXPENSE_CATEGORIES.MATERIALS, label: t('expenseCategories.materials') },
+              { value: ALL_EXPENSE_CATEGORIES.LAB_FEES, label: t('expenseCategories.lab_fees') },
+              { value: ALL_EXPENSE_CATEGORIES.SUPPLIES_DENTAL, label: t('expenseCategories.supplies_dental') },
+              { value: ALL_EXPENSE_CATEGORIES.RENT, label: t('expenseCategories.rent') },
+              { value: ALL_EXPENSE_CATEGORIES.SALARIES, label: t('expenseCategories.salaries') },
+              { value: ALL_EXPENSE_CATEGORIES.UTILITIES, label: t('expenseCategories.utilities') },
+              { value: ALL_EXPENSE_CATEGORIES.INSURANCE, label: t('expenseCategories.insurance') },
+              { value: ALL_EXPENSE_CATEGORIES.SOFTWARE, label: t('expenseCategories.software_subscriptions') },
+              { value: ALL_EXPENSE_CATEGORIES.MARKETING, label: t('expenseCategories.marketing') },
+              { value: ALL_EXPENSE_CATEGORIES.MAINTENANCE, label: t('expenseCategories.maintenance') },
+              { value: ALL_EXPENSE_CATEGORIES.OTHER, label: t('expenseCategories.other') },
+            ]}
+            helperText={form.watch('is_variable') ? t('expenseCategories.materials') : t('expenseCategories.rent')}
+          />
+        </FormGrid>
       </FormSection>
 
       <FormSection title={t('form.sections.inventory')}>
