@@ -208,6 +208,7 @@ export default function SuppliesPage() {
         onDeleteConfirm: crud.handleDeleteConfirm,
       }}
       columns={columns}
+      mobileColumns={[columns[0], columns[5]]}
       emptyIcon={<Package className="h-8 w-8" />}
       searchable={true}
     >

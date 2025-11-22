@@ -66,7 +66,7 @@ export function BusinessSwitcher() {
   }, [router]);
 
   if (loading) {
-    return <Skeleton className="w-[200px] h-10" />;
+    return <Skeleton className="w-full sm:w-[180px] md:w-[200px] h-10" />;
   }
 
   if (clinics.length === 0) {
@@ -79,7 +79,7 @@ export function BusinessSwitcher() {
 
   return (
     <Select value={selectedClinicId} onValueChange={handleClinicChange}>
-      <SelectTrigger className="w-[200px] bg-white">
+      <SelectTrigger className="w-full sm:w-[180px] md:w-[200px] bg-white">
         <SelectValue placeholder={t('selectClinic')} />
       </SelectTrigger>
       <SelectContent>

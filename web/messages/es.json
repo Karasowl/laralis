@@ -1258,6 +1258,7 @@
     "selected_count": "{count} seleccionados",
     "no_supplies_found": "No se encontraron insumos",
     "all_supplies_added": "Todos los insumos ya están agregados",
+    "scroll_for_more": "Desliza para ver más",
     "add_selected": "Agregar {count} insumos",
     "cancel": "Cancelar",
     "select_supply": "Seleccionar insumo",
@@ -2251,8 +2252,10 @@
       "price": "Precio",
       "status": "Estado",
       "margin": "Margen (%)",
+      "sale_price": "Precio de Venta",
       "notes": "Notas"
     },
+    "sale_price_helper": "Precio final de venta - el margen se ajusta automáticamente",
     "patientAndService": "Paciente y Servicio",
     "treatmentDetails": "Detalles del Tratamiento",
     "additionalInfo": "Información Adicional",

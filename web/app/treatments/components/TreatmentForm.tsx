@@ -38,7 +38,7 @@ export function TreatmentForm({
   const patientId = useWatch({ control: form.control, name: 'patient_id' })
   const serviceId = useWatch({ control: form.control, name: 'service_id' })
   const marginPct = useWatch({ control: form.control, name: 'margin_pct' })
-  const targetPrice = useWatch({ control: form.control, name: 'target_price' })
+  const salePrice = useWatch({ control: form.control, name: 'sale_price' })
 
   // Memoize selectedService lookup to avoid recalculation on every render
   const selectedService = React.useMemo(
@@ -71,21 +71,21 @@ export function TreatmentForm({
     form.setValue('notes', value)
   }, [form])
 
-  // Sync handlers for margin_pct <-> target_price
+  // Sync handlers for margin_pct <-> sale_price
   const handleMarginChangeSync = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newMargin = parseFloat(e.target.value) || 0
     const newPriceCents = calcularPrecioFinal(selectedServiceCostCents, newMargin)
     form.setValue('margin_pct', newMargin)
-    form.setValue('target_price', Math.round(newPriceCents / 100), { shouldValidate: false })
+    form.setValue('sale_price', Math.round(newPriceCents / 100), { shouldValidate: false })
   }, [selectedServiceCostCents, form])
 
-  const handleTargetPriceChangeSync = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSalePriceChangeSync = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newPricePesos = parseFloat(e.target.value) || 0
     const newPriceCents = newPricePesos * 100
     const requiredMargin = selectedServiceCostCents > 0
       ? calculateRequiredMargin(selectedServiceCostCents, newPriceCents) * 100
       : 0
-    form.setValue('target_price', newPricePesos)
+    form.setValue('sale_price', newPricePesos)
     form.setValue('margin_pct', Math.round(requiredMargin * 10) / 10, { shouldValidate: false })
   }, [selectedServiceCostCents, form])
   return (
@@ -228,24 +228,24 @@ export function TreatmentForm({
             )}
           </div>
 
-          {/* Precio Deseado */}
+          {/* Precio de Venta */}
           <div>
             <label className="text-sm font-medium mb-2 block">
-              {t('tariffs.target_price')}
+              {t('treatments.fields.sale_price')}
             </label>
             <div className="relative">
               <span className="absolute left-3 top-2.5 text-sm text-muted-foreground">$</span>
               <input
                 type="number"
-                value={targetPrice ?? 0}
-                onChange={handleTargetPriceChangeSync}
+                value={salePrice ?? 0}
+                onChange={handleSalePriceChangeSync}
                 placeholder="500"
                 min={0}
                 step={10}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pl-8 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               />
             </div>
-            <p className="text-xs text-muted-foreground mt-1">{t('services.target_price_helper')}</p>
+            <p className="text-xs text-muted-foreground mt-1">{t('treatments.sale_price_helper')}</p>
           </div>
         </FormGrid>
 

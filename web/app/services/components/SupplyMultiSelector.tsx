@@ -147,7 +147,7 @@ export function SupplyMultiSelector({
         )}
 
         {/* Supplies list */}
-        <div className="flex-1 overflow-y-auto border rounded-md">
+        <div className="flex-1 overflow-y-auto border rounded-md scrollbar-thin scrollbar-thumb-muted-foreground/30 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/50">
           {availableSupplies.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground">
               {search ? t('no_supplies_found') : t('all_supplies_added')}
@@ -174,6 +174,12 @@ export function SupplyMultiSelector({
                   )}
                 </label>
               ))}
+              {/* Scroll indicator for better UX */}
+              {availableSupplies.length > 5 && (
+                <div className="sticky bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-background via-background/80 to-transparent pointer-events-none flex items-center justify-center">
+                  <span className="text-xs text-muted-foreground/70">↓ {t('scroll_for_more')} ↓</span>
+                </div>
+              )}
             </div>
           )}
         </div>

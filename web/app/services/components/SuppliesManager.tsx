@@ -70,6 +70,7 @@ export function SuppliesManager({
               />
             </div>
             <Button
+              type="button"
               variant="ghost"
               size="icon"
               onClick={() => onRemove(index)}
@@ -81,6 +82,7 @@ export function SuppliesManager({
       </div>
 
       <Button
+        type="button"
         variant="outline"
         className="w-full"
         onClick={onAdd}

@@ -135,9 +135,13 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
     const fixedCost = (Number(fpm) || 0) * data.minutes
     const totalCost = fixedCost + variableCost
 
-    // Use price_cents which now includes discount if applied
-    const price = selectedService?.price_cents
-      || Math.round(totalCost * (1 + data.margin_pct / 100))
+    // Priority order for price calculation:
+    // 1. User-specified sale_price (if provided)
+    // 2. Service default price_cents (includes discount)
+    // 3. Calculate from costs + margin as fallback
+    const price = data.sale_price
+      ? Math.round(data.sale_price * 100) // Convert pesos → centavos
+      : (selectedService?.price_cents || Math.round(totalCost * (1 + data.margin_pct / 100)))
 
     const snapshot = {
       // CamelCase snapshot for historical integrity (append-only)
@@ -189,12 +193,21 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
       variableCost = selectedService.variable_cost_cents || 0
     }
 
-    // Recalculate price if any cost factor changed
+    // Calculate price based on user input or cost-based calculation
     const minutes = data.minutes || existingTreatment.minutes
     const marginPct = data.margin_pct ?? existingTreatment.margin_pct
     const fixedCost = fixedPerMinuteCents * minutes
     const totalCost = fixedCost + variableCost
-    const price = Math.round(totalCost * (1 + marginPct / 100))
+
+    // Priority order for price calculation:
+    // 1. User-specified sale_price (if provided in update)
+    // 2. Preserve existing price_cents if no changes to cost factors
+    // 3. Recalculate from costs + margin
+    const price = data.sale_price
+      ? Math.round(data.sale_price * 100) // Convert pesos → centavos
+      : (data.service_id !== existingTreatment.service_id || data.minutes !== undefined || data.margin_pct !== undefined)
+        ? Math.round(totalCost * (1 + marginPct / 100))
+        : existingTreatment.price_cents
 
     const treatmentData = {
       ...data,
