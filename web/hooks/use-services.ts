@@ -136,10 +136,16 @@ export function useServices(options: UseServicesOptions = {}) {
   const createService = useCallback(async (data: any): Promise<boolean> => {
     const { supplies: serviceSupplies, ...serviceData } = data
 
+    // CRITICAL FIX: Preserve target_price if provided (user's desired sale price)
+    // Only fall back to price_cents or base_price_cents if target_price is not set
+    const priceField = (serviceData.target_price !== undefined && serviceData.target_price !== null)
+      ? { target_price: serviceData.target_price }
+      : { price_cents: serviceData.price_cents ?? serviceData.base_price_cents ?? 0 }
+
     const payload = {
       ...serviceData,
       est_minutes: serviceData.est_minutes ?? serviceData.duration_minutes ?? 0,
-      price_cents: serviceData.price_cents ?? serviceData.base_price_cents ?? 0
+      ...priceField
     }
 
     if (!payload.name || !payload.est_minutes) {
@@ -178,10 +184,16 @@ export function useServices(options: UseServicesOptions = {}) {
   const updateService = useCallback(async (id: string, data: any): Promise<boolean> => {
     const { supplies: serviceSupplies, ...serviceData } = data
 
+    // CRITICAL FIX: Preserve target_price if provided (user's desired sale price)
+    // Only fall back to price_cents or base_price_cents if target_price is not set
+    const priceField = (serviceData.target_price !== undefined && serviceData.target_price !== null)
+      ? { target_price: serviceData.target_price }
+      : { price_cents: serviceData.price_cents ?? serviceData.base_price_cents ?? 0 }
+
     const payload = {
       ...serviceData,
       est_minutes: serviceData.est_minutes ?? serviceData.duration_minutes ?? 0,
-      price_cents: serviceData.price_cents ?? serviceData.base_price_cents ?? 0
+      ...priceField
     }
 
     const sanitized = serviceSupplies === undefined

@@ -96,19 +96,21 @@ export default function TreatmentsPage() {
     mode: 'onBlur', // PERFORMANCE: Validate only on blur instead of every keystroke
   })
 
-  // Watch selected service to calculate base cost
+  // Watch selected service and minutes to calculate base cost
   const selectedServiceId = useWatch({ control: form.control, name: 'service_id' })
+  const currentMinutes = useWatch({ control: form.control, name: 'minutes' })
   const selectedServiceCostCents = useMemo(() => {
-    // When editing, use the treatment's snapshot cost
+    // When editing, use the treatment's snapshot cost BUT with CURRENT minutes
     if (editTreatment) {
       const variableCost = editTreatment.variable_cost_cents || 0
-      const fixedCost = (editTreatment.fixed_per_minute_cents || 0) * (editTreatment.minutes || 30)
+      const minutesToUse = currentMinutes || editTreatment.minutes || 30
+      const fixedCost = (editTreatment.fixed_per_minute_cents || 0) * minutesToUse
       return variableCost + fixedCost
     }
     // When creating, use the current service cost
     const service = services.find(s => s.id === selectedServiceId)
     return service?.base_price_cents || service?.total_cost_cents || service?.price_cents || 0
-  }, [services, selectedServiceId, editTreatment])
+  }, [services, selectedServiceId, editTreatment, currentMinutes])
 
   // Guard: ensure financial prerequisites before creating treatment
   const { ensureReady } = useRequirementsGuard(() => ({
