@@ -2256,6 +2256,8 @@
       "notes": "Notas"
     },
     "sale_price_helper": "Precio final de venta - el margen se ajusta automáticamente",
+    "serviceLockedTitle": "No se puede cambiar el servicio",
+    "serviceLockedMessage": "No puedes cambiar el servicio de un tratamiento existente. Servicio: {service}",
     "patientAndService": "Paciente y Servicio",
     "treatmentDetails": "Detalles del Tratamiento",
     "additionalInfo": "Información Adicional",

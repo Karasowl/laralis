@@ -99,9 +99,16 @@ export default function TreatmentsPage() {
   // Watch selected service to calculate base cost
   const selectedServiceId = useWatch({ control: form.control, name: 'service_id' })
   const selectedServiceCostCents = useMemo(() => {
+    // When editing, use the treatment's snapshot cost
+    if (editTreatment) {
+      const variableCost = editTreatment.variable_cost_cents || 0
+      const fixedCost = (editTreatment.fixed_per_minute_cents || 0) * (editTreatment.minutes || 30)
+      return variableCost + fixedCost
+    }
+    // When creating, use the current service cost
     const service = services.find(s => s.id === selectedServiceId)
-    return service?.base_price_cents || service?.price_cents || 0
-  }, [services, selectedServiceId])
+    return service?.base_price_cents || service?.total_cost_cents || service?.price_cents || 0
+  }, [services, selectedServiceId, editTreatment])
 
   // Guard: ensure financial prerequisites before creating treatment
   const { ensureReady } = useRequirementsGuard(() => ({
@@ -246,9 +253,9 @@ export default function TreatmentsPage() {
           <ActionDropdown
             actions={[
             createEditAction(() => {
-              const baseCost = treatment?.snapshot_costs?.base_price_cents || treatment?.price_cents || 0
               const margin = treatment?.margin_pct ?? 60
-              const targetPriceCents = calcularPrecioFinal(baseCost, margin)
+              // Use the actual saved price, don't recalculate
+              const actualPricePesos = Math.round((treatment?.price_cents || 0) / 100)
 
               form.reset({
                 patient_id: treatment?.patient_id || '',
@@ -256,7 +263,7 @@ export default function TreatmentsPage() {
                 treatment_date: treatment?.treatment_date || getLocalDateISO(),
                 minutes: treatment?.minutes ?? 30,
                 margin_pct: margin,
-                sale_price: Math.round(targetPriceCents / 100),
+                sale_price: actualPricePesos,
                 status: treatment?.status || 'pending',
                 notes: treatment?.notes || '',
               })
