@@ -2681,11 +2681,27 @@
       "vendor": "Proveedor",
       "invoice_number": "Número de Factura",
       "recurring": "Recurrente",
+      "is_variable": "Costo Variable",
+      "expense_category": "Tipo de Gasto",
+      "expense_category_help": "Para análisis financiero (Gross Profit, EBITDA, etc.)",
       "quantity": "Cantidad",
       "supply": "Insumo",
       "integration": "Integración",
       "asset_name": "Nombre del Activo",
       "useful_life": "Vida Útil (años)"
+    },
+    "expenseCategories": {
+      "materials": "Materiales",
+      "lab_fees": "Honorarios de Laboratorio",
+      "supplies_dental": "Insumos Dentales",
+      "rent": "Renta",
+      "salaries": "Salarios",
+      "utilities": "Servicios (luz, agua, etc.)",
+      "insurance": "Seguros",
+      "software_subscriptions": "Software / Suscripciones",
+      "marketing": "Marketing",
+      "maintenance": "Mantenimiento",
+      "other": "Otro"
     },
     "placeholders": {
       "description": "Describe el gasto...",
