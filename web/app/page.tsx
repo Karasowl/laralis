@@ -39,6 +39,7 @@ import { useMarketingMetrics } from '@/hooks/use-marketing-metrics'
 import { useCACTrend } from '@/hooks/use-cac-trend'
 import { useChannelROI } from '@/hooks/use-channel-roi'
 import { useAcquisitionTrends } from '@/hooks/use-acquisition-trends'
+import { useProfitAnalysis } from '@/hooks/use-profit-analysis'
 import { formatCurrency } from '@/lib/format'
 import { ReportsAdvanced } from '@/app/reports/ReportsAdvanced'
 import { ReportsMarketing } from '@/app/reports/ReportsMarketing'
@@ -239,6 +240,16 @@ export default function InsightsPage() {
     loading: acquisitionTrendsLoading
   } = useAcquisitionTrends({ clinicId: currentClinic?.id, months: 12, projectionMonths: 3 })
 
+  // Profit Analysis - Correct financial metrics
+  const {
+    data: profitAnalysis,
+    loading: profitAnalysisLoading
+  } = useProfitAnalysis({
+    clinicId: currentClinic?.id,
+    startDate: customRange?.from,
+    endDate: customRange?.to
+  })
+
   useEffect(() => {
     console.log('[Dashboard] useServiceROI - clinicId:', currentClinic?.id, 'data:', roiData, 'loading:', roiLoading)
   }, [currentClinic?.id, roiData, roiLoading])
@@ -406,6 +417,38 @@ export default function InsightsPage() {
                   />
                 </div>
 
+                {/* Financial Metrics - Correct calculations using profit-analysis */}
+                {!profitAnalysisLoading && profitAnalysis && (
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <MetricCard
+                      title={t('gross_profit')}
+                      value={formatCurrency(profitAnalysis.profits.gross_profit_cents)}
+                      valueInCents={profitAnalysis.profits.gross_profit_cents}
+                      icon={DollarSign}
+                      color="text-emerald-600"
+                      subtitle={`${profitAnalysis.profits.gross_margin_pct.toFixed(1)}% ${t('gross_margin')}`}
+                    />
+
+                    <MetricCard
+                      title={t('ebitda')}
+                      value={formatCurrency(profitAnalysis.profits.ebitda_cents)}
+                      valueInCents={profitAnalysis.profits.ebitda_cents}
+                      icon={DollarSign}
+                      color="text-primary"
+                      subtitle={t('ebitda_description')}
+                    />
+
+                    <MetricCard
+                      title={t('net_profit')}
+                      value={formatCurrency(profitAnalysis.profits.net_profit_cents)}
+                      valueInCents={profitAnalysis.profits.net_profit_cents}
+                      icon={DollarSign}
+                      color={profitAnalysis.profits.net_profit_cents > 0 ? 'text-emerald-600' : 'text-destructive'}
+                      subtitle={`${profitAnalysis.profits.net_margin_pct.toFixed(1)}% ${t('margin')}`}
+                    />
+                  </div>
+                )}
+
                 {/* Business Metrics Grid */}
                 {kpis && !equilibriumLoading && equilibriumData && (
                   <BusinessMetricsGrid
@@ -430,8 +473,8 @@ export default function InsightsPage() {
                         : 0
                     })()}
                     pacientesActualesPorDia={kpis.avgPatientsPerDay || 0}
-                    gananciaNetaCents={metrics.revenue.current - metrics.expenses.current}
-                    gananciaNetaChange={metrics.revenue.change - metrics.expenses.change}
+                    gananciaNetaCents={profitAnalysis?.profits.net_profit_cents || (metrics.revenue.current - metrics.expenses.current)}
+                    gananciaNetaChange={profitAnalysis ? undefined : (metrics.revenue.change - metrics.expenses.change)}
                     workDays={equilibriumData.workDays}
                     monthlyTargetCents={equilibriumData.monthlyTargetCents}
                     daysElapsed={equilibriumData.elapsedDays}
