@@ -229,11 +229,15 @@ export default function ServicesPage() {
   }, [totalServiceCostCents, form])
 
   // Handlers for table actions
-  const handleManageSupplies = (service: any) => {
+  const handleManageSupplies = async (service: any) => {
     if (!service?.id) {
       console.error('Service id is undefined:', service)
       return
     }
+
+    // Refetch services to ensure supplies list is up to date
+    await fetchServices()
+
     setSelectedServiceId(service.id)
     setSelectedServiceForSupplies(service)
     setSuppliesModalOpen(true)

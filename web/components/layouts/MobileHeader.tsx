@@ -3,6 +3,7 @@
 import { Button } from '@/components/ui/button'
 import { Menu, X } from 'lucide-react'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { cn } from '@/lib/utils'
 
 interface MobileHeaderProps {
@@ -30,6 +31,7 @@ export function MobileHeader({
           </div>
         )}
         <div className="flex items-center gap-1">
+          <ThemeToggle />
           <LanguageSwitcher compact={true} />
           <Button
             variant="ghost"

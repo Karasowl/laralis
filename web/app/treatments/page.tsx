@@ -34,7 +34,7 @@ const treatmentFormSchema = z.object({
   treatment_date: z.string().min(1),
   minutes: z.number().min(1),
   margin_pct: z.number().min(0).max(100),
-  target_price: z.number().min(0).optional(),
+  sale_price: z.number().min(0).optional(), // Price in pesos (converted to cents in hook)
   status: z.enum(['pending', 'completed', 'cancelled']),
   notes: z.string().optional(),
 })
@@ -85,7 +85,7 @@ export default function TreatmentsPage() {
     treatment_date: getLocalDateISO(),
     minutes: 30,
     margin_pct: 60,
-    target_price: 0,
+    sale_price: 0,
     status: 'pending',
     notes: '',
   }
@@ -256,7 +256,7 @@ export default function TreatmentsPage() {
                 treatment_date: treatment?.treatment_date || getLocalDateISO(),
                 minutes: treatment?.minutes ?? 30,
                 margin_pct: margin,
-                target_price: Math.round(targetPriceCents / 100),
+                sale_price: Math.round(targetPriceCents / 100),
                 status: treatment?.status || 'pending',
                 notes: treatment?.notes || '',
               })
@@ -430,7 +430,7 @@ export default function TreatmentsPage() {
 
         <DataTable
           columns={columns}
-          mobileColumns={[columns[0], columns[1], columns[5], columns[6]]}
+          mobileColumns={[columns[0], columns[1], columns[4], columns[5], columns[6]]}
           data={treatments}
           loading={loading}
           searchPlaceholder={t('treatments.searchPlaceholder')}

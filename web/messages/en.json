@@ -1232,6 +1232,7 @@
     "selected_count": "{count} selected",
     "no_supplies_found": "No supplies found",
     "all_supplies_added": "All supplies already added",
+    "scroll_for_more": "Scroll for more",
     "add_selected": "Add {count} supplies",
     "cancel": "Cancel",
     "select_supply": "Select supply",
@@ -2086,6 +2087,18 @@
     "viewPatient": "View Patient",
     "removeFilter": "Remove filter",
     "viewTreatments": "View Treatments",
+    "fields": {
+      "date": "Date",
+      "patient": "Patient",
+      "service": "Service",
+      "duration": "Duration",
+      "price": "Price",
+      "margin": "Utility %",
+      "sale_price": "Sale Price",
+      "status": "Status",
+      "notes": "Notes"
+    },
+    "sale_price_helper": "Final sale price - utility adjusts automatically",
     "empty": {
       "title": "No treatments recorded",
       "description": "Start recording treatments for your patients"
