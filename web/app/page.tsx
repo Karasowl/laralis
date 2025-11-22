@@ -40,6 +40,8 @@ import { useCACTrend } from '@/hooks/use-cac-trend'
 import { useChannelROI } from '@/hooks/use-channel-roi'
 import { useAcquisitionTrends } from '@/hooks/use-acquisition-trends'
 import { useProfitAnalysis } from '@/hooks/use-profit-analysis'
+import { usePlannedVsActual } from '@/hooks/use-planned-vs-actual'
+import { PlannedVsActualCard } from '@/components/dashboard/PlannedVsActualCard'
 import { formatCurrency } from '@/lib/format'
 import { ReportsAdvanced } from '@/app/reports/ReportsAdvanced'
 import { ReportsMarketing } from '@/app/reports/ReportsMarketing'
@@ -245,6 +247,16 @@ export default function InsightsPage() {
     data: profitAnalysis,
     loading: profitAnalysisLoading
   } = useProfitAnalysis({
+    clinicId: currentClinic?.id,
+    startDate: customRange?.from,
+    endDate: customRange?.to
+  })
+
+  // Planned vs Actual - Unique differentiator
+  const {
+    data: plannedVsActual,
+    loading: plannedVsActualLoading
+  } = usePlannedVsActual({
     clinicId: currentClinic?.id,
     startDate: customRange?.from,
     endDate: customRange?.to
@@ -479,6 +491,11 @@ export default function InsightsPage() {
                     monthlyTargetCents={equilibriumData.monthlyTargetCents}
                     daysElapsed={equilibriumData.elapsedDays}
                   />
+                )}
+
+                {/* Planned vs Actual - UNIQUE DIFFERENTIATOR */}
+                {!plannedVsActualLoading && plannedVsActual && (
+                  <PlannedVsActualCard data={plannedVsActual} />
                 )}
 
                 {/* GRÁFICOS PRINCIPALES - CRÍTICO PARA CONTEXTO HISTÓRICO */}
