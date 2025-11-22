@@ -18,7 +18,7 @@ const treatmentSchema = z.object({
   fixed_per_minute_cents: z.coerce.number().int().nonnegative().optional(),
   fixed_cost_per_minute_cents: z.coerce.number().int().nonnegative().optional(),
   variable_cost_cents: z.coerce.number().int().nonnegative().optional(),
-  margin_pct: z.coerce.number().min(0).max(100).optional(),
+  margin_pct: z.coerce.number().min(0).max(500).optional(), // Allow high margins (same as frontend)
   price_cents: z.coerce.number().int().nonnegative().optional(),
   status: z.enum(['pending', 'completed', 'cancelled', 'scheduled', 'in_progress']).optional(),
   notes: z.string().optional(),
