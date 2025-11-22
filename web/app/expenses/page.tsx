@@ -731,7 +731,7 @@ function getDefaultFormValues(): ExpenseFormValues {
     invoice_number: '',
     is_recurring: false,
     is_variable: false,  // Default to fixed cost
-    expense_category: '',  // User must select
+    expense_category: 'other',  // Default to 'other' category
     campaign_id: undefined,
     quantity: undefined,
     related_supply_id: undefined,
@@ -952,10 +952,9 @@ function ExpenseForm({ form, t, categoryOptions, getSubcategoriesForCategory, su
 
           <SelectField
             label={t('fields.expense_category')}
-            value={form.watch('expense_category') || ''}
+            value={form.watch('expense_category') || 'other'}
             onChange={(value) => form.setValue('expense_category', value)}
             options={[
-              { value: '', label: t('select_category') },
               { value: ALL_EXPENSE_CATEGORIES.MATERIALS, label: t('expenseCategories.materials') },
               { value: ALL_EXPENSE_CATEGORIES.LAB_FEES, label: t('expenseCategories.lab_fees') },
               { value: ALL_EXPENSE_CATEGORIES.SUPPLIES_DENTAL, label: t('expenseCategories.supplies_dental') },
