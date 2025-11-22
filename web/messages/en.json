@@ -2099,6 +2099,9 @@
       "notes": "Notes"
     },
     "sale_price_helper": "Final sale price - utility adjusts automatically",
+    "serviceLockedTitle": "Service cannot be changed",
+    "serviceLockedMessage": "You cannot change the service of an existing treatment. Service: {service}",
+    "marginHelp": "Optional percentage added to base cost",
     "empty": {
       "title": "No treatments recorded",
       "description": "Start recording treatments for your patients"
