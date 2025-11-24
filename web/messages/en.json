@@ -2105,6 +2105,7 @@
       "service": "Service",
       "duration": "Duration",
       "price": "Price",
+      "profit": "Profit",
       "margin": "Utility %",
       "sale_price": "Sale Price",
       "status": "Status",
