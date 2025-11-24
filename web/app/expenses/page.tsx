@@ -802,7 +802,7 @@ function ExpenseForm({ form, t, categoryOptions, getSubcategoriesForCategory, su
                 type="date"
                 label={t('form.fields.date')}
                 value={field.value}
-                onChange={(value) => field.onChange(String(value))}
+                onChange={field.onChange}
                 error={fieldState.error?.message}
                 required
               />
@@ -838,7 +838,7 @@ function ExpenseForm({ form, t, categoryOptions, getSubcategoriesForCategory, su
               <InputField
                 label={t('form.fields.description')}
                 value={field.value}
-                onChange={(value) => field.onChange(String(value))}
+                onChange={field.onChange}
                 placeholder={t('form.fields.descriptionPlaceholder')}
                 error={fieldState.error?.message}
               />
@@ -851,7 +851,7 @@ function ExpenseForm({ form, t, categoryOptions, getSubcategoriesForCategory, su
               <InputField
                 label={t('form.fields.vendor')}
                 value={field.value}
-                onChange={(value) => field.onChange(String(value))}
+                onChange={field.onChange}
                 placeholder={t('form.fields.vendorPlaceholder')}
               />
             )}
@@ -863,7 +863,7 @@ function ExpenseForm({ form, t, categoryOptions, getSubcategoriesForCategory, su
               <InputField
                 label={t('form.fields.invoice')}
                 value={field.value}
-                onChange={(value) => field.onChange(String(value))}
+                onChange={field.onChange}
               />
             )}
           />
@@ -1027,7 +1027,7 @@ function ExpenseForm({ form, t, categoryOptions, getSubcategoriesForCategory, su
                 <InputField
                   label={t('form.fields.assetName')}
                   value={field.value || ''}
-                  onChange={(value) => field.onChange(String(value))}
+                  onChange={field.onChange}
                 />
               )}
             />
@@ -1106,20 +1106,29 @@ function FiltersCard({
           <InputField
             label={t('filters.vendor')}
             value={filters.vendor || ''}
-            onChange={(value) => setFilters({ vendor: value ? String(value) : undefined })}
+            onChange={(e) => {
+              const value = typeof e === 'string' ? e : e.target?.value
+              setFilters({ vendor: value || undefined })
+            }}
             placeholder={t('filters.vendorPlaceholder')}
           />
           <InputField
             type="date"
             label={t('filters.dateFrom')}
             value={filters.start_date || ''}
-            onChange={(value) => setFilters({ start_date: value ? String(value) : undefined })}
+            onChange={(e) => {
+              const value = typeof e === 'string' ? e : e.target?.value
+              setFilters({ start_date: value || undefined })
+            }}
           />
           <InputField
             type="date"
             label={t('filters.dateTo')}
             value={filters.end_date || ''}
-            onChange={(value) => setFilters({ end_date: value ? String(value) : undefined })}
+            onChange={(e) => {
+              const value = typeof e === 'string' ? e : e.target?.value
+              setFilters({ end_date: value || undefined })
+            }}
           />
           <InputField
             type="number"
