@@ -136,10 +136,11 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
     const totalCost = fixedCost + variableCost
 
     // Priority order for price calculation:
-    // 1. User-specified sale_price (if provided)
+    // 1. User-specified sale_price (if provided, including explicit 0)
     // 2. Service default price_cents (includes discount)
     // 3. Calculate from costs + margin as fallback
-    const price = data.sale_price
+    // CRITICAL: Check if sale_price is explicitly provided (even if 0), not just truthy
+    const price = data.sale_price !== undefined && data.sale_price !== null
       ? Math.round(data.sale_price * 100) // Convert pesos → centavos
       : (selectedService?.price_cents || Math.round(totalCost * (1 + data.margin_pct / 100)))
 

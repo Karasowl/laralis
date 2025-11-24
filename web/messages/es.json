@@ -2221,7 +2221,8 @@
       "select_referrer": "Selecciona quién lo refirió",
       "start_date": "Fecha de inicio",
       "budget": "Presupuesto",
-      "activity": "Actividad"
+      "activity": "Actividad",
+      "created_at": "Registro"
     },
     "activity": {
       "visits": "Visitas",
@@ -2247,7 +2248,22 @@
       "organic_selected": "Paciente llegó por medios orgánicos"
     },
     "no_active_campaigns": "No hay campañas activas",
-    "select_referrer_patient": "Selecciona el paciente que lo refirió"
+    "select_referrer_patient": "Selecciona el paciente que lo refirió",
+    "notFound": "Paciente no encontrado",
+    "detail_description": "Historial completo de tratamientos y estadísticas",
+    "treatment_history": "Historial de Tratamientos",
+    "no_treatments_title": "Sin tratamientos registrados",
+    "no_treatments_description": "Este paciente aún no tiene tratamientos",
+    "stats": {
+      "total_revenue": "Ingresos Totales",
+      "avg_treatment_price": "Precio Promedio",
+      "per_treatment": "por tratamiento",
+      "total_treatments": "Tratamientos Totales",
+      "different_services": "servicios diferentes",
+      "completion_rate": "Tasa de Completación",
+      "cancelled": "cancelados",
+      "completed_treatments": "tratamientos completados"
+    }
   },
   "treatments": {
     "title": "Tratamientos",
