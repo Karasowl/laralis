@@ -189,8 +189,8 @@ export function SelectWithCreate({
             <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-full p-0" align="start" data-allow-interact-outside>
-          <Command>
+        <PopoverContent className="w-full p-0 min-w-[var(--radix-popover-trigger-width)]" align="start" data-allow-interact-outside>
+          <Command shouldFilter={false}>
             <CommandInput
               placeholder={searchPlaceholder || tCommon('search')}
               value={search}
@@ -200,7 +200,7 @@ export function SelectWithCreate({
                 setSearch(stringValue)
               }}
             />
-            <CommandList>
+            <CommandList className="max-h-[300px] overflow-y-auto">
               <CommandEmpty>
                 {emptyText || tCommon('noResults')}
               </CommandEmpty>
@@ -220,14 +220,15 @@ export function SelectWithCreate({
                       setSearch('') // Clear search after selection
                       setOpen(false);
                     }}
+                    className="py-3 px-4 cursor-pointer aria-selected:bg-accent aria-selected:text-accent-foreground"
                   >
                     <Check
                       className={cn(
-                        'mr-2 h-4 w-4',
+                        'mr-3 h-5 w-5 shrink-0',
                         currentValue === option.value ? 'opacity-100' : 'opacity-0'
                       )}
                     />
-                    {option.label}
+                    <span className="text-sm">{option.label}</span>
                   </CommandItem>
                 ))}
               </CommandGroup>
@@ -237,11 +238,11 @@ export function SelectWithCreate({
           {/* Opción para crear nuevo - Fuera del Command para evitar el cierre automático */
           }
           {canCreate && onCreateSubmit && (
-            <div className="border-t p-1">
+            <div className="border-t p-2">
               <button
                 type="button"
                 role="menuitem"
-                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-primary font-medium hover:bg-accent hover:text-primary-foreground active:bg-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors cursor-pointer select-none"
+                className="flex w-full items-center gap-3 rounded-md px-4 py-3 text-sm text-primary font-medium hover:bg-accent hover:text-accent-foreground active:bg-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors cursor-pointer select-none"
                 data-cy="select-create-new"
                 title={createLabel || tCommon('createNew', { entity: entityName })}
                 onPointerDown={(e) => {
@@ -263,8 +264,8 @@ export function SelectWithCreate({
                   }
                 }}
               >
-                <Plus className="h-4 w-4" />
-                {createLabel || tCommon('createNew', { entity: entityName })}
+                <Plus className="h-5 w-5 shrink-0" />
+                <span>{createLabel || tCommon('createNew', { entity: entityName })}</span>
               </button>
             </div>
           )}
