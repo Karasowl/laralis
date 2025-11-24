@@ -12,10 +12,13 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
   try {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const limitParam = searchParams.get('limit');
+    // Default to no limit (or very high limit) to show all supplies in dropdowns
+    // Only apply pagination if explicitly requested
+    const limit = limitParam ? parseInt(limitParam) : 10000;
     const category = searchParams.get('category');
     const search = searchParams.get('search');
-    
+
     const cookieStore = cookies();
     const clinicContext = await resolveClinicContext({ requestedClinicId: searchParams.get('clinicId'), cookieStore });
     if ('error' in clinicContext) {
@@ -33,15 +36,17 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
     if (category) {
       query = query.eq('category', category);
     }
-    
+
     if (search) {
       query = query.ilike('name', `%${search}%`);
     }
 
-    // Apply pagination
-    const from = (page - 1) * limit;
-    const to = from + limit - 1;
-    query = query.range(from, to);
+    // Apply pagination only if limit is explicitly provided
+    if (limitParam) {
+      const from = (page - 1) * limit;
+      const to = from + limit - 1;
+      query = query.range(from, to);
+    }
 
     const { data, error } = await query;
 
