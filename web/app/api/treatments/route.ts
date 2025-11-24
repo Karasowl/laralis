@@ -167,8 +167,8 @@ export async function POST(request: NextRequest) {
     if (!minutesVal || minutesVal <= 0) {
       return NextResponse.json({ error: 'precondition_failed', message: 'Minutes must be greater than zero.' }, { status: 412 });
     }
-    if (marginVal < 0 || marginVal > 100) {
-      return NextResponse.json({ error: 'precondition_failed', message: 'Margin percentage must be between 0 and 100.' }, { status: 412 });
+    if (marginVal < 0 || marginVal > 500) {
+      return NextResponse.json({ error: 'precondition_failed', message: 'Margin percentage must be between 0 and 500.' }, { status: 412 });
     }
     // If status is completed, require a positive price snapshot
     const normalizedStatus = (() => {

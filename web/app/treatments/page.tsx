@@ -23,8 +23,9 @@ import { useTreatments } from '@/hooks/use-treatments'
 import { formatCurrency } from '@/lib/money'
 import { getLocalDateISO } from '@/lib/utils'
 import { formatDate } from '@/lib/format'
-import { Calendar, User, DollarSign, FileText, Activity, Clock, Plus } from 'lucide-react'
+import { Calendar, User, DollarSign, FileText, Activity, Clock, Plus, StickyNote } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { calcularPrecioFinal } from '@/lib/calc/tarifa'
 
 // Treatment form schema
@@ -227,6 +228,47 @@ export default function TreatmentsPage() {
           {formatCurrency(treatment?.price_cents || 0)}
         </div>
       )
+    },
+    {
+      key: 'profit',
+      label: t('treatments.fields.profit'),
+      render: (_value: any, treatment: any) => {
+        const fixedCost = (treatment?.fixed_cost_per_minute_cents || treatment?.fixed_per_minute_cents || 0) * (treatment?.duration_minutes || treatment?.minutes || 0)
+        const variableCost = treatment?.variable_cost_cents || 0
+        const totalCost = fixedCost + variableCost
+        const profit = (treatment?.price_cents || 0) - totalCost
+        return (
+          <div className={`text-right font-semibold ${profit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+            {formatCurrency(profit)}
+          </div>
+        )
+      }
+    },
+    {
+      key: 'notes',
+      label: t('treatments.fields.notes'),
+      render: (_value: any, treatment: any) => {
+        const hasNotes = treatment?.notes && treatment.notes.trim().length > 0
+        return hasNotes ? (
+          <Popover>
+            <PopoverTrigger asChild>
+              <button className="inline-flex items-center justify-center p-2 rounded-md hover:bg-muted transition-colors">
+                <StickyNote className="h-4 w-4 text-primary" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80">
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm">{t('treatments.fields.notes')}</h4>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{treatment.notes}</p>
+              </div>
+            </PopoverContent>
+          </Popover>
+        ) : (
+          <div className="flex items-center justify-center">
+            <span className="text-xs text-muted-foreground">—</span>
+          </div>
+        )
+      }
     },
     {
       key: 'status',
@@ -443,7 +485,7 @@ export default function TreatmentsPage() {
 
         <DataTable
           columns={columns}
-          mobileColumns={[columns[0], columns[1], columns[4], columns[5], columns[6]]}
+          mobileColumns={[columns[0], columns[1], columns[4], columns[5], columns[6], columns[7], columns[8]]}
           data={treatments}
           loading={loading}
           searchPlaceholder={t('treatments.searchPlaceholder')}

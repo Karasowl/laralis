@@ -2262,6 +2262,7 @@
       "service": "Servicio",
       "duration": "Duración",
       "price": "Precio",
+      "profit": "Ganancia",
       "status": "Estado",
       "margin": "Margen (%)",
       "sale_price": "Precio de Venta",
