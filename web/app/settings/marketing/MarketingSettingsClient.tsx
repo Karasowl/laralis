@@ -588,9 +588,12 @@ export default function MarketingSettingsClient() {
           <InputField
             label={t('settings.marketing.platformName')}
             value={platformForm.watch('display_name')}
-            onChange={(value) => platformForm.setValue('display_name', value as string)}
+            onChange={(value) => {
+              const val = typeof value === 'string' ? value : value?.target?.value || ''
+              platformForm.setValue('display_name', val)
+            }}
             placeholder={t('settings.marketing.platformNamePlaceholder')}
-            error={platformForm.formState.errors.display_name?.message || 
+            error={platformForm.formState.errors.display_name?.message ||
                    (platformForm.formState.isSubmitted && !platformForm.watch('display_name') ? t('validation.required') : undefined)}
             required
           />
@@ -618,9 +621,12 @@ export default function MarketingSettingsClient() {
           <InputField
             label={t('settings.marketing.campaignName')}
             value={campaignForm.watch('name')}
-            onChange={(value) => campaignForm.setValue('name', value as string)}
+            onChange={(value) => {
+              const val = typeof value === 'string' ? value : value?.target?.value || ''
+              campaignForm.setValue('name', val)
+            }}
             placeholder={t('settings.marketing.campaignNamePlaceholder')}
-            error={campaignForm.formState.errors.name?.message || 
+            error={campaignForm.formState.errors.name?.message ||
                    (campaignForm.formState.isSubmitted && !campaignForm.watch('name') ? t('validation.required') : undefined)}
             required
           />

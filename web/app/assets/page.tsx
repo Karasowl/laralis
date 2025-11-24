@@ -280,7 +280,10 @@ export default function AssetsPage() {
             <InputField
               label={t('assets.formNameLabel')}
               value={watch('name')}
-              onChange={(v) => setValue('name', v as string)}
+              onChange={(v) => {
+                const value = typeof v === 'string' ? v : v?.target?.value || ''
+                setValue('name', value)
+              }}
               error={errors.name?.message}
               required
             />
@@ -302,7 +305,10 @@ export default function AssetsPage() {
                 label={t('assets.formPriceLabel')}
                 type="number"
                 value={watch('purchase_price_pesos')}
-                onChange={(v) => setValue('purchase_price_pesos', v as number)}
+                onChange={(v) => {
+                  const value = typeof v === 'number' ? v : parseFloat(String(v)) || 0
+                  setValue('purchase_price_pesos', value)
+                }}
                 placeholder={t('validation.placeholders.amount')}
                 step="0.01"
                 error={errors.purchase_price_pesos?.message}
@@ -314,7 +320,10 @@ export default function AssetsPage() {
                 label={t('assets.formMonthsLabel')}
                 type="number"
                 value={watch('depreciation_months')}
-                onChange={(v) => setValue('depreciation_months', v as number)}
+                onChange={(v) => {
+                  const value = typeof v === 'number' ? v : parseInt(String(v)) || 1
+                  setValue('depreciation_months', value)
+                }}
                 error={errors.depreciation_months?.message}
                 required
               />
@@ -324,7 +333,10 @@ export default function AssetsPage() {
               label={t('assets.formPurchaseDateLabel')}
               type="date"
               value={watch('purchase_date') ?? ''}
-              onChange={(v) => setValue('purchase_date', v as string)}
+              onChange={(v) => {
+                const value = typeof v === 'string' ? v : v?.target?.value || ''
+                setValue('purchase_date', value)
+              }}
               error={errors.purchase_date?.message}
             />
           </div>
