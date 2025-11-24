@@ -225,7 +225,10 @@ export default function SuppliesPage() {
           <InputField
             label={t('supplies.form.name')}
             value={watch('name')}
-            onChange={(v) => setValue('name', v as string)}
+            onChange={(v) => {
+              const value = typeof v === 'string' ? v : v?.target?.value || ''
+              setValue('name', value)
+            }}
             error={errors.name?.message}
             required
           />
@@ -250,7 +253,10 @@ export default function SuppliesPage() {
           <InputField
             label={t('supplies.form.presentation')}
             value={watch('presentation')}
-            onChange={(v) => setValue('presentation', v as string)}
+            onChange={(v) => {
+              const value = typeof v === 'string' ? v : v?.target?.value || ''
+              setValue('presentation', value)
+            }}
             placeholder={t('supplies.presentationPlaceholder')}
             error={errors.presentation?.message}
           />
@@ -260,7 +266,10 @@ export default function SuppliesPage() {
               label={t('supplies.form.price')}
               type="number"
               value={watch('price_pesos')}
-              onChange={(v) => setValue('price_pesos', v as number)}
+              onChange={(v) => {
+                const value = typeof v === 'number' ? v : parseFloat(String(v)) || 0
+                setValue('price_pesos', value)
+              }}
               placeholder="0.00"
               step="0.01"
               error={errors.price_pesos?.message}
@@ -270,7 +279,10 @@ export default function SuppliesPage() {
               label={t('supplies.form.portions')}
               type="number"
               value={watch('portions')}
-              onChange={(v) => setValue('portions', v as number)}
+              onChange={(v) => {
+                const value = typeof v === 'number' ? v : parseInt(String(v)) || 1
+                setValue('portions', value)
+              }}
               error={errors.portions?.message}
             />
           </FormGrid>

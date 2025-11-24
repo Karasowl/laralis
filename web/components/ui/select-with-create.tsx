@@ -191,10 +191,14 @@ export function SelectWithCreate({
         </PopoverTrigger>
         <PopoverContent className="w-full p-0" align="start" data-allow-interact-outside>
           <Command>
-            <CommandInput 
+            <CommandInput
               placeholder={searchPlaceholder || tCommon('search')}
               value={search}
-              onValueChange={setSearch}
+              onValueChange={(value) => {
+                // Handle both string and event cases
+                const stringValue = typeof value === 'string' ? value : value?.target?.value || ''
+                setSearch(stringValue)
+              }}
             />
             <CommandList>
               <CommandEmpty>
@@ -213,6 +217,7 @@ export function SelectWithCreate({
                       // Set pending value for immediate UI, then propagate
                       const nextValue = option.value
                       onValueChange(nextValue)
+                      setSearch('') // Clear search after selection
                       setOpen(false);
                     }}
                   >
