@@ -2079,7 +2079,8 @@
       "select_referrer": "Select who referred",
       "start_date": "Start date",
       "budget": "Budget",
-      "activity": "Activity"
+      "activity": "Activity",
+      "created_at": "Registration"
     },
     "activity": {
       "visits": "Visits",
@@ -2090,7 +2091,22 @@
     "acquisition_information": "Acquisition Information",
     "no_active_campaigns": "No active campaigns",
     "create_new_campaign": "Create new campaign",
-    "select_referrer_patient": "Select the referring patient"
+    "select_referrer_patient": "Select the referring patient",
+    "notFound": "Patient not found",
+    "detail_description": "Complete treatment history and statistics",
+    "treatment_history": "Treatment History",
+    "no_treatments_title": "No treatments recorded",
+    "no_treatments_description": "This patient doesn't have any treatments yet",
+    "stats": {
+      "total_revenue": "Total Revenue",
+      "avg_treatment_price": "Average Price",
+      "per_treatment": "per treatment",
+      "total_treatments": "Total Treatments",
+      "different_services": "different services",
+      "completion_rate": "Completion Rate",
+      "cancelled": "cancelled",
+      "completed_treatments": "completed treatments"
+    }
   },
   "treatments": {
     "title": "Treatments",

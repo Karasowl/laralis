@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -86,7 +87,7 @@ export default function TreatmentsPage() {
     treatment_date: getLocalDateISO(),
     minutes: 30,
     margin_pct: 60,
-    sale_price: 0,
+    sale_price: undefined, // undefined means "calculate from service/margin", 0 would be a valid price
     status: 'pending',
     notes: '',
   }
@@ -194,10 +195,18 @@ export default function TreatmentsPage() {
       label: t('treatments.fields.patient'),
       render: (_value: any, treatment: any) => {
         const patient = patients.find(p => p.id === treatment?.patient_id)
-        return (
+        return patient ? (
+          <Link
+            href={`/patients/${patient.id}`}
+            className="flex items-center gap-2 text-primary hover:underline hover:text-primary/80 transition-colors"
+          >
+            <User className="h-4 w-4 text-muted-foreground" />
+            {`${patient.first_name} ${patient.last_name}`}
+          </Link>
+        ) : (
           <div className="flex items-center gap-2">
             <User className="h-4 w-4 text-muted-foreground" />
-            {patient ? `${patient.first_name} ${patient.last_name}` : t('common.notAvailable')}
+            {t('common.notAvailable')}
           </div>
         )
       }

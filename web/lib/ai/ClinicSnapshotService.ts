@@ -107,13 +107,15 @@ export class ClinicSnapshotService {
     ])
 
     // Load remaining data in parallel
-    const [patients, treatments, services, supplies, expenses] =
+    const [patients, treatments, services, supplies, expenses, fullPatients, fullTreatments] =
       await Promise.all([
         this.loadPatients(supabase, clinicId, startDate),
         this.loadTreatments(supabase, clinicId, startDate),
         this.loadServices(supabase, clinicId, clinic, fixedCosts, assets),
         this.loadSupplies(supabase, clinicId),
         this.loadExpenses(supabase, clinicId, startDate),
+        this.loadFullPatients(supabase, clinicId),
+        this.loadFullTreatments(supabase, clinicId, startDate),
       ])
 
     // Calculate analytics using all the loaded data
@@ -141,6 +143,9 @@ export class ClinicSnapshotService {
         assets: this.optimizeJson(assets),
         expenses: this.optimizeJson(expenses),
         fixed_costs: this.optimizeJson(fixedCosts),
+        // Full patient and treatment records with notes for AI context
+        full_patients: this.optimizeJson(fullPatients),
+        full_treatments: this.optimizeJson(fullTreatments),
       },
       analytics: this.optimizeJson(analytics),
     }
@@ -520,6 +525,55 @@ export class ClinicSnapshotService {
       count: expenses?.length || 0,
       by_category: byCategory,
     }
+  }
+
+  private async loadFullPatients(
+    supabase: SupabaseClient,
+    clinicId: string
+  ) {
+    // Load all patients with complete information including notes
+    const { data: patients } = await supabase
+      .from('patients')
+      .select('id, first_name, last_name, phone, email, notes, created_at, first_visit_date')
+      .eq('clinic_id', clinicId)
+      .order('created_at', { ascending: false })
+      .limit(100) // Limit to most recent 100 patients to avoid overwhelming the AI
+
+    return patients || []
+  }
+
+  private async loadFullTreatments(
+    supabase: SupabaseClient,
+    clinicId: string,
+    startDate: Date
+  ) {
+    // Load all treatments in period with complete information including notes
+    const { data: treatments } = await supabase
+      .from('treatments')
+      .select(`
+        id,
+        treatment_date,
+        price_cents,
+        status,
+        notes,
+        duration_minutes,
+        patients!inner(first_name, last_name),
+        services!inner(name)
+      `)
+      .eq('clinic_id', clinicId)
+      .gte('treatment_date', startDate.toISOString())
+      .order('treatment_date', { ascending: false })
+
+    return (treatments || []).map(t => ({
+      id: t.id,
+      date: t.treatment_date,
+      patient: `${(t.patients as any).first_name} ${(t.patients as any).last_name}`,
+      service: (t.services as any).name,
+      price_cents: t.price_cents,
+      duration_minutes: t.duration_minutes,
+      status: t.status,
+      notes: t.notes || null,
+    }))
   }
 
   private async loadFixedCosts(supabase: SupabaseClient, clinicId: string) {
