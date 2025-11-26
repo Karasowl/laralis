@@ -314,14 +314,14 @@ export default function PatientsPage() {
     },
     {
       key: '_treatments_total',
-      label: 'Tratamientos',
+      label: tg('treatments.title'),
       className: 'text-center',
       render: (_value: any, patient: Patient) => {
         const stats = statsByPatient.get(patient.id)
         const count = stats?.treatments ?? 0
         return (
           <div className="text-sm font-medium">
-            <span className="md:hidden text-muted-foreground mr-1">Trat.:</span>
+            <span className="md:hidden text-muted-foreground mr-1">{t('activity.treatments')}:</span>
             <span>{count}</span>
           </div>
         )
@@ -329,14 +329,14 @@ export default function PatientsPage() {
     },
     {
       key: '_spent_total',
-      label: 'Gastado',
+      label: t('activity.spent'),
       className: 'text-right whitespace-nowrap',
       render: (_value: any, patient: Patient) => {
         const stats = statsByPatient.get(patient.id)
         const amount = formatCurrency(stats?.spent_cents ?? 0)
         return (
           <div className="text-sm text-foreground/90 text-right">
-            <span className="md:hidden text-muted-foreground mr-1">Gastado:</span>
+            <span className="md:hidden text-muted-foreground mr-1">{t('activity.spent')}:</span>
             <span>{amount}</span>
           </div>
         )
@@ -397,7 +397,7 @@ export default function PatientsPage() {
                   onClick: () => setTimeout(() => setViewPatient(patient), 0),
                 },
                 {
-                  label: 'Bitácora',
+                  label: t('treatment_history'),
                   icon: <FileText className="h-4 w-4" />,
                   onClick: () => setTimeout(() => router.push(`/treatments?patient_id=${patient.id}`), 0),
                 },
@@ -490,7 +490,7 @@ export default function PatientsPage() {
             const amount = formatCurrency(stats?.spent_cents ?? 0)
             return (
               <div className="text-sm text-muted-foreground">
-                <span className="mr-1">Trat.:</span>
+                <span className="mr-1">{t('activity.treatments')}:</span>
                 <span className="text-foreground font-medium mr-2">{count}</span>
                 <span className="text-muted-foreground">•</span>
                 <span className="ml-2 text-foreground/90">{amount}</span>
@@ -561,7 +561,7 @@ export default function PatientsPage() {
         {viewPatient && (
           <PatientDetails
             patient={viewPatient}
-            t={t}
+            t={tg}
             stats={{
               treatments: statsByPatient.get(viewPatient.id)?.treatments ?? 0,
               spent_cents: statsByPatient.get(viewPatient.id)?.spent_cents ?? 0,

@@ -189,7 +189,12 @@ export function SelectWithCreate({
             <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-full p-0 min-w-[var(--radix-popover-trigger-width)]" align="start" data-allow-interact-outside>
+        <PopoverContent
+          className="w-full p-0 min-w-[var(--radix-popover-trigger-width)] max-w-[90vw] sm:max-w-[400px]"
+          align="start"
+          data-allow-interact-outside
+          sideOffset={4}
+        >
           <Command shouldFilter={false}>
             <CommandInput
               placeholder={searchPlaceholder || tCommon('search')}
@@ -199,8 +204,9 @@ export function SelectWithCreate({
                 const stringValue = typeof value === 'string' ? value : value?.target?.value || ''
                 setSearch(stringValue)
               }}
+              className="h-12 text-base sm:h-10 sm:text-sm"
             />
-            <CommandList className="max-h-[300px] overflow-y-auto">
+            <CommandList className="max-h-[50vh] sm:max-h-[400px] overflow-y-auto">
               <CommandEmpty>
                 {emptyText || tCommon('noResults')}
               </CommandEmpty>
@@ -220,7 +226,7 @@ export function SelectWithCreate({
                       setSearch('') // Clear search after selection
                       setOpen(false);
                     }}
-                    className="py-3 px-4 cursor-pointer aria-selected:bg-accent aria-selected:text-accent-foreground"
+                    className="py-4 px-4 cursor-pointer aria-selected:bg-accent aria-selected:text-accent-foreground sm:py-3 min-h-[44px]"
                   >
                     <Check
                       className={cn(
@@ -228,7 +234,7 @@ export function SelectWithCreate({
                         currentValue === option.value ? 'opacity-100' : 'opacity-0'
                       )}
                     />
-                    <span className="text-sm">{option.label}</span>
+                    <span className="text-base sm:text-sm">{option.label}</span>
                   </CommandItem>
                 ))}
               </CommandGroup>

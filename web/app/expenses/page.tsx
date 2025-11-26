@@ -585,6 +585,8 @@ export default function ExpensesPage() {
               loading={loading}
               searchKey="description"
               searchPlaceholder={t('table.searchPlaceholder')}
+              showCount={true}
+              countLabel={t('expenses.title').toLowerCase()}
               emptyState={{
                 icon: Receipt,
                 title: t('table.emptyTitle'),

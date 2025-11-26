@@ -1,11 +1,12 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
-import { Target, Calendar, TrendingUp, Lightbulb, Flame, Trophy, AlertCircle } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Target, Calendar, TrendingUp, Lightbulb, Flame, Trophy, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react'
 import { formatCurrency } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -100,6 +101,9 @@ export function BreakEvenProgress({
   const config = statusConfig[status]
   const StatusIcon = config.icon
 
+  // Collapsible state - default expanded
+  const [isExpanded, setIsExpanded] = useState(true)
+
   // Calculate suggestion (patients needed per day)
   const suggestedDailyRevenue = useMemo(() => {
     const remainingDays = Math.max(1, remainingWorkingDays)
@@ -108,23 +112,56 @@ export function BreakEvenProgress({
 
   return (
     <Card className={cn('border-2 transition-all duration-200 hover:shadow-lg', config.borderColor)}>
-      <CardHeader>
+      <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <div>
+          <div className="flex-1">
             <CardTitle className="flex items-center gap-2">
               <Target className="h-5 w-5 text-primary" />
               {t('title')}
             </CardTitle>
             <CardDescription>{t('subtitle')}</CardDescription>
           </div>
-          <Badge className={cn(config.bgColor, config.color, 'border', config.borderColor)}>
-            <StatusIcon className="h-3.5 w-3.5 mr-1" />
-            {t(`status.${status}`)}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge className={cn(config.bgColor, config.color, 'border', config.borderColor)}>
+              <StatusIcon className="h-3.5 w-3.5 mr-1" />
+              {t(`status.${status}`)}
+            </Badge>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0"
+              onClick={() => setIsExpanded(!isExpanded)}
+              aria-label={isExpanded ? t('collapse') : t('expand')}
+            >
+              {isExpanded ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
         </div>
+
+        {/* Compact summary when collapsed */}
+        {!isExpanded && (
+          <div className="mt-3 flex items-center gap-4 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">{t('progress')}:</span>
+              <span className="font-bold">{Math.min(100, progressPercentage).toFixed(1)}%</span>
+            </div>
+            <div className="flex-1">
+              <Progress value={Math.min(100, progressPercentage)} className="h-2" />
+            </div>
+            <span className="text-muted-foreground text-xs">
+              {formatCurrency(currentRevenueCents)} / {formatCurrency(monthlyTargetCents)}
+            </span>
+          </div>
+        )}
       </CardHeader>
 
-      <CardContent className="space-y-6">
+      {/* Collapsible content */}
+      {isExpanded && (
+      <CardContent className="space-y-6 animate-in fade-in-0 slide-in-from-top-2 duration-200">
         {/* Main Progress Bar */}
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
@@ -258,6 +295,7 @@ export function BreakEvenProgress({
           </div>
         )}
       </CardContent>
+      )}
     </Card>
   )
 }
