@@ -339,13 +339,16 @@ export function MarketingROISimple({ clinicId, months = 6 }: MarketingROISimpleP
             </Table>
           </div>
 
-          {/* Help Text */}
-          <div className="mt-4 p-3 bg-primary/5 dark:bg-primary/10 backdrop-blur-sm border border-primary/30 dark:border-primary/40 rounded-lg">
+          {/* Help Text - Expanded ROI Explanation */}
+          <div className="mt-4 p-4 bg-primary/5 dark:bg-primary/10 backdrop-blur-sm border border-primary/30 dark:border-primary/40 rounded-lg space-y-3">
             <div className="flex items-start gap-2">
               <Lightbulb className="h-4 w-4 text-primary dark:text-primary/80 mt-0.5 flex-shrink-0" />
-              <div className="text-xs text-primary dark:text-primary/80">
-                <p className="font-medium mb-1">{t('help.title')}</p>
-                <p>{t('help.description')}</p>
+              <div className="text-xs text-primary dark:text-primary/80 space-y-2">
+                <p className="font-medium">{t('help.title')}</p>
+                <p className="font-mono bg-primary/10 dark:bg-primary/20 px-2 py-1 rounded text-xs">{t('help.description')}</p>
+                <p className="text-muted-foreground">{t('help.example')}</p>
+                <p className="text-muted-foreground">{t('help.interpretation')}</p>
+                <p className="text-amber-600 dark:text-amber-500 text-xs mt-2">💡 {t('help.tip')}</p>
               </div>
             </div>
           </div>

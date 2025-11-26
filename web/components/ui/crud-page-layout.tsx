@@ -52,6 +52,7 @@ interface CrudPageLayoutProps<T extends { id: string; name?: string }> {
   
   // Additional content
   summaryCards?: React.ReactNode;
+  beforeTable?: React.ReactNode; // Content before the table (e.g., filters)
   additionalContent?: React.ReactNode;
   children?: React.ReactNode; // For modal or additional components
   
@@ -83,6 +84,7 @@ export function CrudPageLayout<T extends { id: string; name?: string }>({
   deletingItem,
   onDeleteConfirm,
   summaryCards,
+  beforeTable,
   additionalContent,
   children,
   className,
@@ -157,7 +159,10 @@ export function CrudPageLayout<T extends { id: string; name?: string }>({
             )}
           </div>
         )}
-        
+
+        {/* Before Table Content (e.g., filters) */}
+        {beforeTable}
+
         {/* Data Table */}
         <Card className={className}>
           <div className="p-6">
@@ -234,6 +239,7 @@ interface SimpleCrudPageProps<T extends { id: string; name?: string }> {
   mobileColumns?: Column<T>[];
   emptyIcon?: React.ReactNode;
   searchable?: boolean;
+  beforeTable?: React.ReactNode;
   children?: React.ReactNode;
 }
 
@@ -246,6 +252,7 @@ export function SimpleCrudPage<T extends { id: string; name?: string }>({
   mobileColumns,
   emptyIcon,
   searchable = true,
+  beforeTable,
   children,
 }: SimpleCrudPageProps<T>) {
   // Localized common strings
@@ -279,6 +286,7 @@ export function SimpleCrudPage<T extends { id: string; name?: string }>({
       onDeleteConfirmChange={data.onDeleteConfirmChange}
       deletingItem={data.deletingItem}
       onDeleteConfirm={data.onDeleteConfirm}
+      beforeTable={beforeTable}
     >
       {children}
     </CrudPageLayout>

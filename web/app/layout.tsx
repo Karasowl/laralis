@@ -5,6 +5,7 @@ import { WorkspaceProvider } from '@/contexts/workspace-context';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { BrowserExtensionsCleanup } from '@/components/providers/browser-extensions-cleanup';
 import { IntlProvider } from '@/components/providers/intl-provider';
+import { SwrProvider } from '@/components/providers/swr-provider';
 import { FloatingAssistant } from '@/components/ai-assistant/FloatingAssistant';
 
 export default async function RootLayout({
@@ -28,10 +29,11 @@ export default async function RootLayout({
           storageKey="laralis-theme"
         >
           <IntlProvider messages={messages} locale={locale}>
-            <WorkspaceProvider>
-              {children}
-              <FloatingAssistant />
-              <Toaster
+            <SwrProvider>
+              <WorkspaceProvider>
+                {children}
+                <FloatingAssistant />
+                <Toaster
                 richColors
                 position="top-right"
                 toastOptions={{
@@ -40,7 +42,8 @@ export default async function RootLayout({
                   },
                 }}
               />
-            </WorkspaceProvider>
+              </WorkspaceProvider>
+            </SwrProvider>
           </IntlProvider>
         </ThemeProvider>
       </body>

@@ -21,6 +21,7 @@
     "currency": "MXN",
     "yes": "Sí",
     "no": "No",
+    "or": "o",
     "select": "Seleccionar",
     "noResults": "Sin resultados",
     "createNew": "Nueva {entity}",
@@ -70,6 +71,21 @@
     "created": "Creado",
     "srClose": "Cerrar",
     "total": "Total"
+  },
+  "filters": {
+    "title": "Filtros",
+    "clear": "Limpiar",
+    "clearAll": "Limpiar todo",
+    "dateFrom": "Desde",
+    "dateTo": "Hasta",
+    "min": "Mínimo",
+    "max": "Máximo",
+    "status": "Estado",
+    "category": "Categoría",
+    "dateRange": "Rango de fechas",
+    "priceRange": "Rango de precio",
+    "noFiltersApplied": "Sin filtros aplicados",
+    "resultsFiltered": "{count} resultados filtrados"
   },
   "navigation": {
     "dashboard": "Inicio",
@@ -3481,8 +3497,11 @@
         "roi": "ROI"
       },
       "help": {
-        "title": "¿Cómo funciona este análisis?",
-        "description": "Calcula el ROI basándose en gastos de marketing registrados y los ingresos/pacientes del mismo período. Asegúrate de categorizar tus gastos de marketing correctamente."
+        "title": "¿Cómo se calcula el ROI?",
+        "description": "ROI = ((Ingresos - Inversión) / Inversión) × 100",
+        "example": "Ejemplo: Con $1,000 de inversión y $3,500 de ingresos = 250% ROI",
+        "interpretation": "Un ROI de 250% significa que por cada peso invertido ganas $2.50 adicionales",
+        "tip": "Categoriza tus gastos como 'Marketing' o 'Publicidad' para incluirlos en el análisis"
       },
       "campaign_roi_analysis": "Análisis de ROI por Campaña",
       "individual_campaign_performance": "Rendimiento de cada campaña de marketing",
@@ -3719,6 +3738,7 @@
       "preview": "Vista Previa",
       "confirmAndSave": "Confirmar y Guardar",
       "restart": "Reiniciar",
+      "textInputPlaceholder": "Escribe tu respuesta aquí...",
       "saveSuccess": "¡Registro guardado exitosamente!",
       "saveError": "Error al guardar registro",
       "errors": {

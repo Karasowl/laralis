@@ -19,6 +19,13 @@ interface ChatRequest {
   mode: 'entry' | 'simple'
 }
 
+interface EntryResponse {
+  extracted_value: unknown
+  message: string
+  is_valid: boolean
+  validation_error: string | null
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Check if AI is configured
@@ -51,6 +58,41 @@ export async function POST(request: NextRequest) {
     if (mode === 'entry' && context) {
       // Entry mode with context
       response = await aiService.chatForEntry(userInput, context)
+
+      // Try to parse JSON response for entry mode
+      try {
+        // Clean the response - remove markdown code blocks if present
+        let cleanResponse = response.trim()
+        if (cleanResponse.startsWith('```json')) {
+          cleanResponse = cleanResponse.slice(7)
+        } else if (cleanResponse.startsWith('```')) {
+          cleanResponse = cleanResponse.slice(3)
+        }
+        if (cleanResponse.endsWith('```')) {
+          cleanResponse = cleanResponse.slice(0, -3)
+        }
+        cleanResponse = cleanResponse.trim()
+
+        const parsed: EntryResponse = JSON.parse(cleanResponse)
+
+        return NextResponse.json({
+          response: parsed.message,
+          extracted_value: parsed.extracted_value,
+          is_valid: parsed.is_valid,
+          validation_error: parsed.validation_error,
+          provider: aiService.getProviderInfo().llm,
+        })
+      } catch (parseError) {
+        // If JSON parsing fails, return plain text response
+        console.warn('[API /ai/chat] Failed to parse JSON response, using plain text:', parseError)
+        return NextResponse.json({
+          response,
+          extracted_value: null,
+          is_valid: false,
+          validation_error: 'parse_error',
+          provider: aiService.getProviderInfo().llm,
+        })
+      }
     } else {
       // Simple chat mode
       const messages: Message[] = [
@@ -60,12 +102,12 @@ export async function POST(request: NextRequest) {
         },
       ]
       response = await aiService.chat(messages)
-    }
 
-    return NextResponse.json({
-      response,
-      provider: aiService.getProviderInfo().llm,
-    })
+      return NextResponse.json({
+        response,
+        provider: aiService.getProviderInfo().llm,
+      })
+    }
   } catch (error) {
     console.error('[API /ai/chat] Error:', error)
     return NextResponse.json(

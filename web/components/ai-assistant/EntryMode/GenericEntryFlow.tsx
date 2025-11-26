@@ -10,7 +10,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
-import { CheckCircle2, AlertCircle } from 'lucide-react'
+import { CheckCircle2, AlertCircle, Send, Loader2 } from 'lucide-react'
 import { VoiceRecorder } from '../VoiceRecorder'
 import { useCurrentClinic } from '@/hooks/use-current-clinic'
 import {
@@ -44,6 +44,14 @@ export function GenericEntryFlow({ entityType, onComplete, onCancel }: GenericEn
   const [currentFieldIndex, setCurrentFieldIndex] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [textInput, setTextInput] = useState('')
+
+  // Handle text input submission
+  const handleTextSubmit = () => {
+    if (!textInput.trim() || isProcessing) return
+    handleTranscript(textInput.trim())
+    setTextInput('')
+  }
 
   // Initialize field order and first message
   useEffect(() => {
@@ -100,19 +108,25 @@ export function GenericEntryFlow({ entityType, onComplete, onCancel }: GenericEn
       // Add AI response to conversation
       setConversation((prev) => [...prev, { role: 'assistant', text: data.response }])
 
-      // Check if user wants to skip
-      const lowerText = text.toLowerCase()
-      if (lowerText.includes('pasar') || lowerText.includes('skip') || lowerText.includes('saltar')) {
+      // Handle validation result from AI
+      if (data.is_valid) {
+        // User wants to skip (extracted_value is null but is_valid is true)
+        // OR AI successfully extracted a value
+        if (data.extracted_value !== null && data.extracted_value !== undefined) {
+          // Store the EXTRACTED value (not the raw text)
+          const newData = { ...collectedData, [currentField]: data.extracted_value }
+          setCollectedData(newData)
+        }
+        // Move to next field automatically
         moveToNextField()
-        return
+      } else {
+        // Validation failed - don't move to next field
+        // The AI message should explain what's wrong
+        if (data.validation_error && data.validation_error !== 'awaiting_input') {
+          setError(data.response) // Show the AI's explanation as the error
+        }
+        // Stay on current field so user can try again
       }
-
-      // Store the value (AI should have validated it)
-      const newData = { ...collectedData, [currentField]: text }
-      setCollectedData(newData)
-
-      // Move to next field automatically
-      moveToNextField()
     } catch (err) {
       console.error('[GenericEntryFlow] Error:', err)
       setError(t('errors.networkError'))
@@ -339,13 +353,50 @@ export function GenericEntryFlow({ entityType, onComplete, onCancel }: GenericEn
         ))}
       </div>
 
-      {/* Voice Recorder */}
-      <VoiceRecorder
-        onTranscript={handleTranscript}
-        onError={(err) => setError(err)}
-        disabled={isProcessing}
-        language="es"
-      />
+      {/* Text Input + Voice Recorder */}
+      <div className="space-y-3">
+        {/* Text input */}
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={textInput}
+            onChange={(e) => setTextInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                handleTextSubmit()
+              }
+            }}
+            placeholder={t('textInputPlaceholder')}
+            disabled={isProcessing}
+            className="flex-1 px-4 py-3 border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+          />
+          <button
+            onClick={handleTextSubmit}
+            disabled={isProcessing || !textInput.trim()}
+            className="px-4 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isProcessing ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Send className="h-5 w-5" />
+            )}
+          </button>
+        </div>
+
+        {/* Voice recorder as alternative */}
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span className="flex-1 border-t" />
+          <span>{tCommon('or')}</span>
+          <span className="flex-1 border-t" />
+        </div>
+        <VoiceRecorder
+          onTranscript={handleTranscript}
+          onError={(err) => setError(err)}
+          disabled={isProcessing}
+          language="es"
+        />
+      </div>
 
       {/* Error Message */}
       {error && (

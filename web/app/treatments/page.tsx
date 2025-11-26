@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { ActionDropdown, createEditAction, createDeleteAction } from '@/components/ui/ActionDropdown'
 import { SummaryCards } from '@/components/ui/summary-cards'
+import { SmartFilters, useSmartFilter, FilterConfig, FilterValues } from '@/components/ui/smart-filters'
 import { TreatmentForm } from './components/TreatmentForm'
 import { useCurrentClinic } from '@/hooks/use-current-clinic'
 import { useRequirementsGuard } from '@/lib/requirements/useGuard'
@@ -74,6 +75,48 @@ export default function TreatmentsPage() {
 
   const filteredPatient = (patients || []).find(p => p.id === patientFilter)
   const filteredCount = (treatments || []).length
+
+  // Filter state
+  const [filterValues, setFilterValues] = useState<FilterValues>({
+    treatment_date: { from: '', to: '' },
+    status: [],
+    service_id: [],
+    price_cents: { from: '', to: '' }
+  })
+
+  // Filter configurations
+  const filterConfigs: FilterConfig[] = useMemo(() => [
+    {
+      key: 'treatment_date',
+      label: t('treatments.fields.date'),
+      type: 'date-range'
+    },
+    {
+      key: 'status',
+      label: t('treatments.fields.status'),
+      type: 'multi-select',
+      options: [
+        { value: 'pending', label: t('treatments.status.pending') },
+        { value: 'completed', label: t('treatments.status.completed') },
+        { value: 'cancelled', label: t('treatments.status.cancelled') }
+      ]
+    },
+    {
+      key: 'service_id',
+      label: t('treatments.fields.service'),
+      type: 'multi-select',
+      options: services.map(s => ({ value: s.id, label: s.name }))
+    },
+    {
+      key: 'price_cents',
+      label: t('treatments.fields.price'),
+      type: 'number-range',
+      multiplier: 100 // User inputs in pesos, data is in cents
+    }
+  ], [t, services])
+
+  // Apply filters to treatments
+  const filteredTreatments = useSmartFilter(treatments, filterValues, filterConfigs)
 
   // Modal states
   const [createOpen, setCreateOpen] = useState(false)
@@ -492,10 +535,17 @@ export default function TreatmentsPage() {
           columns={4}
         />
 
+        <SmartFilters
+          filters={filterConfigs}
+          values={filterValues}
+          onChange={setFilterValues}
+          className="mb-4"
+        />
+
         <DataTable
           columns={columns}
           mobileColumns={[columns[0], columns[1], columns[4], columns[5], columns[6], columns[7], columns[8]]}
-          data={treatments}
+          data={filteredTreatments}
           loading={loading}
           searchPlaceholder={t('treatments.searchPlaceholder')}
           showCount={true}

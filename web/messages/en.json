@@ -21,6 +21,7 @@
     "currency": "MXN",
     "yes": "Yes",
     "no": "No",
+    "or": "or",
     "confirm": "Confirm",
     "confirmDelete": "Are you sure you want to delete this item?",
     "back": "Back",
@@ -70,6 +71,21 @@
     "active": "Active",
     "inactive": "Inactive",
     "success": "Success"
+  },
+  "filters": {
+    "title": "Filters",
+    "clear": "Clear",
+    "clearAll": "Clear all",
+    "dateFrom": "From",
+    "dateTo": "To",
+    "min": "Minimum",
+    "max": "Maximum",
+    "status": "Status",
+    "category": "Category",
+    "dateRange": "Date range",
+    "priceRange": "Price range",
+    "noFiltersApplied": "No filters applied",
+    "resultsFiltered": "{count} results filtered"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -3452,6 +3468,7 @@
       "preview": "Preview",
       "confirmAndSave": "Confirm and Save",
       "restart": "Start over",
+      "textInputPlaceholder": "Type your answer here...",
       "saveSuccess": "Record saved successfully!",
       "saveError": "Error saving record",
       "errors": {
