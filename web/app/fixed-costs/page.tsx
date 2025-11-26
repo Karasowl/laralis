@@ -304,6 +304,8 @@ export default function FixedCostsPage() {
               mobileColumns={[columns[1], columns[2], columns[3]]}
               data={fixedCosts}
               loading={loading}
+              showCount={true}
+              countLabel={t('fixedCosts.title').toLowerCase()}
               emptyState={{
                 icon: Calculator,
                 title: t('fixedCosts.noFixedCosts'),

@@ -156,6 +156,8 @@ export default function ExpensesTable({
         loading={loading}
         searchPlaceholder={t('search_expenses')}
         onSearch={setSearchTerm}
+        showCount={true}
+        countLabel={t('title').toLowerCase()}
         emptyState={{
           icon: Receipt,
           title: t('no_expenses'),

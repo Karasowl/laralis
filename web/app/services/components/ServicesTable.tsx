@@ -350,6 +350,8 @@ export function ServicesTable({
       data={services || []}
       loading={loading}
       searchPlaceholder={t('search_services')}
+      showCount={true}
+      countLabel={t('title').toLowerCase()}
       emptyState={{
         icon: Briefcase,
         title: t('no_services'),

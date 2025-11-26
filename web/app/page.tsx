@@ -41,6 +41,7 @@ import { useChannelROI } from '@/hooks/use-channel-roi'
 import { useAcquisitionTrends } from '@/hooks/use-acquisition-trends'
 import { useProfitAnalysis } from '@/hooks/use-profit-analysis'
 import { usePlannedVsActual } from '@/hooks/use-planned-vs-actual'
+import { useServices } from '@/hooks/use-services'
 import { PlannedVsActualCard } from '@/components/dashboard/PlannedVsActualCard'
 import { formatCurrency } from '@/lib/format'
 import { ReportsAdvanced } from '@/app/reports/ReportsAdvanced'
@@ -241,6 +242,12 @@ export default function InsightsPage() {
     data: acquisitionTrendsData,
     loading: acquisitionTrendsLoading
   } = useAcquisitionTrends({ clinicId: currentClinic?.id, months: 12, projectionMonths: 3 })
+
+  // Services for advanced reports (to show names instead of IDs)
+  const {
+    services,
+    loading: servicesLoading
+  } = useServices({ clinicId: currentClinic?.id })
 
   // Profit Analysis - Correct financial metrics
   const {
@@ -535,7 +542,12 @@ export default function InsightsPage() {
           </TabsContent>
 
           <TabsContent value="advanced">
-            <ReportsAdvanced insights={insights} kpis={kpis} loading={reportsLoading} />
+            <ReportsAdvanced
+              insights={insights}
+              kpis={kpis}
+              loading={reportsLoading || servicesLoading}
+              services={services?.map(s => ({ id: s.id, name: s.name })) || []}
+            />
           </TabsContent>
 
           <TabsContent value="marketing" className="space-y-6">

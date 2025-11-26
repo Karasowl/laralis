@@ -181,7 +181,12 @@ export function CrudPageLayout<T extends { id: string; name?: string }>({
                 }
               />
             ) : (
-              <DataTable columns={tableColumns} mobileColumns={mobileTableColumns} data={items} />
+              <DataTable
+                columns={tableColumns}
+                mobileColumns={mobileTableColumns}
+                data={items}
+                showCount={true}
+              />
             )}
           </div>
         </Card>

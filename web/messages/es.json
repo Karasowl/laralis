@@ -3390,7 +3390,9 @@
         "danger": "Urgente"
       },
       "noRevenueYet": "Sin ingresos registrados aún",
-      "noRevenueHelp": "Tienes {remaining} días laborales restantes para alcanzar tu meta. Comienza a registrar tratamientos para ver tu progreso real."
+      "noRevenueHelp": "Tienes {remaining} días laborales restantes para alcanzar tu meta. Comienza a registrar tratamientos para ver tu progreso real.",
+      "collapse": "Contraer",
+      "expand": "Expandir"
     },
     "businessMetrics": {
       "avgTicket": "Ticket Promedio",

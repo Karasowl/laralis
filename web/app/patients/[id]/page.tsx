@@ -300,6 +300,8 @@ export default function PatientDetailPage() {
             data={treatments}
             loading={loading}
             searchPlaceholder={t('treatments.searchPlaceholder')}
+            showCount={true}
+            countLabel={t('treatments.title').toLowerCase()}
             emptyState={{
               icon: Activity,
               title: t('patients.no_treatments_title'),

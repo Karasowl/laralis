@@ -560,6 +560,8 @@ export default function MarketingSettingsClient() {
                   data={campaignsData}
                   searchKey="name"
                   searchPlaceholder={t('settings.marketing.searchCampaigns')}
+                  showCount={true}
+                  countLabel={t('settings.marketing.campaigns').toLowerCase()}
                 />
               )}
             </Card>

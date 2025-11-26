@@ -498,6 +498,8 @@ export default function TreatmentsPage() {
           data={treatments}
           loading={loading}
           searchPlaceholder={t('treatments.searchPlaceholder')}
+          showCount={true}
+          countLabel={t('treatments.title').toLowerCase()}
           emptyState={{
             icon: FileText,
             title: t('treatments.emptyTitle'),

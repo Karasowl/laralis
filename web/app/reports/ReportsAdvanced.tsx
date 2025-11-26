@@ -28,14 +28,26 @@ import type { ReportsKpis } from '@/hooks/use-reports'
 import { PatientAnalysis } from '@/components/dashboard/advanced/PatientAnalysis'
 import { CapacityUtilization } from '@/components/dashboard/advanced/CapacityUtilization'
 
+interface ServiceInfo {
+  id: string
+  name: string
+}
+
 interface ReportsAdvancedProps {
   insights: BusinessInsights | null
   kpis: ReportsKpis | null
   loading: boolean
+  services?: ServiceInfo[]
 }
 
-export function ReportsAdvanced({ insights, kpis, loading }: ReportsAdvancedProps) {
+export function ReportsAdvanced({ insights, kpis, loading, services = [] }: ReportsAdvancedProps) {
   const t = useTranslations('reports')
+
+  // Helper to get service name from ID
+  const getServiceName = (serviceId: string): string => {
+    const service = services.find(s => s.id === serviceId)
+    return service?.name || `Service ${serviceId.slice(0, 8)}...`
+  }
 
   if (loading) {
     return (
@@ -153,7 +165,7 @@ export function ReportsAdvanced({ insights, kpis, loading }: ReportsAdvancedProp
                       <span className="text-xs font-bold text-yellow-600">#{index + 1}</span>
                     </div>
                     <div>
-                      <p className="font-medium">{t('advanced.services.serviceId', { id: service.service_id })}</p>
+                      <p className="font-medium">{getServiceName(service.service_id)}</p>
                       <p className="text-xs text-muted-foreground">{service.frequency} {t('advanced.services.treatments')}</p>
                     </div>
                   </div>
@@ -183,7 +195,7 @@ export function ReportsAdvanced({ insights, kpis, loading }: ReportsAdvancedProp
                       <TrendingUp className="h-4 w-4 text-primary" />
                     </div>
                     <div>
-                      <p className="font-medium">{t('advanced.services.serviceId', { id: opportunity.service_id })}</p>
+                      <p className="font-medium">{getServiceName(opportunity.service_id)}</p>
                       <p className="text-xs text-muted-foreground">{t('advanced.services.highPotential')}</p>
                     </div>
                   </div>
@@ -222,7 +234,7 @@ export function ReportsAdvanced({ insights, kpis, loading }: ReportsAdvancedProp
                   <div className="flex items-center gap-3">
                     <TrendingDown className="h-5 w-5 text-orange-600" />
                     <div>
-                      <p className="font-medium">{t('advanced.services.serviceId', { id: service.service_id })}</p>
+                      <p className="font-medium">{getServiceName(service.service_id)}</p>
                       <p className="text-xs text-muted-foreground">{t('advanced.alerts.requiresAttention')}</p>
                     </div>
                   </div>

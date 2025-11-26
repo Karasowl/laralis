@@ -3123,7 +3123,9 @@
         "danger": "Urgent"
       },
       "noRevenueYet": "No revenue recorded yet",
-      "noRevenueHelp": "You have {remaining} working days left to reach your goal. Start recording treatments to see your real progress."
+      "noRevenueHelp": "You have {remaining} working days left to reach your goal. Start recording treatments to see your real progress.",
+      "collapse": "Collapse",
+      "expand": "Expand"
     },
     "businessMetrics": {
       "avgTicket": "Average Ticket",

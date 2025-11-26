@@ -25,6 +25,9 @@ export interface DataTableProps<T> extends React.HTMLAttributes<HTMLDivElement> 
     title?: string;
     description?: string;
   };
+  // Show count badge with total records
+  showCount?: boolean;
+  countLabel?: string; // e.g., "patients", "treatments"
 }
 
 function getValue<T>(item: T, key: keyof T | string): any {
@@ -45,6 +48,8 @@ function DataTable<T extends { id?: string | number }>({
   searchKey,
   onSearch,
   emptyState,
+  showCount = false,
+  countLabel,
   ...props
 }: DataTableProps<T>) {
   const [searchValue, setSearchValue] = React.useState("");
@@ -101,34 +106,58 @@ function DataTable<T extends { id?: string | number }>({
     });
   }, [filteredData, sortConfig]);
   
+  // Calculate counts for display
+  const totalCount = Array.isArray(data) ? data.length : 0;
+  const filteredCount = sortedData.length;
+  const isFiltered = searchValue && filteredCount !== totalCount;
+
   return (
     <div className="space-y-4">
-      {/* Search Bar with animation */}
-      {(onSearch || searchKey) && (
-        <div className="relative group">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
-          <input
-            type="text"
-            placeholder={searchPlaceholder || "Search..."}
-            value={searchValue}
-            onChange={onSearch ? handleSearch : (e) => setSearchValue(e.target.value)}
-            className="w-full rounded-lg border border-input bg-background px-10 py-2.5 text-sm shadow-sm transition-all duration-200 placeholder:text-muted-foreground hover:border-primary/50 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
-          />
-          {searchValue && (
-            <button
-              onClick={() => {
-                setSearchValue("");
-                onSearch?.("");
-              }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          )}
-        </div>
-      )}
+      {/* Search Bar and Count */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        {/* Search Bar with animation */}
+        {(onSearch || searchKey) && (
+          <div className="relative group flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
+            <input
+              type="text"
+              placeholder={searchPlaceholder || "Search..."}
+              value={searchValue}
+              onChange={onSearch ? handleSearch : (e) => setSearchValue(e.target.value)}
+              className="w-full rounded-lg border border-input bg-background px-10 py-2.5 text-sm shadow-sm transition-all duration-200 placeholder:text-muted-foreground hover:border-primary/50 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
+            />
+            {searchValue && (
+              <button
+                onClick={() => {
+                  setSearchValue("");
+                  onSearch?.("");
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Record Count Badge */}
+        {showCount && !loading && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground shrink-0">
+            <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-primary/10 text-primary font-medium">
+              {isFiltered ? (
+                <>
+                  {filteredCount} / {totalCount}
+                </>
+              ) : (
+                totalCount
+              )}
+            </span>
+            {countLabel && <span>{countLabel}</span>}
+          </div>
+        )}
+      </div>
 
       {/* Table or Empty State with better design */}
       {loading ? (
