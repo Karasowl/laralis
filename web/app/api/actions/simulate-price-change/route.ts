@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { aiService } from '@/lib/ai/service'
 import type { ActionParams } from '@/lib/ai/types'
 
@@ -66,10 +67,11 @@ export async function POST(request: NextRequest) {
     }
 
     // 6. Execute action via AIService (always read-only, no dryRun needed)
+    // Use supabaseAdmin for consistency (membership already verified)
     const result = await aiService.execute('simulate_price_change', params, {
       clinicId: clinic_id,
       userId: user.id,
-      supabase,
+      supabase: supabaseAdmin,
       dryRun: false, // This action is always read-only
     })
 
