@@ -11,6 +11,7 @@ import { FormModal } from '@/components/ui/form-modal'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ActionDropdown, createEditAction, createDeleteAction } from '@/components/ui/ActionDropdown'
+import { SmartFilters, useSmartFilter, FilterConfig, FilterValues } from '@/components/ui/smart-filters'
 import { PatientFormUnified } from './components/PatientFormUnified'
 import { PatientDetails } from './components/PatientDetails'
 import { useWorkspace } from '@/contexts/workspace-context'
@@ -103,8 +104,43 @@ export default function PatientsPage() {
   const [editPatient, setEditPatient] = useState<Patient | null>(null)
   const [viewPatient, setViewPatient] = useState<Patient | null>(null)
   const [deletePatientData, setDeletePatientData] = useState<Patient | null>(null)
-  
+
   // Modal cleanup disabled to avoid interference with Radix scroll-lock
+
+  // Filter state
+  const [filterValues, setFilterValues] = useState<FilterValues>({
+    source_id: [],
+    gender: '',
+    first_visit_date: { from: '', to: '' }
+  })
+
+  // Filter configurations
+  const filterConfigs: FilterConfig[] = useMemo(() => [
+    {
+      key: 'source_id',
+      label: tFields('source'),
+      type: 'multi-select',
+      options: patientSources.map((s: any) => ({ value: s.id, label: s.name }))
+    },
+    {
+      key: 'gender',
+      label: tFields('gender'),
+      type: 'select',
+      options: [
+        { value: 'male', label: t('gender.male') },
+        { value: 'female', label: t('gender.female') },
+        { value: 'other', label: t('gender.other') }
+      ]
+    },
+    {
+      key: 'first_visit_date',
+      label: tFields('first_visit'),
+      type: 'date-range'
+    }
+  ], [tFields, t, patientSources])
+
+  // Apply filters to patients
+  const filteredPatients = useSmartFilter(patients || [], filterValues, filterConfigs)
 
   // Form
   const initialValues: ZPatientForm = {
@@ -465,7 +501,7 @@ export default function PatientsPage() {
       subtitle={t('subtitle')}
       entityName={tEntities('patient')}
       data={{
-        items: patients || [],
+        items: filteredPatients || [],
         loading,
         searchTerm,
         onSearchChange: searchPatients,
@@ -478,6 +514,14 @@ export default function PatientsPage() {
         onDeleteConfirm: handleDelete,
       }}
       columns={columns}
+      beforeTable={
+        <SmartFilters
+          filters={filterConfigs}
+          values={filterValues}
+          onChange={setFilterValues}
+          className="mb-4"
+        />
+      }
       mobileColumns={[
         columns[0],
         columns[1],
