@@ -357,6 +357,7 @@ export default function ExpensesPage() {
     {
       key: 'actions',
       label: tCommon('actions'),
+      sortable: false,
       render: (_value, expense) => (
         <ActionDropdown
           actions={[

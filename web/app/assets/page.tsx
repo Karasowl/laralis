@@ -145,11 +145,12 @@ export default function AssetsPage() {
       key: 'depreciation_months', 
       label: t('assets.table.months') 
     },
-    { 
-      key: 'monthly_dep', 
-      label: t('assets.table.monthlyDep'), 
-      render: (_value: unknown, row: Asset) => 
-        formatCurrency(Math.round(row.purchase_price_cents / row.depreciation_months)) 
+    {
+      key: 'monthly_dep',
+      label: t('assets.table.monthlyDep'),
+      sortable: false,
+      render: (_value: unknown, row: Asset) =>
+        formatCurrency(Math.round(row.purchase_price_cents / row.depreciation_months))
     }
   ];
 

@@ -77,7 +77,7 @@ export function ServicesTable({
       )
     },
     {
-      key: 'duration',
+      key: 'est_minutes',
       label: tFields('duration'),
       render: (_value: any, service: any) => {
         const minutes = service?.est_minutes || service?.duration_minutes || 0;
@@ -90,7 +90,7 @@ export function ServicesTable({
       }
     },
     {
-      key: 'cost',
+      key: 'total_cost_cents',
       label: t('base_cost'),
       render: (_value: any, service: any) => {
         // Use the calculated costs from backend
@@ -144,7 +144,7 @@ export function ServicesTable({
       }
     },
     {
-      key: 'sale_price',
+      key: 'price_cents',
       label: t('price_with_margin'),
       render: (_value: any, service: any) => {
         const costBase = service?.total_cost_cents || 0;
@@ -280,7 +280,7 @@ export function ServicesTable({
       }
     },
     {
-      key: 'discount',
+      key: 'discount_value',
       label: t('discount'),
       render: (_value: any, service: any) => {
         const hasDiscount = service?.discount_type && service.discount_type !== 'none';
@@ -318,9 +318,10 @@ export function ServicesTable({
     {
       key: 'actions',
       label: tRoot('common.actions'),
+      sortable: false,
       render: (_value: any, service: any) => {
         if (!service) return null;
-        
+
         return (
           <ActionDropdown
             actions={[

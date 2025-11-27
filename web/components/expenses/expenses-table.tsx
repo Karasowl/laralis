@@ -131,6 +131,7 @@ export default function ExpensesTable({
     {
       key: 'actions',
       label: tCommon('actions'),
+      sortable: false,
       render: (expense: ExpenseWithRelations) => (
         <ActionDropdown
           actions={[
