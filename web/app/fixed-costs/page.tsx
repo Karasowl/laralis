@@ -177,6 +177,7 @@ export default function FixedCostsPage() {
     {
       key: 'actions',
       label: t('common.actions'),
+      sortable: false,
       render: (_value: unknown, cost: FixedCost) => (
         <ActionDropdown
           actions={[

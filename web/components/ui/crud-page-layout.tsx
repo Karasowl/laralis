@@ -104,6 +104,7 @@ export function CrudPageLayout<T extends { id: string; name?: string }>({
       ? {
           key: 'actions',
           label: t('common.actions'),
+          sortable: false,
           render: (_value, item) => {
             const actions: any[] = [];
             if (onEdit) actions.push(createEditAction(() => onEdit(item), t('common.edit')));

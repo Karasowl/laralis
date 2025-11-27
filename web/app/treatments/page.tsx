@@ -338,6 +338,7 @@ export default function TreatmentsPage() {
     {
       key: 'actions',
       label: t('common.actions'),
+      sortable: false,
       render: (_value: any, treatment: any) => (
         <div className="md:flex md:justify-end">
           <ActionDropdown

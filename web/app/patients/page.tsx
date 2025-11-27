@@ -418,6 +418,7 @@ export default function PatientsPage() {
       // Use the standard "actions" key so CrudPageLayout doesn't auto-add a duplicate
       key: 'actions',
       label: tCommon('actions'),
+      sortable: false,
       // Keep the column compact and right-aligned on larger screens
       className: 'text-right',
       render: (_value: any, patient: Patient) => {
