@@ -70,7 +70,9 @@
     "total": "Total",
     "active": "Active",
     "inactive": "Inactive",
-    "success": "Success"
+    "success": "Success",
+    "today": "Today",
+    "unknown": "Unknown"
   },
   "filters": {
     "title": "Filters",
@@ -1590,6 +1592,40 @@
       "platform": "platform",
       "campaign": "campaign"
     },
+    "calendar": {
+      "cardTitle": "Google Calendar",
+      "cardDescription": "Sync appointments with Google Calendar",
+      "title": "Google Calendar Integration",
+      "subtitle": "Connect your Google Calendar to automatically sync appointments",
+      "connected": "Connected",
+      "disconnected": "Not connected",
+      "connect": "Connect Google Calendar",
+      "disconnect": "Disconnect",
+      "reconnect": "Reconnect",
+      "connectDescription": "Connect your Google account to automatically sync pending treatments with your calendar.",
+      "connectedAs": "Connected as",
+      "lastSync": "Last sync",
+      "calendarId": "Calendar",
+      "selectCalendar": "Select calendar",
+      "syncSettings": "Sync settings",
+      "syncOnCreate": "Sync when creating pending treatment",
+      "syncOnUpdate": "Update event when modifying treatment",
+      "syncOnDelete": "Delete event when cancelling treatment",
+      "eventFormat": "Event format",
+      "eventFormatDescription": "How the event will appear in Google Calendar",
+      "eventPreview": "Preview: {preview}",
+      "connectionSuccess": "Google Calendar connected successfully",
+      "connectionError": "Error connecting to Google Calendar",
+      "disconnectSuccess": "Google Calendar disconnected",
+      "disconnectConfirm": "Are you sure you want to disconnect Google Calendar? Existing events will not be deleted.",
+      "syncError": "Error syncing with Google Calendar",
+      "tokenExpired": "Your Google session has expired. Please reconnect.",
+      "noCalendars": "No calendars found",
+      "permissionDenied": "Permission denied. Please authorize calendar access.",
+      "calendarView": "Calendar View",
+      "calendarViewDescription": "View pending treatments in calendar format",
+      "viewCalendar": "View Calendar"
+    },
     "time": {
       "title": "Time Settings",
       "description": "Set your work schedule and calendar"
@@ -1759,6 +1795,10 @@
       "organization": {
         "title": "Organization",
         "subtitle": "Create workspaces and clinics for your team."
+      },
+      "integrations": {
+        "title": "Integrations",
+        "subtitle": "Connect with external services like Google Calendar."
       },
       "maintenance": {
         "title": "Maintenance",
@@ -2133,6 +2173,7 @@
     "viewTreatments": "View Treatments",
     "fields": {
       "date": "Date",
+      "time": "Time",
       "patient": "Patient",
       "service": "Service",
       "duration": "Duration",
@@ -2144,6 +2185,7 @@
       "notes": "Notes"
     },
     "sale_price_helper": "Final sale price - utility adjusts automatically",
+    "timeHelp": "Appointment time (optional)",
     "serviceLockedTitle": "Service cannot be changed",
     "serviceLockedMessage": "You cannot change the service of an existing treatment. Service: {service}",
     "marginHelp": "Optional percentage added to base cost",

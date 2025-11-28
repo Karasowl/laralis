@@ -2,6 +2,18 @@
 
 ## En Progreso
 
+- [ ] TASK-20251127-google-calendar-integration - Integrar Google Calendar con tratamientos pendientes
+  - **Priority**: P2
+  - **Estimate**: L (3-4 días)
+  - **Subtasks**:
+    1. Agregar campo `treatment_time` al formulario de tratamientos
+    2. Migración SQL para tokens de Google Calendar
+    3. OAuth2 flow con Google
+    4. Sincronización App → Google Calendar
+    5. Vista de calendario con FullCalendar
+    6. Ordenamiento por fecha/hora en tabla
+  - Ver: `tasks/TASK-20251127-google-calendar-integration.md`
+
 - [ ] TASK-20251021-marketing-categories - Implementar sistema de categorías de marketing para CAC
   - **Priority**: P1 - Crítico
   - **Estimate**: L (2-3 días)

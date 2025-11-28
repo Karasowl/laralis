@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
+import { syncTreatmentToCalendar, deleteTreatmentFromCalendar } from '@/lib/google-calendar';
 
 export const dynamic = 'force-dynamic'
 
@@ -33,6 +34,7 @@ export async function PUT(
     if (body.patient_id !== undefined) payload.patient_id = body.patient_id;
     if (body.service_id !== undefined) payload.service_id = body.service_id;
     if (body.treatment_date !== undefined) payload.treatment_date = body.treatment_date;
+    if (body.treatment_time !== undefined) payload.treatment_time = body.treatment_time;
     if (body.minutes !== undefined) {
       payload.duration_minutes = body.minutes;
       payload.minutes = body.minutes; // alias legacy
@@ -121,6 +123,49 @@ export async function PUT(
       console.warn('[treatments PUT] Failed to adjust patient first_visit_date:', e);
     }
 
+    // Sync to Google Calendar if connected
+    try {
+      const updated = result.data as any;
+      if (updated) {
+        // Fetch patient and service names for the event
+        const { data: patient } = await supabaseAdmin
+          .from('patients')
+          .select('first_name, last_name')
+          .eq('id', updated.patient_id)
+          .single();
+        const { data: service } = await supabaseAdmin
+          .from('services')
+          .select('name')
+          .eq('id', updated.service_id)
+          .single();
+
+        const patientName = patient ? `${patient.first_name} ${patient.last_name}` : 'Patient';
+        const serviceName = service?.name || 'Treatment';
+        const currentStatus = updated.status === 'scheduled' ? 'pending' : updated.status;
+
+        const googleEventId = await syncTreatmentToCalendar(clinicId, {
+          id: updated.id,
+          patient_name: patientName,
+          service_name: serviceName,
+          treatment_date: updated.treatment_date,
+          treatment_time: updated.treatment_time,
+          duration_minutes: updated.duration_minutes || 30,
+          status: currentStatus,
+          google_event_id: updated.google_event_id,
+        });
+
+        // Update google_event_id if it changed (new event created or event deleted)
+        if (googleEventId !== updated.google_event_id) {
+          await supabaseAdmin
+            .from('treatments')
+            .update({ google_event_id: googleEventId })
+            .eq('id', updated.id);
+        }
+      }
+    } catch (e) {
+      console.warn('[treatments PUT] Failed to sync to Google Calendar:', e);
+    }
+
     return NextResponse.json({ data: result.data, message: 'Treatment updated successfully' });
   } catch (error) {
     console.error('Unexpected error in PUT /api/treatments/[id]:', error);
@@ -140,6 +185,14 @@ export async function DELETE(
     }
     const { clinicId } = clinicContext;
 
+    // First, get the treatment to check for google_event_id
+    const { data: treatment } = await supabaseAdmin
+      .from('treatments')
+      .select('google_event_id')
+      .eq('id', params.id)
+      .eq('clinic_id', clinicId)
+      .single();
+
     const { error } = await supabaseAdmin
       .from('treatments')
       .delete()
@@ -149,6 +202,15 @@ export async function DELETE(
     if (error) {
       console.error('Error deleting treatment:', error);
       return NextResponse.json({ error: 'Failed to delete treatment', message: error.message }, { status: 500 });
+    }
+
+    // Delete event from Google Calendar if it exists
+    if (treatment?.google_event_id) {
+      try {
+        await deleteTreatmentFromCalendar(clinicId, treatment.google_event_id);
+      } catch (e) {
+        console.warn('[treatments DELETE] Failed to delete event from Google Calendar:', e);
+      }
     }
 
     return NextResponse.json({ data: null, message: 'Treatment deleted successfully' });

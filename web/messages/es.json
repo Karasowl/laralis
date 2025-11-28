@@ -70,7 +70,9 @@
     "status": "Estado",
     "created": "Creado",
     "srClose": "Cerrar",
-    "total": "Total"
+    "total": "Total",
+    "today": "Hoy",
+    "unknown": "Desconocido"
   },
   "filters": {
     "title": "Filtros",
@@ -1768,6 +1770,40 @@
       "platform": "plataforma",
       "campaign": "campaña"
     },
+    "calendar": {
+      "cardTitle": "Google Calendar",
+      "cardDescription": "Sincroniza citas con Google Calendar",
+      "title": "Integración con Google Calendar",
+      "subtitle": "Conecta tu calendario de Google para sincronizar citas automáticamente",
+      "connected": "Conectado",
+      "disconnected": "No conectado",
+      "connect": "Conectar Google Calendar",
+      "disconnect": "Desconectar",
+      "reconnect": "Reconectar",
+      "connectDescription": "Conecta tu cuenta de Google para sincronizar automáticamente los tratamientos pendientes con tu calendario.",
+      "connectedAs": "Conectado como",
+      "lastSync": "Última sincronización",
+      "calendarId": "Calendario",
+      "selectCalendar": "Seleccionar calendario",
+      "syncSettings": "Configuración de sincronización",
+      "syncOnCreate": "Sincronizar al crear tratamiento pendiente",
+      "syncOnUpdate": "Actualizar evento al modificar tratamiento",
+      "syncOnDelete": "Eliminar evento al cancelar tratamiento",
+      "eventFormat": "Formato del evento",
+      "eventFormatDescription": "Cómo aparecerá el evento en Google Calendar",
+      "eventPreview": "Vista previa: {preview}",
+      "connectionSuccess": "Google Calendar conectado exitosamente",
+      "connectionError": "Error al conectar con Google Calendar",
+      "disconnectSuccess": "Google Calendar desconectado",
+      "disconnectConfirm": "¿Estás seguro de desconectar Google Calendar? Los eventos existentes no se eliminarán.",
+      "syncError": "Error al sincronizar con Google Calendar",
+      "tokenExpired": "Tu sesión de Google ha expirado. Por favor reconecta.",
+      "noCalendars": "No se encontraron calendarios",
+      "permissionDenied": "Permiso denegado. Por favor autoriza el acceso al calendario.",
+      "calendarView": "Vista de Calendario",
+      "calendarViewDescription": "Ver tratamientos pendientes en formato calendario",
+      "viewCalendar": "Ver Calendario"
+    },
     "groups": {
       "personal": {
         "title": "Personal",
@@ -1776,6 +1812,10 @@
       "organization": {
         "title": "Organización",
         "subtitle": "Crea workspaces y clínicas para tu equipo."
+      },
+      "integrations": {
+        "title": "Integraciones",
+        "subtitle": "Conecta con servicios externos como Google Calendar."
       },
       "maintenance": {
         "title": "Mantenimiento",
@@ -2290,6 +2330,7 @@
     "viewTreatments": "Ver Tratamientos",
     "fields": {
       "date": "Fecha",
+      "time": "Hora",
       "patient": "Paciente",
       "service": "Servicio",
       "duration": "Duración",
@@ -2301,6 +2342,7 @@
       "notes": "Notas"
     },
     "sale_price_helper": "Precio final de venta - el margen se ajusta automáticamente",
+    "timeHelp": "Hora de la cita (opcional)",
     "serviceLockedTitle": "No se puede cambiar el servicio",
     "serviceLockedMessage": "No puedes cambiar el servicio de un tratamiento existente. Servicio: {service}",
     "patientAndService": "Paciente y Servicio",

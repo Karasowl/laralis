@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
+import { syncTreatmentToCalendar } from '@/lib/google-calendar';
 
 export const dynamic = 'force-dynamic'
 
@@ -13,6 +14,7 @@ const treatmentSchema = z.object({
   patient_id: z.string().min(1, 'Patient is required'),
   service_id: z.string().min(1, 'Service is required'),
   treatment_date: z.string().optional(),
+  treatment_time: z.string().optional(), // HH:MM format for appointment time
   minutes: z.coerce.number().int().positive('Minutes must be positive').optional(),
   duration_minutes: z.coerce.number().int().positive('Minutes must be positive').optional(),
   fixed_per_minute_cents: z.coerce.number().int().nonnegative().optional(),
@@ -186,6 +188,7 @@ export async function POST(request: NextRequest) {
       patient_id: payloadBody.patient_id,
       service_id: payloadBody.service_id,
       treatment_date: payloadBody.treatment_date || new Date().toISOString().split('T')[0],
+      treatment_time: payloadBody.treatment_time || null, // HH:MM format for appointment scheduling
       duration_minutes: minutesVal || 30,
       fixed_cost_per_minute_cents:
         payloadBody.fixed_cost_per_minute_cents ?? payloadBody.fixed_per_minute_cents ?? calculatedCostPerMinute,
@@ -277,6 +280,48 @@ export async function POST(request: NextRequest) {
       }
     } catch (e) {
       console.warn('[treatments POST] Failed to adjust patient first_visit_date:', e);
+    }
+
+    // Sync to Google Calendar if connected (for pending/scheduled treatments)
+    try {
+      const created = insertResult.data as any;
+      if (created && (created.status === 'scheduled' || created.status === 'pending')) {
+        // Fetch patient and service names for the event
+        const { data: patient } = await supabaseAdmin
+          .from('patients')
+          .select('first_name, last_name')
+          .eq('id', created.patient_id)
+          .single();
+        const { data: service } = await supabaseAdmin
+          .from('services')
+          .select('name')
+          .eq('id', created.service_id)
+          .single();
+
+        const patientName = patient ? `${patient.first_name} ${patient.last_name}` : 'Patient';
+        const serviceName = service?.name || 'Treatment';
+
+        const googleEventId = await syncTreatmentToCalendar(clinicId, {
+          id: created.id,
+          patient_name: patientName,
+          service_name: serviceName,
+          treatment_date: created.treatment_date,
+          treatment_time: created.treatment_time,
+          duration_minutes: created.duration_minutes || 30,
+          status: created.status === 'scheduled' ? 'pending' : created.status,
+          google_event_id: null,
+        });
+
+        // Save google_event_id if sync was successful
+        if (googleEventId) {
+          await supabaseAdmin
+            .from('treatments')
+            .update({ google_event_id: googleEventId })
+            .eq('id', created.id);
+        }
+      }
+    } catch (e) {
+      console.warn('[treatments POST] Failed to sync to Google Calendar:', e);
     }
 
     return NextResponse.json({
