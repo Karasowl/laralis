@@ -48,7 +48,7 @@ export default function TreatmentsCalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date())
 
   // Fetch treatments
-  const { data: response, isLoading } = useApi<ApiResponse>('/api/treatments')
+  const { data: response, loading } = useApi<ApiResponse>('/api/treatments')
   const treatments = response?.data || []
 
   // Get current month's days
@@ -79,6 +79,7 @@ export default function TreatmentsCalendarPage() {
     // Sort by time within each day
     Object.keys(grouped).forEach(date => {
       grouped[date].sort((a, b) => {
+        if (!a || !b) return 0
         const timeA = a.treatment_time || '00:00'
         const timeB = b.treatment_time || '00:00'
         return timeA.localeCompare(timeB)
@@ -183,7 +184,7 @@ export default function TreatmentsCalendarPage() {
               </div>
             </div>
 
-            {isLoading ? (
+            {loading ? (
               <div className="flex items-center justify-center py-20">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
@@ -241,7 +242,7 @@ export default function TreatmentsCalendarPage() {
                               )}
                             >
                               <div className="flex items-center gap-1">
-                                {treatment.treatment_time && (
+                                {treatment?.treatment_time && (
                                   <span className="font-medium">
                                     {treatment.treatment_time.slice(0, 5)}
                                   </span>
@@ -295,7 +296,7 @@ export default function TreatmentsCalendarPage() {
                       className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 cursor-pointer transition-colors"
                     >
                       <div className="flex items-center gap-4">
-                        {treatment.treatment_time && (
+                        {treatment?.treatment_time && (
                           <div className="flex items-center gap-1 text-sm font-medium">
                             <Clock className="h-4 w-4" />
                             {treatment.treatment_time.slice(0, 5)}

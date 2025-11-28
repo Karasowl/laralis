@@ -26,8 +26,11 @@ export interface Treatment {
   service_id: string
   service?: Service
   treatment_date: string
+  treatment_time?: string
   minutes: number
+  duration_minutes?: number
   fixed_per_minute_cents: number
+  fixed_cost_per_minute_cents?: number
   variable_cost_cents: number
   margin_pct: number
   price_cents: number
@@ -47,7 +50,7 @@ interface UseTreatmentsOptions {
 
 export function useTreatments(options: UseTreatmentsOptions = {}) {
   const { clinicId, autoLoad = true, patientId } = options
-  
+
   // Use generic CRUD for treatments
   const crud = useCrudOperations<Treatment>({
     endpoint: '/api/treatments',
@@ -174,13 +177,13 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
 
   // Enhanced update with snapshot preservation
   const updateTreatment = useCallback(async (
-    id: string, 
-    data: any, 
+    id: string,
+    data: any,
     existingTreatment: Treatment
   ): Promise<boolean> => {
     const services = Array.isArray(servicesApi.data) ? servicesApi.data as Service[] : ((servicesApi.data as any)?.data ?? [])
     const selectedService = services.find((s: Service) => s.id === (data.service_id || existingTreatment.service_id))
-    
+
     if (!selectedService) {
       return false
     }
@@ -235,7 +238,7 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
     loading: crud.loading || patientsApi.loading || servicesApi.loading,
     isSubmitting: crud.isSubmitting,
     error: null,
-    
+
     // Related data
     patients: Array.isArray(patientsApi.data)
       ? (patientsApi.data as Patient[])
@@ -244,16 +247,16 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
       ? (servicesApi.data as Service[])
       : ((servicesApi.data as any)?.data ?? []),
     timeSettings: timeSettingsApi.data?.data || { fixed_per_minute_cents: 0 },
-    
+
     // Calculated data
     summary,
-    
+
     // Operations
     fetchTreatments: crud.fetchItems,
     createTreatment,
     updateTreatment,
     deleteTreatment: crud.handleDelete,
-    
+
     // Load related data
     loadRelatedData
   }
