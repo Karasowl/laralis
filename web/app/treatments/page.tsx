@@ -21,7 +21,7 @@ import { TreatmentForm } from './components/TreatmentForm'
 import { useCurrentClinic } from '@/hooks/use-current-clinic'
 import { useRequirementsGuard } from '@/lib/requirements/useGuard'
 import { toast } from 'sonner'
-import { useTreatments } from '@/hooks/use-treatments'
+import { useTreatments, Treatment, Patient, Service } from '@/hooks/use-treatments'
 import { formatCurrency } from '@/lib/money'
 import { getLocalDateISO } from '@/lib/utils'
 import { formatDate } from '@/lib/format'
@@ -71,10 +71,10 @@ export default function TreatmentsPage() {
   } = useTreatments({ clinicId: currentClinic?.id, patientId: patientFilter || undefined })
 
   // Keep a ref of services to use immediately after refresh
-  const servicesRef = useRef(services as any[])
-  useEffect(() => { servicesRef.current = services as any[] }, [services])
+  const servicesRef = useRef<Service[]>(services as Service[])
+  useEffect(() => { servicesRef.current = services as Service[] }, [services])
 
-  const filteredPatient = (patients || []).find(p => p.id === patientFilter)
+  const filteredPatient = (patients || []).find((p: Patient) => p.id === patientFilter)
   const filteredCount = (treatments || []).length
 
   // Filter state
@@ -106,7 +106,7 @@ export default function TreatmentsPage() {
       key: 'service_id',
       label: t('treatments.fields.service'),
       type: 'multi-select',
-      options: services.map(s => ({ value: s.id, label: s.name }))
+      options: services.map((s: Service) => ({ value: s.id, label: s.name }))
     },
     {
       key: 'price_cents',
@@ -149,7 +149,7 @@ export default function TreatmentsPage() {
     // CRITICAL FIX: ALWAYS use current service cost from catalog
     // This ensures margin calculations reflect CURRENT pricing, not historical snapshot
     // The historical snapshot is only saved at treatment creation, not used for display
-    const service = services.find(s => s.id === selectedServiceId)
+    const service = services.find((s: Service) => s.id === selectedServiceId)
     return service?.total_cost_cents || service?.base_price_cents || service?.price_cents || 0
   }, [services, selectedServiceId])
 
@@ -203,7 +203,7 @@ export default function TreatmentsPage() {
   // Handle service change to update estimated minutes
   const handleServiceChange = (serviceId: string) => {
     form.setValue('service_id', serviceId, { shouldDirty: true, shouldTouch: true, shouldValidate: true })
-    const service = services.find(s => s.id === serviceId)
+    const service = services.find((s: Service) => s.id === serviceId)
     if (service && service.est_minutes) {
       form.setValue('minutes', service.est_minutes, { shouldDirty: true })
     }
@@ -213,11 +213,11 @@ export default function TreatmentsPage() {
   const handleServiceCreated = async (opt: { value: string; label: string }) => {
     try {
       await loadRelatedData()
-    } catch {}
+    } catch { }
     // Select the new service and set minutes if available
     form.setValue('service_id', opt.value)
     const svcList = (servicesRef as any).current || services
-    const svc = svcList.find((s: any) => s.id === opt.value)
+    const svc = svcList.find((s: Service) => s.id === opt.value)
     if (svc?.est_minutes) {
       form.setValue('minutes', svc.est_minutes)
     }
@@ -229,7 +229,7 @@ export default function TreatmentsPage() {
       key: 'treatment_date',
       label: t('treatments.fields.date'),
       sortable: true,
-      render: (treatment: any) => (
+      render: (treatment: Treatment) => (
         <div className="flex items-center gap-2">
           <Calendar className="h-4 w-4 text-muted-foreground" />
           {formatDate(treatment.treatment_date)}
@@ -240,18 +240,18 @@ export default function TreatmentsPage() {
       key: 'treatment_time',
       label: t('treatments.fields.time'),
       sortable: true,
-      render: (treatment: any) => (
+      render: (treatment: Treatment) => (
         <div className="flex items-center gap-2">
           <Clock className="h-4 w-4 text-muted-foreground" />
-          {treatment.treatment_time ? treatment.treatment_time.slice(0, 5) : '—'}
+          {treatment?.treatment_time ? treatment.treatment_time.slice(0, 5) : '—'}
         </div>
       )
     },
     {
       key: 'patient',
       label: t('treatments.fields.patient'),
-      render: (_value: any, treatment: any) => {
-        const patient = patients.find(p => p.id === treatment?.patient_id)
+      render: (_value: any, treatment: Treatment) => {
+        const patient = patients.find((p: Patient) => p.id === treatment?.patient_id)
         return patient ? (
           <Link
             href={`/patients/${patient.id}`}
@@ -271,8 +271,8 @@ export default function TreatmentsPage() {
     {
       key: 'service',
       label: t('treatments.fields.service'),
-      render: (_value: any, treatment: any) => {
-        const service = services.find(s => s.id === treatment?.service_id)
+      render: (_value: any, treatment: Treatment) => {
+        const service = services.find((s: Service) => s.id === treatment?.service_id)
         return service?.name || t('common.notAvailable')
       }
     },
@@ -289,7 +289,7 @@ export default function TreatmentsPage() {
     {
       key: 'price',
       label: t('treatments.fields.price'),
-      render: (_value: any, treatment: any) => (
+      render: (_value: any, treatment: Treatment) => (
         <div className="text-right font-semibold">
           {formatCurrency(treatment?.price_cents || 0)}
         </div>
@@ -298,7 +298,7 @@ export default function TreatmentsPage() {
     {
       key: 'profit',
       label: t('treatments.fields.profit'),
-      render: (_value: any, treatment: any) => {
+      render: (_value: any, treatment: Treatment) => {
         const fixedCost = (treatment?.fixed_cost_per_minute_cents || treatment?.fixed_per_minute_cents || 0) * (treatment?.duration_minutes || treatment?.minutes || 0)
         const variableCost = treatment?.variable_cost_cents || 0
         const totalCost = fixedCost + variableCost
@@ -313,7 +313,7 @@ export default function TreatmentsPage() {
     {
       key: 'notes',
       label: t('treatments.fields.notes'),
-      render: (_value: any, treatment: any) => {
+      render: (_value: any, treatment: Treatment) => {
         const hasNotes = treatment?.notes && treatment.notes.trim().length > 0
         return hasNotes ? (
           <Popover>
@@ -339,7 +339,7 @@ export default function TreatmentsPage() {
     {
       key: 'status',
       label: t('treatments.fields.status'),
-      render: (_value: any, treatment: any) => (
+      render: (_value: any, treatment: Treatment) => (
         <InlineStatusMenu
           value={treatment?.status || 'pending'}
           onChange={async (next) => {
@@ -353,40 +353,40 @@ export default function TreatmentsPage() {
       key: 'actions',
       label: t('common.actions'),
       sortable: false,
-      render: (_value: any, treatment: any) => (
+      render: (_value: any, treatment: Treatment) => (
         <div className="md:flex md:justify-end">
           <ActionDropdown
             actions={[
-            createEditAction(() => {
-              // Use the actual saved price
-              const actualPricePesos = Math.round((treatment?.price_cents || 0) / 100)
-              const actualPriceCents = actualPricePesos * 100
+              createEditAction(() => {
+                // Use the actual saved price
+                const actualPricePesos = Math.round((treatment?.price_cents || 0) / 100)
+                const actualPriceCents = actualPricePesos * 100
 
-              // CRITICAL FIX: Recalculate margin using CURRENT service cost
-              // Don't use historical margin_pct which may be based on old costs
-              const currentService = services.find(s => s.id === treatment?.service_id)
-              const currentCostCents = currentService?.total_cost_cents || currentService?.base_price_cents || 0
+                // CRITICAL FIX: Recalculate margin using CURRENT service cost
+                // Don't use historical margin_pct which may be based on old costs
+                const currentService = services.find((s: Service) => s.id === treatment?.service_id)
+                const currentCostCents = currentService?.total_cost_cents || currentService?.base_price_cents || 0
 
-              // Calculate margin: (price - cost) / cost * 100
-              const recalculatedMargin = currentCostCents > 0
-                ? ((actualPriceCents - currentCostCents) / currentCostCents) * 100
-                : (treatment?.margin_pct ?? 60)
+                // Calculate margin: (price - cost) / cost * 100
+                const recalculatedMargin = currentCostCents > 0
+                  ? ((actualPriceCents - currentCostCents) / currentCostCents) * 100
+                  : (treatment?.margin_pct ?? 60)
 
-              form.reset({
-                patient_id: treatment?.patient_id || '',
-                service_id: treatment?.service_id || '',
-                treatment_date: treatment?.treatment_date || getLocalDateISO(),
-                treatment_time: treatment?.treatment_time || '',
-                minutes: treatment?.minutes ?? 30,
-                margin_pct: Math.round(recalculatedMargin * 10) / 10,
-                sale_price: actualPricePesos,
-                status: treatment?.status || 'pending',
-                notes: treatment?.notes || '',
-              })
-              setEditTreatment(treatment)
-            }, tCommon('edit')),
-            createDeleteAction(() => setDeleteTreatmentData(treatment), tCommon('delete'))
-          ]}
+                form.reset({
+                  patient_id: treatment?.patient_id || '',
+                  service_id: treatment?.service_id || '',
+                  treatment_date: treatment?.treatment_date || getLocalDateISO(),
+                  treatment_time: treatment?.treatment_time || '',
+                  minutes: treatment?.minutes ?? 30,
+                  margin_pct: Math.round(recalculatedMargin * 10) / 10,
+                  sale_price: actualPricePesos,
+                  status: treatment?.status || 'pending',
+                  notes: treatment?.notes || '',
+                })
+                setEditTreatment(treatment)
+              }, tCommon('edit')),
+              createDeleteAction(() => setDeleteTreatmentData(treatment), tCommon('delete'))
+            ]}
           />
         </div>
       )
@@ -394,12 +394,12 @@ export default function TreatmentsPage() {
   ]
 
   // Form options
-  const patientOptions = patients.map(patient => ({
+  const patientOptions = patients.map((patient: Patient) => ({
     value: patient.id,
     label: `${patient.first_name} ${patient.last_name}`
   }))
 
-  const serviceOptions = services.map(service => ({
+  const serviceOptions = services.map((service: Service) => ({
     value: service.id,
     label: service.name
   }))
@@ -420,18 +420,18 @@ export default function TreatmentsPage() {
           clinic_id: currentClinic?.id
         })
       })
-      
+
       if (!response.ok) throw new Error('Failed to create patient')
-      
+
       const payload = await response.json()
       const newPatient = payload?.data || payload
-      
+
       // Refrescar la lista de pacientes
       await loadRelatedData()
-      
-      return { 
-        value: newPatient.id, 
-        label: `${newPatient.first_name} ${newPatient.last_name}` 
+
+      return {
+        value: newPatient.id,
+        label: `${newPatient.first_name} ${newPatient.last_name}`
       }
     } catch (error) {
       console.error('Error creating patient:', error)
@@ -452,18 +452,18 @@ export default function TreatmentsPage() {
           clinic_id: currentClinic?.id
         })
       })
-      
+
       if (!response.ok) throw new Error('Failed to create service')
-      
+
       const payload = await response.json()
       const newService = payload?.data || payload
-      
+
       // Refrescar la lista de servicios
       await loadRelatedData()
-      
-      return { 
-        value: newService.id, 
-        label: newService.name 
+
+      return {
+        value: newService.id,
+        label: newService.name
       }
     } catch (error) {
       console.error('Error creating service:', error)
@@ -478,7 +478,7 @@ export default function TreatmentsPage() {
           title={t('treatments.title')}
           subtitle={t('treatments.subtitle')}
           actions={
-            <Button 
+            <Button
               onClick={() => { form.reset({ ...treatmentInitialValues, patient_id: patientFilter || '' }); setCreateOpen(true) }}
               className="whitespace-nowrap"
             >
@@ -497,16 +497,16 @@ export default function TreatmentsPage() {
               <span className="text-muted-foreground"> — {filteredCount}</span>
             </div>
             <div className="flex gap-2 w-full sm:w-auto">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => window.location.assign(`/patients?view_id=${filteredPatient.id}`)}
                 className="flex-1 sm:flex-none text-xs sm:text-sm"
               >
                 <span className="hidden sm:inline">{t('treatments.viewPatient')}</span>
                 <span className="sm:hidden">{t('patients.patient')}</span>
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => window.location.assign('/treatments')}
                 className="flex-1 sm:flex-none text-xs sm:text-sm"
               >
