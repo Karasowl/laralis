@@ -35,6 +35,7 @@ const treatmentFormSchema = z.object({
   patient_id: z.string().min(1),
   service_id: z.string().min(1),
   treatment_date: z.string().min(1),
+  treatment_time: z.string().optional(), // HH:MM format for appointment time
   minutes: z.number().min(1),
   margin_pct: z.number().min(0).max(500), // Allow high margins (e.g., 217% for extractions)
   sale_price: z.number().min(0).optional(), // Price in pesos (converted to cents in hook)
@@ -128,6 +129,7 @@ export default function TreatmentsPage() {
     patient_id: '',
     service_id: '',
     treatment_date: getLocalDateISO(),
+    treatment_time: '',
     minutes: 30,
     margin_pct: 60,
     sale_price: undefined, // undefined means "calculate from service/margin", 0 would be a valid price
@@ -226,10 +228,22 @@ export default function TreatmentsPage() {
     {
       key: 'treatment_date',
       label: t('treatments.fields.date'),
+      sortable: true,
       render: (treatment: any) => (
         <div className="flex items-center gap-2">
           <Calendar className="h-4 w-4 text-muted-foreground" />
           {formatDate(treatment.treatment_date)}
+        </div>
+      )
+    },
+    {
+      key: 'treatment_time',
+      label: t('treatments.fields.time'),
+      sortable: true,
+      render: (treatment: any) => (
+        <div className="flex items-center gap-2">
+          <Clock className="h-4 w-4 text-muted-foreground" />
+          {treatment.treatment_time ? treatment.treatment_time.slice(0, 5) : '—'}
         </div>
       )
     },
@@ -362,6 +376,7 @@ export default function TreatmentsPage() {
                 patient_id: treatment?.patient_id || '',
                 service_id: treatment?.service_id || '',
                 treatment_date: treatment?.treatment_date || getLocalDateISO(),
+                treatment_time: treatment?.treatment_time || '',
                 minutes: treatment?.minutes ?? 30,
                 margin_pct: Math.round(recalculatedMargin * 10) / 10,
                 sale_price: actualPricePesos,
@@ -545,7 +560,7 @@ export default function TreatmentsPage() {
 
         <DataTable
           columns={columns}
-          mobileColumns={[columns[0], columns[1], columns[4], columns[5], columns[6], columns[7], columns[8]]}
+          mobileColumns={[columns[0], columns[1], columns[2], columns[5], columns[6], columns[8], columns[9], columns[10]]}
           data={filteredTreatments}
           loading={loading}
           searchPlaceholder={t('treatments.searchPlaceholder')}

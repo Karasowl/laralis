@@ -13,6 +13,7 @@ import {
   RefreshCw,
   ChevronRight,
   PackageOpen,
+  Calendar,
 } from 'lucide-react';
 
 export default function SettingsPage() {
@@ -62,6 +63,21 @@ export default function SettingsPage() {
           href: '/settings/workspaces',
           icon: Building2,
           color: 'text-primary',
+        },
+      ],
+    },
+    {
+      id: 'integrations',
+      title: t('settings.groups.integrations.title'),
+      subtitle: t('settings.groups.integrations.subtitle'),
+      items: [
+        {
+          id: 'calendar',
+          title: t('settings.calendar.cardTitle'),
+          description: t('settings.calendar.cardDescription'),
+          href: '/settings/calendar',
+          icon: Calendar,
+          color: 'text-blue-600',
         },
       ],
     },

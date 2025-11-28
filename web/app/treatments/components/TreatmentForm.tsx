@@ -55,6 +55,10 @@ export function TreatmentForm({
     form.setValue('treatment_date', value as string)
   }, [form])
 
+  const handleTimeChange = useCallback((value: string | number) => {
+    form.setValue('treatment_time', value as string)
+  }, [form])
+
   const handleMinutesChange = useCallback((value: string | number) => {
     form.setValue('minutes', parseInt(value as string) || 0)
   }, [form])
@@ -183,13 +187,21 @@ export function TreatmentForm({
       </FormSection>
 
       <FormSection title={t('treatments.treatmentDetails')}>
-        <FormGrid columns={2}>
+        <FormGrid columns={3}>
           <InputField
             label={t('treatments.fields.date')}
             type="date"
             {...form.register('treatment_date')}
             error={form.formState.errors.treatment_date?.message}
             required
+          />
+
+          <InputField
+            label={t('treatments.fields.time')}
+            type="time"
+            {...form.register('treatment_time')}
+            error={form.formState.errors.treatment_time?.message}
+            helperText={t('treatments.timeHelp')}
           />
 
           <InputField
