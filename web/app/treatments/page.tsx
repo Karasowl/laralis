@@ -560,7 +560,7 @@ export default function TreatmentsPage() {
 
         <DataTable
           columns={columns}
-          mobileColumns={[columns[0], columns[1], columns[2], columns[5], columns[6], columns[8], columns[9], columns[10]]}
+          mobileColumns={[columns[0], columns[1], columns[2], columns[5], columns[6], columns[8], columns[9]]}
           data={filteredTreatments}
           loading={loading}
           searchPlaceholder={t('treatments.searchPlaceholder')}

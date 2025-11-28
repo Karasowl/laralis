@@ -3,6 +3,8 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { resolveClinicContext } from '@/lib/clinic'
 import { cookies } from 'next/headers'
 
+export const dynamic = 'force-dynamic'
+
 interface MonthlyAcquisition {
   month: string
   patients: number

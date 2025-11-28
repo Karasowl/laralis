@@ -20,16 +20,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 interface PlannedCost {
-  name: string
+  concept: string
   amount_cents: number
 }
 
 interface ActualExpense {
   category: string
   amount_cents: number
-  expense_category?: string
+  subcategory?: string
 }
 
 interface CategoryVariance {
@@ -65,7 +66,7 @@ export async function GET(request: NextRequest) {
     // ===== 1. Get PLANNED fixed costs (configured for pricing) =====
     const { data: fixedCosts, error: fixedCostsError } = await supabase
       .from('fixed_costs')
-      .select('name, amount_cents')
+      .select('concept, amount_cents')
       .eq('clinic_id', clinicId)
 
     if (fixedCostsError) {
@@ -80,7 +81,7 @@ export async function GET(request: NextRequest) {
     // ===== 2. Get ACTUAL fixed costs (from expenses where is_variable = false) =====
     let expensesQuery = supabase
       .from('expenses')
-      .select('category, amount_cents, expense_category')
+      .select('category, amount_cents, subcategory')
       .eq('clinic_id', clinicId)
       .eq('is_variable', false) // Only fixed costs
 
@@ -109,19 +110,19 @@ export async function GET(request: NextRequest) {
       : 0
 
     // ===== 4. Breakdown by category =====
-    // Group planned costs by name
+    // Group planned costs by concept
     const plannedByCategory: Record<string, number> = {}
-    ;(fixedCosts as PlannedCost[])?.forEach((cost) => {
-      const category = cost.name || 'Other'
-      plannedByCategory[category] = (plannedByCategory[category] || 0) + (cost.amount_cents || 0)
-    })
+      ; (fixedCosts as PlannedCost[])?.forEach((cost) => {
+        const category = cost.concept || 'Other'
+        plannedByCategory[category] = (plannedByCategory[category] || 0) + (cost.amount_cents || 0)
+      })
 
-    // Group actual expenses by expense_category (or fallback to category)
+    // Group actual expenses by subcategory (or fallback to category)
     const actualByCategory: Record<string, number> = {}
-    ;(expenses as ActualExpense[])?.forEach((exp) => {
-      const category = exp.expense_category || exp.category || 'other'
-      actualByCategory[category] = (actualByCategory[category] || 0) + (exp.amount_cents || 0)
-    })
+      ; (expenses as ActualExpense[])?.forEach((exp) => {
+        const category = exp.subcategory || exp.category || 'other'
+        actualByCategory[category] = (actualByCategory[category] || 0) + (exp.amount_cents || 0)
+      })
 
     // Combine and calculate variance per category
     const allCategories = new Set([
@@ -167,8 +168,8 @@ export async function GET(request: NextRequest) {
         insight: totalVarianceCents > 0
           ? 'Spending more than planned - consider adjusting prices or reducing costs'
           : totalVarianceCents < 0
-          ? 'Spending less than planned - opportunity to reinvest or adjust pricing'
-          : 'On track with planned costs'
+            ? 'Spending less than planned - opportunity to reinvest or adjust pricing'
+            : 'On track with planned costs'
       }
     })
 
