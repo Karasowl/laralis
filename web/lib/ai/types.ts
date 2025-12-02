@@ -158,6 +158,36 @@ export interface EntryContext {
   locale: string
 }
 
+/**
+ * Conversation context for multi-turn support
+ * Enables Lara to remember entities, resolve pronouns, and maintain focus
+ */
+export interface ConversationContextData {
+  /** Primary entity being discussed (e.g., a specific service) */
+  primaryEntity?: {
+    type: string
+    name: string
+    id?: string
+  }
+  /** Secondary entities mentioned recently */
+  secondaryEntities?: Array<{
+    type: string
+    name: string
+  }>
+  /** Current time period context (e.g., "este mes") */
+  timePeriod?: {
+    label: string
+    startDate?: string
+    endDate?: string
+  }
+  /** Current topic/intent (e.g., "pricing", "profitability") */
+  currentTopic?: string
+  /** Pending suggested actions that haven't been executed */
+  pendingActions?: string[]
+  /** Summary of conversation so far */
+  summary?: string
+}
+
 export interface QueryContext {
   clinicId: string
   availableFunctions: AIFunction[]
@@ -165,6 +195,8 @@ export interface QueryContext {
   supabase?: SupabaseClient // Supabase client for direct queries
   conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
   model?: 'kimi-k2-thinking' | 'moonshot-v1-32k'
+  /** Multi-turn conversation context for entity tracking and pronoun resolution */
+  conversationContext?: ConversationContextData
 }
 
 export interface QueryResult {

@@ -13,8 +13,9 @@ import { createClient } from '@/lib/supabase/server'
 import { resolveClinicContext } from '@/lib/clinic'
 import { cookies } from 'next/headers'
 import { aiService } from '@/lib/ai'
-import type { QueryContext } from '@/lib/ai'
+import type { QueryContext, ConversationContextData } from '@/lib/ai'
 import { hasAIConfig, validateAIConfig } from '@/lib/ai/config'
+import { ConversationContextManager } from '@/lib/ai/context'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300 // 5 minutes for Kimi K2 Thinking
@@ -77,6 +78,51 @@ export async function POST(request: NextRequest) {
     // Create Supabase client with auth
     const supabase = await createClient()
 
+    // Build conversation context from history using ConversationContextManager
+    let conversationContextData: ConversationContextData | undefined
+    if (conversationHistory && conversationHistory.length > 0) {
+      const contextManager = new ConversationContextManager(
+        `query-${Date.now()}`, // Session ID
+        clinicId
+      )
+
+      // Process each message in history to build context
+      conversationHistory.forEach((msg, index) => {
+        if (msg.role === 'user') {
+          contextManager.processUserMessage(msg.content, index)
+        } else {
+          contextManager.processAssistantMessage(msg.content, index)
+        }
+      })
+
+      // Also process the current query
+      contextManager.processUserMessage(query, conversationHistory.length)
+
+      // Get the built context
+      const ctx = contextManager.getContext()
+      if (ctx.focus.primaryEntity || ctx.focus.timePeriod || ctx.focus.currentTopic) {
+        conversationContextData = {
+          primaryEntity: ctx.focus.primaryEntity ? {
+            type: ctx.focus.primaryEntity.type,
+            name: ctx.focus.primaryEntity.name,
+            id: ctx.focus.primaryEntity.id,
+          } : undefined,
+          secondaryEntities: ctx.focus.secondaryEntities.map(e => ({
+            type: e.type,
+            name: e.name,
+          })),
+          timePeriod: ctx.focus.timePeriod ? {
+            label: ctx.focus.timePeriod.label,
+            startDate: ctx.focus.timePeriod.startDate,
+            endDate: ctx.focus.timePeriod.endDate,
+          } : undefined,
+          currentTopic: ctx.focus.currentTopic,
+          pendingActions: ctx.actions.filter(a => a.status === 'suggested').map(a => a.type),
+          summary: ctx.summary,
+        }
+      }
+    }
+
     // Build context for AI
     const context: QueryContext = {
       clinicId,
@@ -85,6 +131,7 @@ export async function POST(request: NextRequest) {
       supabase, // Pass authenticated Supabase client
       conversationHistory, // Optional: last 10 messages for context
       model: model || 'kimi-k2-thinking', // Default to K2 Thinking if not specified
+      conversationContext: conversationContextData, // Multi-turn context
     }
 
     // Get full response from AI (includes function calling for actions)
