@@ -154,6 +154,26 @@
     "messages": {
       "greeting": "¡Hola! Soy Lara, tu asistente de IA. ¿En qué puedo ayudarte hoy?",
       "queryError": "Lo siento, hubo un error al procesar tu consulta. Por favor, inténtalo de nuevo."
+    },
+    "feedback": {
+      "helpful": "¿Fue útil esta respuesta?",
+      "positive": "Sí, fue útil",
+      "negative": "No, no fue útil",
+      "thanks": "¡Gracias por tu feedback!",
+      "comment": "Cuéntanos más (opcional)",
+      "submit": "Enviar",
+      "submitted": "Feedback enviado"
+    },
+    "actions": {
+      "suggested": "Acción sugerida",
+      "execute": "Ejecutar acción",
+      "executing": "Ejecutando...",
+      "executed": "Acción ejecutada",
+      "failed": "Error al ejecutar",
+      "preview": "Vista previa de cambios",
+      "confirm": "Confirmar",
+      "cancel": "Cancelar",
+      "dryRun": "Simular primero"
     }
   }
 }

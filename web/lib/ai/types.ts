@@ -183,16 +183,29 @@ export interface QueryResult {
  * Action types that Lara can execute
  */
 export type ActionType =
+  // Original actions (5)
   | 'update_service_price'
   | 'adjust_service_margin'
   | 'simulate_price_change'
   | 'create_expense'
   | 'update_time_settings'
+  // New actions (10)
+  | 'bulk_update_prices'
+  | 'forecast_revenue'
+  | 'identify_underperforming_services'
+  | 'analyze_patient_retention'
+  | 'optimize_inventory'
+  | 'get_break_even_analysis'
+  | 'compare_periods'
+  | 'get_service_profitability'
+  | 'get_expense_breakdown'
+  | 'get_top_services'
 
 /**
  * Action parameters for each action type
  */
 export interface ActionParams {
+  // === Original actions ===
   update_service_price: {
     service_id: string
     new_price_cents: number
@@ -218,6 +231,56 @@ export interface ActionParams {
     work_days?: number
     hours_per_day?: number
     real_productivity_pct?: number
+  }
+
+  // === New actions ===
+  bulk_update_prices: {
+    change_type: 'percentage' | 'fixed'
+    change_value: number // % or cents
+    service_ids?: string[] // If null, applies to all services
+    category?: string // Filter by category
+  }
+  forecast_revenue: {
+    days: number // Number of days to forecast (default: 30)
+    include_treatments?: boolean
+    include_trends?: boolean
+  }
+  identify_underperforming_services: {
+    min_margin_pct?: number // Threshold for "underperforming" (default: 30)
+    include_suggestions?: boolean
+  }
+  analyze_patient_retention: {
+    period_days?: number // Analysis period (default: 90)
+    cohort_type?: 'monthly' | 'quarterly'
+  }
+  optimize_inventory: {
+    days_ahead?: number // Days to forecast needs (default: 30)
+    reorder_threshold_pct?: number // Alert when stock below this % of monthly usage
+  }
+  get_break_even_analysis: {
+    period_days?: number // Period for calculations (default: 30)
+    include_projections?: boolean
+  }
+  compare_periods: {
+    period1_start: string // ISO date
+    period1_end: string
+    period2_start: string
+    period2_end: string
+    metrics?: ('revenue' | 'expenses' | 'treatments' | 'patients')[]
+  }
+  get_service_profitability: {
+    service_id?: string // If null, returns all services
+    period_days?: number // Period for calculations (default: 30)
+    sort_by?: 'margin' | 'revenue' | 'count'
+  }
+  get_expense_breakdown: {
+    period_days?: number // Period (default: 30)
+    group_by?: 'category' | 'subcategory' | 'vendor'
+  }
+  get_top_services: {
+    limit?: number // Number of services to return (default: 5)
+    sort_by?: 'revenue' | 'count' | 'margin'
+    period_days?: number
   }
 }
 
@@ -245,9 +308,14 @@ export interface ActionResult {
   action: ActionType
   params: ActionParams[ActionType]
   result?: {
-    before: unknown
-    after: unknown
+    before?: unknown
+    after?: unknown
     changes: string[]
+    // Additional fields for specific actions
+    preview?: unknown       // For dry run previews (create_expense)
+    created?: unknown       // For create actions (create_expense)
+    simulation_by_service?: unknown  // For simulate_price_change
+    [key: string]: unknown  // Allow additional fields for extensibility
   }
   error?: {
     code: string

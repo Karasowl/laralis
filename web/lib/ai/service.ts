@@ -23,11 +23,42 @@ import type {
   ActionParams,
   ActionResult,
   ActionContext,
+  ActionSuggestion,
 } from './types'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { AIProviderFactory } from './factory'
 import { ClinicSnapshotService } from './ClinicSnapshotService'
 import { ACTION_FUNCTIONS, isActionFunction } from './actions-functions'
+import { snapshotCache } from './cache/snapshot-cache'
+
+// Prompts
+import { buildEntrySystemPrompt } from './prompts/entry-prompt'
+import { buildAnalyticsSystemPrompt } from './prompts/query-prompt'
+
+// Query functions
+import { executeFunctionCall } from './query/functions'
+
+// Actions - all 15 action implementations
+import {
+  // Original 5 pricing actions
+  executeUpdateServicePrice,
+  executeAdjustServiceMargin,
+  executeSimulatePriceChange,
+  executeCreateExpense,
+  executeUpdateTimeSettings,
+  // 6 analytics actions
+  executeGetBreakEvenAnalysis,
+  executeGetTopServices,
+  executeGetExpenseBreakdown,
+  executeGetServiceProfitability,
+  executeIdentifyUnderperformingServices,
+  executeComparePeriods,
+  // 4 operational actions
+  executeBulkUpdatePrices,
+  executeForecastRevenue,
+  executeAnalyzePatientRetention,
+  executeOptimizeInventory,
+} from './actions'
 
 export class AIService implements ActionExecutor {
   private stt: STTProvider | null = null
@@ -91,7 +122,7 @@ export class AIService implements ActionExecutor {
    * Guides user through form fields step by step
    */
   async chatForEntry(userInput: string, context: EntryContext): Promise<string> {
-    const systemPrompt = this.buildEntrySystemPrompt(context)
+    const systemPrompt = buildEntrySystemPrompt(context)
 
     const messages: Message[] = [
       { role: 'system', content: systemPrompt },
@@ -112,7 +143,7 @@ export class AIService implements ActionExecutor {
   async queryDatabase(query: string, context: QueryContext): Promise<QueryResult> {
     // Pre-load ALL clinic data in one go
     const clinicSnapshot = await this.getClinicSnapshot(context)
-    const systemPrompt = this.buildAnalyticsSystemPromptWithData(context, clinicSnapshot)
+    const systemPrompt = buildAnalyticsSystemPrompt(context, clinicSnapshot)
 
     const llm = this.getLLM()
 
@@ -300,7 +331,7 @@ export class AIService implements ActionExecutor {
   async queryDatabaseStream(query: string, context: QueryContext): Promise<ReadableStream> {
     // Pre-load ALL clinic data
     const clinicSnapshot = await this.getClinicSnapshot(context)
-    const systemPrompt = this.buildAnalyticsSystemPromptWithData(context, clinicSnapshot)
+    const systemPrompt = buildAnalyticsSystemPrompt(context, clinicSnapshot)
 
     const kimiProvider = this.getLLM() as any
     if (!kimiProvider.chatStream) {
@@ -1133,37 +1164,109 @@ La depreciación es un costo fijo porque aunque no lo pagues en efectivo cada me
       let result: ActionResult
 
       switch (action) {
+        // ============= ORIGINAL PRICING ACTIONS (5) =============
         case 'update_service_price':
-          result = await this.executeUpdateServicePrice(
+          result = await executeUpdateServicePrice(
             params as ActionParams['update_service_price'],
             context
           )
           break
 
         case 'adjust_service_margin':
-          result = await this.executeAdjustServiceMargin(
+          result = await executeAdjustServiceMargin(
             params as ActionParams['adjust_service_margin'],
             context
           )
           break
 
         case 'simulate_price_change':
-          result = await this.executeSimulatePriceChange(
+          result = await executeSimulatePriceChange(
             params as ActionParams['simulate_price_change'],
             context
           )
           break
 
         case 'create_expense':
-          result = await this.executeCreateExpense(
+          result = await executeCreateExpense(
             params as ActionParams['create_expense'],
             context
           )
           break
 
         case 'update_time_settings':
-          result = await this.executeUpdateTimeSettings(
+          result = await executeUpdateTimeSettings(
             params as ActionParams['update_time_settings'],
+            context
+          )
+          break
+
+        // ============= ANALYTICS & OPERATIONAL ACTIONS (10) =============
+        case 'bulk_update_prices':
+          result = await executeBulkUpdatePrices(
+            params as ActionParams['bulk_update_prices'],
+            context
+          )
+          break
+
+        case 'forecast_revenue':
+          result = await executeForecastRevenue(
+            params as ActionParams['forecast_revenue'],
+            context
+          )
+          break
+
+        case 'identify_underperforming_services':
+          result = await executeIdentifyUnderperformingServices(
+            params as ActionParams['identify_underperforming_services'],
+            context
+          )
+          break
+
+        case 'analyze_patient_retention':
+          result = await executeAnalyzePatientRetention(
+            params as ActionParams['analyze_patient_retention'],
+            context
+          )
+          break
+
+        case 'optimize_inventory':
+          result = await executeOptimizeInventory(
+            params as ActionParams['optimize_inventory'],
+            context
+          )
+          break
+
+        case 'get_break_even_analysis':
+          result = await executeGetBreakEvenAnalysis(
+            params as ActionParams['get_break_even_analysis'],
+            context
+          )
+          break
+
+        case 'compare_periods':
+          result = await executeComparePeriods(
+            params as ActionParams['compare_periods'],
+            context
+          )
+          break
+
+        case 'get_service_profitability':
+          result = await executeGetServiceProfitability(
+            params as ActionParams['get_service_profitability'],
+            context
+          )
+          break
+
+        case 'get_expense_breakdown':
+          result = await executeGetExpenseBreakdown(
+            params as ActionParams['get_expense_breakdown'],
+            context
+          )
+          break
+
+        case 'get_top_services':
+          result = await executeGetTopServices(
+            params as ActionParams['get_top_services'],
             context
           )
           break
@@ -1182,9 +1285,12 @@ La depreciación es un costo fijo porque aunque no lo pagues en efectivo cada me
           }
       }
 
-      // Log action if not dry run
+      // Log action and invalidate cache if not dry run
       if (!dryRun && result.success) {
         await this.logAction(result, context)
+        // Invalidate snapshot cache since data has changed
+        snapshotCache.invalidate(clinicId)
+        console.log(`[AIService] Cache invalidated for clinic ${clinicId} after action ${action}`)
       }
 
       return result
@@ -1307,6 +1413,121 @@ La depreciación es un costo fijo porque aunque no lo pagues en efectivo cada me
             (p.real_productivity_pct < 1 || p.real_productivity_pct > 100)
           ) {
             errors.push('real_productivity_pct must be between 1 and 100')
+          }
+          break
+        }
+
+        // ============= NEW ACTION VALIDATIONS (10) =============
+        case 'bulk_update_prices': {
+          const p = params as ActionParams['bulk_update_prices']
+          if (!['percentage', 'fixed'].includes(p.change_type)) {
+            errors.push('change_type must be "percentage" or "fixed"')
+          }
+          if (p.change_value === undefined || p.change_value === null) {
+            errors.push('change_value is required')
+          }
+          if (p.change_type === 'percentage' && Math.abs(p.change_value) > 100) {
+            errors.push('percentage change cannot exceed ±100%')
+          }
+          break
+        }
+
+        case 'forecast_revenue': {
+          const p = params as ActionParams['forecast_revenue']
+          if (p.days && (p.days < 1 || p.days > 365)) {
+            errors.push('days must be between 1 and 365')
+          }
+          break
+        }
+
+        case 'identify_underperforming_services': {
+          const p = params as ActionParams['identify_underperforming_services']
+          if (p.min_margin_pct !== undefined && (p.min_margin_pct < 0 || p.min_margin_pct > 100)) {
+            errors.push('min_margin_pct must be between 0 and 100')
+          }
+          break
+        }
+
+        case 'analyze_patient_retention': {
+          const p = params as ActionParams['analyze_patient_retention']
+          if (p.period_days && (p.period_days < 1 || p.period_days > 730)) {
+            errors.push('period_days must be between 1 and 730')
+          }
+          if (p.cohort_type && !['monthly', 'quarterly'].includes(p.cohort_type)) {
+            errors.push('cohort_type must be "monthly" or "quarterly"')
+          }
+          break
+        }
+
+        case 'optimize_inventory': {
+          const p = params as ActionParams['optimize_inventory']
+          if (p.days_ahead && (p.days_ahead < 1 || p.days_ahead > 365)) {
+            errors.push('days_ahead must be between 1 and 365')
+          }
+          if (p.reorder_threshold_pct && (p.reorder_threshold_pct < 0 || p.reorder_threshold_pct > 100)) {
+            errors.push('reorder_threshold_pct must be between 0 and 100')
+          }
+          break
+        }
+
+        case 'get_break_even_analysis': {
+          const p = params as ActionParams['get_break_even_analysis']
+          if (p.period_days && (p.period_days < 1 || p.period_days > 365)) {
+            errors.push('period_days must be between 1 and 365')
+          }
+          break
+        }
+
+        case 'compare_periods': {
+          const p = params as ActionParams['compare_periods']
+          if (!p.period1_start || !p.period1_end) {
+            errors.push('period1_start and period1_end are required')
+          }
+          if (!p.period2_start || !p.period2_end) {
+            errors.push('period2_start and period2_end are required')
+          }
+          // Validate date formats
+          const dates = [p.period1_start, p.period1_end, p.period2_start, p.period2_end]
+          dates.forEach((d, i) => {
+            if (d && isNaN(Date.parse(d))) {
+              errors.push(`period${Math.floor(i / 2) + 1}_${i % 2 === 0 ? 'start' : 'end'} must be a valid ISO date`)
+            }
+          })
+          break
+        }
+
+        case 'get_service_profitability': {
+          const p = params as ActionParams['get_service_profitability']
+          if (p.period_days && (p.period_days < 1 || p.period_days > 365)) {
+            errors.push('period_days must be between 1 and 365')
+          }
+          if (p.sort_by && !['margin', 'revenue', 'count'].includes(p.sort_by)) {
+            errors.push('sort_by must be "margin", "revenue", or "count"')
+          }
+          break
+        }
+
+        case 'get_expense_breakdown': {
+          const p = params as ActionParams['get_expense_breakdown']
+          if (p.period_days && (p.period_days < 1 || p.period_days > 365)) {
+            errors.push('period_days must be between 1 and 365')
+          }
+          if (p.group_by && !['category', 'subcategory', 'vendor'].includes(p.group_by)) {
+            errors.push('group_by must be "category", "subcategory", or "vendor"')
+          }
+          break
+        }
+
+        case 'get_top_services': {
+          const p = params as ActionParams['get_top_services']
+          if (p.limit && (p.limit < 1 || p.limit > 100)) {
+            errors.push('limit must be between 1 and 100')
+          }
+          if (p.period_days && (p.period_days < 1 || p.period_days > 365)) {
+            errors.push('period_days must be between 1 and 365')
+          }
+          if (p.sort_by && !['revenue', 'count', 'margin'].includes(p.sort_by)) {
+            errors.push('sort_by must be "revenue", "count", or "margin"')
           }
           break
         }
@@ -1909,43 +2130,323 @@ La depreciación es un costo fijo porque aunque no lo pagues en efectivo cada me
 
   /**
    * Execute: Create expense
-   * TODO: Implement
+   * Creates a new expense record in the database
    */
   private async executeCreateExpense(
     params: ActionParams['create_expense'],
     context: ActionContext
   ): Promise<ActionResult> {
-    return {
-      success: false,
-      action: 'create_expense',
-      params,
-      error: {
-        code: 'NOT_IMPLEMENTED',
-        message: 'This action is not yet implemented',
-      },
-      executed_at: new Date().toISOString(),
-      executed_by: context.userId,
+    const { supabase, clinicId, userId, dryRun } = context
+    const { amount_cents, category_id, description, expense_date } = params
+
+    try {
+      // Verify category exists
+      const { data: category, error: categoryError } = await supabase
+        .from('categories')
+        .select('id, name, display_name')
+        .eq('id', category_id)
+        .single()
+
+      if (categoryError || !category) {
+        return {
+          success: false,
+          action: 'create_expense',
+          params,
+          error: {
+            code: 'CATEGORY_NOT_FOUND',
+            message: `Category ${category_id} not found`,
+            details: categoryError,
+          },
+          executed_at: new Date().toISOString(),
+          executed_by: userId,
+        }
+      }
+
+      const categoryName = category.display_name || category.name
+
+      // If dry run, just return what would be created
+      if (dryRun) {
+        return {
+          success: true,
+          action: 'create_expense',
+          params,
+          result: {
+            preview: {
+              amount_cents,
+              amount_display: `$${(amount_cents / 100).toFixed(2)}`,
+              category: categoryName,
+              description,
+              expense_date,
+            },
+            changes: [
+              `Would create expense: "${description}"`,
+              `Amount: $${(amount_cents / 100).toFixed(2)}`,
+              `Category: ${categoryName}`,
+              `Date: ${expense_date}`,
+            ],
+          },
+          executed_at: new Date().toISOString(),
+          executed_by: userId,
+        }
+      }
+
+      // Execute the insert
+      const { data: expense, error: insertError } = await supabase
+        .from('expenses')
+        .insert({
+          clinic_id: clinicId,
+          amount_cents,
+          category: categoryName,
+          category_id,
+          description,
+          expense_date,
+          auto_processed: false,
+        })
+        .select()
+        .single()
+
+      if (insertError) {
+        return {
+          success: false,
+          action: 'create_expense',
+          params,
+          error: {
+            code: 'INSERT_FAILED',
+            message: 'Failed to create expense',
+            details: insertError,
+          },
+          executed_at: new Date().toISOString(),
+          executed_by: userId,
+        }
+      }
+
+      return {
+        success: true,
+        action: 'create_expense',
+        params,
+        result: {
+          created: {
+            id: expense.id,
+            amount_cents: expense.amount_cents,
+            amount_display: `$${(expense.amount_cents / 100).toFixed(2)}`,
+            category: categoryName,
+            description: expense.description,
+            expense_date: expense.expense_date,
+          },
+          changes: [
+            `✅ Created expense: "${description}"`,
+            `Amount: $${(amount_cents / 100).toFixed(2)}`,
+            `Category: ${categoryName}`,
+            `Date: ${expense_date}`,
+          ],
+        },
+        executed_at: new Date().toISOString(),
+        executed_by: userId,
+      }
+    } catch (error: any) {
+      console.error('[AIService] Error in executeCreateExpense:', error)
+      return {
+        success: false,
+        action: 'create_expense',
+        params,
+        error: {
+          code: 'EXECUTION_ERROR',
+          message: error.message || 'Unknown error occurred',
+          details: error,
+        },
+        executed_at: new Date().toISOString(),
+        executed_by: userId,
+      }
     }
   }
 
   /**
    * Execute: Update time settings
-   * TODO: Implement
+   * Updates work schedule and productivity settings for the clinic
    */
   private async executeUpdateTimeSettings(
     params: ActionParams['update_time_settings'],
     context: ActionContext
   ): Promise<ActionResult> {
-    return {
-      success: false,
-      action: 'update_time_settings',
-      params,
-      error: {
-        code: 'NOT_IMPLEMENTED',
-        message: 'This action is not yet implemented',
-      },
-      executed_at: new Date().toISOString(),
-      executed_by: context.userId,
+    const { supabase, clinicId, userId, dryRun } = context
+    const { work_days, hours_per_day, real_productivity_pct } = params
+
+    try {
+      // Get current settings
+      const { data: currentSettings, error: fetchError } = await supabase
+        .from('settings_time')
+        .select('*')
+        .eq('clinic_id', clinicId)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      // Build update payload with only provided values
+      const updates: Record<string, any> = {}
+      const changes: string[] = []
+
+      // Get current values (handle both old and new schema)
+      const currentWorkDays = currentSettings?.working_days_per_month ?? currentSettings?.work_days ?? 22
+      const currentHoursPerDay = currentSettings?.hours_per_day ?? 8
+      const rawRealPct = currentSettings?.real_hours_percentage ?? currentSettings?.real_pct ?? 0.8
+      const currentRealPct = rawRealPct <= 1 ? rawRealPct * 100 : rawRealPct
+
+      if (work_days !== undefined) {
+        updates.work_days = work_days
+        updates.working_days_per_month = work_days
+        changes.push(`Work days: ${currentWorkDays} → ${work_days} days/month`)
+      }
+
+      if (hours_per_day !== undefined) {
+        updates.hours_per_day = hours_per_day
+        changes.push(`Hours per day: ${currentHoursPerDay} → ${hours_per_day} hours`)
+      }
+
+      if (real_productivity_pct !== undefined) {
+        // DB expects decimal (0-1), we receive percentage (0-100)
+        const realPctDecimal = real_productivity_pct / 100
+        updates.real_pct = realPctDecimal
+        updates.real_hours_percentage = realPctDecimal
+        changes.push(`Productivity: ${currentRealPct.toFixed(0)}% → ${real_productivity_pct}%`)
+      }
+
+      if (Object.keys(updates).length === 0) {
+        return {
+          success: false,
+          action: 'update_time_settings',
+          params,
+          error: {
+            code: 'NO_CHANGES',
+            message: 'No settings provided to update',
+          },
+          executed_at: new Date().toISOString(),
+          executed_by: userId,
+        }
+      }
+
+      // Calculate impact on fixed cost per minute
+      const newWorkDays = work_days ?? currentWorkDays
+      const newHoursPerDay = hours_per_day ?? currentHoursPerDay
+      const newRealPct = real_productivity_pct ?? currentRealPct
+
+      const currentMinutesMonth = currentWorkDays * currentHoursPerDay * 60 * (currentRealPct / 100)
+      const newMinutesMonth = newWorkDays * newHoursPerDay * 60 * (newRealPct / 100)
+
+      changes.push('')
+      changes.push(`📊 Impact on capacity:`)
+      changes.push(`Effective minutes/month: ${Math.round(currentMinutesMonth)} → ${Math.round(newMinutesMonth)}`)
+
+      if (newMinutesMonth !== currentMinutesMonth) {
+        const percentChange = ((newMinutesMonth - currentMinutesMonth) / currentMinutesMonth * 100).toFixed(1)
+        changes.push(`Change: ${percentChange}%`)
+        changes.push(`⚠️ This will affect fixed cost per minute for all services`)
+      }
+
+      // If dry run, just return what would change
+      if (dryRun) {
+        return {
+          success: true,
+          action: 'update_time_settings',
+          params,
+          result: {
+            before: {
+              work_days: currentWorkDays,
+              hours_per_day: currentHoursPerDay,
+              real_productivity_pct: currentRealPct,
+              effective_minutes_month: Math.round(currentMinutesMonth),
+            },
+            after: {
+              work_days: newWorkDays,
+              hours_per_day: newHoursPerDay,
+              real_productivity_pct: newRealPct,
+              effective_minutes_month: Math.round(newMinutesMonth),
+            },
+            changes: ['⚠️ DRY RUN - Settings would be updated:', ...changes],
+          },
+          executed_at: new Date().toISOString(),
+          executed_by: userId,
+        }
+      }
+
+      // Execute the update
+      updates.updated_at = new Date().toISOString()
+
+      let result
+      if (currentSettings) {
+        // Update existing settings
+        result = await supabase
+          .from('settings_time')
+          .update(updates)
+          .eq('id', currentSettings.id)
+          .select()
+          .single()
+      } else {
+        // Create new settings
+        result = await supabase
+          .from('settings_time')
+          .insert({
+            clinic_id: clinicId,
+            work_days: work_days ?? 22,
+            working_days_per_month: work_days ?? 22,
+            hours_per_day: hours_per_day ?? 8,
+            real_pct: (real_productivity_pct ?? 80) / 100,
+            real_hours_percentage: (real_productivity_pct ?? 80) / 100,
+          })
+          .select()
+          .single()
+      }
+
+      if (result.error) {
+        return {
+          success: false,
+          action: 'update_time_settings',
+          params,
+          error: {
+            code: 'UPDATE_FAILED',
+            message: 'Failed to update time settings',
+            details: result.error,
+          },
+          executed_at: new Date().toISOString(),
+          executed_by: userId,
+        }
+      }
+
+      return {
+        success: true,
+        action: 'update_time_settings',
+        params,
+        result: {
+          before: {
+            work_days: currentWorkDays,
+            hours_per_day: currentHoursPerDay,
+            real_productivity_pct: currentRealPct,
+            effective_minutes_month: Math.round(currentMinutesMonth),
+          },
+          after: {
+            work_days: newWorkDays,
+            hours_per_day: newHoursPerDay,
+            real_productivity_pct: newRealPct,
+            effective_minutes_month: Math.round(newMinutesMonth),
+          },
+          changes: ['✅ Settings updated:', ...changes],
+        },
+        executed_at: new Date().toISOString(),
+        executed_by: userId,
+      }
+    } catch (error: any) {
+      console.error('[AIService] Error in executeUpdateTimeSettings:', error)
+      return {
+        success: false,
+        action: 'update_time_settings',
+        params,
+        error: {
+          code: 'EXECUTION_ERROR',
+          message: error.message || 'Unknown error occurred',
+          details: error,
+        },
+        executed_at: new Date().toISOString(),
+        executed_by: userId,
+      }
     }
   }
 

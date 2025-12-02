@@ -154,6 +154,26 @@
     "messages": {
       "greeting": "Hello! I'm Lara, your AI assistant. How can I help you today?",
       "queryError": "Sorry, there was an error processing your query. Please try again."
+    },
+    "feedback": {
+      "helpful": "Was this response helpful?",
+      "positive": "Yes, it was helpful",
+      "negative": "No, it wasn't helpful",
+      "thanks": "Thanks for your feedback!",
+      "comment": "Tell us more (optional)",
+      "submit": "Submit",
+      "submitted": "Feedback submitted"
+    },
+    "actions": {
+      "suggested": "Suggested action",
+      "execute": "Execute action",
+      "executing": "Executing...",
+      "executed": "Action executed",
+      "failed": "Error executing",
+      "preview": "Preview changes",
+      "confirm": "Confirm",
+      "cancel": "Cancel",
+      "dryRun": "Simulate first"
     }
   }
 }

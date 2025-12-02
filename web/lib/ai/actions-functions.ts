@@ -132,6 +132,243 @@ export const ACTION_FUNCTIONS: AIFunction[] = [
       required: [],
     },
   },
+
+  // ============================================================================
+  // New Actions (10)
+  // ============================================================================
+
+  {
+    name: 'bulk_update_prices',
+    description:
+      'Apply a price change to multiple services at once. Use this when the user wants to increase or decrease prices across the board (e.g., "Sube todos los precios 10%").',
+    parameters: {
+      type: 'object',
+      properties: {
+        change_type: {
+          type: 'string',
+          enum: ['percentage', 'fixed'],
+          description: 'Type of change: "percentage" for % increase/decrease, "fixed" for absolute amount in cents',
+        },
+        change_value: {
+          type: 'number',
+          description: 'The change amount (e.g., 10 for 10% or 1000 for $10.00 depending on change_type)',
+        },
+        service_ids: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Optional: Specific service IDs to update. If omitted, applies to all services.',
+        },
+        category: {
+          type: 'string',
+          description: 'Optional: Filter services by category name',
+        },
+      },
+      required: ['change_type', 'change_value'],
+    },
+  },
+  {
+    name: 'forecast_revenue',
+    description:
+      'Forecast expected revenue for the next N days based on historical trends. Use this when the user asks about future projections.',
+    parameters: {
+      type: 'object',
+      properties: {
+        days: {
+          type: 'integer',
+          description: 'Number of days to forecast (default: 30)',
+        },
+        include_treatments: {
+          type: 'boolean',
+          description: 'Include treatment-level breakdown in forecast',
+        },
+        include_trends: {
+          type: 'boolean',
+          description: 'Include trend analysis (growth rate, seasonality)',
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'identify_underperforming_services',
+    description:
+      'Find services with margins below a threshold. Use when user asks about unprofitable or underperforming services.',
+    parameters: {
+      type: 'object',
+      properties: {
+        min_margin_pct: {
+          type: 'number',
+          description: 'Minimum acceptable margin percentage (default: 30). Services below this are "underperforming".',
+        },
+        include_suggestions: {
+          type: 'boolean',
+          description: 'Include pricing suggestions to improve margins',
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'analyze_patient_retention',
+    description:
+      'Analyze patient retention and return rates. Use when user asks about patient loyalty or churn.',
+    parameters: {
+      type: 'object',
+      properties: {
+        period_days: {
+          type: 'integer',
+          description: 'Analysis period in days (default: 90)',
+        },
+        cohort_type: {
+          type: 'string',
+          enum: ['monthly', 'quarterly'],
+          description: 'How to group patients for cohort analysis',
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'optimize_inventory',
+    description:
+      'Analyze supply usage and recommend reorder points. Use when user asks about inventory, supplies, or what to restock.',
+    parameters: {
+      type: 'object',
+      properties: {
+        days_ahead: {
+          type: 'integer',
+          description: 'Days ahead to forecast supply needs (default: 30)',
+        },
+        reorder_threshold_pct: {
+          type: 'number',
+          description: 'Alert when stock falls below this percentage of monthly usage (default: 25)',
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'get_break_even_analysis',
+    description:
+      'Calculate break-even point and profitability metrics. Use when user asks about break-even, punto de equilibrio, or financial health.',
+    parameters: {
+      type: 'object',
+      properties: {
+        period_days: {
+          type: 'integer',
+          description: 'Period for calculations in days (default: 30)',
+        },
+        include_projections: {
+          type: 'boolean',
+          description: 'Include projections for reaching break-even',
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'compare_periods',
+    description:
+      'Compare metrics between two time periods. Use when user asks to compare months, quarters, or custom periods.',
+    parameters: {
+      type: 'object',
+      properties: {
+        period1_start: {
+          type: 'string',
+          description: 'Start date of first period (ISO format: YYYY-MM-DD)',
+        },
+        period1_end: {
+          type: 'string',
+          description: 'End date of first period (ISO format: YYYY-MM-DD)',
+        },
+        period2_start: {
+          type: 'string',
+          description: 'Start date of second period (ISO format: YYYY-MM-DD)',
+        },
+        period2_end: {
+          type: 'string',
+          description: 'End date of second period (ISO format: YYYY-MM-DD)',
+        },
+        metrics: {
+          type: 'array',
+          items: {
+            type: 'string',
+            enum: ['revenue', 'expenses', 'treatments', 'patients'],
+          },
+          description: 'Which metrics to compare (default: all)',
+        },
+      },
+      required: ['period1_start', 'period1_end', 'period2_start', 'period2_end'],
+    },
+  },
+  {
+    name: 'get_service_profitability',
+    description:
+      'Get detailed profitability analysis for services. Use when user asks about which services are most profitable.',
+    parameters: {
+      type: 'object',
+      properties: {
+        service_id: {
+          type: 'string',
+          description: 'Optional: Specific service ID. If omitted, returns all services.',
+        },
+        period_days: {
+          type: 'integer',
+          description: 'Period for calculations in days (default: 30)',
+        },
+        sort_by: {
+          type: 'string',
+          enum: ['margin', 'revenue', 'count'],
+          description: 'How to sort results (default: margin)',
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'get_expense_breakdown',
+    description:
+      'Get expense breakdown by category. Use when user asks about where money is being spent.',
+    parameters: {
+      type: 'object',
+      properties: {
+        period_days: {
+          type: 'integer',
+          description: 'Period in days (default: 30)',
+        },
+        group_by: {
+          type: 'string',
+          enum: ['category', 'subcategory', 'vendor'],
+          description: 'How to group expenses (default: category)',
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'get_top_services',
+    description:
+      'Get top performing services. Use when user asks about best services, most popular, or highest revenue.',
+    parameters: {
+      type: 'object',
+      properties: {
+        limit: {
+          type: 'integer',
+          description: 'Number of services to return (default: 5)',
+        },
+        sort_by: {
+          type: 'string',
+          enum: ['revenue', 'count', 'margin'],
+          description: 'How to rank services (default: revenue)',
+        },
+        period_days: {
+          type: 'integer',
+          description: 'Period in days (default: 30)',
+        },
+      },
+      required: [],
+    },
+  },
 ]
 
 /**
