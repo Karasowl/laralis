@@ -27,7 +27,21 @@ export type {
   STTOptions,
   LLMOptions,
   TTSOptions,
+  ConversationContextData,
 } from './types'
+
+// Context Manager (for multi-turn conversation context)
+export { ConversationContextManager } from './context'
+export type {
+  ConversationContext,
+  TrackedEntity,
+  TrackedAction,
+  ConversationFocus,
+  ExtractedEntities,
+  ContextUpdate,
+  EntityType,
+  TimePeriodContext,
+} from './context'
 
 // Factory (if you need to create custom instances)
 export { AIProviderFactory } from './factory'

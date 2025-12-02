@@ -11,6 +11,35 @@ import type { QueryContext } from '../types'
 type ClinicSnapshot = any
 
 /**
+ * Conversation context for multi-turn support
+ */
+export interface ConversationContextPrompt {
+  /** Primary entity being discussed */
+  primaryEntity?: {
+    type: string
+    name: string
+    id?: string
+  }
+  /** Secondary entities in context */
+  secondaryEntities?: Array<{
+    type: string
+    name: string
+  }>
+  /** Current time period context */
+  timePeriod?: {
+    label: string
+    startDate?: string
+    endDate?: string
+  }
+  /** Current topic/intent */
+  currentTopic?: string
+  /** Pending suggested actions */
+  pendingActions?: string[]
+  /** Summary of conversation so far */
+  summary?: string
+}
+
+/**
  * Format currency in MXN
  */
 function formatCurrency(cents: number): string {
@@ -21,12 +50,79 @@ function formatCurrency(cents: number): string {
 }
 
 /**
+ * Build conversation context section for the prompt
+ */
+function buildConversationContextSection(conversationContext?: ConversationContextPrompt): string {
+  if (!conversationContext) {
+    return ''
+  }
+
+  const parts: string[] = []
+
+  // Primary focus entity
+  if (conversationContext.primaryEntity) {
+    const entity = conversationContext.primaryEntity
+    parts.push(`**Current Focus**: ${entity.type} "${entity.name}"${entity.id ? ` (ID: ${entity.id})` : ''}`)
+  }
+
+  // Secondary entities
+  if (conversationContext.secondaryEntities && conversationContext.secondaryEntities.length > 0) {
+    const names = conversationContext.secondaryEntities.map(e => `${e.type}:"${e.name}"`).join(', ')
+    parts.push(`**Also discussed**: ${names}`)
+  }
+
+  // Time period
+  if (conversationContext.timePeriod) {
+    parts.push(`**Time context**: ${conversationContext.timePeriod.label}`)
+  }
+
+  // Current topic
+  if (conversationContext.currentTopic) {
+    parts.push(`**Current topic**: ${conversationContext.currentTopic}`)
+  }
+
+  // Pending actions
+  if (conversationContext.pendingActions && conversationContext.pendingActions.length > 0) {
+    parts.push(`**Pending suggested actions**: ${conversationContext.pendingActions.join(', ')}`)
+  }
+
+  // Summary
+  if (conversationContext.summary) {
+    parts.push(`**Conversation summary**: ${conversationContext.summary}`)
+  }
+
+  if (parts.length === 0) {
+    return ''
+  }
+
+  return `
+## CONVERSATION CONTEXT (CRITICAL FOR MULTI-TURN)
+
+${parts.join('\n')}
+
+**Instructions for handling context:**
+- When user says "it", "this", "that", "su", "ese", "esta", "lo", "la" → refer to the **Current Focus** entity
+- When user asks about price, margin, cost WITHOUT specifying which service → assume they mean the Current Focus entity
+- Example: If Current Focus is service "Limpieza", and user says "¿Puedo subir su precio?" → they mean Limpieza's price
+- If user explicitly mentions a DIFFERENT entity, update your mental focus to that new entity
+- Use the Time context for any date-based queries unless user specifies otherwise
+- If you're not sure which entity they mean, ASK for clarification
+
+`
+}
+
+/**
  * Build the system prompt for analytics/query mode
  * Includes full clinic snapshot data for comprehensive analysis
+ *
+ * @param context - Query context with clinic info
+ * @param snapshot - Full clinic data snapshot
+ * @param conversationContext - Multi-turn conversation context
  */
 export function buildAnalyticsSystemPrompt(
   context: QueryContext,
-  snapshot: ClinicSnapshot | null
+  snapshot: ClinicSnapshot | null,
+  conversationContext?: ConversationContextPrompt
 ): string {
   const clinic = snapshot?.clinic || {}
   const analytics = snapshot?.analytics || {}
@@ -40,9 +136,12 @@ export function buildAnalyticsSystemPrompt(
 
   const fmt = formatCurrency
 
+  // Build conversation context section if available
+  const contextSection = buildConversationContextSection(conversationContext)
+
   return `You are Lara, a proactive and intelligent data analyst for a dental clinic management system called Laralis.
 Your goal is to help the clinic owner understand their business performance and make better decisions.
-
+${contextSection}
 ## CRITICAL CONCEPTS (READ CAREFULLY)
 
 ### 1. MARGIN VS MARKUP
