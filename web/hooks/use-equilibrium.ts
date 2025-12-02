@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParallelApi } from '@/hooks/use-api'
 import {
   calculateCurrentMonthWorkingDays,
-  getDefaultWorkingDaysConfig,
   type WorkingDaysConfig
 } from '@/lib/calc/dates'
 
@@ -252,10 +251,39 @@ export function useEquilibrium(options: UseEquilibriumOptions = {}): IEquilibriu
         Number(timeSettings?.work_days ?? defaultWorkDays) || defaultWorkDays
 
       // Calculate real working days based on config
-      const workingDaysConfig: WorkingDaysConfig =
-        timeSettings?.working_days_config || getDefaultWorkingDaysConfig()
+      // IMPORTANT: If working_days_config is not set, use the user's work_days setting
+      // instead of a default pattern, to respect their configured value
+      const workingDaysConfig: WorkingDaysConfig | null =
+        timeSettings?.working_days_config || null
 
-      const workingDaysResult = calculateCurrentMonthWorkingDays(workingDaysConfig)
+      let workingDaysResult: {
+        workingDays: number
+        elapsedWorkingDays: number
+        elapsedDays: number
+        remainingWorkingDays: number
+      }
+
+      if (workingDaysConfig) {
+        // Use detailed config to calculate actual calendar-based working days
+        workingDaysResult = calculateCurrentMonthWorkingDays(workingDaysConfig)
+      } else {
+        // Fallback: Use the configured work_days value directly
+        // This respects the user's simple "20 days per month" setting
+        const today = new Date()
+        const totalDaysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
+        const elapsedDays = today.getDate()
+
+        // Estimate elapsed working days proportionally
+        const elapsedWorkingDays = Math.round((elapsedDays / totalDaysInMonth) * workDays)
+        const remainingWorkingDays = Math.max(0, workDays - elapsedWorkingDays)
+
+        workingDaysResult = {
+          workingDays: workDays,
+          elapsedWorkingDays,
+          elapsedDays,
+          remainingWorkingDays
+        }
+      }
 
       const revenuePayload = toObject(revenueRes)
       const currentRevenueCents = Number(
