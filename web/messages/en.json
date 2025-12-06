@@ -2194,7 +2194,16 @@
     "empty": {
       "title": "No treatments recorded",
       "description": "Start recording treatments for your patients"
-    }
+    },
+    "status": {
+      "completed": "Completed",
+      "pending": "Pending",
+      "cancelled": "Cancelled"
+    },
+    "errors": {
+      "completedRequiresPrice": "To mark as completed, you must enter a sale price greater than $0"
+    },
+    "serviceChangeNotAllowed": "You cannot change the service of an existing treatment"
   },
   "reports": {
     "title": "Reports",

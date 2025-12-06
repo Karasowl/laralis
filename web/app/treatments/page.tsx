@@ -30,7 +30,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { calcularPrecioFinal } from '@/lib/calc/tarifa'
 
-// Treatment form schema
+// Treatment form schema with cross-field validation
 const treatmentFormSchema = z.object({
   patient_id: z.string().min(1),
   service_id: z.string().min(1),
@@ -41,7 +41,19 @@ const treatmentFormSchema = z.object({
   sale_price: z.number().min(0).optional(), // Price in pesos (converted to cents in hook)
   status: z.enum(['pending', 'completed', 'cancelled']),
   notes: z.string().optional(),
-})
+}).refine(
+  (data) => {
+    // If status is 'completed', require a price > 0
+    if (data.status === 'completed') {
+      return data.sale_price !== undefined && data.sale_price > 0
+    }
+    return true
+  },
+  {
+    message: 'treatments.errors.completedRequiresPrice',
+    path: ['status'], // Show error on status field
+  }
+)
 
 type TreatmentFormData = z.infer<typeof treatmentFormSchema>
 
