@@ -13,10 +13,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { ClinicSnapshotService } from '@/lib/ai/ClinicSnapshotService'
+import { resolveClinicContext } from '@/lib/clinic'
 
 // Types for export
 interface ExportMetadata {
@@ -67,8 +67,29 @@ export async function GET(
       )
     }
 
-    // Create authenticated Supabase client
+    // Verify authentication and clinic access using the standard pattern
     const cookieStore = await cookies()
+    const clinicContext = await resolveClinicContext({
+      requestedClinicId: clinicId,
+      cookieStore,
+    })
+
+    if ('error' in clinicContext) {
+      return NextResponse.json(
+        { error: clinicContext.error.message },
+        { status: clinicContext.error.status }
+      )
+    }
+
+    // Verify the requested clinicId matches the resolved one
+    if (clinicContext.clinicId !== clinicId) {
+      return NextResponse.json(
+        { error: 'Access denied to this clinic' },
+        { status: 403 }
+      )
+    }
+
+    // Create Supabase client for data queries
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -89,30 +110,6 @@ export async function GET(
         },
       }
     )
-
-    // Verify authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
-    // Verify clinic access
-    const { data: clinicAccess, error: accessError } = await supabase
-      .from('clinic_users')
-      .select('clinic_id')
-      .eq('clinic_id', clinicId)
-      .eq('user_id', user.id)
-      .single()
-
-    if (accessError || !clinicAccess) {
-      return NextResponse.json(
-        { error: 'Access denied to this clinic' },
-        { status: 403 }
-      )
-    }
 
     // Get clinic name
     const { data: clinic } = await supabase
