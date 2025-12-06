@@ -30,7 +30,8 @@
       "Bash(npm test)",
       "Bash(npm run lint)",
       "Bash(npm test:*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(find:*)"
     ],
     "deny": []
   }

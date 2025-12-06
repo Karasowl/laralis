@@ -48,6 +48,8 @@ import {
 import { formatCurrency } from '@/lib/money'
 import { formatDate } from '@/lib/format'
 import { getLocalDateISO } from '@/lib/utils'
+import { useFilteredSummary } from '@/hooks/use-filtered-summary'
+import { expenseSummaryConfig } from '@/lib/calc/summary-configs'
 
 type ExpenseFormValues = ExpenseFormData
 
@@ -376,18 +378,26 @@ export default function ExpensesPage() {
     columns[5],  // actions
   ], [columns])
 
-  const totalSpent = stats?.total_amount ?? 0
+  // Calculate summary from FILTERED expenses using generic hook
+  const filteredSummary = useFilteredSummary(expenses, expenseSummaryConfig)
+
+  // Use filtered values for consistency with displayed table
+  const totalSpent = filteredSummary.totalSpent
+  const totalCount = filteredSummary.totalExpenses
+  const recurringCount = filteredSummary.recurringCount
+
+  // Planned vs actual from backend (global, not filtered)
   const planned = stats?.vs_fixed_costs?.planned ?? 0
-  const actual = stats?.vs_fixed_costs?.actual ?? totalSpent
-  const variance = stats?.vs_fixed_costs?.variance ?? (actual - planned)
-  const variancePct = stats?.vs_fixed_costs?.variance_percentage ?? (planned > 0 ? Math.round((variance / planned) * 100) : 0)
-  const recurringCount = useMemo(() => expenses.filter((expense) => expense.is_recurring).length, [expenses])
+  const actual = totalSpent // Use filtered total instead of stats?.vs_fixed_costs?.actual
+  const variance = actual - planned
+  const variancePct = planned > 0 ? Math.round((variance / planned) * 100) : 0
+
   const summaryCards = useMemo(() => {
     const cards = [
       {
         label: t('summary.totalSpentTitle'),
         value: formatCurrency(totalSpent),
-        subtitle: t('summary.totalSpentSubtitle', { count: stats?.total_count ?? expenses.length }),
+        subtitle: t('summary.totalSpentSubtitle', { count: totalCount }),
         icon: Receipt,
         color: 'primary' as const,
       }
@@ -413,14 +423,14 @@ export default function ExpensesPage() {
 
     cards.push({
       label: t('summary.recurringTitle'),
-      value: recurringCount,
+      value: recurringCount.toString(),
       subtitle: t('summary.recurringSubtitle'),
       icon: CalendarRange,
       color: 'info' as const,
     })
 
     return cards
-  }, [expenses.length, planned, recurringCount, stats?.total_count, t, totalSpent, variance, variancePct])
+  }, [totalSpent, totalCount, planned, recurringCount, t, variance, variancePct])
 
   const renderAlerts = () => {
     if (!alerts || alerts.summary.total_alerts === 0) {
