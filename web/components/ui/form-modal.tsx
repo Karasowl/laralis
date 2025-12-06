@@ -18,24 +18,30 @@ interface FormModalProps {
   // Modal state
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  
+
   // Header
   title: string;
   description?: string;
-  
+
   // Trigger (optional - if not provided, control externally)
   trigger?: React.ReactNode;
-  
+
   // Form
   children: React.ReactNode;
   onSubmit?: (e: React.FormEvent) => void | Promise<void>;
-  
+
   // Footer actions
   cancelLabel?: string;
   submitLabel?: string;
   isSubmitting?: boolean;
   showFooter?: boolean;
-  
+
+  // Secondary action (e.g., "Save & Add Another")
+  secondaryAction?: {
+    label: string;
+    onClick: (e: React.FormEvent) => void | Promise<void>;
+  };
+
   // Styling
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
   className?: string;
@@ -55,14 +61,34 @@ export function FormModal({
   submitLabel = 'Save',
   isSubmitting = false,
   showFooter = true,
+  secondaryAction,
   maxWidth = 'lg',
   className,
   modal = true,
 }: FormModalProps) {
+  // Track which button triggered the submit (for showing correct spinner)
+  const [activeSubmit, setActiveSubmit] = React.useState<'primary' | 'secondary' | null>(null);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (onSubmit) {
-      await onSubmit(e);
+    setActiveSubmit('primary');
+    try {
+      if (onSubmit) {
+        await onSubmit(e);
+      }
+    } finally {
+      setActiveSubmit(null);
+    }
+  };
+
+  const handleSecondarySubmit = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!secondaryAction) return;
+    setActiveSubmit('secondary');
+    try {
+      await secondaryAction.onClick(e as unknown as React.FormEvent);
+    } finally {
+      setActiveSubmit(null);
     }
   };
 
@@ -94,19 +120,33 @@ export function FormModal({
           <MobileModalFooter>
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               onClick={() => onOpenChange(false)}
-              disabled={isSubmitting}
+              disabled={isSubmitting || activeSubmit !== null}
               className="w-full sm:w-auto"
             >
               {cancelLabel}
             </Button>
+            {secondaryAction && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleSecondarySubmit}
+                disabled={isSubmitting || activeSubmit !== null}
+                className="w-full sm:w-auto"
+              >
+                {activeSubmit === 'secondary' && (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                )}
+                {secondaryAction.label}
+              </Button>
+            )}
             <Button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || activeSubmit !== null}
               className="w-full sm:w-auto"
             >
-              {isSubmitting && (
+              {(isSubmitting || activeSubmit === 'primary') && (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               )}
               {submitLabel}
