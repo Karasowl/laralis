@@ -74,7 +74,7 @@ export default function ExpensesTable({
     {
       key: 'expense_date',
       label: tFields('date'),
-      render: (expense: ExpenseWithRelations) => (
+      render: (_value: any, expense: ExpenseWithRelations) => (
         <div className="flex items-center gap-2">
           <Receipt className="h-4 w-4 text-muted-foreground" />
           {formatDate(expense.expense_date)}
@@ -84,7 +84,7 @@ export default function ExpensesTable({
     {
       key: 'category',
       label: tFields('category'),
-      render: (expense: ExpenseWithRelations) => (
+      render: (_value: any, expense: ExpenseWithRelations) => (
         <div className="space-y-1">
           <Badge variant="outline">{expense.category}</Badge>
           {expense.subcategory && (
@@ -96,7 +96,7 @@ export default function ExpensesTable({
     {
       key: 'description',
       label: tFields('description'),
-      render: (expense: ExpenseWithRelations) => (
+      render: (_value: any, expense: ExpenseWithRelations) => (
         <div className="max-w-xs">
           <p className="font-medium truncate">{expense.description || '-'}</p>
           {expense.vendor && (
@@ -108,7 +108,7 @@ export default function ExpensesTable({
     {
       key: 'amount',
       label: tFields('amount'),
-      render: (expense: ExpenseWithRelations) => (
+      render: (_value: any, expense: ExpenseWithRelations) => (
         <div className="text-right font-mono">
           {formatMoney(expense.amount_cents)}
         </div>
@@ -118,7 +118,7 @@ export default function ExpensesTable({
     {
       key: 'status',
       label: tFields('status'),
-      render: (expense: ExpenseWithRelations) => {
+      render: (_value: any, expense: ExpenseWithRelations) => {
         // Por ahora todos los gastos se consideran pagados
         const isPaid = true
         return (
@@ -132,7 +132,7 @@ export default function ExpensesTable({
       key: 'actions',
       label: tCommon('actions'),
       sortable: false,
-      render: (expense: ExpenseWithRelations) => (
+      render: (_value: any, expense: ExpenseWithRelations) => (
         <ActionDropdown
           actions={[
             {

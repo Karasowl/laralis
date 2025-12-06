@@ -107,7 +107,7 @@ export default function PatientDetailPage() {
     {
       key: 'treatment_date',
       label: t('treatments.fields.date'),
-      render: (treatment: Treatment) => (
+      render: (_value: any, treatment: Treatment) => (
         <div className="flex items-center gap-2">
           <Calendar className="h-4 w-4 text-muted-foreground" />
           {formatDate(treatment.treatment_date)}
@@ -117,7 +117,7 @@ export default function PatientDetailPage() {
     {
       key: 'service',
       label: t('treatments.fields.service'),
-      render: (treatment: Treatment) => (
+      render: (_value: any, treatment: Treatment) => (
         <div className="flex items-center gap-2">
           <Activity className="h-4 w-4 text-muted-foreground" />
           {treatment.service?.name || t('common.notAvailable')}
@@ -127,7 +127,7 @@ export default function PatientDetailPage() {
     {
       key: 'duration_minutes',
       label: t('treatments.fields.duration'),
-      render: (treatment: Treatment) => (
+      render: (_value: any, treatment: Treatment) => (
         <div className="flex items-center gap-2">
           <Clock className="h-4 w-4 text-muted-foreground" />
           {treatment.duration_minutes || 0} {t('common.minutes')}
@@ -137,7 +137,7 @@ export default function PatientDetailPage() {
     {
       key: 'price',
       label: t('treatments.fields.price'),
-      render: (treatment: Treatment) => (
+      render: (_value: any, treatment: Treatment) => (
         <div className="text-right font-semibold">
           {formatCurrency(treatment.price_cents || 0)}
         </div>
@@ -146,7 +146,7 @@ export default function PatientDetailPage() {
     {
       key: 'status',
       label: t('treatments.fields.status'),
-      render: (treatment: Treatment) => {
+      render: (_value: any, treatment: Treatment) => {
         const statusColors = {
           completed: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
           cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
