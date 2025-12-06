@@ -1,73 +1,87 @@
 {
-  "title": "Novedades",
-  "current": "Versión actual",
-  "whatsNew": "Qué hay de nuevo",
-  "close": "Cerrar",
-  "types": {
-    "added": "Agregado",
-    "improved": "Mejorado",
-    "fixed": "Corregido",
-    "removed": "Eliminado",
-    "security": "Seguridad",
-    "ui": "Interfaz",
-    "performance": "Rendimiento",
-    "documentation": "Documentación"
-  },
-  "releases": {
-    "v0_2_0": {
-      "date": "2025-10-18",
-      "title": "Dark Mode Premium y Sistema de Onboarding",
-      "added": [
-        "Dark Mode Premium: Rediseño completo con paleta moderna inspirada en Notion/Linear",
-        "Wizard de Setup: Sistema completo de onboarding paso a paso",
-        "Auto-cleanup: Detección automática de datos fantasma en localStorage",
-        "Diagnóstico RLS: Scripts SQL para verificar estado de políticas",
-        "Sistema de Requirements: Validación progresiva de configuración inicial"
-      ],
-      "improved": [
-        "Requirement 'service_recipe' ahora más flexible (permite servicios sin supplies)",
-        "Dark mode con mejor contraste y jerarquía visual",
-        "Validación de recetas de servicios menos estricta"
-      ],
-      "fixed": [
-        "Loop infinito en configuración de assets",
-        "Políticas RLS faltantes en tablas operacionales",
-        "Triggers que fallaban por falta de SECURITY DEFINER",
-        "Clínicas fantasma después de reset de base de datos",
-        "Guard que permitía saltar pasos críticos del onboarding",
-        "Múltiples problemas de UX en modal de onboarding"
-      ],
-      "removed": [
-        "Validación obligatoria de supplies en servicios"
-      ]
+  "version": {
+    "title": "Novedades",
+    "current": "Versión actual",
+    "whatsNew": "Qué hay de nuevo",
+    "close": "Cerrar",
+    "types": {
+      "added": "Agregado",
+      "improved": "Mejorado",
+      "fixed": "Corregido",
+      "removed": "Eliminado",
+      "security": "Seguridad",
+      "ui": "Interfaz",
+      "performance": "Rendimiento",
+      "documentation": "Documentación"
     },
-    "v0_1_0": {
-      "date": "2025-08-09",
-      "title": "Lanzamiento Inicial",
-      "added": [
-        "Setup inicial del proyecto con Next.js 14 + TypeScript",
-        "Sistema de internacionalización (i18n) con next-intl (EN/ES)",
-        "Motor de cálculos de costos y pricing",
-        "Módulo de Insumos con CRUD completo",
-        "Módulo de Servicios con recetas",
-        "Módulo de Activos con depreciación",
-        "Módulo de Costos Fijos",
-        "Módulo de Configuración de Tiempo",
-        "Sistema de autenticación con Supabase",
-        "Multi-tenancy con workspaces y clínicas",
-        "Tests unitarios con Vitest"
-      ],
-      "ui": [
-        "Sistema de diseño modular estilo Apple",
-        "Componentes base reutilizables (DataTable, FormModal, PageHeader)",
-        "Modo oscuro (primera versión)",
-        "Diseño responsive mobile-first"
-      ],
-      "security": [
-        "Row Level Security (RLS) en Supabase",
-        "Políticas de acceso multi-tenant",
-        "Triggers automáticos para datos iniciales"
-      ]
+    "releases": {
+      "v0_3_0": {
+        "date": "2025-12-05",
+        "title": "Mejoras en Tratamientos y Correcciones Críticas",
+        "added": [
+          "Botón 'Guardar y agregar otro' en tratamientos - añade múltiples tratamientos al mismo paciente sin cerrar el modal"
+        ],
+        "fixed": [
+          "Fechas que mostraban un día anterior al seleccionado",
+          "Status 'Completado' que no se guardaba correctamente",
+          "Precios de tratamientos que cambiaban solos con el tiempo"
+        ]
+      },
+      "v0_2_0": {
+        "date": "2025-10-18",
+        "title": "Dark Mode Premium y Sistema de Onboarding",
+        "added": [
+          "Dark Mode Premium: Rediseño completo con paleta moderna inspirada en Notion/Linear",
+          "Wizard de Setup: Sistema completo de onboarding paso a paso",
+          "Auto-cleanup: Detección automática de datos fantasma en localStorage",
+          "Diagnóstico RLS: Scripts SQL para verificar estado de políticas",
+          "Sistema de Requirements: Validación progresiva de configuración inicial"
+        ],
+        "improved": [
+          "Requirement 'service_recipe' ahora más flexible (permite servicios sin supplies)",
+          "Dark mode con mejor contraste y jerarquía visual",
+          "Validación de recetas de servicios menos estricta"
+        ],
+        "fixed": [
+          "Loop infinito en configuración de assets",
+          "Políticas RLS faltantes en tablas operacionales",
+          "Triggers que fallaban por falta de SECURITY DEFINER",
+          "Clínicas fantasma después de reset de base de datos",
+          "Guard que permitía saltar pasos críticos del onboarding",
+          "Múltiples problemas de UX en modal de onboarding"
+        ],
+        "removed": [
+          "Validación obligatoria de supplies en servicios"
+        ]
+      },
+      "v0_1_0": {
+        "date": "2025-08-09",
+        "title": "Lanzamiento Inicial",
+        "added": [
+          "Setup inicial del proyecto con Next.js 14 + TypeScript",
+          "Sistema de internacionalización (i18n) con next-intl (EN/ES)",
+          "Motor de cálculos de costos y pricing",
+          "Módulo de Insumos con CRUD completo",
+          "Módulo de Servicios con recetas",
+          "Módulo de Activos con depreciación",
+          "Módulo de Costos Fijos",
+          "Módulo de Configuración de Tiempo",
+          "Sistema de autenticación con Supabase",
+          "Multi-tenancy con workspaces y clínicas",
+          "Tests unitarios con Vitest"
+        ],
+        "ui": [
+          "Sistema de diseño modular estilo Apple",
+          "Componentes base reutilizables (DataTable, FormModal, PageHeader)",
+          "Modo oscuro (primera versión)",
+          "Diseño responsive mobile-first"
+        ],
+        "security": [
+          "Row Level Security (RLS) en Supabase",
+          "Políticas de acceso multi-tenant",
+          "Triggers automáticos para datos iniciales"
+        ]
+      }
     }
   }
 }
