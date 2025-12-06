@@ -372,7 +372,7 @@ export default function TreatmentsPage() {
                 <StickyNote className="h-4 w-4 text-primary" />
               </button>
             </PopoverTrigger>
-            <PopoverContent className="w-80">
+            <PopoverContent className="w-80" side="bottom" collisionPadding={16} avoidCollisions={true}>
               <div className="space-y-2">
                 <h4 className="font-medium text-sm">{t('treatments.fields.notes')}</h4>
                 <p className="text-sm text-muted-foreground whitespace-pre-wrap">{treatment.notes}</p>
