@@ -3581,7 +3581,31 @@
         "serverError": "Temporary server error. Please try again.",
         "retryButton": "Retry",
         "tokenLimitReached": "Conversation limit has been reached. Please start a new conversation to continue."
-      }
+      },
+      "history": {
+        "title": "History",
+        "showSidebar": "Show history",
+        "hideSidebar": "Hide history",
+        "newChat": "New conversation",
+        "emptyHistory": "No previous conversations",
+        "emptyHistoryDesc": "Your conversations will appear here",
+        "close": "Close",
+        "editTitle": "Edit title",
+        "deleteSession": "Delete session",
+        "save": "Save",
+        "cancel": "Cancel",
+        "confirmDelete": "Delete conversation?",
+        "confirmDeleteDesc": "This action cannot be undone",
+        "confirmDeleteButton": "Delete",
+        "now": "Now",
+        "justNow": "Just now",
+        "minutesAgo": "{minutes} minutes ago",
+        "hoursAgo": "{hours} hours ago",
+        "daysAgo": "{days} days ago",
+        "weeksAgo": "{weeks} weeks ago",
+        "monthsAgo": "{months} months ago"
+      },
+      "defaultSessionTitle": "New conversation"
     },
     "entities": {
       "patient": "Patient",

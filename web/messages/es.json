@@ -3846,7 +3846,31 @@
         "serverError": "Error temporal del servidor. Por favor, intenta de nuevo.",
         "retryButton": "Reintentar",
         "tokenLimitReached": "Se ha alcanzado el límite de la conversación. Por favor, inicia una nueva conversación para continuar."
-      }
+      },
+      "history": {
+        "title": "Historial",
+        "showSidebar": "Mostrar historial",
+        "hideSidebar": "Ocultar historial",
+        "newChat": "Nueva conversación",
+        "emptyHistory": "Sin conversaciones previas",
+        "emptyHistoryDesc": "Tus conversaciones aparecerán aquí",
+        "close": "Cerrar",
+        "editTitle": "Editar título",
+        "deleteSession": "Eliminar sesión",
+        "save": "Guardar",
+        "cancel": "Cancelar",
+        "confirmDelete": "¿Eliminar conversación?",
+        "confirmDeleteDesc": "Esta acción no se puede deshacer",
+        "confirmDeleteButton": "Eliminar",
+        "now": "Ahora",
+        "justNow": "Justo ahora",
+        "minutesAgo": "Hace {minutes} minutos",
+        "hoursAgo": "Hace {hours} horas",
+        "daysAgo": "Hace {days} días",
+        "weeksAgo": "Hace {weeks} semanas",
+        "monthsAgo": "Hace {months} meses"
+      },
+      "defaultSessionTitle": "Nueva conversación"
     },
     "entities": {
       "patient": "Paciente",
