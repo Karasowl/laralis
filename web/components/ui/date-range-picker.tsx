@@ -374,7 +374,10 @@ export function DateRangePicker({
       <PopoverContent
         className="w-auto p-0"
         align={align}
+        side="bottom"
         sideOffset={8}
+        collisionPadding={16}
+        avoidCollisions={true}
       >
         {content}
         {/* Footer actions */}
