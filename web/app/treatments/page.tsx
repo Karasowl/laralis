@@ -176,6 +176,30 @@ export default function TreatmentsPage() {
     }
   }
 
+  // Handler for "Save & Add Another" - saves and keeps modal open
+  const handleCreateAndAddAnother = async (data: TreatmentFormData) => {
+    const ready = await ensureReady('create_treatment', { serviceId: data.service_id })
+    if (!ready.allowed) {
+      toast.warning(t('onboarding.justInTime.title'))
+      setMissingReqs(ready.missing as any)
+      return
+    }
+    setMissingReqs([])
+    const success = await createTreatment(data)
+    if (success) {
+      // Preserve patient_id and date, reset everything else
+      const preservedPatientId = form.getValues('patient_id')
+      const preservedDate = form.getValues('treatment_date')
+      form.reset({
+        ...treatmentInitialValues,
+        patient_id: preservedPatientId,
+        treatment_date: preservedDate,
+      })
+      toast.success(t('treatments.savedAddAnother'))
+      // Modal stays open (we don't call setCreateOpen(false))
+    }
+  }
+
   const handleEdit = async (data: TreatmentFormData) => {
     if (!editTreatment) return
 
@@ -581,6 +605,10 @@ export default function TreatmentsPage() {
           onSubmit={form.handleSubmit(handleCreate)}
           isSubmitting={isSubmitting}
           maxWidth="2xl"
+          secondaryAction={{
+            label: t('common.saveAndAddAnother'),
+            onClick: form.handleSubmit(handleCreateAndAddAnother),
+          }}
         >
           {missingReqs.length > 0 && (
             <div className="mb-4 p-3 border rounded-md bg-amber-50 text-sm">

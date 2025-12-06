@@ -5,6 +5,7 @@
     "loading": "Cargando...",
     "error": "Error",
     "save": "Guardar",
+    "saveAndAddAnother": "Guardar y agregar otro",
     "cancel": "Cancelar",
     "delete": "Eliminar",
     "edit": "Editar",
@@ -2324,6 +2325,7 @@
   "treatments": {
     "title": "Tratamientos",
     "subtitle": "Gestiona los tratamientos de tus pacientes",
+    "savedAddAnother": "Tratamiento guardado. ¡Agrega otro!",
     "showingTreatmentsFor": "Mostrando tratamientos de",
     "viewPatient": "Ver Paciente",
     "removeFilter": "Quitar filtro",
