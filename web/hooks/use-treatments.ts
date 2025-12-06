@@ -203,13 +203,20 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
     const fixedCost = fixedPerMinuteCents * minutes
     const totalCost = fixedCost + variableCost
 
+    // BUG FIX: Check if service_id was explicitly provided AND is different
+    // Previously: `data.service_id !== existingTreatment.service_id` was always true
+    // when data.service_id was undefined (e.g., status-only updates)
+    // This caused prices to be recalculated incorrectly on every update.
+    const serviceChanged = data.service_id !== undefined &&
+                           data.service_id !== existingTreatment.service_id
+
     // Priority order for price calculation:
     // 1. User-specified sale_price (if provided in update)
     // 2. Preserve existing price_cents if no changes to cost factors
-    // 3. Recalculate from costs + margin
+    // 3. Recalculate from costs + margin ONLY if service, minutes, or margin changed
     const price = data.sale_price
       ? Math.round(data.sale_price * 100) // Convert pesos → centavos
-      : (data.service_id !== existingTreatment.service_id || data.minutes !== undefined || data.margin_pct !== undefined)
+      : (serviceChanged || data.minutes !== undefined || data.margin_pct !== undefined)
         ? Math.round(totalCost * (1 + marginPct / 100))
         : existingTreatment.price_cents
 

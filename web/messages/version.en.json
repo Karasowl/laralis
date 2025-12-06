@@ -1,0 +1,73 @@
+{
+  "title": "What's New",
+  "current": "Current version",
+  "whatsNew": "What's New",
+  "close": "Close",
+  "types": {
+    "added": "Added",
+    "improved": "Improved",
+    "fixed": "Fixed",
+    "removed": "Removed",
+    "security": "Security",
+    "ui": "UI/UX",
+    "performance": "Performance",
+    "documentation": "Documentation"
+  },
+  "releases": {
+    "v0_2_0": {
+      "date": "2025-10-18",
+      "title": "Premium Dark Mode and Onboarding System",
+      "added": [
+        "Premium Dark Mode: Complete redesign with modern palette inspired by Notion/Linear",
+        "Setup Wizard: Complete step-by-step onboarding system",
+        "Auto-cleanup: Automatic detection of phantom data in localStorage",
+        "RLS Diagnostics: SQL scripts to verify policy status",
+        "Requirements System: Progressive validation of initial setup"
+      ],
+      "improved": [
+        "Requirement 'service_recipe' now more flexible (allows services without supplies)",
+        "Dark mode with better contrast and visual hierarchy",
+        "Service recipe validation less strict"
+      ],
+      "fixed": [
+        "Infinite loop in assets setup",
+        "Missing RLS policies in operational tables",
+        "Triggers failing due to missing SECURITY DEFINER",
+        "Phantom clinics after database reset",
+        "Guard allowing to skip critical onboarding steps",
+        "Multiple UX issues in onboarding modal"
+      ],
+      "removed": [
+        "Mandatory supplies validation in services"
+      ]
+    },
+    "v0_1_0": {
+      "date": "2025-08-09",
+      "title": "Initial Release",
+      "added": [
+        "Initial project setup with Next.js 14 + TypeScript",
+        "Internationalization (i18n) system with next-intl (EN/ES)",
+        "Cost and pricing calculation engine",
+        "Supplies module with full CRUD",
+        "Services module with recipes",
+        "Assets module with depreciation",
+        "Fixed Costs module",
+        "Time Settings module",
+        "Authentication system with Supabase",
+        "Multi-tenancy with workspaces and clinics",
+        "Unit tests with Vitest"
+      ],
+      "ui": [
+        "Apple-style modular design system",
+        "Reusable base components (DataTable, FormModal, PageHeader)",
+        "Dark mode (first version)",
+        "Mobile-first responsive design"
+      ],
+      "security": [
+        "Row Level Security (RLS) in Supabase",
+        "Multi-tenant access policies",
+        "Automatic triggers for initial data"
+      ]
+    }
+  }
+}
