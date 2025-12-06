@@ -229,7 +229,7 @@ export default function TreatmentsPage() {
       key: 'treatment_date',
       label: t('treatments.fields.date'),
       sortable: true,
-      render: (treatment: Treatment) => (
+      render: (_value: any, treatment: Treatment) => (
         <div className="flex items-center gap-2">
           <Calendar className="h-4 w-4 text-muted-foreground" />
           {formatDate(treatment.treatment_date)}
@@ -240,7 +240,7 @@ export default function TreatmentsPage() {
       key: 'treatment_time',
       label: t('treatments.fields.time'),
       sortable: true,
-      render: (treatment: Treatment) => (
+      render: (_value: any, treatment: Treatment) => (
         <div className="flex items-center gap-2">
           <Clock className="h-4 w-4 text-muted-foreground" />
           {treatment?.treatment_time ? treatment.treatment_time.slice(0, 5) : '—'}
