@@ -14,9 +14,9 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { createServerClient } from '@supabase/ssr'
 import { ClinicSnapshotService } from '@/lib/ai/ClinicSnapshotService'
 import { resolveClinicContext } from '@/lib/clinic'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
 // Types for export
 interface ExportMetadata {
@@ -40,6 +40,7 @@ interface FullExportData {
   assets: any[]
   custom_categories: any[]
   patient_sources: any[]
+  marketing_campaigns: any[]
   settings_time: any
 }
 
@@ -89,30 +90,8 @@ export async function GET(
       )
     }
 
-    // Create Supabase client for data queries
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Ignore - cookies can only be modified in Server Actions or Route Handlers
-            }
-          },
-        },
-      }
-    )
-
-    // Get clinic name
-    const { data: clinic } = await supabase
+    // Get clinic name (using supabaseAdmin after auth verification)
+    const { data: clinic } = await supabaseAdmin
       .from('clinics')
       .select('name')
       .eq('id', clinicId)
@@ -134,7 +113,7 @@ export async function GET(
     // Generate snapshot if needed
     if (exportType === 'snapshot' || exportType === 'both') {
       const snapshotService = new ClinicSnapshotService()
-      const snapshot = await snapshotService.getFullSnapshot(supabase, clinicId, {
+      const snapshot = await snapshotService.getFullSnapshot(supabaseAdmin, clinicId, {
         period,
         forceRefresh: true
       })
@@ -148,7 +127,7 @@ export async function GET(
 
     // Generate full data if needed
     if (exportType === 'full' || exportType === 'both') {
-      const fullData = await loadFullClinicData(supabase, clinicId)
+      const fullData = await loadFullClinicData(clinicId)
       response.data = fullData
 
       // Update record counts
@@ -162,6 +141,7 @@ export async function GET(
       response.metadata.recordCounts.assets = fullData.assets.length
       response.metadata.recordCounts.custom_categories = fullData.custom_categories.length
       response.metadata.recordCounts.patient_sources = fullData.patient_sources.length
+      response.metadata.recordCounts.marketing_campaigns = fullData.marketing_campaigns.length
     }
 
     // Return with appropriate headers for download
@@ -188,11 +168,9 @@ export async function GET(
 
 /**
  * Load all clinic data from database (full export)
+ * Uses supabaseAdmin to bypass RLS after access verification
  */
-async function loadFullClinicData(
-  supabase: ReturnType<typeof createServerClient>,
-  clinicId: string
-): Promise<FullExportData> {
+async function loadFullClinicData(clinicId: string): Promise<FullExportData> {
   // Run all queries in parallel for performance
   const [
     patientsResult,
@@ -205,42 +183,47 @@ async function loadFullClinicData(
     assetsResult,
     categoriesResult,
     sourcesResult,
+    campaignsResult,
     timeSettingsResult
   ] = await Promise.all([
-    // Patients - all fields
-    supabase
+    // Patients - with campaign name and source name
+    supabaseAdmin
       .from('patients')
-      .select('*')
+      .select(`
+        *,
+        campaign:marketing_campaigns(name, platform),
+        source:patient_sources(name)
+      `)
       .eq('clinic_id', clinicId)
       .order('created_at', { ascending: false }),
 
-    // Treatments - with service name
-    supabase
+    // Treatments - with service, patient, and campaign info
+    supabaseAdmin
       .from('treatments')
       .select(`
         *,
-        service:services(name),
-        patient:patients(name)
+        service:services(name, category_id),
+        patient:patients(name, campaign_id, campaign:marketing_campaigns(name, platform))
       `)
       .eq('clinic_id', clinicId)
       .order('treatment_date', { ascending: false }),
 
     // Services - all pricing fields
-    supabase
+    supabaseAdmin
       .from('services')
       .select('*')
       .eq('clinic_id', clinicId)
       .order('name'),
 
     // Supplies - inventory
-    supabase
+    supabaseAdmin
       .from('supplies')
       .select('*')
       .eq('clinic_id', clinicId)
       .order('name'),
 
     // Service-Supply relationships (recipes)
-    supabase
+    supabaseAdmin
       .from('service_supplies')
       .select(`
         *,
@@ -249,43 +232,53 @@ async function loadFullClinicData(
       `)
       .eq('clinic_id', clinicId),
 
-    // Expenses
-    supabase
+    // Expenses - with campaign name if linked
+    supabaseAdmin
       .from('expenses')
-      .select('*')
+      .select(`
+        *,
+        campaign:marketing_campaigns(name, platform)
+      `)
       .eq('clinic_id', clinicId)
       .order('expense_date', { ascending: false }),
 
     // Fixed costs
-    supabase
+    supabaseAdmin
       .from('fixed_costs')
       .select('*')
       .eq('clinic_id', clinicId)
       .order('name'),
 
     // Assets
-    supabase
+    supabaseAdmin
       .from('assets')
       .select('*')
       .eq('clinic_id', clinicId)
       .order('name'),
 
     // Custom categories
-    supabase
+    supabaseAdmin
       .from('custom_categories')
       .select('*')
       .eq('clinic_id', clinicId)
       .order('name'),
 
     // Patient sources
-    supabase
+    supabaseAdmin
       .from('patient_sources')
       .select('*')
       .eq('clinic_id', clinicId)
       .order('name'),
 
+    // Marketing campaigns - full data
+    supabaseAdmin
+      .from('marketing_campaigns')
+      .select('*')
+      .eq('clinic_id', clinicId)
+      .order('created_at', { ascending: false }),
+
     // Time settings
-    supabase
+    supabaseAdmin
       .from('settings_time')
       .select('*')
       .eq('clinic_id', clinicId)
@@ -303,6 +296,7 @@ async function loadFullClinicData(
     assets: assetsResult.data || [],
     custom_categories: categoriesResult.data || [],
     patient_sources: sourcesResult.data || [],
+    marketing_campaigns: campaignsResult.data || [],
     settings_time: timeSettingsResult.data || null
   }
 }
