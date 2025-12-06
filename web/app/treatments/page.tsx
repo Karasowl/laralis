@@ -29,6 +29,8 @@ import { Calendar, User, DollarSign, FileText, Activity, Clock, Plus, StickyNote
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { calcularPrecioFinal } from '@/lib/calc/tarifa'
+import { useFilteredSummary } from '@/hooks/use-filtered-summary'
+import { treatmentSummaryConfig } from '@/lib/calc/summary-configs'
 
 // Treatment form schema with cross-field validation
 const treatmentFormSchema = z.object({
@@ -75,7 +77,6 @@ export default function TreatmentsPage() {
     services,
     loading,
     isSubmitting,
-    summary,
     createTreatment,
     updateTreatment,
     deleteTreatment,
@@ -140,6 +141,9 @@ export default function TreatmentsPage() {
     // Return the preset key to be translated in the render
     return preset
   }, [filterValues.treatment_date])
+
+  // Calculate summary from FILTERED treatments using generic hook
+  const filteredSummary = useFilteredSummary(filteredTreatments, treatmentSummaryConfig)
 
   // Modal states
   const [createOpen, setCreateOpen] = useState(false)
@@ -567,7 +571,7 @@ export default function TreatmentsPage() {
           cards={[
             {
               label: t('treatments.summary.totalRevenue'),
-              value: formatCurrency(summary.totalRevenue),
+              value: formatCurrency(filteredSummary.totalRevenue),
               subtitle: t('treatments.summary.allTreatments'),
               periodLabel: activeDatePeriod ? t(`filters.datePresets.${activeDatePeriod}`) : undefined,
               icon: DollarSign,
@@ -575,7 +579,7 @@ export default function TreatmentsPage() {
             },
             {
               label: t('treatments.summary.totalTreatments'),
-              value: summary.totalTreatments.toString(),
+              value: filteredSummary.totalTreatments.toString(),
               subtitle: t('treatments.summary.registered'),
               periodLabel: activeDatePeriod ? t(`filters.datePresets.${activeDatePeriod}`) : undefined,
               icon: FileText,
@@ -583,15 +587,15 @@ export default function TreatmentsPage() {
             },
             {
               label: t('treatments.summary.completionRate'),
-              value: `${summary.completionRate.toFixed(1)}%`,
-              subtitle: `${summary.completedTreatments}/${summary.totalTreatments}`,
+              value: `${filteredSummary.completionRate.toFixed(1)}%`,
+              subtitle: `${filteredSummary.completedTreatments}/${filteredSummary.totalTreatments}`,
               periodLabel: activeDatePeriod ? t(`filters.datePresets.${activeDatePeriod}`) : undefined,
               icon: Activity,
               color: 'info'
             },
             {
               label: t('treatments.summary.averagePrice'),
-              value: formatCurrency(summary.averagePrice),
+              value: formatCurrency(filteredSummary.averagePrice),
               subtitle: t('treatments.summary.perTreatment'),
               periodLabel: activeDatePeriod ? t(`filters.datePresets.${activeDatePeriod}`) : undefined,
               icon: DollarSign,
