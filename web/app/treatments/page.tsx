@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { ActionDropdown, createEditAction, createDeleteAction } from '@/components/ui/ActionDropdown'
 import { SummaryCards } from '@/components/ui/summary-cards'
-import { SmartFilters, useSmartFilter, FilterConfig, FilterValues } from '@/components/ui/smart-filters'
+import { SmartFilters, useSmartFilter, FilterConfig, FilterValues, detectPreset } from '@/components/ui/smart-filters'
 import { TreatmentForm } from './components/TreatmentForm'
 import { useCurrentClinic } from '@/hooks/use-current-clinic'
 import { useRequirementsGuard } from '@/lib/requirements/useGuard'
@@ -130,6 +130,16 @@ export default function TreatmentsPage() {
 
   // Apply filters to treatments
   const filteredTreatments = useSmartFilter(treatments, filterValues, filterConfigs)
+
+  // Get active date period label for summary cards
+  const activeDatePeriod = useMemo(() => {
+    const dateFilter = filterValues.treatment_date
+    if (!dateFilter?.from && !dateFilter?.to) return null // All time, no label needed
+    const preset = detectPreset({ from: dateFilter?.from || '', to: dateFilter?.to || '' })
+    if (preset === 'allTime') return null
+    // Return the preset key to be translated in the render
+    return preset
+  }, [filterValues.treatment_date])
 
   // Modal states
   const [createOpen, setCreateOpen] = useState(false)
@@ -559,6 +569,7 @@ export default function TreatmentsPage() {
               label: t('treatments.summary.totalRevenue'),
               value: formatCurrency(summary.totalRevenue),
               subtitle: t('treatments.summary.allTreatments'),
+              periodLabel: activeDatePeriod ? t(`filters.datePresets.${activeDatePeriod}`) : undefined,
               icon: DollarSign,
               color: 'primary'
             },
@@ -566,6 +577,7 @@ export default function TreatmentsPage() {
               label: t('treatments.summary.totalTreatments'),
               value: summary.totalTreatments.toString(),
               subtitle: t('treatments.summary.registered'),
+              periodLabel: activeDatePeriod ? t(`filters.datePresets.${activeDatePeriod}`) : undefined,
               icon: FileText,
               color: 'success'
             },
@@ -573,6 +585,7 @@ export default function TreatmentsPage() {
               label: t('treatments.summary.completionRate'),
               value: `${summary.completionRate.toFixed(1)}%`,
               subtitle: `${summary.completedTreatments}/${summary.totalTreatments}`,
+              periodLabel: activeDatePeriod ? t(`filters.datePresets.${activeDatePeriod}`) : undefined,
               icon: Activity,
               color: 'info'
             },
@@ -580,6 +593,7 @@ export default function TreatmentsPage() {
               label: t('treatments.summary.averagePrice'),
               value: formatCurrency(summary.averagePrice),
               subtitle: t('treatments.summary.perTreatment'),
+              periodLabel: activeDatePeriod ? t(`filters.datePresets.${activeDatePeriod}`) : undefined,
               icon: DollarSign,
               color: 'warning'
             },

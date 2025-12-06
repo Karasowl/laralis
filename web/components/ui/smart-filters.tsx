@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { useTranslations } from 'next-intl'
-import { Calendar, Filter, X, ChevronDown, Check } from 'lucide-react'
+import { Filter, X, ChevronDown, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from './button'
 import { Badge } from './badge'
@@ -11,6 +11,17 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from './popover'
+import {
+  DateRangePicker,
+  DateRange,
+  DatePreset,
+  detectPreset,
+  getPresetRange,
+} from './date-range-picker'
+
+// Re-export for convenience
+export type { DatePreset, DateRange }
+export { detectPreset, getPresetRange }
 
 // Filter types
 export type FilterType = 'date-range' | 'select' | 'multi-select' | 'number-range'
@@ -41,11 +52,10 @@ interface SmartFiltersProps {
 }
 
 export function SmartFilters({ filters, values, onChange, className }: SmartFiltersProps) {
-  const t = useTranslations('common')
   const tFilters = useTranslations('filters')
 
   const activeFiltersCount = React.useMemo(() => {
-    return Object.entries(values).filter(([_, v]) => {
+    return Object.entries(values).filter(([, v]) => {
       if (v === null || v === undefined || v === '') return false
       if (Array.isArray(v) && v.length === 0) return false
       if (typeof v === 'object' && !Array.isArray(v)) {
@@ -120,8 +130,6 @@ interface FilterControlProps {
 }
 
 function FilterControl({ config, value, onChange }: FilterControlProps) {
-  const tFilters = useTranslations('filters')
-
   switch (config.type) {
     case 'date-range':
       return <DateRangeFilter config={config} value={value} onChange={onChange} />
@@ -136,72 +144,18 @@ function FilterControl({ config, value, onChange }: FilterControlProps) {
   }
 }
 
-// Date Range Filter
-function DateRangeFilter({ config, value, onChange }: FilterControlProps) {
-  const tFilters = useTranslations('filters')
-  const [open, setOpen] = React.useState(false)
-
-  const hasValue = value?.from || value?.to
-  const displayValue = hasValue
-    ? `${value?.from || '...'} - ${value?.to || '...'}`
-    : config.label
+// Date Range Filter - Using new DateRangePicker with presets
+function DateRangeFilter({ value, onChange }: FilterControlProps) {
+  const handleChange = (range: { from: string; to: string }) => {
+    onChange(range)
+  }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className={cn(
-            'h-8 border-dashed',
-            hasValue && 'border-primary bg-primary/5'
-          )}
-        >
-          <Calendar className="h-3.5 w-3.5 mr-1.5" />
-          <span className="max-w-[150px] truncate">{displayValue}</span>
-          <ChevronDown className="h-3.5 w-3.5 ml-1 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-3" align="start">
-        <div className="space-y-3">
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">
-              {tFilters('dateFrom')}
-            </label>
-            <input
-              type="date"
-              value={value?.from || ''}
-              onChange={(e) => onChange({ ...value, from: e.target.value })}
-              className="w-full rounded-md border px-3 py-1.5 text-sm"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">
-              {tFilters('dateTo')}
-            </label>
-            <input
-              type="date"
-              value={value?.to || ''}
-              onChange={(e) => onChange({ ...value, to: e.target.value })}
-              className="w-full rounded-md border px-3 py-1.5 text-sm"
-            />
-          </div>
-          {hasValue && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full"
-              onClick={() => {
-                onChange({ from: '', to: '' })
-                setOpen(false)
-              }}
-            >
-              {tFilters('clear')}
-            </Button>
-          )}
-        </div>
-      </PopoverContent>
-    </Popover>
+    <DateRangePicker
+      value={value || { from: '', to: '' }}
+      onChange={handleChange}
+      showPresetLabel={true}
+    />
   )
 }
 
