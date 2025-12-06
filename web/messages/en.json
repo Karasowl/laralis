@@ -3102,6 +3102,7 @@
     "errors": {
       "title": "Export Failed",
       "noWorkspace": "No workspace selected",
+      "noClinic": "No clinic selected",
       "exportFailed": "Failed to export data",
       "unknown": "An unknown error occurred"
     },
@@ -3116,6 +3117,24 @@
       "point2": "Keep your backup file secure - it contains sensitive information",
       "point3": "Export files are compatible with future versions of the application",
       "point4": "You can import this backup into any workspace later"
+    },
+    "aiExport": {
+      "title": "Export for External AI",
+      "subtitle": "Export your clinic data in an optimized format for use with ChatGPT, Claude or other AIs",
+      "action": "Export for AI",
+      "noClinic": "Select a clinic first",
+      "success": "Export Completed",
+      "successHint": "You can now use this file as context in your favorite AI",
+      "types": {
+        "snapshot": "Summary + Analytics",
+        "full": "Complete Data",
+        "both": "All Combined"
+      },
+      "descriptions": {
+        "snapshot": "Includes data summary and pre-calculated analytics (break-even, margins, profitability). Ideal for quick queries. ~100KB",
+        "full": "Includes all complete records of patients, treatments, services, expenses, etc. Ideal for deep analysis. ~5MB",
+        "both": "Combines the summary with all complete data. Recommended for maximum flexibility."
+      }
     },
     "import": {
       "title": "Import Data",

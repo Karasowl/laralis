@@ -3364,6 +3364,7 @@
     "errors": {
       "title": "Error en la Exportación",
       "noWorkspace": "No hay workspace seleccionado",
+      "noClinic": "No hay clínica seleccionada",
       "exportFailed": "Error al exportar datos",
       "unknown": "Ocurrió un error desconocido"
     },
@@ -3378,6 +3379,24 @@
       "point2": "Mantén tu archivo de respaldo seguro - contiene información sensible",
       "point3": "Los archivos de exportación son compatibles con versiones futuras de la aplicación",
       "point4": "Puedes importar este respaldo en cualquier workspace más adelante"
+    },
+    "aiExport": {
+      "title": "Exportar para IA Externa",
+      "subtitle": "Exporta los datos de tu clínica en formato optimizado para usar con ChatGPT, Claude u otras IAs",
+      "action": "Exportar para IA",
+      "noClinic": "Selecciona una clínica primero",
+      "success": "Exportación Completada",
+      "successHint": "Ahora puedes usar este archivo como contexto en tu IA favorita",
+      "types": {
+        "snapshot": "Resumen + Analytics",
+        "full": "Datos Completos",
+        "both": "Todo Combinado"
+      },
+      "descriptions": {
+        "snapshot": "Incluye resumen de datos y analytics pre-calculados (punto de equilibrio, márgenes, rentabilidad). Ideal para consultas rápidas. ~100KB",
+        "full": "Incluye todos los registros completos de pacientes, tratamientos, servicios, gastos, etc. Ideal para análisis profundo. ~5MB",
+        "both": "Combina el resumen con todos los datos completos. Recomendado para máxima flexibilidad."
+      }
     },
     "import": {
       "title": "Importar Datos",

@@ -8,7 +8,7 @@
 'use client'
 
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { X, MessageSquare, Send, Sparkles, ChevronDown, ChevronUp, AlertTriangle, RotateCcw, ArrowDown, Minimize2, Menu, ChevronLeft, ChevronRight } from 'lucide-react'
+import { X, MessageSquare, Send, Sparkles, ChevronDown, ChevronUp, AlertTriangle, RotateCcw, ArrowDown, Minimize2, Menu, ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { VoiceRecorder } from '../VoiceRecorder'
 import { AudioPlayer } from '../AudioPlayer'
@@ -60,6 +60,7 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
     }
     return false
   })
+  const [isExportingData, setIsExportingData] = useState(false)
 
   // Set default title once translations are loaded
   const defaultTitle = t('defaultSessionTitle')
@@ -485,6 +486,32 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
     setCurrentSessionTitle(defaultTitle)
   }
 
+  const handleExportForAI = async () => {
+    if (!currentClinic?.id) return
+
+    setIsExportingData(true)
+    try {
+      const response = await fetch(`/api/clinic/${currentClinic.id}/export?type=both`)
+      if (!response.ok) throw new Error('Export failed')
+
+      const data = await response.json()
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `clinic-ai-export-${currentClinic.name.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.json`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      console.error('Export failed:', e)
+      setError(t('exportError'))
+    } finally {
+      setIsExportingData(false)
+    }
+  }
+
   const handleActionConfirm = async (messageIndex: number, result: ActionResult) => {
     // Add success message to conversation
     const successMessage = result.result?.changes?.join('\n') || tMessages('actionExecutedSuccess')
@@ -632,6 +659,17 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
                 aria-label={t('newConversation')}
               >
                 <RotateCcw className="h-5 w-5" />
+              </button>
+
+              {/* Export for AI Button */}
+              <button
+                onClick={handleExportForAI}
+                disabled={isExportingData || !currentClinic}
+                className="p-2 hover:bg-background/50 rounded-lg transition-colors disabled:opacity-50 hidden sm:block"
+                aria-label={t('exportForAI')}
+                title={t('exportForAI')}
+              >
+                <Download className={`h-5 w-5 ${isExportingData ? 'animate-pulse' : ''}`} />
               </button>
 
               {/* Model Selector (Compact on mobile) */}
