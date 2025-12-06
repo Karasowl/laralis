@@ -10,6 +10,8 @@ interface SummaryCardData {
   label: string;
   value: string | number | React.ReactNode;
   subtitle?: string;
+  /** Optional period indicator shown after the label (e.g., "This month") */
+  periodLabel?: string;
   icon?: LucideIcon | React.ReactNode;
   trend?: {
     value: number;
@@ -72,6 +74,7 @@ export function SummaryCard({
   label,
   value,
   subtitle,
+  periodLabel,
   icon,
   trend,
   color = 'default',
@@ -80,7 +83,7 @@ export function SummaryCard({
 }: SummaryCardProps) {
   const isClickable = !!onClick;
   const Icon = icon;
-  
+
   return (
     <Card
       className={cn(
@@ -94,7 +97,14 @@ export function SummaryCard({
         {/* Header with icon */}
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <p className="text-sm font-medium text-muted-foreground">{label}</p>
+            <p className="text-sm font-medium text-muted-foreground">
+              {label}
+              {periodLabel && (
+                <span className="ml-1 text-xs font-normal opacity-75">
+                  ({periodLabel})
+                </span>
+              )}
+            </p>
           </div>
           {Icon && (
             <div className={cn('ml-2', colorClasses[color])}>

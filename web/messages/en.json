@@ -96,7 +96,23 @@
     "dateRange": "Date range",
     "priceRange": "Price range",
     "noFiltersApplied": "No filters applied",
-    "resultsFiltered": "{count} results filtered"
+    "resultsFiltered": "{count} results filtered",
+    "datePresets": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "last7days": "Last 7 days",
+      "last30days": "Last 30 days",
+      "last90days": "Last 90 days",
+      "thisWeek": "This week",
+      "lastWeek": "Last week",
+      "thisMonth": "This month",
+      "lastMonth": "Last month",
+      "thisYear": "This year",
+      "allTime": "All time",
+      "customRange": "Custom range",
+      "apply": "Apply",
+      "periodLabel": "Period: {period}"
+    }
   },
   "navigation": {
     "dashboard": "Dashboard",

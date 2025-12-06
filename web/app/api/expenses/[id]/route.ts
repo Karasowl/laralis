@@ -95,7 +95,13 @@ export async function PUT(
       return NextResponse.json({ error: 'Failed to fetch expense' }, { status: 500 })
     }
 
-    const updateData = validationResult.data as any
+    // Extract UI-only fields that don't exist in the database table
+    const {
+      create_asset,
+      asset_name,
+      asset_useful_life_years,
+      ...updateData
+    } = validationResult.data as any
 
     // Resolve category if needed (similar to POST endpoint)
     let resolvedCategoryId = updateData.category_id
