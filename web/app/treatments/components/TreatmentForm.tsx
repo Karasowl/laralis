@@ -39,6 +39,7 @@ export function TreatmentForm({
   const serviceId = useWatch({ control: form.control, name: 'service_id' })
   const marginPct = useWatch({ control: form.control, name: 'margin_pct' })
   const salePrice = useWatch({ control: form.control, name: 'sale_price' })
+  const status = useWatch({ control: form.control, name: 'status' })
 
   // Memoize selectedService lookup to avoid recalculation on every render
   const selectedService = React.useMemo(
@@ -68,7 +69,11 @@ export function TreatmentForm({
   }, [form])
 
   const handleStatusChange = useCallback((value: string | number) => {
-    form.setValue('status', value as 'pending' | 'completed' | 'cancelled')
+    form.setValue('status', value as 'pending' | 'completed' | 'cancelled', {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true
+    })
   }, [form])
 
   const handleNotesChange = useCallback((value: string | number) => {
@@ -264,10 +269,11 @@ export function TreatmentForm({
         <FormGrid columns={1}>
           <SelectField
             label={t('treatments.fields.status')}
-            {...form.register('status')}
+            value={status || 'pending'}
+            onChange={handleStatusChange}
             options={statusOptions}
             placeholder={t('treatments.selectStatus')}
-            error={form.formState.errors.status?.message}
+            error={form.formState.errors.status?.message ? t(form.formState.errors.status.message as string) : undefined}
             required
           />
         </FormGrid>

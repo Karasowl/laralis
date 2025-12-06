@@ -2377,7 +2377,11 @@
       "completed": "Completado",
       "pending": "Pendiente",
       "cancelled": "Cancelado"
-    }
+    },
+    "errors": {
+      "completedRequiresPrice": "Para marcar como completado, debe ingresar un precio de venta mayor a $0"
+    },
+    "serviceChangeNotAllowed": "No se puede cambiar el servicio de un tratamiento existente"
   },
   "reports": {
     "title": "Reportes",

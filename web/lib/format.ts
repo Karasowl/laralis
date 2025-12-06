@@ -52,15 +52,32 @@ export function formatPercentage(
 }
 
 /**
+ * Parses a date string (YYYY-MM-DD) as LOCAL time to avoid timezone drift.
+ * When using new Date("2025-12-05"), JS interprets it as UTC midnight,
+ * which in timezones behind UTC (like Mexico) becomes the previous day.
+ */
+function parseLocalDate(dateString: string): Date {
+  // Check if it's an ISO date format (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)
+  if (/^\d{4}-\d{2}-\d{2}/.test(dateString)) {
+    const [datePart] = dateString.split('T');
+    const [year, month, day] = datePart.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  }
+  // Fallback to native parsing for other formats
+  return new Date(dateString);
+}
+
+/**
  * Formats a date string or Date object
  */
 export function formatDate(
   date: string | Date,
   locale: 'en' | 'es' = 'es'
 ): string {
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  // Parse string dates as local to avoid timezone issues
+  const dateObj = typeof date === 'string' ? parseLocalDate(date) : date;
   const localeCode = locale === 'es' ? 'es-MX' : 'en-US';
-  
+
   return new Intl.DateTimeFormat(localeCode, {
     year: 'numeric',
     month: 'long',
