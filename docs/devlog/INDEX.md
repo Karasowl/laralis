@@ -17,6 +17,10 @@ Cada entrada sigue la estructura:
 
 ## Entradas
 
+### 2025-12-05
+
+- **[2025-12-05-fix-treatment-price-recalculation-bug.md](2025-12-05-fix-treatment-price-recalculation-bug.md)** - Fix P0 critico: Bug donde los precios de tratamientos se recalculaban incorrectamente al hacer cualquier update (ej: cambio de status), causando que precios de $500 cambiaran a $487 sin intervencion del usuario. Causa raiz: `undefined !== 'service-uuid'` siempre evaluaba a true.
+
 ### 2025-11-17
 
 - **[2025-11-17-tariff-to-service-architecture-migration.md](2025-11-17-tariff-to-service-architecture-migration.md)** - ⚠️ BREAKING Architectural Change P0: Deprecación completa del sistema de tarifas (tariffs table) y migración de toda la lógica de pricing a la tabla services. Simplificación del 50% en queries, eliminación de versionado innecesario, single source of truth en services.price_cents.
@@ -64,6 +68,7 @@ Cada entrada sigue la estructura:
 - [2025-10-18-fix-onboarding-multiple-issues.md](2025-10-18-fix-onboarding-multiple-issues.md) - Políticas RLS faltantes para workspaces e INSERT en clinics
 
 ### Motor de Cálculos
+- [2025-12-05-fix-treatment-price-recalculation-bug.md](2025-12-05-fix-treatment-price-recalculation-bug.md) - Fix critico de recalculo incorrecto de precios en updates
 - [2025-08-09-bootstrap-proyecto.md](2025-08-09-bootstrap-proyecto.md) - Implementación del motor de cálculos con tests
 - [2025-08-09-supplies-services-module.md](2025-08-09-supplies-services-module.md) - Cálculos de costos variables y tratamientos
 
@@ -90,6 +95,6 @@ Cada entrada sigue la estructura:
 
 ## Stats
 
-- **Total entradas**: 14
-- **Última actualización**: 2025-11-17
+- **Total entradas**: 15
+- **Última actualización**: 2025-12-05
 - **Archivos documentados**: 120+
