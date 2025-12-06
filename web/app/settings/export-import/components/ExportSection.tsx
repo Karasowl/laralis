@@ -8,10 +8,11 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Download, Loader2, CheckCircle, AlertTriangle, Database } from 'lucide-react';
+import { Download, Loader2, CheckCircle, AlertTriangle, Database, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useCurrentWorkspace } from '@/hooks/use-current-workspace';
+import { useCurrentClinic } from '@/hooks/use-current-clinic';
 
 interface ExportStats {
   totalRecords: number;
@@ -28,6 +29,7 @@ interface ExportOptions {
 export function ExportSection() {
   const t = useTranslations('export');
   const { workspace } = useCurrentWorkspace();
+  const { currentClinic } = useCurrentClinic();
 
   const [isExporting, setIsExporting] = useState(false);
   const [exportComplete, setExportComplete] = useState(false);
@@ -35,7 +37,14 @@ export function ExportSection() {
   const [stats, setStats] = useState<ExportStats | null>(null);
   const [options, setOptions] = useState<ExportOptions>({
     includeAuditLogs: false,
+    includeHistorical: true,
   });
+
+  // AI Export states
+  const [isExportingAI, setIsExportingAI] = useState(false);
+  const [aiExportComplete, setAiExportComplete] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiExportType, setAiExportType] = useState<'snapshot' | 'full' | 'both'>('both');
 
   /**
    * Handle export button click
@@ -95,6 +104,54 @@ export function ExportSection() {
       setError(err instanceof Error ? err.message : t('errors.unknown'));
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  /**
+   * Handle AI export for external AI integration
+   */
+  const handleAIExport = async () => {
+    if (!currentClinic) {
+      setAiError(t('errors.noClinic'));
+      return;
+    }
+
+    setIsExportingAI(true);
+    setAiError(null);
+    setAiExportComplete(false);
+
+    try {
+      const response = await fetch(
+        `/api/clinic/${currentClinic.id}/export?type=${aiExportType}`,
+        { method: 'GET' }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || t('errors.exportFailed'));
+      }
+
+      const data = await response.json();
+
+      // Trigger download
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: 'application/json',
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `clinic-ai-export-${currentClinic.name.replace(/\s+/g, '-').toLowerCase()}-${aiExportType}-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      setAiExportComplete(true);
+    } catch (err) {
+      console.error('AI Export error:', err);
+      setAiError(err instanceof Error ? err.message : t('errors.unknown'));
+    } finally {
+      setIsExportingAI(false);
     }
   };
 
@@ -217,6 +274,114 @@ export function ExportSection() {
                     {formatDuration(stats.exportDuration)}
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* AI Export Card */}
+      <Card className="p-6">
+        <div className="space-y-6">
+          {/* Icon and Info */}
+          <div className="flex items-start gap-4">
+            <div className="p-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg">
+              <Sparkles className="h-6 w-6 text-white" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-medium text-foreground mb-1">
+                {t('aiExport.title')}
+              </h3>
+              <p className="text-sm text-muted-foreground">{t('aiExport.subtitle')}</p>
+            </div>
+          </div>
+
+          {/* Export Type Selection */}
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setAiExportType('snapshot')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                aiExportType === 'snapshot'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              }`}
+            >
+              {t('aiExport.types.snapshot')}
+            </button>
+            <button
+              onClick={() => setAiExportType('full')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                aiExportType === 'full'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              }`}
+            >
+              {t('aiExport.types.full')}
+            </button>
+            <button
+              onClick={() => setAiExportType('both')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                aiExportType === 'both'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              }`}
+            >
+              {t('aiExport.types.both')}
+            </button>
+          </div>
+
+          {/* Type Description */}
+          <p className="text-xs text-muted-foreground">
+            {aiExportType === 'snapshot' && t('aiExport.descriptions.snapshot')}
+            {aiExportType === 'full' && t('aiExport.descriptions.full')}
+            {aiExportType === 'both' && t('aiExport.descriptions.both')}
+          </p>
+
+          {/* Export Button */}
+          <div className="border-t border-border pt-6">
+            <Button
+              onClick={handleAIExport}
+              disabled={isExportingAI || !currentClinic}
+              className="w-full sm:w-auto"
+              size="lg"
+              variant="outline"
+            >
+              {isExportingAI ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t('actions.exporting')}
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  {t('aiExport.action')}
+                </>
+              )}
+            </Button>
+            {!currentClinic && (
+              <p className="text-xs text-muted-foreground mt-2">{t('aiExport.noClinic')}</p>
+            )}
+          </div>
+
+          {/* Error Message */}
+          {aiError && (
+            <div className="flex items-start gap-3 p-4 bg-destructive/10 border border-destructive/30 rounded-lg">
+              <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-destructive">{aiError}</p>
+            </div>
+          )}
+
+          {/* Success Message */}
+          {aiExportComplete && (
+            <div className="flex items-start gap-3 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+              <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-green-900 dark:text-green-200">
+                  {t('aiExport.success')}
+                </p>
+                <p className="text-sm text-green-700 dark:text-green-300 mt-1">
+                  {t('aiExport.successHint')}
+                </p>
               </div>
             </div>
           )}

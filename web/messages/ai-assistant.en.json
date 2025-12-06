@@ -56,6 +56,8 @@
       "hideThinking": "Hide reasoning",
       "thinkingProcess": "Reasoning process",
       "newConversation": "New conversation",
+      "exportForAI": "Export data for external AI",
+      "exportError": "Error exporting data",
       "tokenLimitReachedPlaceholder": "Token limit reached. Start a new conversation.",
       "defaultSessionTitle": "New conversation",
       "history": {
