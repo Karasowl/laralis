@@ -281,12 +281,12 @@ async function loadFullClinicData(clinicId: string): Promise<FullExportData> {
       .eq('clinic_id', clinicId)
       .order('expense_date', { ascending: false }),
 
-    // Fixed costs
+    // Fixed costs (note: column is 'concept', not 'name')
     supabaseAdmin
       .from('fixed_costs')
       .select('*')
       .eq('clinic_id', clinicId)
-      .order('name'),
+      .order('concept'),
 
     // Assets
     supabaseAdmin
@@ -308,21 +308,30 @@ async function loadFullClinicData(clinicId: string): Promise<FullExportData> {
       .select('*')
   ])
 
-  // Log any errors
+  // Log any errors with full details
   if (patientsResult.error) console.error('[AI Export] Patients error:', patientsResult.error)
   if (treatmentsResult.error) console.error('[AI Export] Treatments error:', treatmentsResult.error)
   if (servicesResult.error) console.error('[AI Export] Services error:', servicesResult.error)
   if (expensesResult.error) console.error('[AI Export] Expenses error:', expensesResult.error)
   if (fixedCostsResult.error) console.error('[AI Export] Fixed costs error:', fixedCostsResult.error)
   if (assetsResult.error) console.error('[AI Export] Assets error:', assetsResult.error)
+  if (suppliesResult.error) console.error('[AI Export] Supplies error:', suppliesResult.error)
+  if (categoriesResult.error) console.error('[AI Export] Categories error:', categoriesResult.error)
+  if (customCategoriesResult.error) console.error('[AI Export] Custom categories error:', customCategoriesResult.error)
+  if (sourcesResult.error) console.error('[AI Export] Sources error:', sourcesResult.error)
+  if (serviceSuppliesResult.error) console.error('[AI Export] Service supplies error:', serviceSuppliesResult.error)
+  if (campaignsResult.error) console.error('[AI Export] Campaigns error:', campaignsResult.error)
+
 
   console.log('[AI Export] Results:', {
     patients: patientsResult.data?.length || 0,
     treatments: treatmentsResult.data?.length || 0,
     services: servicesResult.data?.length || 0,
+    supplies: suppliesResult.data?.length || 0,
     expenses: expensesResult.data?.length || 0,
     fixedCosts: fixedCostsResult.data?.length || 0,
     assets: assetsResult.data?.length || 0,
+    campaigns: campaignsResult.data?.length || 0,
   })
 
   // Get campaign IDs for filtering status history
