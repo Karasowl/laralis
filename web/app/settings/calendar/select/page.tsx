@@ -4,17 +4,9 @@ import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layouts/AppLayout'
-import { PageHeader } from '@/components/ui/PageHeader'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { useToast } from '@/hooks/use-toast'
-import {
-  Calendar,
-  Loader2,
-  CheckCircle,
-  Star,
-  ArrowLeft,
-} from 'lucide-react'
+import { Loader2, CheckCircle, Star } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface GoogleCalendar {
@@ -27,12 +19,12 @@ interface GoogleCalendar {
 export default function CalendarSelectPage() {
   const t = useTranslations()
   const router = useRouter()
-  const { toast } = useToast()
   const [calendars, setCalendars] = useState<GoogleCalendar[]>([])
   const [selectedCalendar, setSelectedCalendar] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isConnecting, setIsConnecting] = useState(false)
   const [email, setEmail] = useState<string>('')
+  const [error, setError] = useState<string | null>(null)
 
   // Fetch available calendars
   useEffect(() => {
@@ -46,12 +38,7 @@ export default function CalendarSelectPage() {
         if (!mounted) return
 
         if (data.error) {
-          toast({
-            title: t('settings.calendar.connectionError'),
-            description: data.error,
-            variant: 'destructive',
-          })
-          router.push('/settings/calendar')
+          setError(data.error)
           return
         }
 
@@ -63,13 +50,9 @@ export default function CalendarSelectPage() {
         if (primary) {
           setSelectedCalendar(primary.id)
         }
-      } catch {
+      } catch (err) {
         if (!mounted) return
-        toast({
-          title: t('settings.calendar.connectionError'),
-          variant: 'destructive',
-        })
-        router.push('/settings/calendar')
+        setError('Failed to load calendars')
       } finally {
         if (mounted) {
           setIsLoading(false)
@@ -82,7 +65,6 @@ export default function CalendarSelectPage() {
     return () => {
       mounted = false
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Handle calendar selection and connection
@@ -98,20 +80,13 @@ export default function CalendarSelectPage() {
       })
 
       if (response.ok) {
-        toast({
-          title: t('settings.calendar.connectionSuccess'),
-        })
         router.push('/settings/calendar?success=connected')
       } else {
         const data = await response.json()
-        throw new Error(data.error || 'Connection failed')
+        setError(data.error || 'Connection failed')
       }
-    } catch (error) {
-      toast({
-        title: t('settings.calendar.connectionError'),
-        description: error instanceof Error ? error.message : undefined,
-        variant: 'destructive',
-      })
+    } catch {
+      setError('Connection failed')
     } finally {
       setIsConnecting(false)
     }
@@ -119,42 +94,48 @@ export default function CalendarSelectPage() {
 
   // Cancel and go back
   const handleCancel = async () => {
-    // Delete the pending configuration
     await fetch('/api/auth/google-calendar', { method: 'DELETE' })
     router.push('/settings/calendar')
+  }
+
+  if (error) {
+    return (
+      <AppLayout>
+        <div className="p-4 lg:p-8 max-w-[800px] mx-auto">
+          <Card>
+            <CardContent className="p-8 text-center">
+              <p className="text-red-500 mb-4">{error}</p>
+              <Button onClick={() => router.push('/settings/calendar')}>
+                {t('common.back')}
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </AppLayout>
+    )
   }
 
   return (
     <AppLayout>
       <div className="p-4 lg:p-8 max-w-[800px] mx-auto space-y-6">
-        <PageHeader
-          title={t('settings.calendar.selectCalendar')}
-          subtitle={t('settings.calendar.selectCalendarDescription')}
-          actions={
-            <Button variant="ghost" onClick={handleCancel}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              {t('common.back')}
-            </Button>
-          }
-        />
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold">{t('settings.calendar.selectCalendar')}</h1>
+            <p className="text-muted-foreground">{t('settings.calendar.selectCalendarDescription')}</p>
+          </div>
+          <Button variant="ghost" onClick={handleCancel}>
+            {t('common.back')}
+          </Button>
+        </div>
 
         <Card>
           <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-muted p-2">
-                <Calendar className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">
-                  {t('settings.calendar.chooseCalendar')}
-                </CardTitle>
-                {email && (
-                  <CardDescription>
-                    {t('settings.calendar.connectedAs')}: {email}
-                  </CardDescription>
-                )}
-              </div>
-            </div>
+            <CardTitle>{t('settings.calendar.chooseCalendar')}</CardTitle>
+            {email && (
+              <p className="text-sm text-muted-foreground">
+                {t('settings.calendar.connectedAs')}: {email}
+              </p>
+            )}
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -181,15 +162,11 @@ export default function CalendarSelectPage() {
                     >
                       <div
                         className="w-4 h-4 rounded-full flex-shrink-0"
-                        style={{
-                          backgroundColor: calendar.backgroundColor || '#4285f4'
-                        }}
+                        style={{ backgroundColor: calendar.backgroundColor || '#4285f4' }}
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="font-medium truncate">
-                            {calendar.summary}
-                          </span>
+                          <span className="font-medium truncate">{calendar.summary}</span>
                           {calendar.primary && (
                             <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
                               <Star className="h-3 w-3 fill-current" />
@@ -197,9 +174,7 @@ export default function CalendarSelectPage() {
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {calendar.id}
-                        </p>
+                        <p className="text-xs text-muted-foreground truncate">{calendar.id}</p>
                       </div>
                       {selectedCalendar === calendar.id && (
                         <CheckCircle className="h-5 w-5 text-primary flex-shrink-0" />
@@ -209,11 +184,7 @@ export default function CalendarSelectPage() {
                 </div>
 
                 <div className="flex gap-3 pt-4 border-t">
-                  <Button
-                    variant="outline"
-                    onClick={handleCancel}
-                    disabled={isConnecting}
-                  >
+                  <Button variant="outline" onClick={handleCancel} disabled={isConnecting}>
                     {t('common.cancel')}
                   </Button>
                   <Button
@@ -221,11 +192,7 @@ export default function CalendarSelectPage() {
                     disabled={!selectedCalendar || isConnecting}
                     className="flex-1"
                   >
-                    {isConnecting ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                    )}
+                    {isConnecting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                     {t('settings.calendar.connectSelected')}
                   </Button>
                 </div>
@@ -234,7 +201,6 @@ export default function CalendarSelectPage() {
           </CardContent>
         </Card>
 
-        {/* Info card */}
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">
