@@ -9,7 +9,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useApi } from '@/hooks/use-api'
-import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2, List, Calendar } from 'lucide-react'
+import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { findAllConflictsForDate, Appointment } from '@/lib/calendar/conflict-detection'
 import {
@@ -184,14 +185,26 @@ export default function TreatmentsCalendarPage() {
     <AppLayout>
       <div className="p-4 lg:p-8 max-w-[1600px] mx-auto space-y-6">
         <PageHeader
-          title={t('settings.calendar.calendarView')}
-          subtitle={t('settings.calendar.calendarViewDescription')}
-          actions={
-            <Button variant="outline" onClick={() => router.push('/treatments')}>
-              {t('common.back')}
-            </Button>
-          }
+          title={t('treatments.title')}
+          subtitle={t('treatments.subtitle')}
         />
+
+        {/* View Toggle Tabs */}
+        <div className="flex items-center gap-1 p-1 bg-muted rounded-lg w-fit">
+          <Link
+            href="/treatments"
+            className="flex items-center gap-2 px-4 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-background/50 transition-colors"
+          >
+            <List className="h-4 w-4" />
+            <span className="hidden sm:inline">{t('treatments.views.list')}</span>
+          </Link>
+          <div
+            className="flex items-center gap-2 px-4 py-2 rounded-md bg-background shadow-sm text-foreground font-medium"
+          >
+            <Calendar className="h-4 w-4" />
+            <span className="hidden sm:inline">{t('treatments.views.calendar')}</span>
+          </div>
+        </div>
 
         {/* Calendar Card */}
         <Card>

@@ -2221,6 +2221,10 @@
   "treatments": {
     "title": "Treatments",
     "subtitle": "Record and track patient treatments",
+    "views": {
+      "list": "List",
+      "calendar": "Calendar"
+    },
     "savedAddAnother": "Treatment saved. Add another!",
     "showingTreatmentsFor": "Showing treatments for",
     "viewPatient": "View Patient",
