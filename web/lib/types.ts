@@ -171,6 +171,9 @@ export interface Patient {
   updated_at?: string;
   // Relations (populated via joins)
   source?: PatientSource;
+  campaign?: { id: string; name: string };
+  platform?: { id: string; name: string; display_name?: string };
+  referred_by?: { id: string; first_name: string; last_name: string };
 }
 
 // Patient source interface

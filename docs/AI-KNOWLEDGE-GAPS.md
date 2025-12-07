@@ -614,13 +614,16 @@ system called Laralis. Your goal is to help the user fill out the
     time_settings: {...}      // Días, horas, productividad
   },
   data: {
-    patients: {...},
-    treatments: {...},
+    patients: {...},          // Agregados (total, new, active)
+    treatments: {...},        // Agregados por servicio
     services: {...},          // CON costos calculados
     supplies: {...},
     expenses: {...},
     fixed_costs: {...},
-    assets: {...}
+    assets: {...},
+    // NUEVOS: Registros completos para contexto AI (FIXED 2025-12-07)
+    full_patients: [...],     // Lista de pacientes con nombre, teléfono, email, notas
+    full_treatments: [...]    // Lista de citas con DATE, TIME, paciente, servicio, status, tooth_number
   },
   analytics: {
     break_even: {...},        // Pre-calculado
@@ -820,6 +823,24 @@ Al agregar nuevas features, verificar:
 → Check: ¿Filtras explícitamente por clinic_id?
 → Check: ¿resolveClinicContext se ejecuta antes de query?
 
+### "Lara dice 'no tengo información sobre horarios'"
+**FIXED 2025-12-07**: Este problema fue resuelto.
+
+**Antes del fix**:
+- `treatment_time` NO se cargaba en `loadFullTreatments()`
+- `full_treatments` se cargaba pero NO se incluía en el prompt
+- Lara solo veía agregados por servicio, no citas individuales
+
+**Después del fix**:
+- `treatment_time`, `tooth_number`, `is_paid` se cargan
+- Nueva sección "DETAILED APPOINTMENT SCHEDULE" en el prompt
+- Incluye análisis de "Most Popular Hours" y "Appointments by Day of Week"
+- Lara ahora puede responder preguntas sobre horarios específicos
+
+**Archivos modificados**:
+- `web/lib/ai/ClinicSnapshotService.ts:600-640`
+- `web/lib/ai/prompts/query-prompt.ts:320-376`
+
 ---
 
 ## 📚 Referencias Rápidas
@@ -844,4 +865,4 @@ Al agregar nuevas features, verificar:
 3. Se agregan nuevos sistemas críticos (como ClinicSnapshotService)
 4. Hay confusiones recurrentes en PRs
 
-**Última revisión**: 2025-11-20
+**Última revisión**: 2025-12-07

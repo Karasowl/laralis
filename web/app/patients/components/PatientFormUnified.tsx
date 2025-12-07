@@ -40,26 +40,7 @@ export function PatientFormUnified({
     form.setValue('campaign_id', '')
     form.setValue('referred_by_patient_id', '')
     form.setValue('platform_id', '')
-
-    // MAPEO DE ACQUISITION TYPE A SOURCE
-    // Mapeo correcto según los nombres creados por el trigger insert_default_patient_sources
-    const sourceMap: Record<string, string> = {
-      'direct': 'Otro',  // Genérico para directo
-      'campaign': 'Campaña',
-      'referral': 'Recomendación',
-      'organic': 'Google'  // Por defecto Google para orgánico
-    }
-
-    // Buscar el patient_source por nombre
-    const sourceName = sourceMap[value]
-    if (sourceName && patientSources) {
-      const source = patientSources.find((s: any) =>
-        s.name?.toLowerCase() === sourceName.toLowerCase()
-      )
-      if (source) {
-        form.setValue('source_id', source.id)
-      }
-    }
+    // NO auto-asignar source_id - la vía de llegada se determina por el detalle (campaña, plataforma, referido)
 
     // Activar modo creación si no hay campañas activas
     if (value === 'campaign') {
@@ -242,17 +223,25 @@ export function PatientFormUnified({
           {acquisitionType === 'campaign' && (
             <div className="col-span-2 grid gap-3 sm:grid-cols-2">
               <div>
-                <label className="text-sm font-medium">{t('fields.campaign')}</label>
+                <label className="text-sm font-medium">
+                  {t('fields.campaign')} <span className="text-destructive">*</span>
+                </label>
                 <select
                   value={form.watch('campaign_id') || ''}
-                  onChange={(e) => form.setValue('campaign_id', e.target.value)}
-                  className="w-full mt-1 px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  onChange={(e) => form.setValue('campaign_id', e.target.value, { shouldDirty: true })}
+                  className={`w-full mt-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary ${
+                    form.formState.isSubmitted && !form.watch('campaign_id') ? 'border-destructive' : 'border-input'
+                  }`}
+                  required
                 >
-                  <option value="">{t('select_campaign')}</option>
+                  <option value="" disabled>{t('select_campaign')}</option>
                   {activeCampaigns.map((c: any) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
+                {form.formState.isSubmitted && !form.watch('campaign_id') && (
+                  <p className="text-sm text-destructive mt-1">{t('campaign_required')}</p>
+                )}
               </div>
               <div className="flex items-end">
                 <button
