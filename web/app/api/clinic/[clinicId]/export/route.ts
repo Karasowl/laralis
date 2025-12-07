@@ -185,6 +185,8 @@ export async function GET(
  * Uses supabaseAdmin to bypass RLS after access verification
  */
 async function loadFullClinicData(clinicId: string): Promise<FullExportData> {
+  console.log('[AI Export] Loading full clinic data for:', clinicId)
+
   // Run all queries in parallel for performance
   const [
     clinicResult,
@@ -217,11 +219,11 @@ async function loadFullClinicData(clinicId: string): Promise<FullExportData> {
       .eq('clinic_id', clinicId)
       .single(),
 
-    // Categories (generic)
+    // Categories (generic) - may be null for clinic_id
     supabaseAdmin
       .from('categories')
       .select('*')
-      .eq('clinic_id', clinicId)
+      .or(`clinic_id.eq.${clinicId},clinic_id.is.null`)
       .order('name'),
 
     // Custom categories
@@ -231,14 +233,10 @@ async function loadFullClinicData(clinicId: string): Promise<FullExportData> {
       .eq('clinic_id', clinicId)
       .order('name'),
 
-    // Patients - with campaign name and source name
+    // Patients - simplified query first, then enrich
     supabaseAdmin
       .from('patients')
-      .select(`
-        *,
-        campaign:marketing_campaigns(name, platform),
-        source:patient_sources(name)
-      `)
+      .select('*')
       .eq('clinic_id', clinicId)
       .order('created_at', { ascending: false }),
 
@@ -249,27 +247,17 @@ async function loadFullClinicData(clinicId: string): Promise<FullExportData> {
       .eq('clinic_id', clinicId)
       .order('name'),
 
-    // Treatments - COMPLETE data with all relationships for per-patient analysis
+    // Treatments - simplified query
     supabaseAdmin
       .from('treatments')
-      .select(`
-        *,
-        service:services(id, name, category_id, est_minutes),
-        patient:patients(id, name, email, phone, campaign_id, source_id,
-          campaign:marketing_campaigns(name, platform),
-          source:patient_sources(name)
-        )
-      `)
+      .select('*')
       .eq('clinic_id', clinicId)
       .order('treatment_date', { ascending: false }),
 
-    // Services - all pricing fields with category name
+    // Services - simplified query
     supabaseAdmin
       .from('services')
-      .select(`
-        *,
-        category:custom_categories(name)
-      `)
+      .select('*')
       .eq('clinic_id', clinicId)
       .order('name'),
 
@@ -283,21 +271,13 @@ async function loadFullClinicData(clinicId: string): Promise<FullExportData> {
     // Service-Supply relationships (recipes)
     supabaseAdmin
       .from('service_supplies')
-      .select(`
-        *,
-        service:services(name),
-        supply:supplies(name, unit)
-      `)
+      .select('*')
       .eq('clinic_id', clinicId),
 
-    // Expenses - with campaign and category
+    // Expenses
     supabaseAdmin
       .from('expenses')
-      .select(`
-        *,
-        campaign:marketing_campaigns(name, platform),
-        category:custom_categories(name)
-      `)
+      .select('*')
       .eq('clinic_id', clinicId)
       .order('expense_date', { ascending: false }),
 
@@ -322,15 +302,59 @@ async function loadFullClinicData(clinicId: string): Promise<FullExportData> {
       .eq('clinic_id', clinicId)
       .order('created_at', { ascending: false }),
 
-    // Marketing campaign status history
+    // Marketing campaign status history - need different approach
     supabaseAdmin
       .from('marketing_campaign_status_history')
-      .select(`
-        *,
-        campaign:marketing_campaigns(name)
-      `)
-      .eq('marketing_campaigns.clinic_id', clinicId)
+      .select('*')
   ])
+
+  // Log any errors
+  if (patientsResult.error) console.error('[AI Export] Patients error:', patientsResult.error)
+  if (treatmentsResult.error) console.error('[AI Export] Treatments error:', treatmentsResult.error)
+  if (servicesResult.error) console.error('[AI Export] Services error:', servicesResult.error)
+  if (expensesResult.error) console.error('[AI Export] Expenses error:', expensesResult.error)
+  if (fixedCostsResult.error) console.error('[AI Export] Fixed costs error:', fixedCostsResult.error)
+  if (assetsResult.error) console.error('[AI Export] Assets error:', assetsResult.error)
+
+  console.log('[AI Export] Results:', {
+    patients: patientsResult.data?.length || 0,
+    treatments: treatmentsResult.data?.length || 0,
+    services: servicesResult.data?.length || 0,
+    expenses: expensesResult.data?.length || 0,
+    fixedCosts: fixedCostsResult.data?.length || 0,
+    assets: assetsResult.data?.length || 0,
+  })
+
+  // Get campaign IDs for filtering status history
+  const campaignIds = (campaignsResult.data || []).map((c: any) => c.id)
+  const filteredHistory = (campaignHistoryResult.data || []).filter(
+    (h: any) => campaignIds.includes(h.campaign_id)
+  )
+
+  // Enrich patients with campaign and source names
+  const campaigns = campaignsResult.data || []
+  const sources = sourcesResult.data || []
+  const enrichedPatients = (patientsResult.data || []).map((patient: any) => ({
+    ...patient,
+    campaign_name: campaigns.find((c: any) => c.id === patient.campaign_id)?.name || null,
+    source_name: sources.find((s: any) => s.id === patient.source_id)?.name || null,
+  }))
+
+  // Enrich treatments with service and patient names
+  const services = servicesResult.data || []
+  const patients = patientsResult.data || []
+  const enrichedTreatments = (treatmentsResult.data || []).map((treatment: any) => ({
+    ...treatment,
+    service_name: services.find((s: any) => s.id === treatment.service_id)?.name || null,
+    patient_name: patients.find((p: any) => p.id === treatment.patient_id)?.name || null,
+  }))
+
+  // Enrich services with category names
+  const customCategories = customCategoriesResult.data || []
+  const enrichedServices = (servicesResult.data || []).map((service: any) => ({
+    ...service,
+    category_name: customCategories.find((c: any) => c.id === service.category_id)?.name || null,
+  }))
 
   return {
     // Clinic configuration
@@ -340,12 +364,12 @@ async function loadFullClinicData(clinicId: string): Promise<FullExportData> {
     categories: categoriesResult.data || [],
     custom_categories: customCategoriesResult.data || [],
     // Patients & Sources
-    patients: patientsResult.data || [],
+    patients: enrichedPatients,
     patient_sources: sourcesResult.data || [],
     // Treatments
-    treatments: treatmentsResult.data || [],
+    treatments: enrichedTreatments,
     // Services & Recipes
-    services: servicesResult.data || [],
+    services: enrichedServices,
     supplies: suppliesResult.data || [],
     service_supplies: serviceSuppliesResult.data || [],
     // Financials
@@ -354,6 +378,6 @@ async function loadFullClinicData(clinicId: string): Promise<FullExportData> {
     assets: assetsResult.data || [],
     // Marketing
     marketing_campaigns: campaignsResult.data || [],
-    marketing_campaign_status_history: campaignHistoryResult.data || []
+    marketing_campaign_status_history: filteredHistory
   }
 }
