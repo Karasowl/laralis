@@ -62,3 +62,29 @@ export function getStatusDot(status: string): string {
       return 'bg-gray-400'
   }
 }
+
+// Determine if a treatment is an appointment (future) or a treatment (past/completed)
+export function isAppointment(treatment: Treatment): boolean {
+  // Already completed = it's a treatment, not an appointment
+  if (treatment.status === 'completed' || treatment.status === 'cancelled') {
+    return false
+  }
+
+  // Check if the date is in the future
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const treatmentDate = new Date(treatment.treatment_date + 'T12:00:00')
+  treatmentDate.setHours(0, 0, 0, 0)
+
+  return treatmentDate >= today
+}
+
+// Get border style based on whether it's an appointment or treatment
+export function getTreatmentBorderStyle(treatment: Treatment): string {
+  if (isAppointment(treatment)) {
+    // Appointment (future): dashed border
+    return 'border-dashed border-2'
+  }
+  // Treatment (past/completed): solid border
+  return 'border-solid'
+}

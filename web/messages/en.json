@@ -1672,7 +1672,17 @@
       "chooseCalendar": "Choose your calendar",
       "primaryCalendar": "Primary",
       "connectSelected": "Connect selected calendar",
-      "selectInfo": "You can choose your personal calendar, a shared one, or any Google Calendar you have access to. Appointments will sync automatically."
+      "selectInfo": "You can choose your personal calendar, a shared one, or any Google Calendar you have access to. Appointments will sync automatically.",
+      "autoComplete": "Auto-Complete Appointments",
+      "autoCompleteDescription": "Automatically mark past appointments as completed at midnight",
+      "autoCompleteLabel": "Auto-complete",
+      "autoCompleteHint": "When enabled, appointments are marked as completed when their date passes. Otherwise, you must mark them manually.",
+      "newAppointment": "New Appointment",
+      "newTreatment": "New Treatment",
+      "timeRequired": "Time is required for future appointments",
+      "filterAll": "All",
+      "filterAppointments": "Appointments",
+      "filterTreatments": "Treatments"
     },
     "time": {
       "title": "Time Settings",

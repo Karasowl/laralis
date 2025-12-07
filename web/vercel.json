@@ -5,6 +5,12 @@
   "installCommand": "npm install",
   "framework": "nextjs",
   "regions": ["sfo1"],
+  "crons": [
+    {
+      "path": "/api/cron/complete-appointments",
+      "schedule": "1 0 * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/api/:path*",

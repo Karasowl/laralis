@@ -32,6 +32,15 @@ import { calcularPrecioFinal } from '@/lib/calc/tarifa'
 import { useFilteredSummary } from '@/hooks/use-filtered-summary'
 import { treatmentSummaryConfig } from '@/lib/calc/summary-configs'
 
+// Helper to check if a date is in the future (for appointment vs treatment distinction)
+function isFutureDate(dateStr: string): boolean {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const targetDate = new Date(dateStr + 'T12:00:00')
+  targetDate.setHours(0, 0, 0, 0)
+  return targetDate > today
+}
+
 // Treatment form schema with cross-field validation
 const treatmentFormSchema = z.object({
   patient_id: z.string().min(1),
@@ -54,6 +63,18 @@ const treatmentFormSchema = z.object({
   {
     message: 'treatments.errors.completedRequiresPrice',
     path: ['status'], // Show error on status field
+  }
+).refine(
+  (data) => {
+    // If date is in the future (appointment), require treatment_time
+    if (isFutureDate(data.treatment_date)) {
+      return data.treatment_time !== undefined && data.treatment_time.length > 0
+    }
+    return true
+  },
+  {
+    message: 'settings.calendar.timeRequired',
+    path: ['treatment_time'], // Show error on time field
   }
 )
 
@@ -98,6 +119,9 @@ export default function TreatmentsPage() {
     price_cents: { from: '', to: '' }
   })
 
+  // Type filter: all, appointments (future), treatments (past/completed)
+  const [typeFilter, setTypeFilter] = useState<'all' | 'appointments' | 'treatments'>('all')
+
   // Filter configurations
   const filterConfigs: FilterConfig[] = useMemo(() => [
     {
@@ -130,7 +154,30 @@ export default function TreatmentsPage() {
   ], [t, services])
 
   // Apply filters to treatments
-  const filteredTreatments = useSmartFilter(treatments, filterValues, filterConfigs)
+  const smartFilteredTreatments = useSmartFilter(treatments, filterValues, filterConfigs)
+
+  // Apply type filter (all, appointments, treatments)
+  const filteredTreatments = useMemo(() => {
+    if (typeFilter === 'all') return smartFilteredTreatments
+
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    return smartFilteredTreatments.filter((treatment: Treatment) => {
+      const treatmentDate = new Date(treatment.treatment_date + 'T12:00:00')
+      treatmentDate.setHours(0, 0, 0, 0)
+      const isCompleted = treatment.status === 'completed' || treatment.status === 'cancelled'
+      const isPast = treatmentDate < today
+
+      if (typeFilter === 'appointments') {
+        // Appointments: future dates AND not completed
+        return !isPast && !isCompleted
+      } else {
+        // Treatments: past dates OR completed
+        return isPast || isCompleted
+      }
+    })
+  }, [smartFilteredTreatments, typeFilter])
 
   // Get active date period label for summary cards
   const activeDatePeriod = useMemo(() => {
@@ -539,21 +586,60 @@ export default function TreatmentsPage() {
           }
         />
 
-        {/* View Toggle Tabs */}
-        <div className="flex items-center gap-1 p-1 bg-muted rounded-lg w-fit">
-          <div
-            className="flex items-center gap-2 px-4 py-2 rounded-md bg-background shadow-sm text-foreground font-medium"
-          >
-            <List className="h-4 w-4" />
-            <span className="hidden sm:inline">{t('treatments.views.list')}</span>
+        {/* View Toggle Tabs and Type Filter */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          {/* View Toggle */}
+          <div className="flex items-center gap-1 p-1 bg-muted rounded-lg w-fit">
+            <div
+              className="flex items-center gap-2 px-4 py-2 rounded-md bg-background shadow-sm text-foreground font-medium"
+            >
+              <List className="h-4 w-4" />
+              <span className="hidden sm:inline">{t('treatments.views.list')}</span>
+            </div>
+            <Link
+              href="/treatments/calendar"
+              className="flex items-center gap-2 px-4 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-background/50 transition-colors"
+            >
+              <Calendar className="h-4 w-4" />
+              <span className="hidden sm:inline">{t('treatments.views.calendar')}</span>
+            </Link>
           </div>
-          <Link
-            href="/treatments/calendar"
-            className="flex items-center gap-2 px-4 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-background/50 transition-colors"
-          >
-            <Calendar className="h-4 w-4" />
-            <span className="hidden sm:inline">{t('treatments.views.calendar')}</span>
-          </Link>
+
+          {/* Type Filter Tabs */}
+          <div className="flex items-center gap-1 p-1 bg-muted rounded-lg">
+            <button
+              onClick={() => setTypeFilter('all')}
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                typeFilter === 'all'
+                  ? 'bg-background shadow-sm text-foreground font-medium'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
+              }`}
+            >
+              {t('settings.calendar.filterAll')}
+            </button>
+            <button
+              onClick={() => setTypeFilter('appointments')}
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
+                typeFilter === 'appointments'
+                  ? 'bg-background shadow-sm text-foreground font-medium'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
+              }`}
+            >
+              <Clock className="h-3.5 w-3.5" />
+              {t('settings.calendar.filterAppointments')}
+            </button>
+            <button
+              onClick={() => setTypeFilter('treatments')}
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
+                typeFilter === 'treatments'
+                  ? 'bg-background shadow-sm text-foreground font-medium'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
+              }`}
+            >
+              <Activity className="h-3.5 w-3.5" />
+              {t('settings.calendar.filterTreatments')}
+            </button>
+          </div>
         </div>
 
         {filteredPatient && (

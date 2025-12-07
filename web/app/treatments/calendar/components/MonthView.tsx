@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useCallback } from 'react'
-import { Plus, AlertTriangle, ChevronRight, Clock, User } from 'lucide-react'
+import { Plus, AlertTriangle, ChevronRight, Clock, User, CheckCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -10,7 +10,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { CalendarViewProps, getStatusColor, getStatusDot, Treatment } from './CalendarTypes'
+import { CalendarViewProps, getStatusColor, getStatusDot, getTreatmentBorderStyle, isAppointment, Treatment } from './CalendarTypes'
 
 interface MonthViewProps extends CalendarViewProps {
   days: number[]
@@ -189,6 +189,7 @@ export function MonthView({
               <div className="hidden md:block space-y-1 overflow-y-auto max-h-[80px]">
                 {dayTreatments.map(treatment => {
                   const isConflict = dayConflicts?.has(treatment.id)
+                  const isFutureAppointment = isAppointment(treatment)
                   return (
                     <div
                       key={treatment.id}
@@ -197,14 +198,20 @@ export function MonthView({
                         onTreatmentClick(treatment.id)
                       }}
                       className={cn(
-                        'text-xs p-1.5 rounded border cursor-pointer transition-colors hover:opacity-80',
+                        'text-xs p-1.5 rounded cursor-pointer transition-colors hover:opacity-80',
                         getStatusColor(treatment.status),
+                        getTreatmentBorderStyle(treatment),
                         isConflict && 'ring-2 ring-red-400 ring-offset-1'
                       )}
                     >
                       <div className="flex items-center gap-1">
                         {isConflict && (
                           <AlertTriangle className="h-3 w-3 text-red-500 flex-shrink-0" />
+                        )}
+                        {isFutureAppointment ? (
+                          <Clock className="h-3 w-3 flex-shrink-0 opacity-70" />
+                        ) : (
+                          <CheckCircle className="h-3 w-3 flex-shrink-0 opacity-70" />
                         )}
                         {treatment?.treatment_time && (
                           <span className="font-medium">
@@ -263,6 +270,7 @@ export function MonthView({
                   const isConflict = selectedDate
                     ? conflictsByDate[selectedDate]?.has(treatment.id)
                     : false
+                  const isFutureAppointment = isAppointment(treatment)
 
                   return (
                     <div
@@ -272,8 +280,9 @@ export function MonthView({
                         onTreatmentClick(treatment.id)
                       }}
                       className={cn(
-                        'flex items-center gap-3 p-4 rounded-xl border bg-card',
+                        'flex items-center gap-3 p-4 rounded-xl bg-card',
                         'active:bg-muted/50 transition-colors cursor-pointer',
+                        isFutureAppointment ? 'border-2 border-dashed' : 'border',
                         isConflict && 'border-red-300 bg-red-50/50 dark:border-red-800 dark:bg-red-900/20'
                       )}
                     >
@@ -288,6 +297,11 @@ export function MonthView({
                         <div className="flex items-center gap-2 mb-1">
                           {isConflict && (
                             <AlertTriangle className="h-4 w-4 text-red-500 flex-shrink-0" />
+                          )}
+                          {isFutureAppointment ? (
+                            <Clock className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                          ) : (
+                            <CheckCircle className="h-4 w-4 text-emerald-500 flex-shrink-0" />
                           )}
                           <span className="font-medium truncate">
                             {treatment.patient

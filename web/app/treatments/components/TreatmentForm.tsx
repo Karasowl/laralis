@@ -7,6 +7,16 @@ import { useWatch } from 'react-hook-form'
 import { calculateRequiredMargin, calcularPrecioFinal } from '@/lib/calc/tarifa'
 import { AlertTriangle } from 'lucide-react'
 
+// Helper to check if a date is in the future (for appointment vs treatment distinction)
+function isFutureDate(dateStr: string): boolean {
+  if (!dateStr) return false
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const targetDate = new Date(dateStr + 'T12:00:00')
+  targetDate.setHours(0, 0, 0, 0)
+  return targetDate > today
+}
+
 interface ConflictInfo {
   hasConflict: boolean
   conflicts: Array<{
@@ -273,8 +283,9 @@ export function TreatmentForm({
             label={t('treatments.fields.time')}
             type="time"
             {...form.register('treatment_time')}
-            error={form.formState.errors.treatment_time?.message}
-            helperText={t('treatments.timeHelp')}
+            error={form.formState.errors.treatment_time?.message ? t(form.formState.errors.treatment_time.message as string) : undefined}
+            helperText={isFutureDate(treatmentDate) ? t('settings.calendar.timeRequired') : t('treatments.timeHelp')}
+            required={isFutureDate(treatmentDate)}
           />
 
           <InputField
