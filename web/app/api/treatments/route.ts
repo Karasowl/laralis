@@ -20,7 +20,7 @@ const treatmentSchema = z.object({
   fixed_per_minute_cents: z.coerce.number().int().nonnegative().optional(),
   fixed_cost_per_minute_cents: z.coerce.number().int().nonnegative().optional(),
   variable_cost_cents: z.coerce.number().int().nonnegative().optional(),
-  margin_pct: z.coerce.number().min(0).max(500).optional(), // Allow high margins (same as frontend)
+  margin_pct: z.coerce.number().min(0).optional(), // No upper limit - in-house services can have very high margins
   price_cents: z.coerce.number().int().nonnegative().optional(),
   status: z.enum(['pending', 'completed', 'cancelled', 'scheduled', 'in_progress']).optional(),
   notes: z.string().optional(),
@@ -169,8 +169,8 @@ export async function POST(request: NextRequest) {
     if (!minutesVal || minutesVal <= 0) {
       return NextResponse.json({ error: 'precondition_failed', message: 'Minutes must be greater than zero.' }, { status: 412 });
     }
-    if (marginVal < 0 || marginVal > 500) {
-      return NextResponse.json({ error: 'precondition_failed', message: 'Margin percentage must be between 0 and 500.' }, { status: 412 });
+    if (marginVal < 0) {
+      return NextResponse.json({ error: 'precondition_failed', message: 'Margin percentage must be non-negative.' }, { status: 412 });
     }
     // If status is completed, require a positive price snapshot
     const normalizedStatus = (() => {

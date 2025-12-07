@@ -2163,6 +2163,12 @@
       "activity": "Activity",
       "created_at": "Registration"
     },
+    "errors": {
+      "duplicate_name": "A patient with this name already exists",
+      "duplicate_name_detail": "A patient named \"{name}\" already exists in this clinic. If they are different people, add something to differentiate them (e.g., \"Jr\", \"Sr\", middle initial).",
+      "duplicate_email": "A patient with this email already exists",
+      "duplicate_email_detail": "A patient with this email is already registered in this clinic. You can leave the email empty or use a different one."
+    },
     "activity": {
       "visits": "Visits",
       "treatments": "Treat.",
