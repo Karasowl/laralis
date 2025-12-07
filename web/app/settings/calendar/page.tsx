@@ -1,18 +1,15 @@
 'use client'
 
 // DEBUG: Version marker
-console.log('[calendar-settings] Version: 2024-12-07-v3-sonner')
+console.log('[calendar-settings] Version: 2024-12-07-v4-no-params')
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { useSearchParams } from 'next/navigation'
-import { toast } from 'sonner'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { useApi } from '@/hooks/use-api'
 import {
   Calendar,
   CheckCircle,
@@ -44,59 +41,32 @@ interface CalendarStatus {
   config: CalendarConfig | null
 }
 
-// Separate component to handle URL params with Suspense
-function CalendarParamsHandler({
-  onSuccess,
-  onError
-}: {
-  onSuccess: () => void
-  onError: (msg: string) => void
-}) {
-  const t = useTranslations()
-  const searchParams = useSearchParams()
-
-  useEffect(() => {
-    const success = searchParams.get('success')
-    const error = searchParams.get('error')
-
-    if (success === 'connected') {
-      onSuccess()
-    }
-
-    if (error) {
-      let errorMessage = t('settings.calendar.connectionError')
-      if (error === 'no_calendars') {
-        errorMessage = t('settings.calendar.noCalendars')
-      } else if (error === 'permission_denied') {
-        errorMessage = t('settings.calendar.permissionDenied')
-      }
-      onError(errorMessage)
-    }
-  }, [searchParams, t, onSuccess, onError])
-
-  return null
-}
-
 export default function CalendarSettingsPage() {
   const t = useTranslations()
   const [isConnecting, setIsConnecting] = useState(false)
   const [isDisconnecting, setIsDisconnecting] = useState(false)
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false)
+  const [status, setStatus] = useState<CalendarStatus | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
   // Fetch calendar status
-  const { data: status, isLoading, refetch } = useApi<CalendarStatus>(
-    '/api/auth/google-calendar'
-  )
-
-  // Handlers for URL params
-  const handleSuccess = () => {
-    toast.success(t('settings.calendar.connectionSuccess'))
-    refetch()
+  const fetchStatus = async () => {
+    try {
+      const response = await fetch('/api/auth/google-calendar')
+      if (response.ok) {
+        const data = await response.json()
+        setStatus(data)
+      }
+    } catch (error) {
+      console.error('Error fetching calendar status:', error)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const handleError = (msg: string) => {
-    toast.error(msg)
-  }
+  useEffect(() => {
+    fetchStatus()
+  }, [])
 
   // Connect to Google Calendar
   const handleConnect = async () => {
@@ -112,7 +82,7 @@ export default function CalendarSettingsPage() {
         throw new Error('Failed to get auth URL')
       }
     } catch (error) {
-      toast.error(t('settings.calendar.connectionError'))
+      console.error('Error connecting:', error)
       setIsConnecting(false)
     }
   }
@@ -126,13 +96,12 @@ export default function CalendarSettingsPage() {
       })
 
       if (response.ok) {
-        toast.success(t('settings.calendar.disconnectSuccess'))
-        refetch()
+        fetchStatus()
       } else {
         throw new Error('Failed to disconnect')
       }
     } catch (error) {
-      toast.error(t('settings.calendar.connectionError'))
+      console.error('Error disconnecting:', error)
     } finally {
       setIsDisconnecting(false)
       setShowDisconnectDialog(false)
@@ -141,11 +110,6 @@ export default function CalendarSettingsPage() {
 
   return (
     <AppLayout>
-      {/* Handle URL params in Suspense to avoid hydration issues */}
-      <Suspense fallback={null}>
-        <CalendarParamsHandler onSuccess={handleSuccess} onError={handleError} />
-      </Suspense>
-
       <div className="p-4 lg:p-8 max-w-[1280px] mx-auto space-y-6">
         <PageHeader
           title={t('settings.calendar.title')}
