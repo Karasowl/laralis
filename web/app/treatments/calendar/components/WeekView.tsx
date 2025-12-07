@@ -1,9 +1,9 @@
 'use client'
 
 import { useMemo } from 'react'
-import { Plus, AlertTriangle, Clock, ChevronRight } from 'lucide-react'
+import { Plus, AlertTriangle, Clock, ChevronRight, CheckCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { CalendarViewProps, getStatusColor, getStatusDot } from './CalendarTypes'
+import { CalendarViewProps, getStatusColor, getStatusDot, getTreatmentBorderStyle, isAppointment } from './CalendarTypes'
 
 interface WeekViewProps extends CalendarViewProps {
   weekDates: Date[]
@@ -87,18 +87,25 @@ export function WeekView({
                 <div className="space-y-1">
                   {dayTreatments.map(treatment => {
                     const isConflict = dayConflicts?.has(treatment.id)
+                    const isFutureAppointment = isAppointment(treatment)
                     return (
                       <div
                         key={treatment.id}
                         onClick={(e) => { e.stopPropagation(); onTreatmentClick(treatment.id) }}
                         className={cn(
-                          'text-xs p-2 rounded border cursor-pointer transition-colors hover:opacity-80',
+                          'text-xs p-2 rounded cursor-pointer transition-colors hover:opacity-80',
                           getStatusColor(treatment.status),
+                          getTreatmentBorderStyle(treatment),
                           isConflict && 'ring-2 ring-red-400 ring-offset-1'
                         )}
                       >
                         <div className="flex items-center gap-1">
                           {isConflict && <AlertTriangle className="h-3 w-3 text-red-500 flex-shrink-0" />}
+                          {isFutureAppointment ? (
+                            <Clock className="h-3 w-3 flex-shrink-0 opacity-70" />
+                          ) : (
+                            <CheckCircle className="h-3 w-3 flex-shrink-0 opacity-70" />
+                          )}
                           <span className="font-medium">{treatment?.treatment_time?.slice(0, 5) || '-'}</span>
                         </div>
                         <div className="truncate">
@@ -172,13 +179,15 @@ export function WeekView({
               <div className="space-y-2">
                 {treatments.map(treatment => {
                   const isConflict = conflicts?.has(treatment.id)
+                  const isFutureAppointment = isAppointment(treatment)
                   return (
                     <div
                       key={treatment.id}
                       onClick={() => onTreatmentClick(treatment.id)}
                       className={cn(
-                        'flex items-center gap-3 p-3 rounded-xl border bg-card',
+                        'flex items-center gap-3 p-3 rounded-xl bg-card',
                         'active:bg-muted/50 transition-colors cursor-pointer',
+                        isFutureAppointment ? 'border-2 border-dashed' : 'border',
                         isConflict && 'border-red-300 bg-red-50/50 dark:border-red-800 dark:bg-red-900/20'
                       )}
                     >
@@ -203,6 +212,11 @@ export function WeekView({
                         <div className="flex items-center gap-2">
                           {isConflict && (
                             <AlertTriangle className="h-3 w-3 text-red-500 flex-shrink-0" />
+                          )}
+                          {isFutureAppointment ? (
+                            <Clock className="h-3 w-3 text-amber-500 flex-shrink-0" />
+                          ) : (
+                            <CheckCircle className="h-3 w-3 text-emerald-500 flex-shrink-0" />
                           )}
                           <span className="font-medium text-sm truncate">
                             {treatment.patient

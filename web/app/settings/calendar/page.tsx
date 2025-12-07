@@ -1,8 +1,5 @@
 'use client'
 
-// DEBUG: Version marker
-console.log('[calendar-settings] Version: 2024-12-07-v4-no-params')
-
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { AppLayout } from '@/components/layouts/AppLayout'
@@ -10,6 +7,10 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
+import { useCurrentClinic } from '@/hooks/use-current-clinic'
+import { toast } from 'sonner'
 import {
   Calendar,
   CheckCircle,
@@ -18,6 +19,7 @@ import {
   Loader2,
   AlertTriangle,
   Unlink,
+  Clock,
 } from 'lucide-react'
 import {
   AlertDialog,
@@ -43,11 +45,47 @@ interface CalendarStatus {
 
 export default function CalendarSettingsPage() {
   const t = useTranslations()
+  const { currentClinic } = useCurrentClinic()
   const [isConnecting, setIsConnecting] = useState(false)
   const [isDisconnecting, setIsDisconnecting] = useState(false)
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false)
   const [status, setStatus] = useState<CalendarStatus | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [autoComplete, setAutoComplete] = useState(false)
+  const [isSavingAutoComplete, setIsSavingAutoComplete] = useState(false)
+
+  // Initialize auto-complete from clinic data
+  useEffect(() => {
+    if (currentClinic) {
+      setAutoComplete((currentClinic as any).auto_complete_appointments || false)
+    }
+  }, [currentClinic])
+
+  // Handle auto-complete toggle
+  const handleAutoCompleteChange = async (checked: boolean) => {
+    if (!currentClinic) return
+
+    setIsSavingAutoComplete(true)
+    try {
+      const response = await fetch(`/api/clinics/${currentClinic.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ auto_complete_appointments: checked }),
+      })
+
+      if (response.ok) {
+        setAutoComplete(checked)
+        toast.success(t('common.saved'))
+      } else {
+        throw new Error('Failed to save')
+      }
+    } catch (error) {
+      console.error('Error saving auto-complete setting:', error)
+      toast.error(t('common.error'))
+    } finally {
+      setIsSavingAutoComplete(false)
+    }
+  }
 
   // Fetch calendar status
   const fetchStatus = async () => {
@@ -244,6 +282,43 @@ export default function CalendarSettingsPage() {
               <CheckCircle className="h-3 w-3 inline mr-2 text-emerald-500" />
               {t('settings.calendar.syncOnDelete')}
             </p>
+          </CardContent>
+        </Card>
+
+        {/* Auto-complete Appointments Card */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-muted p-2">
+                <Clock className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">
+                  {t('settings.calendar.autoComplete')}
+                </CardTitle>
+                <CardDescription>
+                  {t('settings.calendar.autoCompleteDescription')}
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="auto-complete" className="text-sm font-medium">
+                  {t('settings.calendar.autoCompleteLabel')}
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  {t('settings.calendar.autoCompleteHint')}
+                </p>
+              </div>
+              <Switch
+                id="auto-complete"
+                checked={autoComplete}
+                onCheckedChange={handleAutoCompleteChange}
+                disabled={isSavingAutoComplete}
+              />
+            </div>
           </CardContent>
         </Card>
 

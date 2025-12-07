@@ -1850,7 +1850,17 @@
       "chooseCalendar": "Elige tu calendario",
       "primaryCalendar": "Principal",
       "connectSelected": "Conectar calendario seleccionado",
-      "selectInfo": "Puedes elegir tu calendario personal, uno compartido, o cualquier calendario de Google al que tengas acceso. Las citas se sincronizarán automáticamente."
+      "selectInfo": "Puedes elegir tu calendario personal, uno compartido, o cualquier calendario de Google al que tengas acceso. Las citas se sincronizarán automáticamente.",
+      "autoComplete": "Completar Citas Automáticamente",
+      "autoCompleteDescription": "Marca automáticamente las citas pasadas como completadas a medianoche",
+      "autoCompleteLabel": "Completar automáticamente",
+      "autoCompleteHint": "Cuando está activo, las citas se marcan como completadas cuando llega su fecha. Si no, debes marcarlas manualmente.",
+      "newAppointment": "Nueva Cita",
+      "newTreatment": "Nuevo Tratamiento",
+      "timeRequired": "La hora es requerida para citas futuras",
+      "filterAll": "Todas",
+      "filterAppointments": "Citas",
+      "filterTreatments": "Tratamientos"
     },
     "groups": {
       "personal": {
