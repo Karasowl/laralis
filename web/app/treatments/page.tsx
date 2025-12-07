@@ -362,7 +362,7 @@ export default function TreatmentsPage() {
       sortable: true,
       render: (_value: any, treatment: Treatment) => (
         <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-muted-foreground" />
+          <Calendar className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
           {formatDate(treatment.treatment_date)}
         </div>
       )
@@ -373,7 +373,7 @@ export default function TreatmentsPage() {
       sortable: true,
       render: (_value: any, treatment: Treatment) => (
         <div className="flex items-center gap-2">
-          <Clock className="h-4 w-4 text-muted-foreground" />
+          <Clock className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
           {treatment?.treatment_time ? treatment.treatment_time.slice(0, 5) : '—'}
         </div>
       )
@@ -388,12 +388,12 @@ export default function TreatmentsPage() {
             href={`/patients/${patient.id}`}
             className="flex items-center gap-2 text-primary hover:underline hover:text-primary/80 transition-colors"
           >
-            <User className="h-4 w-4 text-muted-foreground" />
+            <User className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
             {`${patient.first_name} ${patient.last_name}`}
           </Link>
         ) : (
           <div className="flex items-center gap-2">
-            <User className="h-4 w-4 text-muted-foreground" />
+            <User className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
             {t('common.notAvailable')}
           </div>
         )
@@ -412,7 +412,7 @@ export default function TreatmentsPage() {
       label: t('treatments.fields.duration'),
       render: (value: any) => (
         <div className="flex items-center gap-2">
-          <Clock className="h-4 w-4 text-muted-foreground" />
+          <Clock className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
           {value ?? 0} {t('common.minutes')}
         </div>
       )

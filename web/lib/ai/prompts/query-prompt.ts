@@ -317,8 +317,79 @@ ${treatments.by_service && treatments.by_service.length > 0
   ? treatments.by_service.map((ts: any) => `- **${ts.service_name}**: ${ts.count} treatments, ${fmt(ts.revenue_cents)} revenue`).join('\n')
   : 'No treatments recorded in this period.'}
 
+### DETAILED APPOINTMENT SCHEDULE (Last 30 Days)
+**CRITICAL**: This is the full list of appointments with TIMES and DATES for schedule-related questions.
+
+${data?.full_treatments && data.full_treatments.length > 0
+  ? data.full_treatments.slice(0, 50).map((t: any) => {
+      const timeStr = t.time ? t.time.substring(0, 5) : 'No time set'
+      const statusLabel = t.status === 'completed' ? '✓ Completed' : t.status === 'cancelled' ? '✗ Cancelled' : t.status === 'in_progress' ? '⏳ In progress' : '📅 Scheduled'
+      const paidLabel = t.is_paid ? '💰 Paid' : '⏳ Pending payment'
+      const toothInfo = t.tooth_number ? ` [Tooth: ${t.tooth_number}]` : ''
+      return `- **${t.date} at ${timeStr}**: ${t.patient} - ${t.service} (${t.duration_minutes || 0} min) - ${statusLabel} - ${paidLabel}${toothInfo}${t.notes ? ` | Notes: ${t.notes}` : ''}`
+    }).join('\n')
+  : 'No appointments recorded in this period.'}
+
+${data?.full_treatments && data.full_treatments.length > 50 ? `\n... and ${data.full_treatments.length - 50} more appointments` : ''}
+
+**SCHEDULE ANALYSIS** (for questions like "when are most appointments scheduled?"):
+${(() => {
+  const fullTreatments = data?.full_treatments || []
+  if (fullTreatments.length === 0) return 'No appointment data available for schedule analysis.'
+
+  // Count appointments by hour
+  const hourCounts: Record<string, number> = {}
+  const dayOfWeekCounts: Record<string, number> = {}
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+  fullTreatments.forEach((t: any) => {
+    if (t.time) {
+      const hour = parseInt(t.time.substring(0, 2), 10)
+      const hourLabel = hour < 12 ? `${hour}:00 AM` : hour === 12 ? '12:00 PM' : `${hour - 12}:00 PM`
+      hourCounts[hourLabel] = (hourCounts[hourLabel] || 0) + 1
+    }
+    if (t.date) {
+      const date = new Date(t.date)
+      const dayName = dayNames[date.getDay()]
+      dayOfWeekCounts[dayName] = (dayOfWeekCounts[dayName] || 0) + 1
+    }
+  })
+
+  // Sort by count descending
+  const topHours = Object.entries(hourCounts)
+    .sort(([,a], [,b]) => b - a)
+    .slice(0, 5)
+  const topDays = Object.entries(dayOfWeekCounts)
+    .sort(([,a], [,b]) => b - a)
+
+  let analysis = ''
+
+  if (topHours.length > 0) {
+    analysis += `**Most Popular Hours**:\n${topHours.map(([hour, count]) => `  - ${hour}: ${count} appointments`).join('\n')}\n\n`
+  }
+
+  if (topDays.length > 0) {
+    analysis += `**Appointments by Day of Week**:\n${topDays.map(([day, count]) => `  - ${day}: ${count} appointments`).join('\n')}`
+  }
+
+  return analysis || 'Not enough time data for schedule analysis.'
+})()}
+
 ### PATIENT SOURCES (New Patients)
 ${Object.entries(patients.by_source || {}).map(([source, count]: [string, any]) => `- ${source}: ${count} patients`).join('\n')}
+
+### PATIENT DIRECTORY (Recent Patients)
+**Use this for patient-specific questions like "When was [patient]'s last visit?" or "What treatments has [patient] had?"**
+
+${data?.full_patients && data.full_patients.length > 0
+  ? data.full_patients.slice(0, 30).map((p: any) => {
+      const visitDate = p.first_visit_date ? `First visit: ${p.first_visit_date}` : 'No visit recorded'
+      const createdDate = p.created_at ? p.created_at.substring(0, 10) : 'Unknown'
+      return `- **${p.first_name} ${p.last_name}** | Phone: ${p.phone || 'N/A'} | Email: ${p.email || 'N/A'} | Registered: ${createdDate} | ${visitDate}${p.notes ? ` | Notes: ${p.notes.substring(0, 100)}...` : ''}`
+    }).join('\n')
+  : 'No patients registered yet.'}
+
+${data?.full_patients && data.full_patients.length > 30 ? `\n... and ${data.full_patients.length - 30} more patients in the system` : ''}
 
 ### SUPPLIES INVENTORY
 - **Total Items**: ${data?.supplies?.total_items || 0}

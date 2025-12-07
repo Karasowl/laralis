@@ -2127,6 +2127,7 @@
     "noReferrer": "None",
     "campaign": "Campaign",
     "select_campaign": "Select a campaign",
+    "campaign_required": "You must select a campaign",
     "selectCampaign": "Select campaign",
     "campaignPlaceholder": "Select campaign",
     "platform": "Platform",
@@ -2145,7 +2146,7 @@
     "acquisition": {
       "campaigns": "Advertising Campaigns",
       "referrals": "Referrals",
-      "organic": "Organic",
+      "organic": "Social Organic",
       "other": "Other",
       "direct_visit": "Direct Visit",
       "referred_by_patient": "Referred by Patient",

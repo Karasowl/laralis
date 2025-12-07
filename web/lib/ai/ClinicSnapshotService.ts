@@ -58,6 +58,31 @@ interface BreakEvenAnalytics {
   calculation_metadata: CalculationMetadata
 }
 
+interface FullTreatment {
+  id: string
+  date: string
+  time: string | null
+  patient: string
+  service: string
+  price_cents: number
+  duration_minutes: number | null
+  status: string | null
+  tooth_number: string | null
+  is_paid: boolean
+  notes: string | null
+}
+
+interface FullPatient {
+  id: string
+  first_name: string
+  last_name: string
+  phone: string | null
+  email: string | null
+  notes: string | null
+  created_at: string | null
+  first_visit_date: string | null
+}
+
 interface FullClinicSnapshot {
   app_schema: AppSchema
   clinic: {
@@ -73,6 +98,9 @@ interface FullClinicSnapshot {
     assets: any
     expenses: any
     fixed_costs: any
+    // Full records for AI context (with notes, times, etc.)
+    full_patients: FullPatient[]
+    full_treatments: FullTreatment[]
   }
   analytics: {
     break_even: BreakEvenAnalytics
@@ -602,31 +630,38 @@ export class ClinicSnapshotService {
     clinicId: string,
     startDate: Date
   ) {
-    // Load all treatments in period with complete information including notes
+    // Load all treatments in period with complete information including notes and TIME
     const { data: treatments } = await supabase
       .from('treatments')
       .select(`
         id,
         treatment_date,
+        treatment_time,
         price_cents,
         status,
         notes,
         duration_minutes,
+        tooth_number,
+        is_paid,
         patients!inner(first_name, last_name),
         services!inner(name)
       `)
       .eq('clinic_id', clinicId)
       .gte('treatment_date', startDate.toISOString())
       .order('treatment_date', { ascending: false })
+      .order('treatment_time', { ascending: true })
 
     return (treatments || []).map(t => ({
       id: t.id,
       date: t.treatment_date,
+      time: t.treatment_time || null, // CRITICAL: Include appointment time
       patient: `${(t.patients as any).first_name} ${(t.patients as any).last_name}`,
       service: (t.services as any).name,
       price_cents: t.price_cents,
       duration_minutes: t.duration_minutes,
       status: t.status,
+      tooth_number: t.tooth_number || null, // Dental context
+      is_paid: t.is_paid || false,
       notes: t.notes || null,
     }))
   }

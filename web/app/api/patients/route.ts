@@ -44,7 +44,13 @@ export async function GET(request: NextRequest) {
 
     let query = supabaseAdmin
       .from('patients')
-      .select('*, source:patient_sources(*)')
+      .select(`
+        *,
+        source:patient_sources(*),
+        campaign:marketing_campaigns(id, name),
+        platform:categories(id, name, display_name),
+        referred_by:patients!referred_by_patient_id(id, first_name, last_name)
+      `)
       .eq('clinic_id', clinicId)
       .order('created_at', { ascending: false });
 

@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
-import { Plus, AlertTriangle, ChevronRight, Clock, User, CheckCircle } from 'lucide-react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
+import { Plus, AlertTriangle, ChevronRight, Clock, CheckCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Badge } from '@/components/ui/badge'
 import {
   Sheet,
   SheetContent,
@@ -33,6 +32,15 @@ export function MonthView({
 }: MonthViewProps) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+
+  // Detect screen size for responsive sheet
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   // Get treatments for selected date
   const selectedTreatments = useMemo(() => {
@@ -51,19 +59,11 @@ export function MonthView({
     })
   }, [selectedDate])
 
-  // Handle day click on mobile - open sheet
-  const handleDayClick = useCallback((dateStr: string, dayTreatments: Treatment[]) => {
-    // Check if mobile (window exists and is small)
-    if (typeof window !== 'undefined' && window.innerWidth < 768) {
-      setSelectedDate(dateStr)
-      setSheetOpen(true)
-    } else {
-      // Desktop behavior - only trigger create if no treatments
-      if (dayTreatments.length === 0) {
-        onCreateTreatment(dateStr)
-      }
-    }
-  }, [onCreateTreatment])
+  // Handle day click - always open sheet to view/create treatments
+  const handleDayClick = useCallback((dateStr: string) => {
+    setSelectedDate(dateStr)
+    setSheetOpen(true)
+  }, [])
 
   // Handle add treatment from sheet
   const handleAddFromSheet = useCallback(() => {
@@ -119,7 +119,7 @@ export function MonthView({
           return (
             <div
               key={day}
-              onClick={() => handleDayClick(dateStr, dayTreatments)}
+              onClick={() => handleDayClick(dateStr)}
               className={cn(
                 // Base styles - compact on mobile, expanded on desktop
                 'min-h-[44px] md:min-h-[120px] rounded md:rounded-lg transition-colors cursor-pointer',
@@ -236,9 +236,14 @@ export function MonthView({
         })}
       </div>
 
-      {/* Mobile: Day detail sheet */}
+      {/* Day detail sheet - responsive (bottom on mobile, right on desktop) */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent side="bottom" className="h-[70vh] rounded-t-2xl">
+        <SheetContent
+          side={isMobile ? "bottom" : "right"}
+          className={cn(
+            isMobile ? "h-[70vh] rounded-t-2xl" : "w-[400px] sm:w-[450px]"
+          )}
+        >
           <SheetHeader className="text-left pb-4 border-b">
             <SheetTitle className="capitalize text-lg">
               {selectedDateFormatted}

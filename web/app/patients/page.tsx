@@ -408,10 +408,25 @@ export default function PatientsPage() {
       className: 'hidden lg:table-cell',
       render: (_value: any, patient: Patient) => {
         if (!patient) return null;
-        if (patient.source) {
-          return <Badge variant="outline">{patient.source.name}</Badge>
+
+        // Campaña publicitaria → nombre de la campaña
+        if (patient.campaign_id && patient.campaign?.name) {
+          return <Badge variant="outline">{patient.campaign.name}</Badge>
         }
-        return null
+
+        // Referencia → nombre de quien refirió
+        if (patient.referred_by_patient_id && patient.referred_by) {
+          const name = `${patient.referred_by.first_name} ${patient.referred_by.last_name}`
+          return <Badge variant="outline">{name}</Badge>
+        }
+
+        // Redes orgánico → nombre de la plataforma
+        if (patient.platform_id && patient.platform) {
+          return <Badge variant="outline">{patient.platform.display_name || patient.platform.name}</Badge>
+        }
+
+        // Directo (default)
+        return <Badge variant="outline">{t('acquisition.direct')}</Badge>
       }
     },
     {
