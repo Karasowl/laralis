@@ -539,26 +539,130 @@ export default function PatientsPage() {
         />
       }
       mobileColumns={[
-        columns[0],
-        columns[1],
         {
-          key: '_mobile_summary',
-          label: '',
+          key: '_mobile_patient_name',
+          label: tFields('name'),
+          render: (_: any, patient: Patient) => (
+            <div className="font-semibold text-foreground">
+              {patient.first_name} {patient.last_name}
+            </div>
+          )
+        },
+        {
+          key: '_mobile_phone',
+          label: tFields('phone'),
+          render: (_: any, patient: Patient) => {
+            if (!patient.phone) return <span className="text-muted-foreground text-sm">{tCommon('noPhone')}</span>
+            return (
+              <div className="flex items-center justify-end gap-1">
+                <span className="text-sm mr-2">{patient.phone}</span>
+                <a
+                  href={getTelHref(patient.phone)}
+                  className="inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  aria-label={tg('actions.call')}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Phone className="h-4 w-4" />
+                </a>
+                <a
+                  href={getWhatsAppHref(
+                    patient.phone,
+                    `Hola ${`${patient.first_name || ''} ${patient.last_name || ''}`.trim()}${currentClinic?.name ? `, te escribe ${currentClinic.name}.` : ''}`
+                  )}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center h-7 w-7 rounded-md text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20"
+                  aria-label="WhatsApp"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MessageCircle className="h-4 w-4" />
+                </a>
+              </div>
+            )
+          }
+        },
+        {
+          key: '_mobile_source',
+          label: tFields('source'),
+          render: (_: any, patient: Patient) => {
+            // Campana publicitaria
+            if (patient.campaign_id && patient.campaign?.name) {
+              return <Badge variant="outline" className="text-xs">{patient.campaign.name}</Badge>
+            }
+            // Referencia
+            if (patient.referred_by_patient_id && patient.referred_by) {
+              const name = `${patient.referred_by.first_name} ${patient.referred_by.last_name}`
+              return <Badge variant="outline" className="text-xs">{name}</Badge>
+            }
+            // Redes organico
+            if (patient.platform_id && patient.platform) {
+              return <Badge variant="outline" className="text-xs">{patient.platform.display_name || patient.platform.name}</Badge>
+            }
+            // Directo
+            return <Badge variant="outline" className="text-xs">{t('acquisition.direct')}</Badge>
+          }
+        },
+        {
+          key: '_mobile_activity',
+          label: t('fields.activity'),
           render: (_: any, patient: Patient) => {
             const stats = statsByPatient.get(patient.id)
             const count = stats?.treatments ?? 0
             const amount = formatCurrency(stats?.spent_cents ?? 0)
             return (
-              <div className="text-sm text-muted-foreground">
-                <span className="mr-1">{t('activity.treatments')}:</span>
-                <span className="text-foreground font-medium mr-2">{count}</span>
-                <span className="text-muted-foreground">•</span>
-                <span className="ml-2 text-foreground/90">{amount}</span>
+              <div className="flex items-center justify-end gap-3 text-sm">
+                <span className="text-muted-foreground">
+                  {count} {t('activity.treatments')}
+                </span>
+                <span className="font-medium text-foreground">{amount}</span>
               </div>
             )
           }
         },
-        columns[columns.length - 1]
+        {
+          key: 'actions',
+          label: tCommon('actions'),
+          sortable: false,
+          render: (_: any, patient: Patient) => {
+            if (!patient) return null
+            return (
+              <ActionDropdown
+                actions={[
+                  {
+                    label: tg('actions.view'),
+                    icon: <Eye className="h-4 w-4" />,
+                    onClick: () => setTimeout(() => setViewPatient(patient), 0),
+                  },
+                  {
+                    label: t('treatment_history'),
+                    icon: <FileText className="h-4 w-4" />,
+                    onClick: () => setTimeout(() => router.push(`/treatments?patient_id=${patient.id}`), 0),
+                  },
+                  createEditAction(() => {
+                    form.reset({
+                      first_name: patient.first_name,
+                      last_name: patient.last_name,
+                      email: patient.email || '',
+                      phone: patient.phone || '',
+                      birth_date: patient.birth_date || '',
+                      first_visit_date: patient.first_visit_date || '',
+                      gender: patient.gender || '',
+                      address: patient.address || '',
+                      city: patient.city || '',
+                      postal_code: patient.postal_code || '',
+                      notes: patient.notes || '',
+                      referred_by_patient_id: patient.referred_by_patient_id || '',
+                      campaign_id: patient.campaign_id || '',
+                      platform_id: patient.platform_id || ''
+                    })
+                    setTimeout(() => setEditPatient(patient), 0)
+                  }, tCommon('edit')),
+                  createDeleteAction(() => setDeletePatientData(patient), tCommon('delete'))
+                ]}
+              />
+            )
+          }
+        }
       ]}
       emptyIcon={<Users className="h-8 w-8" />}
       searchable={true}

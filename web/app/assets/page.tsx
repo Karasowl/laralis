@@ -132,18 +132,18 @@ export default function AssetsPage() {
 
   // Table columns
   const columns = [
-    { 
-      key: 'name', 
-      label: t('assets.table.name') 
+    {
+      key: 'name',
+      label: t('assets.table.name')
     },
-    { 
-      key: 'purchase_price_cents', 
-      label: t('assets.table.purchasePrice'), 
-      render: (_value: unknown, row: Asset) => formatCurrency(row.purchase_price_cents) 
+    {
+      key: 'purchase_price_cents',
+      label: t('assets.table.purchasePrice'),
+      render: (_value: unknown, row: Asset) => formatCurrency(row.purchase_price_cents)
     },
-    { 
-      key: 'depreciation_months', 
-      label: t('assets.table.months') 
+    {
+      key: 'depreciation_months',
+      label: t('assets.table.months')
     },
     {
       key: 'monthly_dep',
@@ -152,6 +152,34 @@ export default function AssetsPage() {
       render: (_value: unknown, row: Asset) =>
         formatCurrency(Math.round(row.purchase_price_cents / row.depreciation_months))
     }
+  ];
+
+  // Mobile-optimized columns
+  const mobileColumns = [
+    {
+      key: 'name',
+      label: t('assets.table.asset'),
+      render: (_value: unknown, row: Asset) => (
+        <span className="font-medium text-foreground">{row.name}</span>
+      ),
+    },
+    {
+      key: 'purchase_price_cents',
+      label: t('assets.table.value'),
+      render: (_value: unknown, row: Asset) => (
+        <span className="font-semibold text-foreground">{formatCurrency(row.purchase_price_cents)}</span>
+      ),
+    },
+    {
+      key: 'monthly_dep',
+      label: t('assets.table.depreciation'),
+      sortable: false,
+      render: (_value: unknown, row: Asset) => (
+        <span className="text-muted-foreground">
+          {formatCurrency(Math.round(row.purchase_price_cents / row.depreciation_months))}/{t('businessSetup.assets.month')}
+        </span>
+      ),
+    },
   ];
 
   // Summary cards
@@ -253,6 +281,7 @@ export default function AssetsPage() {
         items={crud.items}
         loading={crud.loading}
         columns={columns}
+        mobileColumns={mobileColumns}
         onAdd={handleOpenDialog}
         onEdit={handleEdit}
         onDelete={crud.handleDeleteClick}

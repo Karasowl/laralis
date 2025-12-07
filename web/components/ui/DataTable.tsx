@@ -198,45 +198,60 @@ function DataTable<T extends { id?: string | number }>({
         </div>
       ) : (
         <div className={cn("rounded-xl border bg-card shadow-sm overflow-hidden", className)} {...props}>
-          {/* Mobile cards */}
+          {/* Mobile cards - Professional mobile-first design */}
           <div className="md:hidden divide-y divide-border">
             {sortedData.map((item, rowIndex) => {
               const cols = mobileColumns && mobileColumns.length > 0
                 ? mobileColumns
-                : columns.slice(0, Math.min(3, columns.length));
+                : columns.slice(0, Math.min(4, columns.length));
+
+              // Separate actions from regular columns
+              const actionCol = cols.find(c => c.key === 'actions');
+              const regularCols = cols.filter(c => c.key !== 'actions');
+
               return (
                 <div
                   key={(item as any).id ?? rowIndex}
-                  className="p-3 sm:p-4 space-y-2 active:bg-muted/50 transition-colors"
+                  className="p-4 space-y-3 active:bg-muted/50 transition-colors"
                 >
-                  {cols.map((column, colIndex) => {
-                    const value = getValue(item, column.key);
-                    const isActions = column.key === 'actions';
+                  {/* Regular fields in a structured layout */}
+                  <div className="space-y-2">
+                    {regularCols.map((column, colIndex) => {
+                      const value = getValue(item, column.key);
+                      const isFirstCol = colIndex === 0;
 
-                    return (
-                      <div
-                        key={colIndex}
-                        className={cn(
-                          "flex items-start gap-2",
-                          isActions && "justify-end pt-2 border-t mt-2"
-                        )}
-                      >
-                        {!isActions && column.label && (
-                          <span className="text-xs text-muted-foreground min-w-[80px] flex-shrink-0">
-                            {column.label}:
+                      return (
+                        <div
+                          key={colIndex}
+                          className={cn(
+                            "flex items-start justify-between gap-3",
+                            isFirstCol && "pb-2 border-b border-border/50"
+                          )}
+                        >
+                          <span className="text-xs text-muted-foreground flex-shrink-0 uppercase tracking-wide pt-0.5">
+                            {column.label}
                           </span>
-                        )}
-                        <div className={cn(
-                          "text-sm flex-1 min-w-0",
-                          !isActions && "text-right"
-                        )}>
-                          {column.render
-                            ? column.render(value, item, rowIndex)
-                            : String(value ?? "")}
+                          <div className={cn(
+                            "text-sm text-right min-w-0 flex-1",
+                            isFirstCol && "font-medium"
+                          )}>
+                            {column.render
+                              ? column.render(value, item, rowIndex)
+                              : String(value ?? "")}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
+
+                  {/* Actions row - separated with border */}
+                  {actionCol && (
+                    <div className="flex justify-end pt-2 border-t border-border/50">
+                      {actionCol.render
+                        ? actionCol.render(getValue(item, actionCol.key), item, rowIndex)
+                        : null}
+                    </div>
+                  )}
                 </div>
               );
             })}

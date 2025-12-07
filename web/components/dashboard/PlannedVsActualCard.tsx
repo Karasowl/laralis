@@ -21,7 +21,7 @@ interface PlannedVsActualCardProps {
 }
 
 export function PlannedVsActualCard({ data }: PlannedVsActualCardProps) {
-  const t = useTranslations('dashboard')
+  const t = useTranslations('dashboard.plannedVsActual')
 
   const isOverBudget = data.total_variance_cents > 0
   const isUnderBudget = data.total_variance_cents < 0
@@ -54,34 +54,34 @@ export function PlannedVsActualCard({ data }: PlannedVsActualCardProps) {
   return (
     <Card className="overflow-hidden">
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="space-y-1">
-            <CardTitle className="text-lg flex items-center gap-2">
+            <CardTitle className="text-base sm:text-lg flex items-center gap-2">
               <StatusIcon className={cn(
-                'h-5 w-5',
+                'h-4 w-4 sm:h-5 sm:w-5',
                 isOverBudget && 'text-amber-600',
                 isUnderBudget && 'text-emerald-600',
                 isOnTrack && 'text-muted-foreground'
               )} />
-              Planeado vs Real
+              {t('title')}
             </CardTitle>
-            <CardDescription>
-              Costos fijos: presupuesto vs gastos reales
+            <CardDescription className="text-xs sm:text-sm">
+              {t('subtitle')}
             </CardDescription>
           </div>
-          <Badge variant={isOverBudget ? 'destructive' : 'default'} className="gap-1">
+          <Badge variant={isOverBudget ? 'destructive' : 'default'} className="gap-1 self-start sm:self-auto">
             {data.total_variance_pct > 0 ? '+' : ''}
             {data.total_variance_pct.toFixed(1)}%
           </Badge>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-4 sm:space-y-6">
         {/* Total Summary */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Planeado (mensual)</span>
-            <span className="font-medium">{formatCurrency(data.total_planned_cents)}</span>
+          <div className="flex items-center justify-between text-xs sm:text-sm">
+            <span className="text-muted-foreground">{t('planned')}</span>
+            <span className="font-medium tabular-nums">{formatCurrency(data.total_planned_cents)}</span>
           </div>
 
           <Progress
@@ -93,16 +93,16 @@ export function PlannedVsActualCard({ data }: PlannedVsActualCardProps) {
             )}
           />
 
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Real (período)</span>
-            <span className={cn('font-semibold', getVarianceColor(data.total_variance_cents))}>
+          <div className="flex items-center justify-between text-xs sm:text-sm">
+            <span className="text-muted-foreground">{t('actual')}</span>
+            <span className={cn('font-semibold tabular-nums', getVarianceColor(data.total_variance_cents))}>
               {formatCurrency(data.total_actual_cents)}
             </span>
           </div>
 
           <div className="flex items-center justify-between pt-2 border-t">
-            <span className="text-sm font-medium">Varianza</span>
-            <span className={cn('font-bold text-base', getVarianceColor(data.total_variance_cents))}>
+            <span className="text-xs sm:text-sm font-medium">{t('variance')}</span>
+            <span className={cn('font-bold text-sm sm:text-base tabular-nums', getVarianceColor(data.total_variance_cents))}>
               {data.total_variance_cents > 0 ? '+' : ''}
               {formatCurrency(data.total_variance_cents)}
             </span>
@@ -112,12 +112,12 @@ export function PlannedVsActualCard({ data }: PlannedVsActualCardProps) {
         {/* Insight Alert */}
         <Alert variant={isOverBudget ? 'destructive' : 'default'}>
           <Info className="h-4 w-4" />
-          <AlertTitle className="text-sm font-medium">
-            {isOverBudget && 'Gasto mayor a lo planeado'}
-            {isUnderBudget && 'Gasto menor a lo planeado'}
-            {isOnTrack && 'En línea con lo planeado'}
+          <AlertTitle className="text-xs sm:text-sm font-medium">
+            {isOverBudget && t('overBudget')}
+            {isUnderBudget && t('underBudget')}
+            {isOnTrack && t('onTrack')}
           </AlertTitle>
-          <AlertDescription className="text-xs">
+          <AlertDescription className="text-[10px] sm:text-xs">
             {data.metadata.insight}
           </AlertDescription>
         </Alert>
@@ -125,8 +125,8 @@ export function PlannedVsActualCard({ data }: PlannedVsActualCardProps) {
         {/* Category Breakdown - Top 5 */}
         {data.category_breakdown.length > 0 && (
           <div className="space-y-2">
-            <h4 className="text-sm font-medium text-muted-foreground">
-              Varianza por categoría
+            <h4 className="text-xs sm:text-sm font-medium text-muted-foreground">
+              {t('varianceByCategory')}
             </h4>
             <div className="space-y-2">
               {data.category_breakdown.slice(0, 5).map((category) => {
@@ -138,14 +138,14 @@ export function PlannedVsActualCard({ data }: PlannedVsActualCardProps) {
                   >
                     <div className="flex items-center gap-2 min-w-0 flex-1">
                       <VarianceIcon className={cn('h-3 w-3 flex-shrink-0', getVarianceColor(category.variance_cents))} />
-                      <span className="text-sm truncate">{category.category}</span>
+                      <span className="text-xs sm:text-sm truncate">{category.category}</span>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className="text-xs text-muted-foreground">
+                    <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                      <span className="text-[10px] sm:text-xs text-muted-foreground tabular-nums hidden sm:inline">
                         {formatCurrency(category.planned_cents)}
                       </span>
-                      <span className="text-xs">→</span>
-                      <span className={cn('text-sm font-medium', getVarianceColor(category.variance_cents))}>
+                      <span className="text-[10px] sm:text-xs hidden sm:inline">-&gt;</span>
+                      <span className={cn('text-xs sm:text-sm font-medium tabular-nums', getVarianceColor(category.variance_cents))}>
                         {formatCurrency(category.actual_cents)}
                       </span>
                     </div>
@@ -158,8 +158,8 @@ export function PlannedVsActualCard({ data }: PlannedVsActualCardProps) {
 
         {/* Empty State */}
         {data.category_breakdown.length === 0 && (
-          <div className="text-center py-4 text-sm text-muted-foreground">
-            No hay datos de costos planeados o gastos reales para comparar
+          <div className="text-center py-4 text-xs sm:text-sm text-muted-foreground">
+            {t('noData')}
           </div>
         )}
       </CardContent>

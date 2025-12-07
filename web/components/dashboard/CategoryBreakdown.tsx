@@ -84,12 +84,12 @@ export function CategoryBreakdown({
 
   return (
     <Card className="transition-all duration-200 hover:shadow-lg">
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
+      <CardHeader className="pb-2 sm:pb-4">
+        <CardTitle className="text-base sm:text-lg">{title}</CardTitle>
+        <CardDescription className="text-xs sm:text-sm">{description}</CardDescription>
       </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
+      <CardContent className="p-2 sm:p-6">
+        <ResponsiveContainer width="100%" height={250} className="sm:!h-[300px]">
           <PieChart>
             <Pie
               data={data}

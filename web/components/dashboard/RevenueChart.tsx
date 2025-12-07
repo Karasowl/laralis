@@ -54,14 +54,14 @@ export function RevenueChart({
 
   return (
     <Card className="transition-all duration-200 hover:shadow-lg">
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div>
-            <CardTitle>{title}</CardTitle>
-            <CardDescription>{description}</CardDescription>
+      <CardHeader className="pb-2 sm:pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-4">
+          <div className="min-w-0">
+            <CardTitle className="text-base sm:text-lg">{title}</CardTitle>
+            <CardDescription className="text-xs sm:text-sm">{description}</CardDescription>
           </div>
           {onGranularityChange && (
-            <div className="flex gap-1">
+            <div className="flex gap-1 overflow-x-auto no-scrollbar -mx-1 px-1">
               {granularityOptions.map((option) => (
                 <Button
                   key={option.value}
@@ -69,7 +69,7 @@ export function RevenueChart({
                   size="sm"
                   onClick={() => onGranularityChange(option.value)}
                   className={cn(
-                    'text-xs px-2 py-1 h-7',
+                    'text-[10px] sm:text-xs px-2 py-1 h-6 sm:h-7 flex-shrink-0',
                     currentGranularity === option.value && 'font-semibold'
                   )}
                 >

@@ -16,34 +16,34 @@ export function CostBreakdown({ costs, depreciation, total }: CostBreakdownProps
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t('fixed_costs_breakdown')}</CardTitle>
-        <CardDescription>{t('monthly_fixed_costs')}</CardDescription>
+        <CardTitle className="text-base sm:text-lg">{t('fixed_costs_breakdown')}</CardTitle>
+        <CardDescription className="text-xs sm:text-sm">{t('monthly_fixed_costs')}</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="space-y-3">
+        <div className="space-y-2 sm:space-y-3">
           {costs.map(cost => (
-            <div key={cost.id} className="flex justify-between items-center">
-              <div>
-                <p className="text-sm font-medium">{cost.name}</p>
-                <p className="text-xs text-muted-foreground">{cost.category}</p>
+            <div key={cost.id} className="flex justify-between items-center gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs sm:text-sm font-medium truncate">{cost.name}</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{cost.category}</p>
               </div>
-              <span className="font-medium">{formatCurrency(cost.amount_cents)}</span>
+              <span className="text-sm sm:text-base font-medium tabular-nums shrink-0">{formatCurrency(cost.amount_cents)}</span>
             </div>
           ))}
-          
+
           {depreciation > 0 && (
-            <div className="flex justify-between items-center pt-2 border-t">
-              <div>
-                <p className="text-sm font-medium">{t('assets_depreciation')}</p>
-                <p className="text-xs text-muted-foreground">{t('monthly')}</p>
+            <div className="flex justify-between items-center gap-2 pt-2 border-t">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs sm:text-sm font-medium">{t('assets_depreciation')}</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground">{t('monthly')}</p>
               </div>
-              <span className="font-medium">{formatCurrency(depreciation)}</span>
+              <span className="text-sm sm:text-base font-medium tabular-nums shrink-0">{formatCurrency(depreciation)}</span>
             </div>
           )}
-          
-          <div className="flex justify-between items-center pt-3 border-t">
-            <p className="font-semibold">{t('total_fixed_costs')}</p>
-            <span className="font-bold text-lg">{formatCurrency(total)}</span>
+
+          <div className="flex justify-between items-center gap-2 pt-3 border-t">
+            <p className="text-sm sm:text-base font-semibold">{t('total_fixed_costs')}</p>
+            <span className="text-base sm:text-lg font-bold tabular-nums shrink-0">{formatCurrency(total)}</span>
           </div>
         </div>
       </CardContent>

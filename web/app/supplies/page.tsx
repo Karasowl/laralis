@@ -140,40 +140,74 @@ export default function SuppliesPage() {
 
   // Table columns
   const columns = [
-    { 
-      key: 'name', 
-      label: t('supplies.form.name') 
+    {
+      key: 'name',
+      label: t('supplies.form.name')
     },
-    { 
-      key: 'category', 
-      label: t('supplies.form.category'), 
-      render: (_value: unknown, supply: Supply) => 
+    {
+      key: 'category',
+      label: t('supplies.form.category'),
+      render: (_value: unknown, supply: Supply) =>
         getSupplyCategoryLabel(supply.category, t)
     },
-    { 
-      key: 'presentation', 
-      label: t('supplies.form.presentation'), 
+    {
+      key: 'presentation',
+      label: t('supplies.form.presentation'),
       render: (_value: unknown, supply: Supply) =>
         supply.presentation || '-'
     },
-    { 
-      key: 'price_cents', 
-      label: t('supplies.pricePerPresentation'), 
+    {
+      key: 'price_cents',
+      label: t('supplies.pricePerPresentation'),
       render: (_value: unknown, supply: Supply) =>
         formatCurrency(supply.price_cents ?? 0)
     },
-    { 
-      key: 'portions', 
-      label: t('supplies.form.portions') 
+    {
+      key: 'portions',
+      label: t('supplies.form.portions')
     },
-    { 
-      key: 'cost_per_portion_cents', 
-      label: t('supplies.pricePerPortion'), 
+    {
+      key: 'cost_per_portion_cents',
+      label: t('supplies.pricePerPortion'),
       render: (_value: unknown, supply: Supply) =>
         <span className="font-medium text-green-600">
           {formatCurrency(supply.cost_per_portion_cents ?? 0)}
         </span>
     }
+  ];
+
+  // Mobile-optimized columns
+  const mobileColumns = [
+    {
+      key: 'name',
+      label: t('supplies.table.supply'),
+      render: (_value: unknown, supply: Supply) => (
+        <span className="font-medium text-foreground">{supply.name}</span>
+      ),
+    },
+    {
+      key: 'price_cents',
+      label: t('supplies.table.price'),
+      render: (_value: unknown, supply: Supply) => (
+        <span className="text-foreground">{formatCurrency(supply.price_cents ?? 0)}</span>
+      ),
+    },
+    {
+      key: 'portions',
+      label: t('supplies.table.portions'),
+      render: (_value: unknown, supply: Supply) => (
+        <span className="text-muted-foreground">{supply.portions}</span>
+      ),
+    },
+    {
+      key: 'cost_per_portion_cents',
+      label: t('supplies.table.costPerPortion'),
+      render: (_value: unknown, supply: Supply) => (
+        <span className="font-semibold text-green-600">
+          {formatCurrency(supply.cost_per_portion_cents ?? 0)}
+        </span>
+      ),
+    },
   ];
 
   // Category options from categories table (system + custom)
@@ -208,7 +242,7 @@ export default function SuppliesPage() {
         onDeleteConfirm: crud.handleDeleteConfirm,
       }}
       columns={columns}
-      mobileColumns={[columns[0], columns[5]]}
+      mobileColumns={mobileColumns}
       emptyIcon={<Package className="h-8 w-8" />}
       searchable={true}
     >

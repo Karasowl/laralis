@@ -81,7 +81,8 @@
     "srClose": "Cerrar",
     "total": "Total",
     "today": "Hoy",
-    "unknown": "Desconocido"
+    "unknown": "Desconocido",
+    "noPhone": "Sin telefono"
   },
   "filters": {
     "title": "Filtros",
@@ -875,7 +876,20 @@
     "error_generic": "Ha ocurrido un error",
     "period_selector": "Periodo",
     "chart_revenue": "Ingresos",
-    "chart_expenses": "Gastos"
+    "chart_expenses": "Gastos",
+    "insufficient_data": "Datos insuficientes para comparar",
+    "plannedVsActual": {
+      "title": "Planeado vs Real",
+      "subtitle": "Costos fijos: presupuesto vs gastos reales",
+      "planned": "Planeado (mensual)",
+      "actual": "Real (periodo)",
+      "variance": "Varianza",
+      "overBudget": "Gasto mayor a lo planeado",
+      "underBudget": "Gasto menor a lo planeado",
+      "onTrack": "En linea con lo planeado",
+      "varianceByCategory": "Varianza por categoria",
+      "noData": "No hay datos de costos planeados o gastos reales para comparar"
+    }
   },
   "onboarding": {
     "welcomeTitle": "¡Bienvenido a Laralis! 🎉",
@@ -1162,6 +1176,13 @@
   "supplies": {
     "title": "Insumos",
     "subtitle": "Administra tu inventario de insumos dentales",
+    "entity": "insumo",
+    "table": {
+      "supply": "Insumo",
+      "price": "Precio",
+      "portions": "Porciones",
+      "costPerPortion": "Costo/Porcion"
+    },
     "listTitle": "Lista de Insumos",
     "name": "Nombre del Insumo",
     "category": "Categoría",
@@ -1487,6 +1508,9 @@
     "bulk_discount_info": "El descuento se aplicará sobre el precio con utilidad de cada servicio.",
     "price_rounding_notice": "Los precios se redondearán automáticamente a múltiplos de ${amount}.",
     "discount": "Descuento",
+    "price_label": "Precio",
+    "margin_label_short": "utilidad",
+    "no_results": "No se encontraron resultados",
     "remove_discount": "Quitar Descuento",
     "savings_label": "Ahorro",
     "single_discount_info": "El descuento se aplicará sobre el precio con utilidad de este servicio.",
@@ -1592,10 +1616,13 @@
     "addAssetButton": "Agregar Activo",
     "monthlyDepreciationTotal": "Depreciación Mensual Total",
     "table": {
+      "asset": "Activo",
       "name": "Nombre",
       "purchasePrice": "Precio de Compra",
+      "value": "Valor",
       "months": "Meses",
-      "monthlyDep": "Dep. Mensual"
+      "monthlyDep": "Dep. Mensual",
+      "depreciation": "Depreciacion"
     },
     "form": {
       "nameLabel": "Nombre del activo",
