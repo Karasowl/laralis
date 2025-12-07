@@ -107,17 +107,14 @@ export function MonthView({
           const hasConflicts = dayConflicts && dayConflicts.size > 0
           const treatmentCount = dayTreatments.length
 
-          // Group treatments by status for dot indicators
-          const statusCounts = useMemo(() => {
-            const counts = { pending: 0, in_progress: 0, completed: 0, other: 0 }
-            dayTreatments.forEach(t => {
-              if (t.status === 'pending' || t.status === 'scheduled') counts.pending++
-              else if (t.status === 'in_progress') counts.in_progress++
-              else if (t.status === 'completed') counts.completed++
-              else counts.other++
-            })
-            return counts
-          }, [dayTreatments])
+          // Group treatments by status for dot indicators (no hook - direct calculation)
+          const statusCounts = { pending: 0, in_progress: 0, completed: 0, other: 0 }
+          dayTreatments.forEach(t => {
+            if (t.status === 'pending' || t.status === 'scheduled') statusCounts.pending++
+            else if (t.status === 'in_progress') statusCounts.in_progress++
+            else if (t.status === 'completed') statusCounts.completed++
+            else statusCounts.other++
+          })
 
           return (
             <div
