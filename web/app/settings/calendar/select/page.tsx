@@ -36,10 +36,14 @@ export default function CalendarSelectPage() {
 
   // Fetch available calendars
   useEffect(() => {
+    let mounted = true
+
     const fetchCalendars = async () => {
       try {
         const response = await fetch('/api/auth/google-calendar?action=calendars')
         const data = await response.json()
+
+        if (!mounted) return
 
         if (data.error) {
           toast({
@@ -60,18 +64,26 @@ export default function CalendarSelectPage() {
           setSelectedCalendar(primary.id)
         }
       } catch {
+        if (!mounted) return
         toast({
           title: t('settings.calendar.connectionError'),
           variant: 'destructive',
         })
         router.push('/settings/calendar')
       } finally {
-        setIsLoading(false)
+        if (mounted) {
+          setIsLoading(false)
+        }
       }
     }
 
     fetchCalendars()
-  }, [router, t, toast])
+
+    return () => {
+      mounted = false
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Handle calendar selection and connection
   const handleConnect = async () => {
