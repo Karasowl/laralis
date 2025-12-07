@@ -159,6 +159,25 @@ export function useCrudOperations<T extends { id: string; name?: string }>(
     fetchItems();
   }, [config.endpoint, config.entityName, config.includeClinicId, currentClinic?.id, fallbackClinic?.id, searchDebounce, fetchItems, staticParamsKey]);
 
+  // Map API error codes to i18n keys with data interpolation
+  const getErrorMessage = useCallback((errorCode: string, errorData?: Record<string, any>): string => {
+    const errorKeyMap: Record<string, string> = {
+      'DUPLICATE_PATIENT_NAME': 'patients.errors.duplicate_name_detail',
+      'DUPLICATE_PATIENT_EMAIL': 'patients.errors.duplicate_email_detail',
+    };
+
+    const i18nKey = errorKeyMap[errorCode];
+    if (i18nKey) {
+      try {
+        return t(i18nKey, errorData || {});
+      } catch {
+        // Fallback if translation fails
+        return errorCode;
+      }
+    }
+    return errorCode;
+  }, [t]);
+
   // Create handler
   const handleCreate = async (data: any): Promise<boolean> => {
     setIsSubmitting(true);
@@ -180,14 +199,14 @@ export function useCrudOperations<T extends { id: string; name?: string }>(
       const payload = config.includeClinicId && clinicIdToUse
         ? { ...data, clinic_id: clinicIdToUse }
         : data;
-      
+
       const response = await fetch(config.endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(payload),
       });
-      
+
       if (!response.ok) {
         // Handle precondition failed (412) with a persistent banner-like toast
         if (response.status === 412) {
@@ -197,10 +216,19 @@ export function useCrudOperations<T extends { id: string; name?: string }>(
           toast.warning(msg, { duration: 8000 });
           return false;
         }
-        const error = await response.json();
-        throw new Error(error.message || error.error);
+
+        const errorResponse = await response.json();
+
+        // Handle conflict errors (409) with known error codes
+        if (response.status === 409 && errorResponse.error) {
+          const translatedMessage = getErrorMessage(errorResponse.error, errorResponse.data);
+          toast.error(translatedMessage, { duration: 6000 });
+          return false;
+        }
+
+        throw new Error(errorResponse.message || errorResponse.error);
       }
-      
+
       try { console.log('[useCrudOperations] create response ok', config.endpoint) } catch {}
       toast.success(t('common.createSuccess', { entity: config.entityName }));
       await fetchItems();
@@ -224,12 +252,20 @@ export function useCrudOperations<T extends { id: string; name?: string }>(
         credentials: 'include',
         body: JSON.stringify(data),
       });
-      
+
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || error.error);
+        const errorResponse = await response.json();
+
+        // Handle conflict errors (409) with known error codes
+        if (response.status === 409 && errorResponse.error) {
+          const translatedMessage = getErrorMessage(errorResponse.error, errorResponse.data);
+          toast.error(translatedMessage, { duration: 6000 });
+          return false;
+        }
+
+        throw new Error(errorResponse.message || errorResponse.error);
       }
-      
+
       toast.success(t('common.updateSuccess', { entity: config.entityName }));
       await fetchItems();
       return true;

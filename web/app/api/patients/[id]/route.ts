@@ -114,13 +114,45 @@ export async function PUT(
 
     if (error) {
       console.error('Error updating patient:', error);
+
+      // Handle unique constraint violations (code 23505)
+      // Return error codes + data for client-side i18n translation
+      if (error.code === '23505') {
+        // Duplicate name constraint
+        if (error.message.includes('idx_patients_unique_name_per_clinic')) {
+          const firstName = validationResult.data.first_name || '';
+          const lastName = validationResult.data.last_name || '';
+          return NextResponse.json(
+            {
+              error: 'DUPLICATE_PATIENT_NAME',
+              data: {
+                name: `${firstName} ${lastName}`.trim()
+              }
+            },
+            { status: 409 }
+          );
+        }
+        // Duplicate email constraint
+        if (error.message.includes('patients_clinic_id_email_key')) {
+          return NextResponse.json(
+            {
+              error: 'DUPLICATE_PATIENT_EMAIL',
+              data: {
+                email: validationResult.data.email
+              }
+            },
+            { status: 409 }
+          );
+        }
+      }
+
       return NextResponse.json(
         { error: 'Failed to update patient', message: error.message },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       data,
       message: 'Patient updated successfully'
     });

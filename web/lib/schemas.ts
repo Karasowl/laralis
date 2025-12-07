@@ -72,18 +72,18 @@ export const workingDaysConfigSchema = z.object({
 })
 
 export const timeSettingsSchema = z.object({
-  work_days: z.number().min(1).max(31),
-  hours_per_day: z.number().min(1).max(24),
-  real_pct: z.number().min(1).max(100),
+  work_days: z.number().min(1).max(31), // Physical limit: days in a month
+  hours_per_day: z.number().min(1).max(24), // Physical limit: hours in a day
+  real_pct: z.number().min(0).max(100), // Percentage: 0-100%
   working_days_config: workingDaysConfigSchema.optional()
 })
 
 export const equilibriumSettingsSchema = z.object({
-  profitability_target_pct: z.number().min(0).max(100),
-  operator_efficiency_pct: z.number().min(0).max(100),
+  profitability_target_pct: z.number().min(0), // No upper limit - business targets can exceed 100%
+  operator_efficiency_pct: z.number().min(0), // No upper limit - with automation can exceed 100%
   rent_is_percentage: z.boolean(),
   rent_amount_cents: z.number().min(0).optional(),
-  rent_percentage: z.number().min(0).max(100).optional()
+  rent_percentage: z.number().min(0).optional() // No upper limit
 })
 
 // ==================== PATIENT SCHEMAS ====================
@@ -108,9 +108,9 @@ export const patientSourceSchema = z.object({
 export const serviceSchema = z.object({
   name: z.string().min(1, 'Service name is required'),
   category: z.string().default('otros'),
-  est_minutes: z.number().min(5, 'Minimum duration is 5 minutes').max(480, 'Maximum duration is 8 hours'),
+  est_minutes: z.number().min(1).max(1440), // Min 1 minute, max 24 hours (physical day limit)
   base_price_cents: z.number().min(0),
-  margin_pct: z.number().min(0).max(500).default(30),
+  margin_pct: z.number().min(0).default(30),
   target_price: z.number().min(0).optional(),
   description: z.string().optional(),
   supplies: z.array(z.object({
@@ -131,7 +131,7 @@ export const treatmentFormSchema = z.object({
   service_id: z.string().min(1, 'Service is required'),
   treatment_date: z.string().min(1, 'Date is required'),
   notes: z.string().optional(),
-  discount_pct: z.number().min(0).max(100).default(0),
+  discount_pct: z.number().min(0).default(0), // No upper limit
   paid: z.boolean().default(false)
 })
 
@@ -160,7 +160,7 @@ export const discountConfigSchema = z.object({
 })
 
 export const tariffEditSchema = z.object({
-  margin_pct: z.number().min(0).max(1000),
+  margin_pct: z.number().min(0), // No upper limit - in-house services can have very high margins
   discount_type: z.enum(['none', 'percentage', 'fixed']).optional(),
   discount_value: z.number().min(0).optional(),
   discount_reason: z.string().optional()

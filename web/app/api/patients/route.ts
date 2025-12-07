@@ -138,14 +138,33 @@ export async function POST(request: NextRequest) {
       console.error('Error message:', error.message);
       console.error('Patient data attempted:', patientData);
 
-      if (error.code === '23505' && error.message.includes('patients_clinic_id_email_key')) {
-        return NextResponse.json(
-          {
-            error: 'Email duplicado',
-            message: 'Ya existe un paciente registrado con este email en esta clinica. Puedes dejar el email vacío o usar uno diferente.',
-          },
-          { status: 400 }
-        );
+      // Handle unique constraint violations (code 23505)
+      // Return error codes + data for client-side i18n translation
+      if (error.code === '23505') {
+        // Duplicate name constraint
+        if (error.message.includes('idx_patients_unique_name_per_clinic')) {
+          return NextResponse.json(
+            {
+              error: 'DUPLICATE_PATIENT_NAME',
+              data: {
+                name: `${patientData.first_name} ${patientData.last_name}`.trim()
+              }
+            },
+            { status: 409 }
+          );
+        }
+        // Duplicate email constraint
+        if (error.message.includes('patients_clinic_id_email_key')) {
+          return NextResponse.json(
+            {
+              error: 'DUPLICATE_PATIENT_EMAIL',
+              data: {
+                email: patientData.email
+              }
+            },
+            { status: 409 }
+          );
+        }
       }
 
       return NextResponse.json(

@@ -68,7 +68,7 @@ export const zService = z.object({
   category: z.string().optional(),
   description: z.string().nullable().optional(),
   base_price_cents: z.number().int().nonnegative().optional(),
-  margin_pct: z.number().nonnegative().max(500).optional(),
+  margin_pct: z.number().nonnegative().optional(),
   created_at: z.string().optional(),
 });
 

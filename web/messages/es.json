@@ -2305,6 +2305,12 @@
       "activity": "Actividad",
       "created_at": "Registro"
     },
+    "errors": {
+      "duplicate_name": "Ya existe un paciente con este nombre",
+      "duplicate_name_detail": "Ya existe un paciente llamado \"{name}\" en esta clínica. Si son personas diferentes, agrega algo para diferenciarlos (ej: \"Jr\", \"Padre\", inicial del segundo nombre).",
+      "duplicate_email": "Ya existe un paciente con este email",
+      "duplicate_email_detail": "Ya existe un paciente registrado con este email en esta clínica. Puedes dejar el email vacío o usar uno diferente."
+    },
     "activity": {
       "visits": "Visitas",
       "treatments": "Trat.",
