@@ -40,7 +40,7 @@ export function ActionDropdown({
           <MoreHorizontal className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align={align}>
+      <DropdownMenuContent align={align} className="w-48 sm:w-56">
         {actions.map((action, index) => (
           <div key={index}>
             {action.separator && index > 0 && <DropdownMenuSeparator />}

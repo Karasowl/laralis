@@ -133,3 +133,12 @@
 .recharts-layer {
   @apply fill-current;
 }
+
+/* Hide scrollbar for scrollable tabs and horizontal scroll containers */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

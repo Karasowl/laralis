@@ -148,8 +148,8 @@ export function MarketingROITable({
       </CardHeader>
 
       <CardContent className="space-y-6">
-        {/* Summary Stats */}
-        <div className="grid grid-cols-3 gap-4 p-4 bg-muted/30 rounded-lg">
+        {/* Summary Stats - Responsive grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 p-3 sm:p-4 bg-muted/30 rounded-lg">
           <div>
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
               <DollarSign className="h-3.5 w-3.5" />
@@ -175,8 +175,8 @@ export function MarketingROITable({
           </div>
         </div>
 
-        {/* Table */}
-        <div className="rounded-md border">
+        {/* Table - Desktop */}
+        <div className="hidden sm:block rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
@@ -236,6 +236,52 @@ export function MarketingROITable({
               ))}
             </TableBody>
           </Table>
+        </div>
+
+        {/* Mobile Cards */}
+        <div className="sm:hidden space-y-3">
+          {campaigns.map((campaign) => (
+            <div key={campaign.id} className="p-3 border rounded-lg space-y-2">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="font-medium text-sm">{campaign.name}</p>
+                  {campaign.platform && (
+                    <p className="text-xs text-muted-foreground">{campaign.platform}</p>
+                  )}
+                </div>
+                <Badge
+                  variant="outline"
+                  className={cn('text-[10px]', getStatusBadge(campaign.status).className)}
+                >
+                  {getStatusBadge(campaign.status).label}
+                </Badge>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div>
+                  <p className="text-muted-foreground">{t('table.investment')}</p>
+                  <p className="font-medium">{formatCurrency(campaign.investmentCents)}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">{t('table.revenue')}</p>
+                  <p className="font-medium">{formatCurrency(campaign.revenueCents)}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">{t('table.roi')}</p>
+                  <Badge
+                    variant={getROIBadgeVariant(campaign.roi)}
+                    className={cn('text-[10px] gap-0.5', getROIColor(campaign.roi))}
+                  >
+                    {campaign.roi > 0 ? (
+                      <TrendingUp className="h-2.5 w-2.5" />
+                    ) : (
+                      <TrendingDown className="h-2.5 w-2.5" />
+                    )}
+                    {campaign.roi.toFixed(0)}%
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* Insights */}

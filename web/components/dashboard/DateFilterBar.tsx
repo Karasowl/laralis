@@ -86,7 +86,7 @@ export function DateFilterBar({
             <Calendar className="h-3.5 w-3.5" />
             {t('selectPeriod')}
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1 sm:gap-2">
             {quickPeriods.map((item) => (
               <Button
                 key={item.value}

@@ -86,15 +86,15 @@ export function CapacityUtilization({ metrics, loading }: CapacityUtilizationPro
         </div>
 
         {/* Breakdown */}
-        <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 pt-4 border-t">
           <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">{t('avg_minutes_per_day')}</p>
-            <p className="text-2xl font-bold">{Math.round(metrics.average_minutes_per_day)}</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">{t('avg_minutes_per_day')}</p>
+            <p className="text-xl sm:text-2xl font-bold">{Math.round(metrics.average_minutes_per_day)}</p>
             <p className="text-xs text-muted-foreground">{t('minutes')}</p>
           </div>
           <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">{t('remaining_capacity')}</p>
-            <p className="text-2xl font-bold">{remainingHours}h {remainingMins}m</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">{t('remaining_capacity')}</p>
+            <p className="text-xl sm:text-2xl font-bold">{remainingHours}h {remainingMins}m</p>
             <p className="text-xs text-muted-foreground">{t('per_day')}</p>
           </div>
         </div>

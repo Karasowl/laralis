@@ -88,7 +88,7 @@ export function ProfitabilitySummary({ services, loading }: ProfitabilitySummary
   }, services[0])
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
       {/* Average Margin */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -141,7 +141,7 @@ export function ProfitabilitySummary({ services, loading }: ProfitabilitySummary
             <p className="text-xs text-muted-foreground">
               {formatCurrency(starService.profit_per_hour_cents)}/hora
             </p>
-            <Badge variant="secondary" className="text-xs">
+            <Badge variant="secondary" className="text-[10px] sm:text-xs whitespace-nowrap">
               ROI {starService.roi_percentage.toFixed(0)}%
             </Badge>
           </div>
@@ -166,7 +166,7 @@ export function ProfitabilitySummary({ services, loading }: ProfitabilitySummary
             </p>
             <Badge
               variant={highestCostService.roi_percentage < 100 ? "destructive" : "secondary"}
-              className="text-xs"
+              className="text-[10px] sm:text-xs whitespace-nowrap"
             >
               ROI {highestCostService.roi_percentage.toFixed(0)}%
             </Badge>

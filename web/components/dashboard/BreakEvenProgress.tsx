@@ -164,11 +164,18 @@ export function BreakEvenProgress({
       <CardContent className="space-y-6 animate-in fade-in-0 slide-in-from-top-2 duration-200">
         {/* Main Progress Bar */}
         <div className="space-y-2">
+          {/* Labels above progress bar on mobile for better readability */}
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">{t('progress')}</span>
             <span className="font-bold text-lg">
               {Math.min(100, progressPercentage).toFixed(1)}%
             </span>
+          </div>
+
+          {/* Mobile: Labels above progress bar */}
+          <div className="flex items-center justify-between text-xs text-muted-foreground sm:hidden">
+            <span>{formatCurrency(currentRevenueCents)}</span>
+            <span>{formatCurrency(monthlyTargetCents)}</span>
           </div>
 
           <div className="relative">
@@ -186,7 +193,8 @@ export function BreakEvenProgress({
             />
           </div>
 
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
+          {/* Desktop: Labels below progress bar */}
+          <div className="hidden sm:flex items-center justify-between text-xs text-muted-foreground">
             <span>{formatCurrency(currentRevenueCents)}</span>
             <span>{formatCurrency(monthlyTargetCents)}</span>
           </div>

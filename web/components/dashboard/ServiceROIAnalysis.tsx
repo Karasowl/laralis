@@ -80,76 +80,76 @@ export function ServiceROIAnalysis({ data, loading = false }: ServiceROIAnalysis
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
         <Card>
-          <CardContent className="p-4">
-            <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-950/30 flex items-center justify-center mb-2">
-              <DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+          <CardContent className="p-3 sm:p-4">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-emerald-100 dark:bg-emerald-950/30 flex items-center justify-center mb-2">
+              <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600 dark:text-emerald-400" />
             </div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+            <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide mb-1">
               {t('summary.totalProfit')}
             </p>
-            <p className="text-2xl font-bold text-emerald-600">
+            <p className="text-base sm:text-lg lg:text-2xl font-bold text-emerald-600 tabular-nums">
               {formatCurrency(data.totals.total_profit_cents)}
             </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-4">
-            <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-950/30 flex items-center justify-center mb-2">
-              <Activity className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          <CardContent className="p-3 sm:p-4">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-blue-100 dark:bg-blue-950/30 flex items-center justify-center mb-2">
+              <Activity className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400" />
             </div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+            <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide mb-1">
               {t('summary.totalSales')}
             </p>
-            <p className="text-2xl font-bold">{data.totals.total_sales}</p>
+            <p className="text-base sm:text-lg lg:text-2xl font-bold tabular-nums">{data.totals.total_sales}</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-4">
-            <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-950/30 flex items-center justify-center mb-2">
-              <TrendingUp className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+          <CardContent className="p-3 sm:p-4">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-purple-100 dark:bg-purple-950/30 flex items-center justify-center mb-2">
+              <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600 dark:text-purple-400" />
             </div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+            <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide mb-1">
               {t('summary.avgROI')}
             </p>
-            <p className="text-2xl font-bold">{data.totals.avg_roi_percentage}%</p>
+            <p className="text-base sm:text-lg lg:text-2xl font-bold tabular-nums">{data.totals.avg_roi_percentage}%</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-4">
-            <div className="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-950/30 flex items-center justify-center mb-2">
-              <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+          <CardContent className="p-3 sm:p-4">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-amber-100 dark:bg-amber-950/30 flex items-center justify-center mb-2">
+              <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600 dark:text-amber-400" />
             </div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+            <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide mb-1">
               {t('summary.period')}
             </p>
-            <p className="text-sm font-semibold">{t('summary.lastDays', { days: 30 })}</p>
+            <p className="text-xs sm:text-sm font-semibold">{t('summary.lastDays', { days: 30 })}</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Main Analysis Tabs */}
       <Tabs defaultValue="total" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="total">
-            <DollarSign className="h-4 w-4 mr-2" />
-            {t('tabs.total')}
+        <TabsList className="flex w-full overflow-x-auto no-scrollbar">
+          <TabsTrigger value="total" className="flex-1 min-w-0 px-2 sm:px-3">
+            <DollarSign className="h-4 w-4 sm:mr-2 flex-shrink-0" />
+            <span className="hidden sm:inline truncate">{t('tabs.total')}</span>
           </TabsTrigger>
-          <TabsTrigger value="unit">
-            <Gem className="h-4 w-4 mr-2" />
-            {t('tabs.unit')}
+          <TabsTrigger value="unit" className="flex-1 min-w-0 px-2 sm:px-3">
+            <Gem className="h-4 w-4 sm:mr-2 flex-shrink-0" />
+            <span className="hidden sm:inline truncate">{t('tabs.unit')}</span>
           </TabsTrigger>
-          <TabsTrigger value="matrix">
-            <Activity className="h-4 w-4 mr-2" />
-            {t('tabs.matrix')}
+          <TabsTrigger value="matrix" className="flex-1 min-w-0 px-2 sm:px-3">
+            <Activity className="h-4 w-4 sm:mr-2 flex-shrink-0" />
+            <span className="hidden sm:inline truncate">{t('tabs.matrix')}</span>
           </TabsTrigger>
-          <TabsTrigger value="opportunities">
-            <TrendingUp className="h-4 w-4 mr-2" />
-            {t('tabs.opportunities')}
+          <TabsTrigger value="opportunities" className="flex-1 min-w-0 px-2 sm:px-3">
+            <TrendingUp className="h-4 w-4 sm:mr-2 flex-shrink-0" />
+            <span className="hidden sm:inline truncate">{t('tabs.opportunities')}</span>
           </TabsTrigger>
         </TabsList>
 
@@ -186,11 +186,11 @@ export function ServiceROIAnalysis({ data, loading = false }: ServiceROIAnalysis
                         </div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-bold text-emerald-600">
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-base sm:text-lg lg:text-2xl font-bold text-emerald-600 tabular-nums">
                         {formatCurrency(service.total_profit_cents)}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">
                         ROI: {service.roi_percentage}%
                       </p>
                     </div>
@@ -237,11 +237,11 @@ export function ServiceROIAnalysis({ data, loading = false }: ServiceROIAnalysis
                           </div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-2xl font-bold text-purple-600">
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-base sm:text-lg lg:text-2xl font-bold text-purple-600 tabular-nums">
                           {formatCurrency(service.avg_profit_per_sale_cents)}
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-[10px] sm:text-xs text-muted-foreground">
                           {t('profitPerUnit.perSale')}
                         </p>
                       </div>

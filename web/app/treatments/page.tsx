@@ -621,7 +621,7 @@ export default function TreatmentsPage() {
         />
 
         {/* View Toggle Tabs and Type Filter */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-2 sm:gap-3">
           {/* View Toggle */}
           <div className="flex items-center gap-1 p-1 bg-muted rounded-lg w-fit">
             <div

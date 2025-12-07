@@ -101,8 +101,8 @@ export function FormModal({
   }[maxWidth];
 
   const modalContent = (
-    <MobileModalContent className={`${maxWidthClass} ${className || ''}`}>
-      <MobileModalHeader>
+    <MobileModalContent className={`${maxWidthClass} ${className || ''} max-h-[90vh] overflow-hidden`}>
+      <MobileModalHeader className="flex-shrink-0">
         <MobileModalTitle>{title}</MobileModalTitle>
         {description ? (
           <MobileModalDescription>{description}</MobileModalDescription>
@@ -112,12 +112,12 @@ export function FormModal({
           </MobileModalDescription>
         )}
       </MobileModalHeader>
-      
+
       {showFooter ? (
-        <form onSubmit={handleSubmit} id="form-modal">
-          <MobileModalBody>{children}</MobileModalBody>
-          
-          <MobileModalFooter>
+        <form onSubmit={handleSubmit} id="form-modal" className="flex flex-col flex-1 overflow-hidden">
+          <MobileModalBody className="flex-1 overflow-y-auto">{children}</MobileModalBody>
+
+          <MobileModalFooter className="flex-shrink-0 border-t pt-4">
             <Button
               type="button"
               variant="ghost"
