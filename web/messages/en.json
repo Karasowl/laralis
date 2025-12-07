@@ -2255,6 +2255,7 @@
     "status": {
       "completed": "Completed",
       "pending": "Pending",
+      "in_progress": "In Progress",
       "cancelled": "Cancelled"
     },
     "errors": {

@@ -160,13 +160,13 @@ export default function TreatmentsCalendarPage() {
 
   // Days of week headers (using i18n)
   const weekDays = useMemo(() => [
-    t('timeSettings.workDays.days.sunday.short'),
-    t('timeSettings.workDays.days.monday.short'),
-    t('timeSettings.workDays.days.tuesday.short'),
-    t('timeSettings.workDays.days.wednesday.short'),
-    t('timeSettings.workDays.days.thursday.short'),
-    t('timeSettings.workDays.days.friday.short'),
-    t('timeSettings.workDays.days.saturday.short'),
+    t('timeSettings.workingDays.days.sunday.short'),
+    t('timeSettings.workingDays.days.monday.short'),
+    t('timeSettings.workingDays.days.tuesday.short'),
+    t('timeSettings.workingDays.days.wednesday.short'),
+    t('timeSettings.workingDays.days.thursday.short'),
+    t('timeSettings.workingDays.days.friday.short'),
+    t('timeSettings.workingDays.days.saturday.short'),
   ], [t])
 
   // Shared props for view components

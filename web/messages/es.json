@@ -2433,6 +2433,7 @@
     "status": {
       "completed": "Completado",
       "pending": "Pendiente",
+      "in_progress": "En Progreso",
       "cancelled": "Cancelado"
     },
     "errors": {
