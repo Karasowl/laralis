@@ -37,6 +37,12 @@ export default function TreatmentsCalendarPage() {
   const { data: response, loading } = useApi<ApiResponse>('/api/treatments')
   const treatments = response?.data || []
 
+  // DEBUG: Log treatments
+  console.log('[calendar-debug] treatments loaded:', treatments.length, 'items')
+  if (treatments.length > 0) {
+    console.log('[calendar-debug] sample dates:', treatments.slice(0, 3).map(t => t.treatment_date))
+  }
+
   // Navigate to create treatment with pre-filled date
   const handleCreateTreatment = useCallback((date: string, time?: string) => {
     const params = new URLSearchParams({ date })
@@ -79,6 +85,8 @@ export default function TreatmentsCalendarPage() {
         return timeA.localeCompare(timeB)
       })
     })
+    // DEBUG: Log grouped dates
+    console.log('[calendar-debug] treatmentsByDate keys:', Object.keys(grouped))
     return grouped
   }, [treatments])
 
@@ -135,7 +143,12 @@ export default function TreatmentsCalendarPage() {
   const formatDateString = useCallback((day: number) => {
     const month = String(currentDate.getMonth() + 1).padStart(2, '0')
     const dayStr = String(day).padStart(2, '0')
-    return `${currentDate.getFullYear()}-${month}-${dayStr}`
+    const dateStr = `${currentDate.getFullYear()}-${month}-${dayStr}`
+    // DEBUG: Log first day to compare format
+    if (day === 1) {
+      console.log('[calendar-debug] formatDateString example for day 1:', dateStr)
+    }
+    return dateStr
   }, [currentDate])
 
   // Check if date is today (for month view)
