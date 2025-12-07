@@ -242,36 +242,36 @@ export default function TimeSettingsPage() {
         {/* Time Calculations */}
         <Card>
           <CardHeader>
-            <CardTitle>{t('time_calculations')}</CardTitle>
-            <CardDescription>{t('based_on_settings')}</CardDescription>
+            <CardTitle className="text-base sm:text-lg">{t('time_calculations')}</CardTitle>
+            <CardDescription className="text-xs sm:text-sm">{t('based_on_settings')}</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">{t('hours_month')}</p>
-                <p className="text-2xl font-bold">{hasRecord ? calculations.hoursMonth : '—'}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">{t('hours_month')}</p>
+                <p className="text-lg sm:text-xl lg:text-2xl font-bold tabular-nums">{hasRecord ? calculations.hoursMonth : '—'}</p>
               </div>
-              
+
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">{t('hours_year')}</p>
-                <p className="text-2xl font-bold">{hasRecord ? calculations.hoursYear : '—'}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">{t('hours_year')}</p>
+                <p className="text-lg sm:text-xl lg:text-2xl font-bold tabular-nums">{hasRecord ? calculations.hoursYear : '—'}</p>
               </div>
-              
+
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">{t('productive_hours_month')}</p>
-                <p className="text-2xl font-bold text-green-600">{hasRecord ? calculations.realHoursMonth : '—'}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">{t('productive_hours_month')}</p>
+                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-green-600 dark:text-green-400 tabular-nums">{hasRecord ? calculations.realHoursMonth : '—'}</p>
               </div>
-              
+
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">{t('productive_hours_year')}</p>
-                <p className="text-2xl font-bold text-green-600">{hasRecord ? calculations.realHoursYear : '—'}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">{t('productive_hours_year')}</p>
+                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-green-600 dark:text-green-400 tabular-nums">{hasRecord ? calculations.realHoursYear : '—'}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Cost Analysis */}
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
           <CostBreakdown
             costs={fixedCosts}
             depreciation={assetsDepreciation}
@@ -280,32 +280,32 @@ export default function TimeSettingsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>{t('cost_per_time')}</CardTitle>
-              <CardDescription>{t('fixed_cost_allocation')}</CardDescription>
+              <CardTitle className="text-base sm:text-lg">{t('cost_per_time')}</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">{t('fixed_cost_allocation')}</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="p-4 bg-primary/10 dark:bg-primary/20/30 border border-primary/30 dark:border-blue-900/50 rounded-lg transition-colors">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{t('cost_per_minute')}</p>
-                    <p className="text-xs text-muted-foreground">{t('productive_minute')}</p>
+            <CardContent className="space-y-3 sm:space-y-4">
+              <div className="p-3 sm:p-4 bg-primary/10 dark:bg-primary/20/30 border border-primary/30 dark:border-blue-900/50 rounded-lg transition-colors">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs sm:text-sm font-medium text-foreground">{t('cost_per_minute')}</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">{t('productive_minute')}</p>
                   </div>
-                  <p className="text-2xl font-bold text-primary dark:text-primary/80">{hasRecord ? formatCurrency(calculations.fixedCostPerMinuteCents) : '—'}</p>
+                  <p className="text-lg sm:text-xl lg:text-2xl font-bold text-primary dark:text-primary/80 tabular-nums shrink-0">{hasRecord ? formatCurrency(calculations.fixedCostPerMinuteCents) : '—'}</p>
                 </div>
               </div>
 
-              <div className="p-4 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900/50 rounded-lg transition-colors">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{t('cost_per_hour')}</p>
-                    <p className="text-xs text-muted-foreground">{t('productive_hour')}</p>
+              <div className="p-3 sm:p-4 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900/50 rounded-lg transition-colors">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs sm:text-sm font-medium text-foreground">{t('cost_per_hour')}</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">{t('productive_hour')}</p>
                   </div>
-                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">{hasRecord ? formatCurrency(calculations.fixedCostPerHourCents) : '—'}</p>
+                  <p className="text-lg sm:text-xl lg:text-2xl font-bold text-green-600 dark:text-green-400 tabular-nums shrink-0">{hasRecord ? formatCurrency(calculations.fixedCostPerHourCents) : '—'}</p>
                 </div>
               </div>
 
               <div className="pt-3 border-t">
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   {t('cost_explanation')}
                 </p>
               </div>
@@ -316,31 +316,31 @@ export default function TimeSettingsPage() {
         {/* Minutes Summary */}
         <Card>
           <CardHeader>
-            <CardTitle>{t('minutes_summary')}</CardTitle>
-            <CardDescription>{t('total_productive_time')}</CardDescription>
+            <CardTitle className="text-base sm:text-lg">{t('minutes_summary')}</CardTitle>
+            <CardDescription className="text-xs sm:text-sm">{t('total_productive_time')}</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-4">
-              <div className="text-center">
-                <p className="text-sm text-muted-foreground">{t('minutes_month')}</p>
-                <p className="text-xl font-semibold">{calculations.minutesMonth.toLocaleString()}</p>
+            <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
+              <div className="text-center p-2 sm:p-3 rounded-lg bg-muted/50">
+                <p className="text-xs sm:text-sm text-muted-foreground">{t('minutes_month')}</p>
+                <p className="text-base sm:text-lg lg:text-xl font-semibold tabular-nums">{calculations.minutesMonth.toLocaleString()}</p>
               </div>
-              
-              <div className="text-center">
-                <p className="text-sm text-muted-foreground">{t('minutes_year')}</p>
-                <p className="text-xl font-semibold">{calculations.minutesYear.toLocaleString()}</p>
+
+              <div className="text-center p-2 sm:p-3 rounded-lg bg-muted/50">
+                <p className="text-xs sm:text-sm text-muted-foreground">{t('minutes_year')}</p>
+                <p className="text-base sm:text-lg lg:text-xl font-semibold tabular-nums">{calculations.minutesYear.toLocaleString()}</p>
               </div>
-              
-              <div className="text-center">
-                <p className="text-sm text-muted-foreground">{t('productive_minutes_month')}</p>
-                <p className="text-xl font-semibold text-green-600">
+
+              <div className="text-center p-2 sm:p-3 rounded-lg bg-green-50 dark:bg-green-950/30">
+                <p className="text-xs sm:text-sm text-muted-foreground">{t('productive_minutes_month')}</p>
+                <p className="text-base sm:text-lg lg:text-xl font-semibold text-green-600 dark:text-green-400 tabular-nums">
                   {calculations.realMinutesMonth.toLocaleString()}
                 </p>
               </div>
-              
-              <div className="text-center">
-                <p className="text-sm text-muted-foreground">{t('productive_minutes_year')}</p>
-                <p className="text-xl font-semibold text-green-600">
+
+              <div className="text-center p-2 sm:p-3 rounded-lg bg-green-50 dark:bg-green-950/30">
+                <p className="text-xs sm:text-sm text-muted-foreground">{t('productive_minutes_year')}</p>
+                <p className="text-base sm:text-lg lg:text-xl font-semibold text-green-600 dark:text-green-400 tabular-nums">
                   {calculations.realMinutesYear.toLocaleString()}
                 </p>
               </div>

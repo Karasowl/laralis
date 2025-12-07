@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowUp, ArrowDown, LucideIcon } from 'lucide-react'
 
@@ -25,6 +26,8 @@ export function MetricCard({
   subtitle,
   valueInCents
 }: MetricCardProps) {
+  const t = useTranslations('dashboard')
+
   // SMART: Don't show misleading percentages for insignificant values
   // Only show percentage change if the absolute value is meaningful
   const MINIMUM_SIGNIFICANT_VALUE_CENTS = 10000 // $100 MXN
@@ -70,12 +73,12 @@ export function MetricCard({
           <div className={`flex items-center mt-2 text-xs ${getChangeColor()}`}>
             {ChangeIcon && <ChangeIcon className="h-3 w-3 mr-1" />}
             <span>{Math.abs(change!)}%</span>
-            <span className="text-muted-foreground ml-1">vs mes anterior</span>
+            <span className="text-muted-foreground ml-1">{t('vs_previous_month')}</span>
           </div>
         )}
         {change !== undefined && !shouldShowChange() && valueInCents !== undefined && (
           <p className="text-xs text-muted-foreground mt-2">
-            Datos insuficientes para comparar
+            {t('insufficient_data')}
           </p>
         )}
       </CardContent>

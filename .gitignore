@@ -88,6 +88,7 @@ supabase/.branches
 *.tar.gz
 .cache/
 .eslintcache
+Planes/
 
 # Database
 *.db

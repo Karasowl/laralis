@@ -40,6 +40,7 @@
     },
     "table": {
       "title": "Historial de gastos",
+      "expense": "Gasto",
       "date": "Fecha",
       "category": "Categoría",
       "description": "Descripción",

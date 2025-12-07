@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useWorkspace } from '@/contexts/workspace-context'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { FormGrid, InputField } from '@/components/ui/form-field'
+import { InputField } from '@/components/ui/form-field'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { formatCurrency } from '@/lib/format'
@@ -307,14 +307,14 @@ export default function EquilibriumPage() {
         {/* Plain language summary */}
         <Card>
           <CardHeader>
-            <CardTitle>{t('summary.title')}</CardTitle>
-            <CardDescription>{t('summary.subtitle')}</CardDescription>
+            <CardTitle className="text-base sm:text-lg">{t('summary.title')}</CardTitle>
+            <CardDescription className="text-xs sm:text-sm">{t('summary.subtitle')}</CardDescription>
           </CardHeader>
           <CardContent>
-            <ul className="space-y-2 text-sm text-muted-foreground">
+            <ul className="space-y-2 text-xs sm:text-sm text-muted-foreground">
               {summaryLines.map((line, index) => (
                 <li key={index} className="flex items-start gap-2">
-                  <span className="mt-1 inline-block h-2 w-2 flex-none rounded-full bg-primary" />
+                  <span className="mt-1.5 sm:mt-1 inline-block h-1.5 w-1.5 sm:h-2 sm:w-2 flex-none rounded-full bg-primary" />
                   <span>{line}</span>
                 </li>
               ))}
@@ -325,11 +325,11 @@ export default function EquilibriumPage() {
         {/* Simulation Controls */}
         <Card>
           <CardHeader>
-            <CardTitle>{t('simulation.title')}</CardTitle>
-            <CardDescription>{t('simulation.description')}</CardDescription>
+            <CardTitle className="text-base sm:text-lg">{t('simulation.title')}</CardTitle>
+            <CardDescription className="text-xs sm:text-sm">{t('simulation.description')}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <FormGrid columns={2}>
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
               <InputField
                 type="number"
                 label={t('simulation.work_days_label')}
@@ -379,12 +379,12 @@ export default function EquilibriumPage() {
                 placeholder="—"
                 helperText={t('simulation.manual_target_hint')}
               />
-            </FormGrid>
+            </div>
             <div className="flex flex-wrap gap-2">
-              <Button onClick={handleApplySimulation}>
+              <Button onClick={handleApplySimulation} className="flex-1 sm:flex-none">
                 {t('simulation.apply')}
               </Button>
-              <Button variant="outline" onClick={handleResetSimulation}>
+              <Button variant="outline" onClick={handleResetSimulation} className="flex-1 sm:flex-none">
                 {t('simulation.reset')}
               </Button>
             </div>
@@ -394,41 +394,41 @@ export default function EquilibriumPage() {
         {/* Progress Card */}
         <Card>
           <CardHeader>
-            <CardTitle>{t('monthly_progress')}</CardTitle>
-            <CardDescription className="flex items-center gap-2">
+            <CardTitle className="text-base sm:text-lg">{t('monthly_progress')}</CardTitle>
+            <CardDescription className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
               {t('current_vs_target')}
-              <Badge variant={isGoalReached ? 'success' : 'outline'}>
+              <Badge variant={isGoalReached ? 'success' : 'outline'} className="text-[10px] sm:text-xs">
                 {isGoalReached
                   ? t('summary.goalBadge')
                   : t('summary.gapBadge', { days: data.daysToBreakEven })}
               </Badge>
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3 sm:space-y-4">
             <div className="space-y-2">
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-xs sm:text-sm">
                 <span>{t('current_revenue')}</span>
-                <span className="font-medium">
+                <span className="font-medium tabular-nums">
                   {formatCurrency(data.currentRevenueCents)}
                 </span>
               </div>
-              <Progress value={progressPercentage} className="h-3" />
-              <div className="flex justify-between text-sm text-muted-foreground">
+              <Progress value={progressPercentage} className="h-2 sm:h-3" />
+              <div className="flex justify-between text-[10px] sm:text-sm text-muted-foreground">
                 <span>{formatPercent(progressPercentage)} {t('completed')}</span>
-                <span>{t('target')}: {formatCurrency(data.monthlyTargetCents)}</span>
+                <span className="tabular-nums">{t('target')}: {formatCurrency(data.monthlyTargetCents)}</span>
               </div>
             </div>
 
             {data.revenueGapCents > 0 && (
-              <div className="p-4 bg-muted rounded-lg space-y-2">
-                <div className="flex items-center gap-2 text-sm">
-                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
+              <div className="p-3 sm:p-4 bg-muted rounded-lg space-y-2">
+                <div className="flex items-center gap-2 text-xs sm:text-sm">
+                  <AlertTriangle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-yellow-600" />
                   <span className="font-medium">{t('revenue_gap')}</span>
                 </div>
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
                   <div>
                     <span className="text-muted-foreground">{t('amount_needed')}:</span>
-                    <p className="font-medium">{formatCurrency(data.revenueGapCents)}</p>
+                    <p className="font-medium tabular-nums">{formatCurrency(data.revenueGapCents)}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">{t('days_to_achieve')}:</span>
@@ -438,8 +438,8 @@ export default function EquilibriumPage() {
               </div>
             )}
             {isGoalReached && (
-              <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-900 dark:border-green-900/40 dark:bg-green-950/30">
-                <CheckCircle className="h-4 w-4" />
+              <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 p-3 sm:p-4 text-xs sm:text-sm text-green-900 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-100">
+                <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
                 <span>{t('summary.goalMessage')}</span>
               </div>
             )}
@@ -447,31 +447,31 @@ export default function EquilibriumPage() {
         </Card>
 
         {/* Analysis Cards */}
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle>{t('contribution_analysis')}</CardTitle>
+              <CardTitle className="text-base sm:text-lg">{t('contribution_analysis')}</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-sm">{t('variable_costs')}</span>
-                <span className="font-medium">
+            <CardContent className="space-y-2 sm:space-y-3">
+              <div className="flex justify-between gap-2">
+                <span className="text-xs sm:text-sm">{t('variable_costs')}</span>
+                <span className="text-sm sm:text-base font-medium tabular-nums">
                   {formatPercent(data.variableCostPercentage)}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-sm">{t('contribution_margin')}</span>
-                <span className="font-medium text-green-600">
+              <div className="flex justify-between gap-2">
+                <span className="text-xs sm:text-sm">{t('contribution_margin')}</span>
+                <span className="text-sm sm:text-base font-medium text-green-600 dark:text-green-400 tabular-nums">
                   {formatPercent(data.contributionMargin)}
                 </span>
               </div>
-              <div className="pt-3 border-t space-y-2">
-                <p className="text-sm text-muted-foreground">
+              <div className="pt-2 sm:pt-3 border-t space-y-1.5 sm:space-y-2">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   {t('contribution_explanation', {
                     margin: formatPercent(data.contributionMargin)
                   })}
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-[10px] sm:text-xs text-muted-foreground">
                   {data.variableCostSource === 'calculated'
                     ? t('simulation.variable_cost_calculated_short', {
                         value: formatPercent(data.autoVariableCostPercentage),
@@ -488,26 +488,26 @@ export default function EquilibriumPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>{t('safety_margin')}</CardTitle>
+              <CardTitle className="text-base sm:text-lg">{t('safety_margin')}</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-sm">{t('safety_amount')}</span>
-                <span className="font-medium">
+            <CardContent className="space-y-2 sm:space-y-3">
+              <div className="flex justify-between gap-2">
+                <span className="text-xs sm:text-sm">{t('safety_amount')}</span>
+                <span className="text-sm sm:text-base font-medium tabular-nums">
                   {formatCurrency(data.safetyMarginCents)}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-sm">{t('safety_percentage')}</span>
-                <span className="font-medium">
+              <div className="flex justify-between gap-2">
+                <span className="text-xs sm:text-sm">{t('safety_percentage')}</span>
+                <span className="text-sm sm:text-base font-medium tabular-nums">
                   {formatPercent(data.safetyMarginPercentage)}
                 </span>
               </div>
-              <div className="pt-3 border-t space-y-2">
-                <p className="text-sm text-muted-foreground">
+              <div className="pt-2 sm:pt-3 border-t space-y-1.5 sm:space-y-2">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   {t('safety_explanation')}
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-[10px] sm:text-xs text-muted-foreground">
                   {data.manualMonthlyTargetCents > 0
                     ? t('simulation.manual_target_active_hint', {
                         amount: formatCurrency(data.manualMonthlyTargetCents)

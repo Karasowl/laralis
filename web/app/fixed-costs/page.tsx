@@ -317,36 +317,36 @@ export default function FixedCostsPage() {
 
           <div className="order-1 lg:order-2">
             <Card>
-              <div className="p-6">
-                <h3 className="text-lg font-semibold mb-4">{t('fixedCosts.categoryBreakdown')}</h3>
+              <div className="p-4 sm:p-6">
+                <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">{t('fixedCosts.categoryBreakdown')}</h3>
 
                 {/* Manual Fixed Costs Section */}
                 {(() => {
                   const manualBreakdown = getCategoryBreakdown().filter(item => item.type === 'manual')
                   return manualBreakdown.length > 0 && (
                     <>
-                      <h4 className="text-sm font-medium text-muted-foreground mb-3">
+                      <h4 className="text-xs sm:text-sm font-medium text-muted-foreground mb-2 sm:mb-3">
                         {t('fixedCosts.breakdownSections.manual')}
                       </h4>
-                      <div className="space-y-4">
+                      <div className="space-y-3 sm:space-y-4">
                         {manualBreakdown.map(item => (
-                          <div key={item.category} className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className={`w-4 h-4 rounded-full ${categoryColors[item.category] || 'bg-gray-500'}`} />
-                                <span className="text-sm font-medium">{item.label}</span>
+                          <div key={item.category} className="space-y-1.5 sm:space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                                <div className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full shrink-0 ${categoryColors[item.category] || 'bg-gray-500'}`} />
+                                <span className="text-xs sm:text-sm font-medium truncate">{item.label}</span>
                               </div>
-                              <span className="text-sm font-semibold">
+                              <span className="text-xs sm:text-sm font-semibold tabular-nums shrink-0">
                                 {formatCurrency(item.total)}
                               </span>
                             </div>
-                            <div className="w-full bg-muted rounded-full h-2">
+                            <div className="w-full bg-muted rounded-full h-1.5 sm:h-2">
                               <div
-                                className={`h-2 rounded-full ${categoryColors[item.category] || 'bg-gray-500'}`}
+                                className={`h-1.5 sm:h-2 rounded-full ${categoryColors[item.category] || 'bg-gray-500'}`}
                                 style={{ width: `${Math.min(item.percentage, 100)}%` }}
                               />
                             </div>
-                            <div className="text-xs text-muted-foreground text-right">
+                            <div className="text-[10px] sm:text-xs text-muted-foreground text-right">
                               {item.percentage.toFixed(1)}%
                             </div>
                           </div>
@@ -358,7 +358,7 @@ export default function FixedCostsPage() {
 
                 {/* Separator */}
                 {summary.monthlyDepreciation > 0 && fixedCosts.length > 0 && (
-                  <div className="my-6 border-t border-border" />
+                  <div className="my-4 sm:my-6 border-t border-border" />
                 )}
 
                 {/* Depreciation Section */}
@@ -366,28 +366,28 @@ export default function FixedCostsPage() {
                   const depreciationBreakdown = getCategoryBreakdown().filter(item => item.type === 'depreciation')
                   return depreciationBreakdown.length > 0 && (
                     <>
-                      <h4 className="text-sm font-medium text-muted-foreground mb-3">
+                      <h4 className="text-xs sm:text-sm font-medium text-muted-foreground mb-2 sm:mb-3">
                         {t('fixedCosts.breakdownSections.automatic')}
                       </h4>
-                      <div className="space-y-4">
+                      <div className="space-y-3 sm:space-y-4">
                         {depreciationBreakdown.map(item => (
-                          <div key={item.category} className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className="w-4 h-4 rounded-full bg-primary/100" />
-                                <span className="text-sm font-medium">{item.label}</span>
+                          <div key={item.category} className="space-y-1.5 sm:space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                                <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full shrink-0 bg-primary/100" />
+                                <span className="text-xs sm:text-sm font-medium truncate">{item.label}</span>
                               </div>
-                              <span className="text-sm font-semibold">
+                              <span className="text-xs sm:text-sm font-semibold tabular-nums shrink-0">
                                 {formatCurrency(item.total)}
                               </span>
                             </div>
-                            <div className="w-full bg-muted rounded-full h-2">
+                            <div className="w-full bg-muted rounded-full h-1.5 sm:h-2">
                               <div
-                                className="h-2 rounded-full bg-primary/100"
+                                className="h-1.5 sm:h-2 rounded-full bg-primary/100"
                                 style={{ width: `${Math.min(item.percentage, 100)}%` }}
                               />
                             </div>
-                            <div className="text-xs text-muted-foreground text-right">
+                            <div className="text-[10px] sm:text-xs text-muted-foreground text-right">
                               {item.percentage.toFixed(1)}%
                             </div>
                           </div>

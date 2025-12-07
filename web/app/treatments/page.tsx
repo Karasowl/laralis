@@ -751,7 +751,34 @@ export default function TreatmentsPage() {
 
         <DataTable
           columns={columns}
-          mobileColumns={[columns[0], columns[1], columns[2], columns[5], columns[6], columns[8], columns[9]]}
+          mobileColumns={[
+            // Fecha/hora (combined for mobile)
+            {
+              key: 'treatment_date',
+              label: t('treatments.fields.date'),
+              render: (_value: any, treatment: Treatment) => (
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                  <span>{formatDate(treatment.treatment_date)}</span>
+                  {treatment?.treatment_time && (
+                    <span className="text-muted-foreground">
+                      {treatment.treatment_time.slice(0, 5)}
+                    </span>
+                  )}
+                </div>
+              )
+            },
+            // Paciente
+            columns[2],
+            // Servicio (CRITICAL - was missing)
+            columns[3],
+            // Precio
+            columns[5],
+            // Estado
+            columns[8],
+            // Acciones
+            columns[9]
+          ]}
           data={filteredTreatments}
           loading={loading}
           searchPlaceholder={t('treatments.searchPlaceholder')}

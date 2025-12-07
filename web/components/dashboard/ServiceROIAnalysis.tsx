@@ -161,38 +161,44 @@ export function ServiceROIAnalysis({ data, loading = false }: ServiceROIAnalysis
               <CardDescription>{t('totalProfit.description')}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {data.services.map((service, index) => (
                   <div
                     key={service.service_id}
-                    className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                    className="p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
                   >
-                    <div className="flex items-center gap-4 flex-1">
-                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
-                        {index + 1}
+                    <div className="flex items-start gap-3">
+                      {/* Ranking Circle */}
+                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                        <span className="text-sm font-bold text-primary">{index + 1}</span>
                       </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="font-semibold">{service.service_name}</p>
-                          <Badge className={cn('text-xs', getCategoryColor(service.category))}>
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0 space-y-2">
+                        {/* Name and Badge */}
+                        <div>
+                          <h3 className="font-semibold text-base truncate">{service.service_name}</h3>
+                          <Badge className={cn('text-xs mt-1', getCategoryColor(service.category))}>
                             {getCategoryIcon(service.category)}
                             <span className="ml-1">{service.category_label}</span>
                           </Badge>
                         </div>
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                          <span>{t('totalProfit.sales', { count: service.total_sales })}</span>
-                          <span>•</span>
-                          <span>{t('totalProfit.avgPerSale', { amount: formatCurrency(service.avg_profit_per_sale_cents) })}</span>
+
+                        {/* Stats Row */}
+                        <div className="text-sm text-muted-foreground">
+                          {t('totalProfit.sales', { count: service.total_sales })} · {t('totalProfit.avgPerSale', { amount: formatCurrency(service.avg_profit_per_sale_cents) })}
+                        </div>
+
+                        {/* Price and ROI Row */}
+                        <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                          <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                            {formatCurrency(service.total_profit_cents)}
+                          </span>
+                          <Badge variant="outline" className="text-xs">
+                            ROI: {service.roi_percentage}%
+                          </Badge>
                         </div>
                       </div>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <p className="text-base sm:text-lg lg:text-2xl font-bold text-emerald-600 tabular-nums">
-                        {formatCurrency(service.total_profit_cents)}
-                      </p>
-                      <p className="text-[10px] sm:text-xs text-muted-foreground">
-                        ROI: {service.roi_percentage}%
-                      </p>
                     </div>
                   </div>
                 ))}
@@ -209,41 +215,47 @@ export function ServiceROIAnalysis({ data, loading = false }: ServiceROIAnalysis
               <CardDescription>{t('profitPerUnit.description')}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {[...data.services]
                   .sort((a, b) => b.avg_profit_per_sale_cents - a.avg_profit_per_sale_cents)
                   .map((service, index) => (
                     <div
                       key={service.service_id}
-                      className="flex items-center justify-between p-4 rounded-lg border bg-card"
+                      className="p-4 rounded-lg border bg-card"
                     >
-                      <div className="flex items-center gap-4 flex-1">
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-950/30 text-purple-600 font-bold">
-                          {index + 1}
+                      <div className="flex items-start gap-3">
+                        {/* Ranking Circle */}
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-950/30 flex items-center justify-center">
+                          <span className="text-sm font-bold text-purple-600 dark:text-purple-400">{index + 1}</span>
                         </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <p className="font-semibold">{service.service_name}</p>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0 space-y-2">
+                          {/* Name and Badge */}
+                          <div>
+                            <h3 className="font-semibold text-base truncate">{service.service_name}</h3>
                             {service.total_sales < 5 && (
-                              <Badge variant="outline" className="text-xs">
+                              <Badge variant="outline" className="text-xs mt-1">
                                 {t('profitPerUnit.lowVolume')}
                               </Badge>
                             )}
                           </div>
-                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                            <span>{t('profitPerUnit.sold', { count: service.total_sales })}</span>
-                            <span>•</span>
-                            <span>{formatCurrency(service.profit_per_hour_cents)}/hr</span>
+
+                          {/* Stats Row */}
+                          <div className="text-sm text-muted-foreground">
+                            {t('profitPerUnit.sold', { count: service.total_sales })} · {formatCurrency(service.profit_per_hour_cents)}/hr
+                          </div>
+
+                          {/* Price Row */}
+                          <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                            <span className="text-lg font-bold text-purple-600 dark:text-purple-400 tabular-nums">
+                              {formatCurrency(service.avg_profit_per_sale_cents)}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {t('profitPerUnit.perSale')}
+                            </span>
                           </div>
                         </div>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="text-base sm:text-lg lg:text-2xl font-bold text-purple-600 tabular-nums">
-                          {formatCurrency(service.avg_profit_per_sale_cents)}
-                        </p>
-                        <p className="text-[10px] sm:text-xs text-muted-foreground">
-                          {t('profitPerUnit.perSale')}
-                        </p>
                       </div>
                     </div>
                   ))}

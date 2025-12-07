@@ -372,11 +372,47 @@ export default function ExpensesPage() {
   ], [locale, t, tCommon, getCategoryLabel, getSubcategoryLabel])
 
   const mobileColumns: Column<ExpenseWithRelations>[] = useMemo(() => [
-    columns[0],  // date
-    columns[3],  // amount
-    columns[2],  // description
-    columns[5],  // actions
-  ], [columns])
+    {
+      key: 'description',
+      label: t('table.expense'),
+      render: (_, expense) => (
+        <div className="space-y-0.5">
+          <p className="font-medium text-foreground">
+            {expense.description || t('table.noDescription')}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {getCategoryLabel(expense.category)}
+            {expense.subcategory && ` - ${getSubcategoryLabel(expense.subcategory)}`}
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: 'expense_date',
+      label: t('table.date'),
+      render: (value) => formatDate(value as string, locale === 'es' ? 'es' : 'en'),
+    },
+    {
+      key: 'amount_cents',
+      label: t('table.amount'),
+      render: (value) => (
+        <span className="font-semibold text-foreground">{formatCurrency(Number(value) || 0)}</span>
+      ),
+    },
+    {
+      key: 'actions',
+      label: tCommon('actions'),
+      sortable: false,
+      render: (_value, expense) => (
+        <ActionDropdown
+          actions={[
+            createEditAction(() => openEditModal(expense), tCommon('edit')),
+            createDeleteAction(() => setDeleteTarget(expense), tCommon('delete')),
+          ]}
+        />
+      ),
+    },
+  ], [locale, t, tCommon, getCategoryLabel, getSubcategoryLabel])
 
   // Calculate summary from FILTERED expenses using generic hook
   const filteredSummary = useFilteredSummary(expenses, expenseSummaryConfig)

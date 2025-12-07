@@ -81,7 +81,8 @@
     "inactive": "Inactive",
     "success": "Success",
     "today": "Today",
-    "unknown": "Unknown"
+    "unknown": "Unknown",
+    "noPhone": "No phone"
   },
   "filters": {
     "title": "Filters",
@@ -735,7 +736,20 @@
     "error_generic": "An error has occurred",
     "period_selector": "Period",
     "chart_revenue": "Revenue",
-    "chart_expenses": "Expenses"
+    "chart_expenses": "Expenses",
+    "insufficient_data": "Insufficient data to compare",
+    "plannedVsActual": {
+      "title": "Planned vs Actual",
+      "subtitle": "Fixed costs: budget vs actual expenses",
+      "planned": "Planned (monthly)",
+      "actual": "Actual (period)",
+      "variance": "Variance",
+      "overBudget": "Spending above planned",
+      "underBudget": "Spending below planned",
+      "onTrack": "On track with planned",
+      "varianceByCategory": "Variance by category",
+      "noData": "No planned costs or actual expenses data to compare"
+    }
   },
   "onboarding": {
     "welcomeTitle": "Welcome to Laralis! 🎉",
@@ -1134,6 +1148,13 @@
   "supplies": {
     "title": "Supplies",
     "subtitle": "Manage your dental supplies inventory",
+    "entity": "supply",
+    "table": {
+      "supply": "Supply",
+      "price": "Price",
+      "portions": "Portions",
+      "costPerPortion": "Cost/Portion"
+    },
     "name": "Supply Name",
     "category": "Category",
     "presentation": "Presentation",
@@ -1460,6 +1481,9 @@
     "bulk_discount_info": "The discount will be applied on top of each service's price with margin.",
     "price_rounding_notice": "Prices will be automatically rounded to multiples of ${amount}.",
     "discount": "Discount",
+    "price_label": "Price",
+    "margin_label_short": "margin",
+    "no_results": "No results found",
     "remove_discount": "Remove Discount",
     "savings_label": "Savings",
     "single_discount_info": "The discount will be applied on top of this service's price with margin.",
@@ -1473,10 +1497,13 @@
     "totalMonthlyDep": "Total Monthly Depreciation",
     "add": "Add Asset",
     "table": {
+      "asset": "Asset",
       "name": "Name",
       "purchasePrice": "Purchase Price",
+      "value": "Value",
       "months": "Months",
-      "monthlyDep": "Monthly Depreciation"
+      "monthlyDep": "Monthly Depreciation",
+      "depreciation": "Depreciation"
     },
     "form": {
       "name": "Name",
