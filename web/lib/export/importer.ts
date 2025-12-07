@@ -287,6 +287,13 @@ export class WorkspaceBundleImporter {
     await this.importPatients(clinicBundle, newClinicId);
     await this.importTreatments(clinicBundle, newClinicId);
     await this.importExpenses(clinicBundle, newClinicId);
+
+    // AI Assistant Data (Migrations 50-54)
+    await this.importActionLogs(clinicBundle, newClinicId);
+    await this.importClinicGoogleCalendar(clinicBundle, newClinicId);
+    await this.importChatSessions(clinicBundle, newClinicId);
+    await this.importChatMessages(clinicBundle);
+    await this.importAiFeedback(clinicBundle);
   }
 
   // Import methods for each table
@@ -694,11 +701,212 @@ export class WorkspaceBundleImporter {
     // Add warning if some expenses were reclassified
     if (reclassifiedCount > 0) {
       this.progress.errors.push({
-        type: 'DATA_LOSS',
+        type: 'CONSTRAINT_VIOLATION',
         field: 'category_id',
         message: `${reclassifiedCount} expense(s) reclassified to "Otros" (original category not found in backup)`,
       });
     }
+  }
+
+  // AI Assistant Data Import Methods (Migrations 50-54)
+
+  private async importActionLogs(clinicBundle: any, newClinicId: string) {
+    if (!clinicBundle.actionLogs || clinicBundle.actionLogs.length === 0) return;
+
+    const records = clinicBundle.actionLogs.map((log: any) => ({
+      clinic_id: newClinicId,
+      user_id: log.user_id, // Keep original user_id (may be null or different user)
+      session_id: log.session_id,
+      action_type: log.action_type,
+      entity_type: log.entity_type,
+      entity_id: log.entity_id,
+      input_data: log.input_data,
+      output_data: log.output_data,
+      status: log.status,
+      error_message: log.error_message,
+      execution_time_ms: log.execution_time_ms,
+      created_at: log.created_at,
+      completed_at: log.completed_at,
+    }));
+
+    const { error } = await this.supabase.from('action_logs').insert(records);
+
+    if (error) {
+      // Non-fatal: action_logs are optional historical data
+      console.warn('[importer] Failed to import action_logs:', error);
+      this.progress.errors.push({
+        type: 'CONSTRAINT_VIOLATION',
+        field: 'action_logs',
+        message: `Failed to import ${records.length} action log(s): ${error.message}`,
+      });
+      return;
+    }
+    this.progress.recordsProcessed += records.length;
+  }
+
+  private async importClinicGoogleCalendar(clinicBundle: any, newClinicId: string) {
+    if (!clinicBundle.clinicGoogleCalendar) return;
+
+    const cal = clinicBundle.clinicGoogleCalendar;
+    const { error } = await this.supabase.from('clinic_google_calendar').insert({
+      clinic_id: newClinicId,
+      calendar_id: cal.calendar_id,
+      calendar_name: cal.calendar_name,
+      access_token: cal.access_token,
+      refresh_token: cal.refresh_token,
+      token_expires_at: cal.token_expires_at,
+      sync_enabled: cal.sync_enabled,
+      last_sync_at: cal.last_sync_at,
+      sync_error: cal.sync_error,
+    });
+
+    if (error) {
+      // Non-fatal: Google Calendar integration is optional
+      console.warn('[importer] Failed to import clinic_google_calendar:', error);
+      this.progress.errors.push({
+        type: 'CONSTRAINT_VIOLATION',
+        field: 'clinic_google_calendar',
+        message: `Failed to import Google Calendar config: ${error.message}`,
+      });
+      return;
+    }
+    this.progress.recordsProcessed++;
+  }
+
+  private async importChatSessions(clinicBundle: any, newClinicId: string) {
+    if (!clinicBundle.chatSessions || clinicBundle.chatSessions.length === 0) return;
+
+    const records = clinicBundle.chatSessions.map((session: any) => ({
+      clinic_id: newClinicId,
+      user_id: session.user_id,
+      mode: session.mode,
+      entity_type: session.entity_type,
+      title: session.title,
+      metadata: session.metadata,
+      started_at: session.started_at,
+      ended_at: session.ended_at,
+    }));
+
+    const { data, error } = await this.supabase
+      .from('chat_sessions')
+      .insert(records)
+      .select();
+
+    if (error) {
+      // Non-fatal: chat history is optional
+      console.warn('[importer] Failed to import chat_sessions:', error);
+      this.progress.errors.push({
+        type: 'CONSTRAINT_VIOLATION',
+        field: 'chat_sessions',
+        message: `Failed to import ${records.length} chat session(s): ${error.message}`,
+      });
+      return;
+    }
+
+    // Map old session IDs to new IDs for chat_messages FK
+    if (data) {
+      this.idMappings.chatSessions = this.idMappings.chatSessions || {};
+      clinicBundle.chatSessions.forEach((session: any, index: number) => {
+        this.idMappings.chatSessions![session.id] = data[index].id;
+      });
+    }
+
+    this.progress.recordsProcessed += records.length;
+  }
+
+  private async importChatMessages(clinicBundle: any) {
+    if (!clinicBundle.chatMessages || clinicBundle.chatMessages.length === 0) return;
+
+    const records = clinicBundle.chatMessages.map((msg: any) => {
+      const newSessionId = this.idMappings.chatSessions?.[msg.session_id];
+
+      if (!newSessionId) {
+        console.warn(`[importer] Skipping chat_message: session ${msg.session_id} not found in mappings`);
+        return null;
+      }
+
+      return {
+        session_id: newSessionId,
+        role: msg.role,
+        content: msg.content,
+        audio_url: msg.audio_url,
+        tokens_used: msg.tokens_used,
+        model_used: msg.model_used,
+        latency_ms: msg.latency_ms,
+        created_at: msg.created_at,
+      };
+    }).filter(Boolean);
+
+    if (records.length === 0) return;
+
+    const { data, error } = await this.supabase
+      .from('chat_messages')
+      .insert(records)
+      .select();
+
+    if (error) {
+      console.warn('[importer] Failed to import chat_messages:', error);
+      this.progress.errors.push({
+        type: 'CONSTRAINT_VIOLATION',
+        field: 'chat_messages',
+        message: `Failed to import ${records.length} chat message(s): ${error.message}`,
+      });
+      return;
+    }
+
+    // Map old message IDs to new IDs for ai_feedback FK
+    if (data) {
+      this.idMappings.chatMessages = this.idMappings.chatMessages || {};
+      // Only map the messages that were successfully inserted
+      const originalMessages = clinicBundle.chatMessages.filter((msg: any) =>
+        this.idMappings.chatSessions?.[msg.session_id]
+      );
+      originalMessages.forEach((msg: any, index: number) => {
+        if (data[index]) {
+          this.idMappings.chatMessages![msg.id] = data[index].id;
+        }
+      });
+    }
+
+    this.progress.recordsProcessed += records.length;
+  }
+
+  private async importAiFeedback(clinicBundle: any) {
+    if (!clinicBundle.aiFeedback || clinicBundle.aiFeedback.length === 0) return;
+
+    const records = clinicBundle.aiFeedback.map((feedback: any) => {
+      const newMessageId = this.idMappings.chatMessages?.[feedback.message_id];
+
+      if (!newMessageId) {
+        console.warn(`[importer] Skipping ai_feedback: message ${feedback.message_id} not found in mappings`);
+        return null;
+      }
+
+      return {
+        message_id: newMessageId,
+        user_id: feedback.user_id,
+        rating: feedback.rating,
+        feedback_type: feedback.feedback_type,
+        feedback_text: feedback.feedback_text,
+        created_at: feedback.created_at,
+      };
+    }).filter(Boolean);
+
+    if (records.length === 0) return;
+
+    const { error } = await this.supabase.from('ai_feedback').insert(records);
+
+    if (error) {
+      console.warn('[importer] Failed to import ai_feedback:', error);
+      this.progress.errors.push({
+        type: 'CONSTRAINT_VIOLATION',
+        field: 'ai_feedback',
+        message: `Failed to import ${records.length} AI feedback record(s): ${error.message}`,
+      });
+      return;
+    }
+
+    this.progress.recordsProcessed += records.length;
   }
 
   /**

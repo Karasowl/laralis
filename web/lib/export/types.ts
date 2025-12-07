@@ -483,6 +483,88 @@ export interface WorkspaceActivity {
 }
 
 // ============================================================================
+// AI ASSISTANT TABLES (Migrations 50-54)
+// ============================================================================
+
+/**
+ * Action Log - AI assistant action audit trail (Migration 50)
+ */
+export interface ActionLog {
+  id: string;
+  clinic_id: string;
+  user_id: string | null;
+  session_id: string | null;
+  action_type: string;
+  entity_type: string;
+  entity_id: string | null;
+  input_data: Record<string, any>;
+  output_data: Record<string, any>;
+  status: 'pending' | 'success' | 'failed' | 'rolled_back';
+  error_message: string | null;
+  execution_time_ms: number | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
+/**
+ * Clinic Google Calendar - OAuth integration config (Migration 52)
+ */
+export interface ClinicGoogleCalendar {
+  id: string;
+  clinic_id: string;
+  access_token: string;
+  refresh_token: string;
+  token_expiry: string;
+  calendar_id: string | null;
+  sync_enabled: boolean;
+  last_sync_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Chat Session - AI conversation sessions (Migration 54)
+ */
+export interface ChatSession {
+  id: string;
+  clinic_id: string;
+  user_id: string;
+  title: string | null;
+  mode: 'entry' | 'query';
+  is_active: boolean;
+  message_count: number;
+  last_message_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Chat Message - AI conversation messages (Migration 54)
+ */
+export interface ChatMessage {
+  id: string;
+  session_id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  audio_url: string | null;
+  metadata: Record<string, any>;
+  created_at: string;
+}
+
+/**
+ * AI Feedback - User feedback on AI responses (Migration 54)
+ */
+export interface AIFeedback {
+  id: string;
+  message_id: string;
+  user_id: string;
+  rating: number | null;
+  feedback_type: 'positive' | 'negative' | 'neutral';
+  comment: string | null;
+  created_at: string;
+}
+
+// ============================================================================
 // EXPORT BUNDLE TYPES
 // ============================================================================
 
@@ -526,6 +608,13 @@ export interface ClinicDataBundle {
 
   // Optional: Audit logs
   workspaceActivity?: WorkspaceActivity[];
+
+  // AI Assistant Data (Migrations 50-54)
+  actionLogs?: ActionLog[];
+  clinicGoogleCalendar?: ClinicGoogleCalendar | null;
+  chatSessions?: ChatSession[];
+  chatMessages?: ChatMessage[];
+  aiFeedback?: AIFeedback[];
 
   // Record counts for validation
   recordCounts: Record<string, number>;
