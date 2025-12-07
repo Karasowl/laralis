@@ -1,17 +1,17 @@
 'use client'
 
 // DEBUG: Version marker
-console.log('[calendar-settings] Version: 2024-12-07-v2-suspense-fix')
+console.log('[calendar-settings] Version: 2024-12-07-v3-sonner')
 
 import { useEffect, useState, Suspense } from 'react'
 import { useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
+import { toast } from 'sonner'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { useToast } from '@/hooks/use-toast'
 import { useApi } from '@/hooks/use-api'
 import {
   Calendar,
@@ -79,7 +79,6 @@ function CalendarParamsHandler({
 
 export default function CalendarSettingsPage() {
   const t = useTranslations()
-  const { toast } = useToast()
   const [isConnecting, setIsConnecting] = useState(false)
   const [isDisconnecting, setIsDisconnecting] = useState(false)
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false)
@@ -91,18 +90,12 @@ export default function CalendarSettingsPage() {
 
   // Handlers for URL params
   const handleSuccess = () => {
-    toast({
-      title: t('settings.calendar.connectionSuccess'),
-      variant: 'default',
-    })
+    toast.success(t('settings.calendar.connectionSuccess'))
     refetch()
   }
 
   const handleError = (msg: string) => {
-    toast({
-      title: msg,
-      variant: 'destructive',
-    })
+    toast.error(msg)
   }
 
   // Connect to Google Calendar
@@ -119,10 +112,7 @@ export default function CalendarSettingsPage() {
         throw new Error('Failed to get auth URL')
       }
     } catch (error) {
-      toast({
-        title: t('settings.calendar.connectionError'),
-        variant: 'destructive',
-      })
+      toast.error(t('settings.calendar.connectionError'))
       setIsConnecting(false)
     }
   }
@@ -136,18 +126,13 @@ export default function CalendarSettingsPage() {
       })
 
       if (response.ok) {
-        toast({
-          title: t('settings.calendar.disconnectSuccess'),
-        })
+        toast.success(t('settings.calendar.disconnectSuccess'))
         refetch()
       } else {
         throw new Error('Failed to disconnect')
       }
     } catch (error) {
-      toast({
-        title: t('settings.calendar.connectionError'),
-        variant: 'destructive',
-      })
+      toast.error(t('settings.calendar.connectionError'))
     } finally {
       setIsDisconnecting(false)
       setShowDisconnectDialog(false)
