@@ -197,6 +197,12 @@ export default function TreatmentsPage() {
   const [editTreatment, setEditTreatment] = useState<any>(null)
   const [deleteTreatmentData, setDeleteTreatmentData] = useState<any>(null)
 
+  // URL params for create/edit from calendar view
+  const createParam = searchParams?.get('create')
+  const dateParam = searchParams?.get('date')
+  const timeParam = searchParams?.get('time')
+  const editParam = searchParams?.get('edit')
+
   // Form
   const treatmentInitialValues: TreatmentFormData = {
     patient_id: '',
@@ -231,6 +237,34 @@ export default function TreatmentsPage() {
     clinicId: currentClinic?.id as string
   }))
   const [missingReqs, setMissingReqs] = useState<string[]>([])
+
+  // Handle create from URL params (from calendar view)
+  useEffect(() => {
+    if (createParam === 'true') {
+      const newValues = {
+        ...treatmentInitialValues,
+        patient_id: patientFilter || '',
+        treatment_date: dateParam || getLocalDateISO(),
+        treatment_time: timeParam || '',
+      }
+      form.reset(newValues)
+      setCreateOpen(true)
+      // Clean up URL params
+      window.history.replaceState({}, '', '/treatments')
+    }
+  }, [createParam, dateParam, timeParam, patientFilter, form])
+
+  // Handle edit from URL params
+  useEffect(() => {
+    if (editParam && treatments.length > 0) {
+      const treatment = treatments.find((t: Treatment) => t.id === editParam)
+      if (treatment) {
+        setEditTreatment(treatment)
+        // Clean up URL params
+        window.history.replaceState({}, '', '/treatments')
+      }
+    }
+  }, [editParam, treatments])
 
   // Submit handlers
   const handleCreate = async (data: TreatmentFormData) => {
