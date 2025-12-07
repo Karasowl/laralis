@@ -30,18 +30,28 @@ interface ExportMetadata {
 }
 
 interface FullExportData {
+  // Clinic configuration
+  clinic: any
+  settings_time: any
+  // Categories
+  categories: any[]
+  custom_categories: any[]
+  // Patients & Sources
   patients: any[]
+  patient_sources: any[]
+  // Treatments (with full details for per-patient analysis)
   treatments: any[]
+  // Services & Recipes
   services: any[]
   supplies: any[]
   service_supplies: any[]
+  // Financials
   expenses: any[]
   fixed_costs: any[]
   assets: any[]
-  custom_categories: any[]
-  patient_sources: any[]
+  // Marketing
   marketing_campaigns: any[]
-  settings_time: any
+  marketing_campaign_status_history: any[]
 }
 
 interface ExportResponse {
@@ -131,7 +141,12 @@ export async function GET(
       response.data = fullData
 
       // Update record counts
+      response.metadata.recordCounts.clinic = fullData.clinic ? 1 : 0
+      response.metadata.recordCounts.settings_time = fullData.settings_time ? 1 : 0
+      response.metadata.recordCounts.categories = fullData.categories.length
+      response.metadata.recordCounts.custom_categories = fullData.custom_categories.length
       response.metadata.recordCounts.patients = fullData.patients.length
+      response.metadata.recordCounts.patient_sources = fullData.patient_sources.length
       response.metadata.recordCounts.treatments = fullData.treatments.length
       response.metadata.recordCounts.services = fullData.services.length
       response.metadata.recordCounts.supplies = fullData.supplies.length
@@ -139,9 +154,8 @@ export async function GET(
       response.metadata.recordCounts.expenses = fullData.expenses.length
       response.metadata.recordCounts.fixed_costs = fullData.fixed_costs.length
       response.metadata.recordCounts.assets = fullData.assets.length
-      response.metadata.recordCounts.custom_categories = fullData.custom_categories.length
-      response.metadata.recordCounts.patient_sources = fullData.patient_sources.length
       response.metadata.recordCounts.marketing_campaigns = fullData.marketing_campaigns.length
+      response.metadata.recordCounts.marketing_campaign_status_history = fullData.marketing_campaign_status_history.length
     }
 
     // Return with appropriate headers for download
@@ -173,7 +187,12 @@ export async function GET(
 async function loadFullClinicData(clinicId: string): Promise<FullExportData> {
   // Run all queries in parallel for performance
   const [
+    clinicResult,
+    timeSettingsResult,
+    categoriesResult,
+    customCategoriesResult,
     patientsResult,
+    sourcesResult,
     treatmentsResult,
     servicesResult,
     suppliesResult,
@@ -181,11 +200,37 @@ async function loadFullClinicData(clinicId: string): Promise<FullExportData> {
     expensesResult,
     fixedCostsResult,
     assetsResult,
-    categoriesResult,
-    sourcesResult,
     campaignsResult,
-    timeSettingsResult
+    campaignHistoryResult
   ] = await Promise.all([
+    // Clinic - full record with global discount config
+    supabaseAdmin
+      .from('clinics')
+      .select('*')
+      .eq('id', clinicId)
+      .single(),
+
+    // Time settings
+    supabaseAdmin
+      .from('settings_time')
+      .select('*')
+      .eq('clinic_id', clinicId)
+      .single(),
+
+    // Categories (generic)
+    supabaseAdmin
+      .from('categories')
+      .select('*')
+      .eq('clinic_id', clinicId)
+      .order('name'),
+
+    // Custom categories
+    supabaseAdmin
+      .from('custom_categories')
+      .select('*')
+      .eq('clinic_id', clinicId)
+      .order('name'),
+
     // Patients - with campaign name and source name
     supabaseAdmin
       .from('patients')
@@ -197,21 +242,34 @@ async function loadFullClinicData(clinicId: string): Promise<FullExportData> {
       .eq('clinic_id', clinicId)
       .order('created_at', { ascending: false }),
 
-    // Treatments - with service, patient, and campaign info
+    // Patient sources
+    supabaseAdmin
+      .from('patient_sources')
+      .select('*')
+      .eq('clinic_id', clinicId)
+      .order('name'),
+
+    // Treatments - COMPLETE data with all relationships for per-patient analysis
     supabaseAdmin
       .from('treatments')
       .select(`
         *,
-        service:services(name, category_id),
-        patient:patients(name, campaign_id, campaign:marketing_campaigns(name, platform))
+        service:services(id, name, category_id, est_minutes),
+        patient:patients(id, name, email, phone, campaign_id, source_id,
+          campaign:marketing_campaigns(name, platform),
+          source:patient_sources(name)
+        )
       `)
       .eq('clinic_id', clinicId)
       .order('treatment_date', { ascending: false }),
 
-    // Services - all pricing fields
+    // Services - all pricing fields with category name
     supabaseAdmin
       .from('services')
-      .select('*')
+      .select(`
+        *,
+        category:custom_categories(name)
+      `)
       .eq('clinic_id', clinicId)
       .order('name'),
 
@@ -228,16 +286,17 @@ async function loadFullClinicData(clinicId: string): Promise<FullExportData> {
       .select(`
         *,
         service:services(name),
-        supply:supplies(name)
+        supply:supplies(name, unit)
       `)
       .eq('clinic_id', clinicId),
 
-    // Expenses - with campaign name if linked
+    // Expenses - with campaign and category
     supabaseAdmin
       .from('expenses')
       .select(`
         *,
-        campaign:marketing_campaigns(name, platform)
+        campaign:marketing_campaigns(name, platform),
+        category:custom_categories(name)
       `)
       .eq('clinic_id', clinicId)
       .order('expense_date', { ascending: false }),
@@ -256,20 +315,6 @@ async function loadFullClinicData(clinicId: string): Promise<FullExportData> {
       .eq('clinic_id', clinicId)
       .order('name'),
 
-    // Custom categories
-    supabaseAdmin
-      .from('custom_categories')
-      .select('*')
-      .eq('clinic_id', clinicId)
-      .order('name'),
-
-    // Patient sources
-    supabaseAdmin
-      .from('patient_sources')
-      .select('*')
-      .eq('clinic_id', clinicId)
-      .order('name'),
-
     // Marketing campaigns - full data
     supabaseAdmin
       .from('marketing_campaigns')
@@ -277,26 +322,38 @@ async function loadFullClinicData(clinicId: string): Promise<FullExportData> {
       .eq('clinic_id', clinicId)
       .order('created_at', { ascending: false }),
 
-    // Time settings
+    // Marketing campaign status history
     supabaseAdmin
-      .from('settings_time')
-      .select('*')
-      .eq('clinic_id', clinicId)
-      .single()
+      .from('marketing_campaign_status_history')
+      .select(`
+        *,
+        campaign:marketing_campaigns(name)
+      `)
+      .eq('marketing_campaigns.clinic_id', clinicId)
   ])
 
   return {
+    // Clinic configuration
+    clinic: clinicResult.data || null,
+    settings_time: timeSettingsResult.data || null,
+    // Categories
+    categories: categoriesResult.data || [],
+    custom_categories: customCategoriesResult.data || [],
+    // Patients & Sources
     patients: patientsResult.data || [],
+    patient_sources: sourcesResult.data || [],
+    // Treatments
     treatments: treatmentsResult.data || [],
+    // Services & Recipes
     services: servicesResult.data || [],
     supplies: suppliesResult.data || [],
     service_supplies: serviceSuppliesResult.data || [],
+    // Financials
     expenses: expensesResult.data || [],
     fixed_costs: fixedCostsResult.data || [],
     assets: assetsResult.data || [],
-    custom_categories: categoriesResult.data || [],
-    patient_sources: sourcesResult.data || [],
+    // Marketing
     marketing_campaigns: campaignsResult.data || [],
-    settings_time: timeSettingsResult.data || null
+    marketing_campaign_status_history: campaignHistoryResult.data || []
   }
 }

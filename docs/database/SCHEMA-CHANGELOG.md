@@ -4,9 +4,73 @@ This file tracks all changes to the database schema across versions.
 
 ---
 
-## Version 3 (2025-11-17)
+## Version 4 (2025-12-06)
 
 **Status:** ✅ Current
+**Migration:** 50-54 (AI Assistant & Integrations)
+**File:** [SCHEMA-v4-2025-12-06.md](schemas/SCHEMA-v4-2025-12-06.md)
+
+### AI Assistant Tables & Google Calendar Integration
+
+This version adds tables to support Lara AI assistant conversation persistence, action auditing, and Google Calendar synchronization.
+
+#### Added Tables
+
+**`action_logs`** (Migration 50)
+- Audit trail for all AI-executed actions
+- Stores action type, params, results, and error info
+- Immutable (no UPDATE/DELETE) for compliance
+- RLS: Clinic membership required for access
+
+**`clinic_google_calendar`** (Migration 52)
+- Stores OAuth tokens for Google Calendar integration
+- One calendar per clinic (UNIQUE constraint)
+- Stores access_token, refresh_token, expiry
+- RLS: Owners/admins can manage, members can view
+
+**`chat_sessions`** (Migration 54)
+- Metadata for AI conversation sessions
+- Tracks mode (entry/query), message count, timestamps
+- Supports soft delete via is_archived flag
+- Auto-updates stats via trigger
+
+**`chat_messages`** (Migration 54)
+- Individual messages within sessions
+- Stores content, thinking_process (Kimi K2), model used
+- Supports action suggestions and extracted data
+- Auto-generates session title from first message
+
+**`ai_feedback`** (Migration 54)
+- User feedback on AI responses (positive/negative)
+- Links to specific message for context
+- Tracks query type for analysis
+
+#### Modified Tables
+
+**`treatments`** (Migration 53)
+- ➕ Added `google_event_id` (text): Google Calendar event ID for sync
+
+#### Added Triggers
+
+- `trigger_update_chat_session_stats` - Updates message_count and last_message_at
+- `trigger_auto_generate_session_title` - Sets title from first user message
+- `update_clinic_google_calendar_updated_at` - Keeps updated_at current
+
+#### Export/Import Updates
+
+- Added all 5 new tables to Regular Export (backup) system
+- Import handles FK dependencies: sessions → messages → feedback
+- Non-fatal errors for AI tables (backup continues if AI import fails)
+
+#### Breaking Changes
+
+⚠️ None. This is a non-breaking additive change.
+
+---
+
+## Version 3 (2025-11-17)
+
+**Status:** 📦 Archived
 **Migration:** 46 (migrate_discounts_to_services)
 **File:** [SCHEMA-v3-2025-11-17.md](schemas/SCHEMA-v3-2025-11-17.md)
 

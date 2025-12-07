@@ -332,6 +332,10 @@ export class WorkspaceExporter {
       treatments,
       expenses,
       workspaceActivity,
+      // AI Assistant Data (Migrations 50-54)
+      actionLogs,
+      clinicGoogleCalendar,
+      chatSessions,
     ] = await Promise.all([
       this.fetchSettingsTime(clinicId),
       this.fetchCustomCategories(clinicId),
@@ -352,7 +356,19 @@ export class WorkspaceExporter {
       this.fetchTreatments(clinicId),
       this.fetchExpenses(clinicId),
       this.options.includeAuditLogs ? this.fetchWorkspaceActivity(clinicId) : [],
+      // AI Assistant Data
+      this.fetchActionLogs(clinicId),
+      this.fetchClinicGoogleCalendar(clinicId),
+      this.fetchChatSessions(clinicId),
     ]);
+
+    // Fetch chat messages (depends on session IDs)
+    const sessionIds = chatSessions.map((s: any) => s.id);
+    const chatMessages = await this.fetchChatMessages(clinicId, sessionIds);
+
+    // Fetch AI feedback (depends on message IDs)
+    const messageIds = chatMessages.map((m: any) => m.id);
+    const aiFeedback = await this.fetchAiFeedback(clinicId, messageIds);
 
     // Calculate record counts for this clinic
     const recordCounts: Record<string, number> = {
@@ -375,6 +391,12 @@ export class WorkspaceExporter {
       treatments: treatments.length,
       expenses: expenses.length,
       workspace_activity: workspaceActivity?.length || 0,
+      // AI Assistant Data
+      action_logs: actionLogs.length,
+      clinic_google_calendar: clinicGoogleCalendar ? 1 : 0,
+      chat_sessions: chatSessions.length,
+      chat_messages: chatMessages.length,
+      ai_feedback: aiFeedback.length,
     };
 
     return {
@@ -398,6 +420,12 @@ export class WorkspaceExporter {
       treatments,
       expenses,
       workspaceActivity,
+      // AI Assistant Data
+      actionLogs,
+      clinicGoogleCalendar,
+      chatSessions,
+      chatMessages,
+      aiFeedback,
       recordCounts,
     };
   }
@@ -536,6 +564,58 @@ export class WorkspaceExporter {
       .select('*')
       .eq('clinic_id', clinicId);
     this.recordCount('workspace_activity', data?.length || 0);
+    return data || [];
+  }
+
+  // =========================================================================
+  // AI ASSISTANT TABLES (Migrations 50-54)
+  // =========================================================================
+
+  private async fetchActionLogs(clinicId: string) {
+    const { data } = await this.supabase
+      .from('action_logs')
+      .select('*')
+      .eq('clinic_id', clinicId);
+    this.recordCount('action_logs', data?.length || 0);
+    return data || [];
+  }
+
+  private async fetchClinicGoogleCalendar(clinicId: string) {
+    const { data } = await this.supabase
+      .from('clinic_google_calendar')
+      .select('*')
+      .eq('clinic_id', clinicId)
+      .single();
+    if (data) this.recordCount('clinic_google_calendar', 1);
+    return data || null;
+  }
+
+  private async fetchChatSessions(clinicId: string) {
+    const { data } = await this.supabase
+      .from('chat_sessions')
+      .select('*')
+      .eq('clinic_id', clinicId);
+    this.recordCount('chat_sessions', data?.length || 0);
+    return data || [];
+  }
+
+  private async fetchChatMessages(clinicId: string, sessionIds: string[]) {
+    if (sessionIds.length === 0) return [];
+    const { data } = await this.supabase
+      .from('chat_messages')
+      .select('*')
+      .in('session_id', sessionIds);
+    this.recordCount('chat_messages', data?.length || 0);
+    return data || [];
+  }
+
+  private async fetchAiFeedback(clinicId: string, messageIds: string[]) {
+    if (messageIds.length === 0) return [];
+    const { data } = await this.supabase
+      .from('ai_feedback')
+      .select('*')
+      .in('message_id', messageIds);
+    this.recordCount('ai_feedback', data?.length || 0);
     return data || [];
   }
 
