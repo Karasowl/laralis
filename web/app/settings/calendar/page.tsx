@@ -1,6 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+// DEBUG: Version marker
+console.log('[calendar-settings] Version: 2024-12-07-v2-suspense-fix')
+
+import { useEffect, useState, Suspense } from 'react'
 import { useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
 import { AppLayout } from '@/components/layouts/AppLayout'
@@ -41,30 +44,23 @@ interface CalendarStatus {
   config: CalendarConfig | null
 }
 
-export default function CalendarSettingsPage() {
+// Separate component to handle URL params with Suspense
+function CalendarParamsHandler({
+  onSuccess,
+  onError
+}: {
+  onSuccess: () => void
+  onError: (msg: string) => void
+}) {
   const t = useTranslations()
-  const { toast } = useToast()
   const searchParams = useSearchParams()
-  const [isConnecting, setIsConnecting] = useState(false)
-  const [isDisconnecting, setIsDisconnecting] = useState(false)
-  const [showDisconnectDialog, setShowDisconnectDialog] = useState(false)
 
-  // Fetch calendar status
-  const { data: status, isLoading, refetch } = useApi<CalendarStatus>(
-    '/api/auth/google-calendar'
-  )
-
-  // Handle URL params for success/error messages
   useEffect(() => {
     const success = searchParams.get('success')
     const error = searchParams.get('error')
 
     if (success === 'connected') {
-      toast({
-        title: t('settings.calendar.connectionSuccess'),
-        variant: 'default',
-      })
-      refetch()
+      onSuccess()
     }
 
     if (error) {
@@ -74,12 +70,40 @@ export default function CalendarSettingsPage() {
       } else if (error === 'permission_denied') {
         errorMessage = t('settings.calendar.permissionDenied')
       }
-      toast({
-        title: errorMessage,
-        variant: 'destructive',
-      })
+      onError(errorMessage)
     }
-  }, [searchParams, t, toast, refetch])
+  }, [searchParams, t, onSuccess, onError])
+
+  return null
+}
+
+export default function CalendarSettingsPage() {
+  const t = useTranslations()
+  const { toast } = useToast()
+  const [isConnecting, setIsConnecting] = useState(false)
+  const [isDisconnecting, setIsDisconnecting] = useState(false)
+  const [showDisconnectDialog, setShowDisconnectDialog] = useState(false)
+
+  // Fetch calendar status
+  const { data: status, isLoading, refetch } = useApi<CalendarStatus>(
+    '/api/auth/google-calendar'
+  )
+
+  // Handlers for URL params
+  const handleSuccess = () => {
+    toast({
+      title: t('settings.calendar.connectionSuccess'),
+      variant: 'default',
+    })
+    refetch()
+  }
+
+  const handleError = (msg: string) => {
+    toast({
+      title: msg,
+      variant: 'destructive',
+    })
+  }
 
   // Connect to Google Calendar
   const handleConnect = async () => {
@@ -132,6 +156,11 @@ export default function CalendarSettingsPage() {
 
   return (
     <AppLayout>
+      {/* Handle URL params in Suspense to avoid hydration issues */}
+      <Suspense fallback={null}>
+        <CalendarParamsHandler onSuccess={handleSuccess} onError={handleError} />
+      </Suspense>
+
       <div className="p-4 lg:p-8 max-w-[1280px] mx-auto space-y-6">
         <PageHeader
           title={t('settings.calendar.title')}
