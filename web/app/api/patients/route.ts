@@ -143,11 +143,12 @@ export async function POST(request: NextRequest) {
       if (error.code === '23505') {
         // Duplicate name constraint
         if (error.message.includes('idx_patients_unique_name_per_clinic')) {
+          const fullName = `${patientData.first_name || ''} ${patientData.last_name || ''}`.trim();
           return NextResponse.json(
             {
               error: 'DUPLICATE_PATIENT_NAME',
               data: {
-                name: `${patientData.first_name} ${patientData.last_name}`.trim()
+                name: fullName || 'Unknown'
               }
             },
             { status: 409 }
@@ -159,7 +160,7 @@ export async function POST(request: NextRequest) {
             {
               error: 'DUPLICATE_PATIENT_EMAIL',
               data: {
-                email: patientData.email
+                email: patientData.email || 'Unknown'
               }
             },
             { status: 409 }

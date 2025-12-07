@@ -120,13 +120,31 @@ export async function PUT(
       if (error.code === '23505') {
         // Duplicate name constraint
         if (error.message.includes('idx_patients_unique_name_per_clinic')) {
-          const firstName = validationResult.data.first_name || '';
-          const lastName = validationResult.data.last_name || '';
+          // Fetch current patient data to get full name (update may be partial)
+          let fullName = '';
+          try {
+            const { data: currentPatient } = await supabaseAdmin
+              .from('patients')
+              .select('first_name, last_name')
+              .eq('id', params.id)
+              .single();
+
+            if (currentPatient) {
+              // Merge: use updated values if provided, otherwise use current values
+              const firstName = validationResult.data.first_name || currentPatient.first_name || '';
+              const lastName = validationResult.data.last_name || currentPatient.last_name || '';
+              fullName = `${firstName} ${lastName}`.trim();
+            }
+          } catch {
+            // Fallback to just the update data
+            fullName = `${validationResult.data.first_name || ''} ${validationResult.data.last_name || ''}`.trim();
+          }
+
           return NextResponse.json(
             {
               error: 'DUPLICATE_PATIENT_NAME',
               data: {
-                name: `${firstName} ${lastName}`.trim()
+                name: fullName || 'Unknown'
               }
             },
             { status: 409 }
@@ -138,7 +156,7 @@ export async function PUT(
             {
               error: 'DUPLICATE_PATIENT_EMAIL',
               data: {
-                email: validationResult.data.email
+                email: validationResult.data.email || 'Unknown'
               }
             },
             { status: 409 }
