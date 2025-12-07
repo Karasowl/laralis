@@ -65,7 +65,7 @@ export function Sidebar({
       <nav className="flex-1 overflow-y-auto overscroll-contain scrollbar-thin scrollbar-thumb-muted-foreground/30">
         <div className="p-4 space-y-6 pb-8">
           {sections.map((section, sectionIndex) => (
-            <div key={sectionIndex} className="space-y-1">
+            <div key={sectionIndex} className="space-y-1.5 sm:space-y-1">
               {section.title && !isCollapsed && (
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                   {section.title}

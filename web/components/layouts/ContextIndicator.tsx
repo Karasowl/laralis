@@ -45,15 +45,16 @@ export function ContextIndicator({ className, compact = false, interactive = tru
   return (
     <div className={cn('flex items-center gap-2', className)}>
       {interactive ? (
-        <Link href={workspaceHref} className="no-underline">
+        <Link href={workspaceHref} className="no-underline max-w-[120px] sm:max-w-none">
           <span
             data-testid="current-workspace-name"
             data-cy="current-workspace"
             className={cn(
               'inline-flex items-center rounded-full border px-2 py-0.5 text-xs',
               'bg-muted/60 text-foreground/80 hover:bg-muted',
+              'truncate max-w-full',
             )}
-            title={t('workspaces')}
+            title={wsName}
           >
             {wsName}
           </span>
@@ -65,22 +66,24 @@ export function ContextIndicator({ className, compact = false, interactive = tru
           className={cn(
             'inline-flex items-center rounded-full border px-2 py-0.5 text-xs',
             'bg-muted/60 text-foreground/80',
+            'truncate max-w-[120px] sm:max-w-none',
           )}
-          title={t('workspaces')}
+          title={wsName}
         >
           {wsName}
         </span>
       )}
       {interactive ? (
-        <Link href={clinicHref} className="no-underline">
+        <Link href={clinicHref} className="no-underline max-w-[120px] sm:max-w-none">
           <span
             data-testid="current-clinic-name"
             data-cy="current-clinic"
             className={cn(
               'inline-flex items-center rounded-full border px-2 py-0.5 text-xs',
               'bg-muted/60 text-foreground/80 hover:bg-muted',
+              'truncate max-w-full',
             )}
-            title={t('clinics')}
+            title={clinicName}
           >
             {clinicName}
           </span>
@@ -92,8 +95,9 @@ export function ContextIndicator({ className, compact = false, interactive = tru
           className={cn(
             'inline-flex items-center rounded-full border px-2 py-0.5 text-xs',
             'bg-muted/60 text-foreground/80',
+            'truncate max-w-[120px] sm:max-w-none',
           )}
-          title={t('clinics')}
+          title={clinicName}
         >
           {clinicName}
         </span>

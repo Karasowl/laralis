@@ -46,21 +46,21 @@ const SkeletonTable = React.forwardRef<HTMLDivElement, SkeletonProps>(
         className={cn('rounded-md border', className)}
         {...props}
       >
-        <div className="border-b bg-muted/50 p-4">
-          <div className="flex space-x-4">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-4 w-28" />
-            <Skeleton className="h-4 w-20" />
+        <div className="border-b bg-muted/50 p-3 sm:p-4">
+          <div className="flex space-x-2 sm:space-x-4 overflow-hidden">
+            <Skeleton className="h-4 w-16 sm:w-24 shrink-0" />
+            <Skeleton className="h-4 w-20 sm:w-32 shrink-0 hidden sm:block" />
+            <Skeleton className="h-4 w-16 sm:w-28 shrink-0" />
+            <Skeleton className="h-4 w-12 sm:w-20 shrink-0 hidden md:block" />
           </div>
         </div>
         <div className="divide-y">
           {Array.from({ length: 5 }).map((_, index) => (
-            <div key={index} className="flex space-x-4 p-4">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-4 w-20" />
+            <div key={index} className="flex space-x-2 sm:space-x-4 p-3 sm:p-4 overflow-hidden">
+              <Skeleton className="h-4 w-16 sm:w-24 shrink-0" />
+              <Skeleton className="h-4 w-20 sm:w-32 shrink-0 hidden sm:block" />
+              <Skeleton className="h-4 w-16 sm:w-28 shrink-0" />
+              <Skeleton className="h-4 w-12 sm:w-20 shrink-0 hidden md:block" />
             </div>
           ))}
         </div>

@@ -199,20 +199,41 @@ function DataTable<T extends { id?: string | number }>({
       ) : (
         <div className={cn("rounded-xl border bg-card shadow-sm overflow-hidden", className)} {...props}>
           {/* Mobile cards */}
-          <div className="md:hidden divide-y">
+          <div className="md:hidden divide-y divide-border">
             {sortedData.map((item, rowIndex) => {
-              const cols = mobileColumns && mobileColumns.length > 0 ? mobileColumns : columns.slice(0, Math.min(2, columns.length));
+              const cols = mobileColumns && mobileColumns.length > 0
+                ? mobileColumns
+                : columns.slice(0, Math.min(3, columns.length));
               return (
-                <div key={(item as any).id ?? rowIndex} className="p-4">
+                <div
+                  key={(item as any).id ?? rowIndex}
+                  className="p-3 sm:p-4 space-y-2 active:bg-muted/50 transition-colors"
+                >
                   {cols.map((column, colIndex) => {
                     const value = getValue(item, column.key);
+                    const isActions = column.key === 'actions';
+
                     return (
-                      <div key={colIndex} className={cn("py-1")}> 
-                        {column.render ? (
-                          <div>{column.render(value, item, rowIndex)}</div>
-                        ) : (
-                          <div className="text-sm">{String(value ?? "")}</div>
+                      <div
+                        key={colIndex}
+                        className={cn(
+                          "flex items-start gap-2",
+                          isActions && "justify-end pt-2 border-t mt-2"
                         )}
+                      >
+                        {!isActions && column.label && (
+                          <span className="text-xs text-muted-foreground min-w-[80px] flex-shrink-0">
+                            {column.label}:
+                          </span>
+                        )}
+                        <div className={cn(
+                          "text-sm flex-1 min-w-0",
+                          !isActions && "text-right"
+                        )}>
+                          {column.render
+                            ? column.render(value, item, rowIndex)
+                            : String(value ?? "")}
+                        </div>
                       </div>
                     );
                   })}

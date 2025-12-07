@@ -112,7 +112,7 @@ export function CategoryBreakdown({
             <Legend
               verticalAlign="bottom"
               height={36}
-              wrapperStyle={{ fontSize: '12px' }}
+              wrapperStyle={{ fontSize: '12px', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '4px' }}
             />
           </PieChart>
         </ResponsiveContainer>

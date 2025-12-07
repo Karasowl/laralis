@@ -118,7 +118,11 @@ export function SummaryCard({
         </div>
         
         {/* Value */}
-        <div className={cn('text-2xl font-semibold', colorClasses[color])}>
+        <div className={cn(
+          'text-lg sm:text-xl lg:text-2xl font-semibold tabular-nums',
+          'overflow-hidden text-ellipsis',
+          colorClasses[color]
+        )}>
           {value}
         </div>
         

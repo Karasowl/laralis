@@ -27,12 +27,12 @@ import { centsToPesos } from '@/lib/money'
 import { toast } from 'sonner'
 
 // Component for metric cards
-function MetricCard({ 
-  icon: Icon, 
-  title, 
-  value, 
-  description, 
-  variant = 'default' 
+function MetricCard({
+  icon: Icon,
+  title,
+  value,
+  description,
+  variant = 'default'
 }: {
   icon: any
   title: string
@@ -42,23 +42,23 @@ function MetricCard({
 }) {
   const variantStyles = {
     default: 'text-primary bg-primary/10',
-    success: 'text-green-600 bg-green-50',
-    warning: 'text-yellow-600 bg-yellow-50',
+    success: 'text-green-600 bg-green-50 dark:bg-green-950/30',
+    warning: 'text-yellow-600 bg-yellow-50 dark:bg-yellow-950/30',
     danger: 'text-destructive bg-destructive/10'
   }
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <div className={`p-2 rounded-lg ${variantStyles[variant]}`}>
-          <Icon className="h-4 w-4" />
+        <CardTitle className="text-xs sm:text-sm font-medium">{title}</CardTitle>
+        <div className={`p-1.5 sm:p-2 rounded-lg ${variantStyles[variant]}`}>
+          <Icon className="h-3 w-3 sm:h-4 sm:w-4" />
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
+      <CardContent className="pt-0">
+        <div className="text-lg sm:text-xl lg:text-2xl font-bold tabular-nums">{value}</div>
         {description && (
-          <p className="text-xs text-muted-foreground mt-1">{description}</p>
+          <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">{description}</p>
         )}
       </CardContent>
     </Card>
@@ -272,7 +272,7 @@ export default function EquilibriumPage() {
         />
 
         {/* Key Metrics */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
           <MetricCard
             icon={DollarSign}
             title={t('fixed_costs')}

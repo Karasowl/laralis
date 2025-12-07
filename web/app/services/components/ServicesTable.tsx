@@ -109,9 +109,9 @@ export function ServicesTable({
                   <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors" />
                 </button>
               </PopoverTrigger>
-            <PopoverContent className="w-[calc(100vw-2rem)] sm:w-80 max-w-sm" side="bottom" align="end" sideOffset={4}>
-              <div className="space-y-3 text-sm">
-                <div className="font-semibold border-b pb-2 text-base">
+            <PopoverContent className="w-[calc(100vw-2rem)] sm:w-80 max-w-sm p-3 sm:p-4" side="bottom" align="end" sideOffset={4} collisionPadding={16}>
+              <div className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
+                <div className="font-semibold border-b pb-2 text-sm sm:text-base">
                   {t('cost_breakdown')}
                 </div>
                 <div className="space-y-2.5">
@@ -198,9 +198,9 @@ export function ServicesTable({
                   )}
                 </button>
               </PopoverTrigger>
-            <PopoverContent className="w-[calc(100vw-2rem)] sm:w-80 max-w-sm" side="bottom" align="end" sideOffset={4}>
-              <div className="space-y-3 text-sm">
-                <div className="font-semibold border-b pb-2 text-base">
+            <PopoverContent className="w-[calc(100vw-2rem)] sm:w-80 max-w-sm p-3 sm:p-4" side="bottom" align="end" sideOffset={4} collisionPadding={16}>
+              <div className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
+                <div className="font-semibold border-b pb-2 text-sm sm:text-base">
                   {t('profit_breakdown')}
                 </div>
                 <div className="space-y-2.5">

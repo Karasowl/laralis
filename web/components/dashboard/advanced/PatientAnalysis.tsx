@@ -69,9 +69,9 @@ export function PatientAnalysis({ insights, loading }: PatientAnalysisProps) {
       <CardContent className="space-y-6">
         {/* Lifetime Value */}
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600">
+              <div className="p-2 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 flex-shrink-0">
                 <DollarSign className="h-4 w-4 text-white" />
               </div>
               <div>
@@ -79,7 +79,7 @@ export function PatientAnalysis({ insights, loading }: PatientAnalysisProps) {
                 <p className="text-xs text-muted-foreground">{t('average_per_patient')}</p>
               </div>
             </div>
-            <p className="text-2xl font-bold">{formatCurrency(insights.lifetime_value)}</p>
+            <p className="text-xl sm:text-2xl font-bold">{formatCurrency(insights.lifetime_value)}</p>
           </div>
           <div className="pl-10">
             <p className="text-xs text-muted-foreground">
@@ -90,9 +90,9 @@ export function PatientAnalysis({ insights, loading }: PatientAnalysisProps) {
 
         {/* Retention Rate */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600">
+              <div className="p-2 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 flex-shrink-0">
                 <Repeat className="h-4 w-4 text-white" />
               </div>
               <div>
@@ -100,8 +100,8 @@ export function PatientAnalysis({ insights, loading }: PatientAnalysisProps) {
                 <p className="text-xs text-muted-foreground">{t('patients_returning')}</p>
               </div>
             </div>
-            <div className="text-right">
-              <p className="text-2xl font-bold">{retentionPercentage.toFixed(0)}%</p>
+            <div className="text-left sm:text-right">
+              <p className="text-xl sm:text-2xl font-bold">{retentionPercentage.toFixed(0)}%</p>
               <p className="text-xs text-muted-foreground">{t('churn_rate')}: {churnRate.toFixed(0)}%</p>
             </div>
           </div>
@@ -132,9 +132,9 @@ export function PatientAnalysis({ insights, loading }: PatientAnalysisProps) {
 
         {/* Acquisition Rate */}
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-gradient-to-r from-purple-500 to-purple-600">
+              <div className="p-2 rounded-lg bg-gradient-to-r from-purple-500 to-purple-600 flex-shrink-0">
                 <UserPlus className="h-4 w-4 text-white" />
               </div>
               <div>
@@ -142,8 +142,8 @@ export function PatientAnalysis({ insights, loading }: PatientAnalysisProps) {
                 <p className="text-xs text-muted-foreground">{t('new_patients_monthly')}</p>
               </div>
             </div>
-            <div className="text-right">
-              <p className="text-2xl font-bold">{insights.acquisition_rate}</p>
+            <div className="text-left sm:text-right">
+              <p className="text-xl sm:text-2xl font-bold">{insights.acquisition_rate}</p>
               <p className="text-xs text-muted-foreground">{t('per_month')}</p>
             </div>
           </div>

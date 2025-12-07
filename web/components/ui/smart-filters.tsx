@@ -182,7 +182,7 @@ function SelectFilter({ config, value, onChange }: FilterControlProps) {
           <ChevronDown className="h-3.5 w-3.5 ml-1 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-48 p-1" align="start" side="bottom" collisionPadding={16} avoidCollisions={true}>
+      <PopoverContent className="w-[280px] sm:w-48 p-1" align="start" side="bottom" collisionPadding={16} avoidCollisions={true}>
         <div className="space-y-0.5">
           {config.options?.map((option) => (
             <button
@@ -255,7 +255,7 @@ function MultiSelectFilter({ config, value = [], onChange }: FilterControlProps)
           <ChevronDown className="h-3.5 w-3.5 ml-1 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-48 p-1" align="start" side="bottom" collisionPadding={16} avoidCollisions={true}>
+      <PopoverContent className="w-[280px] sm:w-48 p-1" align="start" side="bottom" collisionPadding={16} avoidCollisions={true}>
         <div className="space-y-0.5 max-h-[200px] overflow-y-auto">
           {config.options?.map((option) => {
             const isSelected = Array.isArray(value) && value.includes(option.value)
@@ -315,7 +315,7 @@ function NumberRangeFilter({ config, value, onChange }: FilterControlProps) {
           <ChevronDown className="h-3.5 w-3.5 ml-1 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-3" align="start" side="bottom" collisionPadding={16} avoidCollisions={true}>
+      <PopoverContent className="w-[280px] sm:w-auto p-3" align="start" side="bottom" collisionPadding={16} avoidCollisions={true}>
         <div className="space-y-3">
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground">

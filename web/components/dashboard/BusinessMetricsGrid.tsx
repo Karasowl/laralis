@@ -68,11 +68,11 @@ export function BusinessMetricsGrid({
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
       {/* Ticket Promedio */}
       <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:scale-[1.01]">
         <div className="absolute top-0 right-0 w-24 h-24 bg-primary/10 rounded-full blur-2xl" />
-        <CardContent className="p-6 relative">
+        <CardContent className="p-4 sm:p-6 relative">
           <div className="flex items-center justify-between mb-4">
             <div className="w-10 h-10 rounded-lg bg-primary/10 dark:bg-primary/20 backdrop-blur-sm flex items-center justify-center">
               <DollarSign className="h-5 w-5 text-primary dark:text-primary/80" />
@@ -86,13 +86,13 @@ export function BusinessMetricsGrid({
           </div>
 
           <div className="space-y-1">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">
+            <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide">
               {t('avgTicket')}
             </p>
-            <p className="text-2xl font-bold text-foreground">
+            <p className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground tabular-nums">
               {formatCurrency(ticketPromedioCents)}
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[10px] sm:text-xs text-muted-foreground">
               {t('perTreatment')}
             </p>
           </div>
@@ -102,7 +102,7 @@ export function BusinessMetricsGrid({
       {/* Pacientes Necesarios */}
       <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:scale-[1.01]">
         <div className="absolute top-0 right-0 w-24 h-24 bg-secondary/10 rounded-full blur-2xl" />
-        <CardContent className="p-6 relative">
+        <CardContent className="p-4 sm:p-6 relative">
           <div className="flex items-center justify-between mb-4">
             <div className="w-10 h-10 rounded-lg bg-secondary/10 dark:bg-secondary/20 backdrop-blur-sm flex items-center justify-center">
               <Target className="h-5 w-5 text-secondary dark:text-secondary/80" />
@@ -110,16 +110,16 @@ export function BusinessMetricsGrid({
           </div>
 
           <div className="space-y-1">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">
+            <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide">
               {t('patientsNeeded')}
             </p>
-            <p className="text-2xl font-bold text-foreground">
+            <p className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground tabular-nums">
               {pacientesNecesariosPorDia}
-              <span className="text-sm text-muted-foreground font-normal ml-1">
+              <span className="text-xs sm:text-sm text-muted-foreground font-normal ml-1">
                 /{t('day')}
               </span>
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[10px] sm:text-xs text-muted-foreground">
               {t('toReachBreakEven')}
             </p>
           </div>
@@ -137,7 +137,7 @@ export function BusinessMetricsGrid({
           'absolute top-0 right-0 w-24 h-24 rounded-full blur-2xl',
           pacientesStatus === 'success' ? 'bg-emerald-500/10' : 'bg-amber-500/10'
         )} />
-        <CardContent className="p-6 relative">
+        <CardContent className="p-4 sm:p-6 relative">
           <div className="flex items-center justify-between mb-4">
             <div className={cn(
               'w-10 h-10 rounded-lg flex items-center justify-center',
@@ -167,17 +167,17 @@ export function BusinessMetricsGrid({
           </div>
 
           <div className="space-y-1">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">
+            <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide">
               {t('currentPatients')}
             </p>
-            <p className="text-2xl font-bold text-foreground">
+            <p className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground tabular-nums">
               {pacientesActualesPorDia.toFixed(1)}
-              <span className="text-sm text-muted-foreground font-normal ml-1">
+              <span className="text-xs sm:text-sm text-muted-foreground font-normal ml-1">
                 /{t('day')}
               </span>
             </p>
             <p className={cn(
-              'text-xs font-medium',
+              'text-[10px] sm:text-xs font-medium',
               pacientesStatus === 'success' ? 'text-emerald-600' : 'text-amber-600'
             )}>
               {pacientesStatus === 'success'
@@ -204,7 +204,7 @@ export function BusinessMetricsGrid({
           : netProfitStatus === 'warning' ? 'bg-amber-500/10'
           : 'bg-red-500/10'
         )} />
-        <CardContent className="p-6 relative">
+        <CardContent className="p-4 sm:p-6 relative">
           <div className="flex items-center justify-between mb-4">
             <div className={cn(
               'w-10 h-10 rounded-lg flex items-center justify-center',
@@ -232,14 +232,14 @@ export function BusinessMetricsGrid({
           </div>
 
           <div className="space-y-1">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">
+            <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide">
               {t('netProfit')}
             </p>
-            <p className="text-2xl font-bold text-foreground">
+            <p className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground tabular-nums">
               {formatCurrency(gananciaNetaCents)}
             </p>
             <p className={cn(
-              'text-xs font-medium',
+              'text-[10px] sm:text-xs font-medium',
               netProfitStatus === 'success' ? 'text-emerald-600'
               : netProfitStatus === 'warning' ? 'text-amber-600'
               : 'text-red-600'

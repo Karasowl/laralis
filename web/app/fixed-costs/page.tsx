@@ -297,8 +297,8 @@ export default function FixedCostsPage() {
           columns={3}
         />
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
+        <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 lg:gap-6">
+          <div className="lg:col-span-2 order-2 lg:order-1">
             <DataTable
               columns={columns}
               // Mobile: concept, amount and actions
@@ -315,7 +315,7 @@ export default function FixedCostsPage() {
             />
           </div>
 
-          <div>
+          <div className="order-1 lg:order-2">
             <Card>
               <div className="p-6">
                 <h3 className="text-lg font-semibold mb-4">{t('fixedCosts.categoryBreakdown')}</h3>

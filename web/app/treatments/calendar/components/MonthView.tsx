@@ -131,8 +131,8 @@ export function MonthView({
                 hasConflicts && 'border-red-300 bg-red-50/50 dark:border-red-800 dark:bg-red-900/20',
                 // Hover states
                 'hover:bg-muted/50 md:hover:bg-muted/50',
-                // Mobile specific - make it feel tappable
-                'active:bg-muted/70 md:active:bg-transparent',
+                // Mobile specific - make it feel tappable with tactile feedback
+                'active:bg-muted/70 active:scale-95 transition-transform md:active:bg-transparent md:active:scale-100',
                 // Desktop - different cursor when empty
                 !treatmentCount && 'md:group'
               )}

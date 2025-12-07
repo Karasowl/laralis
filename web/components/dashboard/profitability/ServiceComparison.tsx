@@ -86,11 +86,12 @@ export function ServiceComparison({ services, loading }: ServiceComparisonProps)
     const diffPercent = valueB !== 0 ? ((diff / valueB) * 100) : 0
 
     return (
-      <div className="grid grid-cols-[1fr,auto,1fr] gap-4 items-center py-3 border-b last:border-0">
-        <div className="text-right">
-          <p className="text-lg font-semibold">{formatter(valueA)}{suffix}</p>
+      <div className="flex flex-col sm:grid sm:grid-cols-[1fr,auto,1fr] gap-2 sm:gap-4 items-start sm:items-center py-3 border-b last:border-0">
+        <div className="flex justify-between w-full sm:block sm:text-right">
+          <span className="text-xs text-muted-foreground sm:hidden">{label}</span>
+          <p className="text-base sm:text-lg font-semibold tabular-nums">{formatter(valueA)}{suffix}</p>
         </div>
-        <div className="flex flex-col items-center gap-1 min-w-[120px]">
+        <div className="hidden sm:flex flex-col items-center gap-1 min-w-[100px] lg:min-w-[120px]">
           <p className="text-xs text-muted-foreground font-medium">{label}</p>
           {diffPercent !== 0 && (
             <Badge
@@ -106,8 +107,9 @@ export function ServiceComparison({ services, loading }: ServiceComparisonProps)
             </Badge>
           )}
         </div>
-        <div className="text-left">
-          <p className="text-lg font-semibold">{formatter(valueB)}{suffix}</p>
+        <div className="flex justify-between w-full sm:block sm:text-left">
+          <span className="text-xs text-muted-foreground sm:hidden">vs</span>
+          <p className="text-base sm:text-lg font-semibold tabular-nums">{formatter(valueB)}{suffix}</p>
         </div>
       </div>
     )
@@ -121,9 +123,9 @@ export function ServiceComparison({ services, loading }: ServiceComparisonProps)
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Service Selectors */}
-        <div className="grid grid-cols-[1fr,auto,1fr] gap-4 items-center">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
           <Select value={serviceA} onValueChange={setServiceA}>
-            <SelectTrigger>
+            <SelectTrigger className="w-full sm:flex-1">
               <SelectValue placeholder={t('select_service_a')} />
             </SelectTrigger>
             <SelectContent>
@@ -137,10 +139,11 @@ export function ServiceComparison({ services, loading }: ServiceComparisonProps)
             </SelectContent>
           </Select>
 
-          <ArrowRight className="h-5 w-5 text-muted-foreground" />
+          <ArrowRight className="hidden sm:block h-5 w-5 text-muted-foreground flex-shrink-0" />
+          <span className="sm:hidden text-center text-xs text-muted-foreground">vs</span>
 
           <Select value={serviceB} onValueChange={setServiceB}>
-            <SelectTrigger>
+            <SelectTrigger className="w-full sm:flex-1">
               <SelectValue placeholder={t('select_service_b')} />
             </SelectTrigger>
             <SelectContent>
@@ -157,22 +160,22 @@ export function ServiceComparison({ services, loading }: ServiceComparisonProps)
 
         {/* Comparison Results */}
         {selectedA && selectedB ? (
-          <div className="space-y-0 border rounded-lg p-4">
+          <div className="space-y-0 border rounded-lg p-3 sm:p-4">
             {/* Service Names Header */}
-            <div className="grid grid-cols-[1fr,auto,1fr] gap-4 items-center pb-4 border-b-2">
-              <div className="text-right">
-                <p className="font-semibold text-lg">{selectedA.service_name}</p>
-                <Badge variant="outline" className="mt-1">
+            <div className="flex flex-col sm:grid sm:grid-cols-[1fr,auto,1fr] gap-2 sm:gap-4 items-start sm:items-center pb-4 border-b-2">
+              <div className="w-full sm:text-right">
+                <p className="font-semibold text-base sm:text-lg">{selectedA.service_name}</p>
+                <Badge variant="outline" className="mt-1 text-xs">
                   {selectedA.category === 'star' && '⭐ Estrella'}
                   {selectedA.category === 'gem' && '💎 Gema'}
                   {selectedA.category === 'volume' && '📦 Volumen'}
                   {selectedA.category === 'review' && '🔍 Revisar'}
                 </Badge>
               </div>
-              <div className="w-[120px]" />
-              <div className="text-left">
-                <p className="font-semibold text-lg">{selectedB.service_name}</p>
-                <Badge variant="outline" className="mt-1">
+              <div className="hidden sm:block w-[100px] lg:w-[120px]" />
+              <div className="w-full sm:text-left border-t sm:border-t-0 pt-2 sm:pt-0 mt-2 sm:mt-0">
+                <p className="font-semibold text-base sm:text-lg">{selectedB.service_name}</p>
+                <Badge variant="outline" className="mt-1 text-xs">
                   {selectedB.category === 'star' && '⭐ Estrella'}
                   {selectedB.category === 'gem' && '💎 Gema'}
                   {selectedB.category === 'volume' && '📦 Volumen'}
