@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
+// DEBUG: Version marker to verify deployment
+console.log('[calendar-select] Version: 2024-12-07-v3-ultra-simple')
+
 interface GoogleCalendar {
   id: string
   summary: string
