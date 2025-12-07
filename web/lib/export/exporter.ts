@@ -310,6 +310,7 @@ export class WorkspaceExporter {
    */
   private async fetchClinicData(clinic: any): Promise<ClinicDataBundle> {
     const clinicId = clinic.id;
+    console.log(`[Regular Export] Fetching data for clinic: ${clinic.name} (${clinicId})`);
 
     // Fetch all clinic data in parallel for performance
     const [
@@ -399,6 +400,15 @@ export class WorkspaceExporter {
       ai_feedback: aiFeedback.length,
     };
 
+    console.log(`[Regular Export] Clinic ${clinic.name} counts:`, {
+      patients: patients.length,
+      treatments: treatments.length,
+      services: services.length,
+      expenses: expenses.length,
+      fixedCosts: fixedCosts.length,
+      assets: assets.length,
+    });
+
     return {
       clinic,
       settingsTime,
@@ -480,25 +490,29 @@ export class WorkspaceExporter {
   }
 
   private async fetchAssets(clinicId: string) {
-    const { data } = await this.supabase.from('assets').select('*').eq('clinic_id', clinicId);
+    const { data, error } = await this.supabase.from('assets').select('*').eq('clinic_id', clinicId);
+    if (error) console.error('[Regular Export] Assets error:', error);
     this.recordCount('assets', data?.length || 0);
     return data || [];
   }
 
   private async fetchSupplies(clinicId: string) {
-    const { data } = await this.supabase.from('supplies').select('*').eq('clinic_id', clinicId);
+    const { data, error } = await this.supabase.from('supplies').select('*').eq('clinic_id', clinicId);
+    if (error) console.error('[Regular Export] Supplies error:', error);
     this.recordCount('supplies', data?.length || 0);
     return data || [];
   }
 
   private async fetchFixedCosts(clinicId: string) {
-    const { data } = await this.supabase.from('fixed_costs').select('*').eq('clinic_id', clinicId);
+    const { data, error } = await this.supabase.from('fixed_costs').select('*').eq('clinic_id', clinicId);
+    if (error) console.error('[Regular Export] Fixed costs error:', error);
     this.recordCount('fixed_costs', data?.length || 0);
     return data || [];
   }
 
   private async fetchServices(clinicId: string) {
-    const { data } = await this.supabase.from('services').select('*').eq('clinic_id', clinicId);
+    const { data, error } = await this.supabase.from('services').select('*').eq('clinic_id', clinicId);
+    if (error) console.error('[Regular Export] Services error:', error);
     this.recordCount('services', data?.length || 0);
     return data || [];
   }
@@ -541,19 +555,22 @@ export class WorkspaceExporter {
   }
 
   private async fetchPatients(clinicId: string) {
-    const { data } = await this.supabase.from('patients').select('*').eq('clinic_id', clinicId);
+    const { data, error } = await this.supabase.from('patients').select('*').eq('clinic_id', clinicId);
+    if (error) console.error('[Regular Export] Patients error:', error);
     this.recordCount('patients', data?.length || 0);
     return data || [];
   }
 
   private async fetchTreatments(clinicId: string) {
-    const { data } = await this.supabase.from('treatments').select('*').eq('clinic_id', clinicId);
+    const { data, error } = await this.supabase.from('treatments').select('*').eq('clinic_id', clinicId);
+    if (error) console.error('[Regular Export] Treatments error:', error);
     this.recordCount('treatments', data?.length || 0);
     return data || [];
   }
 
   private async fetchExpenses(clinicId: string) {
-    const { data } = await this.supabase.from('expenses').select('*').eq('clinic_id', clinicId);
+    const { data, error } = await this.supabase.from('expenses').select('*').eq('clinic_id', clinicId);
+    if (error) console.error('[Regular Export] Expenses error:', error);
     this.recordCount('expenses', data?.length || 0);
     return data || [];
   }
