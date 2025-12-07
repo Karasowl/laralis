@@ -8,6 +8,29 @@ import { CalendarViewProps, getStatusColor, getStatusDot, getTreatmentBorderStyl
 
 interface DayViewProps extends CalendarViewProps {}
 
+// Generate 30-minute time slots (8:00 to 19:30)
+function generateTimeSlots(): string[] {
+  const slots: string[] = []
+  for (let hour = 8; hour < 20; hour++) {
+    const hourStr = String(hour).padStart(2, '0')
+    slots.push(`${hourStr}:00`)
+    slots.push(`${hourStr}:30`)
+  }
+  return slots
+}
+
+// Check if a treatment falls within a specific 30-min slot
+function treatmentInSlot(treatmentTime: string | null | undefined, slotTime: string): boolean {
+  if (!treatmentTime) return false
+  const [slotHour, slotMinute] = slotTime.split(':').map(Number)
+  const [treatHour, treatMinute] = treatmentTime.split(':').map(Number)
+
+  // Check if treatment starts in this 30-min window
+  if (treatHour !== slotHour) return false
+  if (slotMinute === 0) return treatMinute >= 0 && treatMinute < 30
+  return treatMinute >= 30 && treatMinute < 60
+}
+
 export function DayView({
   treatmentsByDate,
   conflictsByDate,
@@ -20,17 +43,18 @@ export function DayView({
   const dayTreatments = treatmentsByDate[dateStr] || []
   const dayConflicts = conflictsByDate[dateStr]
   const hasConflicts = dayConflicts && dayConflicts.size > 0
-  const hours = Array.from({ length: 12 }, (_, i) => i + 8) // 8am to 7pm
 
-  // Group treatments by hour for desktop view
-  const treatmentsByHour = useMemo(() => {
+  // Generate 30-minute time slots
+  const timeSlots = useMemo(() => generateTimeSlots(), [])
+
+  // Group treatments by 30-minute slot for desktop view
+  const treatmentsBySlot = useMemo(() => {
     const grouped: Record<string, typeof dayTreatments> = {}
-    hours.forEach(hour => {
-      const hourStr = String(hour).padStart(2, '0')
-      grouped[hourStr] = dayTreatments.filter(t => t.treatment_time?.startsWith(hourStr))
+    timeSlots.forEach(slot => {
+      grouped[slot] = dayTreatments.filter(t => treatmentInSlot(t.treatment_time, slot))
     })
     return grouped
-  }, [dayTreatments, hours])
+  }, [dayTreatments, timeSlots])
 
   return (
     <div className="space-y-2">
@@ -44,43 +68,47 @@ export function DayView({
         </div>
       )}
 
-      {/* Desktop: Hourly slots view */}
+      {/* Desktop: 30-minute slots view */}
       <div className={cn(
         'hidden md:block border rounded-lg overflow-hidden',
         hasConflicts && 'border-red-300 dark:border-red-800'
       )}>
-        {hours.map(hour => {
-          const hourStr = String(hour).padStart(2, '0')
-          const hourTreatments = treatmentsByHour[hourStr] || []
-          const hasHourConflict = hourTreatments.some(t => dayConflicts?.has(t.id))
+        {timeSlots.map(slot => {
+          const slotTreatments = treatmentsBySlot[slot] || []
+          const hasSlotConflict = slotTreatments.some(t => dayConflicts?.has(t.id))
+          const isHalfHour = slot.endsWith(':30')
 
           return (
             <div
-              key={hour}
-              onClick={() => hourTreatments.length === 0 && onCreateTreatment(dateStr, `${hourStr}:00`)}
+              key={slot}
+              onClick={() => slotTreatments.length === 0 && onCreateTreatment(dateStr, slot)}
               className={cn(
-                'flex border-b last:border-b-0 min-h-[60px] hover:bg-muted/30 transition-colors group',
-                hourTreatments.length === 0 && 'cursor-pointer',
-                hasHourConflict && 'bg-red-50/50 dark:bg-red-900/10'
+                'flex border-b last:border-b-0 transition-colors group',
+                // Half-hour slots are smaller and more subtle
+                isHalfHour ? 'min-h-[40px] border-b-dashed' : 'min-h-[48px]',
+                slotTreatments.length === 0 && 'cursor-pointer hover:bg-muted/30',
+                hasSlotConflict && 'bg-red-50/50 dark:bg-red-900/10'
               )}
             >
-              {/* Hour label */}
+              {/* Time label */}
               <div className={cn(
-                'w-20 p-2 border-r text-sm font-medium',
-                hasHourConflict ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'
+                'w-20 p-2 border-r text-sm',
+                // Half-hour labels are smaller and muted
+                isHalfHour ? 'text-xs text-muted-foreground/70 pt-1' : 'font-medium',
+                hasSlotConflict ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'
               )}>
                 <div className="flex items-center gap-1">
-                  {hasHourConflict && <AlertTriangle className="h-3 w-3 text-red-500" />}
-                  {hourStr}:00
+                  {hasSlotConflict && <AlertTriangle className="h-3 w-3 text-red-500" />}
+                  {slot}
                 </div>
               </div>
 
-              {/* Treatments for this hour */}
-              <div className="flex-1 p-2 relative">
-                {hourTreatments.length === 0 && (
-                  <Plus className="h-4 w-4 absolute right-2 top-2 opacity-0 group-hover:opacity-50 transition-opacity" />
+              {/* Treatments for this slot */}
+              <div className="flex-1 p-1.5 relative">
+                {slotTreatments.length === 0 && (
+                  <Plus className="h-4 w-4 absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-50 transition-opacity" />
                 )}
-                {hourTreatments.map(treatment => {
+                {slotTreatments.map(treatment => {
                   const isConflict = dayConflicts?.has(treatment.id)
                   const isFutureAppointment = isAppointment(treatment)
                   return (
