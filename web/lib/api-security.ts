@@ -74,11 +74,11 @@ export const clinicIdSchema = z.object({
   clinic_id: data.clinic_id || data.clinicId
 }));
 
-// Money validation (ensure cents)
+// Money validation (ensure cents) - limit to JS safe integer to prevent precision issues
 export const moneySchema = z.number()
   .int('Amount must be in cents')
   .min(0, 'Amount cannot be negative')
-  .max(999999999, 'Amount too large');
+  .max(Number.MAX_SAFE_INTEGER, 'Amount too large');
 
 // Common entity schemas
 export const createPatientSchema = z.object({
@@ -113,7 +113,7 @@ export const createServiceSchema = z.object({
   price_cents: moneySchema,
   supplies: z.array(z.object({
     supply_id: z.string().uuid(),
-    qty: z.number().min(0.01).max(9999)
+    qty: z.number().min(0.01) // No upper limit on quantity
   })).optional()
 });
 
