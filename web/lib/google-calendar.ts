@@ -55,11 +55,27 @@ const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
 const GOOGLE_CALENDAR_API = 'https://www.googleapis.com/calendar/v3'
 
+// Default timezone for calendar events (Mexico City)
+const DEFAULT_TIMEZONE = 'America/Mexico_City'
+
+// Treatment statuses that should be synced to Google Calendar
+const SYNCABLE_STATUSES = ['pending', 'scheduled', 'in_progress'] as const
+
 const SCOPES = [
   'https://www.googleapis.com/auth/calendar.events',
   'https://www.googleapis.com/auth/calendar.readonly',
   'https://www.googleapis.com/auth/userinfo.email',
 ]
+
+// Sync result for better error handling
+export interface CalendarSyncResult {
+  success: boolean
+  eventId?: string | null
+  error?: {
+    code: 'not_connected' | 'token_expired' | 'api_error' | 'invalid_status'
+    message: string
+  }
+}
 
 /**
  * Get Google OAuth configuration from environment
@@ -325,7 +341,7 @@ export async function getClinicCalendarConfig(clinicId: string): Promise<ClinicC
 }
 
 /**
- * Save clinic calendar configuration
+ * Save clinic calendar configuration (with selected calendar)
  */
 export async function saveClinicCalendarConfig(
   clinicId: string,
@@ -354,6 +370,69 @@ export async function saveClinicCalendarConfig(
 }
 
 /**
+ * Save clinic calendar tokens temporarily (before calendar selection)
+ * Saves with is_active = false until user selects a calendar
+ */
+export async function saveClinicCalendarTokens(
+  clinicId: string,
+  tokens: GoogleTokens,
+  email: string
+): Promise<void> {
+  const { error } = await supabaseAdmin.from('clinic_google_calendar').upsert(
+    {
+      clinic_id: clinicId,
+      calendar_id: 'pending_selection', // Placeholder until user selects
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      token_expires_at: new Date(tokens.expires_at).toISOString(),
+      connected_email: email,
+      is_active: false, // Not active until calendar is selected
+    },
+    {
+      onConflict: 'clinic_id',
+    }
+  )
+
+  if (error) {
+    throw new Error(`Failed to save calendar tokens: ${error.message}`)
+  }
+}
+
+/**
+ * Complete calendar connection by selecting a calendar
+ */
+export async function completeCalendarConnection(
+  clinicId: string,
+  calendarId: string
+): Promise<void> {
+  const { error } = await supabaseAdmin
+    .from('clinic_google_calendar')
+    .update({
+      calendar_id: calendarId,
+      is_active: true,
+    })
+    .eq('clinic_id', clinicId)
+
+  if (error) {
+    throw new Error(`Failed to complete calendar connection: ${error.message}`)
+  }
+}
+
+/**
+ * Get pending calendar connection (tokens saved but calendar not selected)
+ */
+export async function getPendingCalendarConfig(clinicId: string): Promise<ClinicCalendarConfig | null> {
+  const { data } = await supabaseAdmin
+    .from('clinic_google_calendar')
+    .select('*')
+    .eq('clinic_id', clinicId)
+    .eq('is_active', false)
+    .single()
+
+  return data
+}
+
+/**
  * Delete clinic calendar configuration (disconnect)
  */
 export async function deleteClinicCalendarConfig(clinicId: string): Promise<void> {
@@ -369,6 +448,7 @@ export async function deleteClinicCalendarConfig(clinicId: string): Promise<void
 
 /**
  * Sync a treatment to Google Calendar
+ * Returns a structured result for better error handling in UI
  */
 export async function syncTreatmentToCalendar(
   clinicId: string,
@@ -382,54 +462,83 @@ export async function syncTreatmentToCalendar(
     status: string
     google_event_id: string | null
   }
-): Promise<string | null> {
-  // Only sync pending treatments
-  if (treatment.status !== 'pending' && treatment.status !== 'scheduled') {
-    // If treatment is no longer pending and has an event, delete it
+): Promise<CalendarSyncResult> {
+  // Only sync treatments with syncable statuses (pending, scheduled, in_progress)
+  const isSyncable = SYNCABLE_STATUSES.includes(treatment.status as typeof SYNCABLE_STATUSES[number])
+
+  if (!isSyncable) {
+    // If treatment is no longer syncable and has an event, delete it
     if (treatment.google_event_id) {
       await deleteTreatmentFromCalendar(clinicId, treatment.google_event_id)
-      return null
     }
-    return treatment.google_event_id
+    return {
+      success: true,
+      eventId: null,
+      error: treatment.google_event_id ? undefined : {
+        code: 'invalid_status',
+        message: `Status '${treatment.status}' is not synced to calendar`
+      }
+    }
   }
 
   const accessToken = await getValidAccessToken(clinicId)
   if (!accessToken) {
-    return null // Calendar not connected
+    return {
+      success: false,
+      error: { code: 'not_connected', message: 'Google Calendar not connected' }
+    }
   }
 
   const config = await getClinicCalendarConfig(clinicId)
   if (!config) {
-    return null
+    return {
+      success: false,
+      error: { code: 'not_connected', message: 'Calendar configuration not found' }
+    }
   }
 
-  // Build event start/end times
+  // Build event start/end times with proper timezone
   const startTime = treatment.treatment_time || '09:00'
   const startDateTime = `${treatment.treatment_date}T${startTime}:00`
-  const endDate = new Date(`${treatment.treatment_date}T${startTime}:00`)
-  endDate.setMinutes(endDate.getMinutes() + (treatment.duration_minutes || 30))
-  const endDateTime = endDate.toISOString().replace('Z', '')
+
+  // Calculate end time by adding duration to start time
+  const [startHour, startMinute] = startTime.split(':').map(Number)
+  const totalMinutes = startHour * 60 + startMinute + (treatment.duration_minutes || 30)
+  const endHour = Math.floor(totalMinutes / 60) % 24
+  const endMinute = totalMinutes % 60
+  const endDateTime = `${treatment.treatment_date}T${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}:00`
 
   const event: CalendarEvent = {
     summary: `${treatment.patient_name} - ${treatment.service_name}`,
     description: `Cita dental - ${treatment.service_name}`,
-    start: { dateTime: startDateTime },
-    end: { dateTime: endDateTime.split('.')[0] },
+    start: {
+      dateTime: startDateTime,
+      timeZone: DEFAULT_TIMEZONE
+    },
+    end: {
+      dateTime: endDateTime,
+      timeZone: DEFAULT_TIMEZONE
+    },
   }
 
   try {
     if (treatment.google_event_id) {
       // Update existing event
       await updateCalendarEvent(accessToken, config.calendar_id, treatment.google_event_id, event)
-      return treatment.google_event_id
+      return { success: true, eventId: treatment.google_event_id }
     } else {
       // Create new event
       const eventId = await createCalendarEvent(accessToken, config.calendar_id, event)
-      return eventId
+      return { success: true, eventId }
     }
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error'
     console.error('Failed to sync treatment to calendar:', error)
-    return null
+    return {
+      success: false,
+      eventId: treatment.google_event_id,
+      error: { code: 'api_error', message }
+    }
   }
 }
 

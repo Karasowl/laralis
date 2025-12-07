@@ -1,10 +1,22 @@
 'use client'
 
-import React, { useCallback } from 'react'
+import React, { useCallback, useState, useEffect, useRef } from 'react'
 import { InputField, SelectField, TextareaField, FormGrid, FormSection } from '@/components/ui/form-field'
 import { SelectWithCreate } from '@/components/ui/select-with-create'
 import { useWatch } from 'react-hook-form'
 import { calculateRequiredMargin, calcularPrecioFinal } from '@/lib/calc/tarifa'
+import { AlertTriangle } from 'lucide-react'
+
+interface ConflictInfo {
+  hasConflict: boolean
+  conflicts: Array<{
+    appointmentId: string
+    startTime: string
+    patientName: string
+    serviceName: string
+    overlapMinutes: number
+  }>
+}
 
 interface TreatmentFormProps {
   form: any
@@ -18,6 +30,7 @@ interface TreatmentFormProps {
   selectedServiceCostCents: number
   serviceLocked?: boolean
   t: (key: string, params?: Record<string, any>) => string
+  treatmentId?: string // For excluding current treatment when editing
 }
 
 export function TreatmentForm({
@@ -31,8 +44,14 @@ export function TreatmentForm({
   onServiceCreated,
   selectedServiceCostCents,
   serviceLocked = false,
-  t
+  t,
+  treatmentId
 }: TreatmentFormProps) {
+  // Conflict detection state
+  const [conflictInfo, setConflictInfo] = useState<ConflictInfo | null>(null)
+  const [isCheckingConflicts, setIsCheckingConflicts] = useState(false)
+  const conflictCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
   // PERFORMANCE FIX: Only watch critical fields that affect derived calculations
   // Using only 2 watches instead of 7 reduces re-renders by 70%
   const patientId = useWatch({ control: form.control, name: 'patient_id' })
@@ -40,6 +59,55 @@ export function TreatmentForm({
   const marginPct = useWatch({ control: form.control, name: 'margin_pct' })
   const salePrice = useWatch({ control: form.control, name: 'sale_price' })
   const status = useWatch({ control: form.control, name: 'status' })
+  // Watch date/time/duration for conflict detection
+  const treatmentDate = useWatch({ control: form.control, name: 'treatment_date' })
+  const treatmentTime = useWatch({ control: form.control, name: 'treatment_time' })
+  const minutes = useWatch({ control: form.control, name: 'minutes' })
+
+  // Check conflicts when date/time/duration changes (debounced)
+  useEffect(() => {
+    // Clear previous timeout
+    if (conflictCheckTimeoutRef.current) {
+      clearTimeout(conflictCheckTimeoutRef.current)
+    }
+
+    // Only check if we have date and time (both required for conflict detection)
+    if (!treatmentDate || !treatmentTime) {
+      setConflictInfo(null)
+      return
+    }
+
+    // Debounce the check to avoid too many API calls
+    conflictCheckTimeoutRef.current = setTimeout(async () => {
+      setIsCheckingConflicts(true)
+      try {
+        const response = await fetch('/api/treatments/check-conflicts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            date: treatmentDate,
+            time: treatmentTime,
+            duration_minutes: minutes || 30,
+            exclude_id: treatmentId
+          })
+        })
+        if (response.ok) {
+          const data = await response.json()
+          setConflictInfo(data)
+        }
+      } catch (error) {
+        console.error('Error checking conflicts:', error)
+      } finally {
+        setIsCheckingConflicts(false)
+      }
+    }, 500) // 500ms debounce
+
+    return () => {
+      if (conflictCheckTimeoutRef.current) {
+        clearTimeout(conflictCheckTimeoutRef.current)
+      }
+    }
+  }, [treatmentDate, treatmentTime, minutes, treatmentId])
 
   // Memoize selectedService lookup to avoid recalculation on every render
   const selectedService = React.useMemo(
@@ -219,6 +287,38 @@ export function TreatmentForm({
             required
           />
         </FormGrid>
+
+        {/* Conflict Warning */}
+        {conflictInfo?.hasConflict && (
+          <div className="rounded-lg border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20 p-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="font-medium text-red-800 dark:text-red-200">
+                  {t('settings.calendar.conflictWarning')}
+                </p>
+                <div className="mt-2 space-y-1">
+                  {conflictInfo.conflicts.map((conflict) => (
+                    <div key={conflict.appointmentId} className="text-sm text-red-700 dark:text-red-300">
+                      • {conflict.startTime.slice(0, 5)} - {conflict.patientName || t('common.unknown')}
+                      {conflict.serviceName && ` (${conflict.serviceName})`}
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-red-600 dark:text-red-400 mt-2">
+                  {t('settings.calendar.conflictSuggestion')}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {isCheckingConflicts && (
+          <div className="text-xs text-muted-foreground flex items-center gap-2">
+            <div className="h-3 w-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            {t('common.checking')}...
+          </div>
+        )}
 
         <FormGrid columns={2}>
           {/* Utilidad % */}

@@ -14,6 +14,7 @@ import {
   deleteClinicCalendarConfig,
   listCalendars,
   getValidAccessToken,
+  getPendingCalendarConfig,
 } from '@/lib/google-calendar'
 
 export const dynamic = 'force-dynamic'
@@ -46,14 +47,31 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ authUrl })
     }
 
-    // Action: list available calendars
+    // Action: list available calendars (works with pending or active connections)
     if (action === 'calendars') {
-      const accessToken = await getValidAccessToken(clinicId)
+      // Try active connection first
+      let accessToken = await getValidAccessToken(clinicId)
+      let email: string | null = null
+
+      // If no active connection, check for pending
+      if (!accessToken) {
+        const pending = await getPendingCalendarConfig(clinicId)
+        if (pending) {
+          accessToken = pending.access_token
+          email = pending.connected_email
+        }
+      } else {
+        // Get email from active config
+        const config = await getClinicCalendarConfig(clinicId)
+        email = config?.connected_email || null
+      }
+
       if (!accessToken) {
         return NextResponse.json({ error: 'Not connected' }, { status: 400 })
       }
+
       const calendars = await listCalendars(accessToken)
-      return NextResponse.json({ calendars })
+      return NextResponse.json({ calendars, email })
     }
 
     // Default: get current connection status

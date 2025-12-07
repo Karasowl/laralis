@@ -4,6 +4,44 @@ import { useCallback, useMemo, useEffect } from 'react'
 import { useCrudOperations } from './use-crud-operations'
 import { useApi } from './use-api'
 import { useParallelApi } from './use-api'
+import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
+
+// Calendar sync result from API
+interface CalendarSyncResult {
+  success: boolean
+  eventId?: string | null
+  error?: {
+    code: 'not_connected' | 'token_expired' | 'api_error' | 'invalid_status'
+    message: string
+  }
+}
+
+// Show toast based on calendar sync result
+function showCalendarSyncToast(calendarSync: CalendarSyncResult | undefined, t: (key: string) => string) {
+  if (!calendarSync) return
+
+  if (calendarSync.success) {
+    // Optional: show success toast (can be commented out if too noisy)
+    // toast.success(t('settings.calendar.syncSuccess'))
+  } else if (calendarSync.error) {
+    // Show warning based on error code
+    switch (calendarSync.error.code) {
+      case 'not_connected':
+        toast.warning(t('settings.calendar.syncNotConnected'), { duration: 5000 })
+        break
+      case 'token_expired':
+        toast.warning(t('settings.calendar.syncTokenExpired'), { duration: 5000 })
+        break
+      case 'invalid_status':
+        // Don't show for invalid status - this is expected behavior
+        break
+      case 'api_error':
+        toast.error(t('settings.calendar.syncApiError'), { duration: 5000 })
+        break
+    }
+  }
+}
 
 export interface Patient {
   id: string
@@ -50,6 +88,7 @@ interface UseTreatmentsOptions {
 
 export function useTreatments(options: UseTreatmentsOptions = {}) {
   const { clinicId, autoLoad = true, patientId } = options
+  const t = useTranslations()
 
   // Use generic CRUD for treatments
   const crud = useCrudOperations<Treatment>({
@@ -172,8 +211,35 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
       snapshot_costs: snapshot
     }
 
-    return await crud.handleCreate(treatmentData)
-  }, [crud, servicesApi, timeSettingsApi])
+    // Use fetch directly to access calendarSync from response
+    try {
+      const response = await fetch('/api/treatments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(treatmentData),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        toast.error(errorData.error || t('common.createError'))
+        return false
+      }
+
+      const result = await response.json()
+
+      // Show calendar sync toast if applicable
+      showCalendarSyncToast(result.calendarSync, t)
+
+      toast.success(t('common.createSuccess', { entity: 'Treatment' }))
+      await crud.fetchItems()
+      return true
+    } catch (error) {
+      console.error('Error creating treatment:', error)
+      toast.error(t('common.createError'))
+      return false
+    }
+  }, [crud, servicesApi, timeSettingsApi, t])
 
   // Enhanced update with snapshot preservation
   const updateTreatment = useCallback(async (
@@ -236,8 +302,35 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
       }
     }
 
-    return await crud.handleUpdate(id, treatmentData)
-  }, [crud, servicesApi.data])
+    // Use fetch directly to access calendarSync from response
+    try {
+      const response = await fetch(`/api/treatments/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(treatmentData),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        toast.error(errorData.error || t('common.updateError'))
+        return false
+      }
+
+      const result = await response.json()
+
+      // Show calendar sync toast if applicable
+      showCalendarSyncToast(result.calendarSync, t)
+
+      toast.success(t('common.updateSuccess', { entity: 'Treatment' }))
+      await crud.fetchItems()
+      return true
+    } catch (error) {
+      console.error('Error updating treatment:', error)
+      toast.error(t('common.updateError'))
+      return false
+    }
+  }, [crud, servicesApi.data, t])
 
   return {
     // From CRUD operations
