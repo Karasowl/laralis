@@ -343,11 +343,17 @@ async function loadFullClinicData(clinicId: string): Promise<FullExportData> {
   // Enrich treatments with service and patient names
   const services = servicesResult.data || []
   const patients = patientsResult.data || []
-  const enrichedTreatments = (treatmentsResult.data || []).map((treatment: any) => ({
-    ...treatment,
-    service_name: services.find((s: any) => s.id === treatment.service_id)?.name || null,
-    patient_name: patients.find((p: any) => p.id === treatment.patient_id)?.name || null,
-  }))
+  const enrichedTreatments = (treatmentsResult.data || []).map((treatment: any) => {
+    const patient = patients.find((p: any) => p.id === treatment.patient_id)
+    const patientName = patient
+      ? `${patient.first_name || ''} ${patient.last_name || ''}`.trim() || patient.name || null
+      : null
+    return {
+      ...treatment,
+      service_name: services.find((s: any) => s.id === treatment.service_id)?.name || null,
+      patient_name: patientName,
+    }
+  })
 
   // Enrich services with category names
   const customCategories = customCategoriesResult.data || []
