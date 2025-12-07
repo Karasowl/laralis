@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
-import { syncTreatmentToCalendar } from '@/lib/google-calendar';
+import { syncTreatmentToCalendar, CalendarSyncResult } from '@/lib/google-calendar';
 
 export const dynamic = 'force-dynamic'
 
@@ -282,10 +282,12 @@ export async function POST(request: NextRequest) {
       console.warn('[treatments POST] Failed to adjust patient first_visit_date:', e);
     }
 
-    // Sync to Google Calendar if connected (for pending/scheduled treatments)
+    // Sync to Google Calendar if connected (for syncable statuses: pending/scheduled/in_progress)
+    let calendarSync: CalendarSyncResult | null = null;
     try {
       const created = insertResult.data as any;
-      if (created && (created.status === 'scheduled' || created.status === 'pending')) {
+      const syncableStatuses = ['scheduled', 'pending', 'in_progress'];
+      if (created && syncableStatuses.includes(created.status)) {
         // Fetch patient and service names for the event
         const { data: patient } = await supabaseAdmin
           .from('patients')
@@ -301,7 +303,7 @@ export async function POST(request: NextRequest) {
         const patientName = patient ? `${patient.first_name} ${patient.last_name}` : 'Patient';
         const serviceName = service?.name || 'Treatment';
 
-        const googleEventId = await syncTreatmentToCalendar(clinicId, {
+        calendarSync = await syncTreatmentToCalendar(clinicId, {
           id: created.id,
           patient_name: patientName,
           service_name: serviceName,
@@ -313,20 +315,25 @@ export async function POST(request: NextRequest) {
         });
 
         // Save google_event_id if sync was successful
-        if (googleEventId) {
+        if (calendarSync.success && calendarSync.eventId) {
           await supabaseAdmin
             .from('treatments')
-            .update({ google_event_id: googleEventId })
+            .update({ google_event_id: calendarSync.eventId })
             .eq('id', created.id);
         }
       }
     } catch (e) {
       console.warn('[treatments POST] Failed to sync to Google Calendar:', e);
+      calendarSync = {
+        success: false,
+        error: { code: 'api_error', message: e instanceof Error ? e.message : 'Unexpected error' }
+      };
     }
 
     return NextResponse.json({
       data: insertResult.data,
-      message: 'Treatment created successfully'
+      message: 'Treatment created successfully',
+      calendarSync: calendarSync || undefined
     });
   } catch (error) {
     console.error('Unexpected error in POST /api/treatments:', error);

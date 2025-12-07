@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
-import { syncTreatmentToCalendar, deleteTreatmentFromCalendar } from '@/lib/google-calendar';
+import { syncTreatmentToCalendar, deleteTreatmentFromCalendar, CalendarSyncResult } from '@/lib/google-calendar';
 
 export const dynamic = 'force-dynamic'
 
@@ -124,6 +124,7 @@ export async function PUT(
     }
 
     // Sync to Google Calendar if connected
+    let calendarSync: CalendarSyncResult | null = null;
     try {
       const updated = result.data as any;
       if (updated) {
@@ -143,7 +144,7 @@ export async function PUT(
         const serviceName = service?.name || 'Treatment';
         const currentStatus = updated.status === 'scheduled' ? 'pending' : updated.status;
 
-        const googleEventId = await syncTreatmentToCalendar(clinicId, {
+        calendarSync = await syncTreatmentToCalendar(clinicId, {
           id: updated.id,
           patient_name: patientName,
           service_name: serviceName,
@@ -155,18 +156,27 @@ export async function PUT(
         });
 
         // Update google_event_id if it changed (new event created or event deleted)
-        if (googleEventId !== updated.google_event_id) {
+        const newEventId = calendarSync.success ? calendarSync.eventId : null;
+        if (newEventId !== updated.google_event_id) {
           await supabaseAdmin
             .from('treatments')
-            .update({ google_event_id: googleEventId })
+            .update({ google_event_id: newEventId })
             .eq('id', updated.id);
         }
       }
     } catch (e) {
       console.warn('[treatments PUT] Failed to sync to Google Calendar:', e);
+      calendarSync = {
+        success: false,
+        error: { code: 'api_error', message: e instanceof Error ? e.message : 'Unexpected error' }
+      };
     }
 
-    return NextResponse.json({ data: result.data, message: 'Treatment updated successfully' });
+    return NextResponse.json({
+      data: result.data,
+      message: 'Treatment updated successfully',
+      calendarSync: calendarSync || undefined
+    });
   } catch (error) {
     console.error('Unexpected error in PUT /api/treatments/[id]:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

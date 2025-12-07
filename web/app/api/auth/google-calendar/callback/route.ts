@@ -2,7 +2,8 @@
  * Google Calendar OAuth Callback
  *
  * Handles the redirect from Google after user authorization.
- * Exchanges the code for tokens and saves the configuration.
+ * Exchanges the code for tokens, saves them temporarily,
+ * and redirects to calendar selection page.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -10,7 +11,7 @@ import {
   exchangeCodeForTokens,
   getUserEmail,
   listCalendars,
-  saveClinicCalendarConfig,
+  saveClinicCalendarTokens,
 } from '@/lib/google-calendar'
 
 export const dynamic = 'force-dynamic'
@@ -53,22 +54,20 @@ export async function GET(request: NextRequest) {
     // Get user email
     const email = await getUserEmail(tokens.access_token)
 
-    // Get primary calendar (or first one)
+    // Verify user has calendars
     const calendars = await listCalendars(tokens.access_token)
-    const primaryCalendar = calendars.find(c => c.primary) || calendars[0]
-
-    if (!primaryCalendar) {
+    if (calendars.length === 0) {
       return NextResponse.redirect(
         new URL('/settings/calendar?error=no_calendars', request.url)
       )
     }
 
-    // Save configuration
-    await saveClinicCalendarConfig(clinicId, tokens, primaryCalendar.id, email)
+    // Save tokens temporarily (without calendar selection)
+    await saveClinicCalendarTokens(clinicId, tokens, email)
 
-    // Redirect to settings with success
+    // Redirect to calendar selection page
     return NextResponse.redirect(
-      new URL('/settings/calendar?success=connected', request.url)
+      new URL('/settings/calendar/select', request.url)
     )
   } catch (error) {
     console.error('OAuth callback error:', error)

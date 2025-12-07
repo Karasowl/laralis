@@ -33,7 +33,8 @@
       "Bash(npx eslint:*)",
       "Bash(find:*)",
       "Bash(npm ls:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(wc:*)"
     ],
     "deny": []
   }

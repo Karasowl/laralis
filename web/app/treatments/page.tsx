@@ -686,6 +686,7 @@ export default function TreatmentsPage() {
             selectedServiceCostCents={selectedServiceCostCents}
             serviceLocked
             t={t}
+            treatmentId={editTreatment?.id}
           />
         </FormModal>
 
