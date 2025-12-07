@@ -181,9 +181,34 @@ export default function TreatmentsCalendarPage() {
     t,
   }
 
+  // Get current title based on view mode
+  const currentTitle = useMemo(() => {
+    if (viewMode === 'day') {
+      return currentDate.toLocaleDateString('default', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      })
+    }
+    return `${monthName} ${year}`
+  }, [viewMode, currentDate, monthName, year])
+
+  // Short title for mobile
+  const currentTitleShort = useMemo(() => {
+    if (viewMode === 'day') {
+      return currentDate.toLocaleDateString('default', {
+        day: 'numeric',
+        month: 'short',
+      })
+    }
+    return currentDate.toLocaleDateString('default', { month: 'short', year: 'numeric' })
+  }, [viewMode, currentDate])
+
   return (
     <AppLayout>
-      <div className="p-4 lg:p-8 max-w-[1600px] mx-auto space-y-6">
+      <div className="p-4 lg:p-8 max-w-[1600px] mx-auto space-y-4 md:space-y-6">
+        {/* PageHeader - visible on all screens */}
         <PageHeader
           title={t('treatments.title')}
           subtitle={t('treatments.subtitle')}
@@ -193,13 +218,13 @@ export default function TreatmentsCalendarPage() {
         <div className="flex items-center gap-1 p-1 bg-muted rounded-lg w-fit">
           <Link
             href="/treatments"
-            className="flex items-center gap-2 px-4 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-background/50 transition-colors"
+            className="flex items-center gap-2 px-3 md:px-4 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-background/50 transition-colors"
           >
             <List className="h-4 w-4" />
             <span className="hidden sm:inline">{t('treatments.views.list')}</span>
           </Link>
           <div
-            className="flex items-center gap-2 px-4 py-2 rounded-md bg-background shadow-sm text-foreground font-medium"
+            className="flex items-center gap-2 px-3 md:px-4 py-2 rounded-md bg-background shadow-sm text-foreground font-medium"
           >
             <Calendar className="h-4 w-4" />
             <span className="hidden sm:inline">{t('treatments.views.calendar')}</span>
@@ -208,35 +233,57 @@ export default function TreatmentsCalendarPage() {
 
         {/* Calendar Card */}
         <Card>
-          <CardContent className="p-4">
-            {/* Navigation */}
-            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="icon" onClick={goToPrevious}>
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="icon" onClick={goToNext}>
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="sm" onClick={goToToday}>
-                  {t('common.today')}
-                </Button>
+          <CardContent className="p-3 md:p-4">
+            {/* Navigation - responsive layout */}
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+              {/* Top row on mobile: nav arrows + title */}
+              <div className="flex items-center justify-between md:justify-start gap-2">
+                <div className="flex items-center gap-1 md:gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-9 w-9 md:h-10 md:w-10"
+                    onClick={goToPrevious}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-9 w-9 md:h-10 md:w-10"
+                    onClick={goToNext}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9 md:h-10 px-3"
+                    onClick={goToToday}
+                  >
+                    {t('common.today')}
+                  </Button>
+                </div>
+
+                {/* Title - show short on mobile */}
+                <h2 className="text-base md:text-xl font-semibold capitalize md:hidden">
+                  {currentTitleShort}
+                </h2>
               </div>
 
-              <h2 className="text-xl font-semibold capitalize">
-                {viewMode === 'day'
-                  ? currentDate.toLocaleDateString('default', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-                  : `${monthName} ${year}`}
+              {/* Title - desktop full */}
+              <h2 className="hidden md:block text-xl font-semibold capitalize order-first md:order-none flex-1 text-center">
+                {currentTitle}
               </h2>
 
-              {/* View mode toggle */}
-              <div className="flex border rounded-lg overflow-hidden">
+              {/* View mode toggle - full width on mobile, auto on desktop */}
+              <div className="flex border rounded-lg overflow-hidden w-full md:w-auto">
                 {(['month', 'week', 'day'] as ViewMode[]).map((mode) => (
                   <Button
                     key={mode}
                     variant={viewMode === mode ? 'default' : 'ghost'}
                     size="sm"
-                    className="rounded-none"
+                    className="flex-1 md:flex-none rounded-none h-9 md:h-10 text-xs md:text-sm"
                     onClick={() => setViewMode(mode)}
                   >
                     {t(`settings.calendar.view${mode.charAt(0).toUpperCase() + mode.slice(1)}`)}
@@ -245,26 +292,32 @@ export default function TreatmentsCalendarPage() {
               </div>
             </div>
 
-            {/* Status legend */}
-            <div className="flex items-center gap-3 mb-4 flex-wrap">
-              <Badge variant="outline" className="gap-1">
+            {/* Status legend - hidden on mobile month view, visible otherwise */}
+            <div className={cn(
+              'items-center gap-2 md:gap-3 mb-4 flex-wrap',
+              viewMode === 'month' ? 'hidden md:flex' : 'flex'
+            )}>
+              <Badge variant="outline" className="gap-1 text-xs">
                 <div className={cn('w-2 h-2 rounded-full', getStatusDot('pending'))} />
-                {t('treatments.status.pending')}
+                <span className="hidden sm:inline">{t('treatments.status.pending')}</span>
+                <span className="sm:hidden">{t('treatments.status.pending').charAt(0)}</span>
               </Badge>
-              <Badge variant="outline" className="gap-1">
+              <Badge variant="outline" className="gap-1 text-xs">
                 <div className={cn('w-2 h-2 rounded-full', getStatusDot('in_progress'))} />
-                {t('treatments.status.in_progress')}
+                <span className="hidden sm:inline">{t('treatments.status.in_progress')}</span>
+                <span className="sm:hidden">{t('treatments.status.in_progress').split(' ').map(w => w.charAt(0)).join('')}</span>
               </Badge>
-              <Badge variant="outline" className="gap-1">
+              <Badge variant="outline" className="gap-1 text-xs">
                 <div className={cn('w-2 h-2 rounded-full', getStatusDot('completed'))} />
-                {t('treatments.status.completed')}
+                <span className="hidden sm:inline">{t('treatments.status.completed')}</span>
+                <span className="sm:hidden">{t('treatments.status.completed').charAt(0)}</span>
               </Badge>
             </div>
 
             {/* Calendar content */}
             {loading ? (
-              <div className="flex items-center justify-center py-20">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              <div className="flex items-center justify-center py-12 md:py-20">
+                <Loader2 className="h-6 w-6 md:h-8 md:w-8 animate-spin text-muted-foreground" />
               </div>
             ) : viewMode === 'month' ? (
               <MonthView
@@ -282,13 +335,15 @@ export default function TreatmentsCalendarPage() {
           </CardContent>
         </Card>
 
-        {/* Today's appointments */}
-        <TodayAppointments
-          treatmentsByDate={treatmentsByDate}
-          conflictsByDate={conflictsByDate}
-          onTreatmentClick={handleTreatmentClick}
-          t={t}
-        />
+        {/* Today's appointments - hide on mobile to avoid redundancy */}
+        <div className="hidden md:block">
+          <TodayAppointments
+            treatmentsByDate={treatmentsByDate}
+            conflictsByDate={conflictsByDate}
+            onTreatmentClick={handleTreatmentClick}
+            t={t}
+          />
+        </div>
       </div>
     </AppLayout>
   )
