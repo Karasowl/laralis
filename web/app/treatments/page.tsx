@@ -25,7 +25,7 @@ import { useTreatments, Treatment, Patient, Service } from '@/hooks/use-treatmen
 import { formatCurrency } from '@/lib/money'
 import { getLocalDateISO } from '@/lib/utils'
 import { formatDate } from '@/lib/format'
-import { Calendar, User, DollarSign, FileText, Activity, Clock, Plus, StickyNote } from 'lucide-react'
+import { Calendar, User, DollarSign, FileText, Activity, Clock, Plus, StickyNote, List } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { calcularPrecioFinal } from '@/lib/calc/tarifa'
@@ -538,6 +538,23 @@ export default function TreatmentsPage() {
             </Button>
           }
         />
+
+        {/* View Toggle Tabs */}
+        <div className="flex items-center gap-1 p-1 bg-muted rounded-lg w-fit">
+          <div
+            className="flex items-center gap-2 px-4 py-2 rounded-md bg-background shadow-sm text-foreground font-medium"
+          >
+            <List className="h-4 w-4" />
+            <span className="hidden sm:inline">{t('treatments.views.list')}</span>
+          </div>
+          <Link
+            href="/treatments/calendar"
+            className="flex items-center gap-2 px-4 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-background/50 transition-colors"
+          >
+            <Calendar className="h-4 w-4" />
+            <span className="hidden sm:inline">{t('treatments.views.calendar')}</span>
+          </Link>
+        </div>
 
         {filteredPatient && (
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-lg bg-muted/40">

@@ -2378,6 +2378,10 @@
   "treatments": {
     "title": "Tratamientos",
     "subtitle": "Gestiona los tratamientos de tus pacientes",
+    "views": {
+      "list": "Lista",
+      "calendar": "Calendario"
+    },
     "savedAddAnother": "Tratamiento guardado. ¡Agrega otro!",
     "showingTreatmentsFor": "Mostrando tratamientos de",
     "viewPatient": "Ver Paciente",
