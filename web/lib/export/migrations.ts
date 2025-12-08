@@ -39,7 +39,7 @@ export interface ExportMigration {
  * This should match the latest migration number in supabase/migrations/
  * Update this when you add database migrations.
  */
-export const CURRENT_SCHEMA_VERSION = 41;
+export const CURRENT_SCHEMA_VERSION = 56;
 
 /**
  * Export Format Version
@@ -94,46 +94,131 @@ export const EXPORT_FORMAT_VERSION = '1.0.0';
  * ```
  */
 export const EXPORT_MIGRATIONS: ExportMigration[] = [
-  // Example migration (this is a template - remove when adding real migrations)
-  // {
-  //   from: 41,
-  //   to: 42,
-  //   description: "Add campaign_id field to expenses table",
-  //   transform: (bundle: ExportBundle) => {
-  //     return {
-  //       ...bundle,
-  //       metadata: {
-  //         ...bundle.metadata,
-  //         schemaVersion: 42,
-  //       },
-  //       data: {
-  //         ...bundle.data,
-  //         clinics: bundle.data.clinics.map((clinic) => ({
-  //           ...clinic,
-  //           expenses: clinic.expenses.map((expense) => ({
-  //             ...expense,
-  //             campaign_id: expense.campaign_id || null,
-  //           })),
-  //         })),
-  //       },
-  //     };
-  //   },
-  //   validate: (bundle: ExportBundle) => {
-  //     const errors: string[] = [];
-  //     bundle.data.clinics.forEach((clinic, clinicIndex) => {
-  //       clinic.expenses.forEach((expense, expenseIndex) => {
-  //         if (!('campaign_id' in expense)) {
-  //           errors.push(
-  //             `Clinic ${clinicIndex}, Expense ${expenseIndex}: missing campaign_id field`
-  //           );
-  //         }
-  //       });
-  //     });
-  //     return errors;
-  //   },
-  // },
-
-  // Add future migrations here...
+  // Migration 41→42: No significant export changes
+  {
+    from: 41,
+    to: 42,
+    description: 'Placeholder for schema 42',
+    transform: (bundle: ExportBundle) => ({
+      ...bundle,
+      metadata: { ...bundle.metadata, schemaVersion: 42 },
+    }),
+  },
+  // Migrations 42→50: Schema changes but no new tables
+  ...[43, 44, 45, 46, 47, 48, 49, 50].map((v) => ({
+    from: v - 1,
+    to: v,
+    description: `Schema update to v${v}`,
+    transform: (bundle: ExportBundle) => ({
+      ...bundle,
+      metadata: { ...bundle.metadata, schemaVersion: v },
+    }),
+  })),
+  // Migration 50→51: action_logs table (already handled by exporter)
+  {
+    from: 50,
+    to: 51,
+    description: 'Add action_logs support',
+    transform: (bundle: ExportBundle) => ({
+      ...bundle,
+      metadata: { ...bundle.metadata, schemaVersion: 51 },
+      data: {
+        ...bundle.data,
+        clinics: bundle.data.clinics.map((clinic: any) => ({
+          ...clinic,
+          actionLogs: clinic.actionLogs || [],
+        })),
+      },
+    }),
+  },
+  // Migration 51→52: clinic_google_calendar table
+  {
+    from: 51,
+    to: 52,
+    description: 'Add clinic_google_calendar support',
+    transform: (bundle: ExportBundle) => ({
+      ...bundle,
+      metadata: { ...bundle.metadata, schemaVersion: 52 },
+      data: {
+        ...bundle.data,
+        clinics: bundle.data.clinics.map((clinic: any) => ({
+          ...clinic,
+          clinicGoogleCalendar: clinic.clinicGoogleCalendar || null,
+        })),
+      },
+    }),
+  },
+  // Migration 52→53: google_event_id in treatments
+  {
+    from: 52,
+    to: 53,
+    description: 'Add google_event_id to treatments',
+    transform: (bundle: ExportBundle) => ({
+      ...bundle,
+      metadata: { ...bundle.metadata, schemaVersion: 53 },
+      data: {
+        ...bundle.data,
+        clinics: bundle.data.clinics.map((clinic: any) => ({
+          ...clinic,
+          treatments: (clinic.treatments || []).map((t: any) => ({
+            ...t,
+            google_event_id: t.google_event_id || null,
+          })),
+        })),
+      },
+    }),
+  },
+  // Migration 53→54: AI chat tables
+  {
+    from: 53,
+    to: 54,
+    description: 'Add AI chat tables (chat_sessions, chat_messages, ai_feedback)',
+    transform: (bundle: ExportBundle) => ({
+      ...bundle,
+      metadata: { ...bundle.metadata, schemaVersion: 54 },
+      data: {
+        ...bundle.data,
+        clinics: bundle.data.clinics.map((clinic: any) => ({
+          ...clinic,
+          chatSessions: clinic.chatSessions || [],
+          chatMessages: clinic.chatMessages || [],
+          aiFeedback: clinic.aiFeedback || [],
+        })),
+      },
+    }),
+  },
+  // Migration 54→55: Refund fields in treatments
+  {
+    from: 54,
+    to: 55,
+    description: 'Add refund fields to treatments',
+    transform: (bundle: ExportBundle) => ({
+      ...bundle,
+      metadata: { ...bundle.metadata, schemaVersion: 55 },
+      data: {
+        ...bundle.data,
+        clinics: bundle.data.clinics.map((clinic: any) => ({
+          ...clinic,
+          treatments: (clinic.treatments || []).map((t: any) => ({
+            ...t,
+            is_refunded: t.is_refunded ?? false,
+            refunded_at: t.refunded_at || null,
+            refund_reason: t.refund_reason || null,
+          })),
+        })),
+      },
+    }),
+  },
+  // Migration 55→56: Auto-complete appointments (no export changes needed)
+  {
+    from: 55,
+    to: 56,
+    description: 'Auto-complete appointments support',
+    transform: (bundle: ExportBundle) => ({
+      ...bundle,
+      metadata: { ...bundle.metadata, schemaVersion: 56 },
+    }),
+  },
 ];
 
 /**
