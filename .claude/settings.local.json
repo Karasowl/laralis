@@ -35,7 +35,8 @@
       "Bash(npm ls:*)",
       "Bash(grep:*)",
       "Bash(wc:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(cat:*)"
     ],
     "deny": []
   }

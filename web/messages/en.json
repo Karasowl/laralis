@@ -2294,12 +2294,41 @@
       "completed": "Completed",
       "pending": "Pending",
       "in_progress": "In Progress",
-      "cancelled": "Cancelled"
+      "cancelled": "Cancelled",
+      "refunded": "Refunded"
     },
     "errors": {
       "completedRequiresPrice": "To mark as completed, you must enter a sale price greater than $0"
     },
-    "serviceChangeNotAllowed": "You cannot change the service of an existing treatment"
+    "serviceChangeNotAllowed": "You cannot change the service of an existing treatment",
+    "refund": {
+      "title": "Refund Treatment",
+      "button": "Refund",
+      "confirm": "Are you sure you want to refund this treatment?",
+      "confirmDescription": "The refund is irreversible. The treatment will be marked as refunded and the revenue will become $0, but the associated costs (materials and time) will be recorded as losses.",
+      "reason": "Refund reason",
+      "reasonPlaceholder": "Describe why the refund is being processed...",
+      "reasonRequired": "Please provide a reason for the refund",
+      "success": "Treatment refunded successfully",
+      "error": "Error processing refund",
+      "alreadyRefunded": "This treatment has already been refunded",
+      "cannotRefundCancelled": "Cannot refund a cancelled treatment",
+      "refundedAt": "Refunded on",
+      "refundedBy": "Refunded by",
+      "stats": {
+        "title": "Refund Statistics",
+        "totalRefunded": "Refunded Treatments",
+        "refundRate": "Refund Rate",
+        "totalLoss": "Total Loss",
+        "materialLoss": "Material Losses",
+        "timeLoss": "Time Losses",
+        "avgLossPerRefund": "Avg Loss per Refund",
+        "periodComparison": "vs previous period",
+        "noRefunds": "No refunds in this period",
+        "refundTrend": "Refund Trend",
+        "lossBreakdown": "Loss Breakdown"
+      }
+    }
   },
   "reports": {
     "title": "Reports",
@@ -2579,7 +2608,8 @@
       "successDescription": "Your password has been changed successfully",
       "successMessage": "Password updated successfully",
       "redirecting": "Redirecting...",
-      "updateError": "Error updating password"
+      "updateError": "Error updating password",
+      "linkExpiration": "Recovery links expire after 1 hour or when used."
     },
     "errors": {
       "invalidCredentials": "Invalid email or password",

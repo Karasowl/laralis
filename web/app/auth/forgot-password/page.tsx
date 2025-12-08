@@ -46,20 +46,20 @@ export default function ForgotPasswordPage() {
   if (emailSent) {
     return (
       <AuthLayout showLogo={false}>
-        <div className="text-center space-y-6">
-          <div className="inline-flex p-4 bg-green-100 dark:bg-green-900/20 rounded-full">
-            <Mail className="h-8 w-8 text-green-600 dark:text-green-400" />
+        <div className="text-center space-y-4 sm:space-y-6">
+          <div className="inline-flex p-3 sm:p-4 bg-green-100 dark:bg-green-900/20 rounded-full">
+            <Mail className="h-6 w-6 sm:h-8 sm:w-8 text-green-600 dark:text-green-400" />
           </div>
-          
-          <div className="space-y-2">
-            <h2 className="text-2xl font-bold">{t('emailSentTitle')}</h2>
-            <p className="text-muted-foreground">
+
+          <div className="space-y-1 sm:space-y-2">
+            <h2 className="text-xl sm:text-2xl font-bold">{t('emailSentTitle')}</h2>
+            <p className="text-xs sm:text-sm text-muted-foreground">
               {t('emailSentDescription', { email: submittedEmail })}
             </p>
           </div>
 
-          <div className="pt-4 space-y-3">
-            <p className="text-sm text-muted-foreground">
+          <div className="pt-2 sm:pt-4 space-y-3">
+            <p className="text-xs sm:text-sm text-muted-foreground">
               {t('checkSpam')}
             </p>
             
@@ -93,7 +93,7 @@ export default function ForgotPasswordPage() {
         }}
       >
         <div className="relative">
-          <Mail className="absolute left-3 top-9 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Mail className="absolute left-3 top-7 sm:top-8 h-4 w-4 text-muted-foreground pointer-events-none" />
           <InputField
             label={t('emailLabel')}
             type="email"

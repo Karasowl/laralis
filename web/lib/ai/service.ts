@@ -42,11 +42,8 @@ import {
   executeSimulatePriceChange,
   executeCreateExpense,
   executeUpdateTimeSettings,
-  // 6 analytics actions
-  executeGetBreakEvenAnalysis,
-  executeGetTopServices,
-  executeGetExpenseBreakdown,
-  executeGetServiceProfitability,
+  // Analytics actions (removed: executeGetBreakEvenAnalysis, executeGetTopServices,
+  // executeGetExpenseBreakdown, executeGetServiceProfitability - Lara answers these directly)
   executeIdentifyUnderperformingServices,
   executeComparePeriods,
   // 4 operational actions
@@ -518,37 +515,13 @@ export class AIService implements ActionExecutor {
           )
           break
 
-        case 'get_break_even_analysis':
-          result = await executeGetBreakEvenAnalysis(
-            params as ActionParams['get_break_even_analysis'],
-            context
-          )
-          break
+        // NOTE: get_break_even_analysis, get_service_profitability, get_expense_breakdown,
+        // and get_top_services were REMOVED - Lara should answer these queries directly
+        // using the snapshot data instead of suggesting actions.
 
         case 'compare_periods':
           result = await executeComparePeriods(
             params as ActionParams['compare_periods'],
-            context
-          )
-          break
-
-        case 'get_service_profitability':
-          result = await executeGetServiceProfitability(
-            params as ActionParams['get_service_profitability'],
-            context
-          )
-          break
-
-        case 'get_expense_breakdown':
-          result = await executeGetExpenseBreakdown(
-            params as ActionParams['get_expense_breakdown'],
-            context
-          )
-          break
-
-        case 'get_top_services':
-          result = await executeGetTopServices(
-            params as ActionParams['get_top_services'],
             context
           )
           break
@@ -752,13 +725,7 @@ export class AIService implements ActionExecutor {
           break
         }
 
-        case 'get_break_even_analysis': {
-          const p = params as ActionParams['get_break_even_analysis']
-          if (p.period_days && (p.period_days < 1 || p.period_days > 365)) {
-            errors.push('period_days must be between 1 and 365')
-          }
-          break
-        }
+        // NOTE: get_break_even_analysis validation removed - function deprecated
 
         case 'compare_periods': {
           const p = params as ActionParams['compare_periods']
@@ -778,41 +745,9 @@ export class AIService implements ActionExecutor {
           break
         }
 
-        case 'get_service_profitability': {
-          const p = params as ActionParams['get_service_profitability']
-          if (p.period_days && (p.period_days < 1 || p.period_days > 365)) {
-            errors.push('period_days must be between 1 and 365')
-          }
-          if (p.sort_by && !['margin', 'revenue', 'count'].includes(p.sort_by)) {
-            errors.push('sort_by must be "margin", "revenue", or "count"')
-          }
-          break
-        }
-
-        case 'get_expense_breakdown': {
-          const p = params as ActionParams['get_expense_breakdown']
-          if (p.period_days && (p.period_days < 1 || p.period_days > 365)) {
-            errors.push('period_days must be between 1 and 365')
-          }
-          if (p.group_by && !['category', 'subcategory', 'vendor'].includes(p.group_by)) {
-            errors.push('group_by must be "category", "subcategory", or "vendor"')
-          }
-          break
-        }
-
-        case 'get_top_services': {
-          const p = params as ActionParams['get_top_services']
-          if (p.limit && (p.limit < 1 || p.limit > 100)) {
-            errors.push('limit must be between 1 and 100')
-          }
-          if (p.period_days && (p.period_days < 1 || p.period_days > 365)) {
-            errors.push('period_days must be between 1 and 365')
-          }
-          if (p.sort_by && !['revenue', 'count', 'margin'].includes(p.sort_by)) {
-            errors.push('sort_by must be "revenue", "count", or "margin"')
-          }
-          break
-        }
+        // NOTE: Validations for get_service_profitability, get_expense_breakdown,
+        // and get_top_services were REMOVED - these functions are deprecated.
+        // Lara should answer these queries directly using the snapshot data.
 
         default:
           errors.push(`Unknown action type: ${action}`)

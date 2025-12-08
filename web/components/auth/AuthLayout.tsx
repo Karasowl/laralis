@@ -14,7 +14,7 @@ export function AuthLayout({ children, showLogo = true }: AuthLayoutProps) {
   const t = useTranslations('auth.layout')
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden">
+    <div className="min-h-[100dvh] bg-background relative overflow-hidden">
       {/* Animated mesh gradient background - Stripe style but medical colors */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-background" />
@@ -60,18 +60,18 @@ export function AuthLayout({ children, showLogo = true }: AuthLayoutProps) {
       </div>
 
       {/* Main content - centered and clean */}
-      <div className="relative z-10 flex min-h-screen items-center justify-center p-4">
+      <div className="relative z-10 flex min-h-[100dvh] items-center justify-center p-4 py-6 sm:py-4">
         <div className="w-full max-w-md">
           {/* Logo and branding - refined */}
           {showLogo && (
-            <div className="text-center mb-10">
+            <div className="text-center mb-6 sm:mb-10">
               {/* Refined logo with subtle animation */}
-              <div className="inline-flex items-center justify-center mb-6">
+              <div className="inline-flex items-center justify-center mb-4 sm:mb-6">
                 <div className="relative group">
-                  <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-2xl blur-lg opacity-50 group-hover:opacity-75 transition-opacity" />
-                  <div className="relative bg-gradient-to-r from-primary to-secondary text-white rounded-2xl p-3.5 shadow-xl transform transition-transform group-hover:scale-105">
+                  <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-xl sm:rounded-2xl blur-lg opacity-50 group-hover:opacity-75 transition-opacity" />
+                  <div className="relative bg-gradient-to-r from-primary to-secondary text-white rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 shadow-xl transform transition-transform group-hover:scale-105">
                     <svg
-                      className="w-8 h-8"
+                      className="w-6 h-6 sm:w-8 sm:h-8"
                       fill="currentColor"
                       viewBox="0 0 24 24"
                     >
@@ -81,11 +81,11 @@ export function AuthLayout({ children, showLogo = true }: AuthLayoutProps) {
                 </div>
               </div>
 
-              <h1 className="text-4xl font-semibold text-foreground mb-2">
+              <h1 className="text-3xl sm:text-4xl font-semibold text-foreground mb-1 sm:mb-2">
                 Laralis
               </h1>
 
-              <p className="text-muted-foreground text-sm font-medium">
+              <p className="text-muted-foreground text-xs sm:text-sm font-medium">
                 {t('mobileTagline')}
               </p>
             </div>
@@ -93,24 +93,24 @@ export function AuthLayout({ children, showLogo = true }: AuthLayoutProps) {
 
           {/* Form card - elevated with glassmorphism */}
           <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-3xl blur-xl" />
-            <div className="relative bg-background/95 backdrop-blur-xl rounded-3xl shadow-xl border border-border/50 p-8">
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-2xl sm:rounded-3xl blur-xl" />
+            <div className="relative bg-background/95 backdrop-blur-xl rounded-2xl sm:rounded-3xl shadow-xl border border-border/50 p-5 sm:p-8">
               {children}
             </div>
           </div>
 
           {/* Theme and language controls - below form */}
-          <div className="mt-6 flex justify-center">
+          <div className="mt-4 sm:mt-6 flex justify-center">
             <div className="flex items-center gap-2 bg-background/80 backdrop-blur-xl rounded-full px-3 py-1.5 border border-border/50 shadow-lg">
               <LanguageSwitcher compact />
-              <div className="w-px h-6 bg-border" />
+              <div className="w-px h-5 sm:h-6 bg-border" />
               <ThemeToggle />
             </div>
           </div>
 
           {/* Footer - refined */}
-          <div className="mt-6 text-center">
-            <p className="text-xs text-muted-foreground font-medium">
+          <div className="mt-4 sm:mt-6 text-center">
+            <p className="text-[10px] sm:text-xs text-muted-foreground font-medium">
               © {new Date().getFullYear()} Laralis. {t('allRightsReserved')}
             </p>
           </div>

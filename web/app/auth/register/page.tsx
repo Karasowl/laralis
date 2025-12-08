@@ -165,10 +165,10 @@ export default function RegisterPage() {
         }}
         error={error}
       >
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="space-y-3 sm:space-y-4">
+          <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2">
             <div className="relative">
-              <User className="absolute left-3 top-9 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <User className="absolute left-3 top-7 sm:top-8 h-4 w-4 text-muted-foreground pointer-events-none" />
               <InputField
                 type="text"
                 label={t('firstName')}
@@ -185,7 +185,7 @@ export default function RegisterPage() {
             </div>
 
             <div className="relative">
-              <User className="absolute left-3 top-9 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <User className="absolute left-3 top-7 sm:top-8 h-4 w-4 text-muted-foreground pointer-events-none" />
               <InputField
                 type="text"
                 label={t('lastName')}
@@ -203,7 +203,7 @@ export default function RegisterPage() {
           </div>
 
           <div className="relative">
-            <Mail className="absolute left-3 top-9 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Mail className="absolute left-3 top-7 sm:top-8 h-4 w-4 text-muted-foreground pointer-events-none" />
             <InputField
               type="email"
               label={t('email')}
@@ -221,7 +221,7 @@ export default function RegisterPage() {
 
           <div className="space-y-2">
             <div className="relative">
-              <Lock className="absolute left-3 top-9 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Lock className="absolute left-3 top-7 sm:top-8 h-4 w-4 text-muted-foreground pointer-events-none" />
               <InputField
                 type="password"
                 label={t('password')}
@@ -240,7 +240,7 @@ export default function RegisterPage() {
           </div>
 
           <div className="relative">
-            <Lock className="absolute left-3 top-9 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Lock className="absolute left-3 top-7 sm:top-8 h-4 w-4 text-muted-foreground pointer-events-none" />
             <InputField
               type="password"
               label={t('confirmPassword')}
@@ -258,13 +258,13 @@ export default function RegisterPage() {
 
           <div className="space-y-2">
             <label className="flex items-start space-x-2">
-              <input 
-                type="checkbox" 
-                className="rounded mt-1" 
+              <input
+                type="checkbox"
+                className="rounded mt-0.5 h-4 w-4"
                 checked={form.watch('acceptTerms')}
                 onChange={(e) => form.setValue('acceptTerms', e.target.checked)}
               />
-              <span className="text-sm text-muted-foreground">
+              <span className="text-xs sm:text-sm text-muted-foreground">
                 {t('agreeToTerms')}{' '}
                 <a href="/terms" className="text-primary hover:underline">
                   {t('termsOfService')}

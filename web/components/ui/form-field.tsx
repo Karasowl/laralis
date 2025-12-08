@@ -110,7 +110,7 @@ export const InputField = React.memo(
     return (
       <div className={cn('space-y-1', containerClassName)}>
         {label && (
-          <Label htmlFor={fieldId} className="text-sm font-medium text-foreground">
+          <Label htmlFor={fieldId} className="text-xs sm:text-sm font-medium text-foreground">
             {label}
             {required && <span className="text-destructive ml-1">*</span>}
           </Label>
@@ -146,7 +146,7 @@ export const InputField = React.memo(
             max={max}
             step={step}
             className={cn(
-              'mt-1 h-12 bg-background/50 backdrop-blur-sm border-border focus:border-primary focus:ring-primary transition-all',
+              'mt-1 h-10 sm:h-12 bg-background/50 backdrop-blur-sm border-border focus:border-primary focus:ring-primary transition-all',
               type === 'password' && 'pr-12',
               type === 'date' && 'cursor-pointer',
               error && 'border-destructive focus:ring-destructive',
@@ -217,7 +217,7 @@ export const TextareaField = React.memo(
     return (
       <div className={cn('space-y-1', containerClassName)}>
         {label && (
-          <Label htmlFor={fieldId} className="text-sm font-medium text-foreground">
+          <Label htmlFor={fieldId} className="text-xs sm:text-sm font-medium text-foreground">
             {label}
             {required && <span className="text-destructive ml-1">*</span>}
           </Label>
@@ -281,7 +281,7 @@ export const SelectField = React.memo(function SelectField({
   return (
     <div className={cn('space-y-1', containerClassName)}>
       {label && (
-        <Label htmlFor={fieldId} className="text-sm font-medium">
+        <Label htmlFor={fieldId} className="text-xs sm:text-sm font-medium">
           {label}
           {required && <span className="text-red-500 ml-1">*</span>}
         </Label>

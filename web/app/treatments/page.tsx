@@ -14,7 +14,8 @@ import { FormModal } from '@/components/ui/form-modal'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { ActionDropdown, createEditAction, createDeleteAction } from '@/components/ui/ActionDropdown'
+import { ActionDropdown, createEditAction, createDeleteAction, createRefundAction } from '@/components/ui/ActionDropdown'
+import { RefundDialog } from '@/components/ui/RefundDialog'
 import { SummaryCards } from '@/components/ui/summary-cards'
 import { SmartFilters, useSmartFilter, FilterConfig, FilterValues, detectPreset } from '@/components/ui/smart-filters'
 import { TreatmentForm } from './components/TreatmentForm'
@@ -101,6 +102,7 @@ export default function TreatmentsPage() {
     createTreatment,
     updateTreatment,
     deleteTreatment,
+    fetchTreatments,
     loadRelatedData
   } = useTreatments({ clinicId: currentClinic?.id, patientId: patientFilter || undefined })
 
@@ -196,6 +198,8 @@ export default function TreatmentsPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [editTreatment, setEditTreatment] = useState<any>(null)
   const [deleteTreatmentData, setDeleteTreatmentData] = useState<any>(null)
+  const [refundTreatmentData, setRefundTreatmentData] = useState<Treatment | null>(null)
+  const [isRefunding, setIsRefunding] = useState(false)
 
   // URL params for create/edit from calendar view
   const createParam = searchParams?.get('create')
@@ -328,6 +332,38 @@ export default function TreatmentsPage() {
     const success = await deleteTreatment(deleteTreatmentData.id)
     if (success) {
       setDeleteTreatmentData(null)
+    }
+  }
+
+  const handleRefund = async (reason: string) => {
+    if (!refundTreatmentData) return
+    setIsRefunding(true)
+    try {
+      const response = await fetch(`/api/treatments/${refundTreatmentData.id}/refund`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refund_reason: reason })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        toast.error(t(errorData.code === 'ALREADY_REFUNDED'
+          ? 'treatments.refund.alreadyRefunded'
+          : errorData.code === 'CANNOT_REFUND_CANCELLED'
+            ? 'treatments.refund.cannotRefundCancelled'
+            : 'treatments.refund.error'))
+        return
+      }
+
+      toast.success(t('treatments.refund.success'))
+      setRefundTreatmentData(null)
+      // Refresh treatments list
+      await fetchTreatments()
+    } catch (error) {
+      console.error('Error refunding treatment:', error)
+      toast.error(t('treatments.refund.error'))
+    } finally {
+      setIsRefunding(false)
     }
   }
 
@@ -471,13 +507,19 @@ export default function TreatmentsPage() {
       key: 'status',
       label: t('treatments.fields.status'),
       render: (_value: any, treatment: Treatment) => (
-        <InlineStatusMenu
-          value={treatment?.status || 'pending'}
-          onChange={async (next) => {
-            await updateTreatment(treatment.id, { status: next }, treatment)
-          }}
-          t={t}
-        />
+        treatment?.is_refunded ? (
+          <Badge variant="outline" className="border-orange-500 text-orange-600 bg-orange-50 dark:bg-orange-950/30">
+            {t('treatments.status.refunded')}
+          </Badge>
+        ) : (
+          <InlineStatusMenu
+            value={treatment?.status || 'pending'}
+            onChange={async (next) => {
+              await updateTreatment(treatment.id, { status: next }, treatment)
+            }}
+            t={t}
+          />
+        )
       )
     },
     {
@@ -516,6 +558,10 @@ export default function TreatmentsPage() {
                 })
                 setEditTreatment(treatment)
               }, tCommon('edit')),
+              // Only show refund action for completed treatments that are not already refunded
+              ...(treatment?.status === 'completed' && !treatment?.is_refunded
+                ? [createRefundAction(() => setRefundTreatmentData(treatment), t('treatments.refund.button'))]
+                : []),
               createDeleteAction(() => setDeleteTreatmentData(treatment), tCommon('delete'))
             ]}
           />
@@ -862,6 +908,15 @@ export default function TreatmentsPage() {
           description={t('treatments.deleteTreatmentConfirm')}
           onConfirm={handleDelete}
           variant="destructive"
+        />
+
+        <RefundDialog
+          open={!!refundTreatmentData}
+          onOpenChange={(open) => !open && setRefundTreatmentData(null)}
+          title={t('treatments.refund.title')}
+          description={t('treatments.refund.confirmDescription')}
+          onConfirm={handleRefund}
+          isSubmitting={isRefunding}
         />
       </div>
     </AppLayout>

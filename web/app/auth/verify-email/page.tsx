@@ -67,19 +67,19 @@ export default function VerifyEmailPage() {
     <AuthLayout>
       <div className="w-full max-w-md mx-auto px-4">
         <Card className="border-2 border-primary/20 dark:border-primary/40/30 shadow-xl bg-card dark:bg-card">
-          <CardHeader className="text-center space-y-4 pb-6">
-            <div className="mx-auto h-16 w-16 rounded-full bg-primary/10 dark:bg-primary/20 flex items-center justify-center">
-              <Mail className="h-8 w-8 text-primary dark:text-primary" />
+          <CardHeader className="text-center space-y-3 sm:space-y-4 pb-4 sm:pb-6 px-4 sm:px-6">
+            <div className="mx-auto h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-primary/10 dark:bg-primary/20 flex items-center justify-center">
+              <Mail className="h-6 w-6 sm:h-8 sm:w-8 text-primary dark:text-primary" />
             </div>
-            <div className="space-y-2">
-              <CardTitle className="text-2xl font-bold text-foreground">{t('title')}</CardTitle>
-              <CardDescription className="text-sm text-muted-foreground">
+            <div className="space-y-1 sm:space-y-2">
+              <CardTitle className="text-xl sm:text-2xl font-bold text-foreground">{t('title')}</CardTitle>
+              <CardDescription className="text-xs sm:text-sm text-muted-foreground">
                 {email ? t('sentTo', { email }) : t('checkInbox')}
               </CardDescription>
             </div>
           </CardHeader>
 
-          <CardContent className="space-y-4 px-6 pb-6">
+          <CardContent className="space-y-3 sm:space-y-4 px-4 sm:px-6 pb-4 sm:pb-6">
             {/* Action buttons - Vertical stack always */}
             <div className="flex flex-col gap-3 w-full">
               <Button

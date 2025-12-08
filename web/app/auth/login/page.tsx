@@ -70,9 +70,9 @@ export default function LoginPage() {
         }}
         error={error}
       >
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           <div className="space-y-1">
-            <label className="text-sm font-medium text-foreground">
+            <label className="text-xs sm:text-sm font-medium text-foreground">
               {t('email')}
               <span className="text-destructive ml-1">*</span>
             </label>
@@ -81,7 +81,7 @@ export default function LoginPage() {
                 type="email"
                 placeholder={t('emailPlaceholder')}
                 {...form.register('email')}
-                className="flex h-12 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 pl-10 mt-1 bg-background/50 backdrop-blur-sm border-border focus:border-primary transition-all"
+                className="flex h-10 sm:h-12 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 pl-10 mt-1 bg-background/50 backdrop-blur-sm border-border focus:border-primary transition-all"
               />
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             </div>
@@ -91,7 +91,7 @@ export default function LoginPage() {
           </div>
 
           <div className="space-y-1">
-            <label className="text-sm font-medium text-foreground">
+            <label className="text-xs sm:text-sm font-medium text-foreground">
               {t('password')}
               <span className="text-destructive ml-1">*</span>
             </label>
@@ -100,7 +100,7 @@ export default function LoginPage() {
                 type={showPassword ? 'text' : 'password'}
                 placeholder={t('passwordPlaceholder')}
                 {...form.register('password')}
-                className="flex h-12 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 pl-10 pr-12 mt-1 bg-background/50 backdrop-blur-sm border-border focus:border-primary transition-all"
+                className="flex h-10 sm:h-12 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 pl-10 pr-12 mt-1 bg-background/50 backdrop-blur-sm border-border focus:border-primary transition-all"
               />
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <Button
@@ -127,15 +127,15 @@ export default function LoginPage() {
 
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <Checkbox id="remember" />
-              <label htmlFor="remember" className="text-sm text-muted-foreground">
+              <Checkbox id="remember" className="h-4 w-4" />
+              <label htmlFor="remember" className="text-xs sm:text-sm text-muted-foreground">
                 {t('rememberMe')}
               </label>
             </div>
 
             <a
               href="/auth/forgot-password"
-              className="text-sm text-primary hover:underline"
+              className="text-xs sm:text-sm text-primary hover:underline"
             >
               {t('forgotPassword')}
             </a>
