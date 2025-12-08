@@ -3696,6 +3696,7 @@
     "marketingROI": {
       "title": "ROI de Marketing",
       "description": "Retorno de inversión por período mensual",
+      "noCampaigns": "No hay campañas en el período seleccionado",
       "noData": "No hay gastos de marketing registrados",
       "noDataHint": "Registra gastos con categoría 'Marketing' o 'Publicidad' para ver el análisis de ROI",
       "totalInvestment": "Inversión Total",

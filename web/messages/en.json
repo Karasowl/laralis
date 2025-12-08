@@ -3433,6 +3433,7 @@
     "marketingROI": {
       "title": "Marketing ROI",
       "description": "Return on investment by monthly period",
+      "noCampaigns": "No campaigns in the selected period",
       "noData": "No marketing expenses registered",
       "noDataHint": "Register expenses with 'Marketing' or 'Advertising' category to see ROI analysis",
       "totalInvestment": "Total Investment",
