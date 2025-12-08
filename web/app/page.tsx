@@ -201,8 +201,8 @@ export default function InsightsPage() {
   } = useDashboard({
     clinicId: currentClinic?.id,
     period: filterPeriod,
-    from: customRange?.from || undefined,
-    to: customRange?.to || undefined,
+    from: currentRange?.from,
+    to: currentRange?.to,
     chartGranularity: granularity
   })
 
