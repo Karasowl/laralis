@@ -3,8 +3,14 @@
 import { useTranslations } from 'next-intl'
 import { Card, CardContent } from '@/components/ui/card'
 import { formatCurrency } from '@/lib/money'
-import { DollarSign, TrendingUp, Target, Users } from 'lucide-react'
+import { DollarSign, TrendingUp, Target, Users, Info } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 
 interface MarketingMetricsProps {
   cac: number // Customer Acquisition Cost in cents
@@ -61,7 +67,19 @@ export function MarketingMetrics({ cac, ltv, conversionRate, loading }: Marketin
               </div>
             </div>
             <div className="space-y-1">
-              <p className="text-xs sm:text-sm text-muted-foreground">{t('cac')}</p>
+              <div className="flex items-center gap-1">
+                <p className="text-xs sm:text-sm text-muted-foreground">{t('cac')}</p>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-3 w-3 text-muted-foreground/60 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>{t('cac_tooltip')}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
               <p className="text-lg sm:text-2xl font-bold tabular-nums">{formatCurrency(cac)}</p>
               <p className="text-[10px] sm:text-xs text-muted-foreground leading-relaxed line-clamp-2">{t('cac_description')}</p>
             </div>
@@ -77,7 +95,19 @@ export function MarketingMetrics({ cac, ltv, conversionRate, loading }: Marketin
               </div>
             </div>
             <div className="space-y-1">
-              <p className="text-xs sm:text-sm text-muted-foreground">{t('ltv')}</p>
+              <div className="flex items-center gap-1">
+                <p className="text-xs sm:text-sm text-muted-foreground">{t('ltv')}</p>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-3 w-3 text-muted-foreground/60 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>{t('ltv_tooltip')}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
               <p className="text-lg sm:text-2xl font-bold tabular-nums">{formatCurrency(ltv)}</p>
               <p className="text-[10px] sm:text-xs text-muted-foreground leading-relaxed line-clamp-2">{t('ltv_description')}</p>
             </div>
@@ -96,7 +126,19 @@ export function MarketingMetrics({ cac, ltv, conversionRate, loading }: Marketin
               </Badge>
             </div>
             <div className="space-y-1">
-              <p className="text-xs sm:text-sm text-muted-foreground">{t('ltv_cac_ratio')}</p>
+              <div className="flex items-center gap-1">
+                <p className="text-xs sm:text-sm text-muted-foreground">{t('ltv_cac_ratio')}</p>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-3 w-3 text-muted-foreground/60 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>{t('ratio_tooltip')}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
               <p className="text-lg sm:text-2xl font-bold tabular-nums">{ltvCacRatio.toFixed(2)}x</p>
               <p className="text-[10px] sm:text-xs text-muted-foreground leading-relaxed line-clamp-2">
                 {ltvCacRatio >= 3

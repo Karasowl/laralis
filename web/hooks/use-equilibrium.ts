@@ -42,6 +42,10 @@ interface UseEquilibriumOptions {
   defaultWorkDays?: number
   defaultVariableCostPercentage?: number
   safetyMarginPercentage?: number
+  /** Start date for the period filter (YYYY-MM-DD) */
+  startDate?: string
+  /** End date for the period filter (YYYY-MM-DD) */
+  endDate?: string
 }
 
 interface SimulationSettings {
@@ -155,7 +159,9 @@ export function useEquilibrium(options: UseEquilibriumOptions = {}): IEquilibriu
     clinicId,
     defaultWorkDays = 20,
     defaultVariableCostPercentage = 35,
-    safetyMarginPercentage = 20
+    safetyMarginPercentage = 20,
+    startDate,
+    endDate
   } = options
 
   const [data, setData] = useState<EquilibriumData>({
@@ -201,6 +207,11 @@ export function useEquilibrium(options: UseEquilibriumOptions = {}): IEquilibriu
       setLoading(true)
       setError(null)
 
+      // Build date params for APIs that support them
+      const dateParams = startDate && endDate
+        ? `&from=${startDate}&to=${endDate}`
+        : '&period=month'
+
       const [
         fixedCostsRes,
         assetsRes,
@@ -211,8 +222,8 @@ export function useEquilibrium(options: UseEquilibriumOptions = {}): IEquilibriu
         { endpoint: `/api/fixed-costs?clinicId=${clinicId}` },
         { endpoint: `/api/assets/summary?clinicId=${clinicId}` },
         { endpoint: `/api/settings/time?clinicId=${clinicId}` },
-        { endpoint: `/api/reports/revenue?clinicId=${clinicId}&period=month` },
-        { endpoint: `/api/equilibrium/variable-cost?clinicId=${clinicId}` }
+        { endpoint: `/api/reports/revenue?clinicId=${clinicId}${dateParams}` },
+        { endpoint: `/api/equilibrium/variable-cost?clinicId=${clinicId}${startDate && endDate ? dateParams : ''}` }
       ])
 
       const toArray = (input: any): any[] => {
@@ -361,6 +372,8 @@ export function useEquilibrium(options: UseEquilibriumOptions = {}): IEquilibriu
     defaultVariableCostPercentage,
     defaultWorkDays,
     safetyMarginPercentage,
+    startDate,
+    endDate,
     fetchAll
   ])
 

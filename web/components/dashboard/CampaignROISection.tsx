@@ -44,7 +44,7 @@ export function CampaignROISection({
   if (error) {
     return (
       <div className="p-4 text-center text-red-600">
-        {t('error_loading_campaigns') || 'Error loading campaign data'}
+        {t('error_loading_campaigns')}
       </div>
     );
   }

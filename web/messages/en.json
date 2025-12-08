@@ -575,6 +575,7 @@
       "highest_cost": "Highest Cost",
       "last_30_days": "Last 30 days",
       "no_data": "No profitability data available",
+      "perHour": "/hour",
       "margin_evolution": "Margin Evolution",
       "top_services_6_months": "Top 5 services - Last 6 months",
       "no_trend_data": "No trend data available",
@@ -687,9 +688,11 @@
       "excellent_acquisition_desc": "Growing {rate}% - maintain your current strategy",
       "declining_acquisition": "Declining acquisition",
       "declining_acquisition_desc": "Review your marketing strategy and optimize channels",
-      "channel_roi": "ROI by Channel",
-      "channel_roi_description": "Return on investment by acquisition channel",
+      "channel_roi": "ROI by Campaign",
+      "channel_roi_description": "Return on investment by marketing campaign",
       "no_channel_data": "No marketing channel data",
+      "no_campaigns_message": "You don't have any marketing campaigns yet",
+      "create_first_campaign": "Create your first campaign",
       "spent": "Spent",
       "revenue": "Revenue",
       "patients": "patients",
@@ -3360,6 +3363,12 @@
         "warning": "Needs attention",
         "danger": "Urgent"
       },
+      "status_tooltip": {
+        "success": "You've already exceeded your monthly revenue goal. Excellent work!",
+        "ontrack": "Your progress is at or above the expected pace. Keep it up.",
+        "warning": "You're slightly below the required pace. Consider increasing efforts.",
+        "danger": "You're significantly below target. You need to accelerate urgently."
+      },
       "noRevenueYet": "No revenue recorded yet",
       "noRevenueHelp": "You have {remaining} working days left to reach your goal. Start recording treatments to see your real progress.",
       "collapse": "Collapse",
@@ -3375,6 +3384,7 @@
       "onTrack": "✓ On track",
       "belowTarget": "⚠️ {diff} patients below target",
       "netProfit": "Net Profit",
+      "netProfit_negative_tooltip": "Your expenses exceed your income. Review your fixed costs or consider increasing prices.",
       "profitable": "Profitable",
       "breakEven": "Break Even",
       "losses": "Losses"

@@ -11,8 +11,15 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
-  Target
+  Target,
+  Info
 } from 'lucide-react'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { formatCurrency } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -232,9 +239,23 @@ export function BusinessMetricsGrid({
           </div>
 
           <div className="space-y-1">
-            <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide">
-              {t('netProfit')}
-            </p>
+            <div className="flex items-center gap-1">
+              <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide">
+                {t('netProfit')}
+              </p>
+              {netProfitStatus === 'danger' && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-3 w-3 text-red-500 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>{t('netProfit_negative_tooltip')}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
             <p className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground tabular-nums">
               {formatCurrency(gananciaNetaCents)}
             </p>

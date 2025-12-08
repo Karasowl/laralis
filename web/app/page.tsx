@@ -83,58 +83,6 @@ function DashboardSkeleton() {
   )
 }
 
-// Componente removido - acciones disponibles desde el menú principal
-// function QuickActions({ onRefresh }: { onRefresh: () => void }) {
-//   const t = useTranslations('dashboard')
-//   const tNav = useTranslations('navigation')
-//   const router = useRouter()
-
-//   return (
-//     <Card>
-//       <CardHeader>
-//         <CardTitle>{t('quick_actions')}</CardTitle>
-//         <CardDescription>{t('common_tasks')}</CardDescription>
-//       </CardHeader>
-//       <CardContent>
-//         <div className="grid grid-cols-2 gap-2">
-//           <Button
-//             variant="outline"
-//             className="justify-start"
-//             onClick={() => router.push('/treatments/new')}
-//           >
-//             <Activity className="h-4 w-4 mr-2" />
-//             {t('new_treatment')}
-//           </Button>
-//           <Button
-//             variant="outline"
-//             className="justify-start"
-//             onClick={() => router.push('/patients/new')}
-//           >
-//             <Users className="h-4 w-4 mr-2" />
-//             {t('new_patient')}
-//           </Button>
-//           <Button
-//             variant="outline"
-//             className="justify-start"
-//             onClick={() => router.push('/expenses/new')}
-//           >
-//             <Receipt className="h-4 w-4 mr-2" />
-//             {t('record_expense')}
-//           </Button>
-//           <Button
-//             variant="outline"
-//             className="justify-start"
-//             onClick={onRefresh}
-//           >
-//             <RefreshCw className="h-4 w-4 mr-2" />
-//             {t('refresh_data')}
-//           </Button>
-//         </div>
-//       </CardContent>
-//     </Card>
-//   )
-// }
-
 function AlertsSection({ lowStockCount }: { lowStockCount: number }) {
   const t = useTranslations('dashboard')
   const router = useRouter()
@@ -602,7 +550,8 @@ export default function InsightsPage() {
               {/* Channel ROI */}
               <ChannelROIChart
                 data={(channelROIData?.channels || []).map(channel => ({
-                  channel: channel.source.name,
+                  // Support both old (source) and new (campaign) API response formats
+                  channel: channel.campaign?.name || channel.source?.name || 'Unknown',
                   roi: channel.roi.value,
                   spent_cents: channel.investmentCents,
                   revenue_cents: channel.revenueCents,
@@ -610,6 +559,7 @@ export default function InsightsPage() {
                   trend: [] // Trend histórico requiere endpoint adicional
                 }))}
                 loading={channelROILoading}
+                isEmpty={channelROIData?.isEmpty}
               />
 
               {/* CAC Evolution */}

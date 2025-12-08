@@ -715,6 +715,7 @@
       "highest_cost": "Mayor costo",
       "last_30_days": "Últimos 30 días",
       "no_data": "No hay datos de rentabilidad disponibles",
+      "perHour": "/hora",
       "margin_evolution": "Evolución del Margen",
       "top_services_6_months": "Top 5 servicios - Últimos 6 meses",
       "no_trend_data": "No hay datos de tendencias disponibles",
@@ -827,9 +828,11 @@
       "excellent_acquisition_desc": "Creciendo {rate}% - mantén tu estrategia actual",
       "declining_acquisition": "Adquisición en declive",
       "declining_acquisition_desc": "Revisa tu estrategia de marketing y optimiza canales",
-      "channel_roi": "ROI por Canal",
-      "channel_roi_description": "Retorno de inversión por canal de adquisición",
+      "channel_roi": "ROI por Campaña",
+      "channel_roi_description": "Retorno de inversión por campaña de marketing",
       "no_channel_data": "Sin datos de canales de marketing",
+      "no_campaigns_message": "Aún no tienes campañas de marketing creadas",
+      "create_first_campaign": "Crear tu primera campaña",
       "spent": "Invertido",
       "revenue": "Ingresos",
       "patients": "pacientes",
@@ -3623,6 +3626,12 @@
         "warning": "Requiere atención",
         "danger": "Urgente"
       },
+      "status_tooltip": {
+        "success": "Ya superaste tu meta de ingresos del mes. ¡Excelente trabajo!",
+        "ontrack": "Tu progreso está al ritmo esperado o por encima. Mantén el ritmo.",
+        "warning": "Estás ligeramente por debajo del ritmo necesario. Considera incrementar esfuerzos.",
+        "danger": "Estás significativamente por debajo del objetivo. Necesitas acelerar urgentemente."
+      },
       "noRevenueYet": "Sin ingresos registrados aún",
       "noRevenueHelp": "Tienes {remaining} días laborales restantes para alcanzar tu meta. Comienza a registrar tratamientos para ver tu progreso real.",
       "collapse": "Contraer",
@@ -3638,6 +3647,7 @@
       "onTrack": "✓ Vas bien encaminado",
       "belowTarget": "⚠️ {diff} pacientes menos que la meta",
       "netProfit": "Ganancia Neta",
+      "netProfit_negative_tooltip": "Tus gastos superan tus ingresos. Revisa tus costos fijos o considera aumentar precios.",
       "profitable": "Con ganancia",
       "breakEven": "En equilibrio",
       "losses": "Con pérdidas"

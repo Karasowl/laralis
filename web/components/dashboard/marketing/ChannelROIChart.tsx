@@ -6,6 +6,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { formatCurrency } from '@/lib/money'
 import { TrendingUp, TrendingDown, Megaphone, AlertCircle } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import Link from 'next/link'
 
 interface ChannelData {
   channel: string
@@ -19,9 +21,10 @@ interface ChannelData {
 interface ChannelROIChartProps {
   data: ChannelData[]
   loading?: boolean
+  isEmpty?: boolean
 }
 
-export function ChannelROIChart({ data, loading }: ChannelROIChartProps) {
+export function ChannelROIChart({ data, loading, isEmpty }: ChannelROIChartProps) {
   const t = useTranslations('dashboard.marketing')
   const tCommon = useTranslations('common')
 
@@ -39,7 +42,7 @@ export function ChannelROIChart({ data, loading }: ChannelROIChartProps) {
     )
   }
 
-  if (!data || data.length === 0) {
+  if (!data || data.length === 0 || isEmpty) {
     return (
       <Card>
         <CardHeader>
@@ -51,8 +54,11 @@ export function ChannelROIChart({ data, loading }: ChannelROIChartProps) {
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center justify-center h-64 md:h-72 lg:h-80 text-muted-foreground">
-            <AlertCircle className="h-8 w-8 mb-2" />
-            <p>{t('no_channel_data')}</p>
+            <Megaphone className="h-12 w-12 mb-4 text-muted-foreground/50" />
+            <p className="text-center mb-4">{t('no_campaigns_message')}</p>
+            <Button asChild>
+              <Link href="/marketing">{t('create_first_campaign')}</Link>
+            </Button>
           </div>
         </CardContent>
       </Card>

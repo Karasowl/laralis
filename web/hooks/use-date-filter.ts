@@ -32,14 +32,24 @@ export function useDateFilter(): UseDateFilterReturn {
 
   // Calculate current range based on period
   const currentRange = useMemo((): DateRange => {
-    if (period === 'custom' && customRange.from && customRange.to) {
-      return customRange
-    }
-
     const now = new Date()
     const year = now.getFullYear()
     const month = now.getMonth()
     const day = now.getDate()
+
+    // Handle custom period with fallback to current month if dates incomplete
+    if (period === 'custom') {
+      if (customRange.from && customRange.to) {
+        return customRange
+      }
+      // Fallback: use current month if custom dates are incomplete
+      const firstDay = new Date(year, month, 1)
+      const lastDay = new Date(year, month + 1, 0)
+      return {
+        from: customRange.from || formatDate(firstDay),
+        to: customRange.to || formatDate(lastDay)
+      }
+    }
 
     switch (period) {
       case 'today': {
