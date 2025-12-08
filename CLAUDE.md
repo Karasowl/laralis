@@ -11,6 +11,8 @@ See @tasks/README.md, @tasks/active.md, @tasks/backlog.md for planning.
 
 If present, link to devlog index: @docs/devlog/INDEX.md
 
+**Competitive Analysis**: See @docs/competencia/README.md for competitor analysis, pricing strategy, and feature roadmap.
+
 **CRITICAL**: Read @docs/AI-KNOWLEDGE-GAPS.md for non-obvious system knowledge (multi-tenancy, fixed costs calculation, margin vs markup, etc.)
 
 

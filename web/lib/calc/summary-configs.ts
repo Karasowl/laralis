@@ -26,9 +26,13 @@ import type { FixedCost } from '@/lib/types'
 
 export interface TreatmentSummary {
   totalTreatments: number
-  completedTreatments: number
+  completedTreatments: number    // All completed (includes refunded) - for completion rate
+  successfulTreatments: number   // Completed AND not refunded - for revenue metrics
   pendingTreatments: number
+  refundedTreatments: number
   totalRevenue: number
+  refundLoss: number
+  netRevenue: number
   averagePrice: number
   completionRate: number
 }
@@ -42,19 +46,58 @@ export const treatmentSummaryConfig: SummaryConfig<Treatment> = {
     // Count of all non-cancelled treatments
     totalTreatments: countAgg(),
 
-    // Count of completed treatments
+    // Count of completed treatments (INCLUDING refunded - they were completed, refund is financial)
+    // Used for completion rate: measures "work done" not "revenue earned"
     completedTreatments: countAgg((t) => t.status === 'completed'),
+
+    // Count of successful treatments (completed AND not refunded)
+    // Used for revenue calculations - these are the ones that generated income
+    successfulTreatments: countAgg((t) => t.status === 'completed' && !t.is_refunded),
 
     // Count of pending treatments
     pendingTreatments: countAgg((t) => t.status === 'pending'),
 
-    // Sum of revenue from completed treatments only
-    totalRevenue: sumAgg('price_cents', (t) => t.status === 'completed'),
+    // Count of refunded treatments
+    refundedTreatments: countAgg((t) => t.is_refunded === true),
 
-    // Average price of completed treatments
-    averagePrice: avgAgg('price_cents', (t) => t.status === 'completed'),
+    // Sum of revenue from completed, NON-REFUNDED treatments only
+    // Refunded treatments have $0 revenue
+    totalRevenue: sumAgg('price_cents', (t) => t.status === 'completed' && !t.is_refunded),
 
-    // Completion rate as percentage
+    // Sum of losses from refunded treatments
+    // Loss = variable cost + (fixed cost per minute * minutes)
+    refundLoss: {
+      type: 'sum',
+      field: (t) => {
+        if (!t.is_refunded) return 0
+        const fixedCost = (t.fixed_cost_per_minute_cents || t.fixed_per_minute_cents || 0) * (t.minutes || 0)
+        const variableCost = t.variable_cost_cents || 0
+        return fixedCost + variableCost
+      },
+    },
+
+    // Net revenue = totalRevenue - refundLoss
+    // Note: This is calculated in post-processing since it depends on other aggregations
+    netRevenue: {
+      type: 'sum',
+      field: (t) => {
+        if (t.is_refunded) {
+          // Refunded: count as negative loss
+          const fixedCost = (t.fixed_cost_per_minute_cents || t.fixed_per_minute_cents || 0) * (t.minutes || 0)
+          const variableCost = t.variable_cost_cents || 0
+          return -(fixedCost + variableCost)
+        }
+        if (t.status === 'completed') {
+          return t.price_cents || 0
+        }
+        return 0
+      },
+    },
+
+    // Average price of completed, non-refunded treatments
+    averagePrice: avgAgg('price_cents', (t) => t.status === 'completed' && !t.is_refunded),
+
+    // Completion rate as percentage (excluding refunded from completed count)
     completionRate: percentageAgg('completedTreatments', 'totalTreatments'),
   },
 }
@@ -161,6 +204,7 @@ export const fixedCostSummaryConfig: SummaryConfig<FixedCost> = {
 export interface PatientTreatmentSummary {
   totalTreatments: number
   completedTreatments: number
+  refundedTreatments: number
   totalSpent: number
   averageSpent: number
 }
@@ -168,6 +212,7 @@ export interface PatientTreatmentSummary {
 /**
  * Config for calculating per-patient summary from their treatments
  * Use this when you have a list of treatments filtered to a single patient
+ * Note: Refunded treatments don't count towards spent amount
  */
 export const patientTreatmentSummaryConfig: SummaryConfig<Treatment> = {
   filters: {
@@ -175,9 +220,11 @@ export const patientTreatmentSummaryConfig: SummaryConfig<Treatment> = {
   },
   aggregations: {
     totalTreatments: countAgg(),
-    completedTreatments: countAgg((t) => t.status === 'completed'),
-    totalSpent: sumAgg('price_cents', (t) => t.status === 'completed'),
-    averageSpent: avgAgg('price_cents', (t) => t.status === 'completed'),
+    completedTreatments: countAgg((t) => t.status === 'completed' && !t.is_refunded),
+    refundedTreatments: countAgg((t) => t.is_refunded === true),
+    // Total spent excludes refunded treatments (money was returned)
+    totalSpent: sumAgg('price_cents', (t) => t.status === 'completed' && !t.is_refunded),
+    averageSpent: avgAgg('price_cents', (t) => t.status === 'completed' && !t.is_refunded),
   },
 }
 
@@ -196,6 +243,8 @@ export interface RevenueSummary {
 /**
  * Config for calculating revenue/profit summary from treatments
  * Includes cost and profit calculations
+ * IMPORTANT: Excludes refunded treatments from revenue (their revenue = $0)
+ *            but includes their costs as losses
  */
 export const revenueSummaryConfig: SummaryConfig<Treatment> = {
   filters: {
@@ -203,8 +252,10 @@ export const revenueSummaryConfig: SummaryConfig<Treatment> = {
     include: (t) => t.status === 'completed',
   },
   aggregations: {
-    totalRevenue: sumAgg('price_cents'),
+    // Revenue only from non-refunded treatments
+    totalRevenue: sumAgg('price_cents', (t) => !t.is_refunded),
 
+    // Total costs (includes refunded treatments - those costs were incurred)
     totalCost: {
       type: 'sum',
       field: (t) => {
@@ -214,17 +265,23 @@ export const revenueSummaryConfig: SummaryConfig<Treatment> = {
       },
     },
 
+    // Profit excludes refunded treatments from revenue but includes their costs as loss
     totalProfit: {
       type: 'sum',
       field: (t) => {
         const fixedCost = (t.fixed_cost_per_minute_cents || t.fixed_per_minute_cents || 0) * (t.minutes || 0)
         const variableCost = t.variable_cost_cents || 0
         const totalCost = fixedCost + variableCost
+        // Refunded: revenue = 0, cost = totalCost, profit = -totalCost (loss)
+        if (t.is_refunded) {
+          return -totalCost
+        }
         return (t.price_cents || 0) - totalCost
       },
     },
 
-    averageRevenue: avgAgg('price_cents'),
+    // Average revenue only from non-refunded treatments
+    averageRevenue: avgAgg('price_cents', (t) => !t.is_refunded),
 
     // Note: profitMargin will be calculated as totalProfit/totalRevenue * 100
     // This requires a two-pass calculation which we handle in second pass

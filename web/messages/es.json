@@ -495,7 +495,8 @@
       "successDescription": "Tu contraseña ha sido cambiada exitosamente",
       "successMessage": "Contraseña actualizada correctamente",
       "redirecting": "Redirigiendo...",
-      "updateError": "Error al actualizar la contraseña"
+      "updateError": "Error al actualizar la contraseña",
+      "linkExpiration": "Los enlaces de recuperacion expiran despues de 1 hora o al ser usados."
     },
     "errors": {
       "invalidCredentials": "Correo o contraseña inválidos",
@@ -2472,7 +2473,37 @@
       "completed": "Completado",
       "pending": "Pendiente",
       "in_progress": "En Progreso",
-      "cancelled": "Cancelado"
+      "cancelled": "Cancelado",
+      "refunded": "Reembolsado"
+    },
+    "refund": {
+      "title": "Reembolsar Tratamiento",
+      "button": "Reembolsar",
+      "confirm": "¿Estás seguro de que deseas reembolsar este tratamiento?",
+      "confirmDescription": "El reembolso es irreversible. El paciente recibirá la devolución del pago, pero los costos de materiales y tiempo ya incurridos se registrarán como pérdida.",
+      "reason": "Motivo del reembolso",
+      "reasonPlaceholder": "Describe por qué se reembolsa este tratamiento...",
+      "reasonRequired": "Debes indicar un motivo para el reembolso",
+      "success": "Tratamiento reembolsado correctamente",
+      "error": "Error al reembolsar el tratamiento",
+      "alreadyRefunded": "Este tratamiento ya ha sido reembolsado",
+      "cannotRefundCancelled": "No se puede reembolsar un tratamiento cancelado",
+      "badge": "Reembolsado",
+      "refundedAt": "Reembolsado el {date}",
+      "refundedBy": "Reembolsado por",
+      "stats": {
+        "title": "Estadísticas de Reembolsos",
+        "totalRefunded": "Tratamientos Reembolsados",
+        "refundRate": "Tasa de Reembolso",
+        "totalLoss": "Pérdida Total",
+        "lossBreakdown": "Desglose de Pérdidas",
+        "materialLoss": "Pérdida por Materiales",
+        "timeLoss": "Pérdida por Tiempo",
+        "avgLossPerRefund": "Pérdida Promedio por Reembolso",
+        "periodComparison": "vs período anterior",
+        "refundTrend": "Tendencia de Reembolsos",
+        "noRefunds": "No hay reembolsos en este período"
+      }
     },
     "errors": {
       "completedRequiresPrice": "Para marcar como completado, debe ingresar un precio de venta mayor a $0"

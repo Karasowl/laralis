@@ -76,6 +76,10 @@ export interface Treatment {
   status: 'pending' | 'completed' | 'cancelled'
   notes?: string
   snapshot_costs?: any
+  // Refund fields
+  is_refunded?: boolean
+  refunded_at?: string
+  refund_reason?: string
   created_at: string
   updated_at: string
 }

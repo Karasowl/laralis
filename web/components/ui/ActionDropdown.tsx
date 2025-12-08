@@ -1,6 +1,6 @@
 'use client'
 
-import { MoreHorizontal, Eye, Edit, Trash2, Copy, Archive, Download } from 'lucide-react'
+import { MoreHorizontal, Eye, Edit, Trash2, Copy, Archive, Download, Undo2 } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -97,4 +97,12 @@ export const createDownloadAction = (onClick: () => void, label = 'Descargar'): 
   label,
   icon: <Download className="h-4 w-4" />,
   onClick
+})
+
+export const createRefundAction = (onClick: () => void, label = 'Reembolsar'): ActionItem => ({
+  label,
+  icon: <Undo2 className="h-4 w-4" />,
+  onClick,
+  variant: 'destructive',
+  separator: true
 })
