@@ -4,7 +4,9 @@ import { useApi } from './use-api'
 
 export interface ProfitCosts {
   variable_cents: number
-  fixed_cents: number
+  fixed_cents: number                  // Configured fixed costs (prorated to period)
+  fixed_cents_real: number             // Actual expenses recorded with is_variable=false
+  fixed_cents_configured: number       // Same as fixed_cents, for clarity
   depreciation_cents: number
   total_cents: number
 }
@@ -35,9 +37,16 @@ export interface ProfitAnalysisData {
   period: {
     start: string | null
     end: string | null
+    days: number
   }
   treatments_count: number
   expenses_count: number
+  metadata?: {
+    monthly_configured_fixed_cents: number
+    monthly_depreciation_cents: number
+    proration_factor: number
+    costs_source: string
+  }
 }
 
 interface UseProfitAnalysisOptions {

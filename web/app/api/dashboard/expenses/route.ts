@@ -120,9 +120,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Clinic ID required' }, { status: 400 })
     }
 
-    const period = normalisePeriod(searchParams.get('period'))
-    const dateFrom = searchParams.get('date_from')
-    const dateTo = searchParams.get('date_to')
+    const rawPeriod = normalisePeriod(searchParams.get('period'))
+    // Support both naming conventions: date_from/date_to and startDate/endDate
+    const dateFrom = searchParams.get('date_from') || searchParams.get('startDate')
+    const dateTo = searchParams.get('date_to') || searchParams.get('endDate')
+    // If explicit dates are provided, use them as custom range (overrides period)
+    const period: SupportedPeriod = (dateFrom && dateTo) ? 'custom' : rawPeriod
     const ranges = computeRanges(period, dateFrom, dateTo)
 
     const { data: currentExpenses, error: currentErr } = await supabaseAdmin

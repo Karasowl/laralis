@@ -13,16 +13,18 @@ export async function GET(request: NextRequest) {
     const ctx = await resolveClinicContext({ requestedClinicId: sp.get('clinicId'), cookieStore })
     if ('error' in ctx) return NextResponse.json({ error: ctx.error.message }, { status: ctx.error.status })
     const { clinicId } = ctx
-    const period = sp.get('period') || 'month'
-    const dateFrom = sp.get('date_from')
-    const dateTo = sp.get('date_to')
-
-    
+    const rawPeriod = sp.get('period') || 'month'
+    // Support both naming conventions: date_from/date_to and startDate/endDate
+    const dateFrom = sp.get('date_from') || sp.get('startDate')
+    const dateTo = sp.get('date_to') || sp.get('endDate')
+    // If explicit dates are provided, use them as custom range (overrides period)
+    const period = (dateFrom && dateTo) ? 'custom' : rawPeriod
 
     const now = new Date()
     let start: Date
     let end: Date
-    if (period === 'custom' && dateFrom && dateTo) {
+    if (dateFrom && dateTo) {
+      // Use explicit dates when provided (regardless of period)
       start = new Date(dateFrom)
       end = new Date(dateTo)
       end.setHours(23, 59, 59, 999)

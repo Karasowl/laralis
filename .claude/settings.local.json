@@ -36,7 +36,8 @@
       "Bash(grep:*)",
       "Bash(wc:*)",
       "Bash(ls:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(npm run build:app:*)"
     ],
     "deny": []
   }

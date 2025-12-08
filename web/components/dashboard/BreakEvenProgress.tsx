@@ -118,6 +118,10 @@ export function BreakEvenProgress({
             <CardTitle className="flex items-center gap-2">
               <Target className="h-5 w-5 text-primary" />
               {t('title')}
+              <Badge variant="outline" className="ml-2 text-xs font-normal text-muted-foreground">
+                <Calendar className="h-3 w-3 mr-1" />
+                {t('currentMonthOnly')}
+              </Badge>
             </CardTitle>
             <CardDescription>{t('subtitle')}</CardDescription>
           </div>
