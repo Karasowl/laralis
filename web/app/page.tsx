@@ -357,6 +357,17 @@ export default function InsightsPage() {
           }
         />
 
+        <DateFilterBar
+          period={filterPeriod}
+          granularity={granularity}
+          comparison={comparison}
+          customRange={customRange}
+          onPeriodChange={setFilterPeriod}
+          onGranularityChange={setGranularity}
+          onComparisonChange={setComparison}
+          onCustomRangeChange={setCustomRange}
+        />
+
         <Tabs defaultValue="overview" className="space-y-6">
           <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 md:max-w-2xl gap-2 h-auto p-2">
             <TabsTrigger value="overview" className="h-auto py-3 whitespace-normal text-xs md:text-sm">
