@@ -70,6 +70,7 @@ export async function GET(request: NextRequest) {
     console.log('[channel-roi] Date range:', startDateStr, 'to', endDateStr)
 
     // 1. Get user's REAL marketing campaigns (NOT dummy patient_sources)
+    // Use .or() to handle NULL values - campaigns might have is_archived = null
     const { data: campaigns, error: campaignsError } = await supabaseAdmin
       .from('marketing_campaigns')
       .select(`
@@ -83,7 +84,7 @@ export async function GET(request: NextRequest) {
         is_active
       `)
       .eq('clinic_id', clinicId)
-      .eq('is_archived', false)
+      .or('is_archived.is.null,is_archived.eq.false')
 
     if (campaignsError) {
       console.error('[channel-roi] Error fetching campaigns:', campaignsError)
