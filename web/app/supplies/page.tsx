@@ -18,6 +18,7 @@ import { useCategories, CategoryRow } from '@/hooks/use-categories';
 import { CategoryModal } from '@/app/services/components/CategoryModal';
 import { useWorkspace } from '@/contexts/workspace-context';
 import { useRouter } from 'next/navigation';
+import { SmartFilters, useSmartFilter, FilterConfig, FilterValues } from '@/components/ui/smart-filters';
 
 type SupplyFormData = z.infer<typeof zSupplyForm>;
 
@@ -32,6 +33,7 @@ export default function SuppliesPage() {
     deleteCategory,
   } = useCategories('supplies')
   const [categoryModalOpen, setCategoryModalOpen] = useState(false)
+  const [filterValues, setFilterValues] = useState<FilterValues>({})
   
   // Use the centralized CRUD hook
   const crud = useCrudOperations<Supply>({
@@ -227,6 +229,34 @@ export default function SuppliesPage() {
       .filter(option => option.value);
   }, [catList]);
 
+  // Get unique categories from supplies for filter options
+  const filterCategoryOptions = useMemo(() => {
+    const unique = Array.from(new Set(crud.items.map(s => s.category).filter(Boolean)))
+    return unique.map(cat => ({
+      value: cat,
+      label: getSupplyCategoryLabel(cat, t)
+    }))
+  }, [crud.items, t])
+
+  // Filter configurations
+  const filterConfigs: FilterConfig[] = useMemo(() => [
+    {
+      key: 'category',
+      label: t('filters.category'),
+      type: 'multi-select',
+      options: filterCategoryOptions
+    },
+    {
+      key: 'price_cents',
+      label: t('filters.priceRange'),
+      type: 'number-range',
+      multiplier: 100 // User inputs pesos, data is in cents
+    }
+  ], [filterCategoryOptions, t])
+
+  // Apply filters to supplies
+  const filteredSupplies = useSmartFilter(crud.items, filterValues, filterConfigs)
+
   return (
     <>
     <SimpleCrudPage
@@ -234,7 +264,7 @@ export default function SuppliesPage() {
       subtitle={t('supplies.subtitle')}
       entityName={t('supplies.entity')}
       data={{
-        items: crud.items,
+        items: filteredSupplies,
         loading: crud.loading,
         searchTerm: crud.searchTerm,
         onSearchChange: crud.setSearchTerm,
@@ -250,6 +280,13 @@ export default function SuppliesPage() {
       mobileColumns={mobileColumns}
       emptyIcon={<Package className="h-8 w-8" />}
       searchable={true}
+      beforeTable={
+        <SmartFilters
+          filters={filterConfigs}
+          values={filterValues}
+          onChange={setFilterValues}
+        />
+      }
     >
       <FormModal
         open={crud.isDialogOpen}

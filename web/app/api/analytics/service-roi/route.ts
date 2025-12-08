@@ -95,16 +95,28 @@ export async function GET(request: NextRequest) {
 
     const { clinicId } = clinicContext
 
-    // Parse date range (default: last 30 days)
+    // Parse date range - supports explicit dates or days lookback
+    const startDateParam = searchParams.get('startDate')
+    const endDateParam = searchParams.get('endDate')
     const daysParam = searchParams.get('days')
     const days = daysParam ? parseInt(daysParam, 10) : 30
 
-    const endDate = new Date()
-    const startDate = new Date()
-    startDate.setDate(startDate.getDate() - days)
+    let startDateStr: string
+    let endDateStr: string
 
-    const startDateStr = startDate.toISOString().split('T')[0]
-    const endDateStr = endDate.toISOString().split('T')[0]
+    if (startDateParam && endDateParam) {
+      // Use explicit date range
+      startDateStr = startDateParam
+      endDateStr = endDateParam
+    } else {
+      // Fall back to days lookback
+      const endDate = new Date()
+      const startDate = new Date()
+      startDate.setDate(startDate.getDate() - days)
+
+      startDateStr = startDate.toISOString().split('T')[0]
+      endDateStr = endDate.toISOString().split('T')[0]
+    }
 
     // Fetch completed treatments with service information
     console.log('[service-roi] Fetching treatments for clinic:', clinicId)

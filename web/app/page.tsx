@@ -212,7 +212,11 @@ export default function InsightsPage() {
     loading: reportsLoading,
     error: reportsError,
     fetchReportsData
-  } = useReports({ clinicId: currentClinic?.id })
+  } = useReports({
+    clinicId: currentClinic?.id,
+    startDate: currentRange?.from,
+    endDate: currentRange?.to
+  })
 
   const {
     data: equilibriumData,
@@ -222,13 +226,21 @@ export default function InsightsPage() {
   const {
     data: roiData,
     loading: roiLoading
-  } = useServiceROI({ clinicId: currentClinic?.id, days: 30 })
+  } = useServiceROI({
+    clinicId: currentClinic?.id,
+    startDate: currentRange?.from,
+    endDate: currentRange?.to
+  })
 
   // Marketing hooks
   const {
     data: marketingMetrics,
     loading: marketingMetricsLoading
-  } = useMarketingMetrics({ clinicId: currentClinic?.id, period: 30 })
+  } = useMarketingMetrics({
+    clinicId: currentClinic?.id,
+    startDate: currentRange?.from,
+    endDate: currentRange?.to
+  })
 
   const {
     data: cacTrendData,
@@ -238,7 +250,11 @@ export default function InsightsPage() {
   const {
     data: channelROIData,
     loading: channelROILoading
-  } = useChannelROI({ clinicId: currentClinic?.id, period: 30 })
+  } = useChannelROI({
+    clinicId: currentClinic?.id,
+    startDate: currentRange?.from,
+    endDate: currentRange?.to
+  })
 
   const {
     data: acquisitionTrendsData,
@@ -257,8 +273,8 @@ export default function InsightsPage() {
     loading: profitAnalysisLoading
   } = useProfitAnalysis({
     clinicId: currentClinic?.id,
-    startDate: customRange?.from,
-    endDate: customRange?.to
+    startDate: currentRange?.from,
+    endDate: currentRange?.to
   })
 
   // Planned vs Actual - Unique differentiator
@@ -267,8 +283,8 @@ export default function InsightsPage() {
     loading: plannedVsActualLoading
   } = usePlannedVsActual({
     clinicId: currentClinic?.id,
-    startDate: customRange?.from,
-    endDate: customRange?.to
+    startDate: currentRange?.from,
+    endDate: currentRange?.to
   })
 
   useEffect(() => {

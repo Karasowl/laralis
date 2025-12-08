@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useTranslations } from 'next-intl'
 import { Card } from '@/components/ui/card'
 import { FormModal } from '@/components/ui/form-modal'
@@ -20,6 +20,7 @@ import { z } from 'zod'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { SmartFilters, FilterConfig, FilterValues } from '@/components/ui/smart-filters'
 
 // Schemas - validation messages will be handled by form field components
 const platformSchema = z.object({
@@ -66,6 +67,9 @@ export default function MarketingSettingsClient() {
   const [selectedPlatformId, setSelectedPlatformId] = useState<string>('')
   const [campaignsData, setCampaignsData] = useState<Campaign[]>([])
   const [campaignsLoading, setCampaignsLoading] = useState(false)
+
+  // Smart Filters state
+  const [filterValues, setFilterValues] = useState<FilterValues>({})
   
   // Fetch campaigns for selected platform
   const fetchCampaigns = useCallback(async () => {
@@ -318,6 +322,75 @@ export default function MarketingSettingsClient() {
   const activeCampaigns = campaignsData.filter(c => !c.archived_at)
   const selectedPlatform = platforms.items.find(p => p.id === selectedPlatformId)
 
+  // SmartFilters configuration for campaigns
+  const campaignFilterConfigs: FilterConfig[] = useMemo(() => [
+    {
+      key: 'status',
+      label: t('settings.marketing.filters.status'),
+      type: 'multi-select',
+      options: [
+        { value: 'active', label: t('settings.marketing.active') },
+        { value: 'inactive', label: t('settings.marketing.inactive') },
+        { value: 'archived', label: t('settings.marketing.archived') },
+      ]
+    },
+    {
+      key: 'start_date',
+      label: t('settings.marketing.filters.dateRange'),
+      type: 'date-range'
+    },
+    {
+      key: 'patients_count',
+      label: t('settings.marketing.filters.patientsRange'),
+      type: 'number-range'
+    }
+  ], [t])
+
+  // Filter campaigns using custom logic (since status is derived from is_active/is_archived)
+  const filteredCampaigns = useMemo(() => {
+    if (!campaignsData || campaignsData.length === 0) return []
+
+    return campaignsData.filter(campaign => {
+      // Status filter (multi-select)
+      const statusFilter = filterValues.status
+      if (statusFilter && Array.isArray(statusFilter) && statusFilter.length > 0) {
+        let campaignStatus: string
+        if (campaign.archived_at || (campaign as any).is_archived) {
+          campaignStatus = 'archived'
+        } else if ((campaign as any).is_active !== false) {
+          campaignStatus = 'active'
+        } else {
+          campaignStatus = 'inactive'
+        }
+        if (!statusFilter.includes(campaignStatus)) return false
+      }
+
+      // Date range filter (start_date)
+      const dateFilter = filterValues.start_date
+      if (dateFilter && (dateFilter.from || dateFilter.to)) {
+        const campaignDate = (campaign as any).start_date
+        if (!campaignDate) return false
+        const date = new Date(campaignDate)
+        if (dateFilter.from && date < new Date(dateFilter.from)) return false
+        if (dateFilter.to) {
+          const toDate = new Date(dateFilter.to)
+          toDate.setHours(23, 59, 59, 999)
+          if (date > toDate) return false
+        }
+      }
+
+      // Patients count filter (number-range)
+      const patientsFilter = filterValues.patients_count
+      if (patientsFilter && (patientsFilter.from || patientsFilter.to)) {
+        const count = campaign.patients_count || 0
+        if (patientsFilter.from && count < Number(patientsFilter.from)) return false
+        if (patientsFilter.to && count > Number(patientsFilter.to)) return false
+      }
+
+      return true
+    })
+  }, [campaignsData, filterValues])
+
   // Campaign columns
   const campaignColumns = [
     {
@@ -554,15 +627,22 @@ export default function MarketingSettingsClient() {
                   description={t('settings.marketing.noCampaignsDescription')}
                 />
               ) : (
-                <DataTable
-                  columns={campaignColumns}
-                  mobileColumns={[campaignColumns[0], campaignColumns[2]]} // Name and Actions
-                  data={campaignsData}
-                  searchKey="name"
-                  searchPlaceholder={t('settings.marketing.searchCampaigns')}
-                  showCount={true}
-                  countLabel={t('settings.marketing.campaigns').toLowerCase()}
-                />
+                <div className="space-y-4">
+                  <SmartFilters
+                    filters={campaignFilterConfigs}
+                    values={filterValues}
+                    onChange={setFilterValues}
+                  />
+                  <DataTable
+                    columns={campaignColumns}
+                    mobileColumns={[campaignColumns[0], campaignColumns[2]]} // Name and Actions
+                    data={filteredCampaigns}
+                    searchKey="name"
+                    searchPlaceholder={t('settings.marketing.searchCampaigns')}
+                    showCount={true}
+                    countLabel={t('settings.marketing.campaigns').toLowerCase()}
+                  />
+                </div>
               )}
             </Card>
           )}

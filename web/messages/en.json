@@ -113,6 +113,15 @@
       "customRange": "Custom range",
       "apply": "Apply",
       "periodLabel": "Period: {period}"
+    },
+    "sex": "Sex",
+    "ageRange": "Age range",
+    "ageRanges": {
+      "minors": "Minors (0-17)",
+      "young": "Young (18-30)",
+      "adults": "Adults (31-45)",
+      "mature": "Mature (46-60)",
+      "seniors": "Seniors (61+)"
     }
   },
   "navigation": {
@@ -1488,7 +1497,13 @@
     "savings_label": "Savings",
     "single_discount_info": "The discount will be applied on top of this service's price with margin.",
     "apply_discount": "Apply Discount",
-    "variable_cost": "Variable Cost"
+    "variable_cost": "Variable Cost",
+    "filters": {
+      "category": "Category",
+      "priceRange": "Price range",
+      "durationRange": "Duration (minutes)",
+      "hasDiscount": "Has discount"
+    }
   },
   "assets": {
     "entity": "Asset",
@@ -1642,7 +1657,12 @@
       "selectPlatformDescription": "Select a platform from the list to view and manage its campaigns",
       "activeCampaigns": "active campaigns",
       "platform": "platform",
-      "campaign": "campaign"
+      "campaign": "campaign",
+      "filters": {
+        "status": "Status",
+        "dateRange": "Start Date",
+        "patientsRange": "Patients"
+      }
     },
     "calendar": {
       "cardTitle": "Google Calendar",
@@ -2280,6 +2300,9 @@
       "sale_price": "Sale Price",
       "status": "Status",
       "notes": "Notes"
+    },
+    "filters": {
+      "patient": "Patient"
     },
     "sale_price_helper": "Final sale price - utility adjusts automatically",
     "timeHelp": "Appointment time (optional)",

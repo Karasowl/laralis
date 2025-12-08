@@ -42,15 +42,24 @@ export interface MarketingMetrics {
 
 interface UseMarketingMetricsOptions {
   clinicId?: string
-  period?: number // días
+  period?: number // dias - used as fallback if no dates provided
+  startDate?: string  // YYYY-MM-DD - if provided, overrides period
+  endDate?: string    // YYYY-MM-DD - if provided, overrides period
 }
 
 export function useMarketingMetrics(options: UseMarketingMetricsOptions = {}) {
-  const { clinicId, period = 30 } = options
+  const { clinicId, period = 30, startDate, endDate } = options
 
   const params = new URLSearchParams()
   if (clinicId) params.set('clinicId', clinicId)
-  params.set('period', period.toString())
+
+  // If explicit date range provided, use it; otherwise fall back to period
+  if (startDate && endDate) {
+    params.set('startDate', startDate)
+    params.set('endDate', endDate)
+  } else {
+    params.set('period', period.toString())
+  }
 
   const endpoint = clinicId
     ? `/api/analytics/marketing-metrics?${params.toString()}`
