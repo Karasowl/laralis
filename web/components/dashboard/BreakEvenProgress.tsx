@@ -6,7 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Target, Calendar, TrendingUp, Lightbulb, Flame, Trophy, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react'
+import { Target, Calendar, TrendingUp, Lightbulb, Flame, Trophy, AlertCircle, ChevronDown, ChevronUp, Info } from 'lucide-react'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { formatCurrency } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -126,10 +132,20 @@ export function BreakEvenProgress({
             <CardDescription>{t('subtitle')}</CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <Badge className={cn(config.bgColor, config.color, 'border', config.borderColor)}>
-              <StatusIcon className="h-3.5 w-3.5 mr-1" />
-              {t(`status.${status}`)}
-            </Badge>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge className={cn(config.bgColor, config.color, 'border', config.borderColor, 'cursor-help')}>
+                    <StatusIcon className="h-3.5 w-3.5 mr-1" />
+                    {t(`status.${status}`)}
+                    <Info className="h-3 w-3 ml-1 opacity-60" />
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p>{t(`status_tooltip.${status}`)}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <Button
               variant="ghost"
               size="sm"

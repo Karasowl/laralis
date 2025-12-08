@@ -89,7 +89,9 @@ export async function GET(request: NextRequest) {
       supabaseAdmin
         .from('patients')
         .select('id, first_name, last_name, created_at')
-        .eq('clinic_id', clinicId),
+        .eq('clinic_id', clinicId)
+        .gte('created_at', startISO)
+        .lte('created_at', endISO + 'T23:59:59.999Z'),
     ])
 
     if (treatmentsResult.error) {
@@ -130,44 +132,31 @@ export async function GET(request: NextRequest) {
       created_at: row.created_at || new Date().toISOString(),
     }))
 
-    const now = new Date()
-    const currentMonth = now.getMonth()
-    const currentYear = now.getFullYear()
+    // Use the already-filtered data from the date range (no more hardcoded "current month")
+    const periodTreatments = treatments
+    const periodPatients = patients
 
-    const monthTreatments = treatments.filter(t => {
-      if (!t.treatment_date) return false
-      const date = parseLocalDate(t.treatment_date)
-      return date.getMonth() === currentMonth && date.getFullYear() === currentYear
-    })
-
-    const monthPatients = patients.filter(p => {
-      if (!p.created_at) return false
-      const dateStr = extractDatePart(p.created_at) // Extract YYYY-MM-DD part from ISO string
-      const date = parseLocalDate(dateStr)
-      return date.getMonth() === currentMonth && date.getFullYear() === currentYear
-    })
-
-    const completedMonth = monthTreatments.filter(t => t.status === 'completed')
-    const revenueMonth = completedMonth.reduce((sum, t) => sum + (t.price_cents || 0), 0)
-    const margins = completedMonth.map(t => t.margin_pct || 0)
+    const completedPeriod = periodTreatments.filter(t => t.status === 'completed')
+    const revenuePeriod = completedPeriod.reduce((sum, t) => sum + (t.price_cents || 0), 0)
+    const margins = completedPeriod.map(t => t.margin_pct || 0)
     const averageMargin = margins.length > 0
       ? margins.reduce((a, b) => a + b, 0) / margins.length
       : 0
 
     const dashboardData = {
-      patientsMonth: monthPatients.length,
-      treatmentsMonth: monthTreatments.length,
-      revenueMonth,
+      patientsMonth: periodPatients.length,
+      treatmentsMonth: periodTreatments.length,
+      revenueMonth: revenuePeriod,
       averageMargin: Math.round(averageMargin),
     }
 
-    // Calculate elapsed days in current month for accurate avgPatientsPerDay
-    const elapsedDaysInMonth = now.getDate()
+    // Calculate days in the selected period for accurate avgPatientsPerDay
+    const periodDays = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1)
 
     const insights = generateBusinessInsights(treatments, patients)
     const kpis = calculateKPIs(treatments, patients, {
-      daysInPeriod: elapsedDaysInMonth,
-      totalPatients: monthPatients.length
+      daysInPeriod: periodDays,
+      totalPatients: periodPatients.length
     })
 
     return NextResponse.json({

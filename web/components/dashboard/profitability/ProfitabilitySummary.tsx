@@ -139,7 +139,7 @@ export function ProfitabilitySummary({ services, loading }: ProfitabilitySummary
           </div>
           <div className="flex items-center gap-2 mt-1">
             <p className="text-xs text-muted-foreground">
-              {formatCurrency(starService.profit_per_hour_cents)}/hora
+              {formatCurrency(starService.profit_per_hour_cents)}{t('perHour')}
             </p>
             <Badge variant="secondary" className="text-[10px] sm:text-xs whitespace-nowrap">
               ROI {starService.roi_percentage.toFixed(0)}%

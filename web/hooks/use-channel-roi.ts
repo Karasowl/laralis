@@ -3,10 +3,19 @@
 import { useApi } from './use-api'
 
 export interface ChannelROIData {
-  source: {
+  // Old format (patient_sources)
+  source?: {
     id: string
     name: string
     description: string
+  }
+  // New format (marketing_campaigns)
+  campaign?: {
+    id: string
+    name: string
+    code?: string
+    description?: string
+    isActive?: boolean
   }
   patients: number
   revenueCents: number
@@ -24,6 +33,8 @@ export interface ChannelROIResponse {
     end: string
   }
   channels: ChannelROIData[]
+  isEmpty?: boolean  // True if no marketing campaigns exist
+  message?: string   // 'no_campaigns' when empty
   summary: {
     totalPatients: number
     totalMarketingExpensesCents: number

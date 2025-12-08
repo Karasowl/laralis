@@ -37,7 +37,8 @@
       "Bash(wc:*)",
       "Bash(ls:*)",
       "Bash(cat:*)",
-      "Bash(npm run build:app:*)"
+      "Bash(npm run build:app:*)",
+      "mcp__ide__getDiagnostics"
     ],
     "deny": []
   }

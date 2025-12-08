@@ -125,12 +125,15 @@ export async function GET(request: NextRequest) {
 
     const totalPatients = allPatients?.length || 0
 
-    // 4. Obtener ingresos totales (treatments completados)
+    // 4. Obtener ingresos del periodo (treatments completados dentro del rango de fechas)
+    // NOTE: LTV is calculated from period revenue for consistency with date filter
     const { data: completedTreatments, error: treatmentsError } = await supabaseAdmin
       .from('treatments')
       .select('price_cents, patient_id')
       .eq('clinic_id', clinicId)
       .eq('status', 'completed')
+      .gte('treatment_date', startDateStr)
+      .lte('treatment_date', endDateStr)
 
     if (treatmentsError) {
       console.error('[marketing-metrics] Error fetching treatments:', treatmentsError)
@@ -151,7 +154,9 @@ export async function GET(request: NextRequest) {
 
     // 6. Calcular métricas usando el motor de cálculos
     const cac = calculateCAC(marketingExpensesCents, newPatientsCount)
-    const ltv = calculateLTV(totalRevenueCents, totalPatients)
+    // LTV uses period revenue / active patients in period (not all-time patients)
+    const periodActivePatients = convertedPatients > 0 ? convertedPatients : 1
+    const ltv = calculateLTV(totalRevenueCents, periodActivePatients)
     const conversionRate = calculateConversionRate(convertedPatients, totalPatients)
     const ltvCacRatio = calculateLTVCACRatio(ltv, cac)
     const ratioQuality = getLTVCACRatioQuality(ltvCacRatio)
@@ -192,7 +197,8 @@ export async function GET(request: NextRequest) {
         newPatientsCount,
         totalPatients,
         totalRevenueCents,
-        convertedPatients
+        convertedPatients,
+        periodActivePatients
       }
     })
 
