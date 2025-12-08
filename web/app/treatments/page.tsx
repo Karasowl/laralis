@@ -118,6 +118,7 @@ export default function TreatmentsPage() {
     treatment_date: { from: '', to: '' },
     status: [],
     service_id: [],
+    patient_id: [],
     price_cents: { from: '', to: '' }
   })
 
@@ -148,12 +149,21 @@ export default function TreatmentsPage() {
       options: services.map((s: Service) => ({ value: s.id, label: s.name }))
     },
     {
+      key: 'patient_id',
+      label: t('treatments.filters.patient'),
+      type: 'multi-select',
+      options: patients.map((p: Patient) => ({
+        value: p.id,
+        label: `${p.first_name} ${p.last_name}`
+      }))
+    },
+    {
       key: 'price_cents',
       label: t('treatments.fields.price'),
       type: 'number-range',
       multiplier: 100 // User inputs in pesos, data is in cents
     }
-  ], [t, services])
+  ], [t, services, patients])
 
   // Apply filters to treatments
   const smartFilteredTreatments = useSmartFilter(treatments, filterValues, filterConfigs)

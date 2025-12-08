@@ -17,6 +17,10 @@ Cada entrada sigue la estructura:
 
 ## Entradas
 
+### 2025-12-08
+
+- **[2025-12-08-fix-dashboard-date-filter.md](2025-12-08-fix-dashboard-date-filter.md)** - Fix P1: Dashboard date filter no se aplicaba a todos los componentes. Hooks como useReports, useServiceROI, useMarketingMetrics, y useChannelROI ignoraban el filtro de fechas. Ahora todos respetan currentRange.
+
 ### 2025-12-05
 
 - **[2025-12-05-fix-treatment-price-recalculation-bug.md](2025-12-05-fix-treatment-price-recalculation-bug.md)** - Fix P0 critico: Bug donde los precios de tratamientos se recalculaban incorrectamente al hacer cualquier update (ej: cambio de status), causando que precios de $500 cambiaran a $487 sin intervencion del usuario. Causa raiz: `undefined !== 'service-uuid'` siempre evaluaba a true.
@@ -73,6 +77,7 @@ Cada entrada sigue la estructura:
 - [2025-08-09-supplies-services-module.md](2025-08-09-supplies-services-module.md) - Cálculos de costos variables y tratamientos
 
 ### UI/UX
+- [2025-12-08-fix-dashboard-date-filter.md](2025-12-08-fix-dashboard-date-filter.md) - Fix de filtro de fechas en Dashboard
 - [2025-10-18-improve-dark-mode-ux.md](2025-10-18-improve-dark-mode-ux.md) - Rediseño completo de dark mode con paleta moderna
 - [2025-08-09-bootstrap-proyecto.md](2025-08-09-bootstrap-proyecto.md) - Sistema de componentes estilo Apple
 - [2025-08-09-supplies-services-module.md](2025-08-09-supplies-services-module.md) - Páginas de insumos y servicios con preview en vivo
@@ -95,6 +100,6 @@ Cada entrada sigue la estructura:
 
 ## Stats
 
-- **Total entradas**: 15
-- **Última actualización**: 2025-12-05
-- **Archivos documentados**: 120+
+- **Total entradas**: 16
+- **Ultima actualizacion**: 2025-12-08
+- **Archivos documentados**: 128+

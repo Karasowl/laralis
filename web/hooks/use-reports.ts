@@ -6,6 +6,8 @@ import { BusinessInsights } from '@/lib/analytics'
 interface UseReportsOptions {
   clinicId?: string
   autoLoad?: boolean
+  startDate?: string  // YYYY-MM-DD format
+  endDate?: string    // YYYY-MM-DD format
 }
 
 interface DashboardData {
@@ -38,7 +40,7 @@ const EMPTY_DASHBOARD: DashboardData = {
 }
 
 export function useReports(options: UseReportsOptions = {}) {
-  const { clinicId, autoLoad = true } = options
+  const { clinicId, autoLoad = true, startDate, endDate } = options
 
   const [dashboardData, setDashboardData] = useState<DashboardData>(EMPTY_DASHBOARD)
   const [insights, setInsights] = useState<BusinessInsights | null>(null)
@@ -59,6 +61,8 @@ export function useReports(options: UseReportsOptions = {}) {
 
     try {
       const params = new URLSearchParams({ clinicId })
+      if (startDate) params.set('from', startDate)
+      if (endDate) params.set('to', endDate)
       const response = await fetch(`/api/reports/summary?${params.toString()}`)
 
       if (!response.ok) {
@@ -77,7 +81,7 @@ export function useReports(options: UseReportsOptions = {}) {
     } finally {
       setLoading(false)
     }
-  }, [clinicId])
+  }, [clinicId, startDate, endDate])
 
   useEffect(() => {
     if (autoLoad && clinicId) {

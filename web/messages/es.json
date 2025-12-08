@@ -113,6 +113,15 @@
       "customRange": "Rango personalizado",
       "apply": "Aplicar",
       "periodLabel": "Periodo: {period}"
+    },
+    "sex": "Sexo",
+    "ageRange": "Rango de edad",
+    "ageRanges": {
+      "minors": "Menores (0-17)",
+      "young": "Jovenes (18-30)",
+      "adults": "Adultos (31-45)",
+      "mature": "Maduros (46-60)",
+      "seniors": "Mayores (61+)"
     }
   },
   "navigation": {
@@ -1516,7 +1525,13 @@
     "savings_label": "Ahorro",
     "single_discount_info": "El descuento se aplicará sobre el precio con utilidad de este servicio.",
     "apply_discount": "Aplicar Descuento",
-    "variable_cost": "Costo Variable"
+    "variable_cost": "Costo Variable",
+    "filters": {
+      "category": "Categoria",
+      "priceRange": "Rango de precio",
+      "durationRange": "Duracion (minutos)",
+      "hasDiscount": "Con descuento"
+    }
   },
   "businessSetup": {
     "assets": {
@@ -1821,7 +1836,12 @@
       "selectPlatformDescription": "Selecciona una plataforma de la lista para ver y gestionar sus campañas",
       "activeCampaigns": "campañas activas",
       "platform": "plataforma",
-      "campaign": "campaña"
+      "campaign": "campaña",
+      "filters": {
+        "status": "Estado",
+        "dateRange": "Fecha de inicio",
+        "patientsRange": "Pacientes"
+      }
     },
     "calendar": {
       "cardTitle": "Google Calendar",
@@ -2438,6 +2458,9 @@
       "margin": "Margen (%)",
       "sale_price": "Precio de Venta",
       "notes": "Notas"
+    },
+    "filters": {
+      "patient": "Paciente"
     },
     "sale_price_helper": "Precio final de venta - el margen se ajusta automáticamente",
     "timeHelp": "Hora de la cita (opcional)",

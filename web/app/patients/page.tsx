@@ -1,6 +1,6 @@
-'use client' 
+'use client'
 
-import { useState, useEffect, useMemo } from 'react' 
+import { useState, useEffect, useMemo } from 'react'
 import { useTranslations } from 'next-intl'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -24,6 +24,32 @@ import { Patient } from '@/lib/types'
 import { Users, Phone, Mail, Calendar, MapPin, Plus, User, Eye, MessageCircle, FileText } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
+// Helper function to calculate age from birth date
+const calculateAge = (birthDate: string | null | undefined): number | null => {
+  if (!birthDate) return null
+  const today = new Date()
+  const birth = new Date(birthDate)
+  let age = today.getFullYear() - birth.getFullYear()
+  const monthDiff = today.getMonth() - birth.getMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--
+  }
+  return age
+}
+
+// Helper function to check if age falls within a range
+const isAgeInRange = (age: number | null, range: string): boolean => {
+  if (age === null) return false
+  switch (range) {
+    case '0-17': return age >= 0 && age <= 17
+    case '18-30': return age >= 18 && age <= 30
+    case '31-45': return age >= 31 && age <= 45
+    case '46-60': return age >= 46 && age <= 60
+    case '61+': return age >= 61
+    default: return true
+  }
+}
+
 export default function PatientsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -32,6 +58,7 @@ export default function PatientsPage() {
   const tCommon = useTranslations('common')
   const tg = useTranslations()
   const tEntities = useTranslations('entities')
+  const tFilters = useTranslations('filters')
   const todayIso = getLocalDateISO()
   const { currentClinic } = useWorkspace()
   const {
@@ -111,6 +138,7 @@ export default function PatientsPage() {
   const [filterValues, setFilterValues] = useState<FilterValues>({
     source_id: [],
     gender: '',
+    age_range: '',
     first_visit_date: { from: '', to: '' }
   })
 
@@ -124,7 +152,7 @@ export default function PatientsPage() {
     },
     {
       key: 'gender',
-      label: tFields('gender'),
+      label: tFilters('sex'),
       type: 'select',
       options: [
         { value: 'male', label: t('gender.male') },
@@ -133,14 +161,42 @@ export default function PatientsPage() {
       ]
     },
     {
+      key: 'age_range',
+      label: tFilters('ageRange'),
+      type: 'select',
+      options: [
+        { value: '0-17', label: tFilters('ageRanges.minors') },
+        { value: '18-30', label: tFilters('ageRanges.young') },
+        { value: '31-45', label: tFilters('ageRanges.adults') },
+        { value: '46-60', label: tFilters('ageRanges.mature') },
+        { value: '61+', label: tFilters('ageRanges.seniors') }
+      ]
+    },
+    {
       key: 'first_visit_date',
       label: tFields('first_visit'),
       type: 'date-range'
     }
-  ], [tFields, t, patientSources])
+  ], [tFields, tFilters, t, patientSources])
 
-  // Apply filters to patients
-  const filteredPatients = useSmartFilter(patients || [], filterValues, filterConfigs)
+  // Apply standard filters to patients (excludes age_range which needs custom logic)
+  const standardFilterConfigs = useMemo(() =>
+    filterConfigs.filter(c => c.key !== 'age_range'),
+    [filterConfigs]
+  )
+  const standardFiltered = useSmartFilter(patients || [], filterValues, standardFilterConfigs)
+
+  // Apply age range filter (custom logic since age is calculated, not a direct field)
+  const filteredPatients = useMemo(() => {
+    const ageRange = filterValues.age_range
+    if (!ageRange) return standardFiltered
+
+    return standardFiltered.filter((patient: Patient) => {
+      const age = calculateAge(patient.birth_date)
+      // Patients without birth_date should NOT appear when age filter is active
+      return isAgeInRange(age, ageRange)
+    })
+  }, [standardFiltered, filterValues.age_range])
 
   // Form
   const initialValues: ZPatientForm = {

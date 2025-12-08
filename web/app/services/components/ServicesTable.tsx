@@ -6,6 +6,7 @@ import { DataTable } from '@/components/ui/DataTable'
 import { Badge } from '@/components/ui/badge'
 import { ActionDropdown, createEditAction, createDeleteAction } from '@/components/ui/ActionDropdown'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { SmartFilters, useSmartFilter, FilterConfig, FilterValues } from '@/components/ui/smart-filters'
 import { formatCurrency } from '@/lib/money'
 import { Briefcase, Package, Clock, Info, Percent, Tag, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -58,8 +59,10 @@ export function ServicesTable({
 }: ServicesTableProps) {
   const t = useTranslations('services')
   const tRoot = useTranslations()
+  const tCommon = useTranslations('common')
   const tFields = useTranslations('fields')
   const [searchValue, setSearchValue] = useState('')
+  const [filterValues, setFilterValues] = useState<FilterValues>({})
 
   const categoryLookup = useMemo(() => {
     const map = new Map<string, string>()
@@ -72,15 +75,77 @@ export function ServicesTable({
     return map
   }, [categories])
 
-  // Filter services for mobile search
+  // Get unique categories for filter options
+  const categoryOptions = useMemo(() => {
+    const categorySet = new Set<string>()
+    ;(services || []).forEach((s: any) => {
+      if (s.category) categorySet.add(s.category)
+    })
+    return Array.from(categorySet).map(cat => {
+      const label = categoryLookup.get(cat) || cat
+      return { value: cat, label }
+    })
+  }, [services, categoryLookup])
+
+  // Filter configuration
+  const filterConfigs: FilterConfig[] = useMemo(() => [
+    {
+      key: 'category',
+      label: t('filters.category'),
+      type: 'multi-select',
+      options: categoryOptions
+    },
+    {
+      key: 'price_cents',
+      label: t('filters.priceRange'),
+      type: 'number-range',
+      multiplier: 100 // User inputs pesos, data is in cents
+    },
+    {
+      key: 'est_minutes',
+      label: t('filters.durationRange'),
+      type: 'number-range'
+    },
+    {
+      key: 'has_discount',
+      label: t('filters.hasDiscount'),
+      type: 'select',
+      options: [
+        { value: 'yes', label: tCommon('yes') },
+        { value: 'no', label: tCommon('no') }
+      ]
+    }
+  ], [categoryOptions, t, tCommon])
+
+  // Standard filters (category, price, duration)
+  const standardFilterConfigs = useMemo(() =>
+    filterConfigs.filter(f => f.key !== 'has_discount'),
+    [filterConfigs]
+  )
+
+  // Apply standard filters using useSmartFilter
+  const standardFiltered = useSmartFilter(services || [], filterValues, standardFilterConfigs)
+
+  // Apply custom has_discount filter
+  const smartFiltered = useMemo(() => {
+    const discountFilter = filterValues.has_discount
+    if (!discountFilter || discountFilter === '') return standardFiltered
+
+    return standardFiltered.filter((service: any) => {
+      const hasDiscount = service.discount_type && service.discount_type !== 'none'
+      return discountFilter === 'yes' ? hasDiscount : !hasDiscount
+    })
+  }, [standardFiltered, filterValues.has_discount])
+
+  // Filter services for mobile search (combines smart filters + search)
   const filteredServices = useMemo(() => {
-    if (!searchValue) return services || []
+    if (!searchValue) return smartFiltered
     const query = searchValue.toLowerCase()
-    return (services || []).filter((service: any) =>
+    return smartFiltered.filter((service: any) =>
       service.name?.toLowerCase().includes(query) ||
       getCategoryLabel(service, categoryLookup, '').toLowerCase().includes(query)
     )
-  }, [services, searchValue, categoryLookup])
+  }, [smartFiltered, searchValue, categoryLookup])
 
   // Desktop columns definition
   // Responsive strategy for tablet (md: 768-1024px):
@@ -619,7 +684,14 @@ export function ServicesTable({
   }
 
   return (
-    <>
+    <div className="space-y-4">
+      {/* Smart Filters */}
+      <SmartFilters
+        filters={filterConfigs}
+        values={filterValues}
+        onChange={setFilterValues}
+      />
+
       {/* Mobile view with custom cards */}
       <div className="md:hidden space-y-4">
         {/* Mobile search bar */}
@@ -669,7 +741,7 @@ export function ServicesTable({
       <div className="hidden md:block">
         <DataTable
           columns={columns}
-          data={services || []}
+          data={filteredServices}
           loading={loading}
           searchPlaceholder={t('search_services')}
           searchKey="name"
@@ -682,6 +754,6 @@ export function ServicesTable({
           }}
         />
       </div>
-    </>
+    </div>
   )
 }

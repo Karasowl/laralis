@@ -44,15 +44,31 @@ export async function GET(request: NextRequest) {
     }
 
     const { clinicId } = ctx
+
+    // Parse date range - supports explicit dates or period lookback
+    const startDateParam = searchParams.get('startDate')
+    const endDateParam = searchParams.get('endDate')
     const period = parseInt(searchParams.get('period') || '30', 10)
 
-    // Calcular rango de fechas
-    const endDate = new Date()
-    const startDate = new Date()
-    startDate.setDate(startDate.getDate() - period)
+    let startDate: Date
+    let endDate: Date
+    let startDateStr: string
+    let endDateStr: string
 
-    const startDateStr = startDate.toISOString().split('T')[0]
-    const endDateStr = endDate.toISOString().split('T')[0]
+    if (startDateParam && endDateParam) {
+      // Use explicit date range
+      startDateStr = startDateParam
+      endDateStr = endDateParam
+      startDate = new Date(startDateParam)
+      endDate = new Date(endDateParam)
+    } else {
+      // Fall back to period lookback
+      endDate = new Date()
+      startDate = new Date()
+      startDate.setDate(startDate.getDate() - period)
+      startDateStr = startDate.toISOString().split('T')[0]
+      endDateStr = endDate.toISOString().split('T')[0]
+    }
 
     console.log('[marketing-metrics] Fetching for clinic:', clinicId)
     console.log('[marketing-metrics] Date range:', startDateStr, 'to', endDateStr)
