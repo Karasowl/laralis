@@ -4,16 +4,21 @@
  * GET /api/analytics/profit-analysis
  * Returns comprehensive profit metrics: Gross Profit, Operating Profit, EBITDA, Net Profit
  *
- * This endpoint calculates profit metrics correctly using:
+ * This endpoint calculates profit metrics using:
+ * - Revenue from completed treatments
  * - Variable costs from expenses table (WHERE is_variable = true)
- * - Fixed costs from expenses table (WHERE is_variable = false)
- * - Depreciation calculated from assets
+ * - Fixed costs from BOTH:
+ *   - fixed_costs table (configured monthly costs, prorated to period)
+ *   - expenses table (WHERE is_variable = false) - actual recorded expenses
+ * - Depreciation calculated from assets (prorated to period)
  *
  * Formulas:
  * - Gross Profit = Revenue - Variable Costs
- * - Operating Profit (EBIT) = Gross Profit - Fixed Costs
- * - EBITDA = Operating Profit + Depreciation
- * - Net Profit = EBITDA - Depreciation (simplified, no taxes/interest yet)
+ * - Operating Profit (EBIT) = Gross Profit - Fixed Costs (configured, prorated)
+ * - EBITDA = Operating Profit + Depreciation (prorated)
+ * - Net Profit = Operating Profit (simplified, no taxes/interest yet)
+ *
+ * NOTE: EBITDA should never exceed Revenue. If it does, there's a calculation error.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -21,6 +26,32 @@ import { createClient } from '@/lib/supabase/server'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+
+/**
+ * Calculate the number of days in a period and the reference month's days for prorating
+ */
+function calculatePeriodInfo(startDate: string | null, endDate: string | null): {
+  periodDays: number
+  daysInMonth: number
+} {
+  if (!startDate || !endDate) {
+    // Default to current month if no dates provided
+    const now = new Date()
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+    return { periodDays: daysInMonth, daysInMonth }
+  }
+
+  const start = new Date(startDate)
+  const end = new Date(endDate)
+  const diffTime = Math.abs(end.getTime() - start.getTime())
+  const periodDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1 // +1 to include both start and end
+
+  // Use the actual days in the start date's month for accurate proration
+  // This ensures costs are prorated correctly based on the actual month length
+  const daysInMonth = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate()
+
+  return { periodDays, daysInMonth }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -43,6 +74,9 @@ export async function GET(request: NextRequest) {
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    // Calculate period days for prorating monthly costs
+    const { periodDays, daysInMonth } = calculatePeriodInfo(startDate, endDate)
 
     // ===== 1. Get Revenue from completed treatments =====
     let treatmentsQuery = supabase
@@ -69,7 +103,7 @@ export async function GET(request: NextRequest) {
       0
     ) || 0
 
-    // ===== 2. Get Expenses (variable and fixed) =====
+    // ===== 2. Get Expenses (variable and fixed - REAL recorded expenses) =====
     let expensesQuery = supabase
       .from('expenses')
       .select('amount_cents, is_variable')
@@ -93,12 +127,34 @@ export async function GET(request: NextRequest) {
       0
     ) || 0
 
-    const fixedCostsCents = expenses?.reduce(
+    // Real fixed costs from expenses table (actual recorded expenses)
+    const fixedCostsRealCents = expenses?.reduce(
       (sum, e) => sum + (!e.is_variable ? (e.amount_cents || 0) : 0),
       0
     ) || 0
 
-    // ===== 3. Get Assets for depreciation calculation =====
+    // ===== 3. Get CONFIGURED Fixed Costs from fixed_costs table =====
+    const { data: configuredFixedCosts, error: fixedCostsError } = await supabase
+      .from('fixed_costs')
+      .select('amount_cents')
+      .eq('clinic_id', clinicId)
+
+    if (fixedCostsError) {
+      throw fixedCostsError
+    }
+
+    // Sum all configured monthly fixed costs
+    const monthlyConfiguredFixedCents = configuredFixedCosts?.reduce(
+      (sum, fc) => sum + (fc.amount_cents || 0),
+      0
+    ) || 0
+
+    // Prorate to the selected period
+    const fixedCostsConfiguredCents = Math.round(
+      monthlyConfiguredFixedCents * periodDays / daysInMonth
+    )
+
+    // ===== 4. Get Assets for depreciation calculation =====
     const { data: assets, error: assetsError } = await supabase
       .from('assets')
       .select('purchase_price_cents, depreciation_months, purchase_date')
@@ -108,20 +164,21 @@ export async function GET(request: NextRequest) {
       throw assetsError
     }
 
-    // Calculate depreciation for the period
-    // Monthly depreciation = purchase_price / depreciation_months
-    const depreciationCents = assets?.reduce((sum, asset) => {
+    // Calculate monthly depreciation from all assets
+    const monthlyDepreciationCents = assets?.reduce((sum, asset) => {
       const months = asset.depreciation_months || 1
       const monthlyDepreciation = Math.round((asset.purchase_price_cents || 0) / months)
-
-      // TODO: If we want to be more precise, we could calculate depreciation
-      // only for the months the asset has been owned within the period.
-      // For now, we'll use full monthly depreciation.
-
       return sum + monthlyDepreciation
     }, 0) || 0
 
-    // ===== 4. Calculate Profit Metrics =====
+    // Prorate depreciation to the selected period
+    const depreciationCents = Math.round(
+      monthlyDepreciationCents * periodDays / daysInMonth
+    )
+
+    // ===== 5. Calculate Profit Metrics =====
+    // Use CONFIGURED fixed costs for profitability calculations
+    // This gives a realistic view of the clinic's financial health
 
     // Gross Profit = Revenue - Variable Costs (materials, lab fees)
     const grossProfitCents = revenueCents - variableCostsCents
@@ -129,33 +186,38 @@ export async function GET(request: NextRequest) {
       ? (grossProfitCents / revenueCents) * 100
       : 0
 
-    // Operating Profit (EBIT) = Gross Profit - Fixed Costs
-    const operatingProfitCents = grossProfitCents - fixedCostsCents
+    // Operating Profit (EBIT) = Gross Profit - Fixed Costs (CONFIGURED, prorated)
+    const operatingProfitCents = grossProfitCents - fixedCostsConfiguredCents
     const operatingMarginPct = revenueCents > 0
       ? (operatingProfitCents / revenueCents) * 100
       : 0
 
     // EBITDA = Operating Profit + Depreciation
+    // Note: This adds back depreciation (a non-cash expense) to operating profit
     const ebitdaCents = operatingProfitCents + depreciationCents
     const ebitdaMarginPct = revenueCents > 0
       ? (ebitdaCents / revenueCents) * 100
       : 0
 
-    // Net Profit = EBITDA - Depreciation (simplified, no taxes/interest)
-    const netProfitCents = ebitdaCents - depreciationCents
+    // Net Profit = Operating Profit (simplified - same as EBIT since we already deducted depreciation)
+    // In a full accounting system, this would also subtract taxes and interest
+    const netProfitCents = operatingProfitCents
     const netMarginPct = revenueCents > 0
       ? (netProfitCents / revenueCents) * 100
       : 0
 
-    // Total costs for reference
-    const totalCostsCents = variableCostsCents + fixedCostsCents + depreciationCents
+    // Total costs for reference (using configured fixed costs)
+    const totalCostsCents = variableCostsCents + fixedCostsConfiguredCents + depreciationCents
 
-    // ===== 5. Return Response =====
+    // ===== 6. Return Response =====
     return NextResponse.json({
       revenue_cents: revenueCents,
       costs: {
         variable_cents: variableCostsCents,
-        fixed_cents: fixedCostsCents,
+        // BREAKING CHANGE: Now returns both real and configured fixed costs
+        fixed_cents: fixedCostsConfiguredCents,        // Used in calculations (prorated from fixed_costs table)
+        fixed_cents_real: fixedCostsRealCents,         // Actual expenses recorded (from expenses table)
+        fixed_cents_configured: fixedCostsConfiguredCents, // Configured monthly costs (prorated)
         depreciation_cents: depreciationCents,
         total_cents: totalCostsCents
       },
@@ -178,9 +240,17 @@ export async function GET(request: NextRequest) {
       period: {
         start: startDate || null,
         end: endDate || null,
+        days: periodDays
       },
       treatments_count: treatments?.length || 0,
-      expenses_count: expenses?.length || 0
+      expenses_count: expenses?.length || 0,
+      // Metadata for debugging/transparency
+      metadata: {
+        monthly_configured_fixed_cents: monthlyConfiguredFixedCents,
+        monthly_depreciation_cents: monthlyDepreciationCents,
+        proration_factor: periodDays / daysInMonth,
+        costs_source: 'fixed_costs table (configured) + assets (depreciation)'
+      }
     })
 
   } catch (error) {

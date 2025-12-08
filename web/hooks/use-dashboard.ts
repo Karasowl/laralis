@@ -207,7 +207,8 @@ export function useDashboard(options: UseDashboardOptions = {}): DashboardState 
       setState(prev => ({ ...prev, loading: true, error: null }))
 
       // Fetch all dashboard data in parallel
-      const range = period === 'custom' && from && to ? `&date_from=${from}&date_to=${to}` : ''
+      // ALWAYS pass date range when available to ensure consistent filtering across all metrics
+      const range = from && to ? `&date_from=${from}&date_to=${to}` : ''
       const results = await fetchAll([
         { endpoint: `/api/dashboard/revenue?clinicId=${clinicId}&period=${period}${range}` },
         { endpoint: `/api/dashboard/expenses?clinicId=${clinicId}&period=${period}${range}` },

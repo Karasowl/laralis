@@ -3342,6 +3342,7 @@
     "breakEvenProgress": {
       "title": "Monthly Goal",
       "subtitle": "Progress toward your break-even point",
+      "currentMonthOnly": "Current month",
       "progress": "Progress",
       "remaining": "Remaining",
       "daysWorked": "Days worked",
