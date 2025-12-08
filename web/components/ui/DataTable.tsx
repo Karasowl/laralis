@@ -8,6 +8,12 @@ export interface Column<T> {
   render?: (value: any, item: T, index: number) => React.ReactNode;
   className?: string;
   sortable?: boolean;
+  /** Hide column on tablet (768px-1024px) - use for less important columns */
+  hideOnTablet?: boolean;
+  /** Hide column on mobile (<768px) - handled via mobileColumns prop instead */
+  hideOnMobile?: boolean;
+  /** Minimum width for this column (e.g., '120px', '10rem') */
+  minWidth?: string;
 }
 
 export interface DataTableProps<T> extends React.HTMLAttributes<HTMLDivElement> {
@@ -257,91 +263,97 @@ function DataTable<T extends { id?: string | number }>({
             })}
           </div>
 
-          {/* Desktop/tablet table */}
-          <div className="hidden md:block overflow-x-hidden" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
-        <table className="w-full table-fixed">
-          <thead>
-            <tr className="border-b bg-gradient-to-r from-muted/30 to-muted/10">
-              {/* Placeholder header cell for hover indicator column to keep alignment */}
-              <th className="w-1 p-0" aria-hidden="true"></th>
-              {columns.map((column, index) => {
-                const isSortable = column.sortable !== false;
-                const isSorted = sortConfig?.key === column.key;
-                
-                return (
-                  <th
-                    key={index}
-                    className={cn(
-                      "h-12 px-6 text-left align-middle font-medium text-xs uppercase tracking-wider text-muted-foreground transition-colors",
-                      isSortable && "cursor-pointer hover:text-foreground hover:bg-muted/30",
-                      column.className
-                    )}
-                    onClick={() => isSortable && handleSort(column.key as string)}
-                  >
-                    <div className="inline-flex items-center gap-1">
-                      <span>{column.label}</span>
-                      {isSortable && column.label && (
-                        <span className="inline-flex">
-                          {!isSorted ? (
-                            <ArrowUpDown className="h-3 w-3 text-muted-foreground/50" />
-                          ) : sortConfig?.direction === 'asc' ? (
-                            <ChevronUp className="h-3 w-3 text-primary" />
-                          ) : (
-                            <ChevronDown className="h-3 w-3 text-primary" />
+          {/* Desktop/tablet table - scrollable on smaller screens */}
+          <div className="hidden md:block overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <table className="w-full min-w-[700px] lg:min-w-0">
+              <thead>
+                <tr className="border-b bg-gradient-to-r from-muted/30 to-muted/10">
+                  {/* Placeholder header cell for hover indicator column to keep alignment */}
+                  <th className="w-1 p-0" aria-hidden="true"></th>
+                  {columns.map((column, index) => {
+                    const isSortable = column.sortable !== false;
+                    const isSorted = sortConfig?.key === column.key;
+
+                    return (
+                      <th
+                        key={index}
+                        className={cn(
+                          "h-11 px-3 lg:px-5 text-left align-middle font-medium text-xs uppercase tracking-wider text-muted-foreground transition-colors whitespace-nowrap",
+                          isSortable && "cursor-pointer hover:text-foreground hover:bg-muted/30",
+                          // Hide on tablet (md) but show on large (lg) screens
+                          column.hideOnTablet && "hidden lg:table-cell",
+                          column.className
+                        )}
+                        style={column.minWidth ? { minWidth: column.minWidth } : undefined}
+                        onClick={() => isSortable && handleSort(column.key as string)}
+                      >
+                        <div className="inline-flex items-center gap-1">
+                          <span>{column.label}</span>
+                          {isSortable && column.label && (
+                            <span className="inline-flex">
+                              {!isSorted ? (
+                                <ArrowUpDown className="h-3 w-3 text-muted-foreground/50" />
+                              ) : sortConfig?.direction === 'asc' ? (
+                                <ChevronUp className="h-3 w-3 text-primary" />
+                              ) : (
+                                <ChevronDown className="h-3 w-3 text-primary" />
+                              )}
+                            </span>
                           )}
-                        </span>
-                      )}
-                    </div>
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-          <tbody>
-            {sortedData.map((item, rowIndex) => (
-              <tr
-                key={item.id || rowIndex}
-                className={cn(
-                  "border-b transition-all duration-200",
-                  "hover:bg-gradient-to-r hover:from-primary/5 hover:to-transparent",
-                  "group relative",
-                  hoveredRow === rowIndex && "bg-muted/30"
-                )}
-                onMouseEnter={() => setHoveredRow(rowIndex)}
-                onMouseLeave={() => setHoveredRow(null)}
-              >
-                {/* Hover indicator */}
-                <td className="w-1 p-0 relative">
-                  <div 
+                        </div>
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+              <tbody>
+                {sortedData.map((item, rowIndex) => (
+                  <tr
+                    key={item.id || rowIndex}
                     className={cn(
-                      "absolute left-0 top-0 bottom-0 w-1 bg-primary transition-all duration-200",
-                      hoveredRow === rowIndex ? "opacity-100" : "opacity-0"
-                    )} 
-                  />
-                </td>
-                {columns.map((column, colIndex) => {
-                  const value = getValue(item, column.key);
-                  return (
-                    <td
-                      key={colIndex}
-                      className={cn(
-                        "px-6 py-4 align-middle transition-colors",
-                        "group-hover:text-foreground",
-                        column.className
-                      )}
-                    >
-                      <div className="animate-in fade-in-0 duration-200">
-                        {column.render
-                          ? column.render(value, item, rowIndex)
-                          : String(value ?? "")}
-                      </div>
+                      "border-b transition-all duration-200",
+                      "hover:bg-gradient-to-r hover:from-primary/5 hover:to-transparent",
+                      "group relative",
+                      hoveredRow === rowIndex && "bg-muted/30"
+                    )}
+                    onMouseEnter={() => setHoveredRow(rowIndex)}
+                    onMouseLeave={() => setHoveredRow(null)}
+                  >
+                    {/* Hover indicator */}
+                    <td className="w-1 p-0 relative">
+                      <div
+                        className={cn(
+                          "absolute left-0 top-0 bottom-0 w-1 bg-primary transition-all duration-200",
+                          hoveredRow === rowIndex ? "opacity-100" : "opacity-0"
+                        )}
+                      />
                     </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                    {columns.map((column, colIndex) => {
+                      const value = getValue(item, column.key);
+                      return (
+                        <td
+                          key={colIndex}
+                          className={cn(
+                            "px-3 lg:px-5 py-3 lg:py-4 align-middle transition-colors text-sm",
+                            "group-hover:text-foreground",
+                            // Hide on tablet (md) but show on large (lg) screens
+                            column.hideOnTablet && "hidden lg:table-cell",
+                            column.className
+                          )}
+                          style={column.minWidth ? { minWidth: column.minWidth } : undefined}
+                        >
+                          <div className="animate-in fade-in-0 duration-200">
+                            {column.render
+                              ? column.render(value, item, rowIndex)
+                              : String(value ?? "")}
+                          </div>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}

@@ -302,30 +302,34 @@ export default function ExpensesPage() {
     {
       key: 'expense_date',
       label: t('table.date'),
-      render: (value) => formatDate(value as string, locale === 'es' ? 'es' : 'en'),
+      render: (value) => (
+        <span className="whitespace-nowrap">{formatDate(value as string, locale === 'es' ? 'es' : 'en')}</span>
+      ),
       sortable: true,
+      minWidth: '100px',
     },
     {
       key: 'category',
       label: t('table.category'),
       render: (_, expense) => (
         <div className="flex flex-col gap-1">
-          <Badge variant="outline" className="w-fit">
+          <Badge variant="outline" className="w-fit whitespace-nowrap">
             {getCategoryLabel(expense.category)}
           </Badge>
           {expense.subcategory && (
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">
               {getSubcategoryLabel(expense.subcategory)}
             </span>
           )}
         </div>
       ),
+      minWidth: '120px',
     },
     {
       key: 'description',
       label: t('table.description'),
       render: (_, expense) => (
-        <div className="max-w-sm">
+        <div className="min-w-0">
           <p className="font-medium truncate">{expense.description || t('table.noDescription')}</p>
           {expense.vendor && (
             <p className="text-xs text-muted-foreground truncate">{expense.vendor}</p>
@@ -339,13 +343,15 @@ export default function ExpensesPage() {
       className: 'text-right',
       sortable: true,
       render: (value) => (
-        <span className="font-semibold">{formatCurrency(Number(value) || 0)}</span>
+        <span className="font-semibold whitespace-nowrap">{formatCurrency(Number(value) || 0)}</span>
       ),
+      minWidth: '100px',
     },
     {
       key: 'is_recurring',
       label: t('table.recurring'),
       className: 'text-center',
+      hideOnTablet: true, // Hide on tablet to save space
       render: (value) => (
         value ? (
           <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/30">

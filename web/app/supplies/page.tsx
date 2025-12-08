@@ -138,21 +138,26 @@ export default function SuppliesPage() {
     } catch {}
   }
 
-  // Table columns
+  // Table columns with responsive visibility
+  // Essential columns (visible on tablet+): Name, Price, Portions, Cost/Portion
+  // Optional columns (hidden on tablet, visible on lg+): Category, Presentation
   const columns = [
     {
       key: 'name',
-      label: t('supplies.form.name')
+      label: t('supplies.form.name'),
+      // Always visible
     },
     {
       key: 'category',
       label: t('supplies.form.category'),
+      className: 'hidden lg:table-cell', // Hidden on tablet (md-lg), visible on desktop (lg+)
       render: (_value: unknown, supply: Supply) =>
         getSupplyCategoryLabel(supply.category, t)
     },
     {
       key: 'presentation',
       label: t('supplies.form.presentation'),
+      className: 'hidden lg:table-cell', // Hidden on tablet (md-lg), visible on desktop (lg+)
       render: (_value: unknown, supply: Supply) =>
         supply.presentation || '-'
     },

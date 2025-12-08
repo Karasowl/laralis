@@ -390,12 +390,34 @@ export default function TreatmentsPage() {
     }
   }
 
-  // Table columns
+  // Table columns - optimized for tablet responsiveness
+  // Columns marked with hideOnTablet will be hidden on 768-1024px screens
   const columns = [
+    // Combined Date+Time column for tablet (shows on md, hidden on lg where separate columns show)
+    // Uses treatment_date as key for sorting (treatment_date_time doesn't exist as a field)
     {
       key: 'treatment_date',
       label: t('treatments.fields.date'),
       sortable: true,
+      className: 'lg:hidden', // Only show on tablet, hide on large screens
+      render: (_value: any, treatment: Treatment) => (
+        <div className="flex items-center gap-2">
+          <Calendar className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+          <div className="flex flex-col">
+            <span>{formatDate(treatment.treatment_date)}</span>
+            {treatment?.treatment_time && (
+              <span className="text-xs text-muted-foreground">{treatment.treatment_time.slice(0, 5)}</span>
+            )}
+          </div>
+        </div>
+      )
+    },
+    // Separate Date column (hidden on tablet, shows on large screens)
+    {
+      key: 'treatment_date',
+      label: t('treatments.fields.date'),
+      sortable: true,
+      className: 'hidden lg:table-cell', // Hide on tablet, show on large
       render: (_value: any, treatment: Treatment) => (
         <div className="flex items-center gap-2">
           <Calendar className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
@@ -403,10 +425,12 @@ export default function TreatmentsPage() {
         </div>
       )
     },
+    // Separate Time column (hidden on tablet, shows on large screens)
     {
       key: 'treatment_time',
       label: t('treatments.fields.time'),
       sortable: true,
+      className: 'hidden lg:table-cell', // Hide on tablet, show on large
       render: (_value: any, treatment: Treatment) => (
         <div className="flex items-center gap-2">
           <Clock className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
@@ -424,12 +448,12 @@ export default function TreatmentsPage() {
             href={`/patients/${patient.id}`}
             className="flex items-center gap-2 text-primary hover:underline hover:text-primary/80 transition-colors"
           >
-            <User className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-            {`${patient.first_name} ${patient.last_name}`}
+            <User className="h-4 w-4 flex-shrink-0 text-muted-foreground lg:inline hidden" />
+            <span className="truncate max-w-[120px] lg:max-w-none">{`${patient.first_name} ${patient.last_name}`}</span>
           </Link>
         ) : (
           <div className="flex items-center gap-2">
-            <User className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+            <User className="h-4 w-4 flex-shrink-0 text-muted-foreground lg:inline hidden" />
             {t('common.notAvailable')}
           </div>
         )
@@ -440,12 +464,18 @@ export default function TreatmentsPage() {
       label: t('treatments.fields.service'),
       render: (_value: any, treatment: Treatment) => {
         const service = services.find((s: Service) => s.id === treatment?.service_id)
-        return service?.name || t('common.notAvailable')
+        return (
+          <span className="truncate max-w-[100px] lg:max-w-none block">
+            {service?.name || t('common.notAvailable')}
+          </span>
+        )
       }
     },
+    // Duration - hidden on tablet (less important)
     {
       key: 'minutes',
       label: t('treatments.fields.duration'),
+      hideOnTablet: true,
       render: (value: any) => (
         <div className="flex items-center gap-2">
           <Clock className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
@@ -457,29 +487,33 @@ export default function TreatmentsPage() {
       key: 'price',
       label: t('treatments.fields.price'),
       render: (_value: any, treatment: Treatment) => (
-        <div className="text-right font-semibold">
+        <div className="text-right font-semibold whitespace-nowrap">
           {formatCurrency(treatment?.price_cents || 0)}
         </div>
       )
     },
+    // Profit - hidden on tablet (less important, can be derived)
     {
       key: 'profit',
       label: t('treatments.fields.profit'),
+      hideOnTablet: true,
       render: (_value: any, treatment: Treatment) => {
         const fixedCost = (treatment?.fixed_cost_per_minute_cents || treatment?.fixed_per_minute_cents || 0) * (treatment?.duration_minutes || treatment?.minutes || 0)
         const variableCost = treatment?.variable_cost_cents || 0
         const totalCost = fixedCost + variableCost
         const profit = (treatment?.price_cents || 0) - totalCost
         return (
-          <div className={`text-right font-semibold ${profit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+          <div className={`text-right font-semibold whitespace-nowrap ${profit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
             {formatCurrency(profit)}
           </div>
         )
       }
     },
+    // Notes - hidden on tablet (accessible via edit action)
     {
       key: 'notes',
       label: t('treatments.fields.notes'),
+      hideOnTablet: true,
       render: (_value: any, treatment: Treatment) => {
         const hasNotes = treatment?.notes && treatment.notes.trim().length > 0
         return hasNotes ? (
@@ -798,32 +832,18 @@ export default function TreatmentsPage() {
         <DataTable
           columns={columns}
           mobileColumns={[
-            // Fecha/hora (combined for mobile)
-            {
-              key: 'treatment_date',
-              label: t('treatments.fields.date'),
-              render: (_value: any, treatment: Treatment) => (
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                  <span>{formatDate(treatment.treatment_date)}</span>
-                  {treatment?.treatment_time && (
-                    <span className="text-muted-foreground">
-                      {treatment.treatment_time.slice(0, 5)}
-                    </span>
-                  )}
-                </div>
-              )
-            },
+            // Fecha/hora (combined for mobile) - use the combined column
+            columns[0], // treatment_date_time combined column
             // Paciente
-            columns[2],
-            // Servicio (CRITICAL - was missing)
             columns[3],
+            // Servicio
+            columns[4],
             // Precio
-            columns[5],
+            columns[6],
             // Estado
-            columns[8],
+            columns[9],
             // Acciones
-            columns[9]
+            columns[10]
           ]}
           data={filteredTreatments}
           loading={loading}

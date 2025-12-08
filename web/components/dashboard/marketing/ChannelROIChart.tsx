@@ -33,7 +33,7 @@ export function ChannelROIChart({ data, loading }: ChannelROIChartProps) {
           <div className="h-4 bg-muted rounded w-64 animate-pulse mt-2" />
         </CardHeader>
         <CardContent>
-          <div className="h-96 bg-muted rounded animate-pulse" />
+          <div className="h-64 md:h-72 lg:h-80 bg-muted rounded animate-pulse" />
         </CardContent>
       </Card>
     )
@@ -50,7 +50,7 @@ export function ChannelROIChart({ data, loading }: ChannelROIChartProps) {
           <CardDescription>{t('channel_roi_description')}</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col items-center justify-center h-96 text-muted-foreground">
+          <div className="flex flex-col items-center justify-center h-64 md:h-72 lg:h-80 text-muted-foreground">
             <AlertCircle className="h-8 w-8 mb-2" />
             <p>{t('no_channel_data')}</p>
           </div>
@@ -85,7 +85,7 @@ export function ChannelROIChart({ data, loading }: ChannelROIChartProps) {
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Chart */}
-        <div className="h-80">
+        <div className="h-64 md:h-72 lg:h-80">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={sortedData}
@@ -181,7 +181,7 @@ export function ChannelROIChart({ data, loading }: ChannelROIChartProps) {
         </div>
 
         {/* Insights */}
-        <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t">
           <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20">
             <div className="flex items-center gap-2 mb-2">
               <TrendingUp className="h-4 w-4 text-emerald-600" />

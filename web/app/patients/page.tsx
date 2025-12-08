@@ -298,15 +298,16 @@ export default function PatientsPage() {
     {
       key: '_patient_info', // Use underscore prefix for custom columns
       label: tFields('name'),
+      className: 'min-w-[140px]',
       render: (_value: any, patient: Patient) => {
         if (!patient) return null;
         return (
           <div>
-            <div className="font-medium">
+            <div className="font-medium text-sm lg:text-base whitespace-nowrap">
               {patient.first_name} {patient.last_name}
             </div>
             {patient.email && (
-              <div className="text-sm text-muted-foreground hidden lg:block">{patient.email}</div>
+              <div className="text-xs lg:text-sm text-muted-foreground hidden xl:block truncate max-w-[200px]">{patient.email}</div>
             )}
           </div>
         )
@@ -315,19 +316,20 @@ export default function PatientsPage() {
     {
       key: '_contact_info', // Use underscore prefix for custom columns
       label: tFields('contact'),
+      className: 'min-w-[100px]',
       render: (_value: any, patient: Patient) => {
         if (!patient) return null;
         return (
           <div className="space-y-1">
             {patient.phone && (
-              <div className="flex items-center gap-2 text-sm">
-                <span className="inline-flex items-center gap-1">
+              <div className="flex items-center gap-1 lg:gap-2 text-xs lg:text-sm">
+                <span className="inline-flex items-center gap-0.5 lg:gap-1">
                   <a
                     href={getTelHref(patient.phone)}
-                    className="inline-flex items-center justify-center h-8 w-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                    className="inline-flex items-center justify-center h-7 w-7 lg:h-8 lg:w-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50"
                     aria-label={tg('actions.call')}
                   >
-                    <Phone className="h-4 w-4" />
+                    <Phone className="h-3.5 w-3.5 lg:h-4 lg:w-4" />
                   </a>
                   <a
                     href={getWhatsAppHref(
@@ -336,10 +338,10 @@ export default function PatientsPage() {
                     )}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center h-8 w-8 rounded-md text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20"
+                    className="inline-flex items-center justify-center h-7 w-7 lg:h-8 lg:w-8 rounded-md text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20"
                     aria-label="WhatsApp"
                   >
-                    <MessageCircle className="h-4 w-4" />
+                    <MessageCircle className="h-3.5 w-3.5 lg:h-4 lg:w-4" />
                   </a>
                 </span>
               </div>
@@ -351,13 +353,13 @@ export default function PatientsPage() {
     {
       key: '_treatments_total',
       label: tg('treatments.title'),
-      className: 'text-center',
+      // Hide on tablet to give more space to essential columns
+      className: 'text-center hidden lg:table-cell',
       render: (_value: any, patient: Patient) => {
         const stats = statsByPatient.get(patient.id)
         const count = stats?.treatments ?? 0
         return (
-          <div className="text-sm font-medium">
-            <span className="md:hidden text-muted-foreground mr-1">{t('activity.treatments')}:</span>
+          <div className="text-xs lg:text-sm font-medium whitespace-nowrap">
             <span>{count}</span>
           </div>
         )
@@ -366,13 +368,12 @@ export default function PatientsPage() {
     {
       key: '_spent_total',
       label: t('activity.spent'),
-      className: 'text-right whitespace-nowrap',
+      className: 'text-right whitespace-nowrap min-w-[80px]',
       render: (_value: any, patient: Patient) => {
         const stats = statsByPatient.get(patient.id)
         const amount = formatCurrency(stats?.spent_cents ?? 0)
         return (
-          <div className="text-sm text-foreground/90 text-right">
-            <span className="md:hidden text-muted-foreground mr-1">{t('activity.spent')}:</span>
+          <div className="text-xs lg:text-sm text-foreground/90 text-right whitespace-nowrap">
             <span>{amount}</span>
           </div>
         )
@@ -381,19 +382,20 @@ export default function PatientsPage() {
     {
       key: '_dates_info', // Use underscore prefix for custom columns
       label: tFields('dates'),
-      className: 'hidden xl:table-cell',
+      // Only show on xl screens to save space on tablet
+      className: 'hidden xl:table-cell min-w-[140px]',
       render: (_value: any, patient: Patient) => {
         if (!patient) return null;
         return (
-          <div className="space-y-1 text-sm">
+          <div className="space-y-1 text-xs lg:text-sm">
             {patient.first_visit_date && (
-              <div>
+              <div className="whitespace-nowrap">
                 <span className="text-muted-foreground">{tFields('first_visit')}:</span>{' '}
                 {formatDate(patient.first_visit_date)}
               </div>
             )}
             {patient.birth_date && (
-              <div className="text-muted-foreground">
+              <div className="text-muted-foreground whitespace-nowrap">
                 {tFields('birth_date')}: {formatDate(patient.birth_date)}
               </div>
             )}
@@ -405,28 +407,28 @@ export default function PatientsPage() {
       key: '_source_info', // Use underscore prefix for custom columns
       label: tFields('source'),
       // Hide on tablet (md) to avoid horizontal scroll; show from lg and up
-      className: 'hidden lg:table-cell',
+      className: 'hidden lg:table-cell min-w-[100px]',
       render: (_value: any, patient: Patient) => {
         if (!patient) return null;
 
-        // Campaña publicitaria → nombre de la campaña
+        // Campaña publicitaria -> nombre de la campaña
         if (patient.campaign_id && patient.campaign?.name) {
-          return <Badge variant="outline">{patient.campaign.name}</Badge>
+          return <Badge variant="outline" className="text-xs whitespace-nowrap">{patient.campaign.name}</Badge>
         }
 
-        // Referencia → nombre de quien refirió
+        // Referencia -> nombre de quien refirio
         if (patient.referred_by_patient_id && patient.referred_by) {
           const name = `${patient.referred_by.first_name} ${patient.referred_by.last_name}`
-          return <Badge variant="outline">{name}</Badge>
+          return <Badge variant="outline" className="text-xs whitespace-nowrap">{name}</Badge>
         }
 
-        // Redes orgánico → nombre de la plataforma
+        // Redes organico -> nombre de la plataforma
         if (patient.platform_id && patient.platform) {
-          return <Badge variant="outline">{patient.platform.display_name || patient.platform.name}</Badge>
+          return <Badge variant="outline" className="text-xs whitespace-nowrap">{patient.platform.display_name || patient.platform.name}</Badge>
         }
 
         // Directo (default)
-        return <Badge variant="outline">{t('acquisition.direct')}</Badge>
+        return <Badge variant="outline" className="text-xs whitespace-nowrap">{t('acquisition.direct')}</Badge>
       }
     },
     {
@@ -435,11 +437,11 @@ export default function PatientsPage() {
       label: tCommon('actions'),
       sortable: false,
       // Keep the column compact and right-aligned on larger screens
-      className: 'text-right',
+      className: 'text-right w-[60px] min-w-[60px]',
       render: (_value: any, patient: Patient) => {
         if (!patient) return null;
         return (
-          <div className="md:flex md:justify-end">
+          <div className="flex justify-end">
             <ActionDropdown
               actions={[
                 {

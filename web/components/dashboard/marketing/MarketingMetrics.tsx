@@ -19,7 +19,7 @@ export function MarketingMetrics({ cac, ltv, conversionRate, loading }: Marketin
 
   if (loading) {
     return (
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:gap-6 grid-cols-2 lg:grid-cols-4">
         {[1, 2, 3, 4].map((i) => (
           <Card key={i}>
             <CardContent className="p-4 sm:p-6">
@@ -51,7 +51,7 @@ export function MarketingMetrics({ cac, ltv, conversionRate, loading }: Marketin
     : { label: t('low'), color: 'text-amber-600' }
 
   return (
-    <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-2 lg:grid-cols-4">
         {/* CAC - Customer Acquisition Cost */}
         <Card>
           <CardContent className="p-4 sm:p-6">

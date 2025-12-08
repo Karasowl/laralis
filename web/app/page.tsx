@@ -59,8 +59,8 @@ import {
 function DashboardSkeleton() {
   return (
     <div className="space-y-6">
-      {/* Mobile-first: 1 col -> 2 cols -> 4 cols */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Mobile-first: 1 col -> 2 cols (tablet) -> 4 cols (desktop) */}
+      <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         {[1, 2, 3, 4].map((i) => (
           <Card key={i}>
             <CardHeader className="space-y-2">
@@ -70,13 +70,14 @@ function DashboardSkeleton() {
           </Card>
         ))}
       </div>
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
-        <Skeleton className="h-72 sm:h-96" />
-        <Skeleton className="h-72 sm:h-96" />
+      {/* Charts: stack on mobile, side-by-side on tablet+ */}
+      <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2">
+        <Skeleton className="h-72 md:h-80 lg:h-96" />
+        <Skeleton className="h-72 md:h-80 lg:h-96" />
       </div>
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
-        <Skeleton className="h-64 sm:h-80" />
-        <Skeleton className="h-64 sm:h-80" />
+      <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2">
+        <Skeleton className="h-64 md:h-72 lg:h-80" />
+        <Skeleton className="h-64 md:h-72 lg:h-80" />
       </div>
     </div>
   )
@@ -394,8 +395,8 @@ export default function InsightsPage() {
                   />
                 )}
 
-                {/* 4 Key Metrics Cards - Mobile-first: 1 col -> 2 cols -> 4 cols */}
-                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+                {/* 4 Key Metrics Cards - Mobile-first: 1 col -> 2 cols (tablet) -> 4 cols (desktop) */}
+                <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
                   <MetricCard
                     title={getPeriodLabels.revenue}
                     value={formatCurrency(metrics.revenue.current)}
@@ -437,9 +438,9 @@ export default function InsightsPage() {
                   />
                 </div>
 
-                {/* Financial Metrics - Mobile-first: 1 col -> 3 cols */}
+                {/* Financial Metrics - Mobile-first: 1 col -> 2 cols (tablet) -> 3 cols (desktop) */}
                 {!profitAnalysisLoading && profitAnalysis && (
-                  <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+                  <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                     <MetricCard
                       title={t('gross_profit')}
                       value={formatCurrency(profitAnalysis.profits.gross_profit_cents)}
@@ -506,8 +507,8 @@ export default function InsightsPage() {
                   <PlannedVsActualCard data={plannedVsActual} />
                 )}
 
-                {/* GRAFICOS PRINCIPALES - Mobile-first: stack on mobile */}
-                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+                {/* GRAFICOS PRINCIPALES - Mobile-first: stack on mobile, 2 cols on tablet+ */}
+                <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2">
                   <RevenueChart
                     data={charts.revenue}
                     title={t('revenue_vs_expenses')}
@@ -523,7 +524,7 @@ export default function InsightsPage() {
                 </div>
 
                 {/* Alertas y Actividad Reciente */}
-                <div className="grid gap-4 grid-cols-1">
+                <div className="grid gap-4 md:gap-6 grid-cols-1">
                   <RecentActivity
                     activities={activities}
                     title={t('recent_activity')}
@@ -569,8 +570,8 @@ export default function InsightsPage() {
               loading={acquisitionTrendsLoading}
             />
 
-            {/* Charts Grid - Mobile-first */}
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+            {/* Charts Grid - Mobile-first: stack on mobile, 2 cols on tablet+ */}
+            <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2">
               {/* Channel ROI */}
               <ChannelROIChart
                 data={(channelROIData?.channels || []).map(channel => ({

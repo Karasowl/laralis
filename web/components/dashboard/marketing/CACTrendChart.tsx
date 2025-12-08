@@ -30,7 +30,7 @@ export function CACTrendChart({ data, targetCAC, loading }: CACTrendChartProps) 
           <div className="h-4 bg-muted rounded w-64 animate-pulse mt-2" />
         </CardHeader>
         <CardContent>
-          <div className="h-80 bg-muted rounded animate-pulse" />
+          <div className="h-64 md:h-72 lg:h-80 bg-muted rounded animate-pulse" />
         </CardContent>
       </Card>
     )
@@ -47,7 +47,7 @@ export function CACTrendChart({ data, targetCAC, loading }: CACTrendChartProps) 
           <CardDescription>{t('cac_evolution_description')}</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col items-center justify-center h-80 text-muted-foreground">
+          <div className="flex flex-col items-center justify-center h-64 md:h-72 lg:h-80 text-muted-foreground">
             <DollarSign className="h-8 w-8 mb-2" />
             <p>{t('no_data')}</p>
           </div>
@@ -102,7 +102,7 @@ export function CACTrendChart({ data, targetCAC, loading }: CACTrendChartProps) 
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Chart */}
-        <div className="h-80">
+        <div className="h-64 md:h-72 lg:h-80">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
               <defs>
@@ -168,7 +168,7 @@ export function CACTrendChart({ data, targetCAC, loading }: CACTrendChartProps) 
         </div>
 
         {/* Statistics */}
-        <div className="grid grid-cols-3 gap-4 pt-4 border-t">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t">
           <div className="text-center">
             <p className="text-sm text-muted-foreground">{t('current_cac')}</p>
             <p className={`text-2xl font-bold ${trendStatus.iconColor}`}>
