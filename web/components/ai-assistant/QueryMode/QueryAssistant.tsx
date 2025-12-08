@@ -679,8 +679,8 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
                 className="text-xs sm:text-sm border rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 bg-background focus:outline-none focus:ring-2 focus:ring-primary max-w-[100px] sm:max-w-none"
                 disabled={isProcessing}
               >
-                <option value="kimi-k2-thinking">K2 Thinking</option>
-                <option value="moonshot-v1-32k">Moonshot v1</option>
+                <option value="kimi-k2-thinking">Razonamiento Profundo</option>
+                <option value="moonshot-v1-32k">Rápido</option>
               </select>
 
               {/* Minimize/Close Button */}
@@ -804,7 +804,7 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
                     </div>
                     <span className="text-sm text-muted-foreground">{t('analyzing')}</span>
                     <span className="text-xs px-2 py-0.5 bg-primary/10 dark:bg-primary/20 text-primary dark:text-primary/80 rounded-full">
-                      {selectedModel === 'kimi-k2-thinking' ? '🧠 K2' : '⚡ v1'}
+                      {selectedModel === 'kimi-k2-thinking' ? '🧠 Profundo' : '⚡ Rápido'}
                     </span>
                   </div>
                 </div>
