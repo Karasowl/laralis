@@ -7,7 +7,7 @@ This file tracks all changes to the database schema across versions.
 ## Version 4 (2025-12-06)
 
 **Status:** ✅ Current
-**Migration:** 50-54 (AI Assistant & Integrations)
+**Migration:** 50-55 (AI Assistant, Integrations & Refunds)
 **File:** [SCHEMA-v4-2025-12-06.md](schemas/SCHEMA-v4-2025-12-06.md)
 
 ### AI Assistant Tables & Google Calendar Integration
@@ -49,6 +49,17 @@ This version adds tables to support Lara AI assistant conversation persistence, 
 
 **`treatments`** (Migration 53)
 - ➕ Added `google_event_id` (text): Google Calendar event ID for sync
+
+**`treatments`** (Migration 55) - Refund Support
+- ➕ Added `is_refunded` (boolean, DEFAULT false): Whether treatment was refunded
+- ➕ Added `refunded_at` (timestamptz): When refund was processed
+- ➕ Added `refund_reason` (text): Explanation for refund
+- ➕ Added index `idx_treatments_is_refunded` for efficient querying
+
+**Financial Impact of Refunds:**
+- Revenue = $0 for refunded treatments (money returned to patient)
+- Costs are still incurred (materials used + professional time)
+- Loss = `variable_cost_cents + (fixed_cost_per_minute_cents × minutes)`
 
 #### Added Triggers
 

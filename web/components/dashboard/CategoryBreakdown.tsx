@@ -88,8 +88,8 @@ export function CategoryBreakdown({
         <CardTitle className="text-base sm:text-lg">{title}</CardTitle>
         <CardDescription className="text-xs sm:text-sm">{description}</CardDescription>
       </CardHeader>
-      <CardContent className="p-2 sm:p-6">
-        <ResponsiveContainer width="100%" height={250} className="sm:!h-[300px]">
+      <CardContent className="p-2 sm:p-4 lg:p-6">
+        <ResponsiveContainer width="100%" height={250} className="sm:!h-[260px] lg:!h-[300px]">
           <PieChart>
             <Pie
               data={data}

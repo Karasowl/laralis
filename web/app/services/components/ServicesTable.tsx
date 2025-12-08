@@ -83,15 +83,19 @@ export function ServicesTable({
   }, [services, searchValue, categoryLookup])
 
   // Desktop columns definition
+  // Responsive strategy for tablet (md: 768-1024px):
+  // - Essential columns (always visible): Name, Duration, Price, Actions
+  // - Hidden on tablet (lg:table-cell): Category, Base Cost, Discount
   const columns = [
     {
       key: 'name',
       label: tFields('name'),
+      className: 'min-w-[180px]',
       render: (_value: any, service: any) => (
         <div>
           <div className="font-medium">{service.name}</div>
           {service.description && (
-            <div className="text-sm text-muted-foreground">{service.description}</div>
+            <div className="text-sm text-muted-foreground line-clamp-1">{service.description}</div>
           )}
         </div>
       )
@@ -99,6 +103,7 @@ export function ServicesTable({
     {
       key: 'category',
       label: tFields('category'),
+      className: 'hidden lg:table-cell',
       render: (_value: any, service: any) => (
         <Badge variant="outline">
           {getCategoryLabel(service, categoryLookup, t('no_category'))}
@@ -108,6 +113,7 @@ export function ServicesTable({
     {
       key: 'est_minutes',
       label: tFields('duration'),
+      className: 'w-[100px]',
       render: (_value: any, service: any) => {
         const minutes = service?.est_minutes || service?.duration_minutes || 0;
         return (
@@ -121,6 +127,7 @@ export function ServicesTable({
     {
       key: 'total_cost_cents',
       label: t('base_cost'),
+      className: 'hidden lg:table-cell',
       render: (_value: any, service: any) => {
         const costBase = service?.total_cost_cents || 0;
         const fixedCost = service?.fixed_cost_cents || 0;
@@ -171,6 +178,7 @@ export function ServicesTable({
     {
       key: 'price_cents',
       label: t('price_with_margin'),
+      className: 'min-w-[120px]',
       render: (_value: any, service: any) => {
         const costBase = service?.total_cost_cents || 0;
         const configuredMarginPct = service?.margin_pct || 30;
@@ -291,6 +299,7 @@ export function ServicesTable({
     {
       key: 'discount_value',
       label: t('discount'),
+      className: 'hidden lg:table-cell',
       render: (_value: any, service: any) => {
         const hasDiscount = service?.discount_type && service.discount_type !== 'none';
 
@@ -318,6 +327,7 @@ export function ServicesTable({
       key: 'actions',
       label: tRoot('common.actions'),
       sortable: false,
+      className: 'w-[60px]',
       render: (_value: any, service: any) => {
         if (!service) return null;
 

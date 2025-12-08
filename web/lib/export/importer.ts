@@ -610,6 +610,12 @@ export class WorkspaceBundleImporter {
         margin_pct: treatment.margin_pct,
         price_cents: treatment.price_cents,
         tariff_version: treatment.tariff_version,
+        // Refund fields (Migration 55) - optional for backward compatibility
+        is_refunded: treatment.is_refunded ?? false,
+        refunded_at: treatment.refunded_at || null,
+        refund_reason: treatment.refund_reason || null,
+        // Google Calendar sync (Migration 54)
+        google_event_id: treatment.google_event_id || null,
       };
     }).filter(Boolean); // Remove nulls
 

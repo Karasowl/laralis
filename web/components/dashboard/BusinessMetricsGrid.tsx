@@ -68,7 +68,7 @@ export function BusinessMetricsGrid({
   }
 
   return (
-    <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-2 lg:grid-cols-4">
       {/* Ticket Promedio */}
       <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:scale-[1.01]">
         <div className="absolute top-0 right-0 w-24 h-24 bg-primary/10 rounded-full blur-2xl" />
