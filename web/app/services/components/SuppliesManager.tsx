@@ -2,9 +2,11 @@
 
 import React from 'react'
 import { Plus, Trash2 } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { InputField, SelectField } from '@/components/ui/form-field'
+import { InputField } from '@/components/ui/form-field'
+import { SelectWithCreate } from '@/components/ui/select-with-create'
 import { formatCurrency } from '@/lib/money'
 
 interface SuppliesManagerProps {
@@ -26,6 +28,8 @@ export function SuppliesManager({
   variableCost,
   t
 }: SuppliesManagerProps) {
+  const tSupplies = useTranslations('supplies')
+
   // PERFORMANCE FIX: Memoize supply options to avoid calling formatCurrency on every keystroke
   // This was the MAIN CAUSE of lag with 50+ supplies
   const supplyOptions = React.useMemo(
@@ -54,11 +58,13 @@ export function SuppliesManager({
         {serviceSupplies.map((ss: any, index: number) => (
           <div key={index} className="flex gap-2 items-center p-2 border rounded-lg">
             <div className="flex-1">
-              <SelectField
+              <SelectWithCreate
                 value={ss.supply_id}
-                onChange={(value) => onUpdate(index, 'supply_id', value)}
+                onValueChange={(value) => onUpdate(index, 'supply_id', value)}
                 options={supplyOptions}
                 placeholder={t('select_supply')}
+                searchPlaceholder={tSupplies('search_supply')}
+                emptyText={tSupplies('no_supplies_found')}
               />
             </div>
             <div className="w-24">
