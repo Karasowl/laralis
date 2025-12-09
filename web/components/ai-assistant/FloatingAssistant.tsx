@@ -9,6 +9,7 @@
 import { useState } from 'react'
 import { Mic, MessageSquare, FileEdit, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { useCurrentClinic } from '@/hooks/use-current-clinic'
 import { EntryAssistant } from './EntryMode/EntryAssistant'
 import { QueryAssistant } from './QueryMode/QueryAssistant'
 
@@ -16,10 +17,16 @@ type AssistantMode = 'entry' | 'query' | null
 
 export function FloatingAssistant() {
   const t = useTranslations('aiAssistant')
+  const { currentClinic, loading } = useCurrentClinic()
   const [isExpanded, setIsExpanded] = useState(false)
   const [activeMode, setActiveMode] = useState<AssistantMode>(null)
 
   const [sessionId, setSessionId] = useState<string | null>(null)
+
+  // Don't render on unauthenticated pages (no clinic = no auth)
+  if (loading || !currentClinic) {
+    return null
+  }
 
   const handleOpenMode = (mode: AssistantMode) => {
     setActiveMode(mode)
