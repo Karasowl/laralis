@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useTranslations } from 'next-intl'
 import { InputField, FormGrid, TextareaField, FormSection } from '@/components/ui/form-field'
 import { TouchRadioGroup } from '@/components/ui/mobile-form-advanced'
+import { SelectWithCreate } from '@/components/ui/select-with-create'
 import { Users, Megaphone, Globe } from 'lucide-react'
 
 interface PatientFormUnifiedProps {
@@ -26,6 +27,8 @@ export function PatientFormUnified({
   onCreateCampaign
 }: PatientFormUnifiedProps) {
   const tCommon = useTranslations('common')
+  const tPatients = useTranslations('patients')
+  const tMarketing = useTranslations('marketing')
   const [acquisitionType, setAcquisitionType] = useState<string>('')
   const [createCampaignMode, setCreateCampaignMode] = useState<boolean>(false)
   const [newCampaignName, setNewCampaignName] = useState('')
@@ -33,6 +36,26 @@ export function PatientFormUnified({
   const [creatingCampaign, setCreatingCampaign] = useState(false)
   const newCampaignNameRef = useRef<HTMLInputElement | null>(null)
   const activeCampaigns = Array.isArray(campaigns) ? campaigns.filter((c: any) => c?.is_active) : []
+
+  // Memoized options for SelectWithCreate components
+  const patientOptions = useMemo(() =>
+    patients.map((p: any) => ({
+      value: p.id,
+      label: `${p.first_name} ${p.last_name}`
+    })), [patients])
+
+  const campaignOptions = useMemo(() =>
+    activeCampaigns.map((c: any) => ({
+      value: c.id,
+      label: c.name
+    })), [activeCampaigns])
+
+  const platformOptions = useMemo(() =>
+    platforms.map((p: any) => ({
+      value: p.id,
+      label: p.display_name || p.name
+    })), [platforms])
+
   // Cambio de tipo de adquisición: limpia campos y muestra controles específicos
   const handleAcquisitionTypeChange = (value: string) => {
     setAcquisitionType(value)
@@ -226,19 +249,15 @@ export function PatientFormUnified({
                 <label className="text-sm font-medium">
                   {t('fields.campaign')} <span className="text-destructive">*</span>
                 </label>
-                <select
+                <SelectWithCreate
                   value={form.watch('campaign_id') || ''}
-                  onChange={(e) => form.setValue('campaign_id', e.target.value, { shouldDirty: true })}
-                  className={`w-full mt-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary ${
-                    form.formState.isSubmitted && !form.watch('campaign_id') ? 'border-destructive' : 'border-input'
-                  }`}
-                  required
-                >
-                  <option value="" disabled>{t('select_campaign')}</option>
-                  {activeCampaigns.map((c: any) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
+                  onValueChange={(value) => form.setValue('campaign_id', value, { shouldDirty: true })}
+                  options={campaignOptions}
+                  placeholder={t('select_campaign')}
+                  searchPlaceholder={tMarketing('search_campaign')}
+                  emptyText={tMarketing('no_campaigns_found')}
+                  className="mt-1"
+                />
                 {form.formState.isSubmitted && !form.watch('campaign_id') && (
                   <p className="text-sm text-destructive mt-1">{t('campaign_required')}</p>
                 )}
@@ -264,32 +283,30 @@ export function PatientFormUnified({
           {acquisitionType === 'referral' && (
             <div>
               <label className="text-sm font-medium">{t('fields.select_referrer')}</label>
-              <select
+              <SelectWithCreate
                 value={form.watch('referred_by_patient_id') || ''}
-                onChange={(e) => form.setValue('referred_by_patient_id', e.target.value)}
-                className="w-full mt-1 px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                <option value="">{t('select_referrer_patient')}</option>
-                {patients.map((p: any) => (
-                  <option key={p.id} value={p.id}>{`${p.first_name} ${p.last_name}`}</option>
-                ))}
-              </select>
+                onValueChange={(value) => form.setValue('referred_by_patient_id', value)}
+                options={patientOptions}
+                placeholder={t('select_referrer_patient')}
+                searchPlaceholder={tPatients('search_patient')}
+                emptyText={tPatients('no_patients_found')}
+                className="mt-1"
+              />
             </div>
           )}
 
           {acquisitionType === 'organic' && (
             <div>
               <label className="text-sm font-medium">{t('fields.platform')}</label>
-              <select
+              <SelectWithCreate
                 value={form.watch('platform_id') || ''}
-                onChange={(e) => form.setValue('platform_id', e.target.value)}
-                className="w-full mt-1 px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                <option value="">{t('select_platform')}</option>
-                {platforms.map((p: any) => (
-                  <option key={p.id} value={p.id}>{p.display_name || p.name}</option>
-                ))}
-              </select>
+                onValueChange={(value) => form.setValue('platform_id', value)}
+                options={platformOptions}
+                placeholder={t('select_platform')}
+                searchPlaceholder={tMarketing('search_platform')}
+                emptyText={tMarketing('no_platforms_found')}
+                className="mt-1"
+              />
             </div>
           )}
 

@@ -1217,7 +1217,9 @@
     "noSearchResults": "No results found",
     "tryDifferentSearch": "Try different search terms",
     "emptyTitle": "No supplies registered",
-    "listTitle": "Supplies List"
+    "listTitle": "Supplies List",
+    "search_supply": "Search supply...",
+    "no_supplies_found": "No supplies found"
   },
   "tariffs": {
     "title": "Pricing Tariff",
@@ -1665,7 +1667,11 @@
         "status": "Status",
         "dateRange": "Start Date",
         "patientsRange": "Patients"
-      }
+      },
+      "search_campaign": "Search campaign...",
+      "no_campaigns_found": "No campaigns found",
+      "search_platform": "Search platform...",
+      "no_platforms_found": "No platforms found"
     },
     "calendar": {
       "cardTitle": "Google Calendar",
@@ -2124,6 +2130,8 @@
     },
     "searchPlaceholder": "Search by name or email...",
     "search_patients": "Search patients...",
+    "search_patient": "Search patient...",
+    "no_patients_found": "No patients found",
     "no_patients": "No patients",
     "no_patients_description": "Add your first patient to get started",
     "addPatient": "Add Patient",
@@ -2865,6 +2873,8 @@
     "select_category": "Select category",
     "select_subcategory": "Select subcategory",
     "select_supply": "Select supply",
+    "search_supply": "Search supply...",
+    "no_supplies_found": "No supplies found",
     "search_placeholder": "Search expenses...",
     "search_expenses": "Search expenses...",
     "filter_by_category": "Filter by category",

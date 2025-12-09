@@ -18,6 +18,7 @@ import {
   FormGrid,
   FormSection,
 } from '@/components/ui/form-field'
+import { SelectWithCreate } from '@/components/ui/select-with-create'
 import {
   ExpenseFormData,
   EXPENSE_SUBCATEGORIES
@@ -280,14 +281,20 @@ export function CreateExpenseForm({
                 control={form.control}
                 name="related_supply_id"
                 render={({ field, fieldState }) => (
-                  <SelectField
-                    label={tFields('supply')}
-                    placeholder={t('select_supply')}
-                    value={field.value || ''}
-                    onChange={field.onChange}
-                    options={supplyOptions}
-                    error={fieldState.error?.message}
-                  />
+                  <div className="space-y-1">
+                    <label className="text-xs sm:text-sm font-medium">{tFields('supply')}</label>
+                    <SelectWithCreate
+                      value={field.value || ''}
+                      onValueChange={field.onChange}
+                      options={supplyOptions}
+                      placeholder={t('select_supply')}
+                      searchPlaceholder={t('search_supply')}
+                      emptyText={t('no_supplies_found')}
+                    />
+                    {fieldState.error?.message && (
+                      <p className="text-sm text-destructive">{fieldState.error.message}</p>
+                    )}
+                  </div>
                 )}
               />
 

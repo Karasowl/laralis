@@ -1214,6 +1214,8 @@
     "emptyForClinic": "No se encontraron insumos para esta clínica",
     "presentationPlaceholder": "ej., Caja de 50",
     "searchPlaceholder": "Buscar por nombre...",
+    "search_supply": "Buscar insumo...",
+    "no_supplies_found": "No se encontraron insumos",
     "totalSupplies": "Total de Insumos",
     "totalValue": "Valor Total",
     "avgPricePerPortion": "Precio Promedio/Porción",
@@ -1844,7 +1846,11 @@
         "status": "Estado",
         "dateRange": "Fecha de inicio",
         "patientsRange": "Pacientes"
-      }
+      },
+      "search_campaign": "Buscar campaña...",
+      "no_campaigns_found": "No se encontraron campañas",
+      "search_platform": "Buscar plataforma...",
+      "no_platforms_found": "No se encontraron plataformas"
     },
     "calendar": {
       "cardTitle": "Google Calendar",
@@ -2280,6 +2286,8 @@
     },
     "searchPlaceholder": "Buscar por nombre o email...",
     "search_patients": "Buscar pacientes...",
+    "search_patient": "Buscar paciente...",
+    "no_patients_found": "No se encontraron pacientes",
     "no_patients": "No hay pacientes",
     "no_patients_description": "Agrega tu primer paciente para comenzar",
     "addPatient": "Agregar Paciente",
@@ -2792,7 +2800,11 @@
       "archive": "Archivar",
       "unarchive": "Desarchivar",
       "archived": "Archivada",
-      "live": "Vigente"
+      "live": "Vigente",
+      "search_campaign": "Buscar campaña...",
+      "no_campaigns_found": "No se encontraron campañas",
+      "search_platform": "Buscar plataforma...",
+      "no_platforms_found": "No se encontraron plataformas"
     },
     "fixedCostsDesc": "Gastos mensuales recurrentes",
     "timeDesc": "Días laborales y horas efectivas",
@@ -2937,6 +2949,8 @@
       "maintenance": "Mantenimiento",
       "other": "Otro"
     },
+    "search_supply": "Buscar insumo...",
+    "no_supplies_found": "No se encontraron insumos",
     "placeholders": {
       "description": "Describe el gasto...",
       "vendor": "Nombre del proveedor",
