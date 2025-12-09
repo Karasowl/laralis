@@ -214,6 +214,30 @@ export const TextareaField = React.memo(
   }: TextareaFieldProps, ref) {
     const fieldId = id || label?.toLowerCase().replace(/\s+/g, '-');
 
+    // FIX: Only pass value prop if explicitly provided (not undefined)
+    // This allows react-hook-form's register() to work properly on mobile
+    // When using {...form.register('field')}, value is managed internally
+    const textareaProps: React.ComponentProps<typeof Textarea> = {
+      ref,
+      id: fieldId,
+      name,
+      onChange,
+      onBlur,
+      placeholder,
+      disabled,
+      rows,
+      className: cn(
+        'mt-1',
+        error && 'border-destructive focus:ring-destructive',
+        className
+      ),
+    };
+
+    // Only add value prop if explicitly provided (controlled mode)
+    if (value !== undefined) {
+      textareaProps.value = value;
+    }
+
     return (
       <div className={cn('space-y-1', containerClassName)}>
         {label && (
@@ -222,22 +246,7 @@ export const TextareaField = React.memo(
             {required && <span className="text-destructive ml-1">*</span>}
           </Label>
         )}
-        <Textarea
-          ref={ref}
-          id={fieldId}
-          name={name}
-          value={value ?? ''}
-          onChange={onChange}
-          onBlur={onBlur}
-          placeholder={placeholder}
-          disabled={disabled}
-          rows={rows}
-          className={cn(
-            'mt-1',
-            error && 'border-destructive focus:ring-destructive',
-            className
-          )}
-        />
+        <Textarea {...textareaProps} />
         {error && (
           <p className="text-sm text-destructive mt-1">{error}</p>
         )}
