@@ -82,10 +82,12 @@ const MobileModalContent = React.forwardRef<
           "sm:inset-auto sm:left-[50%] sm:top-[50%] sm:max-h-[90vh] sm:w-full sm:max-w-lg sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-2xl sm:border sm:data-[state=closed]:fade-out-0 sm:data-[state=open]:fade-in-0 sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:zoom-in-95 sm:data-[state=closed]:slide-out-to-left-1/2 sm:data-[state=closed]:slide-out-to-top-[48%] sm:data-[state=open]:slide-in-from-left-1/2 sm:data-[state=open]:slide-in-from-top-[48%]",
           className
         )}
-        // Manage focus explicitly to avoid aria-hidden/focus conflicts
-        tabIndex={-1}
-        // Dejar que Radix enfoque el primer elemento disponible evita el warning
-        // de aria-hidden sobre elementos con foco oculto.
+        // FIX: Prevent Radix focus trap from blocking mobile input focus
+        // See: https://github.com/radix-ui/primitives/issues/922
+        onOpenAutoFocus={(e) => {
+          // Prevent auto-focus on open to allow manual touch focus on mobile
+          e.preventDefault()
+        }}
         onCloseAutoFocus={(e) => {
           // Avoid unexpected scroll jumps when closing
           e.preventDefault()
