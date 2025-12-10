@@ -213,14 +213,14 @@ ${contextSection}
 
 **Name**: ${clinic.name || 'Dental Clinic'}
 **Work Schedule**:
-- ${clinic.time_settings?.work_days_per_month || 22} days/month
+- ${clinic.time_settings?.work_days || 20} days/month
 - ${clinic.time_settings?.hours_per_day || 8} hours/day
 - ${clinic.time_settings?.real_productivity_pct || 80}% productive time
 - **Available treatment minutes**: ${clinic.time_settings?.available_treatment_minutes || 0} min/month
 
 **How these are calculated**:
 \`\`\`
-Total minutes = ${clinic.time_settings?.work_days_per_month || 22} days * ${clinic.time_settings?.hours_per_day || 8} hours * 60 = ${(clinic.time_settings?.work_days_per_month || 22) * (clinic.time_settings?.hours_per_day || 8) * 60} min/month
+Total minutes = ${clinic.time_settings?.work_days || 20} days * ${clinic.time_settings?.hours_per_day || 8} hours * 60 = ${(clinic.time_settings?.work_days || 20) * (clinic.time_settings?.hours_per_day || 8) * 60} min/month
 Effective minutes = Total * (${clinic.time_settings?.real_productivity_pct || 80}% / 100) = ${clinic.time_settings?.available_treatment_minutes || 0} min/month
 Fixed cost per minute = Total Fixed Costs / Effective minutes = ${fmt((fixedCosts.monthly_total_cents || 0) + (assets.monthly_depreciation_cents || 0))} / ${clinic.time_settings?.available_treatment_minutes || 0} = ${fmt(Math.round(((fixedCosts.monthly_total_cents || 0) + (assets.monthly_depreciation_cents || 0)) / (clinic.time_settings?.available_treatment_minutes || 1)))} per minute
 \`\`\`

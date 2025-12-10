@@ -113,7 +113,7 @@ export function DateFilterBar({
               </label>
               <input
                 type="date"
-                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="w-full h-10 px-3 pr-10 rounded-md border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 value={customRange?.from || ''}
                 onChange={(e) => handleCustomFromChange(e.target.value)}
               />
@@ -124,7 +124,7 @@ export function DateFilterBar({
               </label>
               <input
                 type="date"
-                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="w-full h-10 px-3 pr-10 rounded-md border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 value={customRange?.to || ''}
                 onChange={(e) => handleCustomToChange(e.target.value)}
               />

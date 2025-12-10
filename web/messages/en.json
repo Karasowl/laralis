@@ -523,7 +523,9 @@
       "treatments": "Treatments",
       "appointments": "Appointments",
       "supplies": "Supplies",
-      "services": "Services"
+      "services": "Services",
+      "attended": "Attended",
+      "attendedPatients": "Patients attended"
     },
     "charts": {
       "revenue": "Revenue Evolution",
@@ -761,6 +763,28 @@
       "onTrack": "On track with planned",
       "varianceByCategory": "Variance by category",
       "noData": "No planned costs or actual expenses data to compare"
+    },
+    "metricTooltips": {
+      "grossProfit": {
+        "formula": "Revenue - Variable Costs",
+        "explanation": "Profit after paying for materials and supplies. Does not include fixed costs like rent or salaries."
+      },
+      "netProfit": {
+        "formula": "Gross Profit - Fixed Costs",
+        "explanation": "Your actual profit after all expenses. This is what you keep."
+      },
+      "ebitda": {
+        "formula": "Operating Profit + Depreciation",
+        "explanation": "Earnings before interest, taxes, depreciation and amortization. Shows operational performance."
+      },
+      "roi": {
+        "formula": "(Profit / Cost) × 100",
+        "explanation": "Return on investment. Shows how much you earn for each peso invested in this service."
+      },
+      "avgTicket": {
+        "formula": "Total Revenue / Number of Treatments",
+        "explanation": "Average amount earned per treatment or visit."
+      }
     }
   },
   "onboarding": {
@@ -3382,7 +3406,11 @@
       "noRevenueYet": "No revenue recorded yet",
       "noRevenueHelp": "You have {remaining} working days left to reach your goal. Start recording treatments to see your real progress.",
       "collapse": "Collapse",
-      "expand": "Expand"
+      "expand": "Expand",
+      "breakEvenMarker": "Break-even point",
+      "toBreakEven": "To break-even",
+      "current": "Current",
+      "toGoal": "To goal"
     },
     "businessMetrics": {
       "avgTicket": "Average Ticket",
@@ -3403,7 +3431,9 @@
       "title": "Recent Activity",
       "description": "Latest actions in your clinic",
       "noActivity": "No recent activity",
-      "justNow": "just now"
+      "justNow": "just now",
+      "showMore": "Show {count} more",
+      "showLess": "Show less"
     },
     "dateFilter": {
       "selectPeriod": "Select period",

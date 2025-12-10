@@ -1,6 +1,7 @@
 'use client'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { formatCurrency } from '@/lib/format'
 import { formatDistanceToNow } from 'date-fns'
@@ -8,6 +9,7 @@ import { es, enUS } from 'date-fns/locale'
 import { User, Package, DollarSign, Calendar, Activity } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useLocale } from 'next-intl'
+import { useState } from 'react'
 
 export interface ActivityItem {
   id: string
@@ -23,13 +25,16 @@ interface RecentActivityProps {
   activities: ActivityItem[]
   title?: string
   description?: string
+  collapsedLimit?: number
 }
 
 export function RecentActivity({
   activities,
   title,
-  description
+  description,
+  collapsedLimit = 3
 }: RecentActivityProps) {
+  const [isExpanded, setIsExpanded] = useState(false)
   const t = useTranslations('dashboardComponents.recentActivity')
   const locale = useLocale()
   const dateLocale = locale === 'es' ? es : enUS
@@ -65,6 +70,12 @@ export function RecentActivity({
     }
   }
 
+  const visibleActivities = isExpanded
+    ? activities
+    : activities.slice(0, collapsedLimit)
+
+  const hasMore = activities.length > collapsedLimit
+
   return (
     <Card className="transition-all duration-200 hover:shadow-lg">
       <CardHeader>
@@ -78,10 +89,10 @@ export function RecentActivity({
               {t('noActivity')}
             </p>
           ) : (
-            activities.map((activity) => {
+            visibleActivities.map((activity) => {
               const Icon = getActivityIcon(activity.type)
               const colorClass = getActivityColor(activity.type)
-              
+
               return (
                 <div key={activity.id} className="flex items-start space-x-3 p-2 -mx-2 rounded-lg transition-all duration-200 hover:bg-muted/50 hover:shadow-sm">
                   <div className={`p-2 rounded-lg ${colorClass}`}>
@@ -118,6 +129,20 @@ export function RecentActivity({
             })
           )}
         </div>
+
+        {hasMore && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="w-full mt-3 text-muted-foreground"
+          >
+            {isExpanded
+              ? t('showLess')
+              : t('showMore', { count: activities.length - collapsedLimit })
+            }
+          </Button>
+        )}
       </CardContent>
     </Card>
   )

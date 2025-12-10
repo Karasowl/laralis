@@ -40,7 +40,7 @@ export function useCampaignROI(options: UseCampaignROIOptions = {}) {
   const { currentClinic } = useCurrentClinic();
   const clinicId = options.clinicId || currentClinic?.id;
 
-  // Construir query params
+  // Construir query params solo si hay clinicId
   const params = new URLSearchParams();
   if (clinicId) {
     params.append('clinicId', clinicId);
@@ -52,9 +52,14 @@ export function useCampaignROI(options: UseCampaignROIOptions = {}) {
     params.append('platformId', options.platformId);
   }
 
-  const endpoint = `/api/marketing/campaigns/roi?${params.toString()}`;
+  // Solo construir endpoint si hay clinicId válido
+  const endpoint = clinicId
+    ? `/api/marketing/campaigns/roi?${params.toString()}`
+    : null;
 
-  const { data, loading, error, execute } = useApi<CampaignROIResponse>(endpoint);
+  const { data, loading, error, execute } = useApi<CampaignROIResponse>(endpoint, {
+    autoFetch: Boolean(clinicId),
+  });
 
   return {
     campaigns: data?.data || [],

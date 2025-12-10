@@ -14,7 +14,9 @@ export const dynamic = 'force-dynamic'
  *
  * Query params:
  * - clinicId: UUID (opcional, se obtiene del contexto)
- * - months: number (meses hacia atrás, default: 12)
+ * - months: number (meses hacia atrás, default: 12) - usado si no hay startDate/endDate
+ * - startDate: YYYY-MM-DD (opcional, fecha de inicio del rango)
+ * - endDate: YYYY-MM-DD (opcional, fecha de fin del rango)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -35,17 +37,39 @@ export async function GET(request: NextRequest) {
     }
 
     const { clinicId } = ctx
+    const startDateParam = searchParams.get('startDate')
+    const endDateParam = searchParams.get('endDate')
     const months = parseInt(searchParams.get('months') || '12', 10)
 
-    console.log('[cac-trend] Fetching for clinic:', clinicId, 'months:', months)
+    // Determinar rango de fechas
+    let rangeStart: Date
+    let rangeEnd: Date
 
-    // Calcular rangos de fechas para cada mes
+    if (startDateParam && endDateParam) {
+      // Usar fechas específicas
+      rangeStart = new Date(startDateParam)
+      rangeEnd = new Date(endDateParam)
+      console.log('[cac-trend] Using date range:', startDateParam, 'to', endDateParam)
+    } else {
+      // Fallback a months
+      rangeEnd = new Date()
+      rangeStart = new Date()
+      rangeStart.setMonth(rangeStart.getMonth() - months)
+      console.log('[cac-trend] Using months:', months)
+    }
+
+    console.log('[cac-trend] Fetching for clinic:', clinicId)
+
+    // Calcular rangos de fechas para cada mes dentro del rango
     const monthRanges: Array<{ start: string; end: string; label: string }> = []
-    const now = new Date()
 
-    for (let i = months - 1; i >= 0; i--) {
-      const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1)
-      const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0)
+    // Empezar desde el primer día del mes de rangeStart
+    const currentMonth = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1)
+    const endMonth = new Date(rangeEnd.getFullYear(), rangeEnd.getMonth(), 1)
+
+    while (currentMonth <= endMonth) {
+      const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1)
+      const monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0)
 
       monthRanges.push({
         start: monthStart.toISOString().split('T')[0],
@@ -55,6 +79,8 @@ export async function GET(request: NextRequest) {
           month: 'short'
         })
       })
+
+      currentMonth.setMonth(currentMonth.getMonth() + 1)
     }
 
     // Obtener gastos de marketing agrupados por mes
@@ -131,7 +157,7 @@ export async function GET(request: NextRequest) {
     console.log('[cac-trend] Current CAC:', currentCAC)
 
     return NextResponse.json({
-      months,
+      months: monthRanges.length, // Número real de meses en el rango
       trend: cacByMonth,
       summary: {
         currentCACCents: currentCAC,

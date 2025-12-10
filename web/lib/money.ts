@@ -151,6 +151,78 @@ export function parseMoney(value: string | number): number {
 }
 
 /**
+ * Formats currency in compact form for chart axes
+ * Uses localized abbreviations: "mil" for Spanish, "K" for English
+ * @param cents Amount in cents
+ * @param locale Locale for formatting (default 'es-MX')
+ * @returns Compact formatted currency string
+ */
+export function formatCompactCurrency(
+  cents: number,
+  locale: string = 'es-MX'
+): string {
+  const pesos = centsToPesos(cents);
+  const isSpanish = locale.startsWith('es');
+
+  if (Math.abs(pesos) >= 1000000) {
+    // Millions
+    const millions = pesos / 1000000;
+    return `$${millions.toFixed(1)}M`;
+  }
+
+  if (Math.abs(pesos) >= 10000) {
+    // Thousands (show abbreviated)
+    const thousands = pesos / 1000;
+    if (isSpanish) {
+      return `$${thousands.toFixed(0)} mil`;
+    }
+    return `$${thousands.toFixed(0)}K`;
+  }
+
+  if (Math.abs(pesos) >= 1000) {
+    // Small thousands (show with K/mil)
+    const thousands = pesos / 1000;
+    if (isSpanish) {
+      return `$${thousands.toFixed(1)} mil`;
+    }
+    return `$${thousands.toFixed(1)}K`;
+  }
+
+  // Small values - show full
+  return `$${pesos.toFixed(0)}`;
+}
+
+/**
+ * Formats currency for chart axes (value is already in pesos, not cents)
+ * Uses localized abbreviations: "mil" for Spanish, "K" for English
+ * @param pesos Amount in pesos (not cents)
+ * @param locale Locale for formatting (default 'es-MX')
+ * @returns Compact formatted currency string
+ */
+export function formatChartAxis(
+  pesos: number,
+  locale: string = 'es-MX'
+): string {
+  const isSpanish = locale.startsWith('es');
+
+  if (Math.abs(pesos) >= 1000000) {
+    return `$${(pesos / 1000000).toFixed(1)}M`;
+  }
+
+  if (Math.abs(pesos) >= 10000) {
+    const thousands = pesos / 1000;
+    return isSpanish ? `$${thousands.toFixed(0)} mil` : `$${thousands.toFixed(0)}K`;
+  }
+
+  if (Math.abs(pesos) >= 1000) {
+    const thousands = pesos / 1000;
+    return isSpanish ? `$${thousands.toFixed(1)} mil` : `$${thousands.toFixed(1)}K`;
+  }
+
+  return `$${pesos.toFixed(0)}`;
+}
+
+/**
  * Applies clinic price rounding configuration to a price in cents
  * @param priceCents Price in cents to round
  * @param roundingPesos Rounding value in pesos (e.g., 10 rounds to $10, $20, $30)

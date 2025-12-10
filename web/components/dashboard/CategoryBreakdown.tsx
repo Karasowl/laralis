@@ -89,7 +89,7 @@ export function CategoryBreakdown({
         <CardDescription className="text-xs sm:text-sm">{description}</CardDescription>
       </CardHeader>
       <CardContent className="p-2 sm:p-4 lg:p-6">
-        <ResponsiveContainer width="100%" height={250} className="sm:!h-[260px] lg:!h-[300px]">
+        <ResponsiveContainer width="100%" height={280}>
           <PieChart>
             <Pie
               data={data}
@@ -97,7 +97,7 @@ export function CategoryBreakdown({
               cy="50%"
               labelLine={false}
               label={CustomLabel}
-              outerRadius={100}
+              outerRadius="65%"
               fill="#8884d8"
               dataKey="value"
             >
@@ -110,9 +110,14 @@ export function CategoryBreakdown({
             </Pie>
             <Tooltip content={<CustomTooltip />} />
             <Legend
+              layout="horizontal"
               verticalAlign="bottom"
-              height={36}
-              wrapperStyle={{ fontSize: '12px', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '4px' }}
+              height={60}
+              wrapperStyle={{
+                paddingTop: '8px',
+                fontSize: '11px',
+                lineHeight: '1.4'
+              }}
             />
           </PieChart>
         </ResponsiveContainer>

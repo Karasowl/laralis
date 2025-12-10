@@ -1,4 +1,5 @@
 import { useApi } from './use-api'
+import { useCurrentClinic } from './use-current-clinic'
 
 interface MonthlyData {
   month: string
@@ -14,18 +15,26 @@ interface UseAcquisitionTrendsOptions {
   clinicId?: string
   months?: number
   projectionMonths?: number
+  startDate?: string
+  endDate?: string
 }
 
-export function useAcquisitionTrends({
-  clinicId,
-  months = 12,
-  projectionMonths = 3
-}: UseAcquisitionTrendsOptions = {}) {
-  const params = new URLSearchParams()
+export function useAcquisitionTrends(options: UseAcquisitionTrendsOptions = {}) {
+  const { currentClinic } = useCurrentClinic()
+  const clinicId = options.clinicId || currentClinic?.id
+  const { months = 12, projectionMonths = 3, startDate, endDate } = options
 
-  if (clinicId) params.append('clinicId', clinicId)
-  if (months) params.append('months', months.toString())
-  if (projectionMonths) params.append('projectionMonths', projectionMonths.toString())
+  const params = new URLSearchParams()
+  if (clinicId) params.set('clinicId', clinicId)
+  params.set('projectionMonths', projectionMonths.toString())
+
+  // Prefer startDate/endDate over months
+  if (startDate && endDate) {
+    params.set('startDate', startDate)
+    params.set('endDate', endDate)
+  } else {
+    params.set('months', months.toString())
+  }
 
   const endpoint = clinicId
     ? `/api/analytics/acquisition-trends?${params.toString()}`

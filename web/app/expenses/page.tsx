@@ -1,69 +1,41 @@
 'use client'
 
-import { useEffect, useMemo, useState, useCallback } from 'react'
-import { useTranslations, useLocale } from 'next-intl'
-import { useForm, Controller } from 'react-hook-form'
+import React, { useEffect, useMemo, useState, useCallback } from 'react'
+import { useTranslations } from 'next-intl'
+import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import {
-  Plus,
-  Receipt,
-  TrendingUp,
-  AlertTriangle,
-  ShoppingCart,
-  CalendarRange,
-  Info,
-} from 'lucide-react'
+import { Plus, Receipt, TrendingUp, AlertTriangle, CalendarRange, Info } from 'lucide-react'
 
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/button'
 import { SummaryCards } from '@/components/ui/summary-cards'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { FormModal } from '@/components/ui/form-modal'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { DataTable, type Column } from '@/components/ui/DataTable'
-import { InputField, SelectField, FormGrid, FormSection } from '@/components/ui/form-field'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Progress } from '@/components/ui/progress'
-import { ActionDropdown, createDeleteAction, createEditAction } from '@/components/ui/ActionDropdown'
+import { DataTable } from '@/components/ui/DataTable'
 import { useExpenses } from '@/hooks/use-expenses'
-import { useApi } from '@/hooks/use-api'
-import { useCategories } from '@/hooks/use-categories'
-import { useCampaigns } from '@/hooks/use-campaigns'
-import {
-  expenseFormSchema,
-  type ExpenseFormData,
-  EXPENSE_CATEGORIES,
-  EXPENSE_SUBCATEGORIES,
-  ALL_EXPENSE_CATEGORIES,
-  VARIABLE_EXPENSE_CATEGORIES,
-  FIXED_EXPENSE_CATEGORIES,
-  type ExpenseWithRelations,
-  type ExpenseFilters,
-} from '@/lib/types/expenses'
+import { expenseFormSchema, type ExpenseFormData, type ExpenseWithRelations } from '@/lib/types/expenses'
 import { formatCurrency } from '@/lib/money'
-import { formatDate } from '@/lib/format'
-import { getLocalDateISO } from '@/lib/utils'
 import { useFilteredSummary } from '@/hooks/use-filtered-summary'
 import { expenseSummaryConfig } from '@/lib/calc/summary-configs'
 
-type ExpenseFormValues = ExpenseFormData
-
-interface Option {
-  value: string
-  label: string
-}
-
-type BudgetAlertSeverity = 'high' | 'medium' | 'low'
+import {
+  ExpenseForm,
+  ExpenseFiltersCard,
+  ExpenseSmartFilters,
+  ExpenseAlertsCard,
+  ExpenseCharts,
+  useExpenseColumns,
+  useExpenseOptions,
+  getDefaultFormValues,
+  mapExpenseToFormValues,
+} from './components'
 
 export default function ExpensesPage() {
   const t = useTranslations('expenses')
   const tCommon = useTranslations('common')
-  const locale = useLocale()
 
   const {
     expenses,
@@ -81,19 +53,20 @@ export default function ExpensesPage() {
     clinicId,
   } = useExpenses()
 
-  const { categories: expenseCategories } = useCategories('expenses')
-  const { campaigns } = useCampaigns({ activeOnly: true })
-
-  const suppliesEndpoint = clinicId ? `/api/supplies?clinicId=${clinicId}&limit=200` : null
-  const suppliesApi = useApi<{ data: Array<{ id: string; name: string; category?: string }> }>(suppliesEndpoint, {
-    autoFetch: Boolean(clinicId),
-  })
+  // Get all options from hook
+  const {
+    categoryOptions,
+    subcategoryOptions,
+    getSubcategoriesForCategory,
+    supplyOptions,
+    campaignOptions,
+    fixedCostOptions,
+  } = useExpenseOptions({ clinicId })
 
   const [createOpen, setCreateOpen] = useState(false)
   const [editExpense, setEditExpense] = useState<ExpenseWithRelations | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ExpenseWithRelations | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
-
   const [amountMinInput, setAmountMinInput] = useState<number | ''>('')
   const [amountMaxInput, setAmountMaxInput] = useState<number | ''>('')
 
@@ -102,157 +75,82 @@ export default function ExpensesPage() {
     setAmountMaxInput(typeof filters.max_amount === 'number' ? Number(filters.max_amount / 100) : '')
   }, [filters.min_amount, filters.max_amount])
 
-  const createForm = useForm<ExpenseFormValues>({
+  const createForm = useForm<ExpenseFormData>({
     resolver: zodResolver(expenseFormSchema),
     defaultValues: getDefaultFormValues(),
-    mode: 'onBlur', // PERFORMANCE: Validate only on blur
+    mode: 'onBlur',
   })
 
-  const editForm = useForm<ExpenseFormValues>({
+  const editForm = useForm<ExpenseFormData>({
     resolver: zodResolver(expenseFormSchema),
     defaultValues: getDefaultFormValues(),
-    mode: 'onBlur', // PERFORMANCE: Validate only on blur
+    mode: 'onBlur',
   })
 
-  // Calculate parent categories (for dropdowns)
-  const parentCategories = useMemo(
-    () => (expenseCategories || []).filter((c: any) => !c.parent_id),
-    [expenseCategories]
-  )
+  // Modal handlers
+  const openCreateModal = useCallback(() => {
+    createForm.reset(getDefaultFormValues())
+    setCreateOpen(true)
+  }, [createForm])
 
-  // Category options for filters and forms
-  const categoryOptions: Option[] = useMemo(() => {
-    const base: Option[] = [
-      { value: 'all', label: t('filters.categoryAll') },
-    ]
+  const openEditModal = useCallback((expense: ExpenseWithRelations) => {
+    setEditExpense(expense)
+    editForm.reset(mapExpenseToFormValues(expense))
+  }, [editForm])
 
-    const entries = parentCategories.map((c: any) => ({
-      value: c.display_name || c.name,
-      label: c.display_name || c.name,
-    }))
+  const closeEditModal = useCallback(() => {
+    setEditExpense(null)
+    editForm.reset(mapExpenseToFormValues(undefined))
+  }, [editForm])
 
-    return [...base, ...entries]
-  }, [parentCategories, t])
+  // Use columns hook
+  const { columns, mobileColumns, getCategoryLabel } = useExpenseColumns({
+    onEdit: openEditModal,
+    onDelete: setDeleteTarget,
+  })
 
-  // Subcategory options for filters (all subcategories)
-  const subcategoryOptions: Option[] = useMemo(() => {
-    const base: Option[] = [
-      { value: 'all', label: t('filters.subcategoryAll') },
-    ]
-
-    const subcats = (expenseCategories || []).filter((c: any) => c.parent_id)
-    const entries = subcats.map((c: any) => ({
-      value: c.display_name || c.name,
-      label: c.display_name || c.name,
-    }))
-
-    return [...base, ...entries]
-  }, [expenseCategories, t])
-
-  // Dynamic subcategory options based on selected category in forms
-  const getSubcategoriesForCategory = useCallback((categoryName: string) => {
-    if (!categoryName) return []
-
-    const selectedParent = parentCategories.find(
-      (c: any) => (c.display_name || c.name) === categoryName
-    )
-
-    if (!selectedParent) return []
-
-    const subcats = (expenseCategories || []).filter(
-      (c: any) => c.parent_id === selectedParent.id
-    )
-
-    return subcats.map((c: any) => ({
-      value: c.display_name || c.name,
-      label: c.display_name || c.name,
-    }))
-  }, [parentCategories, expenseCategories])
-
-  const supplyOptions: Option[] = useMemo(() => {
-    const data = suppliesApi.data?.data || []
-    return [
-      { value: 'none', label: t('form.fields.relatedSupplyNone') },
-      ...data.map((item) => ({ value: item.id, label: item.name })),
-    ]
-  }, [suppliesApi.data, t])
-
-  const campaignOptions: Option[] = useMemo(() => {
-    return [
-      { value: 'none', label: t('form.fields.noCampaign') },
-      ...campaigns.map((campaign) => ({
-        value: campaign.id,
-        label: campaign.platform?.display_name
-          ? `${campaign.name} (${campaign.platform.display_name})`
-          : campaign.name,
-      })),
-    ]
-  }, [campaigns, t])
-
-  const handleMinAmountChange = (value: string | number) => {
-    if (value === '' || value === null) {
+  // Filter handlers
+  const handleMinAmountChange = useCallback((value: string | number | React.ChangeEvent<HTMLInputElement>) => {
+    const v = typeof value === 'object' && 'target' in value ? value.target.value : value
+    if (v === '' || v === null) {
       setAmountMinInput('')
       setFilters({ min_amount: undefined })
       return
     }
-    const numeric = Number(value)
+    const numeric = Number(v)
     setAmountMinInput(Number.isFinite(numeric) ? numeric : '')
     if (Number.isFinite(numeric)) {
       setFilters({ min_amount: Math.round(numeric * 100) })
     }
-  }
+  }, [setFilters])
 
-  const handleMaxAmountChange = (value: string | number) => {
-    if (value === '' || value === null) {
+  const handleMaxAmountChange = useCallback((value: string | number | React.ChangeEvent<HTMLInputElement>) => {
+    const v = typeof value === 'object' && 'target' in value ? value.target.value : value
+    if (v === '' || v === null) {
       setAmountMaxInput('')
       setFilters({ max_amount: undefined })
       return
     }
-    const numeric = Number(value)
+    const numeric = Number(v)
     setAmountMaxInput(Number.isFinite(numeric) ? numeric : '')
     if (Number.isFinite(numeric)) {
       setFilters({ max_amount: Math.round(numeric * 100) })
     }
-  }
+  }, [setFilters])
 
-  const handleSelectFilter = (field: keyof ExpenseFilters, value: string) => {
-    if (value === 'all') {
-      setFilters({ [field]: undefined })
-      return
-    }
-    setFilters({ [field]: value })
-  }
+  const handleSelectFilter = useCallback((field: string, value: string) => {
+    setFilters({ [field]: value === 'all' ? undefined : value })
+  }, [setFilters])
 
-  const handleBooleanFilter = (field: keyof ExpenseFilters, value: string) => {
-    if (value === 'any') {
-      setFilters({ [field]: undefined })
-      return
-    }
-    setFilters({ [field]: value === 'true' })
-  }
-
-  const openCreateModal = () => {
-    createForm.reset(getDefaultFormValues())
-    setCreateOpen(true)
-  }
-
-  const openEditModal = (expense: ExpenseWithRelations) => {
-    setEditExpense(expense)
-    editForm.reset(mapExpenseToFormValues(expense))
-  }
-
-  const closeEditModal = () => {
-    setEditExpense(null)
-    editForm.reset(mapExpenseToFormValues(undefined))
-  }
+  const handleBooleanFilter = useCallback((field: string, value: string) => {
+    setFilters({ [field]: value === 'any' ? undefined : value === 'true' })
+  }, [setFilters])
 
   const deleteExpenseConfirmed = async () => {
     if (!deleteTarget) return
     setDeleteLoading(true)
     const success = await deleteExpense(deleteTarget.id)
-    if (success) {
-      setDeleteTarget(null)
-    }
+    if (success) setDeleteTarget(null)
     setDeleteLoading(false)
   }
 
@@ -267,182 +165,35 @@ export default function ExpensesPage() {
   const handleEditSubmit = editForm.handleSubmit(async (values) => {
     if (!editExpense) return
     const success = await updateExpense(editExpense.id, values)
-    if (success) {
-      closeEditModal()
-    }
+    if (success) closeEditModal()
   })
 
-  const categoryLookup = useMemo(() => {
-    const map = new Map<string, string>()
-    Object.entries(EXPENSE_CATEGORIES).forEach(([key, value]) => {
-      map.set(value.toLowerCase(), t(`categories.${key.toLowerCase()}`))
-    })
-    return map
-  }, [t])
-
-  const subcategoryLookup = useMemo(() => {
-    const map = new Map<string, string>()
-    Object.entries(EXPENSE_SUBCATEGORIES).forEach(([key, value]) => {
-      map.set(value.toLowerCase(), t(`subcategories.${key.toLowerCase()}`))
-    })
-    return map
-  }, [t])
-
-  const getCategoryLabel = (value?: string | null) => {
-    if (!value) return t('categories.unknown')
-    return categoryLookup.get(value.toLowerCase()) || value
-  }
-
-  const getSubcategoryLabel = (value?: string | null) => {
-    if (!value) return t('subcategories.unknown')
-    return subcategoryLookup.get(value.toLowerCase()) || value
-  }
-
-  const columns: Column<ExpenseWithRelations>[] = useMemo(() => [
-    {
-      key: 'expense_date',
-      label: t('table.date'),
-      render: (value) => (
-        <span className="whitespace-nowrap">{formatDate(value as string, locale === 'es' ? 'es' : 'en')}</span>
-      ),
-      sortable: true,
-      minWidth: '100px',
-    },
-    {
-      key: 'category',
-      label: t('table.category'),
-      render: (_, expense) => (
-        <div className="flex flex-col gap-1">
-          <Badge variant="outline" className="w-fit whitespace-nowrap">
-            {getCategoryLabel(expense.category)}
-          </Badge>
-          {expense.subcategory && (
-            <span className="text-xs text-muted-foreground whitespace-nowrap">
-              {getSubcategoryLabel(expense.subcategory)}
-            </span>
-          )}
-        </div>
-      ),
-      minWidth: '120px',
-    },
-    {
-      key: 'description',
-      label: t('table.description'),
-      render: (_, expense) => (
-        <div className="min-w-0">
-          <p className="font-medium truncate">{expense.description || t('table.noDescription')}</p>
-          {expense.vendor && (
-            <p className="text-xs text-muted-foreground truncate">{expense.vendor}</p>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: 'amount_cents',
-      label: t('table.amount'),
-      className: 'text-right',
-      sortable: true,
-      render: (value) => (
-        <span className="font-semibold whitespace-nowrap">{formatCurrency(Number(value) || 0)}</span>
-      ),
-      minWidth: '100px',
-    },
-    {
-      key: 'is_recurring',
-      label: t('table.recurring'),
-      className: 'text-center',
-      hideOnTablet: true, // Hide on tablet to save space
-      render: (value) => (
-        value ? (
-          <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/30">
-            {t('table.recurringYes')}
-          </Badge>
-        ) : (
-          <span className="text-xs text-muted-foreground">{t('table.recurringNo')}</span>
-        )
-      ),
-    },
-    {
-      key: 'actions',
-      label: tCommon('actions'),
-      sortable: false,
-      render: (_value, expense) => (
-        <ActionDropdown
-          actions={[
-            createEditAction(() => openEditModal(expense), tCommon('edit')),
-            createDeleteAction(() => setDeleteTarget(expense), tCommon('delete')),
-          ]}
-        />
-      ),
-    },
-  ], [locale, t, tCommon, getCategoryLabel, getSubcategoryLabel])
-
-  const mobileColumns: Column<ExpenseWithRelations>[] = useMemo(() => [
-    {
-      key: 'description',
-      label: t('table.expense'),
-      render: (_, expense) => (
-        <div className="space-y-0.5">
-          <p className="font-medium text-foreground">
-            {expense.description || t('table.noDescription')}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {getCategoryLabel(expense.category)}
-            {expense.subcategory && ` - ${getSubcategoryLabel(expense.subcategory)}`}
-          </p>
-        </div>
-      ),
-    },
-    {
-      key: 'expense_date',
-      label: t('table.date'),
-      render: (value) => formatDate(value as string, locale === 'es' ? 'es' : 'en'),
-    },
-    {
-      key: 'amount_cents',
-      label: t('table.amount'),
-      render: (value) => (
-        <span className="font-semibold text-foreground">{formatCurrency(Number(value) || 0)}</span>
-      ),
-    },
-    {
-      key: 'actions',
-      label: tCommon('actions'),
-      sortable: false,
-      render: (_value, expense) => (
-        <ActionDropdown
-          actions={[
-            createEditAction(() => openEditModal(expense), tCommon('edit')),
-            createDeleteAction(() => setDeleteTarget(expense), tCommon('delete')),
-          ]}
-        />
-      ),
-    },
-  ], [locale, t, tCommon, getCategoryLabel, getSubcategoryLabel])
-
-  // Calculate summary from FILTERED expenses using generic hook
+  // Calculate summary from FILTERED expenses
   const filteredSummary = useFilteredSummary(expenses, expenseSummaryConfig)
+  const { totalSpent, totalExpenses: totalCount, recurringCount } = filteredSummary
 
-  // Use filtered values for consistency with displayed table
-  const totalSpent = filteredSummary.totalSpent
-  const totalCount = filteredSummary.totalExpenses
-  const recurringCount = filteredSummary.recurringCount
-
-  // Planned vs actual from backend (global, not filtered)
+  // Planned vs actual from backend
   const planned = stats?.vs_fixed_costs?.planned ?? 0
-  const actual = totalSpent // Use filtered total instead of stats?.vs_fixed_costs?.actual
-  const variance = actual - planned
+  const variance = totalSpent - planned
   const variancePct = planned > 0 ? Math.round((variance / planned) * 100) : 0
 
+  type CardColor = 'default' | 'primary' | 'success' | 'warning' | 'danger' | 'info'
+
   const summaryCards = useMemo(() => {
-    const cards = [
+    const cards: Array<{
+      label: string
+      value: string
+      subtitle: string
+      icon: typeof Receipt
+      color: CardColor
+    }> = [
       {
         label: t('summary.totalSpentTitle'),
         value: formatCurrency(totalSpent),
         subtitle: t('summary.totalSpentSubtitle', { count: totalCount }),
         icon: Receipt,
-        color: 'primary' as const,
-      }
+        color: 'primary',
+      },
     ]
 
     if (planned > 0) {
@@ -451,7 +202,7 @@ export default function ExpensesPage() {
         value: formatCurrency(variance),
         subtitle: t('summary.varianceSubtitle', { percentage: Math.abs(variancePct) }),
         icon: TrendingUp,
-        color: variance > 0 ? ('danger' as const) : ('success' as const),
+        color: variance > 0 ? 'danger' : 'success',
       })
     } else {
       cards.push({
@@ -459,7 +210,7 @@ export default function ExpensesPage() {
         value: t('summary.planNotConfiguredValue'),
         subtitle: t('summary.planNotConfiguredSubtitle'),
         icon: AlertTriangle,
-        color: 'warning' as const,
+        color: 'warning',
       })
     }
 
@@ -468,116 +219,11 @@ export default function ExpensesPage() {
       value: recurringCount.toString(),
       subtitle: t('summary.recurringSubtitle'),
       icon: CalendarRange,
-      color: 'info' as const,
+      color: 'info',
     })
 
     return cards
   }, [totalSpent, totalCount, planned, recurringCount, t, variance, variancePct])
-
-  const renderAlerts = () => {
-    if (!alerts || alerts.summary.total_alerts === 0) {
-      return (
-        <p className="text-sm text-muted-foreground">{t('alerts.empty')}</p>
-      )
-    }
-
-    return (
-      <div className="space-y-4">
-        {alerts.budget_alerts.length > 0 && (
-          <div className="space-y-2">
-            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-amber-500" />
-              {t('alerts.budgetTitle')}
-            </h4>
-            <div className="space-y-2">
-              {alerts.budget_alerts.map((alert, index) => (
-                <div key={index} className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-amber-900">{alert.message}</p>
-                    <Badge variant="outline" className={severityBadgeClass(alert.severity)}>
-                      {t(`alerts.severity.${alert.severity}`)}
-                    </Badge>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-amber-900/80">
-                    <div>{t('alerts.budgetPlanned')}: {formatCurrency(alert.details.planned)}</div>
-                    <div>{t('alerts.budgetActual')}: {formatCurrency(alert.details.actual)}</div>
-                    <div>{t('alerts.budgetVariance')}: {formatCurrency(alert.details.variance)} ({alert.details.percentage}%)</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {alerts.low_stock.length > 0 && (
-          <div className="space-y-2">
-            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <ShoppingCart className="h-4 w-4 text-destructive" />
-              {t('alerts.lowStockTitle')}
-            </h4>
-            <div className="space-y-2">
-              {alerts.low_stock.map((item) => (
-                <div key={item.id} className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-destructive">{item.name}</p>
-                    <p className="text-xs text-destructive">
-                      {t('alerts.lowStockIndicator', {
-                        current: item.stock_quantity,
-                        minimum: item.min_stock_alert,
-                      })}
-                    </p>
-                  </div>
-                  <Badge variant="outline" className="border-red-300 text-destructive">
-                    {item.category}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {alerts.price_changes.length > 0 && (
-          <div className="space-y-2">
-            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-primary" />
-              {t('alerts.priceChangesTitle')}
-            </h4>
-            <div className="space-y-2">
-              {alerts.price_changes.map((item) => (
-                <div key={item.id} className="rounded-lg border border-primary/30 bg-primary/10 p-3 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-primary/95">{item.name}</p>
-                    <p className="text-xs text-primary">
-                      {item.price_change_percentage > 0
-                        ? t('alerts.priceChangeUp', { value: item.price_change_percentage })
-                        : t('alerts.priceChangeDown', { value: Math.abs(item.price_change_percentage) })}
-                    </p>
-                  </div>
-                  <div className="text-xs text-primary">
-                    <div>{formatCurrency(item.price_per_portion_cents)} → {formatCurrency(item.last_purchase_price_cents)}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="pt-2 border-t">
-          <p className="text-xs text-muted-foreground">
-            {t('alerts.summaryTitle', {
-              total: alerts.summary.total_alerts,
-              high: alerts.summary.by_severity.high,
-              medium: alerts.summary.by_severity.medium,
-              low: alerts.summary.by_severity.low,
-            })}
-          </p>
-        </div>
-      </div>
-    )
-  }
-
-  const categoryBreakdown = stats?.by_category ?? []
-  const monthlyBreakdown = stats?.by_month ?? []
 
   return (
     <AppLayout>
@@ -585,40 +231,25 @@ export default function ExpensesPage() {
         <PageHeader
           title={t('title')}
           subtitle={t('subtitle')}
-          actions={(
+          actions={
             <Button onClick={openCreateModal} className="gap-2">
               <Plus className="h-4 w-4" />
               {t('actions.new')}
             </Button>
-          )}
+          }
         />
 
         <Alert className="bg-primary/10 border-primary/30 text-primary/95">
           <Info className="h-5 w-5" />
           <AlertTitle>{t('summary.expenseGuidanceTitle')}</AlertTitle>
-          <AlertDescription>
-            {t('summary.expenseGuidanceDescription')}
-          </AlertDescription>
+          <AlertDescription>{t('summary.expenseGuidanceDescription')}</AlertDescription>
         </Alert>
 
         <SummaryCards cards={summaryCards} columns={4} />
 
-        <FiltersCard
+        <ExpenseSmartFilters
           filters={filters}
-          amountMinInput={amountMinInput}
-          amountMaxInput={amountMaxInput}
-          t={t}
           setFilters={setFilters}
-          handleSelectFilter={handleSelectFilter}
-          handleBooleanFilter={handleBooleanFilter}
-          handleMinAmountChange={handleMinAmountChange}
-          handleMaxAmountChange={handleMaxAmountChange}
-          resetFilters={() => {
-            resetFilters()
-            setAmountMinInput('')
-            setAmountMaxInput('')
-          }}
-          refresh={refresh}
           categoryOptions={categoryOptions}
           subcategoryOptions={subcategoryOptions}
         />
@@ -649,75 +280,18 @@ export default function ExpensesPage() {
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                {t('charts.byCategory.title')}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {categoryBreakdown.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{t('charts.byCategory.empty')}</p>
-              ) : (
-                categoryBreakdown.map((category) => (
-                  <div key={category.category} className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium">{getCategoryLabel(category.category)}</span>
-                      <span className="font-semibold">{formatCurrency(category.amount)}</span>
-                    </div>
-                    <Progress value={category.percentage} />
-                    <p className="text-xs text-muted-foreground">{t('charts.byCategory.transactions', { count: category.count })}</p>
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
+        <ExpenseCharts
+          categoryBreakdown={stats?.by_category ?? []}
+          monthlyBreakdown={stats?.by_month ?? []}
+          getCategoryLabel={getCategoryLabel}
+          t={t}
+        />
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <CalendarRange className="h-5 w-5" />
-                {t('charts.byMonth.title')}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {monthlyBreakdown.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{t('charts.byMonth.empty')}</p>
-              ) : (
-                monthlyBreakdown.map((month) => (
-                  <div key={month.month} className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium">{month.month}</p>
-                      <p className="text-xs text-muted-foreground">{t('charts.byMonth.transactions', { count: month.count })}</p>
-                    </div>
-                    <span className="font-semibold">{formatCurrency(month.amount)}</span>
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5" />
-              {t('alerts.title')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>{renderAlerts()}</CardContent>
-        </Card>
+        <ExpenseAlertsCard alerts={alerts} t={t} />
 
         <FormModal
           open={createOpen}
-          onOpenChange={(open) => {
-            setCreateOpen(open)
-            if (!open) {
-              createForm.reset(getDefaultFormValues())
-            }
-          }}
+          onOpenChange={(open) => { setCreateOpen(open); if (!open) createForm.reset(getDefaultFormValues()) }}
           title={t('form.createTitle')}
           submitLabel={t('form.submit.create')}
           onSubmit={handleCreateSubmit}
@@ -730,16 +304,13 @@ export default function ExpensesPage() {
             getSubcategoriesForCategory={getSubcategoriesForCategory}
             supplyOptions={supplyOptions}
             campaignOptions={campaignOptions}
+            fixedCostOptions={fixedCostOptions}
           />
         </FormModal>
 
         <FormModal
           open={Boolean(editExpense)}
-          onOpenChange={(open) => {
-            if (!open) {
-              closeEditModal()
-            }
-          }}
+          onOpenChange={(open) => { if (!open) closeEditModal() }}
           title={t('form.editTitle')}
           submitLabel={t('form.submit.update')}
           onSubmit={handleEditSubmit}
@@ -752,14 +323,13 @@ export default function ExpensesPage() {
             getSubcategoriesForCategory={getSubcategoriesForCategory}
             supplyOptions={supplyOptions}
             campaignOptions={campaignOptions}
+            fixedCostOptions={fixedCostOptions}
           />
         </FormModal>
 
         <ConfirmDialog
           open={Boolean(deleteTarget)}
-          onOpenChange={(open) => {
-            if (!open) setDeleteTarget(null)
-          }}
+          onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}
           title={t('modals.delete.title')}
           description={deleteTarget ? t('modals.delete.description', { description: deleteTarget.description || deleteTarget.vendor || '' }) : undefined}
           onConfirm={deleteExpenseConfirmed}
@@ -771,463 +341,4 @@ export default function ExpensesPage() {
       </div>
     </AppLayout>
   )
-}
-
-function getDefaultFormValues(): ExpenseFormValues {
-  const today = getLocalDateISO()
-  return {
-    expense_date: today,
-    category: EXPENSE_CATEGORIES.OTROS,
-    subcategory: '',
-    description: '',
-    notes: '',
-    amount_pesos: 0, // Start with 0 as required by schema
-    vendor: '',
-    invoice_number: '',
-    is_recurring: false,
-    is_variable: false,  // Default to fixed cost
-    expense_category: 'other',  // Default to 'other' category
-    campaign_id: undefined,
-    quantity: undefined,
-    related_supply_id: undefined,
-    create_asset: false,
-    asset_name: '',
-    asset_useful_life_years: undefined,
-    category_id: undefined,
-  }
-}
-
-function mapExpenseToFormValues(expense?: ExpenseWithRelations | null): ExpenseFormValues {
-  if (!expense) {
-    return getDefaultFormValues()
-  }
-
-  return {
-    expense_date: expense.expense_date?.slice(0, 10) || getLocalDateISO(),
-    category: expense.category || EXPENSE_CATEGORIES.OTROS,
-    subcategory: expense.subcategory || '',
-    description: expense.description || '',
-    notes: expense.notes || '',
-    amount_pesos: (expense.amount_cents || 0) / 100,
-    vendor: expense.vendor || '',
-    invoice_number: expense.invoice_number || '',
-    is_recurring: Boolean(expense.is_recurring),
-    is_variable: Boolean(expense.is_variable),  // Map from DB
-    expense_category: expense.expense_category || '',  // Map from DB
-    campaign_id: expense.campaign_id || undefined,
-    quantity: expense.quantity ?? undefined,
-    related_supply_id: expense.related_supply_id || undefined,
-    create_asset: false,
-    asset_name: '',
-    asset_useful_life_years: undefined,
-    category_id: expense.category_id || undefined,
-  }
-}
-
-interface ExpenseFormProps {
-  form: ReturnType<typeof useForm<ExpenseFormValues>>
-  t: ReturnType<typeof useTranslations>
-  categoryOptions: Option[]
-  getSubcategoriesForCategory: (categoryName: string) => Option[]
-  supplyOptions: Option[]
-  campaignOptions: Option[]
-}
-
-function ExpenseForm({ form, t, categoryOptions, getSubcategoriesForCategory, supplyOptions, campaignOptions }: ExpenseFormProps) {
-  const selectedCategory = form.watch('category')
-  const selectedSupply = form.watch('related_supply_id') || 'none'
-  const selectedCampaign = form.watch('campaign_id') || 'none'
-  const createAsset = form.watch('create_asset')
-
-  // Calculate subcategories dynamically based on selected category
-  const subcategoryOptions = useMemo(
-    () => getSubcategoriesForCategory(selectedCategory || ''),
-    [selectedCategory, getSubcategoriesForCategory]
-  )
-
-  return (
-    <div className="space-y-6">
-      <FormSection title={t('form.sections.basic')}>
-        <FormGrid columns={2}>
-          <Controller
-            control={form.control}
-            name="expense_date"
-            render={({ field, fieldState }) => (
-              <InputField
-                type="date"
-                label={t('form.fields.date')}
-                value={field.value}
-                onChange={field.onChange}
-                error={fieldState.error?.message}
-                required
-              />
-            )}
-          />
-          <Controller
-            control={form.control}
-            name="amount_pesos"
-            render={({ field, fieldState }) => (
-              <InputField
-                type="number"
-                label={t('form.fields.amount')}
-                value={field.value || ''}
-                onChange={(value) => {
-                  const numValue = value === '' || value === null || value === undefined
-                    ? 0
-                    : typeof value === 'string'
-                      ? parseFloat(value) || 0
-                      : Number(value) || 0
-                  field.onChange(numValue)
-                }}
-                min={0}
-                step={0.01}
-                error={fieldState.error?.message}
-                required
-              />
-            )}
-          />
-          <Controller
-            control={form.control}
-            name="description"
-            render={({ field, fieldState }) => (
-              <InputField
-                label={t('form.fields.description')}
-                value={field.value}
-                onChange={field.onChange}
-                placeholder={t('form.fields.descriptionPlaceholder')}
-                error={fieldState.error?.message}
-              />
-            )}
-          />
-          <Controller
-            control={form.control}
-            name="vendor"
-            render={({ field }) => (
-              <InputField
-                label={t('form.fields.vendor')}
-                value={field.value}
-                onChange={field.onChange}
-                placeholder={t('form.fields.vendorPlaceholder')}
-              />
-            )}
-          />
-          <Controller
-            control={form.control}
-            name="invoice_number"
-            render={({ field }) => (
-              <InputField
-                label={t('form.fields.invoice')}
-                value={field.value}
-                onChange={field.onChange}
-              />
-            )}
-          />
-        </FormGrid>
-        <Controller
-          control={form.control}
-          name="notes"
-          render={({ field }) => (
-            <div className="space-y-1">
-              <Label htmlFor="expense-notes">{t('form.fields.notes')}</Label>
-              <Textarea
-                id="expense-notes"
-                value={field.value || ''}
-                onChange={(event) => field.onChange(event.target.value)}
-                rows={3}
-              />
-            </div>
-          )}
-        />
-      </FormSection>
-
-      <FormSection title={t('form.sections.classification')}>
-        <FormGrid columns={2}>
-          <SelectField
-            label={t('form.fields.category')}
-            value={form.watch('category')}
-            onChange={(value) => form.setValue('category', value)}
-            options={categoryOptions}
-            required
-            error={form.formState.errors.category?.message}
-          />
-          <SelectField
-            label={t('form.fields.subcategory')}
-            value={form.watch('subcategory') || ''}
-            onChange={(value) => form.setValue('subcategory', value)}
-            options={subcategoryOptions}
-          />
-          {selectedCategory === 'Marketing' && (
-            <SelectField
-              label={t('form.fields.campaign')}
-              value={selectedCampaign}
-              onChange={(value) => {
-                form.setValue('campaign_id', value === 'none' ? undefined : value)
-              }}
-              options={campaignOptions}
-              helperText={t('form.fields.campaignHelp')}
-            />
-          )}
-        </FormGrid>
-        <Controller
-          control={form.control}
-          name="is_recurring"
-          render={({ field }) => (
-            <div className="flex items-center gap-2 pt-1">
-              <Checkbox
-                id="expense-is-recurring"
-                checked={field.value}
-                onCheckedChange={(checked) => field.onChange(Boolean(checked))}
-              />
-              <Label htmlFor="expense-is-recurring" className="text-sm">
-                {t('form.fields.isRecurring')}
-              </Label>
-            </div>
-          )}
-        />
-      </FormSection>
-
-      <FormSection title={t('fields.expense_category')} helperText={t('fields.expense_category_help')}>
-        <FormGrid columns={2}>
-          <Controller
-            control={form.control}
-            name="is_variable"
-            render={({ field }) => (
-              <div className="flex items-center gap-2 pt-1">
-                <Checkbox
-                  id="expense-is-variable"
-                  checked={field.value}
-                  onCheckedChange={(checked) => field.onChange(Boolean(checked))}
-                />
-                <Label htmlFor="expense-is-variable" className="text-sm">
-                  {t('fields.is_variable')}
-                </Label>
-              </div>
-            )}
-          />
-
-          <SelectField
-            label={t('fields.expense_category')}
-            value={form.watch('expense_category') || 'other'}
-            onChange={(value) => form.setValue('expense_category', value)}
-            options={[
-              { value: ALL_EXPENSE_CATEGORIES.MATERIALS, label: t('expenseCategories.materials') },
-              { value: ALL_EXPENSE_CATEGORIES.LAB_FEES, label: t('expenseCategories.lab_fees') },
-              { value: ALL_EXPENSE_CATEGORIES.SUPPLIES_DENTAL, label: t('expenseCategories.supplies_dental') },
-              { value: ALL_EXPENSE_CATEGORIES.RENT, label: t('expenseCategories.rent') },
-              { value: ALL_EXPENSE_CATEGORIES.SALARIES, label: t('expenseCategories.salaries') },
-              { value: ALL_EXPENSE_CATEGORIES.UTILITIES, label: t('expenseCategories.utilities') },
-              { value: ALL_EXPENSE_CATEGORIES.INSURANCE, label: t('expenseCategories.insurance') },
-              { value: ALL_EXPENSE_CATEGORIES.SOFTWARE, label: t('expenseCategories.software_subscriptions') },
-              { value: ALL_EXPENSE_CATEGORIES.MARKETING, label: t('expenseCategories.marketing') },
-              { value: ALL_EXPENSE_CATEGORIES.MAINTENANCE, label: t('expenseCategories.maintenance') },
-              { value: ALL_EXPENSE_CATEGORIES.OTHER, label: t('expenseCategories.other') },
-            ]}
-            helperText={form.watch('is_variable') ? t('expenseCategories.materials') : t('expenseCategories.rent')}
-          />
-        </FormGrid>
-      </FormSection>
-
-      <FormSection title={t('form.sections.inventory')}>
-        <FormGrid columns={2}>
-          <SelectField
-            label={t('form.fields.relatedSupply')}
-            value={selectedSupply}
-            onChange={(value) => {
-              form.setValue('related_supply_id', value === 'none' ? undefined : value)
-            }}
-            options={supplyOptions}
-          />
-          <Controller
-            control={form.control}
-            name="quantity"
-            render={({ field }) => (
-              <InputField
-                type="number"
-                label={t('form.fields.quantity')}
-                value={field.value ?? ''}
-                onChange={(value) => field.onChange(value === '' ? undefined : Number(value))}
-                min={1}
-                step={1}
-                disabled={selectedSupply === 'none'}
-              />
-            )}
-          />
-        </FormGrid>
-      </FormSection>
-
-      <FormSection title={t('form.sections.asset')}>
-        <Controller
-          control={form.control}
-          name="create_asset"
-          render={({ field }) => (
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="expense-create-asset"
-                checked={field.value}
-                onCheckedChange={(checked) => field.onChange(Boolean(checked))}
-              />
-              <Label htmlFor="expense-create-asset" className="text-sm">
-                {t('form.fields.createAsset')}
-              </Label>
-            </div>
-          )}
-        />
-
-        {createAsset && (
-          <FormGrid columns={2}>
-            <Controller
-              control={form.control}
-              name="asset_name"
-              render={({ field }) => (
-                <InputField
-                  label={t('form.fields.assetName')}
-                  value={field.value || ''}
-                  onChange={field.onChange}
-                />
-              )}
-            />
-            <Controller
-              control={form.control}
-              name="asset_useful_life_years"
-              render={({ field }) => (
-                <InputField
-                  type="number"
-                  label={t('form.fields.assetLife')}
-                  value={field.value ?? ''}
-                  onChange={(value) => field.onChange(value === '' ? undefined : Number(value))}
-                  min={1}
-                  step={1}
-                />
-              )}
-            />
-          </FormGrid>
-        )}
-      </FormSection>
-    </div>
-  )
-}
-
-function FiltersCard({
-  filters,
-  amountMinInput,
-  amountMaxInput,
-  t,
-  setFilters,
-  handleSelectFilter,
-  handleBooleanFilter,
-  handleMinAmountChange,
-  handleMaxAmountChange,
-  resetFilters,
-  refresh,
-  categoryOptions,
-  subcategoryOptions,
-}: {
-  filters: ExpenseFilters
-  amountMinInput: number | ''
-  amountMaxInput: number | ''
-  t: ReturnType<typeof useTranslations>
-  setFilters: (filters: Partial<ExpenseFilters>) => void
-  handleSelectFilter: (field: keyof ExpenseFilters, value: string) => void
-  handleBooleanFilter: (field: keyof ExpenseFilters, value: string) => void
-  handleMinAmountChange: (value: string | number) => void
-  handleMaxAmountChange: (value: string | number) => void
-  resetFilters: () => void
-  refresh: () => void
-  categoryOptions: Option[]
-  subcategoryOptions: Option[]
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <CalendarRange className="h-5 w-5" />
-          {t('filters.title')}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <FormGrid columns={3}>
-          <SelectField
-            label={t('filters.category')}
-            value={filters.category ? filters.category : 'all'}
-            onChange={(value) => handleSelectFilter('category', value)}
-            options={categoryOptions}
-          />
-          <SelectField
-            label={t('filters.subcategory')}
-            value={filters.subcategory ? filters.subcategory : 'all'}
-            onChange={(value) => handleSelectFilter('subcategory', value)}
-            options={subcategoryOptions}
-          />
-          <InputField
-            label={t('filters.vendor')}
-            value={filters.vendor || ''}
-            onChange={(e) => {
-              const value = typeof e === 'string' ? e : e.target?.value
-              setFilters({ vendor: value || undefined })
-            }}
-            placeholder={t('filters.vendorPlaceholder')}
-          />
-          <InputField
-            type="date"
-            label={t('filters.dateFrom')}
-            value={filters.start_date || ''}
-            onChange={(e) => {
-              const value = typeof e === 'string' ? e : e.target?.value
-              setFilters({ start_date: value || undefined })
-            }}
-          />
-          <InputField
-            type="date"
-            label={t('filters.dateTo')}
-            value={filters.end_date || ''}
-            onChange={(e) => {
-              const value = typeof e === 'string' ? e : e.target?.value
-              setFilters({ end_date: value || undefined })
-            }}
-          />
-          <InputField
-            type="number"
-            label={t('filters.amountMin')}
-            value={amountMinInput === '' ? '' : Number(amountMinInput)}
-            onChange={handleMinAmountChange}
-            min={0}
-            step={0.01}
-          />
-          <InputField
-            type="number"
-            label={t('filters.amountMax')}
-            value={amountMaxInput === '' ? '' : Number(amountMaxInput)}
-            onChange={handleMaxAmountChange}
-            min={0}
-            step={0.01}
-          />
-          <SelectField
-            label={t('filters.recurring')}
-            value={typeof filters.is_recurring === 'boolean' ? String(filters.is_recurring) : 'any'}
-            onChange={(value) => handleBooleanFilter('is_recurring', value)}
-            options={[
-              { value: 'any', label: t('filters.any') },
-              { value: 'true', label: t('filters.yes') },
-              { value: 'false', label: t('filters.no') },
-            ]}
-          />
-        </FormGrid>
-
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <Button variant="ghost" onClick={resetFilters}>
-            {t('filters.reset')}
-          </Button>
-          <Button variant="outline" onClick={refresh}>
-            {t('filters.refresh')}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-function severityBadgeClass(severity: BudgetAlertSeverity): string {
-  if (severity === 'high') return 'border-red-300 text-destructive bg-destructive/10'
-  if (severity === 'medium') return 'border-amber-300 text-amber-700 bg-amber-50'
-  return 'border-green-300 text-green-700 bg-green-50'
 }

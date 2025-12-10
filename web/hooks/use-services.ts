@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback } from 'react'
-import { useCrudOperations } from './use-crud-operations'
+import { useSwrCrud } from './use-swr-crud'
 import { useApi } from './use-api'
 import { useSupplies } from './use-supplies'
 
@@ -43,11 +43,12 @@ function extractList<T = any>(value: any): T[] {
 export function useServices(options: UseServicesOptions = {}) {
   const { clinicId, autoLoad = true } = options
   
-  // Use generic CRUD operations
-  const crud = useCrudOperations<Service>({
+  // Use SWR-based CRUD operations with caching
+  const crud = useSwrCrud<Service>({
     endpoint: '/api/services',
     entityName: 'Service',
-    includeClinicId: true
+    includeClinicId: true,
+    revalidateOnFocus: true,
   })
 
   // Use API hook for categories (new categories system via type=services)
@@ -211,21 +212,22 @@ export function useServices(options: UseServicesOptions = {}) {
   }, [crud])
 
   return {
-    // From CRUD operations
+    // From SWR CRUD operations (with caching)
     services: crud.items,
     loading: crud.loading,
+    isValidating: crud.isValidating, // NEW: Shows background revalidation
     error: null,
-    
+
     // From API hooks
     categories: extractList<Category>(categoriesApi.data),
     supplies,
-    
+
     // Service operations
-    fetchServices: crud.fetchItems,
+    fetchServices: crud.refresh, // SWR uses refresh instead of fetchItems
     createService,
     updateService,
     deleteService: crud.handleDelete,
-    
+
     // Service-specific operations
     fetchServiceSupplies,
     createCategory,

@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback } from 'react'
-import { useCrudOperations } from './use-crud-operations'
+import { useSwrCrud } from './use-swr-crud'
 import { useApi } from './use-api'
 import { Patient, PatientSource } from '@/lib/types'
 
@@ -34,12 +34,13 @@ function ensureArray<T>(value: unknown): T[] {
 export function usePatients(options: UsePatientsOptions = {}) {
   const { clinicId, autoLoad = true } = options
   
-  // Use generic CRUD for patients
-  const crud = useCrudOperations<Patient>({
+  // Use SWR-based CRUD for patients with caching
+  const crud = useSwrCrud<Patient>({
     endpoint: '/api/patients',
     entityName: 'Patient',
     includeClinicId: true,
-    searchParam: 'search'
+    searchParam: 'search',
+    revalidateOnFocus: true, // Refresh when user returns to tab
   })
 
   // Use API hooks for related data (respect autoLoad option)
@@ -101,25 +102,26 @@ export function usePatients(options: UsePatientsOptions = {}) {
   // no noisy logs here; state is returned below
 
   return {
-    // From CRUD operations
+    // From SWR CRUD operations (with caching)
     patients: crud.items,
     loading: crud.loading || sourcesApi.loading || campaignsApi.loading || platformsApi.loading,
+    isValidating: crud.isValidating, // NEW: Shows background revalidation
     error: null,
     searchTerm: crud.searchTerm,
     setSearchTerm: crud.setSearchTerm,
-    
+
     // From API hooks
     patientSources: ensureArray<PatientSource>(sourcesApi.data),
     campaigns: ensureArray<Campaign>(campaignsApi.data),
     platforms: ensureArray<any>(platformsApi.data),
-    
+
     // Patient operations
-    fetchPatients: crud.fetchItems,
+    fetchPatients: crud.refresh, // SWR uses refresh instead of fetchItems
     createPatient: crud.handleCreate,
     updatePatient: crud.handleUpdate,
     deletePatient: crud.handleDelete,
     searchPatients: crud.setSearchTerm, // Map searchPatients to setSearchTerm
-    
+
     // Patient-specific operations
     createPatientSource,
     createCampaign,

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCrudOperations } from './use-crud-operations'
+import { useSwrCrud } from './use-swr-crud'
 
 export interface Supply {
   id: string
@@ -23,12 +23,13 @@ interface UseSuppliesOptions {
 
 export function useSupplies(options: UseSuppliesOptions = {}) {
   const { clinicId, autoLoad = true } = options
-  
-  // Use generic CRUD operations - that's all we need!
-  const crud = useCrudOperations<Supply>({
+
+  // Use SWR-based CRUD operations with caching
+  const crud = useSwrCrud<Supply>({
     endpoint: '/api/supplies',
     entityName: 'Supply',
-    includeClinicId: true
+    includeClinicId: true,
+    revalidateOnFocus: true,
   })
 
   // No domain-specific logic needed for supplies
@@ -38,14 +39,15 @@ export function useSupplies(options: UseSuppliesOptions = {}) {
     // Data
     supplies: crud.items,
     loading: crud.loading,
+    isValidating: crud.isValidating, // NEW: Shows background revalidation
     error: null,
-    
+
     // Operations with domain-specific names
-    fetchSupplies: crud.fetchItems,
+    fetchSupplies: crud.refresh, // SWR uses refresh instead of fetchItems
     createSupply: crud.handleCreate,
     updateSupply: crud.handleUpdate,
     deleteSupply: crud.handleDelete,
-    
+
     // UI State (if needed by components)
     isSubmitting: crud.isSubmitting,
     editingSupply: crud.editingItem,

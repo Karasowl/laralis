@@ -1,6 +1,7 @@
 'use client'
 
 import { useApi } from './use-api'
+import { useCurrentClinic } from './use-current-clinic'
 
 export interface MarketingMetrics {
   period: number
@@ -48,10 +49,12 @@ interface UseMarketingMetricsOptions {
 }
 
 export function useMarketingMetrics(options: UseMarketingMetricsOptions = {}) {
-  const { clinicId, period = 30, startDate, endDate } = options
+  const { currentClinic } = useCurrentClinic()
+  const resolvedClinicId = options.clinicId || currentClinic?.id
+  const { period = 30, startDate, endDate } = options
 
   const params = new URLSearchParams()
-  if (clinicId) params.set('clinicId', clinicId)
+  if (resolvedClinicId) params.set('clinicId', resolvedClinicId)
 
   // If explicit date range provided, use it; otherwise fall back to period
   if (startDate && endDate) {
@@ -61,7 +64,7 @@ export function useMarketingMetrics(options: UseMarketingMetricsOptions = {}) {
     params.set('period', period.toString())
   }
 
-  const endpoint = clinicId
+  const endpoint = resolvedClinicId
     ? `/api/analytics/marketing-metrics?${params.toString()}`
     : null
 

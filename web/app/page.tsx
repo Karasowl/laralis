@@ -42,6 +42,7 @@ import { useAcquisitionTrends } from '@/hooks/use-acquisition-trends'
 import { useProfitAnalysis } from '@/hooks/use-profit-analysis'
 import { usePlannedVsActual } from '@/hooks/use-planned-vs-actual'
 import { useServices } from '@/hooks/use-services'
+import { useTimeSettings } from '@/hooks/use-time-settings'
 import { PlannedVsActualCard } from '@/components/dashboard/PlannedVsActualCard'
 import { formatCurrency } from '@/lib/format'
 import { ReportsAdvanced } from '@/app/reports/ReportsAdvanced'
@@ -169,7 +170,11 @@ export default function InsightsPage() {
   const {
     data: equilibriumData,
     loading: equilibriumLoading
-  } = useEquilibrium({ clinicId: currentClinic?.id })
+  } = useEquilibrium({
+    clinicId: currentClinic?.id,
+    startDate: currentRange?.from,
+    endDate: currentRange?.to
+  })
 
   const {
     data: roiData,
@@ -193,7 +198,11 @@ export default function InsightsPage() {
   const {
     data: cacTrendData,
     loading: cacTrendLoading
-  } = useCACTrend({ clinicId: currentClinic?.id, months: 12 })
+  } = useCACTrend({
+    clinicId: currentClinic?.id,
+    startDate: currentRange?.from,
+    endDate: currentRange?.to
+  })
 
   const {
     data: channelROIData,
@@ -207,13 +216,23 @@ export default function InsightsPage() {
   const {
     data: acquisitionTrendsData,
     loading: acquisitionTrendsLoading
-  } = useAcquisitionTrends({ clinicId: currentClinic?.id, months: 12, projectionMonths: 3 })
+  } = useAcquisitionTrends({
+    clinicId: currentClinic?.id,
+    startDate: currentRange?.from,
+    endDate: currentRange?.to,
+    projectionMonths: 3
+  })
 
   // Services for advanced reports (to show names instead of IDs)
   const {
     services,
     loading: servicesLoading
   } = useServices({ clinicId: currentClinic?.id })
+
+  // Time settings for monthly goal
+  const {
+    settings: timeSettings
+  } = useTimeSettings({ clinicId: currentClinic?.id })
 
   // Profit Analysis - Correct financial metrics
   const {
@@ -242,11 +261,6 @@ export default function InsightsPage() {
   useEffect(() => {
     setMounted(true)
   }, [])
-
-  const handleRefresh = () => {
-    fetchReportsData()
-    window.location.reload()
-  }
 
   // Dynamic labels based on selected period
   const getPeriodLabels = useMemo(() => {
@@ -293,16 +307,10 @@ export default function InsightsPage() {
 
   return (
     <AppLayout>
-      <div className="p-4 lg:p-8 max-w-[1600px] mx-auto space-y-6">
+      <div className="p-4 lg:p-8 max-w-[1600px] mx-auto space-y-4 sm:space-y-6">
         <PageHeader
           title={t('title')}
           subtitle={t('subtitle', { clinic: currentClinic?.name || '' })}
-          actions={
-            <Button onClick={handleRefresh} variant="outline">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              {t('refresh')}
-            </Button>
-          }
         />
 
         <DateFilterBar
@@ -343,7 +351,7 @@ export default function InsightsPage() {
                     <AlertDescription>
                       {dashboardError || reportsError || t('error_generic')}
                     </AlertDescription>
-                    <Button onClick={handleRefresh} className="mt-4">
+                    <Button onClick={() => fetchReportsData()} className="mt-4">
                       <RefreshCw className="h-4 w-4 mr-2" />
                       {t('retry')}
                     </Button>
@@ -358,6 +366,7 @@ export default function InsightsPage() {
                 {!equilibriumLoading && equilibriumData && equilibriumData.monthlyTargetCents > 0 && (
                   <BreakEvenProgress
                     monthlyTargetCents={equilibriumData.monthlyTargetCents}
+                    monthlyGoalCents={timeSettings?.monthly_goal_cents}
                     currentRevenueCents={equilibriumData.currentRevenueCents}
                     progressPercentage={equilibriumData.progressPercentage}
                     dailyTargetCents={equilibriumData.dailyTargetCents}
