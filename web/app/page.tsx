@@ -18,7 +18,7 @@ import { DateFilterBar } from '@/components/dashboard/DateFilterBar'
 import { PeriodBreakdown } from '@/components/dashboard/PeriodBreakdown'
 import { MarketingROISimple } from '@/components/dashboard/MarketingROISimple'
 import { ServiceROIAnalysis } from '@/components/dashboard/ServiceROIAnalysis'
-import { ProfitabilitySummary } from '@/components/dashboard/profitability/ProfitabilitySummary'
+// ProfitabilitySummary removed (Bug #24) - ServiceROIAnalysis already includes summary cards
 import { MarketingMetrics } from '@/components/dashboard/marketing/MarketingMetrics'
 import { AcquisitionTrendsChart } from '@/components/dashboard/marketing/AcquisitionTrendsChart'
 import { ChannelROIChart } from '@/components/dashboard/marketing/ChannelROIChart'
@@ -474,6 +474,7 @@ export default function InsightsPage() {
                     workDays={equilibriumData.workDays}
                     monthlyTargetCents={equilibriumData.monthlyTargetCents}
                     daysElapsed={equilibriumData.elapsedDays}
+                    hideNetProfit={true}
                   />
                 )}
 
@@ -511,10 +512,7 @@ export default function InsightsPage() {
           </TabsContent>
 
           <TabsContent value="profitability" className="space-y-6">
-            {/* Summary Cards */}
-            <ProfitabilitySummary services={roiData?.services || []} loading={roiLoading} />
-
-            {/* Full ROI Analysis Table */}
+            {/* Full ROI Analysis (includes summary cards - Bug #24 fix: removed duplicate ProfitabilitySummary) */}
             <ServiceROIAnalysis data={roiData} loading={roiLoading} />
           </TabsContent>
 

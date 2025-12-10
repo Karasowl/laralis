@@ -12,9 +12,6 @@ import {
   Zap,
   Brain,
   Calendar,
-  DollarSign,
-  Users,
-  Activity,
   ArrowUpRight,
   ArrowDownRight,
   Minus,
@@ -251,35 +248,7 @@ export function ReportsAdvanced({ insights, kpis, loading, services = [] }: Repo
         </Card>
       )}
 
-      {/* Key Performance Indicators */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Activity className="h-5 w-5 text-indigo-600" />
-            {t('advanced.kpis.title')}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg">
-              <p className="text-sm text-primary font-medium">{t('advanced.kpis.avgTreatmentValue')}</p>
-              <p className="text-xl font-bold text-primary">{formatCurrency(kpis.avgTreatmentValue)}</p>
-            </div>
-            <div className="text-center p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-lg">
-              <p className="text-sm text-green-600 font-medium">{t('advanced.kpis.avgMargin')}</p>
-              <p className="text-xl font-bold text-green-700">{kpis.avgMargin.toFixed(1)}%</p>
-            </div>
-            <div className="text-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg">
-              <p className="text-sm text-purple-600 font-medium">{t('advanced.kpis.patientsPerDay')}</p>
-              <p className="text-xl font-bold text-purple-700">{kpis.avgPatientsPerDay.toFixed(1)}</p>
-            </div>
-            <div className="text-center p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg">
-              <p className="text-sm text-orange-600 font-medium">{t('advanced.kpis.treatmentsLast30')}</p>
-              <p className="text-xl font-bold text-orange-700">{kpis.treatmentCount}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Bug #25-27 fix: KPIs section removed - metrics already shown in Overview tab (BusinessMetricsGrid) */}
     </div>
   )
 }

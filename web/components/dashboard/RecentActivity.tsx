@@ -4,8 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { formatCurrency } from '@/lib/format'
 import { formatDistanceToNow } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { es, enUS } from 'date-fns/locale'
 import { User, Package, DollarSign, Calendar, Activity } from 'lucide-react'
+import { useTranslations } from 'next-intl'
+import { useLocale } from 'next-intl'
 
 export interface ActivityItem {
   id: string
@@ -23,18 +25,22 @@ interface RecentActivityProps {
   description?: string
 }
 
-export function RecentActivity({ 
-  activities, 
-  title = 'Recent Activity',
-  description = 'Latest actions in your clinic'
+export function RecentActivity({
+  activities,
+  title,
+  description
 }: RecentActivityProps) {
+  const t = useTranslations('dashboardComponents.recentActivity')
+  const locale = useLocale()
+  const dateLocale = locale === 'es' ? es : enUS
+
   const safeFormatDistance = (value: Date | string | number) => {
     try {
       const d = value instanceof Date ? value : new Date(value)
-      if (isNaN(d.getTime())) return 'hace un momento'
-      return formatDistanceToNow(d, { addSuffix: true, locale: es })
+      if (isNaN(d.getTime())) return t('justNow')
+      return formatDistanceToNow(d, { addSuffix: true, locale: dateLocale })
     } catch {
-      return 'hace un momento'
+      return t('justNow')
     }
   }
   const getActivityIcon = (type: ActivityItem['type']) => {
@@ -62,14 +68,14 @@ export function RecentActivity({
   return (
     <Card className="transition-all duration-200 hover:shadow-lg">
       <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
+        <CardTitle>{title || t('title')}</CardTitle>
+        <CardDescription>{description || t('description')}</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
           {activities.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">
-              No hay actividad reciente
+              {t('noActivity')}
             </p>
           ) : (
             activities.map((activity) => {

@@ -850,6 +850,8 @@ export default function TreatmentsPage() {
             columns[4],
             // Precio
             columns[6],
+            // Notas (Bug #15 fix - was invisible on mobile)
+            columns[8],
             // Estado
             columns[9],
             // Acciones

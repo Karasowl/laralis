@@ -79,9 +79,10 @@ export async function GET(request: NextRequest) {
     const { periodDays, daysInMonth } = calculatePeriodInfo(startDate, endDate)
 
     // ===== 1. Get Revenue from completed treatments =====
+    // Include variable_cost_cents for accurate gross profit calculation
     let treatmentsQuery = supabase
       .from('treatments')
-      .select('price_cents')
+      .select('price_cents, variable_cost_cents')
       .eq('clinic_id', clinicId)
       .eq('status', 'completed')
 
@@ -103,7 +104,15 @@ export async function GET(request: NextRequest) {
       0
     ) || 0
 
-    // ===== 2. Get Expenses (variable and fixed - REAL recorded expenses) =====
+    // ===== 2. Get Variable Costs from treatments (materials/supplies used) =====
+    // IMPORTANT: Variable costs come from treatments.variable_cost_cents, NOT from expenses
+    // This field is a snapshot of material costs at the time of treatment
+    const variableCostsCents = treatments?.reduce(
+      (sum, t) => sum + (t.variable_cost_cents || 0),
+      0
+    ) || 0
+
+    // ===== 3. Get Expenses (for real fixed costs tracking) =====
     let expensesQuery = supabase
       .from('expenses')
       .select('amount_cents, is_variable')
@@ -122,18 +131,13 @@ export async function GET(request: NextRequest) {
       throw expensesError
     }
 
-    const variableCostsCents = expenses?.reduce(
-      (sum, e) => sum + (e.is_variable ? (e.amount_cents || 0) : 0),
-      0
-    ) || 0
-
     // Real fixed costs from expenses table (actual recorded expenses)
     const fixedCostsRealCents = expenses?.reduce(
-      (sum, e) => sum + (!e.is_variable ? (e.amount_cents || 0) : 0),
+      (sum, e) => sum + (e.amount_cents || 0),
       0
     ) || 0
 
-    // ===== 3. Get CONFIGURED Fixed Costs from fixed_costs table =====
+    // ===== 4. Get CONFIGURED Fixed Costs from fixed_costs table =====
     const { data: configuredFixedCosts, error: fixedCostsError } = await supabase
       .from('fixed_costs')
       .select('amount_cents')
@@ -154,7 +158,7 @@ export async function GET(request: NextRequest) {
       monthlyConfiguredFixedCents * periodDays / daysInMonth
     )
 
-    // ===== 4. Get Assets for depreciation calculation =====
+    // ===== 5. Get Assets for depreciation calculation =====
     const { data: assets, error: assetsError } = await supabase
       .from('assets')
       .select('purchase_price_cents, depreciation_months, purchase_date')
@@ -176,7 +180,7 @@ export async function GET(request: NextRequest) {
       monthlyDepreciationCents * periodDays / daysInMonth
     )
 
-    // ===== 5. Calculate Profit Metrics =====
+    // ===== 6. Calculate Profit Metrics =====
     // Use CONFIGURED fixed costs for profitability calculations
     // This gives a realistic view of the clinic's financial health
 
@@ -209,7 +213,7 @@ export async function GET(request: NextRequest) {
     // Total costs for reference (using configured fixed costs)
     const totalCostsCents = variableCostsCents + fixedCostsConfiguredCents + depreciationCents
 
-    // ===== 6. Return Response =====
+    // ===== 7. Return Response =====
     return NextResponse.json({
       revenue_cents: revenueCents,
       costs: {
@@ -249,7 +253,8 @@ export async function GET(request: NextRequest) {
         monthly_configured_fixed_cents: monthlyConfiguredFixedCents,
         monthly_depreciation_cents: monthlyDepreciationCents,
         proration_factor: periodDays / daysInMonth,
-        costs_source: 'fixed_costs table (configured) + assets (depreciation)'
+        variable_costs_source: 'treatments.variable_cost_cents (materials snapshot)',
+        fixed_costs_source: 'fixed_costs table (configured) + assets (depreciation)'
       }
     })
 
