@@ -34,6 +34,8 @@ interface BusinessMetricsGridProps {
   workDays?: number
   monthlyTargetCents?: number
   daysElapsed?: number
+  /** Hide the Net Profit card to avoid duplicate with Financial Metrics section */
+  hideNetProfit?: boolean
 }
 
 export function BusinessMetricsGrid({
@@ -46,7 +48,8 @@ export function BusinessMetricsGrid({
   gananciaNetaChange,
   workDays = 20,
   monthlyTargetCents,
-  daysElapsed
+  daysElapsed,
+  hideNetProfit = false
 }: BusinessMetricsGridProps) {
   const t = useTranslations('dashboardComponents.businessMetrics')
 
@@ -75,7 +78,10 @@ export function BusinessMetricsGrid({
   }
 
   return (
-    <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-2 lg:grid-cols-4">
+    <div className={cn(
+      "grid gap-3 sm:gap-4 md:gap-6 grid-cols-2",
+      hideNetProfit ? "lg:grid-cols-3" : "lg:grid-cols-4"
+    )}>
       {/* Ticket Promedio */}
       <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:scale-[1.01]">
         <div className="absolute top-0 right-0 w-24 h-24 bg-primary/10 rounded-full blur-2xl" />
@@ -196,82 +202,84 @@ export function BusinessMetricsGrid({
         </CardContent>
       </Card>
 
-      {/* Ganancia Neta */}
-      <Card className={cn(
-        'relative overflow-hidden border-2 transition-all duration-200 hover:shadow-lg hover:scale-[1.01]',
-        netProfitStatus === 'success'
-          ? 'border-emerald-200 dark:border-emerald-900'
-          : netProfitStatus === 'warning'
-          ? 'border-amber-200 dark:border-amber-900'
-          : 'border-red-200 dark:border-red-900'
-      )}>
-        <div className={cn(
-          'absolute top-0 right-0 w-24 h-24 rounded-full blur-2xl',
-          netProfitStatus === 'success' ? 'bg-emerald-500/10'
-          : netProfitStatus === 'warning' ? 'bg-amber-500/10'
-          : 'bg-red-500/10'
-        )} />
-        <CardContent className="p-4 sm:p-6 relative">
-          <div className="flex items-center justify-between mb-4">
-            <div className={cn(
-              'w-10 h-10 rounded-lg flex items-center justify-center',
-              netProfitStatus === 'success'
-                ? 'bg-emerald-100 dark:bg-emerald-950/30'
-                : netProfitStatus === 'warning'
-                ? 'bg-amber-100 dark:bg-amber-950/30'
-                : 'bg-red-100 dark:bg-red-950/30'
-            )}>
-              <DollarSign className={cn(
-                'h-5 w-5',
+      {/* Ganancia Neta - conditionally hidden to avoid duplicate with Financial Metrics */}
+      {!hideNetProfit && (
+        <Card className={cn(
+          'relative overflow-hidden border-2 transition-all duration-200 hover:shadow-lg hover:scale-[1.01]',
+          netProfitStatus === 'success'
+            ? 'border-emerald-200 dark:border-emerald-900'
+            : netProfitStatus === 'warning'
+            ? 'border-amber-200 dark:border-amber-900'
+            : 'border-red-200 dark:border-red-900'
+        )}>
+          <div className={cn(
+            'absolute top-0 right-0 w-24 h-24 rounded-full blur-2xl',
+            netProfitStatus === 'success' ? 'bg-emerald-500/10'
+            : netProfitStatus === 'warning' ? 'bg-amber-500/10'
+            : 'bg-red-500/10'
+          )} />
+          <CardContent className="p-4 sm:p-6 relative">
+            <div className="flex items-center justify-between mb-4">
+              <div className={cn(
+                'w-10 h-10 rounded-lg flex items-center justify-center',
                 netProfitStatus === 'success'
-                  ? 'text-emerald-600 dark:text-emerald-400'
+                  ? 'bg-emerald-100 dark:bg-emerald-950/30'
                   : netProfitStatus === 'warning'
-                  ? 'text-amber-600 dark:text-amber-400'
-                  : 'text-red-600 dark:text-red-400'
-              )} />
-            </div>
-            {gananciaNetaChange !== undefined && (
-              <Badge variant="outline" className={cn('gap-1', getTrendColor(gananciaNetaChange))}>
-                {React.createElement(getTrendIcon(gananciaNetaChange), { className: 'h-3 w-3' })}
-                {Math.abs(gananciaNetaChange).toFixed(1)}%
-              </Badge>
-            )}
-          </div>
-
-          <div className="space-y-1">
-            <div className="flex items-center gap-1">
-              <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide">
-                {t('netProfit')}
-              </p>
-              {netProfitStatus === 'danger' && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-3 w-3 text-red-500 cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs">
-                      <p>{t('netProfit_negative_tooltip')}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                  ? 'bg-amber-100 dark:bg-amber-950/30'
+                  : 'bg-red-100 dark:bg-red-950/30'
+              )}>
+                <DollarSign className={cn(
+                  'h-5 w-5',
+                  netProfitStatus === 'success'
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : netProfitStatus === 'warning'
+                    ? 'text-amber-600 dark:text-amber-400'
+                    : 'text-red-600 dark:text-red-400'
+                )} />
+              </div>
+              {gananciaNetaChange !== undefined && (
+                <Badge variant="outline" className={cn('gap-1', getTrendColor(gananciaNetaChange))}>
+                  {React.createElement(getTrendIcon(gananciaNetaChange), { className: 'h-3 w-3' })}
+                  {Math.abs(gananciaNetaChange).toFixed(1)}%
+                </Badge>
               )}
             </div>
-            <p className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground tabular-nums">
-              {formatCurrency(gananciaNetaCents)}
-            </p>
-            <p className={cn(
-              'text-[10px] sm:text-xs font-medium',
-              netProfitStatus === 'success' ? 'text-emerald-600'
-              : netProfitStatus === 'warning' ? 'text-amber-600'
-              : 'text-red-600'
-            )}>
-              {netProfitStatus === 'success' ? t('profitable')
-               : netProfitStatus === 'warning' ? t('breakEven')
-               : t('losses')}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+
+            <div className="space-y-1">
+              <div className="flex items-center gap-1">
+                <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide">
+                  {t('netProfit')}
+                </p>
+                {netProfitStatus === 'danger' && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-3 w-3 text-red-500 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p>{t('netProfit_negative_tooltip')}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
+              <p className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground tabular-nums">
+                {formatCurrency(gananciaNetaCents)}
+              </p>
+              <p className={cn(
+                'text-[10px] sm:text-xs font-medium',
+                netProfitStatus === 'success' ? 'text-emerald-600'
+                : netProfitStatus === 'warning' ? 'text-amber-600'
+                : 'text-red-600'
+              )}>
+                {netProfitStatus === 'success' ? t('profitable')
+                 : netProfitStatus === 'warning' ? t('breakEven')
+                 : t('losses')}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

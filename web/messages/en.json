@@ -3399,6 +3399,12 @@
       "breakEven": "Break Even",
       "losses": "Losses"
     },
+    "recentActivity": {
+      "title": "Recent Activity",
+      "description": "Latest actions in your clinic",
+      "noActivity": "No recent activity",
+      "justNow": "just now"
+    },
     "dateFilter": {
       "selectPeriod": "Select period",
       "from": "From",

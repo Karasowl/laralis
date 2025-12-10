@@ -3666,6 +3666,12 @@
       "breakEven": "En equilibrio",
       "losses": "Con pérdidas"
     },
+    "recentActivity": {
+      "title": "Actividad Reciente",
+      "description": "Últimas acciones en tu clínica",
+      "noActivity": "No hay actividad reciente",
+      "justNow": "hace un momento"
+    },
     "dateFilter": {
       "selectPeriod": "Seleccionar período",
       "from": "Desde",

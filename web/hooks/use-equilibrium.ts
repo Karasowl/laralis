@@ -297,9 +297,10 @@ export function useEquilibrium(options: UseEquilibriumOptions = {}): IEquilibriu
       }
 
       const revenuePayload = toObject(revenueRes)
+      // API returns { data: { total_cents: ... } } - extract the correct field
       const currentRevenueCents = Number(
-        revenuePayload?.revenue?.current ??
-          revenuePayload?.data?.revenue?.current ??
+        revenuePayload?.total_cents ??
+          revenuePayload?.data?.total_cents ??
           0
       )
 
