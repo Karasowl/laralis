@@ -107,8 +107,8 @@ export function BreakEvenProgress({
   const config = statusConfig[status]
   const StatusIcon = config.icon
 
-  // Collapsible state - default expanded
-  const [isExpanded, setIsExpanded] = useState(true)
+  // Collapsible state - default collapsed for cleaner dashboard
+  const [isExpanded, setIsExpanded] = useState(false)
 
   // Calculate suggestion (patients needed per day)
   const suggestedDailyRevenue = useMemo(() => {
