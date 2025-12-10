@@ -7,9 +7,10 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { FormModal } from '@/components/ui/form-modal'
-import { FormGrid, InputField } from '@/components/ui/form-field'
+import { FormGrid, InputField, SelectField } from '@/components/ui/form-field'
 import { toast } from 'sonner'
 import { useWorkspace } from '@/contexts/workspace-context'
+import { SUPPORTED_CURRENCIES, SUPPORTED_LOCALES } from '@/hooks/use-clinic-currency'
 
 type Workspace = {
   id: string
@@ -24,6 +25,8 @@ export type Clinic = {
   address?: string | null
   phone?: string | null
   email?: string | null
+  currency?: string | null
+  locale?: string | null
 }
 
 type ClinicFormState = {
@@ -31,13 +34,17 @@ type ClinicFormState = {
   address: string
   phone: string
   email: string
+  currency: string
+  locale: string
 }
 
 const emptyClinicForm: ClinicFormState = {
   name: '',
   address: '',
   phone: '',
-  email: ''
+  email: '',
+  currency: 'MXN',
+  locale: 'es-MX'
 }
 
 export default function WorkspacesClinicsSettingsClient() {
@@ -143,7 +150,9 @@ export default function WorkspacesClinicsSettingsClient() {
       name: clinic.name || '',
       address: clinic.address || '',
       phone: clinic.phone || '',
-      email: clinic.email || ''
+      email: clinic.email || '',
+      currency: clinic.currency || 'MXN',
+      locale: clinic.locale || 'es-MX'
     })
     setClinicModalOpen(true)
   }
@@ -483,6 +492,21 @@ export default function WorkspacesClinicsSettingsClient() {
               label={t('settings.clinics.fields.email', { defaultValue: 'Email' })}
               value={clinicForm.email}
               onChange={(value) => handleClinicFieldChange('email', String(value))}
+            />
+          </FormGrid>
+
+          <FormGrid columns={2}>
+            <SelectField
+              label={t('settings.clinics.fields.currency', { defaultValue: 'Currency' })}
+              value={clinicForm.currency}
+              onChange={(value) => handleClinicFieldChange('currency', String(value))}
+              options={SUPPORTED_CURRENCIES.map(c => ({ value: c.value, label: c.label }))}
+            />
+            <SelectField
+              label={t('settings.clinics.fields.locale', { defaultValue: 'Region/Format' })}
+              value={clinicForm.locale}
+              onChange={(value) => handleClinicFieldChange('locale', String(value))}
+              options={SUPPORTED_LOCALES.map(l => ({ value: l.value, label: l.label }))}
             />
           </FormGrid>
         </div>

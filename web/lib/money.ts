@@ -48,22 +48,46 @@ export function roundToStepCents(cents: number, stepCents: number, mode: 'neares
 }
 
 /**
+ * Currency format options
+ */
+export interface CurrencyFormatOptions {
+  currency?: string; // ISO 4217 code: MXN, USD, COP, etc.
+  locale?: string;   // e.g., es-MX, en-US
+  showSymbol?: boolean; // Show currency symbol (default: true)
+}
+
+/**
  * Formats cents as currency string
  * @param cents Amount in cents
- * @param locale Locale for formatting (default 'es-MX')
+ * @param localeOrOptions Locale string OR options object for backward compatibility
  * @returns Formatted currency string
  */
 export function formatCurrency(
   cents: number,
-  locale: string = 'es-MX'
+  localeOrOptions: string | CurrencyFormatOptions = 'es-MX'
 ): string {
+  // Handle backward compatibility: string = locale only
+  const options: CurrencyFormatOptions = typeof localeOrOptions === 'string'
+    ? { locale: localeOrOptions }
+    : localeOrOptions;
+
+  const {
+    currency = 'MXN',
+    locale = 'es-MX',
+    showSymbol = true
+  } = options;
+
   const pesos = centsToPesos(cents);
-  const formatted = new Intl.NumberFormat(locale, {
+
+  // Use Intl.NumberFormat with currency style for proper symbol placement
+  const formatter = new Intl.NumberFormat(locale, {
+    style: showSymbol ? 'currency' : 'decimal',
+    currency: showSymbol ? currency : undefined,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(pesos);
-  
-  return `$${formatted}`;
+  });
+
+  return formatter.format(pesos);
 }
 
 /**
@@ -130,8 +154,11 @@ export function redondearA(cents: number, stepCents: number): number {
 /**
  * Alias for formatCurrency for backward compatibility
  */
-export function formatMoney(cents: number, locale: string = 'es-MX'): string {
-  return formatCurrency(cents, locale);
+export function formatMoney(
+  cents: number,
+  localeOrOptions: string | CurrencyFormatOptions = 'es-MX'
+): string {
+  return formatCurrency(cents, localeOrOptions);
 }
 
 /**
