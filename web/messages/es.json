@@ -1823,7 +1823,15 @@
       "createSuccessDesc": "Nueva clínica agregada exitosamente",
       "deleteSuccess": "Clínica Eliminada",
       "deleteSuccessDesc": "Clínica eliminada exitosamente",
-      "deleteConfirm": "¿Estás seguro de que quieres eliminar esta clínica?"
+      "deleteConfirm": "¿Estás seguro de que quieres eliminar esta clínica?",
+      "fields": {
+        "name": "Nombre",
+        "address": "Dirección",
+        "phone": "Teléfono",
+        "email": "Correo electrónico",
+        "currency": "Moneda",
+        "locale": "Región/Formato"
+      }
     },
     "marketing": {
       "title": "Marketing",

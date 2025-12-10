@@ -1645,7 +1645,15 @@
       "createSuccessDesc": "New clinic added successfully",
       "deleteSuccess": "Clinic Deleted",
       "deleteSuccessDesc": "Clinic removed successfully",
-      "deleteConfirm": "Are you sure you want to delete this clinic?"
+      "deleteConfirm": "Are you sure you want to delete this clinic?",
+      "fields": {
+        "name": "Name",
+        "address": "Address",
+        "phone": "Phone",
+        "email": "Email",
+        "currency": "Currency",
+        "locale": "Region/Format"
+      }
     },
     "marketing": {
       "title": "Marketing",

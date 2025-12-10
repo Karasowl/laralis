@@ -60,6 +60,8 @@ export async function PUT(
     if (body.address !== undefined) patch.address = body.address || null
     if (body.phone !== undefined) patch.phone = body.phone || null
     if (body.email !== undefined) patch.email = body.email || null
+    if (body.currency !== undefined) patch.currency = body.currency || 'MXN'
+    if (body.locale !== undefined) patch.locale = body.locale || 'es-MX'
     if (body.is_active !== undefined) patch.is_active = !!body.is_active
     if (body.auto_complete_appointments !== undefined) patch.auto_complete_appointments = !!body.auto_complete_appointments
     patch.updated_at = new Date().toISOString()

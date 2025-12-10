@@ -17,6 +17,8 @@ export interface Clinic {
   name: string;
   global_discount_config?: DiscountConfig;
   price_rounding?: number; // Automatic price rounding (in pesos). Default: 10
+  currency?: string; // ISO 4217 currency code (e.g., MXN, USD, COP). Default: MXN
+  locale?: string; // Locale for number/date formatting (e.g., es-MX, en-US). Default: es-MX
   created_at?: string;
 }
 
