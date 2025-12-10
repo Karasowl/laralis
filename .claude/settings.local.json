@@ -84,7 +84,8 @@
       "Bash(web/messages/es.json )",
       "Bash(web/messages/expenses.en.json )",
       "Bash(web/messages/expenses.es.json )",
-      "Bash(web/vercel.json)"
+      "Bash(web/vercel.json)",
+      "Bash(npx vitest:*)"
     ],
     "deny": []
   }

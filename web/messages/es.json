@@ -789,6 +789,23 @@
       "good": "Bueno",
       "needs_improvement": "Necesita mejora"
     },
+    "predictions": {
+      "title": "Predicciones de Ingreso",
+      "nextMonth": "Próximo Mes",
+      "nextQuarter": "Próximo Trimestre",
+      "yearEnd": "Cierre de Año",
+      "confidence": "Confianza: {value}%",
+      "basis": "Basado en {months} meses de datos",
+      "insufficientData": "Datos Insuficientes",
+      "insufficientDataDesc": "Necesitas al menos 1 mes de tratamientos para generar predicciones",
+      "trend_up": "Tendencia al alza",
+      "trend_down": "Tendencia a la baja",
+      "trend_stable": "Tendencia estable",
+      "methodology": "Predicción basada en regresión lineal de ingresos históricos",
+      "lowConfidence": "Confianza baja - pocos datos disponibles",
+      "mediumConfidence": "Confianza media - datos moderados",
+      "highConfidence": "Confianza alta - datos consistentes"
+    },
     "marketing": {
       "cac": "CAC",
       "cac_description": "Costo de adquisición por cliente",

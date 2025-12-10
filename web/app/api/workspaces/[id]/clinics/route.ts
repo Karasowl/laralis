@@ -98,6 +98,8 @@ export async function POST(
     const address: string | undefined = body?.address
     const phone: string | undefined = body?.phone
     const email: string | undefined = body?.email
+    const currency: string | undefined = body?.currency
+    const locale: string | undefined = body?.locale
 
     if (!name) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 })
@@ -111,6 +113,8 @@ export async function POST(
         address: address || null,
         phone: phone || null,
         email: email || null,
+        currency: currency || 'MXN',
+        locale: locale || 'es-MX',
         is_active: true,
       })
       .select('*')

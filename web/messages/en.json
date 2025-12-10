@@ -651,6 +651,23 @@
       "good": "Good",
       "needs_improvement": "Needs improvement"
     },
+    "predictions": {
+      "title": "Revenue Predictions",
+      "nextMonth": "Next Month",
+      "nextQuarter": "Next Quarter",
+      "yearEnd": "Year End",
+      "confidence": "Confidence: {value}%",
+      "basis": "Based on {months} months of data",
+      "insufficientData": "Insufficient Data",
+      "insufficientDataDesc": "You need at least 1 month of treatments to generate predictions",
+      "trend_up": "Upward trend",
+      "trend_down": "Downward trend",
+      "trend_stable": "Stable trend",
+      "methodology": "Prediction based on linear regression of historical revenue",
+      "lowConfidence": "Low confidence - limited data available",
+      "mediumConfidence": "Medium confidence - moderate data",
+      "highConfidence": "High confidence - consistent data"
+    },
     "marketing": {
       "cac": "CAC",
       "cac_description": "Customer acquisition cost",
