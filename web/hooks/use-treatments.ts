@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useMemo, useEffect } from 'react'
-import { useCrudOperations } from './use-crud-operations'
+import { useSwrCrud } from './use-swr-crud'
 import { useApi } from './use-api'
 import { useParallelApi } from './use-api'
 import { useTranslations } from 'next-intl'
@@ -94,12 +94,13 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
   const { clinicId, autoLoad = true, patientId } = options
   const t = useTranslations()
 
-  // Use generic CRUD for treatments
-  const crud = useCrudOperations<Treatment>({
+  // Use SWR-based CRUD for treatments with caching
+  const crud = useSwrCrud<Treatment>({
     endpoint: '/api/treatments',
     entityName: 'Treatment',
     includeClinicId: true,
     staticParams: patientId ? { patient_id: patientId } : undefined,
+    revalidateOnFocus: true,
   })
 
   // Use API hooks for related data
@@ -236,7 +237,7 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
       showCalendarSyncToast(result.calendarSync, t)
 
       toast.success(t('common.createSuccess', { entity: 'Treatment' }))
-      await crud.fetchItems()
+      await crud.refresh()
       return true
     } catch (error) {
       console.error('Error creating treatment:', error)
@@ -327,7 +328,7 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
       showCalendarSyncToast(result.calendarSync, t)
 
       toast.success(t('common.updateSuccess', { entity: 'Treatment' }))
-      await crud.fetchItems()
+      await crud.refresh()
       return true
     } catch (error) {
       console.error('Error updating treatment:', error)
@@ -356,10 +357,13 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
     summary,
 
     // Operations
-    fetchTreatments: crud.fetchItems,
+    fetchTreatments: crud.refresh, // SWR uses refresh instead of fetchItems
     createTreatment,
     updateTreatment,
     deleteTreatment: crud.handleDelete,
+
+    // SWR state
+    isValidating: crud.isValidating,
 
     // Load related data
     loadRelatedData

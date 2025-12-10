@@ -38,7 +38,15 @@ const normalizePayload = (body: any) => {
   const rawRealPct = body?.real_pct ?? body?.real_pct_decimal ?? body?.realPct ?? 0;
   const real_pct = clamp(numberOrZero(rawRealPct), 0, 100);
   const working_days_config = body?.working_days_config || null;
-  return { work_days, hours_per_day, real_pct, working_days_config };
+
+  // Handle monthly_goal_cents (optional field)
+  let monthly_goal_cents: number | null = null;
+  if (body?.monthly_goal_cents !== undefined && body?.monthly_goal_cents !== null) {
+    const goalValue = numberOrZero(body.monthly_goal_cents);
+    monthly_goal_cents = goalValue > 0 ? Math.round(goalValue) : null;
+  }
+
+  return { work_days, hours_per_day, real_pct, working_days_config, monthly_goal_cents };
 };
 
 export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<SettingsTime>>> {
@@ -103,6 +111,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
         work_days: dbData.working_days_per_month ?? dbData.work_days,
         hours_per_day: dbData.hours_per_day,
         real_pct: normalizedRealPct,
+        monthly_goal_cents: dbData.monthly_goal_cents ?? null,
         updated_at: dbData.updated_at,
       };
 
@@ -190,7 +199,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       );
     }
 
-    const { work_days, hours_per_day, real_pct, clinic_id } = validationResult.data;
+    const { work_days, hours_per_day, real_pct, clinic_id, monthly_goal_cents } = validationResult.data;
     const working_days_config = normalized.working_days_config;
 
     // Normalize: TypeScript uses percentage (0-100), DB expects decimal (0-1)
@@ -204,6 +213,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       real_pct: dbRealPct,                            // Short names - as decimal
       real_hours_percentage: dbRealPct,               // Long names - as decimal
       working_days_config,
+      monthly_goal_cents: monthly_goal_cents ?? null, // Optional goal field
     };
 
     const { data: existing } = await supabaseAdmin
@@ -256,6 +266,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       work_days: result.data.working_days_per_month ?? result.data.work_days,
       hours_per_day: result.data.hours_per_day,
       real_pct: normalizedRealPct,
+      monthly_goal_cents: result.data.monthly_goal_cents ?? null,
       updated_at: result.data.updated_at,
     };
 

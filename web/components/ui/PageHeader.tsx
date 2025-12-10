@@ -14,7 +14,7 @@ const PageHeader = React.forwardRef<HTMLDivElement, PageHeaderProps>(
       <div
         ref={ref}
         className={cn(
-          "flex flex-col gap-4 pb-8 border-b border-border/40",
+          "flex flex-col gap-4 pb-4 sm:pb-6 lg:pb-8 border-b border-border/40",
           className
         )}
         {...props}

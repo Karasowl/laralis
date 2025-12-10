@@ -47,7 +47,40 @@ export async function GET(request: NextRequest) {
       .lte('created_at', end.toISOString())
     if (newErr) throw newErr
 
-    return NextResponse.json({ patients: { total: total || 0, new: newly || 0 } })
+    // Pacientes ATENDIDOS en el periodo (con tratamiento) - ISSUE-004
+    const { data: treatedPatients, error: treatedErr } = await supabaseAdmin
+      .from('treatments')
+      .select('patient_id')
+      .eq('clinic_id', clinicId)
+      .gte('treatment_date', start.toISOString().split('T')[0])
+      .lte('treatment_date', end.toISOString().split('T')[0])
+    if (treatedErr) throw treatedErr
+
+    // Contar pacientes únicos atendidos
+    const uniquePatientIds = new Set(treatedPatients?.map(t => t.patient_id) || [])
+    const attendedCount = uniquePatientIds.size
+
+    // Pacientes activos (con tratamiento en últimos 90 días)
+    const activeStart = new Date()
+    activeStart.setDate(activeStart.getDate() - 90)
+    const { data: activePatients, error: activeErr } = await supabaseAdmin
+      .from('treatments')
+      .select('patient_id')
+      .eq('clinic_id', clinicId)
+      .gte('treatment_date', activeStart.toISOString().split('T')[0])
+    if (activeErr) throw activeErr
+
+    const uniqueActiveIds = new Set(activePatients?.map(t => t.patient_id) || [])
+    const activeCount = uniqueActiveIds.size
+
+    return NextResponse.json({
+      patients: {
+        total: total || 0,           // Total histórico (sin cambios)
+        new: newly || 0,              // Nuevos en el periodo
+        attended: attendedCount,      // NUEVO: Atendidos en el periodo
+        active: activeCount           // Activos (últimos 90 días)
+      }
+    })
   } catch (err) {
     console.error('dashboard/patients error', err)
     return NextResponse.json({ error: 'Failed to fetch patients metrics' }, { status: 500 })

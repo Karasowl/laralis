@@ -25,6 +25,9 @@ export const ALL_EXPENSE_CATEGORIES = {
 
 export type ExpenseCategoryType = typeof ALL_EXPENSE_CATEGORIES[keyof typeof ALL_EXPENSE_CATEGORIES]
 
+// Recurrence interval types
+export type RecurrenceInterval = 'weekly' | 'monthly' | 'yearly'
+
 // Database types
 export interface Expense {
   id: string
@@ -47,6 +50,13 @@ export interface Expense {
   related_supply_id?: string
   quantity?: number
   auto_processed: boolean
+  // Recurring expense configuration
+  recurrence_interval?: RecurrenceInterval  // weekly, monthly, yearly
+  recurrence_day?: number  // Day of month (1-31) or week (1-7 for weekly)
+  next_recurrence_date?: string  // Next scheduled generation date
+  parent_expense_id?: string  // Reference to template expense (null if template)
+  // Budget tracking
+  related_fixed_cost_id?: string  // Reference to planned fixed cost for budget vs actual analysis
   created_at: string
   updated_at: string
 }
@@ -133,7 +143,12 @@ export const expenseFormSchema = z.object({
   related_supply_id: z.string().optional(),
   create_asset: z.boolean().default(false),
   asset_name: z.string().optional(),
-  asset_useful_life_years: z.number().int().positive().optional()
+  asset_useful_life_years: z.number().int().positive().optional(),
+  // Recurring expense configuration
+  recurrence_interval: z.enum(['weekly', 'monthly', 'yearly']).optional(),
+  recurrence_day: z.number().int().min(1).max(31).optional(),
+  // Budget tracking
+  related_fixed_cost_id: z.string().uuid().optional()
 })
 
 export type ExpenseFormData = z.infer<typeof expenseFormSchema>
@@ -157,7 +172,14 @@ export const expenseDbSchema = z.object({
   related_supply_id: z.string().optional(),
   create_asset: z.boolean().default(false),
   asset_name: z.string().optional(),
-  asset_useful_life_years: z.number().int().positive().optional()
+  asset_useful_life_years: z.number().int().positive().optional(),
+  // Recurring expense configuration
+  recurrence_interval: z.enum(['weekly', 'monthly', 'yearly']).optional(),
+  recurrence_day: z.number().int().min(1).max(31).optional(),
+  next_recurrence_date: z.string().optional(),
+  parent_expense_id: z.string().uuid().optional(),
+  // Budget tracking
+  related_fixed_cost_id: z.string().uuid().optional()
 })
 
 // API request/response types

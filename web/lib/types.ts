@@ -26,6 +26,7 @@ export interface SettingsTime {
   work_days: number;
   hours_per_day: number;
   real_pct: number;
+  monthly_goal_cents?: number | null;
   updated_at?: string;
 }
 

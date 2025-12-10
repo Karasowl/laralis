@@ -31,13 +31,28 @@ export async function GET(request: NextRequest) {
 
     const months = parseInt(searchParams.get('months') || '12')
     const projectionMonths = parseInt(searchParams.get('projectionMonths') || '3')
+    const startDate = searchParams.get('startDate')
+    const endDate = searchParams.get('endDate')
 
-    // Get historical patient data grouped by month
-    const { data: patients, error } = await supabaseAdmin
+    // Build date query
+    let patientsQuery = supabaseAdmin
       .from('patients')
       .select('created_at')
       .eq('clinic_id', clinicContext.clinicId)
       .order('created_at', { ascending: true })
+
+    // Apply date filters or default to last N months
+    if (startDate && endDate) {
+      patientsQuery = patientsQuery
+        .gte('created_at', startDate)
+        .lte('created_at', endDate)
+    } else {
+      const cutoffDate = new Date()
+      cutoffDate.setMonth(cutoffDate.getMonth() - months)
+      patientsQuery = patientsQuery.gte('created_at', cutoffDate.toISOString())
+    }
+
+    const { data: patients, error } = await patientsQuery
 
     if (error) {
       console.error('[AcquisitionTrends] Database error:', error)
@@ -53,13 +68,21 @@ export async function GET(request: NextRequest) {
       return month.charAt(0).toUpperCase() + month.slice(1)
     }
 
+    // Determine the date range for monthly buckets
+    const now = new Date()
+    const rangeStart = startDate ? new Date(startDate) : new Date(now.getFullYear(), now.getMonth() - months + 1, 1)
+    const rangeEnd = endDate ? new Date(endDate) : now
+
+    // Calculate number of months in range
+    const monthsDiff = (rangeEnd.getFullYear() - rangeStart.getFullYear()) * 12 +
+                       (rangeEnd.getMonth() - rangeStart.getMonth()) + 1
+
     // Group patients by month
     const monthlyData = new Map<string, number>()
-    const now = new Date()
 
-    // Initialize last N months with 0
-    for (let i = months - 1; i >= 0; i--) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    // Initialize all months in range with 0
+    for (let i = 0; i < monthsDiff; i++) {
+      const date = new Date(rangeStart.getFullYear(), rangeStart.getMonth() + i, 1)
       const monthKey = formatMonth(date)
       monthlyData.set(monthKey, 0)
     }

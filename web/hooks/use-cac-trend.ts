@@ -23,15 +23,24 @@ export interface CACTrendData {
 
 interface UseCACTrendOptions {
   clinicId?: string
-  months?: number
+  months?: number        // mantener para backwards compatibility
+  startDate?: string     // formato YYYY-MM-DD
+  endDate?: string       // formato YYYY-MM-DD
 }
 
 export function useCACTrend(options: UseCACTrendOptions = {}) {
-  const { clinicId, months = 12 } = options
+  const { clinicId, months = 12, startDate, endDate } = options
 
   const params = new URLSearchParams()
   if (clinicId) params.set('clinicId', clinicId)
-  params.set('months', months.toString())
+
+  // Preferir fechas específicas sobre months
+  if (startDate && endDate) {
+    params.set('startDate', startDate)
+    params.set('endDate', endDate)
+  } else {
+    params.set('months', months.toString())
+  }
 
   const endpoint = clinicId
     ? `/api/analytics/cac-trend?${params.toString()}`

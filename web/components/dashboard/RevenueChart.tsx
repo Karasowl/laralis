@@ -5,6 +5,8 @@ import { useTranslations } from 'next-intl'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import { formatCurrency } from '@/lib/format'
+import { formatChartAxis } from '@/lib/money'
+import { useLocale } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -28,6 +30,7 @@ export function RevenueChart({
   currentGranularity = 'month'
 }: RevenueChartProps) {
   const t = useTranslations('dashboard')
+  const locale = useLocale()
 
   const granularityOptions = [
     { value: 'day' as const, label: t('day') || 'Día' },
@@ -102,12 +105,7 @@ export function RevenueChart({
             <YAxis 
               className="text-xs"
               tick={{ fill: 'currentColor' }}
-              tickFormatter={(value: number) => {
-                if (Math.abs(value) >= 1000) {
-                  return `$${(value / 1000).toFixed(0)}k`
-                }
-                return `$${value.toFixed(0)}`
-              }}
+              tickFormatter={(value: number) => formatChartAxis(value, locale)}
             />
             <Tooltip content={<CustomTooltip />} />
             <Area

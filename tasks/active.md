@@ -2,6 +2,29 @@
 
 ## En Progreso
 
+- [ ] **TASK-20251209-dashboard-mega-refactor** - Dashboard Mega Refactor (P0 - CRÍTICO)
+  - **Priority**: P0 - Crítico
+  - **Estimate**: XL (1+ semana)
+  - **Areas**: ui, data, calc, i18n
+  - **Status**: ✅ ANÁLISIS COMPLETO - 23 issues desglosados
+  - **Issues**: Ver `tasks/issues/README.md` para índice completo
+  - **P0 Quick Wins** (2-3h):
+    - ISSUE-001: useEquilibrium sin filtros fecha (XS)
+    - ISSUE-005: CAC siempre cero (XS)
+    - ISSUE-006: CampaignROI vacío (XS)
+    - ISSUE-008: Lara usa campo inexistente work_days_per_month (XS)
+    - ISSUE-007: Tooltips rotos - TooltipProvider 4x (XS)
+  - **P1 UI/UX** (3-4h):
+    - ISSUE-010: DateFilter iconos solapados mobile
+    - ISSUE-012: RecentActivity colapsar por defecto
+    - ISSUE-013: CategoryBreakdown texto superpuesto
+    - ISSUE-014: Tooltips explicativos métricas
+  - **P1 Features** (1-2d):
+    - ISSUE-015: Meta mensual configurable
+    - ISSUE-017: Refactorizar expenses (1233→<400 líneas)
+  - Ver: `tasks/TASK-20251209-dashboard-mega-refactor.md`
+  - Ver: `docs/design/2025-12-09-dashboard-analysis-summary.md`
+
 - [ ] TASK-20251127-google-calendar-integration - Integrar Google Calendar con tratamientos pendientes
   - **Priority**: P2
   - **Estimate**: L (3-4 días)

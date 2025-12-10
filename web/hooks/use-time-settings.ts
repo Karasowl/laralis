@@ -12,6 +12,7 @@ export interface TimeSettings {
   work_days: number
   hours_per_day: number
   real_pct: number
+  monthly_goal_cents?: number | null
   working_days_config?: WorkingDaysConfig | null
   created_at?: string
   updated_at?: string
@@ -39,9 +40,9 @@ export function useTimeSettings(options: UseTimeSettingsOptions = {}) {
   const { clinicId, autoLoad = true } = options
   const t = useTranslations()
   
-  const [settings, setSettings] = useState<TimeSettings>({ work_days: 0, hours_per_day: 0, real_pct: 0 })
+  const [settings, setSettings] = useState<TimeSettings>({ work_days: 0, hours_per_day: 0, real_pct: 0, monthly_goal_cents: null })
   const [hasRecord, setHasRecord] = useState(false)
-  const draftRef = useRef<TimeSettings>({ work_days: 0, hours_per_day: 0, real_pct: 0 })
+  const draftRef = useRef<TimeSettings>({ work_days: 0, hours_per_day: 0, real_pct: 0, monthly_goal_cents: null })
   
   // Resolve clinicId robustly: prop -> cookie -> localStorage
   const resolvedClinicId = useMemo(() => {
@@ -124,6 +125,7 @@ export function useTimeSettings(options: UseTimeSettingsOptions = {}) {
         work_days: apiSettings.work_days || 0,
         hours_per_day: apiSettings.hours_per_day || 0,
         real_pct: apiSettings.real_pct || 0,
+        monthly_goal_cents: apiSettings.monthly_goal_cents ?? null,
         working_days_config: apiSettings.working_days_config || null
       }
       try { console.log('[useTimeSettings] loaded from API', apiSettings) } catch {}
@@ -157,6 +159,7 @@ export function useTimeSettings(options: UseTimeSettingsOptions = {}) {
       work_days: base.work_days,
       hours_per_day: base.hours_per_day,
       real_pct: base.real_pct,
+      monthly_goal_cents: base.monthly_goal_cents ?? null,
       working_days_config: base.working_days_config
     }
 
@@ -164,6 +167,7 @@ export function useTimeSettings(options: UseTimeSettingsOptions = {}) {
       if (typeof payload.work_days === 'number') draft.work_days = payload.work_days
       if (typeof payload.hours_per_day === 'number') draft.hours_per_day = payload.hours_per_day
       if (typeof payload.real_pct === 'number') draft.real_pct = payload.real_pct
+      if (payload.monthly_goal_cents !== undefined) draft.monthly_goal_cents = payload.monthly_goal_cents
       if (payload.working_days_config !== undefined) draft.working_days_config = payload.working_days_config
     }
 
@@ -176,6 +180,7 @@ export function useTimeSettings(options: UseTimeSettingsOptions = {}) {
           work_days: Number(draft.work_days) || 0,
           hours_per_day: Number(draft.hours_per_day) || 0,
           real_pct: Number(draft.real_pct) || 0,
+          monthly_goal_cents: draft.monthly_goal_cents,
           working_days_config: draft.working_days_config,
           clinic_id: cid
         })

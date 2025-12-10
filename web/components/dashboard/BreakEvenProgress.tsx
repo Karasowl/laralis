@@ -17,7 +17,8 @@ import { formatCurrency } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 interface BreakEvenProgressProps {
-  monthlyTargetCents: number
+  monthlyTargetCents: number      // Break-even revenue (punto de equilibrio puro)
+  monthlyGoalCents?: number | null // Meta mensual configurada (puede no existir)
   currentRevenueCents: number
   progressPercentage: number
   dailyTargetCents: number
@@ -31,6 +32,7 @@ interface BreakEvenProgressProps {
 
 export function BreakEvenProgress({
   monthlyTargetCents,
+  monthlyGoalCents,
   currentRevenueCents,
   progressPercentage,
   dailyTargetCents,
@@ -43,9 +45,33 @@ export function BreakEvenProgress({
 }: BreakEvenProgressProps) {
   const t = useTranslations('dashboardComponents.breakEvenProgress')
 
+  // Calculate effective target: The GREATER between break-even and configured goal
+  const effectiveTargetCents = useMemo(() => {
+    return Math.max(
+      monthlyTargetCents,
+      monthlyGoalCents || monthlyTargetCents
+    )
+  }, [monthlyTargetCents, monthlyGoalCents])
+
+  // Calculate percentages for each marker
+  const breakEvenPercent = useMemo(() => {
+    return effectiveTargetCents > 0
+      ? (monthlyTargetCents / effectiveTargetCents) * 100
+      : 0
+  }, [monthlyTargetCents, effectiveTargetCents])
+
+  const currentPercent = useMemo(() => {
+    return Math.min(
+      effectiveTargetCents > 0 ? (currentRevenueCents / effectiveTargetCents) * 100 : 0,
+      100
+    )
+  }, [currentRevenueCents, effectiveTargetCents])
+
+  const effectiveRevenueGapCents = Math.max(0, effectiveTargetCents - currentRevenueCents)
+
   // Determine status and messaging - SMART: Compare progress vs time elapsed
   const status = useMemo(() => {
-    if (progressPercentage >= 100) return 'success'
+    if (currentPercent >= 100) return 'success'
 
     // Calculate expected progress based on time elapsed
     const timeElapsedPercentage = totalWorkDaysInPeriod > 0
@@ -53,17 +79,17 @@ export function BreakEvenProgress({
       : 0
 
     // Calculate how far ahead/behind we are
-    const progressDelta = progressPercentage - timeElapsedPercentage
+    const progressDelta = currentPercent - timeElapsedPercentage
 
     // If we have minimal revenue, always show danger regardless of time
-    if (currentRevenueCents < (monthlyTargetCents * 0.05)) {
+    if (currentRevenueCents < (effectiveTargetCents * 0.05)) {
       return 'danger'
     }
 
     // Status based on progress vs expected progress
     if (progressDelta >= 0) {
       // Ahead or on track
-      return progressPercentage >= 80 ? 'ontrack' : 'warning'
+      return currentPercent >= 80 ? 'ontrack' : 'warning'
     } else if (progressDelta >= -15) {
       // Slightly behind (within 15%)
       return 'warning'
@@ -71,7 +97,7 @@ export function BreakEvenProgress({
       // Significantly behind
       return 'danger'
     }
-  }, [progressPercentage, actualDaysWorked, totalWorkDaysInPeriod, currentRevenueCents, monthlyTargetCents])
+  }, [currentPercent, actualDaysWorked, totalWorkDaysInPeriod, currentRevenueCents, effectiveTargetCents])
 
   const statusConfig = {
     success: {
@@ -113,8 +139,12 @@ export function BreakEvenProgress({
   // Calculate suggestion (patients needed per day)
   const suggestedDailyRevenue = useMemo(() => {
     const remainingDays = Math.max(1, remainingWorkingDays)
-    return Math.ceil(revenueGapCents / remainingDays)
-  }, [revenueGapCents, remainingWorkingDays])
+    return Math.ceil(effectiveRevenueGapCents / remainingDays)
+  }, [effectiveRevenueGapCents, remainingWorkingDays])
+
+  // Check if we have a configured goal higher than break-even
+  const hasConfiguredGoal = monthlyGoalCents && monthlyGoalCents > monthlyTargetCents
+  const breakEvenRevenueGapCents = Math.max(0, monthlyTargetCents - currentRevenueCents)
 
   return (
     <Card className={cn('border-2 transition-all duration-200 hover:shadow-lg', config.borderColor)}>
@@ -167,13 +197,21 @@ export function BreakEvenProgress({
           <div className="mt-3 flex items-center gap-4 text-sm">
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground">{t('progress')}:</span>
-              <span className="font-bold">{Math.min(100, progressPercentage).toFixed(1)}%</span>
+              <span className="font-bold">{currentPercent.toFixed(1)}%</span>
             </div>
-            <div className="flex-1">
-              <Progress value={Math.min(100, progressPercentage)} className="h-2" />
+            <div className="flex-1 relative">
+              <Progress value={currentPercent} className="h-2" />
+              {/* Break-even marker (only if there's a higher goal) */}
+              {hasConfiguredGoal && breakEvenRevenueGapCents > 0 && (
+                <div
+                  className="absolute top-0 bottom-0 w-0.5 bg-amber-500"
+                  style={{ left: `${breakEvenPercent}%` }}
+                  title={t('breakEvenMarker')}
+                />
+              )}
             </div>
             <span className="text-muted-foreground text-xs">
-              {formatCurrency(currentRevenueCents)} / {formatCurrency(monthlyTargetCents)}
+              {formatCurrency(currentRevenueCents)} / {formatCurrency(effectiveTargetCents)}
             </span>
           </div>
         )}
@@ -188,19 +226,19 @@ export function BreakEvenProgress({
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">{t('progress')}</span>
             <span className="font-bold text-lg">
-              {Math.min(100, progressPercentage).toFixed(1)}%
+              {currentPercent.toFixed(1)}%
             </span>
           </div>
 
           {/* Mobile: Labels above progress bar */}
           <div className="flex items-center justify-between text-xs text-muted-foreground sm:hidden">
             <span>{formatCurrency(currentRevenueCents)}</span>
-            <span>{formatCurrency(monthlyTargetCents)}</span>
+            <span>{formatCurrency(effectiveTargetCents)}</span>
           </div>
 
           <div className="relative">
             <Progress
-              value={Math.min(100, progressPercentage)}
+              value={currentPercent}
               className="h-3"
             />
             {/* Custom colored fill */}
@@ -209,27 +247,35 @@ export function BreakEvenProgress({
                 "absolute top-0 left-0 h-3 rounded-full transition-all duration-500",
                 config.progressColor
               )}
-              style={{ width: `${Math.min(100, progressPercentage)}%` }}
+              style={{ width: `${currentPercent}%` }}
             />
+            {/* Break-even marker (only if there's a higher configured goal) */}
+            {hasConfiguredGoal && breakEvenRevenueGapCents > 0 && (
+              <div
+                className="absolute top-0 bottom-0 w-0.5 bg-amber-500 z-10"
+                style={{ left: `${breakEvenPercent}%` }}
+                title={t('breakEvenMarker')}
+              />
+            )}
           </div>
 
           {/* Desktop: Labels below progress bar */}
           <div className="hidden sm:flex items-center justify-between text-xs text-muted-foreground">
             <span>{formatCurrency(currentRevenueCents)}</span>
-            <span>{formatCurrency(monthlyTargetCents)}</span>
+            <span>{formatCurrency(effectiveTargetCents)}</span>
           </div>
         </div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-4">
-          {/* Revenue Gap */}
+          {/* Current Revenue */}
           <div className="space-y-1">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Target className="h-3.5 w-3.5" />
-              {t('remaining')}
+              <TrendingUp className="h-3.5 w-3.5" />
+              {t('current')}
             </div>
             <div className="text-xl font-bold text-foreground">
-              {formatCurrency(Math.max(0, revenueGapCents))}
+              {formatCurrency(currentRevenueCents)}
             </div>
           </div>
 
@@ -243,10 +289,34 @@ export function BreakEvenProgress({
               {actualDaysWorked} / {totalWorkDaysInPeriod}
             </div>
           </div>
+
+          {/* Break-Even Gap (only show if not reached and there's a higher goal) */}
+          {hasConfiguredGoal && breakEvenRevenueGapCents > 0 && (
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 text-xs text-amber-600">
+                <Target className="h-3.5 w-3.5" />
+                {t('toBreakEven')}
+              </div>
+              <div className="text-xl font-bold text-amber-600">
+                {formatCurrency(breakEvenRevenueGapCents)}
+              </div>
+            </div>
+          )}
+
+          {/* Goal Gap */}
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Target className="h-3.5 w-3.5" />
+              {t('toGoal')}
+            </div>
+            <div className="text-xl font-bold text-foreground">
+              {formatCurrency(effectiveRevenueGapCents)}
+            </div>
+          </div>
         </div>
 
         {/* Projection Message */}
-        {progressPercentage < 100 && currentRevenueCents > 0 && (
+        {currentPercent < 100 && currentRevenueCents > 0 && (
           <div className={cn('rounded-lg p-4 space-y-2', config.bgColor)}>
             <div className="flex items-start gap-2">
               <TrendingUp className={cn('h-4 w-4 mt-0.5 flex-shrink-0', config.color)} />
@@ -268,7 +338,7 @@ export function BreakEvenProgress({
         )}
 
         {/* No Revenue Yet Message */}
-        {progressPercentage < 100 && currentRevenueCents === 0 && (
+        {currentPercent < 100 && currentRevenueCents === 0 && (
           <div className={cn('rounded-lg p-4', config.bgColor)}>
             <div className="flex items-start gap-2">
               <AlertCircle className={cn('h-4 w-4 mt-0.5 flex-shrink-0', config.color)} />
@@ -285,7 +355,7 @@ export function BreakEvenProgress({
         )}
 
         {/* Success Message */}
-        {progressPercentage >= 100 && (
+        {currentPercent >= 100 && (
           <div className={cn('rounded-lg p-4', config.bgColor)}>
             <div className="flex items-start gap-2">
               <Trophy className={cn('h-5 w-5 flex-shrink-0', config.color)} />
@@ -295,7 +365,7 @@ export function BreakEvenProgress({
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   {t('goalReached', {
-                    excess: formatCurrency(currentRevenueCents - monthlyTargetCents)
+                    excess: formatCurrency(currentRevenueCents - effectiveTargetCents)
                   })}
                 </p>
               </div>
@@ -304,7 +374,7 @@ export function BreakEvenProgress({
         )}
 
         {/* Suggestion */}
-        {progressPercentage < 100 && revenueGapCents > 0 && (
+        {currentPercent < 100 && effectiveRevenueGapCents > 0 && (
           <div className="border-t pt-4">
             <div className="flex items-start gap-2">
               <Lightbulb className="h-4 w-4 text-amber-600 dark:text-amber-500 mt-0.5 flex-shrink-0" />

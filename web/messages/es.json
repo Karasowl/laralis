@@ -902,6 +902,28 @@
       "onTrack": "En linea con lo planeado",
       "varianceByCategory": "Varianza por categoria",
       "noData": "No hay datos de costos planeados o gastos reales para comparar"
+    },
+    "metricTooltips": {
+      "grossProfit": {
+        "formula": "Ingresos - Costos Variables",
+        "explanation": "Ganancia después de pagar materiales e insumos. No incluye costos fijos como renta o salarios."
+      },
+      "netProfit": {
+        "formula": "Utilidad Bruta - Costos Fijos",
+        "explanation": "Tu ganancia real después de todos los gastos. Esto es lo que te queda."
+      },
+      "ebitda": {
+        "formula": "Utilidad Operativa + Depreciación",
+        "explanation": "Ganancias antes de intereses, impuestos, depreciación y amortización. Muestra el desempeño operativo."
+      },
+      "roi": {
+        "formula": "(Ganancia / Costo) × 100",
+        "explanation": "Retorno de inversión. Muestra cuánto ganas por cada peso invertido en este servicio."
+      },
+      "avgTicket": {
+        "formula": "Ingresos Totales / Número de Tratamientos",
+        "explanation": "Monto promedio ganado por tratamiento o visita."
+      }
     }
   },
   "onboarding": {
@@ -1053,7 +1075,9 @@
       "newPatients": "Nuevos pacientes registrados",
       "completed": "Tratamientos completados",
       "thisMonth": "Este mes",
-      "utilizationRate": "Utilización de sillón"
+      "utilizationRate": "Utilización de sillón",
+      "attended": "Atendidos",
+      "attendedPatients": "Pacientes atendidos"
     },
     "configurationStatus": "Configuración",
     "databaseStatus": "Estado Base de Datos",
@@ -3649,7 +3673,11 @@
       "noRevenueYet": "Sin ingresos registrados aún",
       "noRevenueHelp": "Tienes {remaining} días laborales restantes para alcanzar tu meta. Comienza a registrar tratamientos para ver tu progreso real.",
       "collapse": "Contraer",
-      "expand": "Expandir"
+      "expand": "Expandir",
+      "breakEvenMarker": "Punto de equilibrio",
+      "toBreakEven": "Para equilibrio",
+      "current": "Actual",
+      "toGoal": "Para meta"
     },
     "businessMetrics": {
       "avgTicket": "Ticket Promedio",
@@ -3670,7 +3698,9 @@
       "title": "Actividad Reciente",
       "description": "Últimas acciones en tu clínica",
       "noActivity": "No hay actividad reciente",
-      "justNow": "hace un momento"
+      "justNow": "hace un momento",
+      "showMore": "Ver {count} más",
+      "showLess": "Ver menos"
     },
     "dateFilter": {
       "selectPeriod": "Seleccionar período",
