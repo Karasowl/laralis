@@ -115,7 +115,10 @@ export const zSupplyForm = z.object({
     .refine((v) => Math.round(v * 100) <= Number.MAX_SAFE_INTEGER, {
       message: 'Price too large',
     }),
-  portions: z.coerce.number().int().min(1, 'Portions must be at least 1')
+  portions: z.coerce.number().int().min(1, 'Portions must be at least 1'),
+  // Inventory fields
+  stock_quantity: z.coerce.number().int().min(0, 'Stock cannot be negative').optional(),
+  min_stock_alert: z.coerce.number().int().min(0, 'Alert threshold cannot be negative').optional(),
 });
 
 export const zServiceForm = z.object({
@@ -155,6 +158,7 @@ export const zAsset = z.object({
 // Form schema for Asset (client-side)
 export const zAssetForm = z.object({
   name: z.string().min(1, 'Name is required'),
+  category: z.string().optional(),
   purchase_price_pesos: z
     .coerce
     .number()

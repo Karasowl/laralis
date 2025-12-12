@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl'
 import { Card, CardContent } from '@/components/ui/card'
-import { formatCurrency } from '@/lib/money'
+import { useClinicCurrency } from '@/hooks/use-clinic-currency'
 import { DollarSign, TrendingUp, Target, Users, Info } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -22,6 +22,7 @@ interface MarketingMetricsProps {
 export function MarketingMetrics({ cac, ltv, conversionRate, loading }: MarketingMetricsProps) {
   const t = useTranslations('dashboard.marketing')
   const tCommon = useTranslations('common')
+  const { format: formatCurrency } = useClinicCurrency()
 
   if (loading) {
     return (

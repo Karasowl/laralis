@@ -12,7 +12,7 @@ import { formatCurrency } from '@/lib/money'
 
 export interface MetricTooltipData {
   formula: string
-  values?: { label: string; amount: number }[]
+  values?: { label: string; amount: number; isCount?: boolean }[]
   explanation: string
 }
 
@@ -41,7 +41,7 @@ export function MetricTooltip({ data, children }: MetricTooltipProps) {
                 {data.values.map((v, i) => (
                   <div key={i} className="flex justify-between text-xs gap-4">
                     <span className="text-muted-foreground">{v.label}</span>
-                    <span className="font-medium">{formatCurrency(v.amount)}</span>
+                    <span className="font-medium">{v.isCount ? v.amount.toLocaleString() : formatCurrency(v.amount)}</span>
                   </div>
                 ))}
               </div>

@@ -5,7 +5,7 @@
  * Implements manual rollback since Supabase doesn't support native transactions.
  */
 
-import { createClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ExportBundle, ImportOptions, ImportResult, ImportProgress } from './types';
 import { migrateBundle } from './migrator';
 import { validateBundle } from './validator';
@@ -37,7 +37,8 @@ interface IdMapping {
  * Handles importing of complete workspace bundles with rollback support.
  */
 export class WorkspaceBundleImporter {
-  private supabase: ReturnType<typeof createClient>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private supabase: SupabaseClient<any, any, any>;
   private bundle: ExportBundle;
   private options: ImportOptions;
   private progress: ImportProgress;
@@ -53,7 +54,8 @@ export class WorkspaceBundleImporter {
   };
 
   constructor(
-    supabase: ReturnType<typeof createClient>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    supabase: SupabaseClient<any, any, any>,
     bundle: ExportBundle,
     options: ImportOptions
   ) {

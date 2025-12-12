@@ -14,6 +14,7 @@ import {
   ChevronRight,
   PackageOpen,
   Calendar,
+  Mail,
 } from 'lucide-react';
 
 export default function SettingsPage() {
@@ -78,6 +79,14 @@ export default function SettingsPage() {
           href: '/settings/calendar',
           icon: Calendar,
           color: 'text-blue-600',
+        },
+        {
+          id: 'notifications',
+          title: t('settings.notifications.title'),
+          description: t('settings.notifications.description'),
+          href: '/settings/notifications',
+          icon: Mail,
+          color: 'text-amber-600',
         },
       ],
     },

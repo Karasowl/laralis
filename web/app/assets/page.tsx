@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
@@ -310,8 +310,8 @@ export default function AssetsPage() {
             <InputField
               label={t('assets.formNameLabel')}
               value={watch('name')}
-              onChange={(v) => {
-                const value = typeof v === 'string' ? v : v?.target?.value || ''
+              onChange={(v: string | number | React.ChangeEvent<HTMLInputElement>) => {
+                const value = typeof v === 'string' ? v : typeof v === 'number' ? String(v) : (typeof v === 'object' && v !== null && 'target' in v ? (v as React.ChangeEvent<HTMLInputElement>).target.value : '')
                 setValue('name', value)
               }}
               error={errors.name?.message}
@@ -335,7 +335,7 @@ export default function AssetsPage() {
                 label={t('assets.formPriceLabel')}
                 type="number"
                 value={watch('purchase_price_pesos')}
-                onChange={(v) => {
+                onChange={(v: string | number | React.ChangeEvent<HTMLInputElement>) => {
                   const value = typeof v === 'number' ? v : parseFloat(String(v)) || 0
                   setValue('purchase_price_pesos', value)
                 }}
@@ -345,12 +345,12 @@ export default function AssetsPage() {
                 helperText={t('businessSetup.assets.priceHelp')}
                 required
               />
-              
+
               <InputField
                 label={t('assets.formMonthsLabel')}
                 type="number"
                 value={watch('depreciation_months')}
-                onChange={(v) => {
+                onChange={(v: string | number | React.ChangeEvent<HTMLInputElement>) => {
                   const value = typeof v === 'number' ? v : parseInt(String(v)) || 1
                   setValue('depreciation_months', value)
                 }}
@@ -363,8 +363,8 @@ export default function AssetsPage() {
               label={t('assets.formPurchaseDateLabel')}
               type="date"
               value={watch('purchase_date') ?? ''}
-              onChange={(v) => {
-                const value = typeof v === 'string' ? v : v?.target?.value || ''
+              onChange={(v: string | number | React.ChangeEvent<HTMLInputElement>) => {
+                const value = typeof v === 'string' ? v : (typeof v === 'object' && v !== null && 'target' in v ? (v as React.ChangeEvent<HTMLInputElement>).target.value : '')
                 setValue('purchase_date', value)
               }}
               error={errors.purchase_date?.message}

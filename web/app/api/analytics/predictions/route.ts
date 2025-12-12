@@ -23,8 +23,8 @@ export async function GET(request: NextRequest) {
 
     if ('error' in clinicContext) {
       return NextResponse.json(
-        { error: clinicContext.error, message: clinicContext.message },
-        { status: clinicContext.status }
+        { error: clinicContext.error.message },
+        { status: clinicContext.error.status }
       )
     }
 

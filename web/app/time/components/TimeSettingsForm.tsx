@@ -14,6 +14,7 @@ type TimeSettingsFormValues = {
   hours_per_day: number
   real_pct: number
   working_days_config?: WorkingDaysConfig
+  monthly_goal_cents?: number | null
 }
 
 interface TimeSettingsFormProps {
@@ -84,6 +85,30 @@ export function TimeSettingsForm({ form, clinicId, onRefreshWorkingDays }: TimeS
         <div className="mt-4 p-3 bg-muted rounded-lg">
           <p className="text-sm text-muted-foreground">
             {t('settings_explanation')}
+          </p>
+        </div>
+      </FormSection>
+
+      <FormSection title={t('monthly_goal_section')} className="mt-6">
+        <FormGrid columns={1}>
+          <InputField
+            type="number"
+            label={t('monthly_goal')}
+            value={Number(form.watch('monthly_goal_cents') || 0) / 100}
+            onChange={(e) => {
+              const value = typeof e === 'object' && e !== null && 'target' in e ? e.target.value : e
+              const cents = Math.round(Number(value) * 100) || 0
+              form.setValue('monthly_goal_cents', cents > 0 ? cents : null)
+            }}
+            placeholder={t('monthly_goal_placeholder')}
+            min={0}
+            step={100}
+            helperText={t('monthly_goal_help')}
+          />
+        </FormGrid>
+        <div className="mt-4 p-3 bg-muted rounded-lg">
+          <p className="text-sm text-muted-foreground">
+            {t('monthly_goal_explanation')}
           </p>
         </div>
       </FormSection>

@@ -83,10 +83,10 @@ export function DateFilterBar({
         {/* Quick Period Buttons */}
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wide">
-            <Calendar className="h-3.5 w-3.5" />
-            {t('selectPeriod')}
+            <Calendar className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">{t('selectPeriod')}</span>
           </div>
-          <div className="flex flex-wrap gap-1 sm:gap-2">
+          <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-1.5 sm:gap-2">
             {quickPeriods.map((item) => (
               <Button
                 key={item.value}
@@ -94,11 +94,11 @@ export function DateFilterBar({
                 size="sm"
                 onClick={() => handlePeriodClick(item.value)}
                 className={cn(
-                  'transition-all',
+                  'transition-all text-xs sm:text-sm px-2 sm:px-3 min-w-0',
                   period === item.value && 'shadow-md'
                 )}
               >
-                {item.label}
+                <span className="truncate">{item.label}</span>
               </Button>
             ))}
           </div>
@@ -133,14 +133,14 @@ export function DateFilterBar({
         )}
 
         {/* Granularity and Comparison */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {/* Granularity */}
           <div className="space-y-1.5">
-            <label className="text-xs text-muted-foreground uppercase tracking-wide">
+            <label className="text-xs text-muted-foreground uppercase tracking-wide truncate">
               {t('breakdown')}
             </label>
             <Select value={granularity} onValueChange={onGranularityChange}>
-              <SelectTrigger className="h-9">
+              <SelectTrigger className="h-9 text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -153,11 +153,11 @@ export function DateFilterBar({
 
           {/* Comparison */}
           <div className="space-y-1.5">
-            <label className="text-xs text-muted-foreground uppercase tracking-wide">
+            <label className="text-xs text-muted-foreground uppercase tracking-wide truncate">
               {t('compareWith')}
             </label>
             <Select value={comparison} onValueChange={onComparisonChange}>
-              <SelectTrigger className="h-9">
+              <SelectTrigger className="h-9 text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

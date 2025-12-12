@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts'
-import { formatCurrency } from '@/lib/format'
+import { useClinicCurrency } from '@/hooks/use-clinic-currency'
 
 interface CategoryBreakdownProps {
   data: Array<{
@@ -17,12 +17,14 @@ interface CategoryBreakdownProps {
 
 const DEFAULT_COLORS = ['hsl(221, 83%, 53%)', 'hsl(271, 81%, 56%)', '#10B981', '#F59E0B', 'hsl(0, 84%, 60%)', '#EC4899', '#14B8A6', '#6366F1']
 
-export function CategoryBreakdown({ 
-  data, 
+export function CategoryBreakdown({
+  data,
   title = 'Category Breakdown',
   description = 'Distribution by category',
   colors = DEFAULT_COLORS
 }: CategoryBreakdownProps) {
+  const { format: formatCurrency } = useClinicCurrency()
+
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const value = payload[0].value as number
@@ -89,15 +91,15 @@ export function CategoryBreakdown({
         <CardDescription className="text-xs sm:text-sm">{description}</CardDescription>
       </CardHeader>
       <CardContent className="p-2 sm:p-4 lg:p-6">
-        <ResponsiveContainer width="100%" height={280}>
+        <ResponsiveContainer width="100%" height={300}>
           <PieChart>
             <Pie
               data={data}
               cx="50%"
-              cy="50%"
+              cy="45%"
               labelLine={false}
               label={CustomLabel}
-              outerRadius="65%"
+              outerRadius="55%"
               fill="#8884d8"
               dataKey="value"
             >
@@ -112,12 +114,19 @@ export function CategoryBreakdown({
             <Legend
               layout="horizontal"
               verticalAlign="bottom"
-              height={60}
+              height={72}
               wrapperStyle={{
                 paddingTop: '8px',
-                fontSize: '11px',
-                lineHeight: '1.4'
+                fontSize: '10px',
+                lineHeight: '1.6',
+                maxWidth: '100%',
+                overflow: 'hidden'
               }}
+              formatter={(value: string) => (
+                <span className="text-[10px] sm:text-xs truncate max-w-[80px] sm:max-w-none inline-block align-middle">
+                  {value.length > 12 ? `${value.slice(0, 10)}...` : value}
+                </span>
+              )}
             />
           </PieChart>
         </ResponsiveContainer>

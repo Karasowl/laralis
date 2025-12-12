@@ -436,3 +436,4 @@ Risks and rollback, Follow ups with TASK ids.
 
 
 
+- siempre revisa si debo correr algún código en supabase y de ser así referencia el archivo para darle click e ir a él

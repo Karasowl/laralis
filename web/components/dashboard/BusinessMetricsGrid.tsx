@@ -7,19 +7,12 @@ import { Badge } from '@/components/ui/badge'
 import {
   DollarSign,
   Users,
-  CheckCircle2,
   TrendingUp,
   TrendingDown,
   Minus,
-  Target,
-  Info
+  Target
 } from 'lucide-react'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { MetricTooltip, type MetricTooltipData } from '@/components/ui/metric-tooltip'
 import { formatCurrency } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -36,6 +29,15 @@ interface BusinessMetricsGridProps {
   daysElapsed?: number
   /** Hide the Net Profit card to avoid duplicate with Financial Metrics section */
   hideNetProfit?: boolean
+  /** Breakdown values for tooltips */
+  breakdownValues?: {
+    totalRevenueCents?: number
+    treatmentCount?: number
+    breakEvenCents?: number
+    fixedCostsCents?: number
+    variableCostsCents?: number
+    expensesCents?: number
+  }
 }
 
 export function BusinessMetricsGrid({
@@ -49,9 +51,44 @@ export function BusinessMetricsGrid({
   workDays = 20,
   monthlyTargetCents,
   daysElapsed,
-  hideNetProfit = false
+  hideNetProfit = false,
+  breakdownValues
 }: BusinessMetricsGridProps) {
   const t = useTranslations('dashboardComponents.businessMetrics')
+
+  // Build tooltip data with actual values
+  const avgTicketTooltip: MetricTooltipData = {
+    formula: t('tooltips.avgTicket.formula'),
+    values: breakdownValues?.totalRevenueCents !== undefined && breakdownValues?.treatmentCount !== undefined ? [
+      { label: t('tooltips.avgTicket.formula').split('÷')[0].trim(), amount: breakdownValues.totalRevenueCents },
+      { label: t('tooltips.avgTicket.formula').split('÷')[1]?.trim() || '', amount: breakdownValues.treatmentCount, isCount: true }
+    ] : undefined,
+    explanation: t('tooltips.avgTicket.explanation')
+  }
+
+  const patientsNeededTooltip: MetricTooltipData = {
+    formula: t('tooltips.patientsNeeded.formula'),
+    values: breakdownValues?.breakEvenCents !== undefined ? [
+      { label: 'Break-Even', amount: breakdownValues.breakEvenCents }
+    ] : undefined,
+    explanation: t('tooltips.patientsNeeded.explanation')
+  }
+
+  const currentPatientsTooltip: MetricTooltipData = {
+    formula: t('tooltips.currentPatients.formula'),
+    explanation: t('tooltips.currentPatients.explanation')
+  }
+
+  const netProfitTooltip: MetricTooltipData = {
+    formula: t('tooltips.netProfit.formula'),
+    values: breakdownValues ? [
+      ...(breakdownValues.totalRevenueCents !== undefined ? [{ label: t('tooltips.netProfit.labels.revenue'), amount: breakdownValues.totalRevenueCents }] : []),
+      ...(breakdownValues.fixedCostsCents !== undefined ? [{ label: t('tooltips.netProfit.labels.fixedCosts'), amount: -breakdownValues.fixedCostsCents }] : []),
+      ...(breakdownValues.variableCostsCents !== undefined ? [{ label: t('tooltips.netProfit.labels.variableCosts'), amount: -breakdownValues.variableCostsCents }] : []),
+      ...(breakdownValues.expensesCents !== undefined ? [{ label: t('tooltips.netProfit.labels.expenses'), amount: -breakdownValues.expensesCents }] : [])
+    ] : undefined,
+    explanation: t('tooltips.netProfit.explanation')
+  }
 
   // Calculate if we're on track based on patients/day
   const pacientesStatus: 'success' | 'warning' = pacientesActualesPorDia >= pacientesNecesariosPorDia ? 'success' : 'warning'
@@ -99,9 +136,11 @@ export function BusinessMetricsGrid({
           </div>
 
           <div className="space-y-1">
-            <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide">
-              {t('avgTicket')}
-            </p>
+            <MetricTooltip data={avgTicketTooltip}>
+              <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide">
+                {t('avgTicket')}
+              </p>
+            </MetricTooltip>
             <p className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground tabular-nums">
               {formatCurrency(ticketPromedioCents)}
             </p>
@@ -123,9 +162,11 @@ export function BusinessMetricsGrid({
           </div>
 
           <div className="space-y-1">
-            <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide">
-              {t('patientsNeeded')}
-            </p>
+            <MetricTooltip data={patientsNeededTooltip}>
+              <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide">
+                {t('patientsNeeded')}
+              </p>
+            </MetricTooltip>
             <p className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground tabular-nums">
               {pacientesNecesariosPorDia}
               <span className="text-xs sm:text-sm text-muted-foreground font-normal ml-1">
@@ -180,9 +221,11 @@ export function BusinessMetricsGrid({
           </div>
 
           <div className="space-y-1">
-            <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide">
-              {t('currentPatients')}
-            </p>
+            <MetricTooltip data={currentPatientsTooltip}>
+              <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide">
+                {t('currentPatients')}
+              </p>
+            </MetricTooltip>
             <p className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground tabular-nums">
               {pacientesActualesPorDia.toFixed(1)}
               <span className="text-xs sm:text-sm text-muted-foreground font-normal ml-1">
@@ -246,23 +289,11 @@ export function BusinessMetricsGrid({
             </div>
 
             <div className="space-y-1">
-              <div className="flex items-center gap-1">
+              <MetricTooltip data={netProfitTooltip}>
                 <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide">
                   {t('netProfit')}
                 </p>
-                {netProfitStatus === 'danger' && (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Info className="h-3 w-3 text-red-500 cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        <p>{t('netProfit_negative_tooltip')}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
-              </div>
+              </MetricTooltip>
               <p className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground tabular-nums">
                 {formatCurrency(gananciaNetaCents)}
               </p>
