@@ -16,7 +16,9 @@ import {
   BarChart3,
   Shield,
   PackageOpen,
-  Clock
+  Clock,
+  ClipboardList,
+  FileSpreadsheet
 } from 'lucide-react'
 
 export interface NavigationItem {
@@ -49,6 +51,16 @@ export function getNavigationSections(t: any, options: { onboardingCompleted?: b
           href: '/treatments',
           label: t('navigation.treatments'),
           icon: Calendar
+        },
+        {
+          href: '/prescriptions',
+          label: t('navigation.prescriptions'),
+          icon: ClipboardList
+        },
+        {
+          href: '/quotes',
+          label: t('navigation.quotes'),
+          icon: FileSpreadsheet
         }
       ]
     },
