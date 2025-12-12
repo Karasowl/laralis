@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { AppLayout } from '@/components/layouts/AppLayout'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { FormModal } from '@/components/ui/form-modal'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -193,130 +194,132 @@ export default function PrescriptionsPage() {
   }, [prescriptionToCancel, cancelPrescription, t, toast, refresh])
 
   return (
-    <div className="container mx-auto py-6">
-      <PageHeader
-        title={t('prescriptions.title')}
-        description={t('prescriptions.description')}
-        icon={FileText}
-        actions={[
-          {
-            label: t('prescriptions.actions.new'),
-            onClick: handleOpenModal,
-            icon: Plus,
-          },
-        ]}
-      />
+    <AppLayout>
+      <div className="container mx-auto py-6">
+        <PageHeader
+          title={t('prescriptions.title')}
+          description={t('prescriptions.description')}
+          icon={FileText}
+          actions={[
+            {
+              label: t('prescriptions.actions.new'),
+              onClick: handleOpenModal,
+              icon: Plus,
+            },
+          ]}
+        />
 
-      <div className="mt-6">
-        <PrescriptionTable
-          prescriptions={(prescriptions || []) as PrescriptionWithPatient[]}
-          loading={loading}
-          onView={handleView}
-          onCancel={setPrescriptionToCancel}
-          onDownloadPDF={handleDownloadPDF}
-          t={t}
+        <div className="mt-6">
+          <PrescriptionTable
+            prescriptions={(prescriptions || []) as PrescriptionWithPatient[]}
+            loading={loading}
+            onView={handleView}
+            onCancel={setPrescriptionToCancel}
+            onDownloadPDF={handleDownloadPDF}
+            t={t}
+          />
+        </div>
+
+        {/* Create Modal */}
+        <FormModal
+          open={isModalOpen}
+          onOpenChange={setIsModalOpen}
+          title={t('prescriptions.modal.create_title')}
+          description={t('prescriptions.modal.create_description')}
+          form={form}
+          onSubmit={handleSubmit}
+          submitLabel={t('common.save')}
+          size="xl"
+        >
+          <PrescriptionForm
+            form={form}
+            patients={patientOptions}
+            medications={medications || []}
+            t={t}
+          />
+        </FormModal>
+
+        {/* View Modal */}
+        <FormModal
+          open={isViewModalOpen}
+          onOpenChange={setIsViewModalOpen}
+          title={t('prescriptions.modal.view_title')}
+          description={selectedPrescription?.prescription_number || ''}
+          hideSubmit
+          size="lg"
+        >
+          {selectedPrescription && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">{t('prescriptions.fields.patient')}</p>
+                  <p className="font-medium">
+                    {selectedPrescription.patient?.first_name} {selectedPrescription.patient?.last_name}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">{t('prescriptions.fields.date')}</p>
+                  <p className="font-medium">
+                    {new Date(selectedPrescription.prescription_date).toLocaleDateString('es-MX')}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">{t('prescriptions.fields.prescriber')}</p>
+                  <p className="font-medium">{selectedPrescription.prescriber_name}</p>
+                  {selectedPrescription.prescriber_license && (
+                    <p className="text-xs text-muted-foreground">
+                      {t('prescriptions.fields.license')}: {selectedPrescription.prescriber_license}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">{t('prescriptions.fields.status')}</p>
+                  <p className="font-medium">{t(`prescriptions.status.${selectedPrescription.status}`)}</p>
+                </div>
+              </div>
+
+              {selectedPrescription.diagnosis && (
+                <div>
+                  <p className="text-sm text-muted-foreground">{t('prescriptions.fields.diagnosis')}</p>
+                  <p className="font-medium">{selectedPrescription.diagnosis}</p>
+                </div>
+              )}
+
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">{t('prescriptions.fields.medications')}</p>
+                <div className="space-y-2">
+                  {selectedPrescription.items?.map((item, index) => (
+                    <div key={item.id} className="p-3 bg-muted rounded-lg">
+                      <p className="font-medium">
+                        {index + 1}. {item.medication_name}
+                        {item.medication_strength && ` ${item.medication_strength}`}
+                      </p>
+                      <p className="text-sm">
+                        {item.dosage} - {item.frequency}
+                        {item.duration && ` - ${item.duration}`}
+                      </p>
+                      {item.instructions && (
+                        <p className="text-sm text-muted-foreground italic mt-1">{item.instructions}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </FormModal>
+
+        {/* Cancel Confirmation */}
+        <ConfirmDialog
+          open={!!prescriptionToCancel}
+          onOpenChange={(open) => !open && setPrescriptionToCancel(null)}
+          title={t('prescriptions.confirm.cancel_title')}
+          description={t('prescriptions.confirm.cancel_description')}
+          confirmLabel={t('prescriptions.actions.cancel')}
+          onConfirm={handleCancelConfirm}
+          variant="destructive"
         />
       </div>
-
-      {/* Create Modal */}
-      <FormModal
-        open={isModalOpen}
-        onOpenChange={setIsModalOpen}
-        title={t('prescriptions.modal.create_title')}
-        description={t('prescriptions.modal.create_description')}
-        form={form}
-        onSubmit={handleSubmit}
-        submitLabel={t('common.save')}
-        size="xl"
-      >
-        <PrescriptionForm
-          form={form}
-          patients={patientOptions}
-          medications={medications || []}
-          t={t}
-        />
-      </FormModal>
-
-      {/* View Modal */}
-      <FormModal
-        open={isViewModalOpen}
-        onOpenChange={setIsViewModalOpen}
-        title={t('prescriptions.modal.view_title')}
-        description={selectedPrescription?.prescription_number || ''}
-        hideSubmit
-        size="lg"
-      >
-        {selectedPrescription && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground">{t('prescriptions.fields.patient')}</p>
-                <p className="font-medium">
-                  {selectedPrescription.patient?.first_name} {selectedPrescription.patient?.last_name}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">{t('prescriptions.fields.date')}</p>
-                <p className="font-medium">
-                  {new Date(selectedPrescription.prescription_date).toLocaleDateString('es-MX')}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">{t('prescriptions.fields.prescriber')}</p>
-                <p className="font-medium">{selectedPrescription.prescriber_name}</p>
-                {selectedPrescription.prescriber_license && (
-                  <p className="text-xs text-muted-foreground">
-                    {t('prescriptions.fields.license')}: {selectedPrescription.prescriber_license}
-                  </p>
-                )}
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">{t('prescriptions.fields.status')}</p>
-                <p className="font-medium">{t(`prescriptions.status.${selectedPrescription.status}`)}</p>
-              </div>
-            </div>
-
-            {selectedPrescription.diagnosis && (
-              <div>
-                <p className="text-sm text-muted-foreground">{t('prescriptions.fields.diagnosis')}</p>
-                <p className="font-medium">{selectedPrescription.diagnosis}</p>
-              </div>
-            )}
-
-            <div>
-              <p className="text-sm text-muted-foreground mb-2">{t('prescriptions.fields.medications')}</p>
-              <div className="space-y-2">
-                {selectedPrescription.items?.map((item, index) => (
-                  <div key={item.id} className="p-3 bg-muted rounded-lg">
-                    <p className="font-medium">
-                      {index + 1}. {item.medication_name}
-                      {item.medication_strength && ` ${item.medication_strength}`}
-                    </p>
-                    <p className="text-sm">
-                      {item.dosage} - {item.frequency}
-                      {item.duration && ` - ${item.duration}`}
-                    </p>
-                    {item.instructions && (
-                      <p className="text-sm text-muted-foreground italic mt-1">{item.instructions}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-      </FormModal>
-
-      {/* Cancel Confirmation */}
-      <ConfirmDialog
-        open={!!prescriptionToCancel}
-        onOpenChange={(open) => !open && setPrescriptionToCancel(null)}
-        title={t('prescriptions.confirm.cancel_title')}
-        description={t('prescriptions.confirm.cancel_description')}
-        confirmLabel={t('prescriptions.actions.cancel')}
-        onConfirm={handleCancelConfirm}
-        variant="destructive"
-      />
-    </div>
+    </AppLayout>
   )
 }
