@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
+import { AppLayout } from '@/components/layouts/AppLayout'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/button'
 import { FormModal } from '@/components/ui/FormModal'
@@ -137,109 +138,117 @@ export default function QuotesPage() {
 
   if (viewMode === 'create') {
     return (
-      <div className="container mx-auto py-6 space-y-6">
-        <PageHeader
-          title={t('quotes.createQuote')}
-          subtitle={t('quotes.createDescription')}
-        />
-        <QuoteForm
-          patients={patients}
-          services={services}
-          onSubmit={handleCreate}
-          onCancel={handleCancel}
-        />
-      </div>
+      <AppLayout>
+        <div className="container mx-auto py-6 space-y-6">
+          <PageHeader
+            title={t('quotes.createQuote')}
+            subtitle={t('quotes.createDescription')}
+          />
+          <QuoteForm
+            patients={patients}
+            services={services}
+            onSubmit={handleCreate}
+            onCancel={handleCancel}
+          />
+        </div>
+      </AppLayout>
     )
   }
 
   if (viewMode === 'edit' && selectedQuote) {
     return (
-      <div className="container mx-auto py-6 space-y-6">
-        <PageHeader
-          title={t('quotes.editQuote')}
-          subtitle={`${t('quotes.editing')} ${selectedQuote.quote_number}`}
-        />
-        <QuoteForm
-          quote={selectedQuote}
-          patients={patients}
-          services={services}
-          onSubmit={handleUpdate}
-          onCancel={handleCancel}
-        />
-      </div>
+      <AppLayout>
+        <div className="container mx-auto py-6 space-y-6">
+          <PageHeader
+            title={t('quotes.editQuote')}
+            subtitle={`${t('quotes.editing')} ${selectedQuote.quote_number}`}
+          />
+          <QuoteForm
+            quote={selectedQuote}
+            patients={patients}
+            services={services}
+            onSubmit={handleUpdate}
+            onCancel={handleCancel}
+          />
+        </div>
+      </AppLayout>
     )
   }
 
   if (viewMode === 'view' && selectedQuote) {
     return (
-      <div className="container mx-auto py-6 space-y-6">
-        <QuoteDetails
-          quote={selectedQuote}
-          onEdit={() => handleEdit(selectedQuote)}
-          onDownloadPdf={() => handleDownloadPdf(selectedQuote)}
-          onSend={() => handleSend(selectedQuote)}
-          onUpdateStatus={(status) => handleUpdateStatus(selectedQuote, status)}
-          onClose={handleCancel}
-        />
-      </div>
+      <AppLayout>
+        <div className="container mx-auto py-6 space-y-6">
+          <QuoteDetails
+            quote={selectedQuote}
+            onEdit={() => handleEdit(selectedQuote)}
+            onDownloadPdf={() => handleDownloadPdf(selectedQuote)}
+            onSend={() => handleSend(selectedQuote)}
+            onUpdateStatus={(status) => handleUpdateStatus(selectedQuote, status)}
+            onClose={handleCancel}
+          />
+        </div>
+      </AppLayout>
     )
   }
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <PageHeader
-        title={t('quotes.title')}
-        subtitle={t('quotes.subtitle')}
-        action={
-          <Button onClick={() => setViewMode('create')}>
-            <Plus className="h-4 w-4 mr-2" />
-            {t('quotes.createQuote')}
-          </Button>
-        }
-      />
+    <AppLayout>
+      <div className="container mx-auto py-6 space-y-6">
+        <PageHeader
+          title={t('quotes.title')}
+          subtitle={t('quotes.subtitle')}
+          action={
+            <Button onClick={() => setViewMode('create')}>
+              <Plus className="h-4 w-4 mr-2" />
+              {t('quotes.createQuote')}
+            </Button>
+          }
+        />
 
-      <Tabs value={statusFilter} onValueChange={setStatusFilter}>
-        <TabsList>
-          <TabsTrigger value="all">
-            {t('quotes.filters.all')} ({quotes.length})
-          </TabsTrigger>
-          <TabsTrigger value="draft">
-            {t('quotes.status.draft')} ({statusCounts.draft || 0})
-          </TabsTrigger>
-          <TabsTrigger value="sent">
-            {t('quotes.status.sent')} ({statusCounts.sent || 0})
-          </TabsTrigger>
-          <TabsTrigger value="accepted">
-            {t('quotes.status.accepted')} ({statusCounts.accepted || 0})
-          </TabsTrigger>
-          <TabsTrigger value="rejected">
-            {t('quotes.status.rejected')} ({statusCounts.rejected || 0})
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
+        <Tabs value={statusFilter} onValueChange={setStatusFilter}>
+          <TabsList>
+            <TabsTrigger value="all">
+              {t('quotes.filters.all')} ({quotes.length})
+            </TabsTrigger>
+            <TabsTrigger value="draft">
+              {t('quotes.status.draft')} ({statusCounts.draft || 0})
+            </TabsTrigger>
+            <TabsTrigger value="sent">
+              {t('quotes.status.sent')} ({statusCounts.sent || 0})
+            </TabsTrigger>
+            <TabsTrigger value="accepted">
+              {t('quotes.status.accepted')} ({statusCounts.accepted || 0})
+            </TabsTrigger>
+            <TabsTrigger value="rejected">
+              {t('quotes.status.rejected')} ({statusCounts.rejected || 0})
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
 
-      <QuoteTable
-        quotes={quotes}
-        loading={loading}
-        onView={handleView}
-        onEdit={handleEdit}
-        onDelete={setQuoteToDelete}
-        onDownloadPdf={handleDownloadPdf}
-        onSend={handleSend}
-        onUpdateStatus={handleUpdateStatus}
-      />
+        <QuoteTable
+          quotes={quotes}
+          loading={loading}
+          onView={handleView}
+          onEdit={handleEdit}
+          onDelete={setQuoteToDelete}
+          onDownloadPdf={handleDownloadPdf}
+          onSend={handleSend}
+          onUpdateStatus={handleUpdateStatus}
+        />
 
-      <ConfirmDialog
-        open={!!quoteToDelete}
-        onOpenChange={() => setQuoteToDelete(null)}
-        title={t('quotes.deleteConfirm.title')}
-        description={t('quotes.deleteConfirm.description', {
-          number: quoteToDelete?.quote_number,
-        })}
-        confirmLabel={t('common.delete')}
-        onConfirm={handleDelete}
-        variant="destructive"
-      />
-    </div>
+        <ConfirmDialog
+          open={!!quoteToDelete}
+          onOpenChange={() => setQuoteToDelete(null)}
+          title={t('quotes.deleteConfirm.title')}
+          description={t('quotes.deleteConfirm.description', {
+            number: quoteToDelete?.quote_number,
+          })}
+          confirmLabel={t('common.delete')}
+          onConfirm={handleDelete}
+          variant="destructive"
+        />
+      </div>
+    </AppLayout>
   )
 }
