@@ -311,6 +311,15 @@ ${Object.entries(expenses.by_category || {}).map(([category, amount]: [string, a
 - **Treatments per Day**: ${analytics.efficiency?.treatments_per_day || 0}
 - **Revenue per Hour**: ${fmt(analytics.efficiency?.revenue_per_hour_cents || 0)}
 - **Capacity Utilization**: ${analytics.efficiency?.capacity_utilization_pct || 0}%
+- **Available Minutes (month)**: ${analytics.efficiency?.total_available_minutes || 0} minutes
+- **Used Minutes (month)**: ${analytics.efficiency?.total_used_minutes || 0} minutes
+- **WASTED MINUTES**: ${analytics.efficiency?.wasted_minutes || 0} minutes (time not utilized for treatments)
+- **OPPORTUNITY COST**: ${fmt(analytics.efficiency?.opportunity_cost_cents || 0)} (potential revenue lost from unused time)
+
+**IMPORTANT for efficiency questions**:
+- Wasted minutes represent productive time that wasn't used for treatments
+- Opportunity cost shows how much revenue could have been earned if that time was utilized
+- ${analytics.efficiency?.capacity_utilization_pct || 0}% capacity means ${100 - (analytics.efficiency?.capacity_utilization_pct || 0)}% of available time is not being used
 
 ### TREATMENTS BY SERVICE (Last 30 Days)
 ${treatments.by_service && treatments.by_service.length > 0

@@ -46,7 +46,8 @@ const timeSettingsSchema = z.object({
     .number({ invalid_type_error: 'time.validation.must_be_number' })
     .min(50, 'time.validation.min_pct')
     .max(95, 'time.validation.max_pct'),
-  working_days_config: workingDaysConfigSchema.optional()
+  working_days_config: workingDaysConfigSchema.optional(),
+  monthly_goal_cents: z.number().int().positive().nullable().optional()
 })
 
 export default function TimeSettingsPage() {

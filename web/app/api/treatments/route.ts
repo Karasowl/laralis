@@ -5,6 +5,11 @@ import { resolveClinicContext } from '@/lib/clinic';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { syncTreatmentToCalendar, CalendarSyncResult } from '@/lib/google-calendar';
+import {
+  sendConfirmationEmail,
+  AppointmentEmailData,
+  isConfirmationEnabled,
+} from '@/lib/email/service';
 
 export const dynamic = 'force-dynamic'
 
@@ -330,10 +335,91 @@ export async function POST(request: NextRequest) {
       };
     }
 
+    // Send confirmation email (non-blocking, best-effort)
+    let emailSent = false;
+    try {
+      const created = insertResult.data as any;
+      const syncableStatuses = ['scheduled', 'pending', 'in_progress'];
+      if (created && syncableStatuses.includes(created.status)) {
+        // Fetch clinic notification settings
+        const { data: clinic } = await supabaseAdmin
+          .from('clinics')
+          .select('name, phone, address, notification_settings')
+          .eq('id', clinicId)
+          .single();
+
+        if (clinic && isConfirmationEnabled(clinic.notification_settings)) {
+          // Fetch patient email
+          const { data: patient } = await supabaseAdmin
+            .from('patients')
+            .select('first_name, last_name, email')
+            .eq('id', created.patient_id)
+            .single();
+
+          // Fetch service info
+          const { data: service } = await supabaseAdmin
+            .from('services')
+            .select('name, est_minutes')
+            .eq('id', created.service_id)
+            .single();
+
+          if (patient?.email && service) {
+            const emailData: AppointmentEmailData = {
+              patientName: `${patient.first_name} ${patient.last_name}`,
+              patientEmail: patient.email,
+              clinicName: clinic.name,
+              clinicPhone: clinic.phone || undefined,
+              clinicAddress: clinic.address || undefined,
+              serviceName: service.name,
+              appointmentDate: created.treatment_date,
+              appointmentTime: created.treatment_time || undefined,
+              duration: service.est_minutes || created.duration_minutes || 30,
+              notes: created.notes || undefined,
+            };
+
+            const emailResult = await sendConfirmationEmail(emailData);
+
+            if (emailResult.success) {
+              emailSent = true;
+              // Log the notification
+              await supabaseAdmin.from('email_notifications').insert({
+                clinic_id: clinicId,
+                treatment_id: created.id,
+                patient_id: created.patient_id,
+                notification_type: 'confirmation',
+                recipient_email: patient.email,
+                recipient_name: `${patient.first_name} ${patient.last_name}`,
+                subject: `Cita Confirmada - ${service.name}`,
+                status: 'sent',
+                sent_at: new Date().toISOString(),
+                provider_message_id: emailResult.messageId || null,
+              });
+            } else {
+              // Log failed attempt
+              await supabaseAdmin.from('email_notifications').insert({
+                clinic_id: clinicId,
+                treatment_id: created.id,
+                patient_id: created.patient_id,
+                notification_type: 'confirmation',
+                recipient_email: patient.email,
+                recipient_name: `${patient.first_name} ${patient.last_name}`,
+                subject: `Cita Confirmada - ${service.name}`,
+                status: 'failed',
+                error_message: emailResult.error || 'Unknown error',
+              });
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[treatments POST] Failed to send confirmation email:', e);
+    }
+
     return NextResponse.json({
       data: insertResult.data,
       message: 'Treatment created successfully',
-      calendarSync: calendarSync || undefined
+      calendarSync: calendarSync || undefined,
+      emailSent,
     });
   } catch (error) {
     console.error('Unexpected error in POST /api/treatments:', error);

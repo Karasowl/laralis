@@ -1143,6 +1143,11 @@
     "work_days_per_month": "Días de Trabajo por Mes",
     "productivity_percentage": "Porcentaje de Productividad",
     "settings_explanation": "Configura tu horario de trabajo para calcular con precisión los costos basados en tiempo. El porcentaje de productividad representa el tiempo productivo real dentro de las horas programadas.",
+    "monthly_goal": "Meta Mensual de Ingresos",
+    "monthly_goal_help": "Define tu objetivo de ingresos mensual. El punto de equilibrio se mostrará como marcador intermedio.",
+    "monthly_goal_placeholder": "Ej: 50000",
+    "monthly_goal_section": "Meta de Ingresos",
+    "monthly_goal_explanation": "Tu meta mensual aparecerá en el dashboard junto al punto de equilibrio, permitiéndote ver el progreso hacia ambos objetivos.",
     "workDaysPerMonth": "Días de Trabajo por Mes",
     "hoursPerDay": "Horas por Día",
     "effectiveWorkPercentage": "Porcentaje de Trabajo Efectivo",
@@ -1289,7 +1294,24 @@
       "otros": "Otros"
     },
     "addSupply": "Agregar Insumo",
-    "editSupply": "Editar Insumo"
+    "editSupply": "Editar Insumo",
+    "inventory": {
+      "title": "Inventario",
+      "stock": "Stock actual",
+      "stockQuantity": "Cantidad en stock",
+      "minAlert": "Alerta mínima",
+      "minAlertHelp": "Te notificamos cuando el stock baje de esta cantidad",
+      "lowStock": "Stock bajo",
+      "outOfStock": "Sin stock",
+      "inStock": "En stock",
+      "stockStatus": "Estado del stock",
+      "lastPurchase": "Última compra",
+      "lastPurchaseDate": "Fecha última compra",
+      "lastPurchasePrice": "Precio última compra",
+      "units": "unidades",
+      "adjustStock": "Ajustar stock",
+      "stockHistory": "Historial de stock"
+    }
   },
   "tariffs": {
     "title": "Tarifario de Precios",
@@ -1767,9 +1789,40 @@
       "title": "Insumos",
       "description": "Controla tu inventario de materiales"
     },
+    "notifications": {
+      "title": "Notificaciones",
+      "subtitle": "Configura recordatorios y confirmaciones por email",
+      "description": "Envía emails automáticos a tus pacientes",
+      "emailEnabled": "Notificaciones por email",
+      "emailEnabledDescription": "Activa o desactiva todas las notificaciones por email",
+      "confirmationEnabled": "Confirmación de cita",
+      "confirmationEnabledDescription": "Envía un email de confirmación cuando se agenda una cita",
+      "reminderEnabled": "Recordatorio de cita",
+      "reminderEnabledDescription": "Envía un recordatorio antes de la cita",
+      "reminderHoursBefore": "Horas de anticipación",
+      "reminderHoursBeforeDescription": "Cuántas horas antes de la cita enviar el recordatorio",
+      "senderName": "Nombre del remitente",
+      "senderNamePlaceholder": "ej. Clínica Dental García",
+      "replyToEmail": "Email de respuesta",
+      "replyToEmailPlaceholder": "ej. citas@clinica.com",
+      "saveSuccess": "Configuración de notificaciones guardada",
+      "saveError": "Error al guardar la configuración",
+      "testEmail": "Enviar email de prueba",
+      "testEmailSent": "Email de prueba enviado",
+      "testEmailError": "Error al enviar email de prueba",
+      "hours": "horas",
+      "history": "Historial de notificaciones",
+      "historyDescription": "Últimos emails enviados a pacientes",
+      "noHistory": "No hay notificaciones enviadas",
+      "sent": "Enviado",
+      "failed": "Fallido",
+      "pending": "Pendiente",
+      "confirmation": "Confirmación",
+      "reminder": "Recordatorio"
+    },
     "reports": {
       "title": "Reportes",
-      "description": "Configura reportes y an�lisis"
+      "description": "Configura reportes y análisis"
     },
     "reset": {
       "title": "Reiniciar y Eliminar",
@@ -3717,7 +3770,31 @@
       "netProfit_negative_tooltip": "Tus gastos superan tus ingresos. Revisa tus costos fijos o considera aumentar precios.",
       "profitable": "Con ganancia",
       "breakEven": "En equilibrio",
-      "losses": "Con pérdidas"
+      "losses": "Con pérdidas",
+      "tooltips": {
+        "avgTicket": {
+          "formula": "Ingresos Totales ÷ Número de Tratamientos",
+          "explanation": "El ingreso promedio que generas por cada tratamiento realizado. Un ticket más alto indica servicios de mayor valor."
+        },
+        "patientsNeeded": {
+          "formula": "Punto de Equilibrio ÷ (Ticket Promedio × Días Laborables)",
+          "explanation": "Cuántos pacientes necesitas atender diariamente para cubrir todos tus costos fijos y variables."
+        },
+        "currentPatients": {
+          "formula": "Tratamientos del Período ÷ Días Transcurridos",
+          "explanation": "Tu promedio real de pacientes atendidos por día en el período seleccionado."
+        },
+        "netProfit": {
+          "formula": "Ingresos Totales - Costos Fijos - Costos Variables - Gastos",
+          "explanation": "Tu ganancia real después de descontar todos los costos. Si es negativo, estás perdiendo dinero.",
+          "labels": {
+            "revenue": "Ingresos",
+            "fixedCosts": "Costos Fijos",
+            "variableCosts": "Costos Variables",
+            "expenses": "Gastos"
+          }
+        }
+      }
     },
     "recentActivity": {
       "title": "Actividad Reciente",
@@ -3862,7 +3939,17 @@
         "totalSales": "Ventas Totales",
         "avgROI": "ROI Promedio",
         "period": "Período",
-        "lastDays": "Últimos {days} días"
+        "lastDays": "Últimos {days} días",
+        "tooltips": {
+          "totalProfit": {
+            "formula": "Σ (Precio - Costo Variable - Costo Fijo)",
+            "explanation": "La suma de ganancias de todos los tratamientos en el período. Mayor ganancia = negocio más rentable."
+          },
+          "avgROI": {
+            "formula": "(Ganancia ÷ Costo Total) × 100",
+            "explanation": "Retorno sobre la inversión promedio de tus servicios. Un ROI del 100% significa que duplicas tu inversión."
+          }
+        }
       },
       "tabs": {
         "total": "Ganancia Total",

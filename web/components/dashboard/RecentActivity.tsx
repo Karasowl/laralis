@@ -6,7 +6,8 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { formatCurrency } from '@/lib/format'
 import { formatDistanceToNow } from 'date-fns'
 import { es, enUS } from 'date-fns/locale'
-import { User, Package, DollarSign, Calendar, Activity } from 'lucide-react'
+import { User, Package, DollarSign, Calendar, Activity, ChevronDown } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { useTranslations } from 'next-intl'
 import { useLocale } from 'next-intl'
 import { useState } from 'react'
@@ -26,14 +27,18 @@ interface RecentActivityProps {
   title?: string
   description?: string
   collapsedLimit?: number
+  /** Start fully collapsed (show only header) */
+  defaultCollapsed?: boolean
 }
 
 export function RecentActivity({
   activities,
   title,
   description,
-  collapsedLimit = 3
+  collapsedLimit = 2,
+  defaultCollapsed = true
 }: RecentActivityProps) {
+  const [isOpen, setIsOpen] = useState(!defaultCollapsed)
   const [isExpanded, setIsExpanded] = useState(false)
   const t = useTranslations('dashboardComponents.recentActivity')
   const locale = useLocale()
@@ -78,11 +83,32 @@ export function RecentActivity({
 
   return (
     <Card className="transition-all duration-200 hover:shadow-lg">
-      <CardHeader>
-        <CardTitle>{title || t('title')}</CardTitle>
-        <CardDescription>{description || t('description')}</CardDescription>
+      <CardHeader
+        className="cursor-pointer select-none"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-base">{title || t('title')}</CardTitle>
+            <CardDescription className="text-xs">{description || t('description')}</CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            {activities.length > 0 && (
+              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                {activities.length}
+              </span>
+            )}
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                isOpen && "rotate-180"
+              )}
+            />
+          </div>
+        </div>
       </CardHeader>
-      <CardContent>
+      {isOpen && (
+        <CardContent>
         <div className="space-y-4">
           {activities.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">
@@ -144,6 +170,7 @@ export function RecentActivity({
           </Button>
         )}
       </CardContent>
+      )}
     </Card>
   )
 }

@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
-import { formatCurrency } from '@/lib/money'
+import { useClinicCurrency } from '@/hooks/use-clinic-currency'
 import { DollarSign, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 
@@ -21,6 +21,7 @@ interface CACTrendChartProps {
 export function CACTrendChart({ data, targetCAC, loading }: CACTrendChartProps) {
   const t = useTranslations('dashboard.marketing')
   const tCommon = useTranslations('common')
+  const { format: formatCurrency } = useClinicCurrency()
 
   if (loading) {
     return (

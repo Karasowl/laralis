@@ -111,6 +111,21 @@ export async function PUT(
 
     const { name, category, presentation, price_cents, portions } = validationResult.data;
 
+    // Extract and validate inventory fields (optional, not in main zod schema)
+    // Only set if explicitly provided in body to avoid clearing existing values
+    // Must be non-negative integers when provided
+    let stock_quantity: number | undefined = undefined;
+    let min_stock_alert: number | undefined = undefined;
+
+    if ('stock_quantity' in body) {
+      const raw = body.stock_quantity;
+      stock_quantity = typeof raw === 'number' && Number.isInteger(raw) && raw >= 0 ? raw : 0;
+    }
+    if ('min_stock_alert' in body) {
+      const raw = body.min_stock_alert;
+      min_stock_alert = typeof raw === 'number' && Number.isInteger(raw) && raw >= 0 ? raw : 10;
+    }
+
     // Verificar que el supply pertenece a la clínica
     const { data: existingSupply } = await supabaseAdmin
       .from('supplies')
@@ -141,16 +156,26 @@ export async function PUT(
       }
     }
 
+    // Build update object, only include inventory fields if provided
+    const updateData: Record<string, unknown> = {
+      name,
+      category,
+      presentation,
+      price_cents,
+      portions,
+      updated_at: new Date().toISOString()
+    };
+
+    if (stock_quantity !== undefined) {
+      updateData.stock_quantity = stock_quantity;
+    }
+    if (min_stock_alert !== undefined) {
+      updateData.min_stock_alert = min_stock_alert;
+    }
+
     const { data, error } = await supabaseAdmin
       .from('supplies')
-      .update({ 
-        name, 
-        category, 
-        presentation, 
-        price_cents, 
-        portions,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', params.id)
       .eq('clinic_id', clinicId)
       .select()

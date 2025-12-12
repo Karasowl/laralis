@@ -5,7 +5,7 @@
  * Respects foreign key order and RLS policies.
  */
 
-import { createClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
   ExportBundle,
   ExportOptions,
@@ -58,13 +58,15 @@ export interface ExportStats {
  * Handles the complete export of a workspace including all clinics and data.
  */
 export class WorkspaceExporter {
-  private supabase: ReturnType<typeof createClient>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private supabase: SupabaseClient<any, any, any>;
   private workspaceId: string;
   private options: ExporterOptions;
   private stats: ExportStats;
 
   constructor(
-    supabase: ReturnType<typeof createClient>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    supabase: SupabaseClient<any, any, any>,
     workspaceId: string,
     options: ExporterOptions
   ) {

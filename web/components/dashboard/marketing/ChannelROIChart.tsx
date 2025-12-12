@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import { formatCurrency } from '@/lib/money'
+import { useClinicCurrency } from '@/hooks/use-clinic-currency'
 import { TrendingUp, TrendingDown, Megaphone, AlertCircle } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -27,6 +27,7 @@ interface ChannelROIChartProps {
 export function ChannelROIChart({ data, loading, isEmpty }: ChannelROIChartProps) {
   const t = useTranslations('dashboard.marketing')
   const tCommon = useTranslations('common')
+  const { format: formatCurrency } = useClinicCurrency()
 
   if (loading) {
     return (

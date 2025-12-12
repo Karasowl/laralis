@@ -114,6 +114,18 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
 
     const { clinic_id, name, category, presentation, price_cents, portions } = validationResult.data;
 
+    // Extract and validate inventory fields (optional, not in main zod schema)
+    // Must be non-negative integers
+    const rawStockQty = body.stock_quantity ?? 0;
+    const rawMinAlert = body.min_stock_alert ?? 10;
+
+    const stock_quantity = typeof rawStockQty === 'number' && Number.isInteger(rawStockQty) && rawStockQty >= 0
+      ? rawStockQty
+      : 0;
+    const min_stock_alert = typeof rawMinAlert === 'number' && Number.isInteger(rawMinAlert) && rawMinAlert >= 0
+      ? rawMinAlert
+      : 10;
+
     // Prevent duplicate names per clinic (case-insensitive)
     const { data: existingByName, error: dupCheckErr } = await supabaseAdmin
       .from('supplies')
@@ -135,7 +147,16 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
 
     const { data, error } = await supabaseAdmin
       .from('supplies')
-      .insert({ clinic_id, name, category, presentation, price_cents, portions })
+      .insert({
+        clinic_id,
+        name,
+        category,
+        presentation,
+        price_cents,
+        portions,
+        stock_quantity,
+        min_stock_alert
+      })
       .select()
       .single();
 

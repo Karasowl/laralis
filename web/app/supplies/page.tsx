@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -12,7 +12,8 @@ import { formatCurrency } from '@/lib/money';
 import { getSupplyCategoryLabel } from '@/lib/format';
 import { Supply, SupplyCategory } from '@/lib/types';
 import { zSupplyForm } from '@/lib/zod';
-import { Package } from 'lucide-react';
+import { Package, AlertTriangle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { z } from 'zod';
 import { useCategories, CategoryRow } from '@/hooks/use-categories';
 import { CategoryModal } from '@/app/services/components/CategoryModal';
@@ -57,7 +58,9 @@ export default function SuppliesPage() {
       category: 'insumo',
       presentation: '',
       price_pesos: 0,
-      portions: 1
+      portions: 1,
+      stock_quantity: 0,
+      min_stock_alert: 10
     },
     mode: 'onBlur', // PERFORMANCE: Validate only on blur
   });
@@ -67,7 +70,9 @@ export default function SuppliesPage() {
     category: 'insumo',
     presentation: '',
     price_pesos: 0,
-    portions: 1
+    portions: 1,
+    stock_quantity: 0,
+    min_stock_alert: 10
   }
 
   // Live preview calculation
@@ -83,7 +88,9 @@ export default function SuppliesPage() {
       category: data.category,
       presentation: data.presentation,
       price_pesos: data.price_pesos,
-      portions: data.portions
+      portions: data.portions,
+      stock_quantity: data.stock_quantity ?? 0,
+      min_stock_alert: data.min_stock_alert ?? 10
     };
 
     const success = crud.editingItem
@@ -119,7 +126,9 @@ export default function SuppliesPage() {
       category: (supply.category || 'insumo') as SupplyCategory,
       presentation: supply.presentation || '',
       price_pesos: supply.price_cents / 100,
-      portions: supply.portions
+      portions: supply.portions,
+      stock_quantity: supply.stock_quantity ?? 0,
+      min_stock_alert: supply.min_stock_alert ?? 10
     });
   };
 
@@ -180,6 +189,36 @@ export default function SuppliesPage() {
         <span className="font-medium text-green-600">
           {formatCurrency(supply.cost_per_portion_cents ?? 0)}
         </span>
+    },
+    {
+      key: 'stock_quantity',
+      label: t('supplies.inventory.stock'),
+      render: (_value: unknown, supply: Supply) => {
+        const stock = supply.stock_quantity ?? 0;
+        const minAlert = supply.min_stock_alert ?? 10;
+        const isLow = stock > 0 && stock <= minAlert;
+        const isOut = stock === 0;
+
+        return (
+          <div className="flex items-center gap-2">
+            <span className={isOut ? 'text-destructive font-medium' : isLow ? 'text-amber-600 font-medium' : ''}>
+              {stock}
+            </span>
+            {isOut && (
+              <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                <AlertTriangle className="h-3 w-3 mr-1" />
+                {t('supplies.inventory.outOfStock')}
+              </Badge>
+            )}
+            {isLow && !isOut && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-500 text-amber-600">
+                <AlertTriangle className="h-3 w-3 mr-1" />
+                {t('supplies.inventory.lowStock')}
+              </Badge>
+            )}
+          </div>
+        );
+      }
     }
   ];
 
@@ -302,7 +341,7 @@ export default function SuppliesPage() {
             label={t('supplies.form.name')}
             value={watch('name')}
             onChange={(v) => {
-              const value = typeof v === 'string' ? v : v?.target?.value || ''
+              const value = typeof v === 'string' ? v : (typeof v === 'object' && v !== null && 'target' in v ? (v as React.ChangeEvent<HTMLInputElement>).target.value : '')
               setValue('name', value)
             }}
             error={errors.name?.message}
@@ -330,7 +369,7 @@ export default function SuppliesPage() {
             label={t('supplies.form.presentation')}
             value={watch('presentation')}
             onChange={(v) => {
-              const value = typeof v === 'string' ? v : v?.target?.value || ''
+              const value = typeof v === 'string' ? v : (typeof v === 'object' && v !== null && 'target' in v ? (v as React.ChangeEvent<HTMLInputElement>).target.value : '')
               setValue('presentation', value)
             }}
             placeholder={t('supplies.presentationPlaceholder')}
@@ -362,6 +401,38 @@ export default function SuppliesPage() {
               error={errors.portions?.message}
             />
           </FormGrid>
+
+          {/* Inventory section */}
+          <div className="border-t pt-4 mt-4">
+            <h4 className="text-sm font-medium text-muted-foreground mb-3">
+              {t('supplies.inventory.title')}
+            </h4>
+            <FormGrid columns={2}>
+              <InputField
+                label={t('supplies.inventory.stockQuantity')}
+                type="number"
+                value={watch('stock_quantity') ?? 0}
+                onChange={(v) => {
+                  const value = typeof v === 'number' ? v : parseInt(String(v)) || 0
+                  setValue('stock_quantity', value)
+                }}
+                placeholder="0"
+                error={errors.stock_quantity?.message}
+              />
+
+              <InputField
+                label={t('supplies.inventory.minAlert')}
+                type="number"
+                value={watch('min_stock_alert') ?? 10}
+                onChange={(v) => {
+                  const value = typeof v === 'number' ? v : parseInt(String(v)) || 10
+                  setValue('min_stock_alert', value)
+                }}
+                placeholder="10"
+                error={errors.min_stock_alert?.message}
+              />
+            </FormGrid>
+          </div>
 
           {/* Live preview */}
           {costPerPortionPreview > 0 && (

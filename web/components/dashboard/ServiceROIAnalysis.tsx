@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { TrendingUp, Gem, Package, AlertTriangle, Star, DollarSign, Activity, Clock } from 'lucide-react'
+import { MetricTooltip, type MetricTooltipData } from '@/components/ui/metric-tooltip'
 import { formatCurrency } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { ServiceROI, ROIAnalysis } from '@/app/api/analytics/service-roi/route'
@@ -77,6 +78,17 @@ export function ServiceROIAnalysis({ data, loading = false }: ServiceROIAnalysis
     )
   }
 
+  // Build tooltip data for ROI metrics
+  const totalProfitTooltip: MetricTooltipData = {
+    formula: t('summary.tooltips.totalProfit.formula'),
+    explanation: t('summary.tooltips.totalProfit.explanation')
+  }
+
+  const avgROITooltip: MetricTooltipData = {
+    formula: t('summary.tooltips.avgROI.formula'),
+    explanation: t('summary.tooltips.avgROI.explanation')
+  }
+
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
@@ -86,9 +98,11 @@ export function ServiceROIAnalysis({ data, loading = false }: ServiceROIAnalysis
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-emerald-100 dark:bg-emerald-950/30 flex items-center justify-center mb-2">
               <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600 dark:text-emerald-400" />
             </div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide mb-1">
-              {t('summary.totalProfit')}
-            </p>
+            <MetricTooltip data={totalProfitTooltip}>
+              <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                {t('summary.totalProfit')}
+              </p>
+            </MetricTooltip>
             <p className="text-base sm:text-lg lg:text-2xl font-bold text-emerald-600 tabular-nums">
               {formatCurrency(data.totals.total_profit_cents)}
             </p>
@@ -112,9 +126,11 @@ export function ServiceROIAnalysis({ data, loading = false }: ServiceROIAnalysis
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-purple-100 dark:bg-purple-950/30 flex items-center justify-center mb-2">
               <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600 dark:text-purple-400" />
             </div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide mb-1">
-              {t('summary.avgROI')}
-            </p>
+            <MetricTooltip data={avgROITooltip}>
+              <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                {t('summary.avgROI')}
+              </p>
+            </MetricTooltip>
             <p className="text-base sm:text-lg lg:text-2xl font-bold tabular-nums">{data.totals.avg_roi_percentage}%</p>
           </CardContent>
         </Card>

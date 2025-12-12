@@ -31,9 +31,11 @@ interface InputFieldProps extends BaseFieldProps {
   type?: 'text' | 'email' | 'password' | 'number' | 'date' | 'time' | 'datetime-local';
   placeholder?: string;
   value?: string | number;
-  onChange?: (valueOrEvent: string | number | React.ChangeEvent<HTMLInputElement>) => void;
-  min?: number;
-  max?: number;
+  // Support both custom onChange (string/number) and react-hook-form's ChangeHandler
+  onChange?: ((valueOrEvent: string | number | React.ChangeEvent<HTMLInputElement>) => void) | React.ChangeEventHandler<HTMLInputElement>;
+  // Support string for HTML min/max attributes (react-hook-form compatibility)
+  min?: number | string;
+  max?: number | string;
   step?: number | string;
   inputRef?: React.Ref<HTMLInputElement>;
   readOnly?: boolean;

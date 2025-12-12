@@ -51,6 +51,11 @@ export interface Supply {
   portions: number;
   cost_per_portion_cents?: number;
   cost_per_unit_cents?: number;
+  // Inventory fields
+  stock_quantity?: number;
+  min_stock_alert?: number;
+  last_purchase_price_cents?: number;
+  last_purchase_date?: string;
   created_at?: string;
   updated_at?: string;
 }

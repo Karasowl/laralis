@@ -1036,6 +1036,11 @@
     "work_days_per_month": "Work Days per Month",
     "productivity_percentage": "Productivity Percentage",
     "settings_explanation": "Configure your work schedule to accurately calculate time-based costs. The productivity percentage represents the actual productive time within scheduled hours.",
+    "monthly_goal": "Monthly Revenue Goal",
+    "monthly_goal_help": "Set your monthly revenue target. The break-even point will appear as an intermediate marker.",
+    "monthly_goal_placeholder": "e.g., 50000",
+    "monthly_goal_section": "Revenue Goal",
+    "monthly_goal_explanation": "Your monthly goal will appear on the dashboard alongside the break-even point, letting you track progress toward both targets.",
     "workDaysPerMonth": "Work Days per Month",
     "hoursPerDay": "Hours per Day",
     "effectiveWorkPercentage": "Real Percentage of Effective Hours",
@@ -1260,7 +1265,24 @@
     "emptyTitle": "No supplies registered",
     "listTitle": "Supplies List",
     "search_supply": "Search supply...",
-    "no_supplies_found": "No supplies found"
+    "no_supplies_found": "No supplies found",
+    "inventory": {
+      "title": "Inventory",
+      "stock": "Current stock",
+      "stockQuantity": "Stock quantity",
+      "minAlert": "Minimum alert",
+      "minAlertHelp": "We'll notify you when stock falls below this amount",
+      "lowStock": "Low stock",
+      "outOfStock": "Out of stock",
+      "inStock": "In stock",
+      "stockStatus": "Stock status",
+      "lastPurchase": "Last purchase",
+      "lastPurchaseDate": "Last purchase date",
+      "lastPurchasePrice": "Last purchase price",
+      "units": "units",
+      "adjustStock": "Adjust stock",
+      "stockHistory": "Stock history"
+    }
   },
   "tariffs": {
     "title": "Pricing Tariff",
@@ -1808,6 +1830,34 @@
     "supplies": {
       "title": "Supplies",
       "description": "Control your materials inventory"
+    },
+    "notifications": {
+      "title": "Email Notifications",
+      "description": "Configure appointment confirmations and reminders",
+      "email_enabled": "Email Notifications",
+      "email_enabled_description": "Enable sending emails to patients",
+      "confirmation_enabled": "Confirmation Emails",
+      "confirmation_enabled_description": "Send confirmation when appointments are scheduled",
+      "reminder_enabled": "Reminder Emails",
+      "reminder_enabled_description": "Send reminders before appointments",
+      "reminder_hours_before": "Reminder Hours",
+      "reminder_hours_before_description": "How many hours before the appointment to send the reminder",
+      "sender_name": "Sender Name",
+      "sender_name_description": "Name that will appear in sent emails",
+      "sender_name_placeholder": "My Clinic",
+      "reply_to_email": "Reply-to Email",
+      "reply_to_email_description": "Email where patient replies will be sent",
+      "reply_to_email_placeholder": "contact@myclinic.com",
+      "hours_options": {
+        "1": "1 hour before",
+        "2": "2 hours before",
+        "4": "4 hours before",
+        "12": "12 hours before",
+        "24": "24 hours before (Recommended)",
+        "48": "48 hours before"
+      },
+      "saved_success": "Notification settings saved successfully",
+      "save_error": "Error saving settings"
     },
     "reports": {
       "title": "Reports",
@@ -3450,7 +3500,31 @@
       "netProfit_negative_tooltip": "Your expenses exceed your income. Review your fixed costs or consider increasing prices.",
       "profitable": "Profitable",
       "breakEven": "Break Even",
-      "losses": "Losses"
+      "losses": "Losses",
+      "tooltips": {
+        "avgTicket": {
+          "formula": "Total Revenue ÷ Number of Treatments",
+          "explanation": "The average income you generate per treatment performed. A higher ticket indicates higher-value services."
+        },
+        "patientsNeeded": {
+          "formula": "Break-Even Point ÷ (Avg Ticket × Work Days)",
+          "explanation": "How many patients you need to see daily to cover all your fixed and variable costs."
+        },
+        "currentPatients": {
+          "formula": "Period Treatments ÷ Days Elapsed",
+          "explanation": "Your actual average of patients seen per day in the selected period."
+        },
+        "netProfit": {
+          "formula": "Total Revenue - Fixed Costs - Variable Costs - Expenses",
+          "explanation": "Your real profit after deducting all costs. If negative, you're losing money.",
+          "labels": {
+            "revenue": "Revenue",
+            "fixedCosts": "Fixed Costs",
+            "variableCosts": "Variable Costs",
+            "expenses": "Expenses"
+          }
+        }
+      }
     },
     "recentActivity": {
       "title": "Recent Activity",
@@ -3592,7 +3666,17 @@
         "totalSales": "Total Sales",
         "avgROI": "Average ROI",
         "period": "Period",
-        "lastDays": "Last {days} days"
+        "lastDays": "Last {days} days",
+        "tooltips": {
+          "totalProfit": {
+            "formula": "Σ (Price - Variable Cost - Fixed Cost)",
+            "explanation": "Sum of profits from all treatments in the period. Higher profit = more profitable business."
+          },
+          "avgROI": {
+            "formula": "(Profit ÷ Total Cost) × 100",
+            "explanation": "Average return on investment for your services. A 100% ROI means you double your investment."
+          }
+        }
       },
       "tabs": {
         "total": "Total Profit",

@@ -814,6 +814,17 @@ export class ClinicSnapshotService {
     const capacityUtilization =
       availableMinutes > 0 ? (totalMinutesUsed / availableMinutes) * 100 : 0
 
+    // Wasted minutes and opportunity cost
+    const wastedMinutes = Math.max(0, availableMinutes - totalMinutesUsed)
+    // Calculate opportunity cost using average revenue per minute
+    const totalRevenueCents = treatments.total_revenue_cents || 0
+    const avgRevenuePerMinute = totalMinutesUsed > 0 && totalRevenueCents > 0
+      ? totalRevenueCents / totalMinutesUsed
+      : 0
+    // Opportunity cost = wasted time × avg revenue per minute (potential revenue lost)
+    // Round to integer cents (money must always be stored as integer cents)
+    const opportunityCostCents = Math.round(wastedMinutes * avgRevenuePerMinute)
+
     // Top performers
     const sortedByMargin = [...services.list].sort((a, b) => b.margin_pct - a.margin_pct)
     const sortedByRevenue = [...treatments.by_service].sort(
@@ -853,6 +864,10 @@ export class ClinicSnapshotService {
         treatments_per_day: Math.round(treatmentsPerDay * 100) / 100,
         revenue_per_hour_cents: Math.round(revenuePerHour),
         capacity_utilization_pct: Math.round(capacityUtilization * 100) / 100,
+        total_available_minutes: availableMinutes,
+        total_used_minutes: Math.round(totalMinutesUsed),
+        wasted_minutes: Math.round(wastedMinutes),
+        opportunity_cost_cents: Math.round(opportunityCostCents),
       },
       top_performers: {
         most_profitable_service: sortedByMargin[0]?.name || 'N/A',

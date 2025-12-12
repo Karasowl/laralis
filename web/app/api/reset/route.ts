@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
         if (row?.workspace_id) workspaceIds.add(row.workspace_id);
       });
 
-      for (const wsId of workspaceIds) {
+      for (const wsId of Array.from(workspaceIds)) {
         await deleteWorkspaceData(wsId);
       }
 
