@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { useWorkspace } from '@/contexts/workspace-context';
 import { Button } from '@/components/ui/button';
-import { 
+import {
   ChevronLeft,
   ChevronRight,
   Home,
@@ -27,7 +27,9 @@ import {
   Activity,
   ChartBar,
   Briefcase,
-  Building
+  Building,
+  ClipboardList,
+  FileSpreadsheet
 } from 'lucide-react';
 
 interface SidebarItem {
@@ -73,6 +75,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { label: t('nav.dashboard'), href: '/', icon: Home },
     { label: t('nav.patients'), href: '/patients', icon: Users },
     { label: t('nav.treatments'), href: '/treatments', icon: FileText },
+    { label: t('nav.prescriptions'), href: '/prescriptions', icon: ClipboardList },
+    { label: t('nav.quotes'), href: '/quotes', icon: FileSpreadsheet },
     { label: t('nav.supplies'), href: '/supplies', icon: Package },
     { label: t('nav.services'), href: '/services', icon: ShoppingCart },
     { label: t('nav.expenses'), href: '/expenses', icon: Receipt },

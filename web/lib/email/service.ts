@@ -367,6 +367,164 @@ export async function sendReminderEmail(data: AppointmentEmailData, hoursUntil: 
 }
 
 /**
+ * Booking confirmation email data (for public bookings)
+ */
+export interface BookingConfirmationData {
+  clinicId: string;
+  clinicName: string;
+  patientName: string;
+  patientEmail: string;
+  serviceName: string;
+  appointmentDate: string;
+  appointmentTime: string;
+  bookingId: string;
+}
+
+/**
+ * Generate public booking confirmation HTML
+ */
+function generateBookingConfirmationHtml(data: BookingConfirmationData): string {
+  const formattedDate = formatDate(data.appointmentDate);
+  const formattedTime = formatTime(data.appointmentTime);
+
+  return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solicitud de Cita Recibida</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f7;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td style="padding: 40px 20px;">
+        <table role="presentation" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 32px; text-align: center;">
+              <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">Solicitud Recibida</h1>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding: 32px;">
+              <p style="margin: 0 0 24px; color: #1f2937; font-size: 16px;">
+                Hola <strong>${data.patientName}</strong>,
+              </p>
+
+              <p style="margin: 0 0 24px; color: #4b5563; font-size: 15px;">
+                Hemos recibido tu solicitud de cita. Te confirmaremos a la brevedad.
+              </p>
+
+              <!-- Appointment Card -->
+              <table role="presentation" style="width: 100%; background-color: #f0fdf4; border: 2px solid #86efac; border-radius: 12px; margin-bottom: 24px;">
+                <tr>
+                  <td style="padding: 24px;">
+                    <table role="presentation" style="width: 100%;">
+                      <tr>
+                        <td style="padding-bottom: 16px;">
+                          <span style="color: #166534; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Servicio solicitado</span>
+                          <p style="margin: 4px 0 0; color: #14532d; font-size: 16px; font-weight: 600;">${data.serviceName}</p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding-bottom: 16px;">
+                          <span style="color: #166534; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Fecha solicitada</span>
+                          <p style="margin: 4px 0 0; color: #14532d; font-size: 16px; font-weight: 600;">${formattedDate}</p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <span style="color: #166534; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Hora solicitada</span>
+                          <p style="margin: 4px 0 0; color: #14532d; font-size: 18px; font-weight: 700;">${formattedTime}</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Status Note -->
+              <table role="presentation" style="width: 100%; background-color: #fef3c7; border-radius: 8px; margin-bottom: 24px;">
+                <tr>
+                  <td style="padding: 16px;">
+                    <p style="margin: 0; color: #92400e; font-size: 14px;">
+                      <strong>Estado:</strong> Pendiente de confirmación<br>
+                      <span style="font-size: 13px;">Recibirás otro correo cuando tu cita sea confirmada.</span>
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Clinic Info -->
+              <table role="presentation" style="width: 100%; border-top: 1px solid #e5e7eb; padding-top: 24px;">
+                <tr>
+                  <td>
+                    <p style="margin: 0 0 8px; color: #1f2937; font-size: 15px; font-weight: 600;">${data.clinicName}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f8fafc; padding: 24px; text-align: center; border-top: 1px solid #e5e7eb;">
+              <p style="margin: 0 0 8px; color: #6b7280; font-size: 13px;">
+                Si tienes alguna pregunta, no dudes en contactarnos.
+              </p>
+              <p style="margin: 0; color: #9ca3af; font-size: 12px;">
+                Ref: ${data.bookingId.slice(0, 8).toUpperCase()}<br>
+                © ${new Date().getFullYear()} ${data.clinicName}. Todos los derechos reservados.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+}
+
+/**
+ * Send booking confirmation email (for public booking requests)
+ */
+export async function sendBookingConfirmation(data: BookingConfirmationData): Promise<EmailResult> {
+  const resend = getResendClient();
+  if (!resend) {
+    console.warn('[email] RESEND_API_KEY not configured, skipping email');
+    return { success: false, error: 'Email service not configured' };
+  }
+
+  try {
+    const formattedDate = formatDate(data.appointmentDate);
+    const formattedTime = formatTime(data.appointmentTime);
+
+    const { data: result, error } = await resend.emails.send({
+      from: `${FROM_NAME} <${FROM_EMAIL}>`,
+      to: [data.patientEmail],
+      subject: `Solicitud de Cita Recibida - ${data.serviceName} el ${formattedDate} a las ${formattedTime}`,
+      html: generateBookingConfirmationHtml(data),
+    });
+
+    if (error) {
+      console.error('[email] Failed to send booking confirmation:', error);
+      return { success: false, error: error.message };
+    }
+
+    console.log('[email] Booking confirmation sent:', result?.id);
+    return { success: true, messageId: result?.id };
+  } catch (error) {
+    console.error('[email] Unexpected error:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+/**
  * Check if email notifications are enabled for a clinic
  */
 export function isEmailEnabled(notificationSettings: Record<string, unknown> | null): boolean {

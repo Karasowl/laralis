@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Mail, Bell, Clock, RefreshCcw } from 'lucide-react';
+import { WhatsAppSettingsCard, type WhatsAppSettings } from './WhatsAppSettingsCard';
 
 interface NotificationSettings {
   email_enabled: boolean;
@@ -18,7 +19,21 @@ interface NotificationSettings {
   reminder_hours_before: number;
   sender_name: string | null;
   reply_to_email: string | null;
+  whatsapp?: WhatsAppSettings;
 }
+
+const DEFAULT_WHATSAPP: WhatsAppSettings = {
+  enabled: false,
+  provider: 'twilio',
+  twilio_account_sid: '',
+  twilio_auth_token: '',
+  twilio_phone_number: '',
+  dialog360_api_key: '',
+  default_country_code: '52',
+  send_confirmations: true,
+  send_reminders: true,
+  reminder_hours_before: 24,
+};
 
 const DEFAULT_SETTINGS: NotificationSettings = {
   email_enabled: true,
@@ -27,18 +42,36 @@ const DEFAULT_SETTINGS: NotificationSettings = {
   reminder_hours_before: 24,
   sender_name: null,
   reply_to_email: null,
+  whatsapp: DEFAULT_WHATSAPP,
 };
 
 const HOURS_OPTIONS = [1, 2, 4, 12, 24, 48];
 
 function shallowEqual(a: NotificationSettings, b: NotificationSettings): boolean {
-  return (
+  const baseEqual =
     a.email_enabled === b.email_enabled &&
     a.confirmation_enabled === b.confirmation_enabled &&
     a.reminder_enabled === b.reminder_enabled &&
     a.reminder_hours_before === b.reminder_hours_before &&
     a.sender_name === b.sender_name &&
-    a.reply_to_email === b.reply_to_email
+    a.reply_to_email === b.reply_to_email;
+
+  if (!baseEqual) return false;
+
+  // Compare WhatsApp settings
+  const wa = a.whatsapp || DEFAULT_WHATSAPP;
+  const wb = b.whatsapp || DEFAULT_WHATSAPP;
+
+  return (
+    wa.enabled === wb.enabled &&
+    wa.provider === wb.provider &&
+    wa.twilio_account_sid === wb.twilio_account_sid &&
+    wa.twilio_auth_token === wb.twilio_auth_token &&
+    wa.twilio_phone_number === wb.twilio_phone_number &&
+    wa.dialog360_api_key === wb.dialog360_api_key &&
+    wa.default_country_code === wb.default_country_code &&
+    wa.send_confirmations === wb.send_confirmations &&
+    wa.send_reminders === wb.send_reminders
   );
 }
 
@@ -77,6 +110,10 @@ export function NotificationsClient() {
           reminder_hours_before: settings?.reminder_hours_before ?? 24,
           sender_name: settings?.sender_name ?? null,
           reply_to_email: settings?.reply_to_email ?? null,
+          whatsapp: {
+            ...DEFAULT_WHATSAPP,
+            ...(settings?.whatsapp || {}),
+          },
         };
 
         setState(normalized);
@@ -271,7 +308,17 @@ export function NotificationsClient() {
             />
           </div>
         </CardContent>
-        <CardFooter className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      </Card>
+
+      {/* WhatsApp Configuration */}
+      <WhatsAppSettingsCard
+        settings={state.whatsapp || DEFAULT_WHATSAPP}
+        onChange={(whatsapp) => setState((prev) => ({ ...prev, whatsapp }))}
+      />
+
+      {/* Save Actions */}
+      <Card>
+        <CardFooter className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-6">
           <Button
             type="button"
             variant="outline"

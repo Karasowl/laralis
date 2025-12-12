@@ -164,6 +164,7 @@ export async function middleware(request: NextRequest) {
     '/auth/verify-email',
     '/terms',
     '/privacy',
+    '/book', // Public booking pages
   ];
 
   const isPublicPath = publicPaths.some(path => pathname.startsWith(path));
@@ -177,12 +178,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
-  // If has user and trying to access auth pages (except logout/callback/reset-password/verify-email)
+  // If has user and trying to access auth pages (except logout/callback/reset-password/verify-email/book)
   if (user && isPublicPath &&
       !pathname.includes('/logout') &&
       !pathname.includes('/callback') &&
       !pathname.includes('/reset-password') &&
-      !pathname.includes('/verify-email')) {
+      !pathname.includes('/verify-email') &&
+      !pathname.startsWith('/book')) {
     // Check if user has workspace (cached check)
     const { data: workspaces } = await supabase
       .from('workspaces')

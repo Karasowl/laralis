@@ -3,15 +3,15 @@
 ## P0 - MVP Vendible (Bloquea lanzamiento)
 
 ### Nuevas tareas (Análisis competitivo 2025-12-07)
-- [ ] TASK-20251207-public-booking - Autoagendamiento público (link sin login)
-- [ ] TASK-20251207-email-notifications - Notificaciones email automáticas (confirmación + recordatorio)
+- [x] ~~TASK-20251207-public-booking~~ - Autoagendamiento público (link sin login) ✅ Implementado 2025-12-12
+- [x] ~~TASK-20251207-email-notifications~~ - Notificaciones email automáticas (confirmación + recordatorio) ✅ Implementado 2025-12-12
 
 ## P1 - Plan Profesional
 
 ### Nuevas tareas (Análisis competitivo 2025-12-07)
-- [ ] TASK-20251207-whatsapp-notifications - Notificaciones WhatsApp (Twilio/360dialog)
-- [ ] TASK-20251207-prescriptions - Módulo de recetas médicas con vademécum
-- [ ] TASK-20251207-pdf-quotes - Presupuestos PDF personalizados
+- [x] ~~TASK-20251207-whatsapp-notifications~~ - Notificaciones WhatsApp (Twilio/360dialog) ✅ Implementado 2025-12-12
+- [x] ~~TASK-20251207-prescriptions~~ - Módulo de recetas médicas con vademécum ✅ Implementado 2025-12-12
+- [x] ~~TASK-20251207-pdf-quotes~~ - Presupuestos PDF personalizados ✅ Implementado 2025-12-12
 
 ## P2 - Plan Clínica
 
@@ -53,4 +53,4 @@ Las siguientes tareas del backlog original ya fueron implementadas:
 - [Pricing Strategy](../docs/competencia/PRICING-STRATEGY.md)
 - [Análisis Dentalink](../docs/competencia/dentalink/ANALISIS.md)
 
-Última actualización: 2025-12-07
+Última actualización: 2025-12-12

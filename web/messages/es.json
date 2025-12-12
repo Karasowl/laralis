@@ -1057,6 +1057,8 @@
     "patients": "Pacientes",
     "treatments": "Tratamientos",
     "expenses": "Gastos",
+    "prescriptions": "Recetas",
+    "quotes": "Presupuestos",
     "reports": "Reportes",
     "settings": "Configuración",
     "workspaces": "Espacios de Trabajo",
@@ -1818,7 +1820,27 @@
       "failed": "Fallido",
       "pending": "Pendiente",
       "confirmation": "Confirmación",
-      "reminder": "Recordatorio"
+      "reminder": "Recordatorio",
+      "whatsapp": {
+        "title": "WhatsApp",
+        "description": "Envía notificaciones por WhatsApp a tus pacientes",
+        "provider": "Proveedor",
+        "twilio_docs": "Ver documentación de Twilio",
+        "dialog360_docs": "Ver documentación de 360dialog",
+        "twilio_config": "Configuración de Twilio",
+        "twilio_account_sid": "Account SID",
+        "twilio_auth_token": "Auth Token",
+        "twilio_phone_number": "Número de WhatsApp",
+        "twilio_phone_hint": "Usa el formato: whatsapp:+14155238886",
+        "dialog360_config": "Configuración de 360dialog",
+        "dialog360_api_key": "API Key",
+        "general_settings": "Configuración General",
+        "default_country_code": "Código de país por defecto",
+        "send_confirmations": "Enviar confirmaciones",
+        "send_confirmations_desc": "Envía mensaje cuando se agenda una cita",
+        "send_reminders": "Enviar recordatorios",
+        "send_reminders_desc": "Envía recordatorio antes de la cita"
+      }
     },
     "reports": {
       "title": "Reportes",
@@ -4243,6 +4265,241 @@
         "medium": "Confianza Media",
         "high": "Alta Confianza"
       }
+    }
+  },
+  "booking": {
+    "steps": {
+      "selectService": "Selecciona un servicio",
+      "selectDateTime": "Selecciona fecha y hora",
+      "selectTime": "Selecciona una hora disponible",
+      "yourInfo": "Tu información"
+    },
+    "fields": {
+      "service": "Servicio",
+      "date": "Fecha",
+      "time": "Hora",
+      "price": "Precio",
+      "name": "Nombre completo",
+      "email": "Correo electrónico",
+      "phone": "Teléfono",
+      "notes": "Notas adicionales"
+    },
+    "placeholders": {
+      "name": "Ingresa tu nombre",
+      "email": "tu@correo.com",
+      "phone": "55 1234 5678",
+      "notes": "¿Alguna información adicional que debamos saber?"
+    },
+    "hints": {
+      "emailConfirmation": "Recibirás confirmación por correo electrónico"
+    },
+    "actions": {
+      "back": "Atrás",
+      "confirmBooking": "Confirmar reserva",
+      "processing": "Procesando..."
+    },
+    "errors": {
+      "clinicNotFound": "Clínica no encontrada",
+      "clinicNotFoundDesc": "La clínica que buscas no existe o ha sido desactivada.",
+      "bookingDisabled": "Reservas deshabilitadas",
+      "bookingDisabledDesc": "Esta clínica no tiene habilitadas las reservas en línea.",
+      "generic": "Error inesperado",
+      "genericDesc": "Ocurrió un error al cargar la información. Intenta de nuevo.",
+      "noAvailableSlots": "No hay horarios disponibles para esta fecha"
+    },
+    "confirmation": {
+      "title": "¡Solicitud enviada!",
+      "subtitle": "Tu solicitud de cita ha sido recibida correctamente.",
+      "pending": "Pendiente de confirmación",
+      "pendingDesc": "La clínica revisará tu solicitud y la confirmará pronto.",
+      "email": "Notificación por correo",
+      "emailDesc": "Recibirás un correo cuando tu cita sea confirmada.",
+      "reminder": "Recordatorio",
+      "reminderDesc": "Te enviaremos un recordatorio antes de tu cita.",
+      "reference": "Referencia",
+      "bookAnother": "Agendar otra cita"
+    }
+  },
+  "quotes": {
+    "title": "Presupuestos",
+    "subtitle": "Crea y gestiona presupuestos de tratamientos para tus pacientes",
+    "createQuote": "Nuevo Presupuesto",
+    "createDescription": "Crea un nuevo presupuesto de tratamiento para el paciente",
+    "editQuote": "Editar Presupuesto",
+    "editing": "Editando",
+    "downloadPdf": "Descargar PDF",
+    "send": "Enviar",
+    "markAccepted": "Marcar como aceptado",
+    "markRejected": "Marcar como rechazado",
+    "expired": "Expirado",
+    "createdOn": "Creado el",
+    "services": "servicios",
+    "days": "días",
+    "tooth": "Diente",
+    "fields": {
+      "quoteNumber": "No. Presupuesto",
+      "patient": "Paciente",
+      "date": "Fecha",
+      "validUntil": "Válido hasta",
+      "validityDays": "Días de validez",
+      "services": "Servicios",
+      "service": "Servicio",
+      "quantity": "Cant.",
+      "unitPrice": "Precio unitario",
+      "discount": "Descuento",
+      "discountType": "Tipo de descuento",
+      "discountValue": "Valor del descuento",
+      "subtotal": "Subtotal",
+      "tax": "IVA",
+      "taxRate": "Tasa IVA (%)",
+      "total": "Total",
+      "status": "Estado",
+      "tooth": "Diente",
+      "notes": "Notas",
+      "internalNotes": "Notas internas",
+      "patientNotes": "Notas para el paciente",
+      "termsConditions": "Términos y condiciones"
+    },
+    "status": {
+      "draft": "Borrador",
+      "sent": "Enviado",
+      "accepted": "Aceptado",
+      "rejected": "Rechazado",
+      "expired": "Expirado",
+      "converted": "Convertido"
+    },
+    "discountTypes": {
+      "none": "Sin descuento",
+      "percentage": "Porcentaje",
+      "fixed": "Monto fijo"
+    },
+    "filters": {
+      "all": "Todos"
+    },
+    "form": {
+      "basicInfo": "Información básica",
+      "services": "Servicios",
+      "addService": "Agregar servicio",
+      "selectPatient": "Selecciona un paciente",
+      "selectService": "Selecciona un servicio",
+      "customServiceName": "O escribe nombre personalizado",
+      "globalDiscount": "Descuento global",
+      "totals": "Totales",
+      "notes": "Notas",
+      "internalNotesPlaceholder": "Notas internas (no visibles en el PDF)",
+      "patientNotesPlaceholder": "Notas para el paciente (visibles en el PDF)",
+      "termsPlaceholder": "Términos y condiciones del presupuesto"
+    },
+    "emptyState": {
+      "title": "Sin presupuestos",
+      "description": "No hay presupuestos registrados. Crea el primer presupuesto para un paciente."
+    },
+    "deleteConfirm": {
+      "title": "Eliminar presupuesto",
+      "description": "¿Estás seguro de que deseas eliminar el presupuesto {number}? Esta acción no se puede deshacer."
+    },
+    "messages": {
+      "created": "Presupuesto creado exitosamente",
+      "updated": "Presupuesto actualizado exitosamente",
+      "deleted": "Presupuesto eliminado exitosamente",
+      "sent": "Presupuesto enviado exitosamente",
+      "accepted": "Presupuesto marcado como aceptado",
+      "rejected": "Presupuesto marcado como rechazado",
+      "pdfGenerated": "PDF generado exitosamente",
+      "createError": "Error al crear el presupuesto",
+      "updateError": "Error al actualizar el presupuesto",
+      "deleteError": "Error al eliminar el presupuesto",
+      "sendError": "Error al enviar el presupuesto",
+      "statusError": "Error al actualizar el estado",
+      "pdfError": "Error al generar el PDF"
+    }
+  },
+  "prescriptions": {
+    "title": "Recetas Médicas",
+    "description": "Gestiona las recetas médicas de tus pacientes",
+    "search_placeholder": "Buscar por paciente o número de receta...",
+    "fields": {
+      "number": "No. Receta",
+      "date": "Fecha",
+      "patient": "Paciente",
+      "prescriber": "Médico",
+      "prescriber_name": "Nombre del médico",
+      "prescriber_license": "Cédula profesional",
+      "prescriber_specialty": "Especialidad",
+      "license": "Cédula",
+      "diagnosis": "Diagnóstico",
+      "medications": "Medicamentos",
+      "medications_count": "Medicamentos",
+      "medication": "Medicamento",
+      "medication_name": "Nombre del medicamento",
+      "strength": "Concentración",
+      "form": "Forma farmacéutica",
+      "dosage": "Dosis",
+      "frequency": "Frecuencia",
+      "duration": "Duración",
+      "quantity": "Cantidad",
+      "instructions": "Indicaciones",
+      "valid_until": "Válida hasta",
+      "notes": "Notas",
+      "pharmacy_notes": "Notas para farmacia",
+      "status": "Estado"
+    },
+    "status": {
+      "active": "Activa",
+      "cancelled": "Cancelada",
+      "expired": "Expirada",
+      "dispensed": "Dispensada"
+    },
+    "form": {
+      "basic_info": "Información básica",
+      "prescriber_info": "Información del médico",
+      "diagnosis": "Diagnóstico",
+      "medications": "Medicamentos",
+      "medications_description": "Agrega los medicamentos a la receta",
+      "additional_info": "Información adicional"
+    },
+    "modal": {
+      "create_title": "Nueva Receta",
+      "create_description": "Crea una nueva receta médica para el paciente",
+      "view_title": "Detalle de Receta"
+    },
+    "actions": {
+      "new": "Nueva Receta",
+      "download_pdf": "Descargar PDF",
+      "cancel": "Cancelar receta",
+      "add_medication": "Agregar medicamento",
+      "search_medication": "Buscar en vademécum"
+    },
+    "placeholders": {
+      "search_medication": "Buscar medicamento por nombre..."
+    },
+    "confirm": {
+      "cancel_title": "Cancelar receta",
+      "cancel_description": "¿Estás seguro de que deseas cancelar esta receta? Esta acción no se puede deshacer."
+    },
+    "messages": {
+      "created": "Receta creada exitosamente",
+      "cancelled": "Receta cancelada",
+      "error": "Error al procesar la receta",
+      "pdf_downloaded": "PDF descargado",
+      "pdf_error": "Error al generar el PDF",
+      "no_medications_found": "No se encontraron medicamentos"
+    },
+    "empty": {
+      "title": "Sin recetas",
+      "description": "No hay recetas médicas registradas. Crea una nueva receta."
+    }
+  },
+  "medications": {
+    "title": "Vademécum",
+    "description": "Catálogo de medicamentos disponibles",
+    "categories": {
+      "antibiotic": "Antibiótico",
+      "analgesic": "Analgésico",
+      "anti-inflammatory": "Antiinflamatorio",
+      "corticosteroid": "Corticosteroide",
+      "antiseptic": "Antiséptico",
+      "antifungal": "Antifúngico"
     }
   }
 }
