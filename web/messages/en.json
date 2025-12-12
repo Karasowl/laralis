@@ -989,6 +989,8 @@
     "patients": "Patients",
     "treatments": "Treatments",
     "expenses": "Expenses",
+    "prescriptions": "Prescriptions",
+    "quotes": "Quotes",
     "reports": "Reports",
     "settings": "Settings",
     "workspaces": "Workspaces",
@@ -1857,7 +1859,27 @@
         "48": "48 hours before"
       },
       "saved_success": "Notification settings saved successfully",
-      "save_error": "Error saving settings"
+      "save_error": "Error saving settings",
+      "whatsapp": {
+        "title": "WhatsApp",
+        "description": "Send WhatsApp notifications to your patients",
+        "provider": "Provider",
+        "twilio_docs": "View Twilio documentation",
+        "dialog360_docs": "View 360dialog documentation",
+        "twilio_config": "Twilio Configuration",
+        "twilio_account_sid": "Account SID",
+        "twilio_auth_token": "Auth Token",
+        "twilio_phone_number": "WhatsApp Number",
+        "twilio_phone_hint": "Use format: whatsapp:+14155238886",
+        "dialog360_config": "360dialog Configuration",
+        "dialog360_api_key": "API Key",
+        "general_settings": "General Settings",
+        "default_country_code": "Default country code",
+        "send_confirmations": "Send confirmations",
+        "send_confirmations_desc": "Send message when an appointment is scheduled",
+        "send_reminders": "Send reminders",
+        "send_reminders_desc": "Send reminder before appointment"
+      }
     },
     "reports": {
       "title": "Reports",
@@ -3970,6 +3992,241 @@
         "medium": "Medium Confidence",
         "high": "High Confidence"
       }
+    }
+  },
+  "booking": {
+    "steps": {
+      "selectService": "Select a service",
+      "selectDateTime": "Select date and time",
+      "selectTime": "Select an available time",
+      "yourInfo": "Your information"
+    },
+    "fields": {
+      "service": "Service",
+      "date": "Date",
+      "time": "Time",
+      "price": "Price",
+      "name": "Full name",
+      "email": "Email address",
+      "phone": "Phone",
+      "notes": "Additional notes"
+    },
+    "placeholders": {
+      "name": "Enter your name",
+      "email": "your@email.com",
+      "phone": "555 123 4567",
+      "notes": "Any additional information we should know?"
+    },
+    "hints": {
+      "emailConfirmation": "You will receive confirmation by email"
+    },
+    "actions": {
+      "back": "Back",
+      "confirmBooking": "Confirm booking",
+      "processing": "Processing..."
+    },
+    "errors": {
+      "clinicNotFound": "Clinic not found",
+      "clinicNotFoundDesc": "The clinic you're looking for doesn't exist or has been deactivated.",
+      "bookingDisabled": "Booking disabled",
+      "bookingDisabledDesc": "This clinic doesn't have online booking enabled.",
+      "generic": "Unexpected error",
+      "genericDesc": "An error occurred while loading information. Please try again.",
+      "noAvailableSlots": "No available time slots for this date"
+    },
+    "confirmation": {
+      "title": "Request submitted!",
+      "subtitle": "Your appointment request has been received successfully.",
+      "pending": "Pending confirmation",
+      "pendingDesc": "The clinic will review your request and confirm it soon.",
+      "email": "Email notification",
+      "emailDesc": "You'll receive an email when your appointment is confirmed.",
+      "reminder": "Reminder",
+      "reminderDesc": "We'll send you a reminder before your appointment.",
+      "reference": "Reference",
+      "bookAnother": "Book another appointment"
+    }
+  },
+  "quotes": {
+    "title": "Quotes",
+    "subtitle": "Create and manage treatment quotes for your patients",
+    "createQuote": "New Quote",
+    "createDescription": "Create a new treatment quote for the patient",
+    "editQuote": "Edit Quote",
+    "editing": "Editing",
+    "downloadPdf": "Download PDF",
+    "send": "Send",
+    "markAccepted": "Mark as accepted",
+    "markRejected": "Mark as rejected",
+    "expired": "Expired",
+    "createdOn": "Created on",
+    "services": "services",
+    "days": "days",
+    "tooth": "Tooth",
+    "fields": {
+      "quoteNumber": "Quote No.",
+      "patient": "Patient",
+      "date": "Date",
+      "validUntil": "Valid until",
+      "validityDays": "Validity days",
+      "services": "Services",
+      "service": "Service",
+      "quantity": "Qty",
+      "unitPrice": "Unit price",
+      "discount": "Discount",
+      "discountType": "Discount type",
+      "discountValue": "Discount value",
+      "subtotal": "Subtotal",
+      "tax": "Tax",
+      "taxRate": "Tax rate (%)",
+      "total": "Total",
+      "status": "Status",
+      "tooth": "Tooth",
+      "notes": "Notes",
+      "internalNotes": "Internal notes",
+      "patientNotes": "Patient notes",
+      "termsConditions": "Terms and conditions"
+    },
+    "status": {
+      "draft": "Draft",
+      "sent": "Sent",
+      "accepted": "Accepted",
+      "rejected": "Rejected",
+      "expired": "Expired",
+      "converted": "Converted"
+    },
+    "discountTypes": {
+      "none": "No discount",
+      "percentage": "Percentage",
+      "fixed": "Fixed amount"
+    },
+    "filters": {
+      "all": "All"
+    },
+    "form": {
+      "basicInfo": "Basic information",
+      "services": "Services",
+      "addService": "Add service",
+      "selectPatient": "Select a patient",
+      "selectService": "Select a service",
+      "customServiceName": "Or type custom name",
+      "globalDiscount": "Global discount",
+      "totals": "Totals",
+      "notes": "Notes",
+      "internalNotesPlaceholder": "Internal notes (not visible in PDF)",
+      "patientNotesPlaceholder": "Notes for the patient (visible in PDF)",
+      "termsPlaceholder": "Quote terms and conditions"
+    },
+    "emptyState": {
+      "title": "No quotes",
+      "description": "No quotes registered. Create your first quote for a patient."
+    },
+    "deleteConfirm": {
+      "title": "Delete quote",
+      "description": "Are you sure you want to delete quote {number}? This action cannot be undone."
+    },
+    "messages": {
+      "created": "Quote created successfully",
+      "updated": "Quote updated successfully",
+      "deleted": "Quote deleted successfully",
+      "sent": "Quote sent successfully",
+      "accepted": "Quote marked as accepted",
+      "rejected": "Quote marked as rejected",
+      "pdfGenerated": "PDF generated successfully",
+      "createError": "Error creating quote",
+      "updateError": "Error updating quote",
+      "deleteError": "Error deleting quote",
+      "sendError": "Error sending quote",
+      "statusError": "Error updating status",
+      "pdfError": "Error generating PDF"
+    }
+  },
+  "prescriptions": {
+    "title": "Prescriptions",
+    "description": "Manage medical prescriptions for your patients",
+    "search_placeholder": "Search by patient or prescription number...",
+    "fields": {
+      "number": "Prescription No.",
+      "date": "Date",
+      "patient": "Patient",
+      "prescriber": "Prescriber",
+      "prescriber_name": "Prescriber name",
+      "prescriber_license": "License number",
+      "prescriber_specialty": "Specialty",
+      "license": "License",
+      "diagnosis": "Diagnosis",
+      "medications": "Medications",
+      "medications_count": "Medications",
+      "medication": "Medication",
+      "medication_name": "Medication name",
+      "strength": "Strength",
+      "form": "Dosage form",
+      "dosage": "Dosage",
+      "frequency": "Frequency",
+      "duration": "Duration",
+      "quantity": "Quantity",
+      "instructions": "Instructions",
+      "valid_until": "Valid until",
+      "notes": "Notes",
+      "pharmacy_notes": "Pharmacy notes",
+      "status": "Status"
+    },
+    "status": {
+      "active": "Active",
+      "cancelled": "Cancelled",
+      "expired": "Expired",
+      "dispensed": "Dispensed"
+    },
+    "form": {
+      "basic_info": "Basic information",
+      "prescriber_info": "Prescriber information",
+      "diagnosis": "Diagnosis",
+      "medications": "Medications",
+      "medications_description": "Add medications to the prescription",
+      "additional_info": "Additional information"
+    },
+    "modal": {
+      "create_title": "New Prescription",
+      "create_description": "Create a new medical prescription for the patient",
+      "view_title": "Prescription Details"
+    },
+    "actions": {
+      "new": "New Prescription",
+      "download_pdf": "Download PDF",
+      "cancel": "Cancel prescription",
+      "add_medication": "Add medication",
+      "search_medication": "Search in formulary"
+    },
+    "placeholders": {
+      "search_medication": "Search medication by name..."
+    },
+    "confirm": {
+      "cancel_title": "Cancel prescription",
+      "cancel_description": "Are you sure you want to cancel this prescription? This action cannot be undone."
+    },
+    "messages": {
+      "created": "Prescription created successfully",
+      "cancelled": "Prescription cancelled",
+      "error": "Error processing prescription",
+      "pdf_downloaded": "PDF downloaded",
+      "pdf_error": "Error generating PDF",
+      "no_medications_found": "No medications found"
+    },
+    "empty": {
+      "title": "No prescriptions",
+      "description": "No medical prescriptions recorded. Create a new prescription."
+    }
+  },
+  "medications": {
+    "title": "Formulary",
+    "description": "Available medication catalog",
+    "categories": {
+      "antibiotic": "Antibiotic",
+      "analgesic": "Analgesic",
+      "anti-inflammatory": "Anti-inflammatory",
+      "corticosteroid": "Corticosteroid",
+      "antiseptic": "Antiseptic",
+      "antifungal": "Antifungal"
     }
   }
 }

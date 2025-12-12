@@ -194,3 +194,159 @@ export interface PatientSource {
   is_active: boolean;
   is_system: boolean;
 }
+
+// Medication (Vademecum) interface
+export interface Medication {
+  id: string;
+  clinic_id?: string | null; // null = global medication
+  name: string;
+  generic_name?: string;
+  brand_name?: string;
+  category?: string;
+  controlled_substance: boolean;
+  requires_prescription: boolean;
+  dosage_form?: string;
+  strength?: string;
+  unit?: string;
+  default_dosage?: string;
+  default_frequency?: string;
+  default_duration?: string;
+  default_instructions?: string;
+  common_uses?: string[];
+  contraindications?: string;
+  side_effects?: string;
+  interactions?: string;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Prescription status
+export type PrescriptionStatus = 'active' | 'cancelled' | 'expired' | 'dispensed';
+
+// Prescription interface
+export interface Prescription {
+  id: string;
+  clinic_id: string;
+  patient_id: string;
+  treatment_id?: string | null;
+  prescription_number: string;
+  prescription_date: string;
+  prescriber_name: string;
+  prescriber_license?: string;
+  prescriber_specialty?: string;
+  diagnosis?: string;
+  status: PrescriptionStatus;
+  valid_until?: string;
+  notes?: string;
+  pharmacy_notes?: string;
+  pdf_generated_at?: string;
+  pdf_url?: string;
+  created_at?: string;
+  updated_at?: string;
+  created_by?: string;
+  // Relations (populated via joins)
+  patient?: Patient;
+  treatment?: Treatment;
+  items?: PrescriptionItem[];
+}
+
+// Prescription item interface
+export interface PrescriptionItem {
+  id: string;
+  prescription_id: string;
+  medication_id?: string | null;
+  medication_name: string;
+  medication_strength?: string;
+  medication_form?: string;
+  dosage: string;
+  frequency: string;
+  duration?: string;
+  quantity?: string;
+  instructions?: string;
+  sort_order: number;
+  created_at?: string;
+  // Relations
+  medication?: Medication;
+}
+
+// Treatment interface (referenced by Prescription)
+export interface Treatment {
+  id: string;
+  clinic_id: string;
+  patient_id: string;
+  service_id: string;
+  treatment_date: string;
+  treatment_time?: string;
+  status: 'scheduled' | 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  tooth_number?: string;
+  minutes?: number;
+  notes?: string;
+  price_cents: number;
+  is_paid: boolean;
+  payment_method?: string;
+  payment_date?: string;
+  created_at?: string;
+  updated_at?: string;
+  // Relations
+  patient?: Patient;
+  service?: Service;
+}
+
+// Quote status
+export type QuoteStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired' | 'converted';
+
+// Quote interface
+export interface Quote {
+  id: string;
+  clinic_id: string;
+  patient_id: string;
+  quote_number: string;
+  quote_date: string;
+  validity_days: number;
+  valid_until: string;
+  status: QuoteStatus;
+  subtotal_cents: number;
+  discount_type?: 'none' | 'percentage' | 'fixed';
+  discount_value?: number;
+  discount_cents?: number;
+  tax_rate?: number;
+  tax_cents?: number;
+  total_cents: number;
+  notes?: string;
+  patient_notes?: string;
+  terms_conditions?: string;
+  pdf_generated_at?: string;
+  sent_at?: string;
+  sent_via?: 'email' | 'whatsapp' | 'print';
+  responded_at?: string;
+  response_notes?: string;
+  created_at?: string;
+  updated_at?: string;
+  created_by?: string;
+  // Relations
+  patient?: Patient;
+  items?: QuoteItem[];
+}
+
+// Quote item interface
+export interface QuoteItem {
+  id: string;
+  quote_id: string;
+  service_id?: string | null;
+  service_name: string;
+  service_description?: string;
+  quantity: number;
+  unit_price_cents: number;
+  discount_type?: 'none' | 'percentage' | 'fixed';
+  discount_value?: number;
+  discount_cents?: number;
+  subtotal_cents: number;
+  total_cents: number;
+  tooth_number?: string;
+  notes?: string;
+  sort_order: number;
+  created_at?: string;
+  // Relations
+  service?: Service;
+}
