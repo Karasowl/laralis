@@ -26,31 +26,44 @@ const whatsappSettingsSchema = z.object({
   reminder_hours_before: z.number().optional(),
 }).optional();
 
-// SMS patient settings schema (all optional with defaults)
+// SMS patient settings schema
 const smsPatientSettingsSchema = z.object({
-  on_treatment_created: z.boolean().optional().default(true),
-  on_treatment_updated: z.boolean().optional().default(true),
-  reminder_24h: z.boolean().optional().default(true),
-  reminder_2h: z.boolean().optional().default(false),
-}).optional();
+  on_treatment_created: z.boolean().default(true),
+  on_treatment_updated: z.boolean().default(true),
+  reminder_24h: z.boolean().default(true),
+  reminder_2h: z.boolean().default(false),
+});
 
-// SMS staff settings schema (all optional with defaults)
+// SMS staff settings schema
 const smsStaffSettingsSchema = z.object({
-  enabled: z.boolean().optional().default(false),
-  phone: z.string().optional().default(''),
-  extra_phone: z.string().optional().default(''),
-  on_treatment_created: z.boolean().optional().default(true),
-  on_treatment_updated: z.boolean().optional().default(true),
-  reminder_24h: z.boolean().optional().default(true),
-  reminder_2h: z.boolean().optional().default(false),
-}).optional();
+  enabled: z.boolean().default(false),
+  phone: z.string().default(''),
+  extra_phone: z.string().default(''),
+  on_treatment_created: z.boolean().default(true),
+  on_treatment_updated: z.boolean().default(true),
+  reminder_24h: z.boolean().default(true),
+  reminder_2h: z.boolean().default(false),
+});
 
-// SMS settings schema
+// SMS settings schema - optional at top level, but with full defaults for nested objects
 const smsSettingsSchema = z.object({
-  enabled: z.boolean().optional().default(false),
-  default_country_code: z.string().optional().default('52'),
-  patient: smsPatientSettingsSchema,
-  staff: smsStaffSettingsSchema,
+  enabled: z.boolean().default(false),
+  default_country_code: z.string().default('52'),
+  patient: smsPatientSettingsSchema.default({
+    on_treatment_created: true,
+    on_treatment_updated: true,
+    reminder_24h: true,
+    reminder_2h: false,
+  }),
+  staff: smsStaffSettingsSchema.default({
+    enabled: false,
+    phone: '',
+    extra_phone: '',
+    on_treatment_created: true,
+    on_treatment_updated: true,
+    reminder_24h: true,
+    reminder_2h: false,
+  }),
 }).optional();
 
 const notificationSettingsSchema = z.object({
