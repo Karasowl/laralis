@@ -209,8 +209,10 @@ USING (
   clinic_id IS NULL
   OR clinic_id IN (
     SELECT c.id FROM clinics c
-    JOIN user_clinic_membership ucm ON c.id = ucm.clinic_id
-    WHERE ucm.user_id = auth.uid()
+    JOIN workspace_members wm ON c.workspace_id = wm.workspace_id
+    WHERE wm.user_id = auth.uid()
+      AND wm.is_active = true
+      AND wm.invitation_status = 'accepted'
   )
 );
 
@@ -220,15 +222,19 @@ TO authenticated
 USING (
   clinic_id IN (
     SELECT c.id FROM clinics c
-    JOIN user_clinic_membership ucm ON c.id = ucm.clinic_id
-    WHERE ucm.user_id = auth.uid()
+    JOIN workspace_members wm ON c.workspace_id = wm.workspace_id
+    WHERE wm.user_id = auth.uid()
+      AND wm.is_active = true
+      AND wm.invitation_status = 'accepted'
   )
 )
 WITH CHECK (
   clinic_id IN (
     SELECT c.id FROM clinics c
-    JOIN user_clinic_membership ucm ON c.id = ucm.clinic_id
-    WHERE ucm.user_id = auth.uid()
+    JOIN workspace_members wm ON c.workspace_id = wm.workspace_id
+    WHERE wm.user_id = auth.uid()
+      AND wm.is_active = true
+      AND wm.invitation_status = 'accepted'
   )
 );
 
@@ -239,8 +245,10 @@ TO authenticated
 USING (
   clinic_id IN (
     SELECT c.id FROM clinics c
-    JOIN user_clinic_membership ucm ON c.id = ucm.clinic_id
-    WHERE ucm.user_id = auth.uid()
+    JOIN workspace_members wm ON c.workspace_id = wm.workspace_id
+    WHERE wm.user_id = auth.uid()
+      AND wm.is_active = true
+      AND wm.invitation_status = 'accepted'
   )
 );
 
@@ -250,15 +258,19 @@ TO authenticated
 USING (
   clinic_id IN (
     SELECT c.id FROM clinics c
-    JOIN user_clinic_membership ucm ON c.id = ucm.clinic_id
-    WHERE ucm.user_id = auth.uid()
+    JOIN workspace_members wm ON c.workspace_id = wm.workspace_id
+    WHERE wm.user_id = auth.uid()
+      AND wm.is_active = true
+      AND wm.invitation_status = 'accepted'
   )
 )
 WITH CHECK (
   clinic_id IN (
     SELECT c.id FROM clinics c
-    JOIN user_clinic_membership ucm ON c.id = ucm.clinic_id
-    WHERE ucm.user_id = auth.uid()
+    JOIN workspace_members wm ON c.workspace_id = wm.workspace_id
+    WHERE wm.user_id = auth.uid()
+      AND wm.is_active = true
+      AND wm.invitation_status = 'accepted'
   )
 );
 
@@ -271,8 +283,10 @@ USING (
     SELECT p.id FROM prescriptions p
     WHERE p.clinic_id IN (
       SELECT c.id FROM clinics c
-      JOIN user_clinic_membership ucm ON c.id = ucm.clinic_id
-      WHERE ucm.user_id = auth.uid()
+      JOIN workspace_members wm ON c.workspace_id = wm.workspace_id
+      WHERE wm.user_id = auth.uid()
+        AND wm.is_active = true
+        AND wm.invitation_status = 'accepted'
     )
   )
 );
@@ -285,8 +299,10 @@ USING (
     SELECT p.id FROM prescriptions p
     WHERE p.clinic_id IN (
       SELECT c.id FROM clinics c
-      JOIN user_clinic_membership ucm ON c.id = ucm.clinic_id
-      WHERE ucm.user_id = auth.uid()
+      JOIN workspace_members wm ON c.workspace_id = wm.workspace_id
+      WHERE wm.user_id = auth.uid()
+        AND wm.is_active = true
+        AND wm.invitation_status = 'accepted'
     )
   )
 )
@@ -295,8 +311,10 @@ WITH CHECK (
     SELECT p.id FROM prescriptions p
     WHERE p.clinic_id IN (
       SELECT c.id FROM clinics c
-      JOIN user_clinic_membership ucm ON c.id = ucm.clinic_id
-      WHERE ucm.user_id = auth.uid()
+      JOIN workspace_members wm ON c.workspace_id = wm.workspace_id
+      WHERE wm.user_id = auth.uid()
+        AND wm.is_active = true
+        AND wm.invitation_status = 'accepted'
     )
   )
 );
