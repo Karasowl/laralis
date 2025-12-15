@@ -3624,6 +3624,21 @@
         }
       }
     },
+    "profitBreakdown": {
+      "title": "Profit Breakdown",
+      "description": "Your real profit after all costs",
+      "revenue": "Treatment Revenue",
+      "variableCosts": "Variable Costs (Materials)",
+      "fixedCosts": "Fixed Costs (Configured)",
+      "depreciation": "Asset Depreciation",
+      "netProfit": "Net Profit",
+      "margin": "margin",
+      "status": {
+        "profitable": "✓ You're generating profits this period",
+        "breakEven": "⚠️ You're at break-even point",
+        "losses": "⚠️ You're having losses this period"
+      }
+    },
     "recentActivity": {
       "title": "Recent Activity",
       "description": "Latest actions in your clinic",

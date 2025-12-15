@@ -10,6 +10,10 @@ import {
   AppointmentEmailData,
   isConfirmationEnabled,
 } from '@/lib/email/service';
+import {
+  sendAllTreatmentCreatedNotifications,
+  TreatmentNotificationParams,
+} from '@/lib/sms/service';
 
 export const dynamic = 'force-dynamic'
 
@@ -415,11 +419,67 @@ export async function POST(request: NextRequest) {
       console.warn('[treatments POST] Failed to send confirmation email:', e);
     }
 
+    // Send SMS notifications (non-blocking, best-effort)
+    let smsSent = false;
+    try {
+      const created = insertResult.data as any;
+      const syncableStatuses = ['scheduled', 'pending', 'in_progress'];
+      if (created && syncableStatuses.includes(created.status)) {
+        // Fetch clinic info
+        const { data: clinic } = await supabaseAdmin
+          .from('clinics')
+          .select('name')
+          .eq('id', clinicId)
+          .single();
+
+        // Fetch patient info (need phone)
+        const { data: patient } = await supabaseAdmin
+          .from('patients')
+          .select('first_name, last_name, phone')
+          .eq('id', created.patient_id)
+          .single();
+
+        // Fetch service info
+        const { data: service } = await supabaseAdmin
+          .from('services')
+          .select('name')
+          .eq('id', created.service_id)
+          .single();
+
+        if (clinic && patient?.phone && service) {
+          const smsParams: TreatmentNotificationParams = {
+            clinicId,
+            clinicName: clinic.name,
+            patientName: `${patient.first_name} ${patient.last_name}`,
+            patientPhone: patient.phone,
+            patientId: created.patient_id,
+            treatmentId: created.id,
+            serviceName: service.name,
+            appointmentDate: created.treatment_date,
+            appointmentTime: created.treatment_time || '12:00',
+          };
+
+          const smsResults = await sendAllTreatmentCreatedNotifications(smsParams);
+          smsSent = smsResults.patient.success || smsResults.staff.primary.success;
+
+          if (smsResults.patient.success) {
+            console.log(`[treatments POST] SMS sent to patient for treatment ${created.id}`);
+          }
+          if (smsResults.staff.primary.success) {
+            console.log(`[treatments POST] SMS sent to staff for treatment ${created.id}`);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[treatments POST] Failed to send SMS notifications:', e);
+    }
+
     return NextResponse.json({
       data: insertResult.data,
       message: 'Treatment created successfully',
       calendarSync: calendarSync || undefined,
       emailSent,
+      smsSent,
     });
   } catch (error) {
     console.error('Unexpected error in POST /api/treatments:', error);

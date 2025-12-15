@@ -44,6 +44,7 @@ import { usePlannedVsActual } from '@/hooks/use-planned-vs-actual'
 import { useServices } from '@/hooks/use-services'
 import { useTimeSettings } from '@/hooks/use-time-settings'
 import { PlannedVsActualCard } from '@/components/dashboard/PlannedVsActualCard'
+import { ProfitBreakdownCard } from '@/components/dashboard/ProfitBreakdownCard'
 import { ContributionAnalysis } from '@/app/equilibrium/components/ContributionAnalysis'
 import { formatCurrency } from '@/lib/format'
 import { ReportsAdvanced } from '@/app/reports/ReportsAdvanced'
@@ -498,10 +499,25 @@ export default function InsightsPage() {
                   />
                 )}
 
-                {/* Planned vs Actual - UNIQUE DIFFERENTIATOR */}
-                {!plannedVsActualLoading && plannedVsActual && (
-                  <PlannedVsActualCard data={plannedVsActual} />
-                )}
+                {/* Profit Breakdown + Planned vs Actual */}
+                <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2">
+                  {/* Profit Breakdown - Clear cost deduction view */}
+                  {!profitAnalysisLoading && profitAnalysis && (
+                    <ProfitBreakdownCard
+                      revenueCents={profitAnalysis.revenue_cents}
+                      variableCostsCents={profitAnalysis.costs.variable_cents}
+                      fixedCostsCents={profitAnalysis.costs.fixed_cents}
+                      depreciationCents={profitAnalysis.costs.depreciation_cents}
+                      netProfitCents={profitAnalysis.profits.net_profit_cents}
+                      netMarginPct={profitAnalysis.profits.net_margin_pct}
+                    />
+                  )}
+
+                  {/* Planned vs Actual - UNIQUE DIFFERENTIATOR */}
+                  {!plannedVsActualLoading && plannedVsActual && (
+                    <PlannedVsActualCard data={plannedVsActual} />
+                  )}
+                </div>
 
                 {/* GRAFICOS PRINCIPALES - Mobile-first: stack on mobile, 2 cols on tablet+ */}
                 <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2">
