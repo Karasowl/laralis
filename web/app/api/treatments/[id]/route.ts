@@ -123,6 +123,43 @@ export async function PUT(
       console.warn('[treatments PUT] Failed to adjust patient first_visit_date:', e);
     }
 
+    // Update scheduled reminders if date/time changed
+    if (body.treatment_date !== undefined || body.treatment_time !== undefined) {
+      try {
+        const updated = result.data as any;
+        const newDate = updated.treatment_date;
+        const newTime = updated.treatment_time || '12:00:00';
+        const appointmentDateTime = new Date(`${newDate}T${newTime}`);
+
+        // Get pending reminders for this treatment
+        const { data: pendingReminders } = await supabaseAdmin
+          .from('scheduled_reminders')
+          .select('id, reminder_type')
+          .eq('treatment_id', params.id)
+          .eq('clinic_id', clinicId)
+          .eq('status', 'pending');
+
+        if (pendingReminders && pendingReminders.length > 0) {
+          for (const reminder of pendingReminders) {
+            let hoursOffset = 24; // default for reminder_24h
+            if (reminder.reminder_type === 'reminder_2h') {
+              hoursOffset = 2;
+            }
+
+            const newScheduledFor = new Date(appointmentDateTime.getTime() - hoursOffset * 60 * 60 * 1000);
+
+            await supabaseAdmin
+              .from('scheduled_reminders')
+              .update({ scheduled_for: newScheduledFor.toISOString() })
+              .eq('id', reminder.id);
+          }
+          console.log(`[treatments PUT] Updated ${pendingReminders.length} scheduled reminders for treatment ${params.id}`);
+        }
+      } catch (e) {
+        console.warn('[treatments PUT] Failed to update scheduled reminders:', e);
+      }
+    }
+
     // Sync to Google Calendar if connected
     let calendarSync: CalendarSyncResult | null = null;
     try {
@@ -202,6 +239,18 @@ export async function DELETE(
       .eq('id', params.id)
       .eq('clinic_id', clinicId)
       .single();
+
+    // Delete scheduled reminders for this treatment
+    const { error: reminderError } = await supabaseAdmin
+      .from('scheduled_reminders')
+      .delete()
+      .eq('treatment_id', params.id)
+      .eq('clinic_id', clinicId);
+
+    if (reminderError) {
+      console.warn('[treatments DELETE] Failed to delete scheduled reminders:', reminderError);
+      // Continue with treatment deletion even if reminder deletion fails
+    }
 
     const { error } = await supabaseAdmin
       .from('treatments')

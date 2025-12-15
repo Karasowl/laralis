@@ -209,6 +209,32 @@ export async function POST(request: NextRequest) {
       amount_cents: amountCents
     })
 
+    // Calculate next_recurrence_date for recurring expenses
+    let nextRecurrenceDate: string | null = null
+    if (expenseData.is_recurring && expenseData.recurrence_interval) {
+      const baseDate = new Date(expenseData.expense_date)
+      const recurrenceDay = expenseData.recurrence_day || baseDate.getDate()
+
+      switch (expenseData.recurrence_interval) {
+        case 'weekly':
+          // Add 7 days from expense date
+          baseDate.setDate(baseDate.getDate() + 7)
+          break
+        case 'monthly':
+          // Move to next month, using recurrence_day
+          baseDate.setMonth(baseDate.getMonth() + 1)
+          // Handle month-end edge cases (e.g., Jan 31 -> Feb 28)
+          const lastDayOfMonth = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 0).getDate()
+          baseDate.setDate(Math.min(recurrenceDay, lastDayOfMonth))
+          break
+        case 'yearly':
+          // Add 1 year from expense date
+          baseDate.setFullYear(baseDate.getFullYear() + 1)
+          break
+      }
+      nextRecurrenceDate = baseDate.toISOString().split('T')[0]
+    }
+
     // Create expense record
     const { data: expense, error: expenseError } = await supabaseAdmin
       .from('expenses')
@@ -217,7 +243,8 @@ export async function POST(request: NextRequest) {
         amount_cents: amountCents,
         category: resolvedCategory || expenseData.category,
         category_id: resolvedCategoryId || category_id || null,
-        clinic_id: body.clinic_id
+        clinic_id: body.clinic_id,
+        next_recurrence_date: nextRecurrenceDate
       })
       .select()
       .single()
