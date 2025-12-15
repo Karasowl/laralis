@@ -155,11 +155,48 @@ export async function PUT(
 
     // amount_cents was already converted before validation (no need to transform)
 
+    // Calculate next_recurrence_date for recurring expenses
+    const isRecurring = updateData.is_recurring ?? currentExpense.is_recurring
+    const recurrenceInterval = updateData.recurrence_interval ?? currentExpense.recurrence_interval
+    const expenseDate = updateData.expense_date ?? currentExpense.expense_date
+    const recurrenceDay = updateData.recurrence_day ?? currentExpense.recurrence_day
+
+    let nextRecurrenceDate: string | null = currentExpense.next_recurrence_date
+    if (isRecurring && recurrenceInterval) {
+      // Recalculate next_recurrence_date if recurrence settings changed
+      if (updateData.is_recurring !== undefined ||
+          updateData.recurrence_interval !== undefined ||
+          updateData.recurrence_day !== undefined ||
+          updateData.expense_date !== undefined) {
+        const baseDate = new Date(expenseDate)
+        const dayToUse = recurrenceDay || baseDate.getDate()
+
+        switch (recurrenceInterval) {
+          case 'weekly':
+            baseDate.setDate(baseDate.getDate() + 7)
+            break
+          case 'monthly':
+            baseDate.setMonth(baseDate.getMonth() + 1)
+            const lastDayOfMonth = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 0).getDate()
+            baseDate.setDate(Math.min(dayToUse, lastDayOfMonth))
+            break
+          case 'yearly':
+            baseDate.setFullYear(baseDate.getFullYear() + 1)
+            break
+        }
+        nextRecurrenceDate = baseDate.toISOString().split('T')[0]
+      }
+    } else if (!isRecurring) {
+      // Clear next_recurrence_date if expense is no longer recurring
+      nextRecurrenceDate = null
+    }
+
     // Update expense using supabaseAdmin
     const { data: updatedExpense, error: updateError } = await supabaseAdmin
       .from('expenses')
       .update({
         ...updateData,
+        next_recurrence_date: nextRecurrenceDate,
         updated_at: new Date().toISOString()
       })
       .eq('id', params.id)

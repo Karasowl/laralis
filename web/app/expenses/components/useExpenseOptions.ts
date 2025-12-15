@@ -65,7 +65,7 @@ export function mapExpenseToFormValues(expense?: ExpenseWithRelations | null): E
     asset_name: '',
     asset_useful_life_years: undefined,
     category_id: expense.category_id || undefined,
-    recurrence_interval: expense.recurrence_interval as RecurrenceInterval | undefined,
+    recurrence_interval: expense.recurrence_interval ?? undefined,
     recurrence_day: expense.recurrence_day ?? undefined,
     related_fixed_cost_id: expense.related_fixed_cost_id || undefined,
   }

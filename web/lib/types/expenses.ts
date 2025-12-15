@@ -51,9 +51,9 @@ export interface Expense {
   quantity?: number
   auto_processed: boolean
   // Recurring expense configuration
-  recurrence_interval?: RecurrenceInterval  // weekly, monthly, yearly
-  recurrence_day?: number  // Day of month (1-31) or week (1-7 for weekly)
-  next_recurrence_date?: string  // Next scheduled generation date
+  recurrence_interval?: RecurrenceInterval | null  // weekly, monthly, yearly (null from DB)
+  recurrence_day?: number | null  // Day of month (1-31) or week (1-7 for weekly)
+  next_recurrence_date?: string | null  // Next scheduled generation date
   parent_expense_id?: string  // Reference to template expense (null if template)
   // Budget tracking
   related_fixed_cost_id?: string  // Reference to planned fixed cost for budget vs actual analysis
