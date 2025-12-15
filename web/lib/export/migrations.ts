@@ -39,7 +39,7 @@ export interface ExportMigration {
  * This should match the latest migration number in supabase/migrations/
  * Update this when you add database migrations.
  */
-export const CURRENT_SCHEMA_VERSION = 56;
+export const CURRENT_SCHEMA_VERSION = 57;
 
 /**
  * Export Format Version
@@ -217,6 +217,25 @@ export const EXPORT_MIGRATIONS: ExportMigration[] = [
     transform: (bundle: ExportBundle) => ({
       ...bundle,
       metadata: { ...bundle.metadata, schemaVersion: 56 },
+    }),
+  },
+  // Migration 56→57: Monthly goal in settings_time
+  {
+    from: 56,
+    to: 57,
+    description: 'Add monthly_goal_cents to settings_time',
+    transform: (bundle: ExportBundle) => ({
+      ...bundle,
+      metadata: { ...bundle.metadata, schemaVersion: 57 },
+      data: {
+        ...bundle.data,
+        clinics: bundle.data.clinics.map((clinic: any) => ({
+          ...clinic,
+          settingsTime: clinic.settingsTime
+            ? { ...clinic.settingsTime, monthly_goal_cents: clinic.settingsTime.monthly_goal_cents ?? null }
+            : null,
+        })),
+      },
     }),
   },
 ];
