@@ -84,7 +84,7 @@ const DEFAULT_SETTINGS: NotificationSettings = {
 
 export async function GET() {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const clinicContext = await resolveClinicContext({ cookieStore });
 
     if ('error' in clinicContext) {
@@ -135,7 +135,7 @@ export async function GET() {
 
 export async function PUT(request: NextRequest) {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const clinicContext = await resolveClinicContext({ cookieStore });
 
     if ('error' in clinicContext) {
