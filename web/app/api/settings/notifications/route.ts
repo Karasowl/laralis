@@ -26,44 +26,36 @@ const whatsappSettingsSchema = z.object({
   reminder_hours_before: z.number().optional(),
 }).optional();
 
-// SMS patient settings schema
+// SMS patient settings schema - all fields optional for flexibility
 const smsPatientSettingsSchema = z.object({
-  on_treatment_created: z.boolean().default(true),
-  on_treatment_updated: z.boolean().default(true),
-  reminder_24h: z.boolean().default(true),
-  reminder_2h: z.boolean().default(false),
-});
+  on_treatment_created: z.boolean().optional(),
+  on_treatment_updated: z.boolean().optional(),
+  reminder_24h: z.boolean().optional(),
+  reminder_2h: z.boolean().optional(),
+}).optional();
 
-// SMS staff settings schema
+// SMS staff settings schema - all fields optional for flexibility
 const smsStaffSettingsSchema = z.object({
-  enabled: z.boolean().default(false),
-  phone: z.string().default(''),
-  extra_phone: z.string().default(''),
-  on_treatment_created: z.boolean().default(true),
-  on_treatment_updated: z.boolean().default(true),
-  reminder_24h: z.boolean().default(true),
-  reminder_2h: z.boolean().default(false),
-});
+  enabled: z.boolean().optional(),
+  phone: z.string().optional(),
+  extra_phone: z.string().optional(),
+  on_treatment_created: z.boolean().optional(),
+  on_treatment_updated: z.boolean().optional(),
+  reminder_24h: z.boolean().optional(),
+  reminder_2h: z.boolean().optional(),
+}).optional();
 
-// SMS settings schema - optional at top level, but with full defaults for nested objects
+// SMS settings schema - flexible to accept both old and new formats
 const smsSettingsSchema = z.object({
-  enabled: z.boolean().default(false),
-  default_country_code: z.string().default('52'),
-  patient: smsPatientSettingsSchema.default({
-    on_treatment_created: true,
-    on_treatment_updated: true,
-    reminder_24h: true,
-    reminder_2h: false,
-  }),
-  staff: smsStaffSettingsSchema.default({
-    enabled: false,
-    phone: '',
-    extra_phone: '',
-    on_treatment_created: true,
-    on_treatment_updated: true,
-    reminder_24h: true,
-    reminder_2h: false,
-  }),
+  enabled: z.boolean().optional(),
+  default_country_code: z.string().optional(),
+  // New format fields
+  patient: smsPatientSettingsSchema,
+  staff: smsStaffSettingsSchema,
+  // Legacy format fields (for backwards compatibility)
+  send_confirmations: z.boolean().optional(),
+  send_reminders: z.boolean().optional(),
+  reminder_hours_before: z.number().optional(),
 }).optional();
 
 const notificationSettingsSchema = z.object({
