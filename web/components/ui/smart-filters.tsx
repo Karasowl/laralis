@@ -58,8 +58,21 @@ interface SmartFiltersProps {
 export function SmartFilters({ filters, values, onChange, className }: SmartFiltersProps) {
   const tFilters = useTranslations('filters')
 
+  // Count filters that are "non-default" active
+  // Date ranges are not counted as "active" since they always have a value
+  // Granularity 'day' is default, Comparison 'none' is default
   const activeFiltersCount = React.useMemo(() => {
-    return Object.entries(values).filter(([, v]) => {
+    return Object.entries(values).filter(([key, v]) => {
+      // Skip date-range from count - it's always "active"
+      const filterConfig = filters.find(f => f.key === key)
+      if (filterConfig?.type === 'date-range') return false
+
+      // Granularity 'day' is default - not active
+      if (filterConfig?.type === 'granularity' && v === 'day') return false
+
+      // Comparison 'none' is default - not active
+      if (filterConfig?.type === 'comparison' && v === 'none') return false
+
       if (v === null || v === undefined || v === '') return false
       if (Array.isArray(v) && v.length === 0) return false
       if (typeof v === 'object' && !Array.isArray(v)) {
@@ -67,24 +80,36 @@ export function SmartFilters({ filters, values, onChange, className }: SmartFilt
       }
       return true
     }).length
-  }, [values])
+  }, [values, filters])
 
+  // Reset all filters to their default values
   const clearAll = () => {
-    const cleared: FilterValues = {}
+    const defaults: FilterValues = {}
     filters.forEach(f => {
-      if (f.type === 'date-range' || f.type === 'number-range') {
-        cleared[f.key] = { from: '', to: '' }
-      } else if (f.type === 'multi-select') {
-        cleared[f.key] = []
-      } else if (f.type === 'granularity') {
-        cleared[f.key] = 'day' // Default granularity
-      } else if (f.type === 'comparison') {
-        cleared[f.key] = 'none' // Default comparison
-      } else {
-        cleared[f.key] = ''
+      switch (f.type) {
+        case 'date-range':
+          // Signal reset to parent - empty range means "use default"
+          defaults[f.key] = { from: '', to: '' }
+          break
+        case 'number-range':
+          defaults[f.key] = { from: '', to: '' }
+          break
+        case 'multi-select':
+          defaults[f.key] = []
+          break
+        case 'granularity':
+          defaults[f.key] = 'day' // Default granularity
+          break
+        case 'comparison':
+          defaults[f.key] = 'none' // Default comparison
+          break
+        case 'select':
+        default:
+          defaults[f.key] = ''
+          break
       }
     })
-    onChange(cleared)
+    onChange(defaults)
   }
 
   const updateFilter = (key: string, value: any) => {
