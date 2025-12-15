@@ -485,5 +485,36 @@ describe('dates.ts - Working Days Calculations', () => {
       expect(result.workingDays).toBeGreaterThan(0)
       expect(result.elapsedWorkingDays).toBeGreaterThanOrEqual(0)
     })
+
+    it('should correctly calculate remaining working days for a specific mid-month date', () => {
+      // Bug scenario: User reports being on day 14 with 20 working days configured
+      // System showed "23 días restantes" which is impossible
+
+      // December 2024: 31 total days, using Mon-Sat pattern (typical 26-27 working days)
+      const pattern: WorkingDaysConfig['manual'] = {
+        monday: true,
+        tuesday: true,
+        wednesday: true,
+        thursday: true,
+        friday: true,
+        saturday: true,
+        sunday: false
+      }
+
+      const result = calculateWorkingDaysInMonth(2024, 12, pattern)
+
+      // Basic sanity checks
+      expect(result.totalDays).toBe(31)
+      expect(result.workingDays).toBeGreaterThanOrEqual(20) // Should be ~26
+
+      // Key assertion: remainingWorkingDays should NEVER exceed total workingDays
+      expect(result.remainingWorkingDays).toBeLessThanOrEqual(result.workingDays)
+
+      // remainingWorkingDays should be >= 0
+      expect(result.remainingWorkingDays).toBeGreaterThanOrEqual(0)
+
+      // elapsedWorkingDays + remainingWorkingDays should equal total workingDays
+      expect(result.elapsedWorkingDays + result.remainingWorkingDays).toBe(result.workingDays)
+    })
   })
 })

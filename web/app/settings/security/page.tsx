@@ -13,7 +13,7 @@ export default function SecuritySettingsPage() {
   return (
     <AppLayout>
       <div className="p-4 lg:p-8 mx-auto max-w-[1200px] space-y-6">
-        <PageHeader title={t('title')} subtitle={t('subtitle')} />
+        <PageHeader title={t('title')} subtitle={t('subtitle')} backHref="/settings" />
         <Suspense
           fallback={
             <div className="grid gap-4 md:grid-cols-2">

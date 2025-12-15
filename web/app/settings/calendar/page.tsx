@@ -152,6 +152,7 @@ export default function CalendarSettingsPage() {
         <PageHeader
           title={t('settings.calendar.title')}
           subtitle={t('settings.calendar.subtitle')}
+          backHref="/settings"
         />
 
         {/* Connection Status Card */}

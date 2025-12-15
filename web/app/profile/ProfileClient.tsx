@@ -22,7 +22,7 @@ export function ProfileClient({ user }: ProfileClientProps) {
   const [formData, setFormData] = useState({
     first_name: user?.user_metadata?.first_name || '',
     last_name: user?.user_metadata?.last_name || '',
-    phone: user?.phone || '',
+    phone: user?.user_metadata?.phone || '',
   });
   const { toast } = useToast();
   const router = useRouter();
@@ -42,8 +42,8 @@ export function ProfileClient({ user }: ProfileClientProps) {
           first_name: formData.first_name,
           last_name: formData.last_name,
           full_name: `${formData.first_name} ${formData.last_name}`.trim(),
+          phone: formData.phone || '',
         },
-        phone: formData.phone || undefined,
       });
 
       if (error) {
@@ -97,7 +97,7 @@ export function ProfileClient({ user }: ProfileClientProps) {
                   setFormData({
                     first_name: user?.user_metadata?.first_name || '',
                     last_name: user?.user_metadata?.last_name || '',
-                    phone: user?.phone || '',
+                    phone: user?.user_metadata?.phone || '',
                   });
                 }}
               >

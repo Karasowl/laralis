@@ -17,6 +17,11 @@ Cada entrada sigue la estructura:
 
 ## Entradas
 
+### 2025-12-14
+
+- **[2025-12-14-fix-break-even-days-remaining-ux.md](2025-12-14-fix-break-even-days-remaining-ux.md)** - Fix P1 UX: Mensaje confuso "X días restantes" en Punto de Equilibrio. El número podía exceder los días del mes porque mostraba "días necesarios al ritmo actual", no "días que quedan". Agregado badge rojo + advertencia cuando meta es inalcanzable.
+- **[2025-12-14-fix-profile-phone-not-showing.md](2025-12-14-fix-profile-phone-not-showing.md)** - Fix P1: Teléfono no aparecía en Cuenta/Perfil debido a mismatch entre dónde se guardaba (auth.users.phone) y dónde se leía (user_metadata.phone). Unificado para usar user_metadata en ambos casos.
+
 ### 2025-12-08
 
 - **[2025-12-08-fix-dashboard-date-filter.md](2025-12-08-fix-dashboard-date-filter.md)** - Fix P1: Dashboard date filter no se aplicaba a todos los componentes. Hooks como useReports, useServiceROI, useMarketingMetrics, y useChannelROI ignoraban el filtro de fechas. Ahora todos respetan currentRange.
@@ -60,6 +65,7 @@ Cada entrada sigue la estructura:
 - [2025-10-22-export-import-system.md](2025-10-22-export-import-system.md) - Sistema completo de export/import con migraciones
 
 ### Onboarding & Auth
+- [2025-12-14-fix-profile-phone-not-showing.md](2025-12-14-fix-profile-phone-not-showing.md) - Fix de mismatch phone field: auth.users.phone vs user_metadata.phone
 - [2025-10-18-fix-service-recipe-requirement-too-strict.md](2025-10-18-fix-service-recipe-requirement-too-strict.md) - Fix de requirement excesivamente estricto que bloqueaba el wizard
 - [2025-10-18-fix-setup-wizard-redirect-loop.md](2025-10-18-fix-setup-wizard-redirect-loop.md) - Fix de redirect loop en configuración de assets
 - [2025-10-18-fix-onboarding-triggers-rls.md](2025-10-18-fix-onboarding-triggers-rls.md) - Fix de políticas RLS en triggers automáticos de clinics
@@ -77,6 +83,7 @@ Cada entrada sigue la estructura:
 - [2025-08-09-supplies-services-module.md](2025-08-09-supplies-services-module.md) - Cálculos de costos variables y tratamientos
 
 ### UI/UX
+- [2025-12-14-fix-break-even-days-remaining-ux.md](2025-12-14-fix-break-even-days-remaining-ux.md) - Fix de mensaje confuso "días restantes" en Punto de Equilibrio
 - [2025-12-08-fix-dashboard-date-filter.md](2025-12-08-fix-dashboard-date-filter.md) - Fix de filtro de fechas en Dashboard
 - [2025-10-18-improve-dark-mode-ux.md](2025-10-18-improve-dark-mode-ux.md) - Rediseño completo de dark mode con paleta moderna
 - [2025-08-09-bootstrap-proyecto.md](2025-08-09-bootstrap-proyecto.md) - Sistema de componentes estilo Apple
@@ -100,6 +107,6 @@ Cada entrada sigue la estructura:
 
 ## Stats
 
-- **Total entradas**: 16
-- **Ultima actualizacion**: 2025-12-08
-- **Archivos documentados**: 128+
+- **Total entradas**: 18
+- **Ultima actualizacion**: 2025-12-14
+- **Archivos documentados**: 133+

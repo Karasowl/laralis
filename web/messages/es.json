@@ -1727,6 +1727,24 @@
   "settings": {
     "title": "Configuración",
     "subtitle": "Configura tus preferencias personales, seguridad y mantenimiento del workspace.",
+    "groups": {
+      "personal": {
+        "title": "Configuración Personal",
+        "subtitle": "Gestiona tu cuenta, preferencias y seguridad"
+      },
+      "organization": {
+        "title": "Organización",
+        "subtitle": "Gestiona espacios de trabajo y clínicas"
+      },
+      "integrations": {
+        "title": "Integraciones",
+        "subtitle": "Conecta servicios y herramientas externas"
+      },
+      "maintenance": {
+        "title": "Datos y Mantenimiento",
+        "subtitle": "Exporta, importa y reinicia tus datos"
+      }
+    },
     "language": "Idioma",
     "theme": "Tema",
     "organization": "Organización",
@@ -1842,6 +1860,70 @@
         "send_confirmations_desc": "Envía mensaje cuando se agenda una cita",
         "send_reminders": "Enviar recordatorios",
         "send_reminders_desc": "Envía recordatorio antes de la cita"
+      },
+      "sms": {
+        "title": "Notificaciones SMS",
+        "description": "Envía SMS automáticos a pacientes y recibe alertas en tu teléfono",
+        "country_code": "Código de país",
+        "country_code_help": "Sin el signo +, ej: 52 para México, 1 para USA",
+        "patient_section": "Notificaciones a Pacientes",
+        "patient_section_description": "SMS que se envían al teléfono del paciente",
+        "on_treatment_created": "Al programar cita",
+        "on_treatment_created_desc": "Envía confirmación con servicio, fecha y hora",
+        "on_treatment_updated": "Al modificar cita",
+        "on_treatment_updated_desc": "Notifica cambios de fecha, hora o servicio",
+        "reminder_24h": "Recordatorio 24h antes",
+        "reminder_24h_desc": "Un día antes de la cita",
+        "reminder_2h": "Recordatorio 2h antes",
+        "reminder_2h_desc": "Dos horas antes de la cita",
+        "staff_section": "Notificaciones a la Clínica",
+        "staff_section_description": "SMS que recibes tú con datos completos del paciente",
+        "staff_phone": "Teléfono principal",
+        "extra_phone": "Teléfono adicional",
+        "extra_phone_help": "Recibe una copia de todas las notificaciones",
+        "staff_on_treatment_created": "Al crear cita",
+        "staff_on_treatment_created_desc": "Recibe: paciente, servicio, fecha, hora y teléfono",
+        "staff_on_treatment_updated": "Al modificar cita",
+        "staff_on_treatment_updated_desc": "Recibe notificación con los cambios realizados",
+        "staff_reminder_24h": "Recordatorio 24h antes",
+        "staff_reminder_24h_desc": "Agenda del día siguiente con datos de pacientes",
+        "staff_reminder_2h": "Recordatorio 2h antes",
+        "staff_reminder_2h_desc": "Próxima cita con datos del paciente"
+      },
+      "push_notifications": "Notificaciones Push",
+      "push_notifications_description": "Recibe notificaciones del navegador en tiempo real",
+      "push_not_supported": "Tu navegador no soporta notificaciones push",
+      "push_permission_description": "Activa las notificaciones push para recibir alertas instantáneas en tu navegador",
+      "enable_push_notifications": "Activar Notificaciones Push",
+      "push_enabled": "Notificaciones Push Activadas",
+      "push_enabled_description": "Recibirás notificaciones del navegador en tiempo real",
+      "disable_push_notifications": "Desactivar",
+      "push_enabled_success": "Notificaciones push activadas correctamente",
+      "push_enable_error": "Error al activar notificaciones push",
+      "push_disabled_success": "Notificaciones push desactivadas",
+      "push_disable_error": "Error al desactivar notificaciones push",
+      "email_enabled": "Notificaciones por Email",
+      "email_enabled_description": "Activa o desactiva todas las notificaciones por email",
+      "confirmation_enabled": "Confirmación de Cita",
+      "confirmation_enabled_description": "Envía un email de confirmación cuando se agenda una cita",
+      "reminder_enabled": "Recordatorio de Cita",
+      "reminder_enabled_description": "Envía un recordatorio antes de la cita",
+      "reminder_hours_before": "Horas de Anticipación",
+      "reminder_hours_before_description": "Cuántas horas antes de la cita enviar el recordatorio",
+      "sender_name": "Nombre del Remitente",
+      "sender_name_description": "El nombre que aparecerá en los emails enviados",
+      "sender_name_placeholder": "ej. Clínica Dental García",
+      "reply_to_email": "Email de Respuesta",
+      "reply_to_email_placeholder": "ej. citas@clinica.com",
+      "saved_success": "Configuración guardada correctamente",
+      "save_error": "Error al guardar la configuración",
+      "hours_options": {
+        "1": "1 hora antes",
+        "2": "2 horas antes",
+        "4": "4 horas antes",
+        "12": "12 horas antes",
+        "24": "24 horas antes (1 día)",
+        "48": "48 horas antes (2 días)"
       }
     },
     "reports": {
@@ -1851,6 +1933,7 @@
     "reset": {
       "title": "Reiniciar y Eliminar",
       "subtitle": "Elimina datos de la clínica o cierra tu cuenta permanentemente",
+      "description": "Elimina los datos de la clínica o cierra tu cuenta permanentemente",
       "warning": "Advertencia",
       "warning_description": "Estas acciones no se pueden deshacer. Todos los datos serán eliminados permanentemente.",
       "delete_all_data_title": "Eliminar Todos los Datos de la Clínica",
@@ -2878,9 +2961,11 @@
       "line3": "Actualmente tienes {currentRevenue} en ingresos este mes. Necesitas {revenueGap} más para alcanzar tu meta, lo que requiere aproximadamente {days} días al ritmo actual.",
       "line3_goalReached": "¡Felicidades! Has alcanzado tu meta mensual de {monthlyTarget}. ¡Sigue con el excelente trabajo!",
       "goalBadge": "¡Meta Alcanzada!",
-      "gapBadge": "{days} días restantes",
+      "gapBadge": "Faltan {days} días al ritmo actual",
+      "gapBadgeAtRisk": "⚠️ Faltan {days} días (solo quedan {remaining})",
       "daysLabel": "{days} días",
-      "goalMessage": "¡Has alcanzado exitosamente tu meta mensual! Continúa monitoreando para mantener la rentabilidad."
+      "goalMessage": "¡Has alcanzado exitosamente tu meta mensual! Continúa monitoreando para mantener la rentabilidad.",
+      "atRiskWarning": "⚠️ Al ritmo actual necesitas {days} días, pero solo quedan {remaining} días laborables este mes. Necesitas aumentar tu ritmo diario."
     },
     "simulation": {
       "title": "Simular Escenarios",
@@ -2906,6 +2991,18 @@
       "variableCost": "El porcentaje de costo variable debe estar entre 0 y 100",
       "safetyMargin": "El margen de seguridad debe estar entre 0 y 200",
       "manualTarget": "La meta manual debe ser un número positivo"
+    },
+    "sections": {
+      "financialBase": "Base Financiera",
+      "financialBaseTooltip": "Tus costos fijos y el ingreso mínimo necesario para cubrirlos",
+      "financialBaseDescription": "Tu clínica necesita al menos {breakEven} mensuales para cubrir todos los costos fijos antes de generar utilidad.",
+      "costBreakdown": "Análisis de Costos",
+      "costBreakdownTooltip": "Cómo se distribuyen tus ingresos entre costos variables y margen de contribución",
+      "revenueDistribution": "Distribución de Ingresos",
+      "monthlyGoal": "Tu Meta Mensual",
+      "monthlyGoalTooltip": "Ingreso objetivo incluyendo margen de seguridad para gastos inesperados",
+      "currentProgress": "Progreso Actual",
+      "currentProgressTooltip": "Cuánto ingreso has generado este mes comparado con tu meta"
     }
   },
   "settings_duplicate2": {

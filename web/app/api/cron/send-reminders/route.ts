@@ -4,12 +4,23 @@
  * This endpoint should be called periodically (e.g., every 15 minutes)
  * to process and send pending appointment reminders.
  *
+ * Supports granular SMS notifications:
+ * - 24 hours before (reminder_24h)
+ * - 2 hours before (reminder_2h)
+ * - To both patients and staff
+ *
  * Vercel Cron configuration added to vercel.json
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { sendReminderEmail, AppointmentEmailData } from '@/lib/email/service';
+import {
+  getSMSConfigFromSettings,
+  isEventEnabled,
+  sendSMS,
+  formatPhoneNumber,
+} from '@/lib/sms/service';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds max execution time
@@ -66,7 +77,8 @@ export async function GET(request: NextRequest) {
         patients!inner (
           first_name,
           last_name,
-          email
+          email,
+          phone
         ),
         clinics!inner (
           name,
@@ -113,6 +125,7 @@ export async function GET(request: NextRequest) {
           first_name: string;
           last_name: string;
           email: string | null;
+          phone: string | null;
         };
         const clinic = reminder.clinics as unknown as {
           name: string;
@@ -182,6 +195,26 @@ export async function GET(request: NextRequest) {
             subject: 'Recordatorio de cita',
             status: 'sent',
             providerId: emailResult.messageId,
+          });
+
+          // Send granular SMS reminders based on settings
+          await sendGranularSMSReminders({
+            clinicId: reminder.clinic_id,
+            clinicName: clinic.name,
+            clinicSettings: settings,
+            patient: {
+              id: reminder.patient_id,
+              name: `${patient.first_name} ${patient.last_name}`,
+              phone: patient.phone,
+            },
+            treatment: {
+              id: reminder.treatment_id,
+              serviceName: treatment.services.name,
+              date: treatment.treatment_date,
+              time: treatment.treatment_time || '12:00:00',
+            },
+            reminderType: reminder.reminder_type as 'reminder_24h' | 'reminder_2h',
+            reminderId: reminder.id,
           });
 
           // Mark reminder as sent
@@ -301,4 +334,196 @@ async function logNotification(params: {
   }
 
   return data?.id || null;
+}
+
+/**
+ * Send granular SMS reminders based on clinic settings
+ * Supports both patient and staff notifications with individual toggles
+ */
+async function sendGranularSMSReminders(params: {
+  clinicId: string;
+  clinicName: string;
+  clinicSettings: Record<string, unknown> | null;
+  patient: {
+    id: string;
+    name: string;
+    phone: string | null;
+  };
+  treatment: {
+    id: string;
+    serviceName: string;
+    date: string;
+    time: string;
+  };
+  reminderType: 'reminder_24h' | 'reminder_2h';
+  reminderId: string;
+}): Promise<void> {
+  const { clinicId, clinicName, clinicSettings, patient, treatment, reminderType, reminderId } = params;
+
+  // Get SMS config with defaults (synchronous since we already have settings)
+  const smsConfig = getSMSConfigFromSettings(clinicSettings);
+
+  // If SMS is globally disabled, skip entirely
+  if (!smsConfig.enabled) {
+    return;
+  }
+
+  const countryCode = smsConfig.default_country_code || '52';
+  const formattedDate = formatAppointmentDate(treatment.date);
+  const formattedTime = formatAppointmentTime(treatment.time);
+
+  // Send to patient if enabled
+  if (isEventEnabled(smsConfig, 'patient', reminderType) && patient.phone) {
+    try {
+      const patientPhone = formatPhoneNumber(patient.phone, countryCode);
+      const patientMessage = buildPatientReminderMessage({
+        patientName: patient.name.split(' ')[0], // First name only
+        clinicName,
+        serviceName: treatment.serviceName,
+        date: formattedDate,
+        time: formattedTime,
+        reminderType,
+      });
+
+      const result = await sendSMS({
+        clinicId,
+        recipientPhone: patientPhone,
+        recipientName: patient.name,
+        message: patientMessage,
+        notificationType: reminderType,
+        treatmentId: treatment.id,
+        patientId: patient.id,
+      });
+
+      if (result.success) {
+        console.log(`[cron/send-reminders] Patient SMS ${reminderType} sent for reminder ${reminderId}`);
+      } else {
+        console.error(`[cron/send-reminders] Patient SMS failed for reminder ${reminderId}:`, result.error);
+      }
+    } catch (smsError) {
+      console.error(`[cron/send-reminders] Patient SMS error for reminder ${reminderId}:`, smsError);
+    }
+  }
+
+  // Send to staff if enabled
+  if (smsConfig.staff.enabled && isEventEnabled(smsConfig, 'staff', reminderType)) {
+    const staffMessage = buildStaffReminderMessage({
+      patientName: patient.name,
+      patientPhone: patient.phone,
+      clinicName,
+      serviceName: treatment.serviceName,
+      date: formattedDate,
+      time: formattedTime,
+      reminderType,
+    });
+
+    // Determine staff notification type
+    const staffNotificationType = reminderType === 'reminder_24h'
+      ? 'staff_reminder_24h' as const
+      : 'staff_reminder_2h' as const;
+
+    // Send to primary staff phone
+    if (smsConfig.staff.phone) {
+      try {
+        const staffPhone = formatPhoneNumber(smsConfig.staff.phone, countryCode);
+        const result = await sendSMS({
+          clinicId,
+          recipientPhone: staffPhone,
+          recipientName: 'Staff',
+          message: staffMessage,
+          notificationType: staffNotificationType,
+          treatmentId: treatment.id,
+        });
+
+        if (result.success) {
+          console.log(`[cron/send-reminders] Staff SMS ${reminderType} sent for reminder ${reminderId}`);
+        } else {
+          console.error(`[cron/send-reminders] Staff SMS failed for reminder ${reminderId}:`, result.error);
+        }
+      } catch (smsError) {
+        console.error(`[cron/send-reminders] Staff SMS error for reminder ${reminderId}:`, smsError);
+      }
+    }
+
+    // Send to extra staff phone if configured
+    if (smsConfig.staff.extra_phone) {
+      try {
+        const extraPhone = formatPhoneNumber(smsConfig.staff.extra_phone, countryCode);
+        const result = await sendSMS({
+          clinicId,
+          recipientPhone: extraPhone,
+          recipientName: 'Staff (Extra)',
+          message: staffMessage,
+          notificationType: staffNotificationType,
+          treatmentId: treatment.id,
+        });
+
+        if (result.success) {
+          console.log(`[cron/send-reminders] Staff extra SMS ${reminderType} sent for reminder ${reminderId}`);
+        } else {
+          console.error(`[cron/send-reminders] Staff extra SMS failed for reminder ${reminderId}:`, result.error);
+        }
+      } catch (smsError) {
+        console.error(`[cron/send-reminders] Staff extra SMS error for reminder ${reminderId}:`, smsError);
+      }
+    }
+  }
+}
+
+/**
+ * Build patient reminder message (short, friendly)
+ */
+function buildPatientReminderMessage(params: {
+  patientName: string;
+  clinicName: string;
+  serviceName: string;
+  date: string;
+  time: string;
+  reminderType: 'reminder_24h' | 'reminder_2h';
+}): string {
+  const timeframe = params.reminderType === 'reminder_24h' ? 'mañana' : 'en 2 horas';
+  return `Hola ${params.patientName}, te recordamos tu cita ${timeframe} en ${params.clinicName}. ` +
+    `Servicio: ${params.serviceName}. Fecha: ${params.date} a las ${params.time}. ¡Te esperamos!`;
+}
+
+/**
+ * Build staff reminder message (detailed with patient info)
+ */
+function buildStaffReminderMessage(params: {
+  patientName: string;
+  patientPhone: string | null;
+  clinicName: string;
+  serviceName: string;
+  date: string;
+  time: string;
+  reminderType: 'reminder_24h' | 'reminder_2h';
+}): string {
+  const timeframe = params.reminderType === 'reminder_24h' ? 'mañana' : 'en 2 horas';
+  const phoneInfo = params.patientPhone ? ` Tel: ${params.patientPhone}` : '';
+  return `[${params.clinicName}] Recordatorio ${timeframe}: ` +
+    `Paciente: ${params.patientName}.${phoneInfo} ` +
+    `Servicio: ${params.serviceName}. Fecha: ${params.date} a las ${params.time}.`;
+}
+
+/**
+ * Format date for SMS (Spanish format)
+ */
+function formatAppointmentDate(dateStr: string): string {
+  const date = new Date(dateStr + 'T12:00:00');
+  return date.toLocaleDateString('es-MX', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+}
+
+/**
+ * Format time for SMS (12h format)
+ */
+function formatAppointmentTime(timeStr: string): string {
+  const [hours, minutes] = timeStr.split(':');
+  const hour = parseInt(hours, 10);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const hour12 = hour % 12 || 12;
+  return `${hour12}:${minutes} ${ampm}`;
 }
