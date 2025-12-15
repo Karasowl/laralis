@@ -296,6 +296,22 @@ export class WorkspaceBundleImporter {
     await this.importChatSessions(clinicBundle, newClinicId);
     await this.importChatMessages(clinicBundle);
     await this.importAiFeedback(clinicBundle);
+
+    // Notification System
+    await this.importEmailNotifications(clinicBundle, newClinicId);
+    await this.importSmsNotifications(clinicBundle, newClinicId);
+    await this.importScheduledReminders(clinicBundle, newClinicId);
+    await this.importPushSubscriptions(clinicBundle, newClinicId);
+    await this.importPushNotifications(clinicBundle, newClinicId);
+
+    // Medical Records
+    await this.importMedications(clinicBundle, newClinicId);
+    await this.importPrescriptions(clinicBundle, newClinicId);
+    await this.importPrescriptionItems(clinicBundle);
+
+    // Quotes
+    await this.importQuotes(clinicBundle, newClinicId);
+    await this.importQuoteItems(clinicBundle);
   }
 
   // Import methods for each table
@@ -310,6 +326,7 @@ export class WorkspaceBundleImporter {
       hours_per_day: clinicBundle.settingsTime.hours_per_day,
       real_pct: clinicBundle.settingsTime.real_pct,
       working_days_config: clinicBundle.settingsTime.working_days_config,
+      monthly_goal_cents: clinicBundle.settingsTime.monthly_goal_cents ?? null,
     });
 
     if (error) {
@@ -470,6 +487,11 @@ export class WorkspaceBundleImporter {
       margin_pct: service.margin_pct,
       price_cents: service.price_cents,
       is_active: service.is_active,
+      // Discount fields (Migration 46)
+      discount_type: service.discount_type || 'none',
+      discount_value: service.discount_value ?? null,
+      discount_reason: service.discount_reason || null,
+      final_price_with_discount_cents: service.final_price_with_discount_cents ?? null,
     }));
 
     const { data, error } = await this.supabase.from('services').insert(records).select();
@@ -566,6 +588,25 @@ export class WorkspaceBundleImporter {
       birth_date: patient.birth_date,
       gender: patient.gender,
       is_active: patient.is_active,
+      // Additional fields
+      secondary_phone: patient.secondary_phone || null,
+      address: patient.address || null,
+      city: patient.city || null,
+      state: patient.state || null,
+      postal_code: patient.postal_code || null,
+      country: patient.country || null,
+      emergency_contact_name: patient.emergency_contact_name || null,
+      emergency_contact_phone: patient.emergency_contact_phone || null,
+      occupation: patient.occupation || null,
+      referred_by: patient.referred_by || null,
+      medical_notes: patient.medical_notes || null,
+      allergies: patient.allergies || null,
+      medications: patient.medications || null,
+      medical_conditions: patient.medical_conditions || null,
+      insurance_provider: patient.insurance_provider || null,
+      insurance_policy_number: patient.insurance_policy_number || null,
+      last_visit_date: patient.last_visit_date || null,
+      profile_image_url: patient.profile_image_url || null,
     }));
 
     const { data, error } = await this.supabase.from('patients').insert(records).select();
@@ -623,10 +664,25 @@ export class WorkspaceBundleImporter {
 
     if (records.length === 0) return;
 
-    const { error } = await this.supabase.from('treatments').insert(records);
+    const { data, error } = await this.supabase.from('treatments').insert(records).select();
 
     if (error) {
       throw new ImportError('Failed to import treatments', 'IMPORT_FAILED', { error });
+    }
+
+    // Map IDs for notifications FK
+    if (data) {
+      this.idMappings.treatments = this.idMappings.treatments || {};
+      const originalTreatments = clinicBundle.treatments.filter((t: any) =>
+        t.patient_id && t.service_id &&
+        this.idMappings.patients?.[t.patient_id] &&
+        this.idMappings.services?.[t.service_id]
+      );
+      originalTreatments.forEach((treatment: any, index: number) => {
+        if (data[index]) {
+          this.idMappings.treatments![treatment.id] = data[index].id;
+        }
+      });
     }
 
     this.progress.recordsProcessed += records.length;
@@ -693,6 +749,14 @@ export class WorkspaceBundleImporter {
         payment_date: expense.payment_date,
         payment_method: expense.payment_method,
         notes: expense.notes,
+        // Additional fields
+        is_variable: expense.is_variable ?? null,
+        expense_category: expense.expense_category || null,
+        recurrence_interval: expense.recurrence_interval || null,
+        recurrence_day: expense.recurrence_day ?? null,
+        next_recurrence_date: expense.next_recurrence_date || null,
+        parent_expense_id: expense.parent_expense_id || null,
+        related_fixed_cost_id: expense.related_fixed_cost_id || null,
       };
     });
 
@@ -910,6 +974,459 @@ export class WorkspaceBundleImporter {
         type: 'CONSTRAINT_VIOLATION',
         field: 'ai_feedback',
         message: `Failed to import ${records.length} AI feedback record(s): ${error.message}`,
+      });
+      return;
+    }
+
+    this.progress.recordsProcessed += records.length;
+  }
+
+  // Notification System Import Methods
+
+  private async importEmailNotifications(clinicBundle: any, newClinicId: string) {
+    if (!clinicBundle.emailNotifications || clinicBundle.emailNotifications.length === 0) return;
+
+    const records = clinicBundle.emailNotifications.map((notif: any) => {
+      const newPatientId = notif.patient_id ? this.idMappings.patients?.[notif.patient_id] : null;
+      const newTreatmentId = notif.treatment_id ? this.idMappings.treatments?.[notif.treatment_id] : null;
+
+      return {
+        clinic_id: newClinicId,
+        patient_id: newPatientId,
+        treatment_id: newTreatmentId,
+        notification_type: notif.notification_type,
+        recipient_email: notif.recipient_email,
+        subject: notif.subject,
+        body_html: notif.body_html,
+        body_text: notif.body_text,
+        status: notif.status,
+        provider: notif.provider,
+        provider_message_id: notif.provider_message_id,
+        error_message: notif.error_message,
+        sent_at: notif.sent_at,
+        delivered_at: notif.delivered_at,
+        opened_at: notif.opened_at,
+        clicked_at: notif.clicked_at,
+        bounced_at: notif.bounced_at,
+        metadata: notif.metadata,
+        created_at: notif.created_at,
+      };
+    });
+
+    const { error } = await this.supabase.from('email_notifications').insert(records);
+
+    if (error) {
+      console.warn('[importer] Failed to import email_notifications:', error);
+      this.progress.errors.push({
+        type: 'CONSTRAINT_VIOLATION',
+        field: 'email_notifications',
+        message: `Failed to import ${records.length} email notification(s): ${error.message}`,
+      });
+      return;
+    }
+    this.progress.recordsProcessed += records.length;
+  }
+
+  private async importSmsNotifications(clinicBundle: any, newClinicId: string) {
+    if (!clinicBundle.smsNotifications || clinicBundle.smsNotifications.length === 0) return;
+
+    const records = clinicBundle.smsNotifications.map((notif: any) => {
+      const newPatientId = notif.patient_id ? this.idMappings.patients?.[notif.patient_id] : null;
+      const newTreatmentId = notif.treatment_id ? this.idMappings.treatments?.[notif.treatment_id] : null;
+
+      return {
+        clinic_id: newClinicId,
+        patient_id: newPatientId,
+        treatment_id: newTreatmentId,
+        notification_type: notif.notification_type,
+        recipient_phone: notif.recipient_phone,
+        message_body: notif.message_body,
+        status: notif.status,
+        provider: notif.provider,
+        provider_message_id: notif.provider_message_id,
+        error_message: notif.error_message,
+        sent_at: notif.sent_at,
+        delivered_at: notif.delivered_at,
+        cost_cents: notif.cost_cents,
+        segments_count: notif.segments_count,
+        metadata: notif.metadata,
+        created_at: notif.created_at,
+      };
+    });
+
+    const { error } = await this.supabase.from('sms_notifications').insert(records);
+
+    if (error) {
+      console.warn('[importer] Failed to import sms_notifications:', error);
+      this.progress.errors.push({
+        type: 'CONSTRAINT_VIOLATION',
+        field: 'sms_notifications',
+        message: `Failed to import ${records.length} SMS notification(s): ${error.message}`,
+      });
+      return;
+    }
+    this.progress.recordsProcessed += records.length;
+  }
+
+  private async importScheduledReminders(clinicBundle: any, newClinicId: string) {
+    if (!clinicBundle.scheduledReminders || clinicBundle.scheduledReminders.length === 0) return;
+
+    const records = clinicBundle.scheduledReminders.map((reminder: any) => {
+      const newPatientId = reminder.patient_id ? this.idMappings.patients?.[reminder.patient_id] : null;
+      const newTreatmentId = reminder.treatment_id ? this.idMappings.treatments?.[reminder.treatment_id] : null;
+
+      return {
+        clinic_id: newClinicId,
+        patient_id: newPatientId,
+        treatment_id: newTreatmentId,
+        reminder_type: reminder.reminder_type,
+        channel: reminder.channel,
+        scheduled_for: reminder.scheduled_for,
+        status: reminder.status,
+        sent_at: reminder.sent_at,
+        notification_id: reminder.notification_id,
+        error_message: reminder.error_message,
+        retry_count: reminder.retry_count,
+        metadata: reminder.metadata,
+        created_at: reminder.created_at,
+      };
+    });
+
+    const { error } = await this.supabase.from('scheduled_reminders').insert(records);
+
+    if (error) {
+      console.warn('[importer] Failed to import scheduled_reminders:', error);
+      this.progress.errors.push({
+        type: 'CONSTRAINT_VIOLATION',
+        field: 'scheduled_reminders',
+        message: `Failed to import ${records.length} scheduled reminder(s): ${error.message}`,
+      });
+      return;
+    }
+    this.progress.recordsProcessed += records.length;
+  }
+
+  private async importPushSubscriptions(clinicBundle: any, newClinicId: string) {
+    if (!clinicBundle.pushSubscriptions || clinicBundle.pushSubscriptions.length === 0) return;
+
+    const records = clinicBundle.pushSubscriptions.map((sub: any) => ({
+      clinic_id: newClinicId,
+      user_id: sub.user_id,
+      endpoint: sub.endpoint,
+      p256dh_key: sub.p256dh_key,
+      auth_key: sub.auth_key,
+      user_agent: sub.user_agent,
+      is_active: sub.is_active,
+      created_at: sub.created_at,
+      last_used_at: sub.last_used_at,
+    }));
+
+    const { error } = await this.supabase.from('push_subscriptions').insert(records);
+
+    if (error) {
+      console.warn('[importer] Failed to import push_subscriptions:', error);
+      this.progress.errors.push({
+        type: 'CONSTRAINT_VIOLATION',
+        field: 'push_subscriptions',
+        message: `Failed to import ${records.length} push subscription(s): ${error.message}`,
+      });
+      return;
+    }
+    this.progress.recordsProcessed += records.length;
+  }
+
+  private async importPushNotifications(clinicBundle: any, newClinicId: string) {
+    if (!clinicBundle.pushNotifications || clinicBundle.pushNotifications.length === 0) return;
+
+    const records = clinicBundle.pushNotifications.map((notif: any) => ({
+      clinic_id: newClinicId,
+      user_id: notif.user_id,
+      title: notif.title,
+      body: notif.body,
+      icon: notif.icon,
+      url: notif.url,
+      status: notif.status,
+      sent_at: notif.sent_at,
+      clicked_at: notif.clicked_at,
+      error_message: notif.error_message,
+      metadata: notif.metadata,
+      created_at: notif.created_at,
+    }));
+
+    const { error } = await this.supabase.from('push_notifications').insert(records);
+
+    if (error) {
+      console.warn('[importer] Failed to import push_notifications:', error);
+      this.progress.errors.push({
+        type: 'CONSTRAINT_VIOLATION',
+        field: 'push_notifications',
+        message: `Failed to import ${records.length} push notification(s): ${error.message}`,
+      });
+      return;
+    }
+    this.progress.recordsProcessed += records.length;
+  }
+
+  // Medical Records Import Methods
+
+  private async importMedications(clinicBundle: any, newClinicId: string) {
+    if (!clinicBundle.medications || clinicBundle.medications.length === 0) return;
+
+    const records = clinicBundle.medications.map((med: any) => ({
+      clinic_id: newClinicId,
+      name: med.name,
+      generic_name: med.generic_name,
+      brand_name: med.brand_name,
+      strength: med.strength,
+      form: med.form,
+      category: med.category,
+      controlled_substance: med.controlled_substance,
+      requires_prescription: med.requires_prescription,
+      common_dosages: med.common_dosages,
+      common_frequencies: med.common_frequencies,
+      contraindications: med.contraindications,
+      side_effects: med.side_effects,
+      notes: med.notes,
+      is_active: med.is_active,
+      created_at: med.created_at,
+    }));
+
+    const { data, error } = await this.supabase.from('medications').insert(records).select();
+
+    if (error) {
+      console.warn('[importer] Failed to import medications:', error);
+      this.progress.errors.push({
+        type: 'CONSTRAINT_VIOLATION',
+        field: 'medications',
+        message: `Failed to import ${records.length} medication(s): ${error.message}`,
+      });
+      return;
+    }
+
+    // Map IDs for prescription_items
+    if (data) {
+      this.idMappings.medications = this.idMappings.medications || {};
+      clinicBundle.medications.forEach((med: any, index: number) => {
+        this.idMappings.medications![med.id] = data[index].id;
+      });
+    }
+
+    this.progress.recordsProcessed += records.length;
+  }
+
+  private async importPrescriptions(clinicBundle: any, newClinicId: string) {
+    if (!clinicBundle.prescriptions || clinicBundle.prescriptions.length === 0) return;
+
+    const records = clinicBundle.prescriptions.map((rx: any) => {
+      const newPatientId = rx.patient_id ? this.idMappings.patients?.[rx.patient_id] : null;
+      const newTreatmentId = rx.treatment_id ? this.idMappings.treatments?.[rx.treatment_id] : null;
+
+      if (!newPatientId) {
+        console.warn(`[importer] Skipping prescription: patient ${rx.patient_id} not found in mappings`);
+        return null;
+      }
+
+      return {
+        clinic_id: newClinicId,
+        patient_id: newPatientId,
+        treatment_id: newTreatmentId,
+        prescriber_name: rx.prescriber_name,
+        prescriber_license: rx.prescriber_license,
+        prescriber_specialty: rx.prescriber_specialty,
+        prescription_date: rx.prescription_date,
+        valid_until: rx.valid_until,
+        diagnosis: rx.diagnosis,
+        notes: rx.notes,
+        instructions: rx.instructions,
+        status: rx.status,
+        pdf_url: rx.pdf_url,
+        created_at: rx.created_at,
+      };
+    }).filter(Boolean);
+
+    if (records.length === 0) return;
+
+    const { data, error } = await this.supabase.from('prescriptions').insert(records).select();
+
+    if (error) {
+      console.warn('[importer] Failed to import prescriptions:', error);
+      this.progress.errors.push({
+        type: 'CONSTRAINT_VIOLATION',
+        field: 'prescriptions',
+        message: `Failed to import ${records.length} prescription(s): ${error.message}`,
+      });
+      return;
+    }
+
+    // Map IDs for prescription_items
+    if (data) {
+      this.idMappings.prescriptions = this.idMappings.prescriptions || {};
+      const originalPrescriptions = clinicBundle.prescriptions.filter((rx: any) =>
+        rx.patient_id && this.idMappings.patients?.[rx.patient_id]
+      );
+      originalPrescriptions.forEach((rx: any, index: number) => {
+        if (data[index]) {
+          this.idMappings.prescriptions![rx.id] = data[index].id;
+        }
+      });
+    }
+
+    this.progress.recordsProcessed += records.length;
+  }
+
+  private async importPrescriptionItems(clinicBundle: any) {
+    if (!clinicBundle.prescriptionItems || clinicBundle.prescriptionItems.length === 0) return;
+
+    const records = clinicBundle.prescriptionItems.map((item: any) => {
+      const newPrescriptionId = this.idMappings.prescriptions?.[item.prescription_id];
+      const newMedicationId = item.medication_id ? this.idMappings.medications?.[item.medication_id] : null;
+
+      if (!newPrescriptionId) {
+        console.warn(`[importer] Skipping prescription_item: prescription ${item.prescription_id} not found in mappings`);
+        return null;
+      }
+
+      return {
+        prescription_id: newPrescriptionId,
+        medication_id: newMedicationId,
+        medication_name: item.medication_name,
+        medication_strength: item.medication_strength,
+        medication_form: item.medication_form,
+        dosage: item.dosage,
+        frequency: item.frequency,
+        duration: item.duration,
+        quantity: item.quantity,
+        instructions: item.instructions,
+        sort_order: item.sort_order,
+        created_at: item.created_at,
+      };
+    }).filter(Boolean);
+
+    if (records.length === 0) return;
+
+    const { error } = await this.supabase.from('prescription_items').insert(records);
+
+    if (error) {
+      console.warn('[importer] Failed to import prescription_items:', error);
+      this.progress.errors.push({
+        type: 'CONSTRAINT_VIOLATION',
+        field: 'prescription_items',
+        message: `Failed to import ${records.length} prescription item(s): ${error.message}`,
+      });
+      return;
+    }
+
+    this.progress.recordsProcessed += records.length;
+  }
+
+  // Quotes Import Methods
+
+  private async importQuotes(clinicBundle: any, newClinicId: string) {
+    if (!clinicBundle.quotes || clinicBundle.quotes.length === 0) return;
+
+    const records = clinicBundle.quotes.map((quote: any) => {
+      const newPatientId = quote.patient_id ? this.idMappings.patients?.[quote.patient_id] : null;
+
+      if (!newPatientId) {
+        console.warn(`[importer] Skipping quote: patient ${quote.patient_id} not found in mappings`);
+        return null;
+      }
+
+      return {
+        clinic_id: newClinicId,
+        patient_id: newPatientId,
+        quote_number: quote.quote_number,
+        quote_date: quote.quote_date,
+        valid_until: quote.valid_until,
+        status: quote.status,
+        subtotal_cents: quote.subtotal_cents,
+        discount_type: quote.discount_type,
+        discount_value: quote.discount_value,
+        discount_cents: quote.discount_cents,
+        tax_rate: quote.tax_rate,
+        tax_cents: quote.tax_cents,
+        total_cents: quote.total_cents,
+        notes: quote.notes,
+        terms: quote.terms,
+        pdf_url: quote.pdf_url,
+        sent_at: quote.sent_at,
+        viewed_at: quote.viewed_at,
+        accepted_at: quote.accepted_at,
+        rejected_at: quote.rejected_at,
+        converted_to_treatment_at: quote.converted_to_treatment_at,
+        created_at: quote.created_at,
+      };
+    }).filter(Boolean);
+
+    if (records.length === 0) return;
+
+    const { data, error } = await this.supabase.from('quotes').insert(records).select();
+
+    if (error) {
+      console.warn('[importer] Failed to import quotes:', error);
+      this.progress.errors.push({
+        type: 'CONSTRAINT_VIOLATION',
+        field: 'quotes',
+        message: `Failed to import ${records.length} quote(s): ${error.message}`,
+      });
+      return;
+    }
+
+    // Map IDs for quote_items
+    if (data) {
+      this.idMappings.quotes = this.idMappings.quotes || {};
+      const originalQuotes = clinicBundle.quotes.filter((q: any) =>
+        q.patient_id && this.idMappings.patients?.[q.patient_id]
+      );
+      originalQuotes.forEach((q: any, index: number) => {
+        if (data[index]) {
+          this.idMappings.quotes![q.id] = data[index].id;
+        }
+      });
+    }
+
+    this.progress.recordsProcessed += records.length;
+  }
+
+  private async importQuoteItems(clinicBundle: any) {
+    if (!clinicBundle.quoteItems || clinicBundle.quoteItems.length === 0) return;
+
+    const records = clinicBundle.quoteItems.map((item: any) => {
+      const newQuoteId = this.idMappings.quotes?.[item.quote_id];
+      const newServiceId = item.service_id ? this.idMappings.services?.[item.service_id] : null;
+
+      if (!newQuoteId) {
+        console.warn(`[importer] Skipping quote_item: quote ${item.quote_id} not found in mappings`);
+        return null;
+      }
+
+      return {
+        quote_id: newQuoteId,
+        service_id: newServiceId,
+        description: item.description,
+        tooth_number: item.tooth_number,
+        quantity: item.quantity,
+        unit_price_cents: item.unit_price_cents,
+        discount_type: item.discount_type,
+        discount_value: item.discount_value,
+        discount_cents: item.discount_cents,
+        total_cents: item.total_cents,
+        notes: item.notes,
+        sort_order: item.sort_order,
+        created_at: item.created_at,
+      };
+    }).filter(Boolean);
+
+    if (records.length === 0) return;
+
+    const { error } = await this.supabase.from('quote_items').insert(records);
+
+    if (error) {
+      console.warn('[importer] Failed to import quote_items:', error);
+      this.progress.errors.push({
+        type: 'CONSTRAINT_VIOLATION',
+        field: 'quote_items',
+        message: `Failed to import ${records.length} quote item(s): ${error.message}`,
       });
       return;
     }

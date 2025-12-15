@@ -53,6 +53,21 @@ export interface Clinic {
   phone: string | null;
   email: string | null;
   is_active: boolean;
+  global_discount_config: {
+    enabled: boolean;
+    type: 'percentage' | 'fixed';
+    value: number;
+  } | null;
+  price_rounding: number; // Default 10
+  auto_complete_appointments: boolean;
+  notification_settings: {
+    sender_name: string | null;
+    email_enabled: boolean;
+    reply_to_email: string | null;
+    reminder_enabled: boolean;
+    confirmation_enabled: boolean;
+    reminder_hours_before: number;
+  } | null;
   created_at: string;
 }
 
@@ -224,6 +239,7 @@ export interface SettingsTime {
     detected: any;
     useHistorical: boolean;
   };
+  monthly_goal_cents: bigint | null; // Migration 57: Monthly revenue goal
   created_at: string;
   updated_at: string;
 }
@@ -299,7 +315,8 @@ export interface FixedCost {
 }
 
 /**
- * Service - Service/procedure catalog
+ * Service - Service/procedure catalog with integrated pricing (v3)
+ * Note: tariffs table is DEPRECATED - all pricing is now in services
  */
 export interface Service {
   id: string;
@@ -311,7 +328,12 @@ export interface Service {
   fixed_cost_per_minute_cents: bigint;
   variable_cost_cents: bigint;
   margin_pct: number;
-  price_cents: bigint;
+  price_cents: bigint; // SINGLE SOURCE OF TRUTH: Final price with discount applied
+  // Migration 46: Discount fields moved from tariffs
+  discount_type: 'none' | 'percentage' | 'fixed';
+  discount_value: number; // Percentage (0-100) or cents depending on type
+  discount_reason: string | null;
+  final_price_with_discount_cents: number | null; // Calculated field
   is_active: boolean;
   active: boolean;
   created_at: string;
@@ -414,6 +436,7 @@ export interface Patient {
 
 /**
  * Treatment - Individual treatment/appointment records
+ * Contains immutable cost snapshots from time of treatment
  */
 export interface Treatment {
   id: string;
@@ -430,18 +453,24 @@ export interface Treatment {
   variable_cost_cents: bigint;
   margin_pct: number;
   price_cents: bigint;
-  tariff_version: number | null;
-  discount_pct: number;
-  discount_reason: string | null;
+  tariff_version: number | null; // DEPRECATED: kept for legacy data
+  discount_pct: number; // DEPRECATED: use service snapshot instead
+  discount_reason: string | null; // DEPRECATED: use service snapshot instead
   is_paid: boolean;
   payment_method: string | null;
   payment_date: string | null;
+  // Migration 55: Refund tracking
+  is_refunded: boolean;
+  refunded_at: string | null;
+  refund_reason: string | null;
+  // Migration 52: Google Calendar sync
+  google_event_id: string | null;
   created_at: string;
   updated_at: string;
 }
 
 /**
- * Expense - Expense tracking
+ * Expense - Expense tracking with recurring support
  */
 export interface Expense {
   id: string;
@@ -462,6 +491,14 @@ export interface Expense {
   quantity: number | null;
   auto_processed: boolean;
   campaign_id: string | null;
+  notes: string | null;
+  is_variable: boolean;
+  expense_category: string | null;
+  recurrence_interval: 'weekly' | 'monthly' | 'yearly' | null;
+  recurrence_day: number | null;
+  next_recurrence_date: string | null;
+  parent_expense_id: string | null;
+  related_fixed_cost_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -488,22 +525,22 @@ export interface WorkspaceActivity {
 
 /**
  * Action Log - AI assistant action audit trail (Migration 50)
+ * Records all actions executed by Lara AI assistant
  */
 export interface ActionLog {
   id: string;
   clinic_id: string;
   user_id: string | null;
-  session_id: string | null;
-  action_type: string;
-  entity_type: string;
-  entity_id: string | null;
-  input_data: Record<string, any>;
-  output_data: Record<string, any>;
-  status: 'pending' | 'success' | 'failed' | 'rolled_back';
+  action_type: string; // update_service_price, adjust_service_margin, etc.
+  success: boolean;
+  params: Record<string, any>;
+  result: Record<string, any> | null; // Before/after state
+  error_code: string | null;
   error_message: string | null;
-  execution_time_ms: number | null;
+  error_details: Record<string, any> | null;
+  dry_run: boolean;
+  executed_at: string;
   created_at: string;
-  completed_at: string | null;
 }
 
 /**
@@ -531,9 +568,11 @@ export interface ChatSession {
   user_id: string;
   title: string | null;
   mode: 'entry' | 'query';
-  is_active: boolean;
+  started_at: string;
+  ended_at: string | null;
+  last_message_at: string;
   message_count: number;
-  last_message_at: string | null;
+  is_archived: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -546,8 +585,15 @@ export interface ChatMessage {
   session_id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
-  audio_url: string | null;
-  metadata: Record<string, any>;
+  thinking_process: string | null; // Kimi K2 thinking process
+  model_used: string | null; // LLM model identifier
+  tokens_used: number | null; // Approximate token count
+  action_suggested: Record<string, any> | null; // ActionSuggestion object
+  action_executed: boolean;
+  action_result: Record<string, any> | null; // ActionResult if executed
+  entity_type: string | null; // For entry mode entities
+  extracted_data: Record<string, any> | null; // Extracted form data
+  audio_duration_ms: number | null; // Voice message duration
   created_at: string;
 }
 
@@ -557,11 +603,265 @@ export interface ChatMessage {
 export interface AIFeedback {
   id: string;
   message_id: string;
+  clinic_id: string;
   user_id: string;
-  rating: number | null;
-  feedback_type: 'positive' | 'negative' | 'neutral';
+  rating: 'positive' | 'negative'; // CHECK constraint only allows these values
   comment: string | null;
+  query_type: string | null; // Category of query
   created_at: string;
+}
+
+// ============================================================================
+// NOTIFICATIONS & REMINDERS TABLES
+// ============================================================================
+
+/**
+ * Email Notification - Email notifications sent to patients
+ */
+export interface EmailNotification {
+  id: string;
+  clinic_id: string;
+  treatment_id: string | null;
+  patient_id: string | null;
+  notification_type: 'confirmation' | 'reminder' | 'cancellation' | 'reschedule';
+  recipient_email: string;
+  recipient_name: string | null;
+  subject: string;
+  status: 'pending' | 'sent' | 'failed' | 'bounced' | 'opened';
+  sent_at: string | null;
+  opened_at: string | null;
+  error_message: string | null;
+  provider: string;
+  provider_message_id: string | null;
+  metadata: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * SMS Notification - SMS notifications sent to patients
+ */
+export interface SMSNotification {
+  id: string;
+  clinic_id: string;
+  treatment_id: string | null;
+  patient_id: string | null;
+  notification_type: 'appointment_confirmation' | 'appointment_reminder' | 'appointment_cancelled' | 'appointment_rescheduled' | 'booking_received' | 'booking_confirmed' | 'custom';
+  recipient_phone: string;
+  recipient_name: string | null;
+  message_content: string;
+  status: 'pending' | 'sent' | 'delivered' | 'failed' | 'undelivered';
+  sent_at: string | null;
+  delivered_at: string | null;
+  error_message: string | null;
+  provider: string;
+  provider_message_id: string | null;
+  cost_cents: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Scheduled Reminder - Reminders scheduled to be sent
+ */
+export interface ScheduledReminder {
+  id: string;
+  clinic_id: string;
+  treatment_id: string;
+  patient_id: string;
+  scheduled_for: string;
+  reminder_type: '24h' | '48h' | '1h' | 'custom';
+  status: 'pending' | 'sent' | 'cancelled' | 'failed';
+  processed_at: string | null;
+  email_notification_id: string | null;
+  created_at: string;
+}
+
+/**
+ * Push Subscription - Web push notification subscriptions
+ */
+export interface PushSubscription {
+  id: string;
+  clinic_id: string;
+  user_id: string;
+  endpoint: string;
+  expiration_time: string | null;
+  keys_p256dh: string;
+  keys_auth: string;
+  user_agent: string | null;
+  device_name: string | null;
+  is_active: boolean;
+  last_used_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Push Notification - Push notifications sent to users
+ */
+export interface PushNotification {
+  id: string;
+  clinic_id: string;
+  subscription_id: string | null;
+  notification_type: string;
+  title: string;
+  body: string;
+  icon_url: string | null;
+  action_url: string | null;
+  status: string;
+  sent_at: string | null;
+  clicked_at: string | null;
+  error_message: string | null;
+  created_at: string;
+}
+
+// ============================================================================
+// PRESCRIPTIONS & MEDICATIONS TABLES
+// ============================================================================
+
+/**
+ * Medication - Medication catalog (can be clinic-specific or global)
+ */
+export interface Medication {
+  id: string;
+  clinic_id: string | null;
+  name: string;
+  generic_name: string | null;
+  brand_name: string | null;
+  category: string | null;
+  controlled_substance: boolean;
+  requires_prescription: boolean;
+  dosage_form: string | null;
+  strength: string | null;
+  unit: string | null;
+  default_dosage: string | null;
+  default_frequency: string | null;
+  default_duration: string | null;
+  default_instructions: string | null;
+  common_uses: string[];
+  contraindications: string | null;
+  side_effects: string | null;
+  interactions: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Prescription - Medical prescriptions issued by the clinic
+ */
+export interface Prescription {
+  id: string;
+  clinic_id: string;
+  patient_id: string;
+  treatment_id: string | null;
+  prescription_number: string | null;
+  prescription_date: string;
+  prescriber_name: string;
+  prescriber_license: string | null;
+  prescriber_specialty: string | null;
+  diagnosis: string | null;
+  status: 'active' | 'cancelled' | 'expired' | 'dispensed';
+  valid_until: string | null;
+  notes: string | null;
+  pharmacy_notes: string | null;
+  pdf_generated_at: string | null;
+  pdf_url: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+}
+
+/**
+ * Prescription Item - Individual medication items in a prescription
+ */
+export interface PrescriptionItem {
+  id: string;
+  prescription_id: string;
+  medication_id: string | null;
+  medication_name: string;
+  medication_strength: string | null;
+  medication_form: string | null;
+  dosage: string;
+  frequency: string;
+  duration: string | null;
+  quantity: string | null;
+  instructions: string | null;
+  sort_order: number;
+  created_at: string;
+}
+
+// ============================================================================
+// QUOTES (PRESUPUESTOS) TABLES
+// ============================================================================
+
+/**
+ * Quote - Patient quotes/estimates
+ */
+export interface Quote {
+  id: string;
+  clinic_id: string;
+  patient_id: string;
+  quote_number: string | null;
+  quote_date: string;
+  validity_days: number;
+  valid_until: string | null;
+  status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired' | 'converted';
+  subtotal_cents: bigint;
+  discount_type: 'none' | 'percentage' | 'fixed' | null;
+  discount_value: number;
+  discount_cents: bigint;
+  tax_rate: number;
+  tax_cents: bigint;
+  total_cents: bigint;
+  notes: string | null;
+  patient_notes: string | null;
+  terms_conditions: string | null;
+  pdf_generated_at: string | null;
+  sent_at: string | null;
+  sent_via: string | null;
+  responded_at: string | null;
+  response_notes: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+}
+
+/**
+ * Quote Item - Individual line items in a quote
+ */
+export interface QuoteItem {
+  id: string;
+  quote_id: string;
+  service_id: string | null;
+  service_name: string;
+  service_description: string | null;
+  quantity: number;
+  unit_price_cents: bigint;
+  discount_type: 'none' | 'percentage' | 'fixed';
+  discount_value: number;
+  discount_cents: bigint;
+  subtotal_cents: bigint;
+  total_cents: bigint;
+  tooth_number: string | null;
+  notes: string | null;
+  sort_order: number;
+  created_at: string;
+}
+
+// ============================================================================
+// USER SETTINGS TABLE
+// ============================================================================
+
+/**
+ * User Settings - User-specific settings stored as key-value pairs
+ */
+export interface UserSetting {
+  user_id: string;
+  key: string;
+  value: Record<string, any>;
+  created_at: string;
+  updated_at: string;
 }
 
 // ============================================================================
@@ -605,6 +905,22 @@ export interface ClinicDataBundle {
 
   // Expenses (Level 10)
   expenses: Expense[];
+
+  // Notifications & Reminders
+  emailNotifications?: EmailNotification[];
+  smsNotifications?: SMSNotification[];
+  scheduledReminders?: ScheduledReminder[];
+  pushSubscriptions?: PushSubscription[];
+  pushNotifications?: PushNotification[];
+
+  // Prescriptions & Medications
+  medications?: Medication[];
+  prescriptions?: Prescription[];
+  prescriptionItems?: PrescriptionItem[];
+
+  // Quotes (Presupuestos)
+  quotes?: Quote[];
+  quoteItems?: QuoteItem[];
 
   // Optional: Audit logs
   workspaceActivity?: WorkspaceActivity[];

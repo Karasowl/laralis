@@ -327,8 +327,6 @@ export class WorkspaceExporter {
       fixedCosts,
       services,
       serviceSupplies,
-      // DEPRECATED (2025-11-17): tariffs removed - discounts now in services table
-      // tariffs,
       marketingCampaigns,
       marketingCampaignStatusHistory,
       patients,
@@ -339,6 +337,17 @@ export class WorkspaceExporter {
       actionLogs,
       clinicGoogleCalendar,
       chatSessions,
+      // Notifications & Reminders
+      emailNotifications,
+      smsNotifications,
+      scheduledReminders,
+      pushSubscriptions,
+      pushNotifications,
+      // Prescriptions & Medications
+      medications,
+      prescriptions,
+      // Quotes
+      quotes,
     ] = await Promise.all([
       this.fetchSettingsTime(clinicId),
       this.fetchCustomCategories(clinicId),
@@ -351,8 +360,6 @@ export class WorkspaceExporter {
       this.fetchFixedCosts(clinicId),
       this.fetchServices(clinicId),
       this.fetchServiceSupplies(clinicId),
-      // DEPRECATED (2025-11-17): tariffs removed - discounts now in services table
-      // this.fetchTariffs(clinicId),
       this.fetchMarketingCampaigns(clinicId),
       this.fetchMarketingCampaignStatusHistory(clinicId),
       this.fetchPatients(clinicId),
@@ -363,15 +370,31 @@ export class WorkspaceExporter {
       this.fetchActionLogs(clinicId),
       this.fetchClinicGoogleCalendar(clinicId),
       this.fetchChatSessions(clinicId),
+      // Notifications & Reminders
+      this.fetchEmailNotifications(clinicId),
+      this.fetchSmsNotifications(clinicId),
+      this.fetchScheduledReminders(clinicId),
+      this.fetchPushSubscriptions(clinicId),
+      this.fetchPushNotifications(clinicId),
+      // Prescriptions & Medications
+      this.fetchMedications(clinicId),
+      this.fetchPrescriptions(clinicId),
+      // Quotes
+      this.fetchQuotes(clinicId),
     ]);
 
-    // Fetch chat messages (depends on session IDs)
+    // Fetch dependent data that needs IDs from parent tables
     const sessionIds = chatSessions.map((s: any) => s.id);
     const chatMessages = await this.fetchChatMessages(clinicId, sessionIds);
 
-    // Fetch AI feedback (depends on message IDs)
     const messageIds = chatMessages.map((m: any) => m.id);
     const aiFeedback = await this.fetchAiFeedback(clinicId, messageIds);
+
+    const prescriptionIds = prescriptions.map((p: any) => p.id);
+    const prescriptionItems = await this.fetchPrescriptionItems(prescriptionIds);
+
+    const quoteIds = quotes.map((q: any) => q.id);
+    const quoteItems = await this.fetchQuoteItems(quoteIds);
 
     // Calculate record counts for this clinic
     const recordCounts: Record<string, number> = {
@@ -386,8 +409,6 @@ export class WorkspaceExporter {
       fixed_costs: fixedCosts.length,
       services: services.length,
       service_supplies: serviceSupplies.length,
-      // DEPRECATED (2025-11-17): tariffs removed
-      // tariffs: tariffs.length,
       marketing_campaigns: marketingCampaigns.length,
       marketing_campaign_status_history: marketingCampaignStatusHistory.length,
       patients: patients.length,
@@ -400,6 +421,19 @@ export class WorkspaceExporter {
       chat_sessions: chatSessions.length,
       chat_messages: chatMessages.length,
       ai_feedback: aiFeedback.length,
+      // Notifications & Reminders
+      email_notifications: emailNotifications.length,
+      sms_notifications: smsNotifications.length,
+      scheduled_reminders: scheduledReminders.length,
+      push_subscriptions: pushSubscriptions.length,
+      push_notifications: pushNotifications.length,
+      // Prescriptions & Medications
+      medications: medications.length,
+      prescriptions: prescriptions.length,
+      prescription_items: prescriptionItems.length,
+      // Quotes
+      quotes: quotes.length,
+      quote_items: quoteItems.length,
     };
 
     console.log(`[Regular Export] Clinic ${clinic.name} counts:`, {
@@ -407,8 +441,8 @@ export class WorkspaceExporter {
       treatments: treatments.length,
       services: services.length,
       expenses: expenses.length,
-      fixedCosts: fixedCosts.length,
-      assets: assets.length,
+      prescriptions: prescriptions.length,
+      quotes: quotes.length,
     });
 
     return {
@@ -424,8 +458,6 @@ export class WorkspaceExporter {
       fixedCosts,
       services,
       serviceSupplies,
-      // DEPRECATED (2025-11-17): tariffs removed
-      // tariffs,
       marketingCampaigns,
       marketingCampaignStatusHistory,
       patients,
@@ -438,6 +470,19 @@ export class WorkspaceExporter {
       chatSessions,
       chatMessages,
       aiFeedback,
+      // Notifications & Reminders
+      emailNotifications,
+      smsNotifications,
+      scheduledReminders,
+      pushSubscriptions,
+      pushNotifications,
+      // Prescriptions & Medications
+      medications,
+      prescriptions,
+      prescriptionItems,
+      // Quotes
+      quotes,
+      quoteItems,
       recordCounts,
     };
   }
@@ -635,6 +680,110 @@ export class WorkspaceExporter {
       .select('*')
       .in('message_id', messageIds);
     this.recordCount('ai_feedback', data?.length || 0);
+    return data || [];
+  }
+
+  // =========================================================================
+  // NOTIFICATIONS & REMINDERS TABLES
+  // =========================================================================
+
+  private async fetchEmailNotifications(clinicId: string) {
+    const { data } = await this.supabase
+      .from('email_notifications')
+      .select('*')
+      .eq('clinic_id', clinicId);
+    this.recordCount('email_notifications', data?.length || 0);
+    return data || [];
+  }
+
+  private async fetchSmsNotifications(clinicId: string) {
+    const { data } = await this.supabase
+      .from('sms_notifications')
+      .select('*')
+      .eq('clinic_id', clinicId);
+    this.recordCount('sms_notifications', data?.length || 0);
+    return data || [];
+  }
+
+  private async fetchScheduledReminders(clinicId: string) {
+    const { data } = await this.supabase
+      .from('scheduled_reminders')
+      .select('*')
+      .eq('clinic_id', clinicId);
+    this.recordCount('scheduled_reminders', data?.length || 0);
+    return data || [];
+  }
+
+  private async fetchPushSubscriptions(clinicId: string) {
+    const { data } = await this.supabase
+      .from('push_subscriptions')
+      .select('*')
+      .eq('clinic_id', clinicId);
+    this.recordCount('push_subscriptions', data?.length || 0);
+    return data || [];
+  }
+
+  private async fetchPushNotifications(clinicId: string) {
+    const { data } = await this.supabase
+      .from('push_notifications')
+      .select('*')
+      .eq('clinic_id', clinicId);
+    this.recordCount('push_notifications', data?.length || 0);
+    return data || [];
+  }
+
+  // =========================================================================
+  // PRESCRIPTIONS & MEDICATIONS TABLES
+  // =========================================================================
+
+  private async fetchMedications(clinicId: string) {
+    const { data } = await this.supabase
+      .from('medications')
+      .select('*')
+      .or(`clinic_id.eq.${clinicId},clinic_id.is.null`);
+    this.recordCount('medications', data?.length || 0);
+    return data || [];
+  }
+
+  private async fetchPrescriptions(clinicId: string) {
+    const { data } = await this.supabase
+      .from('prescriptions')
+      .select('*')
+      .eq('clinic_id', clinicId);
+    this.recordCount('prescriptions', data?.length || 0);
+    return data || [];
+  }
+
+  private async fetchPrescriptionItems(prescriptionIds: string[]) {
+    if (prescriptionIds.length === 0) return [];
+    const { data } = await this.supabase
+      .from('prescription_items')
+      .select('*')
+      .in('prescription_id', prescriptionIds);
+    this.recordCount('prescription_items', data?.length || 0);
+    return data || [];
+  }
+
+  // =========================================================================
+  // QUOTES (PRESUPUESTOS) TABLES
+  // =========================================================================
+
+  private async fetchQuotes(clinicId: string) {
+    const { data } = await this.supabase
+      .from('quotes')
+      .select('*')
+      .eq('clinic_id', clinicId);
+    this.recordCount('quotes', data?.length || 0);
+    return data || [];
+  }
+
+  private async fetchQuoteItems(quoteIds: string[]) {
+    if (quoteIds.length === 0) return [];
+    const { data } = await this.supabase
+      .from('quote_items')
+      .select('*')
+      .in('quote_id', quoteIds);
+    this.recordCount('quote_items', data?.length || 0);
     return data || [];
   }
 
