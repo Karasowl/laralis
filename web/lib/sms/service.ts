@@ -340,7 +340,18 @@ export async function sendTreatmentCreatedToStaff(
   params: TreatmentNotificationParams
 ): Promise<{ primary: SendSMSResult; extra?: SendSMSResult }> {
   const config = await getSMSConfig(params.clinicId)
+
+  // Debug logging
+  console.log('[sms] Staff notification check:', {
+    smsEnabled: config.enabled,
+    staffEnabled: config.staff.enabled,
+    staffOnTreatmentCreated: config.staff.on_treatment_created,
+    staffPhone: config.staff.phone,
+    staffExtraPhone: config.staff.extra_phone,
+  })
+
   if (!isEventEnabled(config, 'staff', 'on_treatment_created')) {
+    console.log('[sms] Staff notifications disabled - skipping')
     return { primary: { success: false, error: 'Staff treatment created notifications not enabled' } }
   }
 

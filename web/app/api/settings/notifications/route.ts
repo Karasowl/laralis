@@ -12,6 +12,47 @@ import { resolveClinicContext } from '@/lib/clinic';
 
 export const dynamic = 'force-dynamic';
 
+// WhatsApp settings schema
+const whatsappSettingsSchema = z.object({
+  enabled: z.boolean(),
+  provider: z.enum(['twilio', 'dialog360']),
+  twilio_account_sid: z.string().optional(),
+  twilio_auth_token: z.string().optional(),
+  twilio_phone_number: z.string().optional(),
+  dialog360_api_key: z.string().optional(),
+  default_country_code: z.string(),
+  send_confirmations: z.boolean(),
+  send_reminders: z.boolean(),
+  reminder_hours_before: z.number().optional(),
+}).optional();
+
+// SMS patient settings schema (all optional with defaults)
+const smsPatientSettingsSchema = z.object({
+  on_treatment_created: z.boolean().optional().default(true),
+  on_treatment_updated: z.boolean().optional().default(true),
+  reminder_24h: z.boolean().optional().default(true),
+  reminder_2h: z.boolean().optional().default(false),
+}).optional();
+
+// SMS staff settings schema (all optional with defaults)
+const smsStaffSettingsSchema = z.object({
+  enabled: z.boolean().optional().default(false),
+  phone: z.string().optional().default(''),
+  extra_phone: z.string().optional().default(''),
+  on_treatment_created: z.boolean().optional().default(true),
+  on_treatment_updated: z.boolean().optional().default(true),
+  reminder_24h: z.boolean().optional().default(true),
+  reminder_2h: z.boolean().optional().default(false),
+}).optional();
+
+// SMS settings schema
+const smsSettingsSchema = z.object({
+  enabled: z.boolean().optional().default(false),
+  default_country_code: z.string().optional().default('52'),
+  patient: smsPatientSettingsSchema,
+  staff: smsStaffSettingsSchema,
+}).optional();
+
 const notificationSettingsSchema = z.object({
   email_enabled: z.boolean(),
   confirmation_enabled: z.boolean(),
@@ -19,6 +60,8 @@ const notificationSettingsSchema = z.object({
   reminder_hours_before: z.number().min(1).max(168), // 1 hour to 1 week
   sender_name: z.string().max(100).nullable(),
   reply_to_email: z.string().email().nullable().or(z.literal('')),
+  whatsapp: whatsappSettingsSchema,
+  sms: smsSettingsSchema,
 });
 
 type NotificationSettings = z.infer<typeof notificationSettingsSchema>;
@@ -30,6 +73,8 @@ const DEFAULT_SETTINGS: NotificationSettings = {
   reminder_hours_before: 24,
   sender_name: null,
   reply_to_email: null,
+  whatsapp: undefined,
+  sms: undefined,
 };
 
 export async function GET() {
@@ -70,6 +115,8 @@ export async function GET() {
         reminder_hours_before: settings?.reminder_hours_before ?? DEFAULT_SETTINGS.reminder_hours_before,
         sender_name: settings?.sender_name ?? DEFAULT_SETTINGS.sender_name,
         reply_to_email: settings?.reply_to_email ?? DEFAULT_SETTINGS.reply_to_email,
+        whatsapp: settings?.whatsapp ?? undefined,
+        sms: settings?.sms ?? undefined,
       },
     });
   } catch (error) {
@@ -101,9 +148,13 @@ export async function PUT(request: NextRequest) {
       body.reply_to_email = null;
     }
 
+    // Log incoming body for debugging
+    console.log('[settings/notifications][PUT] Received body:', JSON.stringify(body, null, 2));
+
     const parseResult = notificationSettingsSchema.safeParse(body);
 
     if (!parseResult.success) {
+      console.error('[settings/notifications][PUT] Validation failed:', parseResult.error.flatten());
       return NextResponse.json(
         {
           error: 'Invalid settings',
@@ -114,6 +165,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const settings = parseResult.data;
+    console.log('[settings/notifications][PUT] Parsed settings:', JSON.stringify(settings, null, 2));
 
     const { error } = await supabaseAdmin
       .from('clinics')
