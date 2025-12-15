@@ -3917,6 +3917,21 @@
         }
       }
     },
+    "profitBreakdown": {
+      "title": "Desglose de Ganancia",
+      "description": "Tu ganancia real después de todos los costos",
+      "revenue": "Ingresos por Tratamientos",
+      "variableCosts": "Costos Variables (Materiales)",
+      "fixedCosts": "Costos Fijos (Configurados)",
+      "depreciation": "Depreciación de Activos",
+      "netProfit": "Ganancia Neta",
+      "margin": "margen",
+      "status": {
+        "profitable": "✓ Estás generando ganancias este período",
+        "breakEven": "⚠️ Estás en punto de equilibrio",
+        "losses": "⚠️ Estás teniendo pérdidas este período"
+      }
+    },
     "recentActivity": {
       "title": "Actividad Reciente",
       "description": "Últimas acciones en tu clínica",
