@@ -119,7 +119,7 @@ export default function AccountSettingsPage() {
   return (
     <AppLayout>
       <div className="p-4 lg:p-8 max-w-[1200px] mx-auto space-y-6">
-        <PageHeader title={t('title')} subtitle={t('subtitle')} />
+        <PageHeader title={t('title')} subtitle={t('subtitle')} backHref="/settings" />
 
         <div className="grid gap-6 lg:grid-cols-3">
           <Card className="lg:col-span-1">

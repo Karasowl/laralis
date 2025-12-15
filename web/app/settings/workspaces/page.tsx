@@ -15,6 +15,7 @@ export default function WorkspacesPage() {
         <PageHeader
           title={t('settings.workspaces.title')}
           subtitle={t('settings.workspaces.description')}
+          backHref="/settings"
         />
         <Suspense fallback={<Skeleton className="h-64 w-full" />}>
           <WorkspacesClinicsSettingsClient />

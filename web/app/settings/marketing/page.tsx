@@ -16,6 +16,7 @@ export default function MarketingSettingsPage() {
         <PageHeader
           title={t('settings.marketing.title')}
           subtitle={t('settings.marketing.subtitle')}
+          backHref="/settings"
         />
         <Suspense fallback={<Skeleton className="h-64 w-full" />}> 
           <MarketingSettingsClient />

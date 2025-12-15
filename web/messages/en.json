@@ -1616,6 +1616,24 @@
   "settings": {
     "title": "Settings",
     "subtitle": "Configure personal preferences, security, and workspace maintenance.",
+    "groups": {
+      "personal": {
+        "title": "Personal Settings",
+        "subtitle": "Manage your account, preferences, and security"
+      },
+      "organization": {
+        "title": "Organization",
+        "subtitle": "Manage workspaces and clinics"
+      },
+      "integrations": {
+        "title": "Integrations",
+        "subtitle": "Connect external services and tools"
+      },
+      "maintenance": {
+        "title": "Data & Maintenance",
+        "subtitle": "Export, import, and reset your data"
+      }
+    },
     "language": "Language",
     "theme": "Theme",
     "organization": "Organization",
@@ -1881,7 +1899,48 @@
         "send_confirmations_desc": "Send message when an appointment is scheduled",
         "send_reminders": "Send reminders",
         "send_reminders_desc": "Send reminder before appointment"
-      }
+      },
+      "sms": {
+        "title": "SMS Notifications",
+        "description": "Send automatic SMS to patients and receive alerts on your phone",
+        "country_code": "Country code",
+        "country_code_help": "Without the + sign, e.g.: 52 for Mexico, 1 for USA",
+        "patient_section": "Patient Notifications",
+        "patient_section_description": "SMS sent to patient's phone",
+        "on_treatment_created": "When appointment is scheduled",
+        "on_treatment_created_desc": "Send confirmation with service, date and time",
+        "on_treatment_updated": "When appointment is modified",
+        "on_treatment_updated_desc": "Notify date, time or service changes",
+        "reminder_24h": "Reminder 24h before",
+        "reminder_24h_desc": "One day before the appointment",
+        "reminder_2h": "Reminder 2h before",
+        "reminder_2h_desc": "Two hours before the appointment",
+        "staff_section": "Clinic Notifications",
+        "staff_section_description": "SMS you receive with complete patient data",
+        "staff_phone": "Primary phone",
+        "extra_phone": "Additional phone",
+        "extra_phone_help": "Receive a copy of all notifications",
+        "staff_on_treatment_created": "When appointment is created",
+        "staff_on_treatment_created_desc": "Receive: patient, service, date, time and phone",
+        "staff_on_treatment_updated": "When appointment is modified",
+        "staff_on_treatment_updated_desc": "Receive notification with changes made",
+        "staff_reminder_24h": "Reminder 24h before",
+        "staff_reminder_24h_desc": "Next day's schedule with patient data",
+        "staff_reminder_2h": "Reminder 2h before",
+        "staff_reminder_2h_desc": "Next appointment with patient data"
+      },
+      "push_notifications": "Push Notifications",
+      "push_notifications_description": "Receive real-time browser notifications",
+      "push_not_supported": "Your browser does not support push notifications",
+      "push_permission_description": "Enable push notifications to receive instant alerts in your browser",
+      "enable_push_notifications": "Enable Push Notifications",
+      "push_enabled": "Push Notifications Enabled",
+      "push_enabled_description": "You will receive real-time browser notifications",
+      "disable_push_notifications": "Disable",
+      "push_enabled_success": "Push notifications enabled successfully",
+      "push_enable_error": "Error enabling push notifications",
+      "push_disabled_success": "Push notifications disabled",
+      "push_disable_error": "Error disabling push notifications"
     },
     "reports": {
       "title": "Reports",
@@ -1890,6 +1949,7 @@
     "reset": {
       "title": "Reset & Delete",
       "subtitle": "Delete clinic data or close your account permanently",
+      "description": "Delete clinic data or permanently close your account",
       "warning": "Warning",
       "warning_description": "These actions cannot be undone. All data will be permanently deleted.",
       "delete_all_data_title": "Delete All Clinic Data",
@@ -2894,9 +2954,11 @@
       "line3": "You currently have {currentRevenue} in revenue this month. You need {revenueGap} more to reach your target, which requires approximately {days} days at current pace.",
       "line3_goalReached": "Congratulations! You've reached your monthly target of {monthlyTarget}. Keep up the excellent work!",
       "goalBadge": "Goal Reached!",
-      "gapBadge": "{days} days remaining",
+      "gapBadge": "{days} days needed at current pace",
+      "gapBadgeAtRisk": "⚠️ {days} days needed (only {remaining} left)",
       "daysLabel": "{days} days",
-      "goalMessage": "You've successfully reached your monthly target! Continue monitoring to maintain profitability."
+      "goalMessage": "You've successfully reached your monthly target! Continue monitoring to maintain profitability.",
+      "atRiskWarning": "⚠️ At current pace you need {days} days, but only {remaining} working days remain this month. You need to increase your daily pace."
     },
     "simulation": {
       "title": "Simulate Scenarios",
@@ -2922,6 +2984,18 @@
       "variableCost": "Variable cost percentage must be between 0 and 100",
       "safetyMargin": "Safety margin must be between 0 and 200",
       "manualTarget": "Manual target must be a positive number"
+    },
+    "sections": {
+      "financialBase": "Financial Base",
+      "financialBaseTooltip": "Your fixed costs and the minimum revenue needed to cover them",
+      "financialBaseDescription": "Your clinic needs at least {breakEven} monthly to cover all fixed costs before generating any profit.",
+      "costBreakdown": "Cost Analysis",
+      "costBreakdownTooltip": "How your revenue is distributed between variable costs and contribution margin",
+      "revenueDistribution": "Revenue Distribution",
+      "monthlyGoal": "Your Monthly Goal",
+      "monthlyGoalTooltip": "Target revenue including safety margin for unexpected expenses",
+      "currentProgress": "Current Progress",
+      "currentProgressTooltip": "How much revenue you have generated this month compared to your target"
     }
   },
   "expenses": {

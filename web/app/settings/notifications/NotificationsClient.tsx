@@ -9,8 +9,10 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Mail, Bell, Clock, RefreshCcw } from 'lucide-react';
+import { Loader2, Mail, Bell, Clock, RefreshCcw, BellRing } from 'lucide-react';
 import { WhatsAppSettingsCard, type WhatsAppSettings } from './WhatsAppSettingsCard';
+import { SMSSettingsCard, type SMSConfig, DEFAULT_SMS_CONFIG } from './SMSSettingsCard';
+import { usePushNotifications } from '@/hooks/use-push-notifications';
 
 interface NotificationSettings {
   email_enabled: boolean;
@@ -20,6 +22,7 @@ interface NotificationSettings {
   sender_name: string | null;
   reply_to_email: string | null;
   whatsapp?: WhatsAppSettings;
+  sms?: SMSConfig;
 }
 
 const DEFAULT_WHATSAPP: WhatsAppSettings = {
@@ -43,6 +46,7 @@ const DEFAULT_SETTINGS: NotificationSettings = {
   sender_name: null,
   reply_to_email: null,
   whatsapp: DEFAULT_WHATSAPP,
+  sms: DEFAULT_SMS_CONFIG,
 };
 
 const HOURS_OPTIONS = [1, 2, 4, 12, 24, 48];
@@ -62,7 +66,7 @@ function shallowEqual(a: NotificationSettings, b: NotificationSettings): boolean
   const wa = a.whatsapp || DEFAULT_WHATSAPP;
   const wb = b.whatsapp || DEFAULT_WHATSAPP;
 
-  return (
+  const waEqual =
     wa.enabled === wb.enabled &&
     wa.provider === wb.provider &&
     wa.twilio_account_sid === wb.twilio_account_sid &&
@@ -71,7 +75,28 @@ function shallowEqual(a: NotificationSettings, b: NotificationSettings): boolean
     wa.dialog360_api_key === wb.dialog360_api_key &&
     wa.default_country_code === wb.default_country_code &&
     wa.send_confirmations === wb.send_confirmations &&
-    wa.send_reminders === wb.send_reminders
+    wa.send_reminders === wb.send_reminders;
+
+  if (!waEqual) return false;
+
+  // Compare SMS settings
+  const sa = a.sms || DEFAULT_SMS_CONFIG;
+  const sb = b.sms || DEFAULT_SMS_CONFIG;
+
+  return (
+    sa.enabled === sb.enabled &&
+    sa.default_country_code === sb.default_country_code &&
+    sa.patient.on_treatment_created === sb.patient.on_treatment_created &&
+    sa.patient.on_treatment_updated === sb.patient.on_treatment_updated &&
+    sa.patient.reminder_24h === sb.patient.reminder_24h &&
+    sa.patient.reminder_2h === sb.patient.reminder_2h &&
+    sa.staff.enabled === sb.staff.enabled &&
+    sa.staff.phone === sb.staff.phone &&
+    sa.staff.extra_phone === sb.staff.extra_phone &&
+    sa.staff.on_treatment_created === sb.staff.on_treatment_created &&
+    sa.staff.on_treatment_updated === sb.staff.on_treatment_updated &&
+    sa.staff.reminder_24h === sb.staff.reminder_24h &&
+    sa.staff.reminder_2h === sb.staff.reminder_2h
   );
 }
 
@@ -84,6 +109,17 @@ export function NotificationsClient() {
   const [initialState, setInitialState] = useState<NotificationSettings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // Push notifications hook
+  const {
+    isSupported: pushSupported,
+    isPermissionGranted: pushPermissionGranted,
+    isSubscribed: pushSubscribed,
+    isLoading: pushLoading,
+    error: pushError,
+    subscribe: pushSubscribe,
+    unsubscribe: pushUnsubscribe,
+  } = usePushNotifications();
 
   const hasChanges = useMemo(() => !shallowEqual(state, initialState), [state, initialState]);
 
@@ -113,6 +149,18 @@ export function NotificationsClient() {
           whatsapp: {
             ...DEFAULT_WHATSAPP,
             ...(settings?.whatsapp || {}),
+          },
+          sms: {
+            ...DEFAULT_SMS_CONFIG,
+            ...(settings?.sms || {}),
+            patient: {
+              ...DEFAULT_SMS_CONFIG.patient,
+              ...(settings?.sms?.patient || {}),
+            },
+            staff: {
+              ...DEFAULT_SMS_CONFIG.staff,
+              ...(settings?.sms?.staff || {}),
+            },
           },
         };
 
@@ -315,6 +363,100 @@ export function NotificationsClient() {
         settings={state.whatsapp || DEFAULT_WHATSAPP}
         onChange={(whatsapp) => setState((prev) => ({ ...prev, whatsapp }))}
       />
+
+      {/* SMS Configuration */}
+      <SMSSettingsCard
+        settings={state.sms || DEFAULT_SMS_CONFIG}
+        onChange={(sms) => setState((prev) => ({ ...prev, sms }))}
+      />
+
+      {/* Push Notifications */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg bg-blue-500/10 p-2">
+              <BellRing className="h-5 w-5 text-blue-500" />
+            </div>
+            <div>
+              <CardTitle>{t('push_notifications')}</CardTitle>
+              <CardDescription>{t('push_notifications_description')}</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!pushSupported && (
+            <div className="rounded-lg bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-400">
+              {t('push_not_supported')}
+            </div>
+          )}
+
+          {pushSupported && !pushPermissionGranted && !pushSubscribed && (
+            <div className="rounded-lg border p-4">
+              <p className="mb-4 text-sm text-muted-foreground">
+                {t('push_permission_description')}
+              </p>
+              <Button
+                onClick={async () => {
+                  const success = await pushSubscribe();
+                  if (success) {
+                    toast({
+                      title: t('push_enabled_success'),
+                    });
+                  } else if (pushError) {
+                    toast({
+                      title: t('push_enable_error'),
+                      description: pushError,
+                      variant: 'destructive',
+                    });
+                  }
+                }}
+                disabled={pushLoading}
+                className="w-full sm:w-auto"
+              >
+                {pushLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {t('enable_push_notifications')}
+              </Button>
+            </div>
+          )}
+
+          {pushSupported && pushSubscribed && (
+            <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <p className="font-medium text-emerald-700 dark:text-emerald-400">
+                    {t('push_enabled')}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {t('push_enabled_description')}
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    const success = await pushUnsubscribe();
+                    if (success) {
+                      toast({
+                        title: t('push_disabled_success'),
+                      });
+                    } else if (pushError) {
+                      toast({
+                        title: t('push_disable_error'),
+                        description: pushError,
+                        variant: 'destructive',
+                      });
+                    }
+                  }}
+                  disabled={pushLoading}
+                >
+                  {pushLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {t('disable_push_notifications')}
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Save Actions */}
       <Card>

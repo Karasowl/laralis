@@ -44,6 +44,7 @@ import { usePlannedVsActual } from '@/hooks/use-planned-vs-actual'
 import { useServices } from '@/hooks/use-services'
 import { useTimeSettings } from '@/hooks/use-time-settings'
 import { PlannedVsActualCard } from '@/components/dashboard/PlannedVsActualCard'
+import { ContributionAnalysis } from '@/app/equilibrium/components/ContributionAnalysis'
 import { formatCurrency } from '@/lib/format'
 import { ReportsAdvanced } from '@/app/reports/ReportsAdvanced'
 import { ReportsMarketing } from '@/app/reports/ReportsMarketing'
@@ -362,21 +363,31 @@ export default function InsightsPage() {
                   <AlertsSection lowStockCount={metrics.supplies.lowStock} />
                 )}
 
-                {/* Break-Even Progress */}
+                {/* Break-Even Progress & Contribution Analysis */}
                 {!equilibriumLoading && equilibriumData && equilibriumData.monthlyTargetCents > 0 && (
-                  <BreakEvenProgress
-                    monthlyTargetCents={equilibriumData.monthlyTargetCents}
-                    monthlyGoalCents={timeSettings?.monthly_goal_cents}
-                    currentRevenueCents={equilibriumData.currentRevenueCents}
-                    progressPercentage={equilibriumData.progressPercentage}
-                    dailyTargetCents={equilibriumData.dailyTargetCents}
-                    daysToBreakEven={equilibriumData.daysToBreakEven}
-                    revenueGapCents={equilibriumData.revenueGapCents}
-                    actualDaysWorked={equilibriumData.actualDaysWorked}
-                    totalWorkDaysInPeriod={equilibriumData.totalWorkDaysInPeriod}
-                    elapsedDays={equilibriumData.elapsedDays}
-                    remainingWorkingDays={equilibriumData.remainingWorkingDays}
-                  />
+                  <div className="grid gap-6 md:grid-cols-2">
+                    <BreakEvenProgress
+                      monthlyTargetCents={equilibriumData.monthlyTargetCents}
+                      monthlyGoalCents={timeSettings?.monthly_goal_cents}
+                      currentRevenueCents={equilibriumData.currentRevenueCents}
+                      progressPercentage={equilibriumData.progressPercentage}
+                      dailyTargetCents={equilibriumData.dailyTargetCents}
+                      daysToBreakEven={equilibriumData.daysToBreakEven}
+                      revenueGapCents={equilibriumData.revenueGapCents}
+                      actualDaysWorked={equilibriumData.actualDaysWorked}
+                      totalWorkDaysInPeriod={equilibriumData.totalWorkDaysInPeriod}
+                      elapsedDays={equilibriumData.elapsedDays}
+                      remainingWorkingDays={equilibriumData.remainingWorkingDays}
+                    />
+                    <ContributionAnalysis
+                      variableCostPercentage={equilibriumData.variableCostPercentage || 0}
+                      contributionMargin={equilibriumData.contributionMargin || 0}
+                      variableCostSource={equilibriumData.variableCostSource || 'fallback'}
+                      autoVariableCostPercentage={equilibriumData.autoVariableCostPercentage || 0}
+                      autoVariableCostSampleSize={equilibriumData.autoVariableCostSampleSize || 0}
+                      autoVariableCostPeriodDays={equilibriumData.autoVariableCostPeriod?.days || 90}
+                    />
+                  </div>
                 )}
 
                 {/* 4 Key Metrics Cards - Mobile-first: 1 col -> 2 cols (tablet) -> 4 cols (desktop) */}

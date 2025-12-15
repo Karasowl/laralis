@@ -24,7 +24,11 @@ export type { DatePreset, DateRange }
 export { detectPreset, getPresetRange }
 
 // Filter types
-export type FilterType = 'date-range' | 'select' | 'multi-select' | 'number-range'
+export type FilterType = 'date-range' | 'select' | 'multi-select' | 'number-range' | 'granularity' | 'comparison'
+
+// Granularity and Comparison types
+export type Granularity = 'day' | 'week' | 'month'
+export type ComparisonPeriod = 'none' | 'previous' | 'lastYear'
 
 export interface FilterOption {
   value: string
@@ -72,6 +76,10 @@ export function SmartFilters({ filters, values, onChange, className }: SmartFilt
         cleared[f.key] = { from: '', to: '' }
       } else if (f.type === 'multi-select') {
         cleared[f.key] = []
+      } else if (f.type === 'granularity') {
+        cleared[f.key] = 'day' // Default granularity
+      } else if (f.type === 'comparison') {
+        cleared[f.key] = 'none' // Default comparison
       } else {
         cleared[f.key] = ''
       }
@@ -139,6 +147,10 @@ function FilterControl({ config, value, onChange }: FilterControlProps) {
       return <MultiSelectFilter config={config} value={value} onChange={onChange} />
     case 'number-range':
       return <NumberRangeFilter config={config} value={value} onChange={onChange} />
+    case 'granularity':
+      return <GranularityFilter config={config} value={value} onChange={onChange} />
+    case 'comparison':
+      return <ComparisonFilter config={config} value={value} onChange={onChange} />
     default:
       return null
   }
@@ -354,6 +366,118 @@ function NumberRangeFilter({ config, value, onChange }: FilterControlProps) {
               {tFilters('clear')}
             </Button>
           )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+// Granularity Filter
+function GranularityFilter({ config, value, onChange }: FilterControlProps) {
+  const [open, setOpen] = React.useState(false)
+  const tDashboard = useTranslations('dashboardComponents.dateFilter')
+
+  const granularityOptions: { value: Granularity; labelKey: string }[] = [
+    { value: 'day', labelKey: 'granularity.day' },
+    { value: 'week', labelKey: 'granularity.week' },
+    { value: 'month', labelKey: 'granularity.month' },
+  ]
+
+  const currentGranularity = value || 'day'
+  const currentOption = granularityOptions.find(o => o.value === currentGranularity)
+  const displayValue = currentOption ? tDashboard(currentOption.labelKey as any) : config.label
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className={cn(
+            'h-8 border-dashed',
+            value && 'border-primary bg-primary/5'
+          )}
+        >
+          <span className="max-w-[120px] truncate">{displayValue}</span>
+          <ChevronDown className="h-3.5 w-3.5 ml-1 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[280px] sm:w-48 p-1" align="start" side="bottom" collisionPadding={16} avoidCollisions={true}>
+        <div className="space-y-0.5">
+          {granularityOptions.map((option) => (
+            <button
+              key={option.value}
+              onClick={() => {
+                onChange(option.value)
+                setOpen(false)
+              }}
+              className={cn(
+                'w-full flex items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors',
+                option.value === currentGranularity
+                  ? 'bg-primary/10 text-primary'
+                  : 'hover:bg-muted'
+              )}
+            >
+              {tDashboard(option.labelKey as any)}
+              {option.value === currentGranularity && <Check className="h-4 w-4" />}
+            </button>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+// Comparison Filter
+function ComparisonFilter({ config, value, onChange }: FilterControlProps) {
+  const [open, setOpen] = React.useState(false)
+  const tDashboard = useTranslations('dashboardComponents.dateFilter')
+
+  const comparisonOptions: { value: ComparisonPeriod; labelKey: string }[] = [
+    { value: 'none', labelKey: 'comparison.none' },
+    { value: 'previous', labelKey: 'comparison.previous' },
+    { value: 'lastYear', labelKey: 'comparison.lastYear' },
+  ]
+
+  const currentComparison = value || 'none'
+  const currentOption = comparisonOptions.find(o => o.value === currentComparison)
+  const displayValue = currentOption ? tDashboard(currentOption.labelKey as any) : config.label
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className={cn(
+            'h-8 border-dashed',
+            value && value !== 'none' && 'border-primary bg-primary/5'
+          )}
+        >
+          <span className="max-w-[120px] truncate">{displayValue}</span>
+          <ChevronDown className="h-3.5 w-3.5 ml-1 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[280px] sm:w-48 p-1" align="start" side="bottom" collisionPadding={16} avoidCollisions={true}>
+        <div className="space-y-0.5">
+          {comparisonOptions.map((option) => (
+            <button
+              key={option.value}
+              onClick={() => {
+                onChange(option.value)
+                setOpen(false)
+              }}
+              className={cn(
+                'w-full flex items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors',
+                option.value === currentComparison
+                  ? 'bg-primary/10 text-primary'
+                  : 'hover:bg-muted'
+              )}
+            >
+              {tDashboard(option.labelKey as any)}
+              {option.value === currentComparison && <Check className="h-4 w-4" />}
+            </button>
+          ))}
         </div>
       </PopoverContent>
     </Popover>

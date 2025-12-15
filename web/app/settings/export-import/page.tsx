@@ -33,6 +33,7 @@ export default async function ExportImportPage() {
         <PageHeader
           title={t('pageTitle')}
           description={t('pageDescription')}
+          backHref="/settings"
         />
 
         {/* Tabs */}

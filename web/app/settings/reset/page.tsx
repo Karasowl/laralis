@@ -98,6 +98,7 @@ export default function ResetPage() {
         <PageHeader
           title={t('title')}
           subtitle={t('subtitle')}
+          backHref="/settings"
         />
 
         <Alert className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
