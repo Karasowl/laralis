@@ -353,9 +353,16 @@ export default function InsightsPage() {
   // Handle SmartFilters changes
   const handleDashboardFilterChange = useCallback((newValues: FilterValues) => {
     // Handle date range changes
-    if (newValues.dateRange) {
+    if (newValues.dateRange !== undefined) {
       const range = newValues.dateRange as { from: string; to: string }
-      if (range.from && range.to) {
+
+      // Handle clear/reset case (empty range) or allTime
+      if (!range.from && !range.to) {
+        // Reset to default period (month)
+        setFilterPeriod('month')
+        setCustomRange({ from: '', to: '' })
+        // Don't return - continue processing other filters
+      } else if (range.from && range.to) {
         // Detect if it's a preset or custom range
         const preset = detectPreset(range)
         // Map detected presets to filter periods
@@ -363,16 +370,32 @@ export default function InsightsPage() {
         // but we need to map to our period types
         if (preset === 'today') {
           setFilterPeriod('today')
-        } else if (preset === 'last7days' || preset === 'lastWeek') {
+        } else if (preset === 'yesterday') {
+          // Yesterday maps to custom range
+          setFilterPeriod('custom')
+          setCustomRange(range)
+        } else if (preset === 'last7days' || preset === 'thisWeek') {
           setFilterPeriod('week')
-        } else if (preset === 'last30days' || preset === 'lastMonth') {
+        } else if (preset === 'lastWeek') {
+          // Last week maps to custom range
+          setFilterPeriod('custom')
+          setCustomRange(range)
+        } else if (preset === 'last30days' || preset === 'thisMonth') {
           setFilterPeriod('month')
+        } else if (preset === 'lastMonth') {
+          // Last month maps to custom range
+          setFilterPeriod('custom')
+          setCustomRange(range)
         } else if (preset === 'last90days') {
           setFilterPeriod('quarter')
         } else if (preset === 'thisYear') {
           setFilterPeriod('year')
+        } else if (preset === 'allTime') {
+          // All time = reset to default (month)
+          setFilterPeriod('month')
+          setCustomRange({ from: '', to: '' })
         } else {
-          // Custom range or allTime
+          // Custom range
           setFilterPeriod('custom')
           setCustomRange(range)
         }
