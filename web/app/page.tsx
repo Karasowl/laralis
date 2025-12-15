@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layouts/AppLayout'
@@ -14,7 +14,7 @@ import { CategoryBreakdown } from '@/components/dashboard/CategoryBreakdown'
 import { RecentActivity } from '@/components/dashboard/RecentActivity'
 import { BreakEvenProgress } from '@/components/dashboard/BreakEvenProgress'
 import { BusinessMetricsGrid } from '@/components/dashboard/BusinessMetricsGrid'
-import { DateFilterBar } from '@/components/dashboard/DateFilterBar'
+import { SmartFilters, FilterConfig, FilterValues, getPresetRange, detectPreset } from '@/components/ui/smart-filters'
 import { PeriodBreakdown } from '@/components/dashboard/PeriodBreakdown'
 import { MarketingROISimple } from '@/components/dashboard/MarketingROISimple'
 import { ServiceROIAnalysis } from '@/components/dashboard/ServiceROIAnalysis'
@@ -123,6 +123,7 @@ function AlertsSection({ lowStockCount }: { lowStockCount: number }) {
 
 export default function InsightsPage() {
   const t = useTranslations('dashboard')
+  const tFilters = useTranslations('dashboardComponents.dateFilter')
   const tNav = useTranslations('navigation')
   const tReports = useTranslations('reports')
   const router = useRouter()
@@ -143,6 +144,13 @@ export default function InsightsPage() {
     setCustomRange
   } = useDateFilter()
 
+  // Map filter period to dashboard-compatible period
+  const dashboardPeriod = useMemo(() => {
+    if (filterPeriod === 'today') return 'day'
+    if (filterPeriod === 'quarter') return 'custom' // Quarter uses custom date range
+    return filterPeriod
+  }, [filterPeriod])
+
   const {
     metrics,
     charts,
@@ -151,7 +159,7 @@ export default function InsightsPage() {
     error: dashboardError
   } = useDashboard({
     clinicId: currentClinic?.id,
-    period: filterPeriod,
+    period: dashboardPeriod,
     from: currentRange?.from,
     to: currentRange?.to,
     chartGranularity: granularity
@@ -267,7 +275,7 @@ export default function InsightsPage() {
   // Dynamic labels based on selected period
   const getPeriodLabels = useMemo(() => {
     switch (filterPeriod) {
-      case 'day':
+      case 'today':
         return {
           revenue: t('daily_revenue'),
           expenses: t('daily_expenses'),
@@ -280,6 +288,13 @@ export default function InsightsPage() {
           expenses: t('weekly_expenses'),
           comparison: t('vs_previous_week'),
           newPatients: t('new_this_week'),
+        }
+      case 'quarter':
+        return {
+          revenue: t('period_revenue'),
+          expenses: t('period_expenses'),
+          comparison: t('vs_previous_period'),
+          newPatients: t('new_in_period'),
         }
       case 'year':
         return {
@@ -307,6 +322,76 @@ export default function InsightsPage() {
 
   const isLoading = (dashboardLoading && !mounted) || reportsLoading
 
+  // Dashboard filter configurations for SmartFilters
+  const dashboardFilterConfigs: FilterConfig[] = useMemo(() => [
+    {
+      key: 'dateRange',
+      label: tFilters('selectPeriod'),
+      type: 'date-range' as const
+    },
+    {
+      key: 'granularity',
+      label: tFilters('breakdown'),
+      type: 'granularity' as const
+    },
+    {
+      key: 'comparison',
+      label: tFilters('compareWith'),
+      type: 'comparison' as const
+    }
+  ], [tFilters])
+
+  // Adapt useDateFilter state to SmartFilters format
+  const dashboardFilterValues: FilterValues = useMemo(() => ({
+    dateRange: customRange.from && customRange.to
+      ? customRange
+      : currentRange,
+    granularity,
+    comparison: comparison === 'last-year' ? 'lastYear' : comparison // Adapt type
+  }), [currentRange, customRange, granularity, comparison])
+
+  // Handle SmartFilters changes
+  const handleDashboardFilterChange = useCallback((newValues: FilterValues) => {
+    // Handle date range changes
+    if (newValues.dateRange) {
+      const range = newValues.dateRange as { from: string; to: string }
+      if (range.from && range.to) {
+        // Detect if it's a preset or custom range
+        const preset = detectPreset(range)
+        // Map detected presets to filter periods
+        // Note: detectPreset returns 'lastWeek', 'lastMonth', 'thisYear' etc.
+        // but we need to map to our period types
+        if (preset === 'today') {
+          setFilterPeriod('today')
+        } else if (preset === 'last7days' || preset === 'lastWeek') {
+          setFilterPeriod('week')
+        } else if (preset === 'last30days' || preset === 'lastMonth') {
+          setFilterPeriod('month')
+        } else if (preset === 'last90days') {
+          setFilterPeriod('quarter')
+        } else if (preset === 'thisYear') {
+          setFilterPeriod('year')
+        } else {
+          // Custom range or allTime
+          setFilterPeriod('custom')
+          setCustomRange(range)
+        }
+      }
+    }
+
+    // Handle granularity changes
+    if (newValues.granularity !== undefined) {
+      setGranularity(newValues.granularity as 'day' | 'week' | 'month')
+    }
+
+    // Handle comparison changes
+    if (newValues.comparison !== undefined) {
+      const comp = newValues.comparison as string
+      // Adapt back from SmartFilters type to useDateFilter type
+      setComparison(comp === 'lastYear' ? 'last-year' : comp as 'none' | 'previous' | 'last-year')
+    }
+  }, [setFilterPeriod, setGranularity, setComparison, setCustomRange])
+
   return (
     <AppLayout>
       <div className="p-4 lg:p-8 max-w-[1600px] mx-auto space-y-4 sm:space-y-6">
@@ -315,15 +400,11 @@ export default function InsightsPage() {
           subtitle={t('subtitle', { clinic: currentClinic?.name || '' })}
         />
 
-        <DateFilterBar
-          period={filterPeriod}
-          granularity={granularity}
-          comparison={comparison}
-          customRange={customRange}
-          onPeriodChange={setFilterPeriod}
-          onGranularityChange={setGranularity}
-          onComparisonChange={setComparison}
-          onCustomRangeChange={setCustomRange}
+        {/* SmartFilters - unified filter UI */}
+        <SmartFilters
+          filters={dashboardFilterConfigs}
+          values={dashboardFilterValues}
+          onChange={handleDashboardFilterChange}
         />
 
         <Tabs defaultValue="overview" className="space-y-6">
@@ -481,7 +562,7 @@ export default function InsightsPage() {
                       const MIN_SAMPLE_SIZE = 5
                       const ASSUMED_TICKET_CENTS = 50000 // $500 MXN
 
-                      const ticketToUse = kpis.totalTreatments >= MIN_SAMPLE_SIZE && kpis.avgTreatmentValue > 0
+                      const ticketToUse = kpis.treatmentCount >= MIN_SAMPLE_SIZE && kpis.avgTreatmentValue > 0
                         ? kpis.avgTreatmentValue
                         : ASSUMED_TICKET_CENTS
 
@@ -525,7 +606,14 @@ export default function InsightsPage() {
                     data={charts.revenue}
                     title={t('revenue_vs_expenses')}
                     description={t('monthly_comparison')}
-                    onGranularityChange={setGranularity}
+                    onGranularityChange={(g) => {
+                      // RevenueChart supports 'biweek' but our filter doesn't, map it to 'week'
+                      if (g === 'biweek') {
+                        setGranularity('week')
+                      } else {
+                        setGranularity(g)
+                      }
+                    }}
                     currentGranularity={granularity}
                   />
                   <CategoryBreakdown

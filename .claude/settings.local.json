@@ -88,7 +88,8 @@
       "Bash(npx vitest:*)",
       "Bash(report)",
       "Bash(dashboard \")",
-      "Bash(npm run lint:*)"
+      "Bash(npm run lint:*)",
+      "Bash(powershell:*)"
     ],
     "deny": []
   }

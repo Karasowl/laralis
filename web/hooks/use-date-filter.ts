@@ -1,7 +1,11 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
-import { DatePeriod, Granularity, ComparisonPeriod } from '@/components/dashboard/DateFilterBar'
+
+// Types moved here to avoid circular dependency with DateFilterBar
+export type DatePeriod = 'today' | 'week' | 'month' | 'quarter' | 'year' | 'custom'
+export type Granularity = 'day' | 'week' | 'month'
+export type ComparisonPeriod = 'none' | 'previous' | 'last-year'
 
 interface DateRange {
   from: string

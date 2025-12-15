@@ -14,9 +14,9 @@ import {
 import { Calendar, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-export type DatePeriod = 'today' | 'week' | 'month' | 'quarter' | 'year' | 'custom'
-export type Granularity = 'day' | 'week' | 'month'
-export type ComparisonPeriod = 'none' | 'previous' | 'last-year'
+// Re-export types from hook for backwards compatibility
+export type { DatePeriod, Granularity, ComparisonPeriod } from '@/hooks/use-date-filter'
+import type { DatePeriod, Granularity, ComparisonPeriod } from '@/hooks/use-date-filter'
 
 interface DateRange {
   from: string
