@@ -176,7 +176,6 @@ export async function PUT(request: NextRequest) {
       .from('clinics')
       .update({
         notification_settings: settings,
-        updated_at: new Date().toISOString(),
       })
       .eq('id', clinicId);
 
