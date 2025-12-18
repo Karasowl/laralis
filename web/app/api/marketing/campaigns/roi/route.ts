@@ -47,6 +47,8 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
 
+    console.log('[campaigns/roi] Date filter:', { startDate, endDate });
+
     // 1. Obtener todas las campañas
     let campaignsQuery = supabaseAdmin
       .from('marketing_campaigns')
@@ -147,16 +149,25 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Agrupar ingresos por campaña
+    // Agrupar ingresos por campaña Y contar pacientes únicos con tratamientos en el período
     const revenueByCampaign: Record<string, number> = {};
+    const patientsWithTreatmentsByCampaign: Record<string, Set<string>> = {};
+
     treatmentsData.forEach((treatment) => {
       const patient = (patients || []).find((p) => p.id === treatment.patient_id);
       if (!patient || !patient.campaign_id) return;
 
+      // Revenue
       if (!revenueByCampaign[patient.campaign_id]) {
         revenueByCampaign[patient.campaign_id] = 0;
       }
       revenueByCampaign[patient.campaign_id] += treatment.price_cents || 0;
+
+      // Unique patients with treatments in period
+      if (!patientsWithTreatmentsByCampaign[patient.campaign_id]) {
+        patientsWithTreatmentsByCampaign[patient.campaign_id] = new Set();
+      }
+      patientsWithTreatmentsByCampaign[patient.campaign_id].add(patient.id);
     });
 
     // 4. Obtener gastos asociados a cada campaña
@@ -176,6 +187,13 @@ export async function GET(request: NextRequest) {
 
     const { data: expenses, error: expensesError } = await expensesQuery;
 
+    console.log('[campaigns/roi] Expenses query result:', {
+      count: expenses?.length,
+      totalCents: expenses?.reduce((sum, e) => sum + (e.amount_cents || 0), 0),
+      dateRange: { startDate, endDate },
+      sample: expenses?.slice(0, 3).map(e => ({ campaign_id: e.campaign_id, date: e.expense_date, cents: e.amount_cents }))
+    });
+
     if (expensesError) {
       console.error('Error fetching expenses:', expensesError);
     }
@@ -194,7 +212,8 @@ export async function GET(request: NextRequest) {
     const campaignROIs: CampaignROI[] = campaigns.map((campaign) => {
       const investmentCents = investmentByCampaign[campaign.id] || 0;
       const revenueCents = revenueByCampaign[campaign.id] || 0;
-      const patientsCount = (patientsByCampaign[campaign.id] || []).length;
+      // Use patients with treatments in period (filtered), not all patients
+      const patientsCount = patientsWithTreatmentsByCampaign[campaign.id]?.size || 0;
 
       let roi = 0;
       if (investmentCents > 0) {

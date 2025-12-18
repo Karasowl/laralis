@@ -24,6 +24,8 @@ export function CampaignROISection({
   const t = useTranslations('dashboardComponents.marketingROI');
   const { currentClinic } = useCurrentClinic();
 
+  console.log('[CampaignROISection] props:', { startDate, endDate });
+
   const { campaigns, summary, loading, error } = useCampaignROI({
     clinicId: currentClinic?.id,
     includeArchived,

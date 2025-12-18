@@ -65,6 +65,8 @@ export function useCampaignROI(options: UseCampaignROIOptions = {}) {
     ? `/api/marketing/campaigns/roi?${params.toString()}`
     : null;
 
+  console.log('[useCampaignROI] endpoint:', endpoint);
+
   const { data, loading, error, execute } = useApi<CampaignROIResponse>(endpoint, {
     autoFetch: Boolean(clinicId),
   });
