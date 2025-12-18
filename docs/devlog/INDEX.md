@@ -17,6 +17,10 @@ Cada entrada sigue la estructura:
 
 ## Entradas
 
+### 2025-12-18
+
+- **[2025-12-18-fix-service-price-drift-bug.md](2025-12-18-fix-service-price-drift-bug.md)** - Fix P0 crítico: Precios de servicios cambiaban solos con el tiempo. Causa raíz: trigger recalculaba price_cents basándose en costos potencialmente desactualizados cada vez que se editaba un servicio. Solución: nuevo campo original_price_cents + trigger reescrito para SOLO aplicar descuentos.
+
 ### 2025-12-14
 
 - **[2025-12-14-fix-break-even-days-remaining-ux.md](2025-12-14-fix-break-even-days-remaining-ux.md)** - Fix P1 UX: Mensaje confuso "X días restantes" en Punto de Equilibrio. El número podía exceder los días del mes porque mostraba "días necesarios al ritmo actual", no "días que quedan". Agregado badge rojo + advertencia cuando meta es inalcanzable.
@@ -107,6 +111,6 @@ Cada entrada sigue la estructura:
 
 ## Stats
 
-- **Total entradas**: 18
-- **Ultima actualizacion**: 2025-12-14
-- **Archivos documentados**: 133+
+- **Total entradas**: 19
+- **Ultima actualizacion**: 2025-12-18
+- **Archivos documentados**: 140+

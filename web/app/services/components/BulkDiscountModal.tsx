@@ -62,19 +62,21 @@ export function BulkDiscountModal({
   const discountValue = form.watch('discount_value')
 
   // Calculate preview with rounding
+  // FIX: Use original_price_cents as the base (price BEFORE discount)
+  // Fallback to price_cents for backwards compatibility
   const preview = services.map(service => {
-    const priceWithMargin = service.price_cents || 0
+    const basePrice = service.original_price_cents || service.price_cents || 0
 
     if (discountType === 'none') {
-      return { ...service, finalPrice: priceWithMargin, savings: 0 }
+      return { ...service, finalPrice: basePrice, savings: 0 }
     }
 
-    let finalPrice = priceWithMargin
+    let finalPrice = basePrice
 
     if (discountType === 'percentage') {
-      finalPrice = Math.round(priceWithMargin * (1 - (discountValue || 0) / 100))
+      finalPrice = Math.round(basePrice * (1 - (discountValue || 0) / 100))
     } else if (discountType === 'fixed') {
-      finalPrice = Math.max(0, priceWithMargin - ((discountValue || 0) * 100))
+      finalPrice = Math.max(0, basePrice - ((discountValue || 0) * 100))
     }
 
     // Apply clinic price rounding configuration
@@ -83,12 +85,13 @@ export function BulkDiscountModal({
     return {
       ...service,
       finalPrice,
-      savings: priceWithMargin - finalPrice
+      savings: basePrice - finalPrice
     }
   })
 
   const totalSavings = preview.reduce((sum, item) => sum + item.savings, 0)
-  const totalRevenueBefore = preview.reduce((sum, item) => sum + (item.price_cents || 0), 0)
+  // FIX: Use original_price_cents for revenue before (base price without discount)
+  const totalRevenueBefore = preview.reduce((sum, item) => sum + (item.original_price_cents || item.price_cents || 0), 0)
   const totalRevenueAfter = preview.reduce((sum, item) => sum + item.finalPrice, 0)
 
   const handleSubmit = async (data: z.infer<typeof bulkDiscountSchema>) => {

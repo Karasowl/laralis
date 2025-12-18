@@ -211,13 +211,26 @@ export async function POST(request: NextRequest) {
     // Get margin percentage from body, default to 30%
     const margin_pct = typeof rawBody.margin_pct === 'number' ? rawBody.margin_pct : 30;
 
-    // Calculate price WITH margin
+    // Calculate original_price_cents (price BEFORE discount)
     // base_price_cents already includes fixed costs (time-based) + variable costs (supplies)
-    // Now we apply the margin to get the final sale price
-    const base_price = Math.round(base_price_cents || 0);
-    const price_with_margin = base_price > 0 ? Math.round(base_price * (1 + margin_pct / 100)) : 0;
+    // Now we apply the margin to get the sale price
+    // Priority: target_price > original_price_cents > calculated from base + margin
+    let original_price_cents: number;
+
+    if (rawBody.target_price !== undefined && rawBody.target_price !== null) {
+      // User specified a target price directly
+      original_price_cents = Math.round((rawBody.target_price || 0) * 100);
+    } else if (rawBody.original_price_cents !== undefined && rawBody.original_price_cents !== null) {
+      // Explicit original_price_cents provided
+      original_price_cents = Math.round(rawBody.original_price_cents || 0);
+    } else {
+      // Calculate from base cost + margin
+      const base_price = Math.round(base_price_cents || 0);
+      original_price_cents = base_price > 0 ? Math.round(base_price * (1 + margin_pct / 100)) : 0;
+    }
 
     // Create the service with new fields (including discount fields)
+    // Note: The trigger will calculate price_cents from original_price_cents + discount
     const { data: serviceData, error: serviceError} = await supabaseAdmin
       .from('services')
       .insert({
@@ -226,13 +239,13 @@ export async function POST(request: NextRequest) {
         category,
         est_minutes,
         description: description ?? null,
-        price_cents: price_with_margin,  // Save sale price (with margin)
+        original_price_cents,            // Save original price (before discount)
         margin_pct: margin_pct,          // Save margin for reference
         // Discount fields (optional, default to none)
         discount_type: rawBody.discount_type || 'none',
         discount_value: rawBody.discount_value || 0,
         discount_reason: rawBody.discount_reason || null
-        // Note: final_price_with_discount_cents is auto-calculated by trigger
+        // Note: price_cents and final_price_with_discount_cents are auto-calculated by trigger
       })
       .select()
       .single();

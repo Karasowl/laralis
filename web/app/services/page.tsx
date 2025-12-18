@@ -292,6 +292,8 @@ export default function ServicesPage() {
   }) => {
     try {
       // Update each service with the discount
+      // FIX: Send original_price_cents instead of price_cents
+      // The trigger will calculate price_cents from original_price_cents + discount
       const updatePromises = services.map((service: any) =>
         fetch(`/api/services/${service.id}`, {
           method: 'PUT',
@@ -301,7 +303,8 @@ export default function ServicesPage() {
             category: service.category,
             est_minutes: service.est_minutes,
             description: service.description,
-            price_cents: service.price_cents,
+            // Use original_price_cents as the base (price before discount)
+            original_price_cents: service.original_price_cents || service.price_cents,
             margin_pct: service.margin_pct,
             discount_type: discount.type,
             discount_value: discount.value,
@@ -337,6 +340,8 @@ export default function ServicesPage() {
     if (!selectedServiceForDiscount) return
 
     try {
+      // FIX: Send original_price_cents instead of price_cents
+      // The trigger will calculate price_cents from original_price_cents + discount
       const response = await fetch(`/api/services/${selectedServiceForDiscount.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -345,7 +350,8 @@ export default function ServicesPage() {
           category: selectedServiceForDiscount.category,
           est_minutes: selectedServiceForDiscount.est_minutes,
           description: selectedServiceForDiscount.description,
-          price_cents: selectedServiceForDiscount.price_cents,
+          // Use original_price_cents as the base (price before discount)
+          original_price_cents: selectedServiceForDiscount.original_price_cents || selectedServiceForDiscount.price_cents,
           margin_pct: selectedServiceForDiscount.margin_pct,
           discount_type: discount.type,
           discount_value: discount.value,

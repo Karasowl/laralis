@@ -135,25 +135,45 @@ export async function PUT(
     // Get margin percentage, default to 30%
     const margin_pct = typeof body.margin_pct === 'number' ? body.margin_pct : 30;
 
-    // FIX: Calculate price_cents based on priority:
-    // 1. If target_price is provided (user's desired price), use it directly
-    // 2. If price_cents is provided explicitly, use it
-    // 3. Otherwise, calculate from base_price + margin (for backwards compatibility)
-    let price_cents;
+    // FIX: Calculate original_price_cents (price BEFORE discount)
+    // The trigger will automatically calculate price_cents from original_price_cents + discount
+    // Priority:
+    // 1. If target_price is provided (user's desired price), use it as original_price_cents
+    // 2. If original_price_cents is provided explicitly, use it
+    // 3. If price_cents is provided but no discount, use it as original_price_cents
+    // 4. Otherwise, calculate from base_price + margin (for backwards compatibility)
+    let original_price_cents: number;
+
     if (body.target_price !== undefined && body.target_price !== null) {
-      // User specified a target price - convert from pesos to cents
-      price_cents = Math.round((body.target_price || 0) * 100);
+      // User specified a target price - this is the price BEFORE discount
+      original_price_cents = Math.round((body.target_price || 0) * 100);
+    } else if (body.original_price_cents !== undefined && body.original_price_cents !== null) {
+      // Explicit original_price_cents provided
+      original_price_cents = Math.round(body.original_price_cents || 0);
     } else if (body.price_cents !== undefined && body.price_cents !== null) {
-      // Explicit price_cents provided
-      price_cents = Math.round(body.price_cents || 0);
+      // price_cents provided - if no discount, use as original; if discount exists, keep current original
+      const hasDiscount = body.discount_type && body.discount_type !== 'none';
+      if (hasDiscount) {
+        // Need to fetch current original_price_cents from DB
+        const { data: currentService } = await supabaseAdmin
+          .from('services')
+          .select('original_price_cents')
+          .eq('id', params.id)
+          .single();
+        original_price_cents = currentService?.original_price_cents || Math.round(body.price_cents || 0);
+      } else {
+        original_price_cents = Math.round(body.price_cents || 0);
+      }
     } else if (body.base_price_cents !== undefined && body.base_price_cents !== null) {
       // Calculate from base cost + margin (fallback for old logic)
       const base_price = Math.round(body.base_price_cents || 0);
-      price_cents = base_price > 0 ? Math.round(base_price * (1 + margin_pct / 100)) : 0;
+      original_price_cents = base_price > 0 ? Math.round(base_price * (1 + margin_pct / 100)) : 0;
     } else {
       // No price information provided, default to 0
-      price_cents = 0;
+      original_price_cents = 0;
     }
+
+    // Note: price_cents will be calculated by the trigger from original_price_cents + discount
 
     const { data, error } = await supabaseAdmin
       .from('services')
@@ -162,13 +182,15 @@ export async function PUT(
         est_minutes,
         category,
         description,
-        price_cents,
+        // FIX: Send original_price_cents instead of price_cents
+        // The trigger will calculate price_cents from original_price_cents + discount
+        original_price_cents,
         margin_pct,
         // FIX BUG 3: Always update discount fields to allow removal
         discount_type: body.discount_type !== undefined ? body.discount_type : 'none',
         discount_value: body.discount_value !== undefined ? body.discount_value : 0,
         discount_reason: body.discount_reason !== undefined && body.discount_reason !== null ? body.discount_reason : null,
-        // Note: final_price_with_discount_cents is auto-calculated by trigger
+        // Note: price_cents and final_price_with_discount_cents are auto-calculated by trigger
         updated_at: new Date().toISOString()
       })
       .eq('id', params.id)

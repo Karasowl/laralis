@@ -81,25 +81,10 @@ export function SingleDiscountModal({
 
   // Calculate preview with rounding
   const preview = service ? (() => {
-    // Determine the base price (price before any discount)
-    // According to the new pricing architecture:
-    // - service.price_cents is the single source of truth (final price with discount already applied)
-    // - If service has no discount, price_cents IS the base price
-    // - If service has a discount, we need to calculate base price from costs + margin
-
-    const currentHasDiscount = service.discount_type && service.discount_type !== 'none'
-    const currentFinalPrice = service.price_cents || 0
-
-    let basePrice: number
-
-    if (!currentHasDiscount) {
-      // Service has no discount, so price_cents IS the base price
-      basePrice = currentFinalPrice
-    } else {
-      // Service has a discount, calculate base price from costs + margin
-      const totalCostCents = ((service.fixed_cost_per_minute_cents || 0) * (service.est_minutes || 0)) + (service.variable_cost_cents || 0)
-      basePrice = Math.round(totalCostCents * (1 + (service.margin_pct || 0) / 100))
-    }
+    // FIX: Use original_price_cents as the base price (price BEFORE any discount)
+    // This is now stored directly in the database, no need to calculate from costs
+    // Fallback to price_cents for backwards compatibility with services that don't have original_price_cents yet
+    const basePrice = service.original_price_cents || service.price_cents || 0
 
     // If no new discount, return base price (or current price if editing existing discount)
     if (discountType === 'none') {
