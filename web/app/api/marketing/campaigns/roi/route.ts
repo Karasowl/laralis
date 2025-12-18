@@ -44,6 +44,8 @@ export async function GET(request: NextRequest) {
     // Opciones de filtrado
     const includeArchived = searchParams.get('includeArchived') === 'true';
     const platformId = searchParams.get('platformId');
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
 
     // 1. Obtener todas las campañas
     let campaignsQuery = supabaseAdmin
@@ -121,12 +123,22 @@ export async function GET(request: NextRequest) {
 
     let treatmentsData: any[] = [];
     if (allPatientIds.length > 0) {
-      const { data: treatments, error: treatmentsError } = await supabaseAdmin
+      let treatmentsQuery = supabaseAdmin
         .from('treatments')
-        .select('patient_id, price_cents')
+        .select('patient_id, price_cents, treatment_date')
         .eq('clinic_id', clinicId)
         .eq('status', 'completed')
         .in('patient_id', allPatientIds);
+
+      // Apply date filter to treatments
+      if (startDate) {
+        treatmentsQuery = treatmentsQuery.gte('treatment_date', startDate);
+      }
+      if (endDate) {
+        treatmentsQuery = treatmentsQuery.lte('treatment_date', endDate);
+      }
+
+      const { data: treatments, error: treatmentsError } = await treatmentsQuery;
 
       if (treatmentsError) {
         console.error('Error fetching treatments:', treatmentsError);
@@ -148,11 +160,21 @@ export async function GET(request: NextRequest) {
     });
 
     // 4. Obtener gastos asociados a cada campaña
-    const { data: expenses, error: expensesError } = await supabaseAdmin
+    let expensesQuery = supabaseAdmin
       .from('expenses')
-      .select('campaign_id, amount_cents')
+      .select('campaign_id, amount_cents, expense_date')
       .eq('clinic_id', clinicId)
       .in('campaign_id', campaignIds);
+
+    // Apply date filter to expenses
+    if (startDate) {
+      expensesQuery = expensesQuery.gte('expense_date', startDate);
+    }
+    if (endDate) {
+      expensesQuery = expensesQuery.lte('expense_date', endDate);
+    }
+
+    const { data: expenses, error: expensesError } = await expensesQuery;
 
     if (expensesError) {
       console.error('Error fetching expenses:', expensesError);

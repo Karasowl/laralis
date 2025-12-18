@@ -8,6 +8,8 @@ import { useTranslations } from 'next-intl';
 interface CampaignROISectionProps {
   includeArchived?: boolean;
   platformId?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 /**
@@ -16,6 +18,8 @@ interface CampaignROISectionProps {
 export function CampaignROISection({
   includeArchived = false,
   platformId,
+  startDate,
+  endDate,
 }: CampaignROISectionProps) {
   const t = useTranslations('dashboardComponents.marketingROI');
   const { currentClinic } = useCurrentClinic();
@@ -24,6 +28,8 @@ export function CampaignROISection({
     clinicId: currentClinic?.id,
     includeArchived,
     platformId,
+    startDate,
+    endDate,
   });
 
   // Mapear campaigns de useCampaignROI a la estructura esperada por MarketingROITable

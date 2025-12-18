@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo } from 'react'
 
 // Types moved here to avoid circular dependency with DateFilterBar
-export type DatePeriod = 'today' | 'week' | 'month' | 'quarter' | 'year' | 'custom'
+export type DatePeriod = 'today' | 'week' | 'month' | 'quarter' | 'year' | 'allTime' | 'custom'
 export type Granularity = 'day' | 'week' | 'month'
 export type ComparisonPeriod = 'none' | 'previous' | 'last-year'
 
@@ -100,6 +100,18 @@ export function useDateFilter(): UseDateFilterReturn {
       case 'year': {
         const firstDay = new Date(year, 0, 1)
         const lastDay = new Date(year, 11, 31)
+
+        return {
+          from: formatDate(firstDay),
+          to: formatDate(lastDay)
+        }
+      }
+
+      case 'allTime': {
+        // All time: from a very old date to today
+        // Using 2020-01-01 as a reasonable start for dental clinic data
+        const firstDay = new Date(2020, 0, 1)
+        const lastDay = new Date(year, month, day)
 
         return {
           from: formatDate(firstDay),
