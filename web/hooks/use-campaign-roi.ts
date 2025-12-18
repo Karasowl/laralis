@@ -31,6 +31,8 @@ export interface UseCampaignROIOptions {
   clinicId?: string;
   includeArchived?: boolean;
   platformId?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 /**
@@ -50,6 +52,12 @@ export function useCampaignROI(options: UseCampaignROIOptions = {}) {
   }
   if (options.platformId) {
     params.append('platformId', options.platformId);
+  }
+  if (options.startDate) {
+    params.append('startDate', options.startDate);
+  }
+  if (options.endDate) {
+    params.append('endDate', options.endDate);
   }
 
   // Solo construir endpoint si hay clinicId válido

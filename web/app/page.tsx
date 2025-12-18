@@ -391,8 +391,8 @@ export default function InsightsPage() {
         } else if (preset === 'thisYear') {
           setFilterPeriod('year')
         } else if (preset === 'allTime') {
-          // All time = reset to default (month)
-          setFilterPeriod('month')
+          // All time = show all data from 2020 to today
+          setFilterPeriod('allTime')
           setCustomRange({ from: '', to: '' })
         } else {
           // Custom range
@@ -682,7 +682,10 @@ export default function InsightsPage() {
             />
 
             {/* Campaign ROI Analysis */}
-            <CampaignROISection />
+            <CampaignROISection
+              startDate={currentRange?.from}
+              endDate={currentRange?.to}
+            />
 
             {/* Acquisition Trends */}
             <AcquisitionTrendsChart
