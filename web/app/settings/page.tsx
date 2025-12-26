@@ -15,6 +15,7 @@ import {
   PackageOpen,
   Calendar,
   Mail,
+  Archive,
 } from 'lucide-react';
 
 export default function SettingsPage() {
@@ -95,6 +96,14 @@ export default function SettingsPage() {
       title: t('settings.groups.maintenance.title'),
       subtitle: t('settings.groups.maintenance.subtitle'),
       items: [
+        {
+          id: 'snapshots',
+          title: t('settings.snapshots.title'),
+          description: t('settings.snapshots.description'),
+          href: '/settings/snapshots',
+          icon: Archive,
+          color: 'text-teal-600',
+        },
         {
           id: 'export-import',
           title: t('settings.exportImport.title'),
