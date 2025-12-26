@@ -2,23 +2,15 @@
  * Analytics: Profit Analysis
  *
  * GET /api/analytics/profit-analysis
- * Returns comprehensive profit metrics: Gross Profit, Operating Profit, EBITDA, Net Profit
+ * Returns REAL profit based on actual recorded expenses.
  *
- * This endpoint calculates profit metrics using:
- * - Revenue from completed treatments
- * - Variable costs from expenses table (WHERE is_variable = true)
- * - Fixed costs from BOTH:
- *   - fixed_costs table (configured monthly costs, prorated to period)
- *   - expenses table (WHERE is_variable = false) - actual recorded expenses
- * - Depreciation calculated from assets (prorated to period)
+ * KEY INSIGHT: Configured fixed costs (from fixed_costs table) are for PRICING services,
+ * not for calculating real profit. Real profit = what you actually have in hand.
  *
  * Formulas:
- * - Gross Profit = Revenue - Variable Costs
- * - Operating Profit (EBIT) = Gross Profit - Fixed Costs (configured, prorated)
- * - EBITDA = Operating Profit + Depreciation (prorated)
- * - Net Profit = Operating Profit (simplified, no taxes/interest yet)
+ * - Real Profit = Revenue from Treatments - Registered Expenses (from expenses table)
  *
- * NOTE: EBITDA should never exceed Revenue. If it does, there's a calculation error.
+ * The configured costs are returned for reference/comparison but NOT used in profit calc.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -181,57 +173,64 @@ export async function GET(request: NextRequest) {
     )
 
     // ===== 6. Calculate Profit Metrics =====
-    // Use CONFIGURED fixed costs for profitability calculations
-    // This gives a realistic view of the clinic's financial health
+    // KEY CHANGE: Use REGISTERED EXPENSES for real profit calculation
+    // Configured costs are only for pricing services, not for profit calculation
 
-    // Gross Profit = Revenue - Variable Costs (materials, lab fees)
+    // Real Profit = Revenue - Registered Expenses
+    // This tells you: "How much money do I actually have after paying what I paid?"
+    const realProfitCents = revenueCents - fixedCostsRealCents
+    const realMarginPct = revenueCents > 0
+      ? (realProfitCents / revenueCents) * 100
+      : 0
+
+    // Theoretical Profit = Revenue - Variable Costs - Configured Fixed Costs - Depreciation
+    // This tells you: "Am I pricing my services correctly?"
+    const theoreticalCostsCents = variableCostsCents + fixedCostsConfiguredCents + depreciationCents
+    const theoreticalProfitCents = revenueCents - theoreticalCostsCents
+    const theoreticalMarginPct = revenueCents > 0
+      ? (theoreticalProfitCents / revenueCents) * 100
+      : 0
+
+    // Difference shows if you're spending more or less than expected
+    const differenceCents = realProfitCents - theoreticalProfitCents
+
+    // Legacy metrics kept for backward compatibility
     const grossProfitCents = revenueCents - variableCostsCents
     const grossMarginPct = revenueCents > 0
       ? (grossProfitCents / revenueCents) * 100
       : 0
 
-    // Operating Profit (EBIT) = Gross Profit - Fixed Costs (CONFIGURED, prorated)
-    const operatingProfitCents = grossProfitCents - fixedCostsConfiguredCents
-    const operatingMarginPct = revenueCents > 0
-      ? (operatingProfitCents / revenueCents) * 100
-      : 0
+    // Use real profit as the "net profit" (what actually matters)
+    const netProfitCents = realProfitCents
+    const netMarginPct = realMarginPct
 
-    // EBITDA = Operating Profit + Depreciation
-    // Note: This adds back depreciation (a non-cash expense) to operating profit
-    const ebitdaCents = operatingProfitCents + depreciationCents
-    const ebitdaMarginPct = revenueCents > 0
-      ? (ebitdaCents / revenueCents) * 100
-      : 0
-
-    // Net Profit = Operating Profit (simplified - same as EBIT since we already deducted depreciation)
-    // In a full accounting system, this would also subtract taxes and interest
-    const netProfitCents = operatingProfitCents
-    const netMarginPct = revenueCents > 0
-      ? (netProfitCents / revenueCents) * 100
-      : 0
-
-    // Total costs for reference (using configured fixed costs)
-    const totalCostsCents = variableCostsCents + fixedCostsConfiguredCents + depreciationCents
+    // Total costs based on registered expenses
+    const totalCostsCents = fixedCostsRealCents
 
     // ===== 7. Return Response =====
     return NextResponse.json({
       revenue_cents: revenueCents,
       costs: {
-        variable_cents: variableCostsCents,
-        // BREAKING CHANGE: Now returns both real and configured fixed costs
-        fixed_cents: fixedCostsConfiguredCents,        // Used in calculations (prorated from fixed_costs table)
-        fixed_cents_real: fixedCostsRealCents,         // Actual expenses recorded (from expenses table)
-        fixed_cents_configured: fixedCostsConfiguredCents, // Configured monthly costs (prorated)
-        depreciation_cents: depreciationCents,
+        // Registered expenses (what you actually paid)
+        expenses_cents: fixedCostsRealCents,
+        // For reference: configured vs real
+        variable_cents: variableCostsCents,               // Materials from treatments
+        configured_fixed_cents: fixedCostsConfiguredCents, // From fixed_costs table (prorated)
+        depreciation_cents: depreciationCents,             // From assets (prorated, informational)
         total_cents: totalCostsCents
       },
       profits: {
+        // NEW: Real profit based on registered expenses
+        real_profit_cents: realProfitCents,
+        real_margin_pct: Math.round(realMarginPct * 10) / 10,
+        // Theoretical profit (if you spent exactly what you configured)
+        theoretical_profit_cents: theoreticalProfitCents,
+        theoretical_margin_pct: Math.round(theoreticalMarginPct * 10) / 10,
+        // Difference: positive = spent less than expected, negative = spent more
+        difference_cents: differenceCents,
+        // Legacy fields for backward compatibility
         gross_profit_cents: grossProfitCents,
         gross_margin_pct: Math.round(grossMarginPct * 10) / 10,
-        operating_profit_cents: operatingProfitCents,
-        operating_margin_pct: Math.round(operatingMarginPct * 10) / 10,
-        ebitda_cents: ebitdaCents,
-        ebitda_margin_pct: Math.round(ebitdaMarginPct * 10) / 10,
         net_profit_cents: netProfitCents,
         net_margin_pct: Math.round(netMarginPct * 10) / 10
       },
@@ -253,8 +252,7 @@ export async function GET(request: NextRequest) {
         monthly_configured_fixed_cents: monthlyConfiguredFixedCents,
         monthly_depreciation_cents: monthlyDepreciationCents,
         proration_factor: periodDays / daysInMonth,
-        variable_costs_source: 'treatments.variable_cost_cents (materials snapshot)',
-        fixed_costs_source: 'fixed_costs table (configured) + assets (depreciation)'
+        explanation: 'Real profit = Revenue - Registered Expenses. Theoretical = Revenue - Variable - Configured Fixed - Depreciation.'
       }
     })
 
