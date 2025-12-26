@@ -3041,6 +3041,10 @@
       "title": "Datos y mantenimiento",
       "description": "Exporta, importa o respalda la información de tu clínica"
     },
+    "snapshots": {
+      "title": "Snapshots",
+      "description": "Crea y restaura snapshots de respaldo de la clínica"
+    },
     "exportImport": {
       "title": "Exportar e Importar",
       "description": "Respaldo y restauración completa de los datos de tu workspace"
@@ -4621,6 +4625,72 @@
       "corticosteroid": "Corticosteroide",
       "antiseptic": "Antiséptico",
       "antifungal": "Antifúngico"
+    }
+  },
+  "snapshots": {
+    "pageTitle": "Snapshots",
+    "pageDescription": "Crea y restaura snapshots de respaldo de la clínica",
+    "title": "Snapshots de Clínica",
+    "description": "Crea respaldos puntuales de los datos de tu clínica. Los snapshots capturan todos tus pacientes, tratamientos, servicios, gastos y configuraciones.",
+    "records": "{count, plural, one {# registro} other {# registros}}",
+    "tablesIncluded": "Tablas incluidas",
+    "ownerOnly": "Solo los propietarios de la clínica pueden crear, eliminar y restaurar snapshots. Contacta a tu administrador si necesitas acceso.",
+    "types": {
+      "manual": "Manual",
+      "scheduled": "Programado",
+      "preRestore": "Pre-restauración"
+    },
+    "time": {
+      "today": "Hoy",
+      "yesterday": "Ayer",
+      "daysAgo": "Hace {days} días"
+    },
+    "actions": {
+      "create": "Crear Snapshot",
+      "creating": "Creando...",
+      "createFirst": "Crear Primer Snapshot",
+      "download": "Descargar",
+      "delete": "Eliminar",
+      "restore": "Restaurar",
+      "expand": "Ver detalles",
+      "collapse": "Ocultar detalles",
+      "cancel": "Cancelar",
+      "confirmDelete": "Eliminar Snapshot",
+      "confirmRestore": "Restaurar Snapshot"
+    },
+    "info": {
+      "title": "Acerca de los Snapshots",
+      "point1": "Los snapshots capturan todos los datos de la clínica en un punto específico en el tiempo",
+      "point2": "Se crea automáticamente un respaldo antes de cualquier operación de restauración",
+      "point3": "Los snapshots se conservan por 30 días y luego se eliminan automáticamente"
+    },
+    "empty": {
+      "title": "Sin Snapshots",
+      "description": "Crea tu primer snapshot para tener un respaldo de los datos de tu clínica. Los snapshots te ayudan a recuperarte de pérdidas accidentales de datos."
+    },
+    "dialogs": {
+      "delete": {
+        "title": "¿Eliminar Snapshot?",
+        "description": "Esta acción no se puede deshacer. El snapshot se eliminará permanentemente del almacenamiento."
+      },
+      "restore": {
+        "title": "¿Restaurar Snapshot?",
+        "description": "Esto reemplazará todos los datos actuales de la clínica con los datos de este snapshot.",
+        "warning": "Se creará automáticamente un respaldo de tus datos actuales antes de restaurar."
+      }
+    },
+    "createSuccess": "Snapshot Creado",
+    "createSuccessDesc": "Se capturaron exitosamente {records} registros de tu clínica.",
+    "deleteSuccess": "Snapshot Eliminado",
+    "downloadSuccess": "Descarga Iniciada",
+    "restoreSuccess": "Restauración Completa",
+    "restoreSuccessDesc": "Se restauraron exitosamente {records} registros a tu clínica.",
+    "errors": {
+      "fetchFailed": "Error al Cargar Snapshots",
+      "createFailed": "Error al Crear Snapshot",
+      "deleteFailed": "Error al Eliminar Snapshot",
+      "downloadFailed": "Error al Descargar Snapshot",
+      "restoreFailed": "Error al Restaurar Snapshot"
     }
   }
 }

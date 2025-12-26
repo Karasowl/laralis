@@ -1997,6 +1997,10 @@
       "title": "Data & Maintenance",
       "description": "Export, import or back up your clinic information"
     },
+    "snapshots": {
+      "title": "Snapshots",
+      "description": "Create and restore clinic backup snapshots"
+    },
     "exportImport": {
       "title": "Export & Import",
       "description": "Backup and restore your complete workspace data"
@@ -4325,6 +4329,72 @@
       "corticosteroid": "Corticosteroid",
       "antiseptic": "Antiseptic",
       "antifungal": "Antifungal"
+    }
+  },
+  "snapshots": {
+    "pageTitle": "Snapshots",
+    "pageDescription": "Create and restore clinic backup snapshots",
+    "title": "Clinic Snapshots",
+    "description": "Create point-in-time backups of your clinic data. Snapshots capture all your patients, treatments, services, expenses, and configurations.",
+    "records": "{count, plural, one {# record} other {# records}}",
+    "tablesIncluded": "Tables included",
+    "ownerOnly": "Only clinic owners can create, delete, and restore snapshots. Contact your administrator if you need access.",
+    "types": {
+      "manual": "Manual",
+      "scheduled": "Scheduled",
+      "preRestore": "Pre-restore"
+    },
+    "time": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "daysAgo": "{days} days ago"
+    },
+    "actions": {
+      "create": "Create Snapshot",
+      "creating": "Creating...",
+      "createFirst": "Create First Snapshot",
+      "download": "Download",
+      "delete": "Delete",
+      "restore": "Restore",
+      "expand": "Show details",
+      "collapse": "Hide details",
+      "cancel": "Cancel",
+      "confirmDelete": "Delete Snapshot",
+      "confirmRestore": "Restore Snapshot"
+    },
+    "info": {
+      "title": "About Snapshots",
+      "point1": "Snapshots capture all clinic data at a specific point in time",
+      "point2": "A backup is automatically created before any restore operation",
+      "point3": "Snapshots are retained for 30 days and then automatically deleted"
+    },
+    "empty": {
+      "title": "No Snapshots Yet",
+      "description": "Create your first snapshot to have a backup of your clinic data. Snapshots help you recover from accidental data loss."
+    },
+    "dialogs": {
+      "delete": {
+        "title": "Delete Snapshot?",
+        "description": "This action cannot be undone. The snapshot will be permanently deleted from storage."
+      },
+      "restore": {
+        "title": "Restore Snapshot?",
+        "description": "This will replace all current clinic data with the data from this snapshot.",
+        "warning": "A backup of your current data will be created automatically before restoring."
+      }
+    },
+    "createSuccess": "Snapshot Created",
+    "createSuccessDesc": "Successfully captured {records} records from your clinic.",
+    "deleteSuccess": "Snapshot Deleted",
+    "downloadSuccess": "Download Started",
+    "restoreSuccess": "Restore Complete",
+    "restoreSuccessDesc": "Successfully restored {records} records to your clinic.",
+    "errors": {
+      "fetchFailed": "Failed to Load Snapshots",
+      "createFailed": "Failed to Create Snapshot",
+      "deleteFailed": "Failed to Delete Snapshot",
+      "downloadFailed": "Failed to Download Snapshot",
+      "restoreFailed": "Failed to Restore Snapshot"
     }
   }
 }
