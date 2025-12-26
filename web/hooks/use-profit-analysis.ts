@@ -3,21 +3,25 @@
 import { useApi } from './use-api'
 
 export interface ProfitCosts {
-  variable_cents: number
-  fixed_cents: number                  // Configured fixed costs (prorated to period)
-  fixed_cents_real: number             // Actual expenses recorded with is_variable=false
-  fixed_cents_configured: number       // Same as fixed_cents, for clarity
-  depreciation_cents: number
+  expenses_cents: number               // Registered expenses (what you actually paid)
+  variable_cents: number               // Materials from treatments
+  configured_fixed_cents: number       // From fixed_costs table (prorated)
+  depreciation_cents: number           // From assets (prorated, informational)
   total_cents: number
 }
 
 export interface ProfitMetrics {
+  // NEW: Real profit based on registered expenses
+  real_profit_cents: number
+  real_margin_pct: number
+  // Theoretical profit (if you spent exactly what you configured)
+  theoretical_profit_cents: number
+  theoretical_margin_pct: number
+  // Difference: positive = spent less than expected, negative = spent more
+  difference_cents: number
+  // Legacy fields for backward compatibility
   gross_profit_cents: number
   gross_margin_pct: number
-  operating_profit_cents: number
-  operating_margin_pct: number
-  ebitda_cents: number
-  ebitda_margin_pct: number
   net_profit_cents: number
   net_margin_pct: number
 }
@@ -45,7 +49,7 @@ export interface ProfitAnalysisData {
     monthly_configured_fixed_cents: number
     monthly_depreciation_cents: number
     proration_factor: number
-    costs_source: string
+    explanation: string
   }
 }
 

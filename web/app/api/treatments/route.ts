@@ -147,7 +147,8 @@ export async function POST(request: NextRequest) {
       const rpDec = rp > 1 ? rp / 100 : rp; // tolerate decimal or percent
       const minutesMonth = wd * hpd * 60;
       const effectiveMinutes = Math.round(minutesMonth * Math.max(0, Math.min(1, rpDec)));
-      const calculatedCostPerMinute = effectiveMinutes > 0 && totalFixed > 0 ? Math.round(totalFixed / effectiveMinutes) : 0;
+      // Assign to outer variable (not const, to avoid shadowing)
+      calculatedCostPerMinute = effectiveMinutes > 0 && totalFixed > 0 ? Math.round(totalFixed / effectiveMinutes) : 0;
       if (calculatedCostPerMinute <= 0) {
         return NextResponse.json({ error: 'precondition_failed', message: 'Cost per minute is not configured. Complete time and fixed costs.' }, { status: 412 });
       }
@@ -199,8 +200,8 @@ export async function POST(request: NextRequest) {
       treatment_date: payloadBody.treatment_date || new Date().toISOString().split('T')[0],
       treatment_time: payloadBody.treatment_time || null, // HH:MM format for appointment scheduling
       duration_minutes: minutesVal || 30,
-      fixed_cost_per_minute_cents:
-        payloadBody.fixed_cost_per_minute_cents ?? payloadBody.fixed_per_minute_cents ?? calculatedCostPerMinute,
+      // ALWAYS use server-calculated value, ignore frontend (which may send 0)
+      fixed_cost_per_minute_cents: calculatedCostPerMinute,
       variable_cost_cents: payloadBody.variable_cost_cents ?? 0,
       margin_pct: marginVal || 60,
       price_cents: priceVal || 0,

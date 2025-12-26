@@ -17,11 +17,16 @@ import { cn } from '@/lib/utils'
 
 interface ProfitBreakdownCardProps {
   revenueCents: number
-  variableCostsCents: number
-  fixedCostsCents: number
-  depreciationCents: number
-  netProfitCents: number
+  expensesCents: number           // Registered expenses from expenses table
+  netProfitCents: number          // Real profit = revenue - expenses
   netMarginPct?: number
+  // Optional: for comparison with theoretical profit
+  theoreticalProfitCents?: number
+  differenceCents?: number        // positive = spent less than expected
+  // Legacy props (kept for backward compatibility)
+  variableCostsCents?: number
+  fixedCostsCents?: number
+  depreciationCents?: number
   loading?: boolean
 }
 
@@ -89,15 +94,18 @@ function BreakdownLine({
 
 export function ProfitBreakdownCard({
   revenueCents,
+  expensesCents,
+  netProfitCents,
+  netMarginPct,
+  theoreticalProfitCents,
+  differenceCents,
+  // Legacy props for backward compat
   variableCostsCents,
   fixedCostsCents,
   depreciationCents,
-  netProfitCents,
-  netMarginPct,
   loading
 }: ProfitBreakdownCardProps) {
   const t = useTranslations('dashboardComponents.profitBreakdown')
-  const tCommon = useTranslations('common')
 
   if (loading) {
     return (
@@ -108,7 +116,7 @@ export function ProfitBreakdownCard({
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {[1, 2, 3, 4, 5].map((i) => (
+            {[1, 2, 3].map((i) => (
               <div key={i} className="h-12 bg-muted animate-pulse rounded" />
             ))}
           </div>
@@ -117,7 +125,6 @@ export function ProfitBreakdownCard({
     )
   }
 
-  const totalCosts = variableCostsCents + fixedCostsCents + depreciationCents
   const isProfitable = netProfitCents > 0
   const isBreakEven = netProfitCents === 0
 
@@ -138,7 +145,7 @@ export function ProfitBreakdownCard({
               {t('title')}
             </CardTitle>
             <CardDescription className="mt-1">
-              {t('description')}
+              {t('descriptionReal')}
             </CardDescription>
           </div>
           {netMarginPct !== undefined && (
@@ -173,38 +180,20 @@ export function ProfitBreakdownCard({
           icon={<DollarSign className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
         />
 
-        {/* Variable Costs */}
+        {/* Registered Expenses */}
         <BreakdownLine
-          label={t('variableCosts')}
-          amountCents={variableCostsCents}
-          icon={<Package className="h-4 w-4 text-red-500 dark:text-red-400" />}
-          isSubtraction
-        />
-
-        {/* Fixed Costs */}
-        <BreakdownLine
-          label={t('fixedCosts')}
-          amountCents={fixedCostsCents}
+          label={t('expenses')}
+          amountCents={expensesCents}
           icon={<Building2 className="h-4 w-4 text-red-500 dark:text-red-400" />}
           isSubtraction
         />
 
-        {/* Depreciation */}
-        {depreciationCents > 0 && (
-          <BreakdownLine
-            label={t('depreciation')}
-            amountCents={depreciationCents}
-            icon={<Calculator className="h-4 w-4 text-red-500 dark:text-red-400" />}
-            isSubtraction
-          />
-        )}
-
         {/* Divider */}
         <div className="border-t border-dashed border-muted-foreground/30 my-2" />
 
-        {/* Net Profit (Total) */}
+        {/* Real Profit (Total) */}
         <BreakdownLine
-          label={t('netProfit')}
+          label={t('realProfit')}
           amountCents={netProfitCents}
           icon={
             isProfitable ? (
@@ -217,6 +206,21 @@ export function ProfitBreakdownCard({
           }
           isTotal
         />
+
+        {/* Comparison with theoretical (optional) */}
+        {differenceCents !== undefined && differenceCents !== 0 && (
+          <p className={cn(
+            "text-xs text-center pt-2",
+            differenceCents > 0
+              ? "text-emerald-600 dark:text-emerald-400"
+              : "text-amber-600 dark:text-amber-400"
+          )}>
+            {differenceCents > 0
+              ? t('spentLess', { amount: formatCurrency(Math.abs(differenceCents)) })
+              : t('spentMore', { amount: formatCurrency(Math.abs(differenceCents)) })
+            }
+          </p>
+        )}
 
         {/* Status message */}
         <p className={cn(

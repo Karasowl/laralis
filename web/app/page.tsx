@@ -551,12 +551,12 @@ export default function InsightsPage() {
                     />
 
                     <MetricCard
-                      title={t('ebitda')}
-                      value={formatCurrency(profitAnalysis.profits.ebitda_cents)}
-                      valueInCents={profitAnalysis.profits.ebitda_cents}
+                      title={t('real_profit')}
+                      value={formatCurrency(profitAnalysis.profits.real_profit_cents)}
+                      valueInCents={profitAnalysis.profits.real_profit_cents}
                       icon={DollarSign}
-                      color="text-primary"
-                      subtitle={t('ebitda_description')}
+                      color={profitAnalysis.profits.real_profit_cents > 0 ? 'text-primary' : 'text-destructive'}
+                      subtitle={`${profitAnalysis.profits.real_margin_pct.toFixed(1)}% ${t('real_margin')}`}
                     />
 
                     <MetricCard
@@ -605,15 +605,15 @@ export default function InsightsPage() {
 
                 {/* Profit Breakdown + Planned vs Actual */}
                 <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2">
-                  {/* Profit Breakdown - Clear cost deduction view */}
+                  {/* Profit Breakdown - Real profit based on registered expenses */}
                   {!profitAnalysisLoading && profitAnalysis && (
                     <ProfitBreakdownCard
                       revenueCents={profitAnalysis.revenue_cents}
-                      variableCostsCents={profitAnalysis.costs.variable_cents}
-                      fixedCostsCents={profitAnalysis.costs.fixed_cents}
-                      depreciationCents={profitAnalysis.costs.depreciation_cents}
-                      netProfitCents={profitAnalysis.profits.net_profit_cents}
-                      netMarginPct={profitAnalysis.profits.net_margin_pct}
+                      expensesCents={profitAnalysis.costs.expenses_cents}
+                      netProfitCents={profitAnalysis.profits.real_profit_cents}
+                      netMarginPct={profitAnalysis.profits.real_margin_pct}
+                      theoreticalProfitCents={profitAnalysis.profits.theoretical_profit_cents}
+                      differenceCents={profitAnalysis.profits.difference_cents}
                     />
                   )}
 
