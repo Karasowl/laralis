@@ -75,26 +75,25 @@ export async function GET(request: NextRequest) {
 
     for (const clinic of clinics) {
       try {
-        // Get the first owner of the clinic for the snapshot metadata
-        const { data: owner } = await supabaseAdmin
-          .from('clinic_users')
-          .select('user_id')
-          .eq('clinic_id', clinic.id)
-          .eq('role', 'owner')
-          .limit(1)
+        // Get the workspace owner for the snapshot metadata
+        const { data: workspace } = await supabaseAdmin
+          .from('workspaces')
+          .select('owner_id')
+          .eq('id', clinic.workspace_id)
           .single()
 
         let userEmail = 'system@laralis.com'
-        if (owner) {
+        const ownerId = workspace?.owner_id || 'system'
+        if (workspace?.owner_id) {
           const { data: user } = await supabaseAdmin.auth.admin.getUserById(
-            owner.user_id
+            workspace.owner_id
           )
           userEmail = user?.user?.email || userEmail
         }
 
         // Create the snapshot
         const exporter = createSnapshotExporter(supabaseAdmin, clinic.id, {
-          userId: owner?.user_id || 'system',
+          userId: ownerId,
           userEmail,
           type: 'scheduled',
         })
@@ -194,7 +193,7 @@ export async function POST(request: NextRequest) {
     // Get clinic info
     const { data: clinic, error: clinicError } = await supabaseAdmin
       .from('clinics')
-      .select('id, name')
+      .select('id, name, workspace_id')
       .eq('id', clinicId)
       .single()
 
@@ -202,26 +201,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Clinic not found' }, { status: 404 })
     }
 
-    // Get owner
-    const { data: owner } = await supabaseAdmin
-      .from('clinic_users')
-      .select('user_id')
-      .eq('clinic_id', clinicId)
-      .eq('role', 'owner')
-      .limit(1)
+    // Get workspace owner
+    const { data: workspace } = await supabaseAdmin
+      .from('workspaces')
+      .select('owner_id')
+      .eq('id', clinic.workspace_id)
       .single()
 
     let userEmail = 'system@laralis.com'
-    if (owner) {
+    const ownerId = workspace?.owner_id || 'system'
+    if (workspace?.owner_id) {
       const { data: user } = await supabaseAdmin.auth.admin.getUserById(
-        owner.user_id
+        workspace.owner_id
       )
       userEmail = user?.user?.email || userEmail
     }
 
     // Create snapshot
     const exporter = createSnapshotExporter(supabaseAdmin, clinicId, {
-      userId: owner?.user_id || 'system',
+      userId: ownerId,
       userEmail,
       type: 'scheduled',
     })
