@@ -142,15 +142,27 @@ export async function DELETE(
 
     const { clinicId, userId } = clinicContext
 
-    // Verify user is owner
-    const { data: membership, error: membershipError } = await supabaseAdmin
-      .from('clinic_users')
-      .select('role')
-      .eq('clinic_id', clinicId)
-      .eq('user_id', userId)
+    // Verify user is owner (through workspace ownership)
+    const { data: clinic, error: clinicError } = await supabaseAdmin
+      .from('clinics')
+      .select('workspace_id')
+      .eq('id', clinicId)
       .single()
 
-    if (membershipError || !membership || membership.role !== 'owner') {
+    if (clinicError || !clinic) {
+      return NextResponse.json(
+        { error: 'Clinic not found' },
+        { status: 404 }
+      )
+    }
+
+    const { data: workspace, error: workspaceError } = await supabaseAdmin
+      .from('workspaces')
+      .select('owner_id')
+      .eq('id', clinic.workspace_id)
+      .single()
+
+    if (workspaceError || !workspace || workspace.owner_id !== userId) {
       return NextResponse.json(
         { error: 'Only clinic owners can delete snapshots' },
         { status: 403 }
