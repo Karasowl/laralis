@@ -468,33 +468,31 @@ export default function InsightsPage() {
                   <AlertsSection lowStockCount={metrics.supplies.lowStock} />
                 )}
 
-                {/* Break-Even Progress - Full width compact card */}
+                {/* Break-Even Progress + Contribution Analysis - Side by side with independent heights */}
                 {!equilibriumLoading && equilibriumData && equilibriumData.monthlyTargetCents > 0 && (
-                  <BreakEvenProgress
-                    monthlyTargetCents={equilibriumData.monthlyTargetCents}
-                    monthlyGoalCents={timeSettings?.monthly_goal_cents}
-                    currentRevenueCents={equilibriumData.currentRevenueCents}
-                    progressPercentage={equilibriumData.progressPercentage}
-                    dailyTargetCents={equilibriumData.dailyTargetCents}
-                    daysToBreakEven={equilibriumData.daysToBreakEven}
-                    revenueGapCents={equilibriumData.revenueGapCents}
-                    actualDaysWorked={equilibriumData.actualDaysWorked}
-                    totalWorkDaysInPeriod={equilibriumData.totalWorkDaysInPeriod}
-                    elapsedDays={equilibriumData.elapsedDays}
-                    remainingWorkingDays={equilibriumData.remainingWorkingDays}
-                  />
-                )}
-
-                {/* Contribution Analysis - Full width */}
-                {!equilibriumLoading && equilibriumData && equilibriumData.monthlyTargetCents > 0 && (
-                  <ContributionAnalysis
-                    variableCostPercentage={equilibriumData.variableCostPercentage || 0}
-                    contributionMargin={equilibriumData.contributionMargin || 0}
-                    variableCostSource={equilibriumData.variableCostSource || 'fallback'}
-                    autoVariableCostPercentage={equilibriumData.autoVariableCostPercentage || 0}
-                    autoVariableCostSampleSize={equilibriumData.autoVariableCostSampleSize || 0}
-                    autoVariableCostPeriodDays={equilibriumData.autoVariableCostPeriod?.days || 90}
-                  />
+                  <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 items-start">
+                    <BreakEvenProgress
+                      monthlyTargetCents={equilibriumData.monthlyTargetCents}
+                      monthlyGoalCents={timeSettings?.monthly_goal_cents}
+                      currentRevenueCents={equilibriumData.currentRevenueCents}
+                      progressPercentage={equilibriumData.progressPercentage}
+                      dailyTargetCents={equilibriumData.dailyTargetCents}
+                      daysToBreakEven={equilibriumData.daysToBreakEven}
+                      revenueGapCents={equilibriumData.revenueGapCents}
+                      actualDaysWorked={equilibriumData.actualDaysWorked}
+                      totalWorkDaysInPeriod={equilibriumData.totalWorkDaysInPeriod}
+                      elapsedDays={equilibriumData.elapsedDays}
+                      remainingWorkingDays={equilibriumData.remainingWorkingDays}
+                    />
+                    <ContributionAnalysis
+                      variableCostPercentage={equilibriumData.variableCostPercentage || 0}
+                      contributionMargin={equilibriumData.contributionMargin || 0}
+                      variableCostSource={equilibriumData.variableCostSource || 'fallback'}
+                      autoVariableCostPercentage={equilibriumData.autoVariableCostPercentage || 0}
+                      autoVariableCostSampleSize={equilibriumData.autoVariableCostSampleSize || 0}
+                      autoVariableCostPeriodDays={equilibriumData.autoVariableCostPeriod?.days || 90}
+                    />
+                  </div>
                 )}
 
                 {/* 4 Key Metrics Cards - Mobile-first: 1 col -> 2 cols (tablet) -> 4 cols (desktop) */}

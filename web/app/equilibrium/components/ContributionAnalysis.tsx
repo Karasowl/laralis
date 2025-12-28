@@ -33,30 +33,27 @@ export function ContributionAnalysis({
     `${Number.isFinite(value) ? value.toFixed(1) : '0.0'}%`
 
   return (
-    <section className="space-y-4">
-      <div className="flex items-center gap-2">
-        <h2 className="text-lg font-semibold">{t('sections.costBreakdown')}</h2>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger>
-              <Info className="h-4 w-4 text-muted-foreground" />
-            </TooltipTrigger>
-            <TooltipContent className="max-w-xs">
-              <p>{t('sections.costBreakdownTooltip')}</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <CardTitle className="text-base font-medium flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400">
-              <PieChart className="h-4 w-4" />
-            </div>
-            {t('sections.revenueDistribution')}
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-lg bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400">
+            <PieChart className="h-4 w-4" />
+          </div>
+          <CardTitle className="text-base font-medium">
+            {t('sections.costBreakdown')}
           </CardTitle>
-        </CardHeader>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger>
+                <Info className="h-4 w-4 text-muted-foreground" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p>{t('sections.costBreakdownTooltip')}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      </CardHeader>
         <CardContent className="space-y-6">
           {/* Visual bar */}
           <div className="space-y-3">
@@ -108,7 +105,6 @@ export function ContributionAnalysis({
             </p>
           </div>
         </CardContent>
-      </Card>
-    </section>
+    </Card>
   )
 }
