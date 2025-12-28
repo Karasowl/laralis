@@ -528,9 +528,9 @@ export default function InsightsPage() {
                   />
                 </div>
 
-                {/* Financial Metrics - Mobile-first: 1 col -> 2 cols (tablet) -> 3 cols (desktop) */}
+                {/* Financial Metrics - Gross and Real Profit */}
                 {!profitAnalysisLoading && profitAnalysis && (
-                  <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2">
                     <MetricCard
                       title={t('gross_profit')}
                       value={formatCurrency(profitAnalysis.profits.gross_profit_cents)}
@@ -547,15 +547,6 @@ export default function InsightsPage() {
                       icon={DollarSign}
                       color={profitAnalysis.profits.real_profit_cents > 0 ? 'text-primary' : 'text-destructive'}
                       subtitle={`${profitAnalysis.profits.real_margin_pct.toFixed(1)}% ${t('real_margin')}`}
-                    />
-
-                    <MetricCard
-                      title={t('net_profit')}
-                      value={formatCurrency(profitAnalysis.profits.net_profit_cents)}
-                      valueInCents={profitAnalysis.profits.net_profit_cents}
-                      icon={DollarSign}
-                      color={profitAnalysis.profits.net_profit_cents > 0 ? 'text-emerald-600' : 'text-destructive'}
-                      subtitle={`${profitAnalysis.profits.net_margin_pct.toFixed(1)}% ${t('margin')}`}
                     />
                   </div>
                 )}
