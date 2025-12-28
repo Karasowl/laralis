@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -148,27 +148,25 @@ export function BreakEvenProgress({
 
   return (
     <Card className={cn('border-2 transition-all duration-200 hover:shadow-lg', config.borderColor)}>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div className="flex-1">
-            <CardTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5 text-primary" />
-              {t('title')}
-              <Badge variant="outline" className="ml-2 text-xs font-normal text-muted-foreground">
-                <Calendar className="h-3 w-3 mr-1" />
-                {t('currentMonthOnly')}
-              </Badge>
-            </CardTitle>
-            <CardDescription>{t('subtitle')}</CardDescription>
-          </div>
+      {/* Ultra-compact header */}
+      <div className="px-4 py-3">
+        {/* Row 1: Title + Badges + Expand Button - all inline */}
+        <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
+            <Target className="h-4 w-4 text-primary flex-shrink-0" />
+            <span className="font-semibold">{t('title')}</span>
+            <Badge variant="outline" className="hidden sm:flex text-[10px] px-1.5 py-0 font-normal text-muted-foreground">
+              <Calendar className="h-2.5 w-2.5 mr-0.5" />
+              {t('currentMonthOnly')}
+            </Badge>
+          </div>
+          <div className="flex items-center gap-1.5">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Badge className={cn(config.bgColor, config.color, 'border', config.borderColor, 'cursor-help')}>
-                    <StatusIcon className="h-3.5 w-3.5 mr-1" />
+                  <Badge className={cn(config.bgColor, config.color, 'border text-[10px] px-1.5 py-0', config.borderColor, 'cursor-help')}>
+                    <StatusIcon className="h-2.5 w-2.5 mr-0.5" />
                     {t(`status.${status}`)}
-                    <Info className="h-3 w-3 ml-1 opacity-60" />
                   </Badge>
                 </TooltipTrigger>
                 <TooltipContent className="max-w-xs">
@@ -179,26 +177,18 @@ export function BreakEvenProgress({
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 w-8 p-0"
+              className="h-6 w-6 p-0"
               onClick={() => setIsExpanded(!isExpanded)}
-              aria-label={isExpanded ? t('collapse') : t('expand')}
             >
-              {isExpanded ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
+              {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
             </Button>
           </div>
         </div>
 
-        {/* Compact summary when collapsed */}
+        {/* Row 2: Progress bar inline (when collapsed) */}
         {!isExpanded && (
-          <div className="mt-3 flex items-center gap-4 text-sm">
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground">{t('progress')}:</span>
-              <span className="font-bold">{currentPercent.toFixed(1)}%</span>
-            </div>
+          <div className="flex items-center gap-3 mt-2">
+            <span className="font-bold text-lg tabular-nums w-12">{currentPercent.toFixed(0)}%</span>
             <div className="flex-1 relative">
               <Progress value={currentPercent} className="h-2" />
               {/* Break-even marker (only if there's a higher goal) */}
@@ -210,12 +200,12 @@ export function BreakEvenProgress({
                 />
               )}
             </div>
-            <span className="text-muted-foreground text-xs">
+            <span className="text-muted-foreground text-xs whitespace-nowrap">
               {formatCurrency(currentRevenueCents)} / {formatCurrency(effectiveTargetCents)}
             </span>
           </div>
         )}
-      </CardHeader>
+      </div>
 
       {/* Collapsible content */}
       {isExpanded && (

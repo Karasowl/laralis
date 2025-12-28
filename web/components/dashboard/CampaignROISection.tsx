@@ -34,6 +34,13 @@ export function CampaignROISection({
     endDate,
   });
 
+  console.log('[CampaignROISection] Hook response:', {
+    campaignsCount: campaigns?.length,
+    campaigns,
+    loading,
+    error
+  });
+
   // Mapear campaigns de useCampaignROI a la estructura esperada por MarketingROITable
   const mappedCampaigns = campaigns.map((campaign) => ({
     id: campaign.id,
@@ -48,6 +55,11 @@ export function CampaignROISection({
             campaign.status === 'inactive' ? 'paused' as const :
             'active' as const,
   }));
+
+  console.log('[CampaignROISection] Mapped campaigns:', {
+    count: mappedCampaigns.length,
+    mappedCampaigns
+  });
 
   if (error) {
     return (
