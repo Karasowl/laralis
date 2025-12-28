@@ -143,10 +143,12 @@ export async function GET(request: NextRequest) {
     })
 
     // Calcular promedio y CAC actual
-    const nonZeroCACs = cacByMonth.filter(m => m.cacCents > 0)
-    const avgCAC = nonZeroCACs.length > 0
+    // FIXED: Only count months with ACTIVITY (either expenses OR patients)
+    // Don't count months with zero activity in the average
+    const activeMonths = cacByMonth.filter(m => m.expensesCents > 0 || m.newPatients > 0)
+    const avgCAC = activeMonths.length > 0
       ? Math.round(
-          nonZeroCACs.reduce((sum, m) => sum + m.cacCents, 0) / nonZeroCACs.length
+          activeMonths.reduce((sum, m) => sum + m.cacCents, 0) / activeMonths.length
         )
       : 0
 

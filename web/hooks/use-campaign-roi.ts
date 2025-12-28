@@ -79,6 +79,8 @@ export function useCampaignROI(options: UseCampaignROIOptions = {}) {
   });
 
   console.log('[useCampaignROI] Response:', {
+    hasData: !!data,
+    dataKeys: data ? Object.keys(data) : [],
     campaignsCount: data?.data?.length,
     campaigns: data?.data,
     summary: data?.summary,
@@ -86,8 +88,17 @@ export function useCampaignROI(options: UseCampaignROIOptions = {}) {
     error
   });
 
+  // Extract campaigns array - ensure it's always an array
+  const campaigns = Array.isArray(data?.data) ? data.data : [];
+
+  console.log('[useCampaignROI] Final campaigns array:', {
+    isArray: Array.isArray(campaigns),
+    length: campaigns.length,
+    campaigns
+  });
+
   return {
-    campaigns: data?.data || [],
+    campaigns,
     summary: data?.summary || {
       totalInvestmentCents: 0,
       totalRevenueCents: 0,
