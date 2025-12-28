@@ -470,7 +470,7 @@ export default function InsightsPage() {
 
                 {/* Break-Even Progress & Contribution Analysis */}
                 {!equilibriumLoading && equilibriumData && equilibriumData.monthlyTargetCents > 0 && (
-                  <div className="grid gap-6 md:grid-cols-2">
+                  <div className="grid gap-6 md:grid-cols-2 items-start">
                     <BreakEvenProgress
                       monthlyTargetCents={equilibriumData.monthlyTargetCents}
                       monthlyGoalCents={timeSettings?.monthly_goal_cents}
