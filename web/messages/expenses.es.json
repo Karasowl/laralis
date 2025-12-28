@@ -9,7 +9,7 @@
     "summary": {
       "totalSpentTitle": "Total gastado",
       "totalSpentSubtitle": "{count, plural, one {# movimiento} other {# movimientos}} registrados",
-      "varianceTitle": "Variación vs. plan",
+      "varianceTitle": "Variación vs. plan (solo fijos)",
       "varianceSubtitle": "{percentage}% de diferencia",
       "planNotConfiguredTitle": "Plan sin configurar",
       "planNotConfiguredValue": "Configura tu presupuesto",
@@ -17,7 +17,7 @@
       "recurringTitle": "Recurrentes",
       "recurringSubtitle": "Marcados como recurrentes",
       "expenseGuidanceTitle": "¿Cómo se relaciona con Costos fijos?",
-      "expenseGuidanceDescription": "Los gastos registran movimientos variables del día a día. Los costos fijos son tus compromisos mensuales planeados; configúralos para comparar tu presupuesto con lo que realmente gastas."
+      "expenseGuidanceDescription": "Los gastos registran movimientos del día a día. Los costos fijos son tus compromisos mensuales planeados. La comparación 'Planeado vs Real' solo incluye gastos FIJOS (excluyendo materiales, laboratorio, y pagos a especialistas ligados a tratamientos específicos)."
     },
     "filters": {
       "title": "Filtros",
@@ -93,7 +93,10 @@
         "quantity": "Cantidad adquirida",
         "createAsset": "Crear un activo con esta compra",
         "assetName": "Nombre del activo",
-        "assetLife": "Vida útil (años)"
+        "assetLife": "Vida útil (años)",
+        "isVariable": "Es un gasto variable (ligado a tratamientos)",
+        "expenseCategory": "Tipo de gasto",
+        "expenseCategoryHelp": "Marca como variable los gastos que dependen de tratamientos (materiales, laboratorio, especialistas). Los fijos se comparan contra el presupuesto."
       },
       "submit": {
         "create": "Guardar gasto",
@@ -184,6 +187,24 @@
       "beneficios": "Beneficios",
       "capacitacion": "Capacitación",
       "unknown": "Subcategoría desconocida"
+    },
+    "expenseCategories": {
+      "materials": "Materiales",
+      "lab_fees": "Laboratorio",
+      "supplies_dental": "Insumos dentales",
+      "rent": "Renta",
+      "salaries": "Sueldos",
+      "utilities": "Servicios públicos",
+      "insurance": "Seguros",
+      "software_subscriptions": "Software",
+      "marketing": "Marketing",
+      "maintenance": "Mantenimiento",
+      "other": "Otros"
+    },
+    "fields": {
+      "expense_category": "Tipo de gasto financiero",
+      "expense_category_help": "Clasifica este gasto para análisis financiero preciso",
+      "is_variable": "Gasto variable (ligado a tratamientos)"
     }
   }
 }

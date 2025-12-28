@@ -63,17 +63,22 @@ export function CACTrendChart({ data, targetCAC, loading }: CACTrendChartProps) 
   const changePercent = previousCAC > 0 ? ((currentCAC - previousCAC) / previousCAC) * 100 : 0
 
   const avgCAC = data.reduce((sum, d) => sum + d.cac_cents, 0) / data.length
+
+  // FIXED: Lower CAC is better - inverted logic
+  // If current CAC is ABOVE target → bad (need attention)
+  // If current CAC is BELOW target → good (optimal/excellent)
   const isAboveTarget = currentCAC > targetCAC
   const targetDiff = ((currentCAC - targetCAC) / targetCAC) * 100
 
-  // Determine trend
-  const isImproving = changePercent < 0 // Lower CAC is better
+  // Determine trend - Lower CAC is better
+  const isImproving = changePercent < 0 // Negative change = improvement
 
+  // FIXED: Inverted status logic - lower CAC is better
   const trendStatus = isAboveTarget
-    ? { label: t('above_target'), color: 'bg-red-500', icon: AlertTriangle, iconColor: 'text-red-600' }
-    : currentCAC > avgCAC
-    ? { label: t('needs_attention'), color: 'bg-amber-500', icon: TrendingUp, iconColor: 'text-amber-600' }
-    : { label: t('optimal'), color: 'bg-emerald-500', icon: TrendingDown, iconColor: 'text-emerald-600' }
+    ? { label: t('needs_attention'), color: 'bg-amber-500', icon: AlertTriangle, iconColor: 'text-amber-600' }
+    : currentCAC < avgCAC * 0.8 // 20% below average = excellent
+    ? { label: t('excellent'), color: 'bg-emerald-500', icon: TrendingDown, iconColor: 'text-emerald-600' }
+    : { label: t('good'), color: 'bg-blue-500', icon: TrendingDown, iconColor: 'text-blue-600' }
 
   const TrendIcon = trendStatus.icon
 
@@ -204,12 +209,12 @@ export function CACTrendChart({ data, targetCAC, loading }: CACTrendChartProps) 
           </div>
         </div>
 
-        {/* Alert */}
+        {/* Alert - FIXED: Show warning when CAC is ABOVE target (bad) */}
         {isAboveTarget && (
-          <div className="flex items-start gap-2 p-3 rounded-lg bg-red-50 dark:bg-red-950/20">
-            <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20">
+            <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
             <div className="flex-1">
-              <p className="text-sm text-red-900 dark:text-red-100">
+              <p className="text-sm text-amber-900 dark:text-amber-100">
                 <span className="font-medium">{t('cac_alert_title')}</span>
                 {' '}{t('cac_alert_desc', { diff: Math.abs(targetDiff).toFixed(0) })}
               </p>
@@ -217,6 +222,7 @@ export function CACTrendChart({ data, targetCAC, loading }: CACTrendChartProps) 
           </div>
         )}
 
+        {/* Success message - Show when CAC is BELOW target and improving */}
         {!isAboveTarget && isImproving && (
           <div className="flex items-start gap-2 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20">
             <TrendingDown className="h-4 w-4 text-emerald-600 mt-0.5 flex-shrink-0" />
@@ -224,6 +230,19 @@ export function CACTrendChart({ data, targetCAC, loading }: CACTrendChartProps) 
               <p className="text-sm text-emerald-900 dark:text-emerald-100">
                 <span className="font-medium">{t('cac_improving')}</span>
                 {' '}{t('cac_improving_desc')}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Excellent message - Show when CAC is significantly below target */}
+        {!isAboveTarget && !isImproving && currentCAC < avgCAC * 0.8 && (
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20">
+            <TrendingDown className="h-4 w-4 text-emerald-600 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm text-emerald-900 dark:text-emerald-100">
+                <span className="font-medium">{t('excellent_cac')}</span>
+                {' '}{t('excellent_cac_desc')}
               </p>
             </div>
           </div>

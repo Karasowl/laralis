@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     // Build expenses query within date range
     let q = supabase
       .from('expenses')
-      .select('expense_date, category, amount_cents')
+      .select('expense_date, category, amount_cents, is_variable')
       .eq('clinic_id', clinicId)
 
     if (startDate) q = q.gte('expense_date', startDate)
@@ -96,7 +96,14 @@ export async function GET(request: NextRequest) {
     }
     const plannedCents = (fixedCosts || []).reduce((sum, f) => sum + (f.amount_cents || 0), 0)
 
-    const varianceCents = totalCents - plannedCents
+    // CRITICAL: Only compare FIXED expenses against planned fixed costs
+    // Variable expenses (materials, lab fees, specialist payments) are excluded
+    // because they are tied to treatments and cannot be planned/budgeted upfront
+    const fixedExpensesCents = (expenses || [])
+      .filter(e => !e.is_variable)
+      .reduce((sum, e) => sum + (e.amount_cents || 0), 0)
+
+    const varianceCents = fixedExpensesCents - plannedCents
     const variancePct = plannedCents > 0 ? (varianceCents / plannedCents) * 100 : 0
 
     return NextResponse.json({
@@ -112,7 +119,7 @@ export async function GET(request: NextRequest) {
         by_month,
         vs_fixed_costs: {
           planned: Math.round(plannedCents),
-          actual: Math.round(totalCents),
+          actual: Math.round(fixedExpensesCents),
           variance: Math.round(varianceCents),
           variance_percentage: Math.round(variancePct),
         },

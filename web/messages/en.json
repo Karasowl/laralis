@@ -744,12 +744,16 @@
       "net_profit": "Net Profit",
       "gross_margin": "Gross Margin",
       "optimal": "Optimal",
+      "excellent": "Excellent",
+      "good": "Good",
       "above": "above",
       "below": "below",
       "cac_alert_title": "CAC above target",
       "cac_alert_desc": "Your CAC is {diff}% above target. Optimize channels or reduce marketing spend",
       "cac_improving": "CAC improving",
-      "cac_improving_desc": "Your CAC is decreasing. Excellent job optimizing your marketing investment"
+      "cac_improving_desc": "Your CAC is decreasing. Excellent job optimizing your marketing investment",
+      "excellent_cac": "Excellent CAC",
+      "excellent_cac_desc": "Your CAC is significantly below target. Excellent acquisition cost management"
     },
     "quick_actions": "Quick actions",
     "common_tasks": "Common tasks",
@@ -2509,6 +2513,23 @@
     "serviceLockedTitle": "Service cannot be changed",
     "serviceLockedMessage": "You cannot change the service of an existing treatment. Service: {service}",
     "marginHelp": "Optional percentage added to base cost",
+    "searchPlaceholder": "Search by patient, service, or notes...",
+    "emptyTitle": "No treatments found",
+    "emptyDescription": "No treatments match your search criteria",
+    "addTreatment": "Add Treatment",
+    "newTreatment": "New Treatment",
+    "editTreatment": "Edit Treatment",
+    "deleteTreatment": "Delete Treatment",
+    "deleteTreatmentConfirm": "Are you sure you want to delete this treatment? This action cannot be undone.",
+    "summary": {
+      "totalRevenue": "Total Revenue",
+      "allTreatments": "All treatments",
+      "totalTreatments": "Total Treatments",
+      "registered": "registered",
+      "completionRate": "Completion Rate",
+      "averagePrice": "Average Price",
+      "perTreatment": "per treatment"
+    },
     "empty": {
       "title": "No treatments recorded",
       "description": "Start recording treatments for your patients"
