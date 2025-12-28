@@ -65,10 +65,25 @@ export function useCampaignROI(options: UseCampaignROIOptions = {}) {
     ? `/api/marketing/campaigns/roi?${params.toString()}`
     : null;
 
-  console.log('[useCampaignROI] endpoint:', endpoint);
+  console.log('[useCampaignROI] Hook invoked with:', {
+    clinicId,
+    includeArchived: options.includeArchived,
+    platformId: options.platformId,
+    startDate: options.startDate,
+    endDate: options.endDate,
+    endpoint
+  });
 
   const { data, loading, error, execute } = useApi<CampaignROIResponse>(endpoint, {
     autoFetch: Boolean(clinicId),
+  });
+
+  console.log('[useCampaignROI] Response:', {
+    campaignsCount: data?.data?.length,
+    campaigns: data?.data,
+    summary: data?.summary,
+    loading,
+    error
   });
 
   return {

@@ -870,12 +870,16 @@
       "above_target": "Sobre objetivo",
       "needs_attention": "Requiere atención",
       "optimal": "Óptimo",
+      "excellent": "Excelente",
+      "good": "Bueno",
       "above": "sobre",
       "below": "bajo",
       "cac_alert_title": "CAC sobre el objetivo",
       "cac_alert_desc": "Tu CAC está {diff}% sobre el objetivo. Optimiza canales o reduce gastos de marketing",
       "cac_improving": "CAC mejorando",
-      "cac_improving_desc": "Tu CAC está bajando. Excelente trabajo optimizando tu inversión en marketing"
+      "cac_improving_desc": "Tu CAC está bajando. Excelente trabajo optimizando tu inversión en marketing",
+      "excellent_cac": "CAC excelente",
+      "excellent_cac_desc": "Tu CAC está significativamente bajo el objetivo. Excelente gestión de costos de adquisición"
     },
     "quick_actions": "Acciones rápidas",
     "common_tasks": "Tareas comunes",
@@ -2702,7 +2706,7 @@
     "editTreatment": "Editar Tratamiento",
     "deleteTreatment": "Eliminar Tratamiento",
     "deleteTreatmentConfirm": "¿Estás seguro de que deseas eliminar este tratamiento?",
-    "searchPlaceholder": "Buscar tratamientos...",
+    "searchPlaceholder": "Buscar por paciente, servicio o notas...",
     "emptyTitle": "No hay tratamientos registrados",
     "emptyDescription": "Comienza a registrar tratamientos para tus pacientes",
     "summary": {

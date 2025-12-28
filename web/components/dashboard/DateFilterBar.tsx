@@ -55,6 +55,7 @@ export function DateFilterBar({
     { value: 'month', label: t('periods.month') },
     { value: 'quarter', label: t('periods.quarter') },
     { value: 'year', label: t('periods.year') },
+    { value: 'allTime', label: t('periods.allTime') },
     { value: 'custom', label: t('periods.custom') },
   ], [t])
 

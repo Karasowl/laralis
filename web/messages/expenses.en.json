@@ -9,7 +9,7 @@
     "summary": {
       "totalSpentTitle": "Total spent",
       "totalSpentSubtitle": "{count, plural, one {# entry} other {# entries}} recorded",
-      "varianceTitle": "Variance vs plan",
+      "varianceTitle": "Variance vs plan (fixed only)",
       "varianceSubtitle": "{percentage}% difference",
       "planNotConfiguredTitle": "Budget not configured",
       "planNotConfiguredValue": "Set up your budget",
@@ -17,7 +17,7 @@
       "recurringTitle": "Recurring",
       "recurringSubtitle": "Marked as recurring",
       "expenseGuidanceTitle": "How this differs from Fixed costs",
-      "expenseGuidanceDescription": "Expenses capture day-to-day variable movements. Fixed costs are your planned monthly commitments—configure them to compare budget vs actual."
+      "expenseGuidanceDescription": "Expenses capture day-to-day movements. Fixed costs are your planned monthly commitments. The 'Planned vs Actual' comparison only includes FIXED expenses (excluding materials, lab fees, and specialist payments tied to specific treatments)."
     },
     "filters": {
       "title": "Filters",
@@ -93,7 +93,10 @@
         "quantity": "Quantity purchased",
         "createAsset": "Create a new asset from this purchase",
         "assetName": "Asset name",
-        "assetLife": "Useful life (years)"
+        "assetLife": "Useful life (years)",
+        "isVariable": "Variable expense (treatment-related)",
+        "expenseCategory": "Expense type",
+        "expenseCategoryHelp": "Mark as variable expenses tied to treatments (materials, lab, specialists). Fixed expenses are compared against budget."
       },
       "submit": {
         "create": "Save expense",
@@ -184,6 +187,24 @@
       "beneficios": "Benefits",
       "capacitacion": "Training",
       "unknown": "Unknown subcategory"
+    },
+    "expenseCategories": {
+      "materials": "Materials",
+      "lab_fees": "Laboratory fees",
+      "supplies_dental": "Dental supplies",
+      "rent": "Rent",
+      "salaries": "Salaries",
+      "utilities": "Utilities",
+      "insurance": "Insurance",
+      "software_subscriptions": "Software subscriptions",
+      "marketing": "Marketing",
+      "maintenance": "Maintenance",
+      "other": "Other"
+    },
+    "fields": {
+      "expense_category": "Financial expense type",
+      "expense_category_help": "Classify this expense for accurate financial analysis",
+      "is_variable": "Variable expense (treatment-related)"
     }
   }
 }

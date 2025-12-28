@@ -168,8 +168,11 @@ export default function TreatmentsPage() {
   // Apply filters to treatments
   const smartFilteredTreatments = useSmartFilter(treatments, filterValues, filterConfigs)
 
+  // Search state
+  const [searchTerm, setSearchTerm] = useState('')
+
   // Apply type filter (all, appointments, treatments)
-  const filteredTreatments = useMemo(() => {
+  const typeFilteredTreatments = useMemo(() => {
     if (typeFilter === 'all') return smartFilteredTreatments
 
     const today = new Date()
@@ -190,6 +193,33 @@ export default function TreatmentsPage() {
       }
     })
   }, [smartFilteredTreatments, typeFilter])
+
+  // Apply text search filter
+  const filteredTreatments = useMemo(() => {
+    if (!searchTerm || searchTerm.trim() === '') return typeFilteredTreatments
+
+    const query = searchTerm.toLowerCase().trim()
+
+    return typeFilteredTreatments.filter((treatment: Treatment) => {
+      // Search in patient name
+      const patient = patients.find((p: Patient) => p.id === treatment.patient_id)
+      const patientName = patient
+        ? `${patient.first_name} ${patient.last_name}`.toLowerCase()
+        : ''
+      if (patientName.includes(query)) return true
+
+      // Search in service name
+      const service = services.find((s: Service) => s.id === treatment.service_id)
+      const serviceName = service?.name?.toLowerCase() || ''
+      if (serviceName.includes(query)) return true
+
+      // Search in notes
+      const notes = treatment.notes?.toLowerCase() || ''
+      if (notes.includes(query)) return true
+
+      return false
+    })
+  }, [typeFilteredTreatments, searchTerm, patients, services])
 
   // Get active date period label for summary cards
   const activeDatePeriod = useMemo(() => {
@@ -860,6 +890,7 @@ export default function TreatmentsPage() {
           data={filteredTreatments}
           loading={loading}
           searchPlaceholder={t('treatments.searchPlaceholder')}
+          onSearch={setSearchTerm}
           showCount={true}
           countLabel={t('treatments.title').toLowerCase()}
           emptyState={{
