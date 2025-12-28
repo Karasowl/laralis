@@ -468,31 +468,21 @@ export default function InsightsPage() {
                   <AlertsSection lowStockCount={metrics.supplies.lowStock} />
                 )}
 
-                {/* Break-Even Progress + Contribution Analysis - Side by side with independent heights */}
+                {/* Break-Even Progress - Compact hero card at top */}
                 {!equilibriumLoading && equilibriumData && equilibriumData.monthlyTargetCents > 0 && (
-                  <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 items-start">
-                    <BreakEvenProgress
-                      monthlyTargetCents={equilibriumData.monthlyTargetCents}
-                      monthlyGoalCents={timeSettings?.monthly_goal_cents}
-                      currentRevenueCents={equilibriumData.currentRevenueCents}
-                      progressPercentage={equilibriumData.progressPercentage}
-                      dailyTargetCents={equilibriumData.dailyTargetCents}
-                      daysToBreakEven={equilibriumData.daysToBreakEven}
-                      revenueGapCents={equilibriumData.revenueGapCents}
-                      actualDaysWorked={equilibriumData.actualDaysWorked}
-                      totalWorkDaysInPeriod={equilibriumData.totalWorkDaysInPeriod}
-                      elapsedDays={equilibriumData.elapsedDays}
-                      remainingWorkingDays={equilibriumData.remainingWorkingDays}
-                    />
-                    <ContributionAnalysis
-                      variableCostPercentage={equilibriumData.variableCostPercentage || 0}
-                      contributionMargin={equilibriumData.contributionMargin || 0}
-                      variableCostSource={equilibriumData.variableCostSource || 'fallback'}
-                      autoVariableCostPercentage={equilibriumData.autoVariableCostPercentage || 0}
-                      autoVariableCostSampleSize={equilibriumData.autoVariableCostSampleSize || 0}
-                      autoVariableCostPeriodDays={equilibriumData.autoVariableCostPeriod?.days || 90}
-                    />
-                  </div>
+                  <BreakEvenProgress
+                    monthlyTargetCents={equilibriumData.monthlyTargetCents}
+                    monthlyGoalCents={timeSettings?.monthly_goal_cents}
+                    currentRevenueCents={equilibriumData.currentRevenueCents}
+                    progressPercentage={equilibriumData.progressPercentage}
+                    dailyTargetCents={equilibriumData.dailyTargetCents}
+                    daysToBreakEven={equilibriumData.daysToBreakEven}
+                    revenueGapCents={equilibriumData.revenueGapCents}
+                    actualDaysWorked={equilibriumData.actualDaysWorked}
+                    totalWorkDaysInPeriod={equilibriumData.totalWorkDaysInPeriod}
+                    elapsedDays={equilibriumData.elapsedDays}
+                    remainingWorkingDays={equilibriumData.remainingWorkingDays}
+                  />
                 )}
 
                 {/* 4 Key Metrics Cards - Mobile-first: 1 col -> 2 cols (tablet) -> 4 cols (desktop) */}
@@ -600,6 +590,18 @@ export default function InsightsPage() {
                     monthlyTargetCents={equilibriumData.monthlyTargetCents}
                     daysElapsed={equilibriumData.elapsedDays}
                     hideNetProfit={true}
+                  />
+                )}
+
+                {/* Contribution Analysis - Cost structure visualization */}
+                {!equilibriumLoading && equilibriumData && equilibriumData.monthlyTargetCents > 0 && (
+                  <ContributionAnalysis
+                    variableCostPercentage={equilibriumData.variableCostPercentage || 0}
+                    contributionMargin={equilibriumData.contributionMargin || 0}
+                    variableCostSource={equilibriumData.variableCostSource || 'fallback'}
+                    autoVariableCostPercentage={equilibriumData.autoVariableCostPercentage || 0}
+                    autoVariableCostSampleSize={equilibriumData.autoVariableCostSampleSize || 0}
+                    autoVariableCostPeriodDays={equilibriumData.autoVariableCostPeriod?.days || 90}
                   />
                 )}
 
