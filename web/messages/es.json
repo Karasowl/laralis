@@ -2736,6 +2736,13 @@
       "paymentError": "Error al registrar pago",
       "cancel": "Cancelar"
     },
+    "pendingBalance": {
+      "title": "Saldo Pendiente",
+      "hasPending": "Tiene saldo pendiente",
+      "amount": "Monto pendiente",
+      "helperText": "Monto que el paciente debe por este tratamiento",
+      "label": "Saldo pendiente"
+    },
     "status": {
       "completed": "Completado",
       "pending": "Pendiente",

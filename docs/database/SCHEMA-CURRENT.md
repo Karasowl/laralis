@@ -1,15 +1,23 @@
 # Current Database Schema
 
-**Current Version:** v4
-**Date:** 2025-12-06
-**File:** [SCHEMA-v4-2025-12-06.md](schemas/SCHEMA-v4-2025-12-06.md)
-**Previous Version:** [v3 (2025-11-17)](schemas/SCHEMA-v3-2025-11-17.md)
+**Current Version:** v5
+**Date:** 2025-12-31
+**File:** [SCHEMA-v5-2025-12-31.md](schemas/SCHEMA-v5-2025-12-31.md)
+**Previous Version:** [v4 (2025-12-06)](schemas/SCHEMA-v4-2025-12-06.md)
 
 ---
 
 This file always points to the most recent schema version. When the schema changes, this file will be updated to reference the new version.
 
-## What's New in v4
+## What's New in v5
+
+**Explicit Pending Balance System** (Migration 73):
+- `treatments.pending_balance_cents` - Explicit user-marked pending balance field
+- Replaces automatic `is_paid` calculation with explicit user input
+- NULL = no pending balance (fully paid), >0 = pending amount in cents
+- New index for optimized filtering
+
+## What was New in v4
 
 **AI Assistant & Integrations** (Migrations 50-54):
 - `action_logs` - Audit trail of AI-executed actions
@@ -31,10 +39,10 @@ This file always points to the most recent schema version. When the schema chang
 
 ## Quick Links
 
-- 📄 [Current Schema (v4)](schemas/SCHEMA-v4-2025-12-06.md)
+- 📄 [Current Schema (v5)](schemas/SCHEMA-v5-2025-12-31.md)
 - 📋 [Schema Changelog](SCHEMA-CHANGELOG.md)
 - 🔄 [All Schema Versions](schemas/)
-- 📜 [Previous Version (v3)](schemas/SCHEMA-v3-2025-11-17.md)
+- 📜 [Previous Version (v4)](schemas/SCHEMA-v4-2025-12-06.md)
 
 ## How to Update Schema
 
@@ -62,3 +70,4 @@ Examples:
 - `SCHEMA-v2-2025-10-25.md` - After adding new marketing tables
 - `SCHEMA-v3-2025-11-17.md` - After deprecating tariffs
 - `SCHEMA-v4-2025-12-06.md` - After adding AI assistant tables
+- `SCHEMA-v5-2025-12-31.md` - After adding explicit pending balance

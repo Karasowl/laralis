@@ -2548,6 +2548,13 @@
       "paymentError": "Error registering payment",
       "cancel": "Cancel"
     },
+    "pendingBalance": {
+      "title": "Pending Balance",
+      "hasPending": "Has pending balance",
+      "amount": "Pending amount",
+      "helperText": "Amount the patient owes for this treatment",
+      "label": "Pending balance"
+    },
     "empty": {
       "title": "No treatments recorded",
       "description": "Start recording treatments for your patients"

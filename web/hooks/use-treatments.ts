@@ -74,6 +74,8 @@ export interface Treatment {
   price_cents: number
   amount_paid_cents: number
   is_paid: boolean
+  // Explicit pending balance (user-marked)
+  pending_balance_cents?: number | null
   tariff_version?: number
   status: 'pending' | 'completed' | 'cancelled'
   notes?: string
@@ -142,11 +144,13 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
     const pendingTreatments = nonCancelled.filter(t => t.status === 'pending').length
     const averagePrice = completedTreatments > 0 ? totalRevenue / completedTreatments : 0
 
-    // Partial payments tracking
-    const treatmentsWithBalance = completed.filter(t => !t.is_paid).length
-    const pendingBalanceCents = completed
-      .filter(t => !t.is_paid)
-      .reduce((sum, t) => sum + ((t.price_cents || 0) - (t.amount_paid_cents || 0)), 0)
+    // Explicit pending balance tracking (user-marked)
+    const treatmentsWithBalance = uniqueTreatments.filter(t =>
+      t.pending_balance_cents && t.pending_balance_cents > 0
+    ).length
+    const pendingBalanceCents = uniqueTreatments
+      .filter(t => t.pending_balance_cents && t.pending_balance_cents > 0)
+      .reduce((sum, t) => sum + (t.pending_balance_cents || 0), 0)
 
     return {
       totalRevenue,
@@ -218,14 +222,22 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
       tariff_version: 1
     }
 
+    // Convert pending_balance from pesos to cents (explicit pending balance)
+    const pendingBalanceCents = data.pending_balance
+      ? Math.round(data.pending_balance * 100)
+      : null
+
     const treatmentData = {
       ...data,
       fixed_per_minute_cents: fixedPerMinuteCents,
       variable_cost_cents: variableCost,
       price_cents: price,
       tariff_version: 1,
-      snapshot_costs: snapshot
+      snapshot_costs: snapshot,
+      pending_balance_cents: pendingBalanceCents,
     }
+    // Remove pending_balance from data (we use pending_balance_cents)
+    delete (treatmentData as any).pending_balance
 
     // Use fetch directly to access calendarSync from response
     try {
@@ -302,6 +314,13 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
         ? Math.round(totalCost * (1 + marginPct / 100))
         : existingTreatment.price_cents
 
+    // Convert pending_balance from pesos to cents (explicit pending balance)
+    // If data.pending_balance is undefined, preserve existing value
+    // If data.pending_balance is 0 or explicitly set, convert and use it
+    const pendingBalanceCents = data.pending_balance !== undefined
+      ? (data.pending_balance > 0 ? Math.round(data.pending_balance * 100) : null)
+      : existingTreatment.pending_balance_cents
+
     const treatmentData = {
       ...data,
       fixed_per_minute_cents: fixedPerMinuteCents,
@@ -315,8 +334,11 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
         margin_pct: marginPct,
         price_cents: price,
         tariff_version: existingTreatment.tariff_version || 1
-      }
+      },
+      pending_balance_cents: pendingBalanceCents,
     }
+    // Remove pending_balance from data (we use pending_balance_cents)
+    delete (treatmentData as any).pending_balance
 
     // Use fetch directly to access calendarSync from response
     try {

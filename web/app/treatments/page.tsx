@@ -28,7 +28,7 @@ import { CreditCard } from 'lucide-react'
 import { formatCurrency } from '@/lib/money'
 import { getLocalDateISO } from '@/lib/utils'
 import { formatDate } from '@/lib/format'
-import { Calendar, User, DollarSign, FileText, Activity, Clock, Plus, StickyNote, List } from 'lucide-react'
+import { Calendar, User, DollarSign, FileText, Activity, Clock, Plus, StickyNote, List, Wallet } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { calcularPrecioFinal } from '@/lib/calc/tarifa'
@@ -55,6 +55,7 @@ const treatmentFormSchema = z.object({
   sale_price: z.number().min(0).optional(), // Price in pesos (converted to cents in hook)
   status: z.enum(['pending', 'completed', 'cancelled']),
   notes: z.string().optional(),
+  pending_balance: z.number().min(0).optional(), // Pending balance in pesos (explicit user-marked)
 }).refine(
   (data) => {
     // If status is 'completed', require a price > 0
@@ -177,11 +178,11 @@ export default function TreatmentsPage() {
   // Apply filters to treatments
   const smartFilteredTreatments = useSmartFilter(treatments, filterValues, filterConfigs)
 
-  // Apply balance filter (treatments with pending balance)
+  // Apply balance filter (treatments with explicit pending balance)
   const balanceFilteredTreatments = useMemo(() => {
     if (!filterValues.has_balance) return smartFilteredTreatments
     return smartFilteredTreatments.filter((t: Treatment) =>
-      t.status === 'completed' && !t.is_paid
+      t.pending_balance_cents && t.pending_balance_cents > 0
     )
   }, [smartFilteredTreatments, filterValues.has_balance])
 
@@ -276,6 +277,7 @@ export default function TreatmentsPage() {
     sale_price: undefined, // undefined means "calculate from service/margin", 0 would be a valid price
     status: 'pending',
     notes: '',
+    pending_balance: 0, // Explicit pending balance (0 = no pending balance)
   }
 
   const form = useForm<TreatmentFormData>({
@@ -550,29 +552,6 @@ export default function TreatmentsPage() {
         </div>
       )
     },
-    // Payment status column
-    {
-      key: 'payment_status',
-      label: t('treatments.fields.paymentStatus'),
-      render: (_value: any, treatment: Treatment) => {
-        if (treatment?.status === 'cancelled') {
-          return <span className="text-muted-foreground">—</span>
-        }
-        const balanceCents = (treatment?.price_cents || 0) - (treatment?.amount_paid_cents || 0)
-        const isPaid = treatment?.is_paid || balanceCents <= 0
-
-        return isPaid ? (
-          <Badge variant="success">{t('treatments.payment.paid')}</Badge>
-        ) : (
-          <div className="flex flex-col gap-1">
-            <Badge variant="warning">{t('treatments.payment.pending')}</Badge>
-            <span className="text-xs text-muted-foreground">
-              {t('treatments.payment.balance')}: {formatCurrency(balanceCents)}
-            </span>
-          </div>
-        )
-      }
-    },
     // Profit - hidden on tablet (less important, can be derived)
     {
       key: 'profit',
@@ -590,31 +569,63 @@ export default function TreatmentsPage() {
         )
       }
     },
-    // Notes - hidden on tablet (accessible via edit action)
+    // Notes - shows pending balance badge + notes icon
     {
       key: 'notes',
       label: t('treatments.fields.notes'),
       hideOnTablet: true,
       render: (_value: any, treatment: Treatment) => {
+        const hasPendingBalance = treatment?.pending_balance_cents && treatment.pending_balance_cents > 0
         const hasNotes = treatment?.notes && treatment.notes.trim().length > 0
-        return hasNotes ? (
+
+        // If neither pending balance nor notes, show empty indicator
+        if (!hasPendingBalance && !hasNotes) {
+          return (
+            <div className="flex items-center justify-center">
+              <span className="text-xs text-muted-foreground">—</span>
+            </div>
+          )
+        }
+
+        return (
           <Popover>
             <PopoverTrigger asChild>
-              <button className="inline-flex items-center justify-center p-2 rounded-md hover:bg-muted transition-colors">
-                <StickyNote className="h-4 w-4 text-primary" />
+              <button className="inline-flex items-center gap-1.5 p-1.5 rounded-md hover:bg-muted transition-colors">
+                {hasPendingBalance && (
+                  <Badge variant="warning" className="gap-1 text-xs">
+                    <Wallet className="h-3 w-3" />
+                    {formatCurrency(treatment.pending_balance_cents)}
+                  </Badge>
+                )}
+                {hasNotes && (
+                  <StickyNote className="h-4 w-4 text-muted-foreground" />
+                )}
               </button>
             </PopoverTrigger>
             <PopoverContent className="w-80" side="bottom" collisionPadding={16} avoidCollisions={true}>
-              <div className="space-y-2">
-                <h4 className="font-medium text-sm">{t('treatments.fields.notes')}</h4>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{treatment.notes}</p>
+              <div className="space-y-3">
+                {hasPendingBalance && (
+                  <div className="flex items-center gap-2 p-2 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                    <Wallet className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                        {t('treatments.pendingBalance.label')}
+                      </p>
+                      <p className="text-lg font-bold text-amber-700 dark:text-amber-300">
+                        {formatCurrency(treatment.pending_balance_cents)}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {hasNotes && (
+                  <div>
+                    <h4 className="font-medium text-sm mb-1">{t('treatments.fields.notes')}</h4>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{treatment.notes}</p>
+                  </div>
+                )}
               </div>
             </PopoverContent>
           </Popover>
-        ) : (
-          <div className="flex items-center justify-center">
-            <span className="text-xs text-muted-foreground">—</span>
-          </div>
         )
       }
     },
@@ -670,11 +681,13 @@ export default function TreatmentsPage() {
                   sale_price: actualPricePesos,
                   status: treatment?.status || 'pending',
                   notes: treatment?.notes || '',
+                  // Convert cents to pesos for form display (explicit pending balance)
+                  pending_balance: Math.round((treatment?.pending_balance_cents || 0) / 100),
                 })
                 setEditTreatment(treatment)
               }, tCommon('edit')),
-              // Only show payment action for completed treatments with pending balance
-              ...(treatment?.status === 'completed' && !treatment?.is_paid
+              // Only show payment action for treatments with explicit pending balance
+              ...(treatment?.pending_balance_cents && treatment.pending_balance_cents > 0
                 ? [{
                     icon: <CreditCard className="h-4 w-4" />,
                     label: t('treatments.payment.registerPayment'),

@@ -32,6 +32,7 @@ const treatmentSchema = z.object({
   margin_pct: z.coerce.number().min(0).optional(), // No upper limit - in-house services can have very high margins
   price_cents: z.coerce.number().int().nonnegative().optional(),
   amount_paid_cents: z.coerce.number().int().nonnegative().optional(), // Partial payments
+  pending_balance_cents: z.coerce.number().int().nonnegative().nullable().optional(), // Explicit pending balance (user-marked)
   status: z.enum(['pending', 'completed', 'cancelled', 'scheduled', 'in_progress']).optional(),
   notes: z.string().optional(),
   snapshot_costs: z.record(z.any()).optional(),
@@ -64,9 +65,9 @@ export async function GET(request: NextRequest) {
       query = query.eq('patient_id', patientId);
     }
 
-    // Filter treatments with pending balance (completed but not fully paid)
+    // Filter treatments with explicit pending balance (user-marked)
     if (hasBalance) {
-      query = query.eq('status', 'completed').eq('is_paid', false);
+      query = query.gt('pending_balance_cents', 0);
     }
 
     const { data, error } = await query;
