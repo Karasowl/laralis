@@ -6,30 +6,41 @@ import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
 
+// Helper to transform empty strings to undefined
+const emptyToUndefined = z.string().transform(val => val === '' ? undefined : val)
+const optionalString = emptyToUndefined.optional()
+
 const prescriptionItemSchema = z.object({
   medication_id: z.string().uuid().optional().nullable(),
   medication_name: z.string().min(1).max(255),
-  medication_strength: z.string().max(100).optional().nullable(),
-  medication_form: z.string().max(100).optional().nullable(),
+  medication_strength: optionalString,
+  medication_form: optionalString,
   dosage: z.string().min(1).max(100),
   frequency: z.string().min(1).max(100),
-  duration: z.string().max(100).optional().nullable(),
-  quantity: z.string().max(100).optional().nullable(),
-  instructions: z.string().optional().nullable(),
+  duration: optionalString,
+  quantity: optionalString,
+  instructions: optionalString,
   sort_order: z.number().int().default(0),
+})
+
+const dateRegex = /^\d{4}-\d{2}-\d{2}$/
+const optionalDateString = z.string().optional().transform(val => {
+  if (!val || val === '') return undefined
+  if (!dateRegex.test(val)) return undefined
+  return val
 })
 
 const prescriptionSchema = z.object({
   patient_id: z.string().uuid(),
   treatment_id: z.string().uuid().optional().nullable(),
-  prescription_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  prescription_date: z.string().regex(dateRegex, 'Invalid date format'),
   prescriber_name: z.string().min(1).max(255),
-  prescriber_license: z.string().max(100).optional().nullable(),
-  prescriber_specialty: z.string().max(100).optional().nullable(),
-  diagnosis: z.string().optional().nullable(),
-  valid_until: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
-  notes: z.string().optional().nullable(),
-  pharmacy_notes: z.string().optional().nullable(),
+  prescriber_license: optionalString,
+  prescriber_specialty: optionalString,
+  diagnosis: optionalString,
+  valid_until: optionalDateString,
+  notes: optionalString,
+  pharmacy_notes: optionalString,
   items: z.array(prescriptionItemSchema).min(1, 'At least one medication is required'),
 })
 

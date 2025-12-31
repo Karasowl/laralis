@@ -4321,7 +4321,9 @@
       "search_medication": "Search in formulary"
     },
     "placeholders": {
-      "search_medication": "Search medication by name..."
+      "search_medication": "Search medication by name...",
+      "diagnosis": "Dental infection, cavity, extraction...",
+      "notes": "Additional instructions for the patient"
     },
     "confirm": {
       "cancel_title": "Cancel prescription",

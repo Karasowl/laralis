@@ -4600,7 +4600,9 @@
       "search_medication": "Buscar en vademécum"
     },
     "placeholders": {
-      "search_medication": "Buscar medicamento por nombre..."
+      "search_medication": "Buscar medicamento por nombre...",
+      "diagnosis": "Infección dental, caries, extracción...",
+      "notes": "Indicaciones adicionales para el paciente"
     },
     "confirm": {
       "cancel_title": "Cancelar receta",
