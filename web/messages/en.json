@@ -82,7 +82,8 @@
     "success": "Success",
     "today": "Today",
     "unknown": "Unknown",
-    "noPhone": "No phone"
+    "noPhone": "No phone",
+    "percentage": "Percentage"
   },
   "filters": {
     "title": "Filters",
@@ -94,6 +95,7 @@
     "max": "Maximum",
     "status": "Status",
     "category": "Category",
+    "selectCategories": "Select categories",
     "dateRange": "Date range",
     "priceRange": "Price range",
     "noFiltersApplied": "No filters applied",
@@ -148,6 +150,7 @@
     "setup": "Initial Setup",
     "finance": "Finance",
     "fixed_costs": "Fixed Costs",
+    "configuration": "Configuration",
     "administration": "Administration",
     "billing": "Billing",
     "help": "Help",
@@ -571,6 +574,11 @@
     "monthly_comparison": "Monthly comparison",
     "services_breakdown": "Services breakdown",
     "by_category": "By category",
+    "metrics": {
+      "revenue": "Revenue",
+      "profit": "Profit",
+      "count": "Count"
+    },
     "recent_activity": "Recent activity",
     "latest_clinic_actions": "Latest clinic actions",
     "profitability": {
@@ -754,7 +762,18 @@
       "cac_improving": "CAC improving",
       "cac_improving_desc": "Your CAC is decreasing. Excellent job optimizing your marketing investment",
       "excellent_cac": "Excellent CAC",
-      "excellent_cac_desc": "Your CAC is significantly below target. Excellent acquisition cost management"
+      "excellent_cac_desc": "Your CAC is significantly below target. Excellent acquisition cost management",
+      "roas": "ROAS",
+      "roas_title": "Return On Ad Spend",
+      "roas_description": "Return per dollar spent",
+      "roas_tooltip": "ROAS (Return On Ad Spend) measures how much revenue you generate for every dollar spent on advertising. A ROAS of 4x means for every $1 spent, you generate $4 in revenue.",
+      "roas_excellent": "Excellent",
+      "roas_good": "Good",
+      "roas_needs_improvement": "Needs improvement",
+      "roas_benchmark": "Dental industry benchmark: ≥4x is excellent, ≥2x is good",
+      "campaign_revenue": "Campaign revenue",
+      "ad_spend": "Ad spend",
+      "ltv_cac_vs_roas": "LTV/CAC measures customer lifetime value vs acquisition cost. ROAS measures the direct and immediate return on advertising."
     },
     "quick_actions": "Quick actions",
     "common_tasks": "Common tasks",
@@ -3635,7 +3654,24 @@
       "breakEvenMarker": "Break-even point",
       "toBreakEven": "To break-even",
       "current": "Current",
-      "toGoal": "To goal"
+      "toGoal": "To goal",
+      "editGoal": {
+        "edit": "Edit goal",
+        "title": "Edit Monthly Goal",
+        "description": "Set your monthly revenue goal. It's recommended to be equal or greater than break-even.",
+        "goalAmount": "Goal amount",
+        "breakEvenReference": "Break-even point",
+        "minimumRequired": "minimum required",
+        "goalBelowBreakEven": "This goal is below your break-even point",
+        "invalidGoal": "Goal must be a valid number",
+        "goalSaved": "Goal updated successfully",
+        "goalSaveError": "Error saving goal",
+        "manualGoal": "Manual goal",
+        "calculatedGoal": "Calculated",
+        "cancel": "Cancel",
+        "save": "Save",
+        "saving": "Saving..."
+      }
     },
     "businessMetrics": {
       "avgTicket": "Average Ticket",
@@ -3677,19 +3713,28 @@
       }
     },
     "profitBreakdown": {
-      "title": "Real Profit",
-      "description": "Your real profit after all costs",
+      "title": "Profit Breakdown",
+      "description": "Complete analysis of your profitability",
       "descriptionReal": "Real money in hand (Revenue - Registered Expenses)",
       "revenue": "Treatment Revenue",
       "expenses": "Period Expenses",
       "variableCosts": "Variable Costs (Materials)",
       "fixedCosts": "Fixed Costs (Configured)",
       "depreciation": "Asset Depreciation",
+      "grossProfit": "Gross Profit",
+      "grossProfitSubtitle": "before operating expenses",
+      "grossProfitTooltip": "Revenue minus material costs. Shows your margin before considering fixed and operating expenses.",
       "netProfit": "Net Profit",
+      "netProfitSubtitle": "after registered expenses",
+      "netProfitTooltip": "Revenue minus all expenses you've registered. Represents the actual money left in your pocket.",
+      "theoreticalProfit": "Theoretical Profit",
+      "theoreticalProfitSubtitle": "based on configured costs",
+      "theoreticalProfitTooltip": "What you should earn based on your configured costs (fixed + variable + depreciation). Useful to verify if your prices are correct.",
       "realProfit": "Real Profit",
       "margin": "margin",
-      "spentLess": "You spent {amount} less than expected",
-      "spentMore": "You spent {amount} more than expected",
+      "spentLess": "You spent {amount} LESS than planned",
+      "spentMore": "You spent {amount} MORE than planned",
+      "noExpensesDifference": "Expenses as planned",
       "status": {
         "profitable": "✓ You're generating profits this period",
         "breakEven": "⚠️ You're at break-even point",
@@ -4605,6 +4650,85 @@
     "denied": {
       "title": "Access Denied",
       "description": "You don't have permission to access this feature"
+    }
+  },
+  "helpPage": {
+    "title": "Help Center",
+    "description": "Find answers to your questions and learn how to use Laralis",
+    "quickGuides": "Quick Guides",
+    "faqTitle": "Frequently Asked Questions",
+    "needMoreHelp": "Need more help?",
+    "madeWith": "Made with ❤️ for dentists",
+    "guides": {
+      "gettingStarted": "Getting Started",
+      "managingPatients": "Managing Patients",
+      "financialReports": "Financial Reports",
+      "keyboardShortcuts": "Keyboard Shortcuts"
+    },
+    "faq": {
+      "howToAddPatient": {
+        "question": "How do I add a new patient?",
+        "answer": "Go to the Patients section and click 'Add Patient'. Fill in the required information and save."
+      },
+      "howToCreateTreatment": {
+        "question": "How do I register a treatment?",
+        "answer": "Go to Treatments, click 'New Treatment', select patient, service, date and time, then save."
+      },
+      "whatIsBreakEven": {
+        "question": "What is the Break-Even Point?",
+        "answer": "It's the minimum revenue you need to cover all your fixed and variable costs. It helps you know how many treatments you need to avoid losing money."
+      },
+      "howToTrackExpenses": {
+        "question": "How do I track my expenses?",
+        "answer": "Go to the Expenses section, click 'New Expense', select the category, enter the amount and description."
+      },
+      "howToUseMarketing": {
+        "question": "How do I use the Marketing module?",
+        "answer": "In Marketing you can create advertising campaigns and track which patients came from each campaign. This helps you measure your advertising ROI."
+      }
+    },
+    "contact": {
+      "email": {
+        "title": "Support Email",
+        "description": "Response in 24-48 hours"
+      },
+      "chat": {
+        "title": "Live Chat",
+        "description": "Talk to our team",
+        "comingSoon": "Coming Soon"
+      }
+    }
+  },
+  "billing": {
+    "title": "Billing",
+    "description": "Manage your subscription and payments",
+    "trial": {
+      "title": "Welcome to Laralis!",
+      "subtitle": "You're enjoying full access at no cost",
+      "status": "Free Trial Period",
+      "message": "During our launch period, all features are available at no cost. We'll notify you before this changes.",
+      "includes": "Your account includes:"
+    },
+    "features": {
+      "unlimited": "Unlimited patients and treatments",
+      "secure": "Secure and encrypted data",
+      "support": "Email support included"
+    },
+    "currentPlan": {
+      "title": "Current Plan",
+      "description": "Your subscription details",
+      "planName": "Free Plan",
+      "planDetails": "Full access during launch period",
+      "active": "Active"
+    },
+    "upgrade": {
+      "title": "Payment Plans",
+      "description": "Premium plans coming soon",
+      "button": "View Plans",
+      "comingSoon": "Payment plans will be available soon"
+    },
+    "footer": {
+      "questions": "Questions about billing?"
     }
   }
 }

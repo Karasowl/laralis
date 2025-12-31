@@ -3,11 +3,119 @@
 Este documento contiene conocimiento crítico del sistema que **NO es obvio** a partir de la documentación existente, pero que es esencial para que la IA entienda correctamente la arquitectura y lógica de negocio.
 
 **Fecha de creación**: 2025-11-20
-**Última actualización**: 2025-11-20
+**Última actualización**: 2025-12-31
 
 ---
 
 ## 🔴 Gaps Críticos (P0)
+
+### 0. Sistema de Roles y Permisos Multi-Usuario (NUEVO 2025-12-31)
+
+**Problema**: La app ahora soporta múltiples usuarios con diferentes roles y permisos, pero esto no estaba documentado.
+
+**Arquitectura de Permisos**:
+```
+Workspace (propietario)
+├── workspace_users (rol a nivel workspace)
+│   ├── owner (todo)
+│   ├── super_admin (casi todo)
+│   ├── admin (operaciones, sin finanzas)
+│   ├── editor (crear/editar, sin borrar)
+│   └── viewer (solo lectura)
+│
+└── Clinic (múltiples por workspace)
+    └── clinic_users (rol específico en esa clínica)
+        ├── admin, doctor, assistant, receptionist, viewer
+```
+
+**Flujo de Resolución de Permisos**:
+```typescript
+// Orden de prioridad (de mayor a menor)
+1. ¿Es owner del workspace? → SÍ → Permitir todo
+2. ¿Es super_admin? → SÍ → Permitir casi todo
+3. ¿Tiene override en workspace_users.custom_permissions? → Usar override
+4. ¿Tiene rol en clinic_users? → Usar permisos del rol clínica
+5. Fallback → Usar permisos del rol workspace
+```
+
+**Verificación de Permisos en Código**:
+```typescript
+// Frontend - en componentes
+import { usePermissions } from '@/hooks/use-permissions';
+const { can, canAll, canAny, isSuperUser } = usePermissions();
+
+if (can('patients.delete')) {
+  // Mostrar botón de borrar
+}
+
+// Frontend - rendering condicional
+import { Can, CanNot } from '@/components/auth';
+<Can permission="expenses.view">
+  <ExpensesSection />
+</Can>
+
+// Backend - en APIs (usar supabaseAdmin)
+// Las funciones RPC están disponibles pero se recomienda
+// verificar con resolveClinicContext + filtros explícitos
+```
+
+**Funciones RPC Disponibles**:
+```sql
+-- Verificar un permiso específico
+SELECT check_user_permission(
+  'user-uuid',
+  'clinic-uuid',
+  'patients',
+  'delete'
+); -- returns BOOLEAN
+
+-- Wrapper con auth.uid() automático
+SELECT has_permission('clinic-uuid', 'patients', 'delete');
+
+-- Obtener todos los permisos de un usuario
+SELECT get_user_permissions('user-uuid', 'clinic-uuid');
+-- returns JSONB: {"patients.view": true, "expenses.view": false, ...}
+
+-- Verificar si es miembro de clínica
+SELECT is_clinic_member('clinic-uuid');
+SELECT is_clinic_admin('clinic-uuid');
+```
+
+**Sistema de Invitaciones**:
+```typescript
+// Crear invitación
+POST /api/invitations
+{
+  email: "user@example.com",
+  role: "doctor", // o workspace role
+  clinic_ids: ["uuid"], // opcional
+  message: "Bienvenido al equipo"
+}
+
+// Token generado: 64 chars, expira en 7 días
+// Link: /invite/[token]
+
+// Flujo de aceptación:
+// 1. Usuario visita /invite/[token]
+// 2. Si no tiene cuenta → Signup → Aceptar
+// 3. Si tiene cuenta → Login → Aceptar
+// 4. Se crean workspace_users y/o clinic_users
+```
+
+**Ubicación de Archivos Críticos**:
+- Hooks: `web/hooks/use-permissions.ts`, `use-workspace-members.ts`, `use-clinic-members.ts`
+- Componentes: `web/components/auth/Can.tsx`, `PermissionGate.tsx`
+- APIs: `web/app/api/team/*`, `web/app/api/permissions/*`, `web/app/api/invitations/*`
+- UI: `web/app/settings/team/*`
+- Migraciones: `70_granular_permissions_system.sql`, `71_seed_role_permissions.sql`, `72_fix_rls_clinic_memberships.sql`
+
+**Por qué es crítico**:
+- Toda la UI debe respetar permisos usando `<Can>` o `usePermissions()`
+- APIs deben verificar permisos antes de operaciones sensibles
+- Los roles determinan qué puede ver/hacer cada usuario
+- El sistema es compatible hacia atrás (usuarios existentes = owner)
+
+---
 
 ### 1. Multi-Tenancy: Resolución de Contexto de Clínica
 

@@ -82,7 +82,8 @@
     "total": "Total",
     "today": "Hoy",
     "unknown": "Desconocido",
-    "noPhone": "Sin telefono"
+    "noPhone": "Sin telefono",
+    "percentage": "Porcentaje"
   },
   "filters": {
     "title": "Filtros",
@@ -94,6 +95,7 @@
     "max": "Máximo",
     "status": "Estado",
     "category": "Categoría",
+    "selectCategories": "Seleccionar categorías",
     "dateRange": "Rango de fechas",
     "priceRange": "Rango de precio",
     "noFiltersApplied": "Sin filtros aplicados",
@@ -148,6 +150,7 @@
     "setup": "Configuración inicial",
     "finance": "Finanzas",
     "fixed_costs": "Costos Fijos",
+    "configuration": "Configuración",
     "administration": "Administración",
     "billing": "Facturación",
     "help": "Ayuda",
@@ -697,6 +700,11 @@
     "monthly_comparison": "Comparación mensual",
     "services_breakdown": "Desglose de servicios",
     "by_category": "Por categoría",
+    "metrics": {
+      "revenue": "Facturación",
+      "profit": "Ganancia",
+      "count": "Cantidad"
+    },
     "recent_activity": "Actividad reciente",
     "latest_clinic_actions": "Últimas acciones de la clínica",
     "ebitda": "EBITDA",
@@ -880,7 +888,18 @@
       "cac_improving": "CAC mejorando",
       "cac_improving_desc": "Tu CAC está bajando. Excelente trabajo optimizando tu inversión en marketing",
       "excellent_cac": "CAC excelente",
-      "excellent_cac_desc": "Tu CAC está significativamente bajo el objetivo. Excelente gestión de costos de adquisición"
+      "excellent_cac_desc": "Tu CAC está significativamente bajo el objetivo. Excelente gestión de costos de adquisición",
+      "roas": "ROAS",
+      "roas_title": "Retorno de Inversión Publicitaria",
+      "roas_description": "Retorno por peso invertido",
+      "roas_tooltip": "ROAS (Return On Ad Spend) mide cuántos pesos generas por cada peso invertido en publicidad. Un ROAS de 4x significa que por cada $1 invertido, generas $4 en ingresos.",
+      "roas_excellent": "Excelente",
+      "roas_good": "Bueno",
+      "roas_needs_improvement": "Por mejorar",
+      "roas_benchmark": "Benchmark industria dental: ≥4x es excelente, ≥2x es bueno",
+      "campaign_revenue": "Ingresos de campañas",
+      "ad_spend": "Gasto en publicidad",
+      "ltv_cac_vs_roas": "LTV/CAC mide el valor de por vida del cliente vs costo de adquisición. ROAS mide el retorno directo e inmediato de la publicidad."
     },
     "quick_actions": "Acciones rápidas",
     "common_tasks": "Tareas comunes",
@@ -3911,7 +3930,24 @@
       "breakEvenMarker": "Punto de equilibrio",
       "toBreakEven": "Para equilibrio",
       "current": "Actual",
-      "toGoal": "Para meta"
+      "toGoal": "Para meta",
+      "editGoal": {
+        "edit": "Editar meta",
+        "title": "Editar Meta Mensual",
+        "description": "Establece tu meta de ingresos mensual. Se recomienda que sea igual o mayor al punto de equilibrio.",
+        "goalAmount": "Monto de la meta",
+        "breakEvenReference": "Punto de equilibrio",
+        "minimumRequired": "mínimo requerido",
+        "goalBelowBreakEven": "Esta meta es menor que tu punto de equilibrio",
+        "invalidGoal": "La meta debe ser un número válido",
+        "goalSaved": "Meta actualizada correctamente",
+        "goalSaveError": "Error al guardar la meta",
+        "manualGoal": "Meta manual",
+        "calculatedGoal": "Calculada",
+        "cancel": "Cancelar",
+        "save": "Guardar",
+        "saving": "Guardando..."
+      }
     },
     "businessMetrics": {
       "avgTicket": "Ticket Promedio",
@@ -3953,19 +3989,28 @@
       }
     },
     "profitBreakdown": {
-      "title": "Ganancia Real",
-      "description": "Tu ganancia real después de todos los costos",
+      "title": "Desglose de Ganancias",
+      "description": "Análisis completo de tu rentabilidad",
       "descriptionReal": "Dinero real en tu mano (Ingresos - Gastos Registrados)",
       "revenue": "Ingresos por Tratamientos",
       "expenses": "Gastos del Período",
       "variableCosts": "Costos Variables (Materiales)",
       "fixedCosts": "Costos Fijos (Configurados)",
       "depreciation": "Depreciación de Activos",
-      "netProfit": "Ganancia Neta",
+      "grossProfit": "Utilidad Bruta",
+      "grossProfitSubtitle": "antes de gastos operativos",
+      "grossProfitTooltip": "Ingresos menos costos de materiales. Muestra tu margen antes de considerar gastos fijos y operativos.",
+      "netProfit": "Utilidad Neta",
+      "netProfitSubtitle": "después de gastos registrados",
+      "netProfitTooltip": "Ingresos menos todos los gastos que has registrado. Representa el dinero real que queda en tu bolsillo.",
+      "theoreticalProfit": "Utilidad Teórica",
+      "theoreticalProfitSubtitle": "según costos configurados",
+      "theoreticalProfitTooltip": "Lo que deberías ganar basado en tus costos configurados (fijos + variables + depreciación). Útil para verificar si tus precios son correctos.",
       "realProfit": "Ganancia Real",
       "margin": "margen",
-      "spentLess": "Gastaste {amount} menos de lo esperado",
-      "spentMore": "Gastaste {amount} más de lo esperado",
+      "spentLess": "Gastaste {amount} MENOS de lo planeado",
+      "spentMore": "Gastaste {amount} MÁS de lo planeado",
+      "noExpensesDifference": "Gastos según lo planeado",
       "status": {
         "profitable": "✓ Estás generando ganancias este período",
         "breakEven": "⚠️ Estás en punto de equilibrio",
@@ -4884,6 +4929,85 @@
     "denied": {
       "title": "Acceso Denegado",
       "description": "No tienes permiso para acceder a esta función"
+    }
+  },
+  "helpPage": {
+    "title": "Centro de Ayuda",
+    "description": "Encuentra respuestas a tus preguntas y aprende a usar Laralis",
+    "quickGuides": "Guías Rápidas",
+    "faqTitle": "Preguntas Frecuentes",
+    "needMoreHelp": "¿Necesitas más ayuda?",
+    "madeWith": "Hecho con ❤️ para dentistas",
+    "guides": {
+      "gettingStarted": "Primeros Pasos",
+      "managingPatients": "Gestión de Pacientes",
+      "financialReports": "Reportes Financieros",
+      "keyboardShortcuts": "Atajos de Teclado"
+    },
+    "faq": {
+      "howToAddPatient": {
+        "question": "¿Cómo agrego un nuevo paciente?",
+        "answer": "Ve a la sección Pacientes y haz clic en el botón 'Agregar Paciente'. Completa la información requerida y guarda."
+      },
+      "howToCreateTreatment": {
+        "question": "¿Cómo registro un tratamiento?",
+        "answer": "Ve a Tratamientos, haz clic en 'Nuevo Tratamiento', selecciona el paciente, servicio, fecha y hora, luego guarda."
+      },
+      "whatIsBreakEven": {
+        "question": "¿Qué es el Punto de Equilibrio?",
+        "answer": "Es el monto mínimo de ingresos que necesitas para cubrir todos tus costos fijos y variables. Te ayuda a saber cuántos tratamientos necesitas hacer para no perder dinero."
+      },
+      "howToTrackExpenses": {
+        "question": "¿Cómo registro mis gastos?",
+        "answer": "Ve a la sección Gastos, haz clic en 'Nuevo Gasto', selecciona la categoría, ingresa el monto y descripción."
+      },
+      "howToUseMarketing": {
+        "question": "¿Cómo uso el módulo de Marketing?",
+        "answer": "En Marketing puedes crear campañas publicitarias y rastrear qué pacientes llegaron por cada campaña. Esto te ayuda a medir el ROI de tu publicidad."
+      }
+    },
+    "contact": {
+      "email": {
+        "title": "Email de Soporte",
+        "description": "Respuesta en 24-48 horas"
+      },
+      "chat": {
+        "title": "Chat en Vivo",
+        "description": "Habla con nuestro equipo",
+        "comingSoon": "Próximamente"
+      }
+    }
+  },
+  "billing": {
+    "title": "Facturación",
+    "description": "Gestiona tu suscripción y pagos",
+    "trial": {
+      "title": "¡Bienvenido a Laralis!",
+      "subtitle": "Estás disfrutando de acceso completo sin costo",
+      "status": "Período de Prueba Gratuito",
+      "message": "Durante el período de lanzamiento, todas las funciones están disponibles sin costo. Te avisaremos antes de que esto cambie.",
+      "includes": "Tu cuenta incluye:"
+    },
+    "features": {
+      "unlimited": "Pacientes y tratamientos ilimitados",
+      "secure": "Datos seguros y encriptados",
+      "support": "Soporte por email incluido"
+    },
+    "currentPlan": {
+      "title": "Plan Actual",
+      "description": "Detalles de tu suscripción",
+      "planName": "Plan Gratuito",
+      "planDetails": "Acceso completo durante período de lanzamiento",
+      "active": "Activo"
+    },
+    "upgrade": {
+      "title": "Planes de Pago",
+      "description": "Próximamente tendremos opciones de planes premium",
+      "button": "Ver Planes",
+      "comingSoon": "Los planes de pago estarán disponibles próximamente"
+    },
+    "footer": {
+      "questions": "¿Tienes preguntas sobre facturación?"
     }
   }
 }

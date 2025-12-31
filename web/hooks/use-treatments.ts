@@ -223,9 +223,15 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
     }
 
     // Convert pending_balance from pesos to cents (explicit pending balance)
+    // If pending_balance is set, calculate amount_paid automatically
     const pendingBalanceCents = data.pending_balance
       ? Math.round(data.pending_balance * 100)
-      : null
+      : 0
+
+    // Auto-calculate amount_paid_cents from price - pending_balance
+    const amountPaidCents = pendingBalanceCents > 0
+      ? Math.max(0, price - pendingBalanceCents)
+      : price // If no pending balance, assume fully paid
 
     const treatmentData = {
       ...data,
@@ -235,6 +241,7 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
       tariff_version: 1,
       snapshot_costs: snapshot,
       pending_balance_cents: pendingBalanceCents,
+      amount_paid_cents: amountPaidCents,
     }
     // Remove pending_balance from data (we use pending_balance_cents)
     delete (treatmentData as any).pending_balance
@@ -318,8 +325,13 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
     // If data.pending_balance is undefined, preserve existing value
     // If data.pending_balance is 0 or explicitly set, convert and use it
     const pendingBalanceCents = data.pending_balance !== undefined
-      ? (data.pending_balance > 0 ? Math.round(data.pending_balance * 100) : null)
-      : existingTreatment.pending_balance_cents
+      ? Math.round(data.pending_balance * 100)
+      : (existingTreatment.pending_balance_cents ?? 0)
+
+    // Auto-calculate amount_paid_cents from price - pending_balance
+    const amountPaidCents = pendingBalanceCents > 0
+      ? Math.max(0, price - pendingBalanceCents)
+      : price // If no pending balance, assume fully paid
 
     const treatmentData = {
       ...data,
@@ -336,6 +348,7 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
         tariff_version: existingTreatment.tariff_version || 1
       },
       pending_balance_cents: pendingBalanceCents,
+      amount_paid_cents: amountPaidCents,
     }
     // Remove pending_balance from data (we use pending_balance_cents)
     delete (treatmentData as any).pending_balance

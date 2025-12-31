@@ -1,20 +1,32 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Target, Calendar, TrendingUp, Lightbulb, Flame, Trophy, AlertCircle, ChevronDown, ChevronUp, Info } from 'lucide-react'
+import { Target, Calendar, TrendingUp, Lightbulb, Flame, Trophy, AlertCircle, ChevronDown, ChevronUp, Info, Pencil, AlertTriangle, Loader2 } from 'lucide-react'
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { formatCurrency } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { useTimeSettings } from '@/hooks/use-time-settings'
+import { toast } from 'sonner'
 
 interface BreakEvenProgressProps {
   monthlyTargetCents: number      // Break-even revenue (punto de equilibrio puro)
@@ -44,6 +56,18 @@ export function BreakEvenProgress({
   remainingWorkingDays
 }: BreakEvenProgressProps) {
   const t = useTranslations('dashboardComponents.breakEvenProgress')
+  const { saveSettings, loading: isSavingSettings } = useTimeSettings()
+
+  // State for editing goal
+  const [isEditingGoal, setIsEditingGoal] = useState(false)
+  const [goalInput, setGoalInput] = useState('')
+
+  // Initialize goal input when dialog opens
+  useEffect(() => {
+    if (isEditingGoal && monthlyGoalCents) {
+      setGoalInput((monthlyGoalCents / 100).toString())
+    }
+  }, [isEditingGoal, monthlyGoalCents])
 
   // Calculate effective target: The GREATER between break-even and configured goal
   const effectiveTargetCents = useMemo(() => {
@@ -146,6 +170,26 @@ export function BreakEvenProgress({
   const hasConfiguredGoal = monthlyGoalCents && monthlyGoalCents > monthlyTargetCents
   const breakEvenRevenueGapCents = Math.max(0, monthlyTargetCents - currentRevenueCents)
 
+  // Handler to save goal
+  const handleSaveGoal = async () => {
+    const goalCents = Math.round(Number(goalInput) * 100)
+
+    if (goalCents < 0 || isNaN(goalCents)) {
+      toast.error(t('editGoal.invalidGoal'))
+      return
+    }
+
+    try {
+      const success = await saveSettings({ monthly_goal_cents: goalCents })
+      if (success) {
+        toast.success(t('editGoal.goalSaved'))
+        setIsEditingGoal(false)
+      }
+    } catch (error) {
+      toast.error(t('editGoal.goalSaveError'))
+    }
+  }
+
   return (
     <Card className={cn('border-2 transition-all duration-200 hover:shadow-lg', config.borderColor)}>
       {/* Ultra-compact header */}
@@ -169,7 +213,13 @@ export function BreakEvenProgress({
                     {t(`status.${status}`)}
                   </Badge>
                 </TooltipTrigger>
-                <TooltipContent className="max-w-xs">
+                <TooltipContent
+                  className="max-w-[280px] sm:max-w-xs z-50"
+                  side="bottom"
+                  sideOffset={8}
+                  collisionPadding={16}
+                  avoidCollisions={true}
+                >
                   <p>{t(`status_tooltip.${status}`)}</p>
                 </TooltipContent>
               </Tooltip>
@@ -298,9 +348,23 @@ export function BreakEvenProgress({
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <Target className="h-3.5 w-3.5" />
               {t('toGoal')}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5 ml-auto"
+                onClick={() => setIsEditingGoal(true)}
+                aria-label={t('editGoal.edit')}
+              >
+                <Pencil className="h-3 w-3" />
+              </Button>
             </div>
-            <div className="text-xl font-bold text-foreground">
-              {formatCurrency(effectiveRevenueGapCents)}
+            <div className="flex items-center gap-2">
+              <div className="text-xl font-bold text-foreground">
+                {formatCurrency(effectiveRevenueGapCents)}
+              </div>
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                {hasConfiguredGoal ? t('editGoal.manualGoal') : t('editGoal.calculatedGoal')}
+              </Badge>
             </div>
           </div>
         </div>
@@ -384,6 +448,73 @@ export function BreakEvenProgress({
         )}
       </CardContent>
       )}
+
+      {/* Edit Goal Dialog */}
+      <Dialog open={isEditingGoal} onOpenChange={setIsEditingGoal}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>{t('editGoal.title')}</DialogTitle>
+            <DialogDescription>
+              {t('editGoal.description')}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="goal">{t('editGoal.goalAmount')}</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  $
+                </span>
+                <Input
+                  id="goal"
+                  type="number"
+                  min="0"
+                  step="100"
+                  value={goalInput}
+                  onChange={(e) => setGoalInput(e.target.value)}
+                  className="pl-7"
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+
+            {/* Break-even reference */}
+            <div className="rounded-lg bg-muted/50 p-3 text-sm">
+              <p className="text-muted-foreground">
+                {t('editGoal.breakEvenReference')}:
+              </p>
+              <p className="font-medium">
+                {formatCurrency(monthlyTargetCents)} ({t('editGoal.minimumRequired')})
+              </p>
+            </div>
+
+            {/* Warning if goal is below break-even */}
+            {Number(goalInput) * 100 < monthlyTargetCents && Number(goalInput) > 0 && (
+              <div className="flex items-center gap-2 text-amber-600 text-sm">
+                <AlertTriangle className="h-4 w-4" />
+                <span>{t('editGoal.goalBelowBreakEven')}</span>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditingGoal(false)}>
+              {t('editGoal.cancel')}
+            </Button>
+            <Button onClick={handleSaveGoal} disabled={isSavingSettings}>
+              {isSavingSettings ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  {t('editGoal.saving')}
+                </>
+              ) : (
+                t('editGoal.save')
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }

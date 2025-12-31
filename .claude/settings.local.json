@@ -90,7 +90,8 @@
       "Bash(dashboard)",
       "Bash(npm run lint:*)",
       "Bash(powershell:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(timeout 60 npm run build:*)"
     ],
     "deny": []
   }

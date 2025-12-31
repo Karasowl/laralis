@@ -31,7 +31,13 @@ export function MetricTooltip({ data, children }: MetricTooltipProps) {
             <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors" />
           </span>
         </TooltipTrigger>
-        <TooltipContent className="max-w-xs p-3" side="top">
+        <TooltipContent
+          className="max-w-[280px] sm:max-w-xs p-3 z-50"
+          side="bottom"
+          sideOffset={8}
+          collisionPadding={16}
+          avoidCollisions={true}
+        >
           <div className="space-y-2">
             <p className="font-mono text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded inline-block">
               {data.formula}

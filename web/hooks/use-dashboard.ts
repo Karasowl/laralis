@@ -48,12 +48,44 @@ interface UseDashboardOptions {
   from?: string
   to?: string
   chartGranularity?: 'day' | 'week' | 'biweek' | 'month'
+  // Comparison period support
+  previousFrom?: string
+  previousTo?: string
+  comparisonEnabled?: boolean
+}
+
+export interface ComparisonData {
+  revenue: {
+    current: number
+    previous: number
+    change: number | null
+    trend: 'up' | 'down' | null
+  }
+  expenses: {
+    current: number
+    previous: number
+    change: number | null
+    trend: 'up' | 'down' | null
+  }
+  treatments: {
+    current: number
+    previous: number
+    change: number | null
+    trend: 'up' | 'down' | null
+  }
+  patients: {
+    current: number
+    previous: number
+    change: number | null
+    trend: 'up' | 'down' | null
+  }
 }
 
 interface DashboardState {
   metrics: DashboardMetrics
   charts: ChartData
   activities: ActivityItem[]
+  comparison: ComparisonData | null
   loading: boolean
   error: string | null
 }
@@ -172,8 +204,17 @@ export class DashboardAggregator {
 
 // Main hook following Dependency Inversion
 export function useDashboard(options: UseDashboardOptions = {}): DashboardState {
-  const { clinicId, period = 'month', from, to, chartGranularity = 'month' } = options
-  
+  const {
+    clinicId,
+    period = 'month',
+    from,
+    to,
+    chartGranularity = 'month',
+    previousFrom,
+    previousTo,
+    comparisonEnabled = false
+  } = options
+
   const [state, setState] = useState<DashboardState>({
     metrics: {
       revenue: { current: 0, previous: 0, change: 0 },
@@ -189,6 +230,7 @@ export function useDashboard(options: UseDashboardOptions = {}): DashboardState 
       services: []
     },
     activities: [],
+    comparison: null,
     loading: true,
     error: null
   })
@@ -209,7 +251,9 @@ export function useDashboard(options: UseDashboardOptions = {}): DashboardState 
       // Fetch all dashboard data in parallel
       // ALWAYS pass date range when available to ensure consistent filtering across all metrics
       const range = from && to ? `&date_from=${from}&date_to=${to}` : ''
-      const results = await fetchAll([
+      const previousRange = previousFrom && previousTo ? `&date_from=${previousFrom}&date_to=${previousTo}` : ''
+
+      const baseEndpoints = [
         { endpoint: `/api/dashboard/revenue?clinicId=${clinicId}&period=${period}${range}` },
         { endpoint: `/api/dashboard/expenses?clinicId=${clinicId}&period=${period}${range}` },
         { endpoint: `/api/dashboard/patients?clinicId=${clinicId}&period=${period}${range}` },
@@ -220,7 +264,17 @@ export function useDashboard(options: UseDashboardOptions = {}): DashboardState 
         { endpoint: `/api/dashboard/charts/categories?clinicId=${clinicId}&period=${period}${range}` },
         { endpoint: `/api/dashboard/charts/services?clinicId=${clinicId}` },
         { endpoint: `/api/dashboard/activities?clinicId=${clinicId}&limit=10` }
-      ])
+      ]
+
+      // Add comparison endpoints if enabled
+      const comparisonEndpoints = comparisonEnabled && previousFrom && previousTo ? [
+        { endpoint: `/api/dashboard/revenue?clinicId=${clinicId}&period=${period}${previousRange}` },
+        { endpoint: `/api/dashboard/expenses?clinicId=${clinicId}&period=${period}${previousRange}` },
+        { endpoint: `/api/dashboard/treatments?clinicId=${clinicId}&period=${period}${previousRange}` },
+        { endpoint: `/api/dashboard/patients?clinicId=${clinicId}&period=${period}${previousRange}` }
+      ] : []
+
+      const results = await fetchAll([...baseEndpoints, ...comparisonEndpoints])
 
       // Process metrics
       const metricsData = results.slice(0, 6)
@@ -347,10 +401,66 @@ export function useDashboard(options: UseDashboardOptions = {}): DashboardState 
       // Process activities
       const activities = DashboardAggregator.processActivities(results[9]?.data || results[9])
 
+      // Process comparison data if enabled
+      let comparison: ComparisonData | null = null
+      if (comparisonEnabled && comparisonEndpoints.length > 0) {
+        const comparisonResults = results.slice(10) // Comparison results start at index 10
+
+        // Extract previous period data
+        const prevRevenue = comparisonResults[0]?.total || comparisonResults[0]?.total_cents || 0
+        const prevExpenses = comparisonResults[1]?.total || comparisonResults[1]?.total_cents || 0
+        const prevTreatments = comparisonResults[2]?.total || 0
+        const prevPatients = comparisonResults[3]?.total || 0
+
+        // Calculate changes and trends
+        const calculateChangeAndTrend = (current: number, previous: number) => {
+          if (previous === 0) {
+            return {
+              change: current > 0 ? 100 : null,
+              trend: current > 0 ? 'up' as const : null
+            }
+          }
+          const change = ((current - previous) / previous) * 100
+          return {
+            change: Math.round(change * 10) / 10, // Round to 1 decimal
+            trend: change >= 0 ? 'up' as const : 'down' as const
+          }
+        }
+
+        const revenueComparison = calculateChangeAndTrend(metrics.revenue.current, prevRevenue)
+        const expensesComparison = calculateChangeAndTrend(metrics.expenses.current, prevExpenses)
+        const treatmentsComparison = calculateChangeAndTrend(metrics.treatments.total, prevTreatments)
+        const patientsComparison = calculateChangeAndTrend(metrics.patients.new, prevPatients)
+
+        comparison = {
+          revenue: {
+            current: metrics.revenue.current,
+            previous: prevRevenue,
+            ...revenueComparison
+          },
+          expenses: {
+            current: metrics.expenses.current,
+            previous: prevExpenses,
+            ...expensesComparison
+          },
+          treatments: {
+            current: metrics.treatments.total,
+            previous: prevTreatments,
+            ...treatmentsComparison
+          },
+          patients: {
+            current: metrics.patients.new,
+            previous: prevPatients,
+            ...patientsComparison
+          }
+        }
+      }
+
       setState({
         metrics,
         charts,
         activities,
+        comparison,
         loading: false,
         error: null
       })
@@ -360,7 +470,7 @@ export function useDashboard(options: UseDashboardOptions = {}): DashboardState 
       setState(prev => ({ ...prev, error: errorMsg, loading: false }))
       console.error('Dashboard error:', err)
     }
-  }, [clinicId, period, from, to, chartGranularity, fetchAll])
+  }, [clinicId, period, from, to, chartGranularity, previousFrom, previousTo, comparisonEnabled, fetchAll])
 
   // Run once on mount and whenever clinicId changes.
   // Also set up auto-refresh only when a clinic is selected.

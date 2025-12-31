@@ -10,15 +10,24 @@
 ALTER TABLE treatments
 ADD COLUMN IF NOT EXISTS amount_paid_cents bigint NOT NULL DEFAULT 0;
 
+-- Add pending_balance_cents for explicit balance tracking (user-marked)
+-- This is the primary field used by the UI for filtering and display
+ALTER TABLE treatments
+ADD COLUMN IF NOT EXISTS pending_balance_cents bigint NOT NULL DEFAULT 0;
+
 -- Add is_paid as a computed column (true when fully paid or cancelled)
 -- Note: We can't use GENERATED ALWAYS AS in Supabase, so we use a trigger instead
 ALTER TABLE treatments
 ADD COLUMN IF NOT EXISTS is_paid boolean NOT NULL DEFAULT false;
 
--- Create function to auto-calculate is_paid
-CREATE OR REPLACE FUNCTION calculate_treatment_is_paid()
+-- Create function to auto-calculate is_paid and pending_balance_cents
+CREATE OR REPLACE FUNCTION calculate_treatment_payment_status()
 RETURNS TRIGGER AS $$
 BEGIN
+  -- Calculate pending balance
+  -- pending_balance = price - amount_paid (but never negative)
+  NEW.pending_balance_cents := GREATEST(0, NEW.price_cents - NEW.amount_paid_cents);
+
   -- Treatment is considered paid if:
   -- 1. Status is cancelled (no payment required)
   -- 2. Amount paid >= price (fully paid)
@@ -30,12 +39,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create trigger to auto-calculate is_paid on insert/update
+-- Create trigger to auto-calculate payment status on insert/update
 DROP TRIGGER IF EXISTS trigger_calculate_treatment_is_paid ON treatments;
-CREATE TRIGGER trigger_calculate_treatment_is_paid
+DROP TRIGGER IF EXISTS trigger_calculate_treatment_payment_status ON treatments;
+CREATE TRIGGER trigger_calculate_treatment_payment_status
 BEFORE INSERT OR UPDATE ON treatments
 FOR EACH ROW
-EXECUTE FUNCTION calculate_treatment_is_paid();
+EXECUTE FUNCTION calculate_treatment_payment_status();
 
 -- Update existing treatments: set is_paid = true for completed treatments
 -- (assuming legacy treatments without amount_paid were fully paid)
@@ -53,6 +63,7 @@ CREATE INDEX IF NOT EXISTS idx_treatments_is_paid
 ON treatments(clinic_id, is_paid);
 
 COMMENT ON COLUMN treatments.amount_paid_cents IS 'Total amount paid by patient in cents. Use for partial payments tracking.';
+COMMENT ON COLUMN treatments.pending_balance_cents IS 'Auto-calculated: remaining balance (price - amount_paid). Used for filtering treatments with pending payments.';
 COMMENT ON COLUMN treatments.is_paid IS 'Auto-calculated: true when fully paid (amount_paid >= price) or cancelled';
 
 -- =====================================================
@@ -95,6 +106,13 @@ BEGIN
     WHERE table_name = 'treatments' AND column_name = 'amount_paid_cents'
   ) THEN
     RAISE EXCEPTION 'Migration failed: amount_paid_cents column not found';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'treatments' AND column_name = 'pending_balance_cents'
+  ) THEN
+    RAISE EXCEPTION 'Migration failed: pending_balance_cents column not found';
   END IF;
 
   IF NOT EXISTS (
