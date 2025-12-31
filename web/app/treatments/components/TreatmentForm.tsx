@@ -3,9 +3,11 @@
 import React, { useCallback, useState, useEffect, useRef } from 'react'
 import { InputField, SelectField, TextareaField, FormGrid, FormSection } from '@/components/ui/form-field'
 import { SelectWithCreate } from '@/components/ui/select-with-create'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
 import { useWatch } from 'react-hook-form'
 import { calculateRequiredMargin, calcularPrecioFinal } from '@/lib/calc/tarifa'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, Wallet } from 'lucide-react'
 
 // Helper to check if a date is in the future (for appointment vs treatment distinction)
 function isFutureDate(dateStr: string): boolean {
@@ -73,6 +75,16 @@ export function TreatmentForm({
   const treatmentDate = useWatch({ control: form.control, name: 'treatment_date' })
   const treatmentTime = useWatch({ control: form.control, name: 'treatment_time' })
   const minutes = useWatch({ control: form.control, name: 'minutes' })
+
+  // Watch pending balance for explicit pending balance section
+  const pendingBalance = useWatch({ control: form.control, name: 'pending_balance' })
+  const [hasPendingBalance, setHasPendingBalance] = useState(false)
+
+  // Sync checkbox state with form value
+  useEffect(() => {
+    const balance = pendingBalance ?? 0
+    setHasPendingBalance(balance > 0)
+  }, [pendingBalance])
 
   // Check conflicts when date/time/duration changes (debounced)
   useEffect(() => {
@@ -156,6 +168,21 @@ export function TreatmentForm({
 
   const handleNotesChange = useCallback((value: string | number) => {
     form.setValue('notes', value)
+  }, [form])
+
+  // Handle pending balance checkbox change
+  const handlePendingBalanceToggle = useCallback((checked: boolean) => {
+    setHasPendingBalance(checked)
+    if (!checked) {
+      // Clear the pending balance when unchecked
+      form.setValue('pending_balance', 0)
+    }
+  }, [form])
+
+  // Handle pending balance amount change
+  const handlePendingBalanceChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value) || 0
+    form.setValue('pending_balance', value)
   }, [form])
 
   // Sync handlers for margin_pct <-> sale_price
@@ -388,6 +415,53 @@ export function TreatmentForm({
             required
           />
         </FormGrid>
+      </FormSection>
+
+      {/* Pending Balance Section - Explicit user-marked pending payments */}
+      <FormSection title={t('treatments.pendingBalance.title')}>
+        <div className="space-y-4">
+          <div className="flex items-center space-x-3">
+            <Checkbox
+              id="has-pending-balance"
+              checked={hasPendingBalance}
+              onCheckedChange={(checked) => handlePendingBalanceToggle(Boolean(checked))}
+            />
+            <Label
+              htmlFor="has-pending-balance"
+              className="text-sm font-medium leading-none cursor-pointer"
+            >
+              {t('treatments.pendingBalance.hasPending')}
+            </Label>
+          </div>
+
+          {hasPendingBalance && (
+            <div className="pl-6 pt-2">
+              <div className="flex items-center gap-2 p-3 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/20">
+                <Wallet className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                <div className="flex-1">
+                  <label className="text-sm font-medium text-amber-800 dark:text-amber-200 block mb-1">
+                    {t('treatments.pendingBalance.amount')}
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2 text-sm text-muted-foreground">$</span>
+                    <input
+                      type="number"
+                      value={pendingBalance ?? ''}
+                      onChange={handlePendingBalanceChange}
+                      placeholder="0.00"
+                      min={0}
+                      step={0.01}
+                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 pl-7 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    />
+                  </div>
+                  <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                    {t('treatments.pendingBalance.helperText')}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </FormSection>
 
       <FormSection title={t('treatments.additionalInfo')}>

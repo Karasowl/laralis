@@ -9,7 +9,7 @@ import { Patient } from '@/lib/types'
 interface PatientDetailsProps {
   patient: Patient
   t: (key: string) => string
-  stats?: { treatments?: number; spent_cents?: number; visits?: number }
+  stats?: { treatments?: number; spent_cents?: number; visits?: number; balance_cents?: number }
 }
 
 export function PatientDetails({ patient, t, stats }: PatientDetailsProps) {
@@ -27,7 +27,7 @@ export function PatientDetails({ patient, t, stats }: PatientDetailsProps) {
       </div>
 
       {/* Quick stats */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className={`grid gap-4 ${stats?.balance_cents && stats.balance_cents > 0 ? 'grid-cols-3' : 'grid-cols-2'}`}>
         <div className="rounded-md bg-muted/40 p-3 text-center">
           <div className="text-xs text-muted-foreground">{t('treatments.title')}</div>
           <div className="text-lg font-semibold">{stats?.treatments ?? 0}</div>
@@ -36,6 +36,12 @@ export function PatientDetails({ patient, t, stats }: PatientDetailsProps) {
           <div className="text-xs text-muted-foreground">{t('patients.totalSpent')}</div>
           <div className="text-lg font-semibold">{formatCurrency(stats?.spent_cents ?? 0)}</div>
         </div>
+        {stats?.balance_cents && stats.balance_cents > 0 && (
+          <div className="rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-3 text-center">
+            <div className="text-xs text-amber-700 dark:text-amber-300">{t('treatments.pendingBalance.label')}</div>
+            <div className="text-lg font-semibold text-amber-700 dark:text-amber-300">{formatCurrency(stats.balance_cents)}</div>
+          </div>
+        )}
       </div>
 
       {/* Actions */}

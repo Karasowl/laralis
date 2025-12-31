@@ -90,14 +90,10 @@ export default function PatientsPage() {
       entry.treatments += 1
       if (t.status === 'completed') {
         entry.spent_cents += t.price_cents || 0
-        // Calculate pending balance only if there's a partial payment registered
-        // (if amount_paid_cents = 0, assume fully paid in cash without partial tracking)
-        const amountPaid = t.amount_paid_cents || 0
-        const price = t.price_cents || 0
-        const hasPartialPayment = amountPaid > 0 && amountPaid < price
-        if (hasPartialPayment && !t.is_paid) {
-          entry.balance_cents += (price - amountPaid)
-        }
+      }
+      // Use explicit pending_balance_cents field (user-marked pending balance)
+      if (t.pending_balance_cents && t.pending_balance_cents > 0) {
+        entry.balance_cents += t.pending_balance_cents
       }
       const day = (t.treatment_date || '').slice(0, 10)
       if (day) {

@@ -4,9 +4,42 @@ This file tracks all changes to the database schema across versions.
 
 ---
 
-## Version 4 (2025-12-06)
+## Version 5 (2025-12-31)
 
 **Status:** ✅ Current
+**Migration:** 73 (Explicit Pending Balance)
+**File:** [SCHEMA-v5-2025-12-31.md](schemas/SCHEMA-v5-2025-12-31.md)
+
+### Explicit Pending Balance System
+
+This version adds an explicit user-marked pending balance field to treatments, replacing the automatic calculation based on `is_paid`.
+
+#### Modified Tables
+
+**`treatments`** (Migration 73)
+- Added `pending_balance_cents` (bigint, DEFAULT NULL)
+  - NULL = no pending balance (fully paid)
+  - >0 = explicit pending amount in cents
+- New partial index: `idx_treatments_pending_balance` for optimized filtering
+
+#### Business Logic Changes
+
+- **Before:** `is_paid = false` automatically meant "pending payment"
+- **After:** `pending_balance_cents > 0` explicitly marks pending payments
+- Users now manually mark pending balances when creating/editing treatments
+- "ESTADO DE PAGO" column removed from UI, replaced by badge in notes column
+
+#### UI Changes
+- Removed "Payment Status" column from treatments table
+- Added pending balance badge to Notes column
+- Added "Pending Balance" section to treatment form with checkbox + amount input
+- Updated filters to use `pending_balance_cents > 0`
+
+---
+
+## Version 4 (2025-12-06)
+
+**Status:** Previous
 **Migration:** 50-55 (AI Assistant, Integrations & Refunds)
 **File:** [SCHEMA-v4-2025-12-06.md](schemas/SCHEMA-v4-2025-12-06.md)
 
