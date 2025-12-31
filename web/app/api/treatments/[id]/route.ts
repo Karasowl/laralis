@@ -46,6 +46,7 @@ export async function PUT(
     if (body.variable_cost_cents !== undefined) payload.variable_cost_cents = body.variable_cost_cents;
     if (body.margin_pct !== undefined) payload.margin_pct = body.margin_pct;
     if (body.price_cents !== undefined) payload.price_cents = body.price_cents;
+    if (body.amount_paid_cents !== undefined) payload.amount_paid_cents = body.amount_paid_cents;
     if (body.status !== undefined) payload.status = (body.status === 'pending' ? 'scheduled' : body.status);
     if (body.notes !== undefined) payload.notes = body.notes;
     if (body.snapshot_costs !== undefined) payload.snapshot_costs = body.snapshot_costs;

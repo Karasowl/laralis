@@ -283,6 +283,7 @@ export interface Treatment {
   minutes?: number;
   notes?: string;
   price_cents: number;
+  amount_paid_cents: number;
   is_paid: boolean;
   payment_method?: string;
   payment_date?: string;
@@ -293,60 +294,5 @@ export interface Treatment {
   service?: Service;
 }
 
-// Quote status
-export type QuoteStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired' | 'converted';
-
-// Quote interface
-export interface Quote {
-  id: string;
-  clinic_id: string;
-  patient_id: string;
-  quote_number: string;
-  quote_date: string;
-  validity_days: number;
-  valid_until: string;
-  status: QuoteStatus;
-  subtotal_cents: number;
-  discount_type?: 'none' | 'percentage' | 'fixed';
-  discount_value?: number;
-  discount_cents?: number;
-  tax_rate?: number;
-  tax_cents?: number;
-  total_cents: number;
-  notes?: string;
-  patient_notes?: string;
-  terms_conditions?: string;
-  pdf_generated_at?: string;
-  sent_at?: string;
-  sent_via?: 'email' | 'whatsapp' | 'print';
-  responded_at?: string;
-  response_notes?: string;
-  created_at?: string;
-  updated_at?: string;
-  created_by?: string;
-  // Relations
-  patient?: Patient;
-  items?: QuoteItem[];
-}
-
-// Quote item interface
-export interface QuoteItem {
-  id: string;
-  quote_id: string;
-  service_id?: string | null;
-  service_name: string;
-  service_description?: string;
-  quantity: number;
-  unit_price_cents: number;
-  discount_type?: 'none' | 'percentage' | 'fixed';
-  discount_value?: number;
-  discount_cents?: number;
-  subtotal_cents: number;
-  total_cents: number;
-  tooth_number?: string;
-  notes?: string;
-  sort_order: number;
-  created_at?: string;
-  // Relations
-  service?: Service;
-}
+// NOTE: Quote types removed in migration 71 - quotes module deprecated
+// Partial payments now handled directly in treatments via amount_paid_cents

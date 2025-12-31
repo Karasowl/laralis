@@ -23,6 +23,7 @@ interface SidebarSection {
 
 interface SidebarProps {
   sections: SidebarSection[]
+  footerItems?: SidebarItem[]
   isCollapsed: boolean
   onToggleCollapse: () => void
   className?: string
@@ -30,12 +31,60 @@ interface SidebarProps {
 
 export function Sidebar({ 
   sections, 
+  footerItems,
   isCollapsed, 
   onToggleCollapse,
   className 
 }: SidebarProps) {
   const pathname = usePathname()
   const tRoot = useT()
+
+  const isItemActive = (href: string) => {
+    if (href === '/') return pathname === '/'
+    return pathname === href || pathname.startsWith(`${href}/`)
+  }
+
+  const renderItem = (item: SidebarItem) => {
+    const isActive = isItemActive(item.href)
+    const Icon = item.icon
+
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        className={cn(
+          "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors relative group",
+          isActive 
+            ? "bg-primary text-primary-foreground" 
+            : "hover:bg-muted text-muted-foreground hover:text-foreground",
+          isCollapsed && "justify-center"
+        )}
+      >
+        <Icon className="h-5 w-5 flex-shrink-0" />
+        
+        {!isCollapsed && (
+          <>
+            <span className="flex-1">{item.label}</span>
+            {item.badge && (
+              <span className="ml-auto flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs">
+                {item.badge}
+              </span>
+            )}
+          </>
+        )}
+        
+        {/* Tooltip for collapsed state */}
+        {isCollapsed && (
+          <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground rounded-md opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 shadow-md">
+            {item.label}
+            {item.badge && (
+              <span className="ml-2 text-xs">({item.badge})</span>
+            )}
+          </div>
+        )}
+      </Link>
+    )
+  }
 
   return (
     <aside className={cn(
@@ -72,51 +121,19 @@ export function Sidebar({
                 </h3>
               )}
               
-              {section.items.map((item) => {
-                const isActive = pathname === item.href
-                const Icon = item.icon
-                
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cn(
-                      "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors relative group",
-                      isActive 
-                        ? "bg-primary text-primary-foreground" 
-                        : "hover:bg-muted text-muted-foreground hover:text-foreground",
-                      isCollapsed && "justify-center"
-                    )}
-                  >
-                    <Icon className="h-5 w-5 flex-shrink-0" />
-                    
-                    {!isCollapsed && (
-                      <>
-                        <span className="flex-1">{item.label}</span>
-                        {item.badge && (
-                          <span className="ml-auto flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs">
-                            {item.badge}
-                          </span>
-                        )}
-                      </>
-                    )}
-                    
-                    {/* Tooltip for collapsed state */}
-                    {isCollapsed && (
-                      <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground rounded-md opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 shadow-md">
-                        {item.label}
-                        {item.badge && (
-                          <span className="ml-2 text-xs">({item.badge})</span>
-                        )}
-                      </div>
-                    )}
-                  </Link>
-                )
-              })}
+              {section.items.map(renderItem)}
             </div>
           ))}
         </div>
       </nav>
+
+      {footerItems && footerItems.length > 0 && (
+        <div className="border-t p-3 flex-shrink-0">
+          <div className="space-y-1.5 sm:space-y-1">
+            {footerItems.map(renderItem)}
+          </div>
+        </div>
+      )}
 
       {/* Version Badge - Footer */}
       <div className="mt-auto border-t p-3 flex-shrink-0">

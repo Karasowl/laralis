@@ -9,6 +9,8 @@ export interface MetricCardProps {
   value: string | number
   change?: number
   changeType?: 'increase' | 'decrease' | 'neutral'
+  // When true, a decrease is treated as positive (e.g., lower expenses).
+  lowerIsBetter?: boolean
   icon: LucideIcon
   color?: string
   subtitle?: string
@@ -21,6 +23,7 @@ export function MetricCard({
   value,
   change,
   changeType = 'neutral',
+  lowerIsBetter = false,
   icon: Icon,
   color = 'text-primary',
   subtitle,
@@ -43,9 +46,17 @@ export function MetricCard({
   }
 
   const getChangeColor = () => {
-    if (changeType === 'increase') return 'text-emerald-600 dark:text-emerald-500'
-    if (changeType === 'decrease') return 'text-destructive'
-    return 'text-muted-foreground'
+    if (changeType === 'neutral') return 'text-muted-foreground'
+
+    const positiveColor = 'text-emerald-600 dark:text-emerald-500'
+    const negativeColor = 'text-destructive'
+    const isIncrease = changeType === 'increase'
+
+    if (lowerIsBetter) {
+      return isIncrease ? negativeColor : positiveColor
+    }
+
+    return isIncrease ? positiveColor : negativeColor
   }
 
   const getChangeIcon = () => {
