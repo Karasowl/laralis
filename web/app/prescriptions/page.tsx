@@ -10,7 +10,6 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { FormModal } from '@/components/ui/form-modal'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { usePrescriptions } from '@/hooks/use-prescriptions'
-import { useMedications } from '@/hooks/use-medications'
 import { usePatients } from '@/hooks/use-patients'
 import { useToast } from '@/hooks/use-toast'
 import { PrescriptionForm } from './components/PrescriptionForm'
@@ -62,7 +61,6 @@ export default function PrescriptionsPage() {
   const [prescriptionToCancel, setPrescriptionToCancel] = useState<PrescriptionWithPatient | null>(null)
 
   const { prescriptions, loading, createPrescription, cancelPrescription, downloadPDF, refresh } = usePrescriptions()
-  const { medications } = useMedications()
   const { patients } = usePatients()
 
   const form = useForm<PrescriptionFormData>({
@@ -248,7 +246,6 @@ export default function PrescriptionsPage() {
           <PrescriptionForm
             form={form}
             patients={patientOptions}
-            medications={medications || []}
             t={t}
           />
         </FormModal>
