@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { DataTable } from '@/components/ui/DataTable'
+import { DataTable, Column } from '@/components/ui/DataTable'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -23,7 +23,7 @@ interface PrescriptionTableProps {
   onView: (prescription: PrescriptionWithPatient) => void
   onCancel: (prescription: PrescriptionWithPatient) => void
   onDownloadPDF: (prescription: PrescriptionWithPatient) => void
-  t: (key: string, params?: Record<string, any>) => string
+  t: ReturnType<typeof import('next-intl').useTranslations>
 }
 
 export function PrescriptionTable({
@@ -56,26 +56,26 @@ export function PrescriptionTable({
     })
   }
 
-  const columns = [
+  const columns: Column<PrescriptionWithPatient>[] = [
     {
       key: 'prescription_number',
-      header: t('prescriptions.fields.number'),
+      label: t('prescriptions.fields.number'),
       sortable: true,
-      render: (row: PrescriptionWithPatient) => (
+      render: (_value, row) => (
         <span className="font-mono text-sm">{row.prescription_number}</span>
       ),
     },
     {
       key: 'prescription_date',
-      header: t('prescriptions.fields.date'),
+      label: t('prescriptions.fields.date'),
       sortable: true,
-      render: (row: PrescriptionWithPatient) => formatDate(row.prescription_date),
+      render: (_value, row) => formatDate(row.prescription_date),
     },
     {
-      key: 'patient',
-      header: t('prescriptions.fields.patient'),
+      key: 'patient_id',
+      label: t('prescriptions.fields.patient'),
       sortable: true,
-      render: (row: PrescriptionWithPatient) => (
+      render: (_value, row) => (
         <div>
           <div className="font-medium">
             {row.patient?.first_name} {row.patient?.last_name}
@@ -88,26 +88,26 @@ export function PrescriptionTable({
     },
     {
       key: 'prescriber_name',
-      header: t('prescriptions.fields.prescriber'),
+      label: t('prescriptions.fields.prescriber'),
       sortable: true,
     },
     {
-      key: 'items_count',
-      header: t('prescriptions.fields.medications_count'),
-      render: (row: PrescriptionWithPatient) => (
+      key: 'status',
+      label: t('prescriptions.fields.medications_count'),
+      render: (_value, row) => (
         <Badge variant="outline">{row.items?.length || 0}</Badge>
       ),
     },
     {
       key: 'status',
-      header: t('prescriptions.fields.status'),
+      label: t('prescriptions.fields.status'),
       sortable: true,
-      render: (row: PrescriptionWithPatient) => getStatusBadge(row.status),
+      render: (_value, row) => getStatusBadge(row.status),
     },
     {
-      key: 'actions',
-      header: '',
-      render: (row: PrescriptionWithPatient) => (
+      key: 'id',
+      label: '',
+      render: (_value, row) => (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm">
@@ -143,8 +143,8 @@ export function PrescriptionTable({
       columns={columns}
       data={prescriptions}
       loading={loading}
-      searchable
       searchPlaceholder={t('prescriptions.search_placeholder')}
+      searchKey="prescription_number"
       emptyState={{
         icon: FileText,
         title: t('prescriptions.empty.title'),

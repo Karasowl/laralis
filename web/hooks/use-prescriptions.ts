@@ -133,7 +133,6 @@ export function usePrescriptions(options: UsePrescriptionsOptions = {}) {
   return {
     prescriptions: crud.items,
     loading: crud.loading,
-    error: crud.error,
     fetchPrescriptions,
     createPrescription,
     updatePrescription,

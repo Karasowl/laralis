@@ -1,13 +1,20 @@
 'use client'
 
 import React, { useCallback, useState } from 'react'
-import { UseFormReturn, useFieldArray, useWatch } from 'react-hook-form'
-import { InputField, SelectField, TextareaField, FormGrid, FormSection } from '@/components/ui/form-field'
+import { UseFormReturn, useFieldArray, Controller } from 'react-hook-form'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Plus, Trash2, Search, Pill } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Card, CardContent } from '@/components/ui/card'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Plus, Trash2, Search, Pill } from 'lucide-react'
 import type { Medication } from '@/lib/types'
 
 interface MedicationItemData {
@@ -41,7 +48,7 @@ interface PrescriptionFormProps {
   form: UseFormReturn<PrescriptionFormData>
   patients: Array<{ value: string; label: string }>
   medications: Medication[]
-  t: (key: string, params?: Record<string, any>) => string
+  t: ReturnType<typeof import('next-intl').useTranslations>
   isEditing?: boolean
 }
 
@@ -59,9 +66,6 @@ export function PrescriptionForm({
     control: form.control,
     name: 'items',
   })
-
-  // Watch for patient selection
-  const patientId = useWatch({ control: form.control, name: 'patient_id' })
 
   // Filter medications based on search
   const filteredMedications = medications.filter((med) => {
@@ -107,66 +111,95 @@ export function PrescriptionForm({
     })
   }, [append, fields.length])
 
+  const { errors } = form.formState
+
   return (
     <div className="space-y-6">
       {/* Basic Info */}
-      <FormSection title={t('prescriptions.form.basic_info')}>
-        <FormGrid columns={2}>
-          <SelectField
-            form={form}
-            name="patient_id"
-            label={t('prescriptions.fields.patient')}
-            options={patients}
-            required
-            disabled={isEditing}
-          />
-          <InputField
-            form={form}
-            name="prescription_date"
-            label={t('prescriptions.fields.date')}
-            type="date"
-            required
-          />
-        </FormGrid>
-      </FormSection>
+      <div className="space-y-4">
+        <h3 className="text-sm font-medium text-foreground">{t('prescriptions.form.basic_info')}</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="patient_id">
+              {t('prescriptions.fields.patient')} <span className="text-destructive">*</span>
+            </Label>
+            <Controller
+              name="patient_id"
+              control={form.control}
+              render={({ field }) => (
+                <Select onValueChange={field.onChange} value={field.value} disabled={isEditing}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('common.select')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {patients.map((patient) => (
+                      <SelectItem key={patient.value} value={patient.value}>
+                        {patient.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {errors.patient_id && (
+              <p className="text-sm text-destructive">{errors.patient_id.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="prescription_date">
+              {t('prescriptions.fields.date')} <span className="text-destructive">*</span>
+            </Label>
+            <Input type="date" {...form.register('prescription_date')} />
+            {errors.prescription_date && (
+              <p className="text-sm text-destructive">{errors.prescription_date.message}</p>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Prescriber Info */}
-      <FormSection title={t('prescriptions.form.prescriber_info')}>
-        <FormGrid columns={3}>
-          <InputField
-            form={form}
-            name="prescriber_name"
-            label={t('prescriptions.fields.prescriber_name')}
-            required
-          />
-          <InputField
-            form={form}
-            name="prescriber_license"
-            label={t('prescriptions.fields.prescriber_license')}
-          />
-          <InputField
-            form={form}
-            name="prescriber_specialty"
-            label={t('prescriptions.fields.prescriber_specialty')}
-          />
-        </FormGrid>
-      </FormSection>
+      <div className="space-y-4">
+        <h3 className="text-sm font-medium text-foreground">{t('prescriptions.form.prescriber_info')}</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="prescriber_name">
+              {t('prescriptions.fields.prescriber_name')} <span className="text-destructive">*</span>
+            </Label>
+            <Input {...form.register('prescriber_name')} />
+            {errors.prescriber_name && (
+              <p className="text-sm text-destructive">{errors.prescriber_name.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="prescriber_license">{t('prescriptions.fields.prescriber_license')}</Label>
+            <Input {...form.register('prescriber_license')} />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="prescriber_specialty">{t('prescriptions.fields.prescriber_specialty')}</Label>
+            <Input {...form.register('prescriber_specialty')} />
+          </div>
+        </div>
+      </div>
 
       {/* Diagnosis */}
-      <FormSection title={t('prescriptions.form.diagnosis')}>
-        <TextareaField
-          form={form}
-          name="diagnosis"
-          label={t('prescriptions.fields.diagnosis')}
-          rows={2}
-        />
-      </FormSection>
+      <div className="space-y-4">
+        <h3 className="text-sm font-medium text-foreground">{t('prescriptions.form.diagnosis')}</h3>
+        <div className="space-y-2">
+          <Label htmlFor="diagnosis">{t('prescriptions.fields.diagnosis')}</Label>
+          <Textarea {...form.register('diagnosis')} rows={2} />
+        </div>
+      </div>
 
       {/* Medications */}
-      <FormSection
-        title={t('prescriptions.form.medications')}
-        description={t('prescriptions.form.medications_description')}
-      >
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-sm font-medium text-foreground">{t('prescriptions.form.medications')}</h3>
+          <p className="text-sm text-muted-foreground">{t('prescriptions.form.medications_description')}</p>
+        </div>
+
         <div className="space-y-4">
           {fields.map((field, index) => (
             <Card key={field.id} className="relative">
@@ -222,59 +255,67 @@ export function PrescriptionForm({
                     </div>
                   )}
 
-                  <FormGrid columns={3}>
-                    <InputField
-                      form={form}
-                      name={`items.${index}.medication_name`}
-                      label={t('prescriptions.fields.medication_name')}
-                      required
-                    />
-                    <InputField
-                      form={form}
-                      name={`items.${index}.medication_strength`}
-                      label={t('prescriptions.fields.strength')}
-                    />
-                    <InputField
-                      form={form}
-                      name={`items.${index}.medication_form`}
-                      label={t('prescriptions.fields.form')}
-                    />
-                  </FormGrid>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label>
+                        {t('prescriptions.fields.medication_name')} <span className="text-destructive">*</span>
+                      </Label>
+                      <Input {...form.register(`items.${index}.medication_name`)} />
+                      {errors.items?.[index]?.medication_name && (
+                        <p className="text-sm text-destructive">
+                          {errors.items[index]?.medication_name?.message}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>{t('prescriptions.fields.strength')}</Label>
+                      <Input {...form.register(`items.${index}.medication_strength`)} />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>{t('prescriptions.fields.form')}</Label>
+                      <Input {...form.register(`items.${index}.medication_form`)} />
+                    </div>
+                  </div>
                 </div>
 
                 {/* Dosage instructions */}
-                <FormGrid columns={4}>
-                  <InputField
-                    form={form}
-                    name={`items.${index}.dosage`}
-                    label={t('prescriptions.fields.dosage')}
-                    required
-                  />
-                  <InputField
-                    form={form}
-                    name={`items.${index}.frequency`}
-                    label={t('prescriptions.fields.frequency')}
-                    required
-                  />
-                  <InputField
-                    form={form}
-                    name={`items.${index}.duration`}
-                    label={t('prescriptions.fields.duration')}
-                  />
-                  <InputField
-                    form={form}
-                    name={`items.${index}.quantity`}
-                    label={t('prescriptions.fields.quantity')}
-                  />
-                </FormGrid>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="space-y-2">
+                    <Label>
+                      {t('prescriptions.fields.dosage')} <span className="text-destructive">*</span>
+                    </Label>
+                    <Input {...form.register(`items.${index}.dosage`)} />
+                    {errors.items?.[index]?.dosage && (
+                      <p className="text-sm text-destructive">{errors.items[index]?.dosage?.message}</p>
+                    )}
+                  </div>
 
-                <div className="mt-4">
-                  <TextareaField
-                    form={form}
-                    name={`items.${index}.instructions`}
-                    label={t('prescriptions.fields.instructions')}
-                    rows={2}
-                  />
+                  <div className="space-y-2">
+                    <Label>
+                      {t('prescriptions.fields.frequency')} <span className="text-destructive">*</span>
+                    </Label>
+                    <Input {...form.register(`items.${index}.frequency`)} />
+                    {errors.items?.[index]?.frequency && (
+                      <p className="text-sm text-destructive">{errors.items[index]?.frequency?.message}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>{t('prescriptions.fields.duration')}</Label>
+                    <Input {...form.register(`items.${index}.duration`)} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>{t('prescriptions.fields.quantity')}</Label>
+                    <Input {...form.register(`items.${index}.quantity`)} />
+                  </div>
+                </div>
+
+                <div className="mt-4 space-y-2">
+                  <Label>{t('prescriptions.fields.instructions')}</Label>
+                  <Textarea {...form.register(`items.${index}.instructions`)} rows={2} />
                 </div>
 
                 {/* Remove button */}
@@ -298,34 +339,30 @@ export function PrescriptionForm({
             {t('prescriptions.actions.add_medication')}
           </Button>
         </div>
-      </FormSection>
+      </div>
 
       {/* Additional Notes */}
-      <FormSection title={t('prescriptions.form.additional_info')}>
-        <FormGrid columns={2}>
-          <InputField
-            form={form}
-            name="valid_until"
-            label={t('prescriptions.fields.valid_until')}
-            type="date"
-          />
+      <div className="space-y-4">
+        <h3 className="text-sm font-medium text-foreground">{t('prescriptions.form.additional_info')}</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="valid_until">{t('prescriptions.fields.valid_until')}</Label>
+            <Input type="date" {...form.register('valid_until')} />
+          </div>
           <div /> {/* Spacer */}
-        </FormGrid>
-        <div className="grid gap-4 md:grid-cols-2 mt-4">
-          <TextareaField
-            form={form}
-            name="notes"
-            label={t('prescriptions.fields.notes')}
-            rows={2}
-          />
-          <TextareaField
-            form={form}
-            name="pharmacy_notes"
-            label={t('prescriptions.fields.pharmacy_notes')}
-            rows={2}
-          />
         </div>
-      </FormSection>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <div className="space-y-2">
+            <Label htmlFor="notes">{t('prescriptions.fields.notes')}</Label>
+            <Textarea {...form.register('notes')} rows={2} />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="pharmacy_notes">{t('prescriptions.fields.pharmacy_notes')}</Label>
+            <Textarea {...form.register('pharmacy_notes')} rows={2} />
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

@@ -83,7 +83,7 @@ export async function GET(
       .eq('id', id)
 
     // Return PDF with appropriate headers
-    return new NextResponse(pdfBuffer, {
+    return new NextResponse(new Uint8Array(pdfBuffer), {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
