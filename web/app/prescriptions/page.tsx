@@ -15,7 +15,8 @@ import { usePatients } from '@/hooks/use-patients'
 import { useToast } from '@/hooks/use-toast'
 import { PrescriptionForm } from './components/PrescriptionForm'
 import { PrescriptionTable } from './components/PrescriptionTable'
-import { Plus, FileText } from 'lucide-react'
+import { Plus } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import type { Prescription, Patient } from '@/lib/types'
 
 const prescriptionItemSchema = z.object({
@@ -136,7 +137,23 @@ export default function PrescriptionsPage() {
   const handleSubmit = useCallback(
     async (data: PrescriptionFormData) => {
       try {
-        await createPrescription(data)
+        // Transform items to match API expected types (convert null to undefined)
+        const transformedData = {
+          ...data,
+          items: data.items.map(item => ({
+            medication_id: item.medication_id ?? undefined,
+            medication_name: item.medication_name,
+            medication_strength: item.medication_strength ?? undefined,
+            medication_form: item.medication_form ?? undefined,
+            dosage: item.dosage,
+            frequency: item.frequency,
+            duration: item.duration ?? undefined,
+            quantity: item.quantity ?? undefined,
+            instructions: item.instructions ?? undefined,
+            sort_order: item.sort_order,
+          }))
+        }
+        await createPrescription(transformedData)
         toast({
           title: t('prescriptions.messages.created'),
         })
@@ -199,14 +216,12 @@ export default function PrescriptionsPage() {
         <PageHeader
           title={t('prescriptions.title')}
           description={t('prescriptions.description')}
-          icon={FileText}
-          actions={[
-            {
-              label: t('prescriptions.actions.new'),
-              onClick: handleOpenModal,
-              icon: Plus,
-            },
-          ]}
+          actions={
+            <Button onClick={handleOpenModal}>
+              <Plus className="h-4 w-4 mr-2" />
+              {t('prescriptions.actions.new')}
+            </Button>
+          }
         />
 
         <div className="mt-6">
@@ -226,10 +241,9 @@ export default function PrescriptionsPage() {
           onOpenChange={setIsModalOpen}
           title={t('prescriptions.modal.create_title')}
           description={t('prescriptions.modal.create_description')}
-          form={form}
-          onSubmit={handleSubmit}
+          onSubmit={form.handleSubmit(handleSubmit)}
           submitLabel={t('common.save')}
-          size="xl"
+          maxWidth="xl"
         >
           <PrescriptionForm
             form={form}
@@ -245,8 +259,8 @@ export default function PrescriptionsPage() {
           onOpenChange={setIsViewModalOpen}
           title={t('prescriptions.modal.view_title')}
           description={selectedPrescription?.prescription_number || ''}
-          hideSubmit
-          size="lg"
+          showFooter={false}
+          maxWidth="lg"
         >
           {selectedPrescription && (
             <div className="space-y-4">
@@ -315,7 +329,7 @@ export default function PrescriptionsPage() {
           onOpenChange={(open) => !open && setPrescriptionToCancel(null)}
           title={t('prescriptions.confirm.cancel_title')}
           description={t('prescriptions.confirm.cancel_description')}
-          confirmLabel={t('prescriptions.actions.cancel')}
+          confirmText={t('prescriptions.actions.cancel')}
           onConfirm={handleCancelConfirm}
           variant="destructive"
         />
