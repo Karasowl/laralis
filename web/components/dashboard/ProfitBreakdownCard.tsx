@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { formatCurrency } from '@/lib/format'
 import {
   DollarSign,
@@ -11,7 +12,9 @@ import {
   Minus,
   Package,
   Building2,
-  Calculator
+  Calculator,
+  HelpCircle,
+  AlertTriangle
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -32,33 +35,42 @@ interface ProfitBreakdownCardProps {
 
 interface BreakdownLineProps {
   label: string
+  subtitle?: string
   amountCents: number
   icon: React.ReactNode
+  tooltip?: string
   isSubtraction?: boolean
   isTotal?: boolean
-  tooltip?: string
+  variant?: 'gross' | 'net' | 'theoretical'
 }
 
 function BreakdownLine({
   label,
+  subtitle,
   amountCents,
   icon,
+  tooltip,
   isSubtraction,
-  isTotal
+  isTotal,
+  variant = 'net'
 }: BreakdownLineProps) {
-  return (
+  const content = (
     <div className={cn(
       "flex items-center justify-between py-2.5 px-3 rounded-lg transition-colors",
       isTotal
         ? "bg-muted/50 border-2 border-primary/20"
         : "hover:bg-muted/30"
     )}>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-1">
         <div className={cn(
-          "w-8 h-8 rounded-lg flex items-center justify-center",
+          "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
           isTotal
             ? amountCents >= 0
-              ? "bg-emerald-100 dark:bg-emerald-950/50"
+              ? variant === 'net'
+                ? "bg-emerald-100 dark:bg-emerald-950/50"
+                : variant === 'theoretical'
+                ? "bg-blue-100 dark:bg-blue-950/50"
+                : "bg-slate-100 dark:bg-slate-950/50"
               : "bg-red-100 dark:bg-red-950/50"
             : isSubtraction
               ? "bg-red-100/50 dark:bg-red-950/30"
@@ -66,20 +78,38 @@ function BreakdownLine({
         )}>
           {icon}
         </div>
-        <span className={cn(
-          "text-sm",
-          isTotal ? "font-semibold" : "text-muted-foreground"
-        )}>
-          {isSubtraction && !isTotal && <span className="text-red-500 mr-1">−</span>}
-          {label}
-        </span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5">
+            <span className={cn(
+              "text-sm",
+              isTotal ? "font-semibold" : "text-muted-foreground"
+            )}>
+              {isSubtraction && !isTotal && <span className="text-red-500 mr-1">−</span>}
+              {label}
+            </span>
+            {tooltip && (
+              <HelpCircle className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0" />
+            )}
+          </div>
+          {subtitle && (
+            <p className="text-xs text-muted-foreground/70 mt-0.5">
+              {subtitle}
+            </p>
+          )}
+        </div>
       </div>
       <span className={cn(
-        "font-mono tabular-nums",
+        "font-mono tabular-nums shrink-0 ml-2",
         isTotal
           ? cn(
               "text-lg font-bold",
-              amountCents >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+              amountCents >= 0
+                ? variant === 'net'
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : variant === 'theoretical'
+                  ? "text-blue-600 dark:text-blue-400"
+                  : "text-slate-600 dark:text-slate-400"
+                : "text-red-600 dark:text-red-400"
             )
           : isSubtraction
             ? "text-red-600 dark:text-red-400"
@@ -90,6 +120,23 @@ function BreakdownLine({
       </span>
     </div>
   )
+
+  if (tooltip) {
+    return (
+      <TooltipProvider delayDuration={100}>
+        <Tooltip>
+          <TooltipTrigger asChild className="cursor-help">
+            {content}
+          </TooltipTrigger>
+          <TooltipContent side="left" className="max-w-xs">
+            <p className="text-sm">{tooltip}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    )
+  }
+
+  return content
 }
 
 export function ProfitBreakdownCard({
@@ -100,9 +147,9 @@ export function ProfitBreakdownCard({
   theoreticalProfitCents,
   differenceCents,
   // Legacy props for backward compat
-  variableCostsCents,
-  fixedCostsCents,
-  depreciationCents,
+  variableCostsCents = 0,
+  fixedCostsCents = 0,
+  depreciationCents = 0,
   loading
 }: ProfitBreakdownCardProps) {
   const t = useTranslations('dashboardComponents.profitBreakdown')
@@ -116,7 +163,7 @@ export function ProfitBreakdownCard({
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
+            {[1, 2, 3, 4, 5].map((i) => (
               <div key={i} className="h-12 bg-muted animate-pulse rounded" />
             ))}
           </div>
@@ -127,6 +174,13 @@ export function ProfitBreakdownCard({
 
   const isProfitable = netProfitCents > 0
   const isBreakEven = netProfitCents === 0
+
+  // Calculate gross profit (revenue - variable costs only)
+  const grossProfitCents = revenueCents - variableCostsCents
+
+  // Calculate theoretical total costs
+  const theoreticalTotalCostsCents = variableCostsCents + fixedCostsCents + depreciationCents
+  const calculatedTheoreticalProfitCents = revenueCents - theoreticalTotalCostsCents
 
   return (
     <Card className={cn(
@@ -145,7 +199,7 @@ export function ProfitBreakdownCard({
               {t('title')}
             </CardTitle>
             <CardDescription className="mt-1">
-              {t('descriptionReal')}
+              {t('description')}
             </CardDescription>
           </div>
           {netMarginPct !== undefined && (
@@ -180,6 +234,32 @@ export function ProfitBreakdownCard({
           icon={<DollarSign className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
         />
 
+        {/* Variable Costs (if available) */}
+        {variableCostsCents > 0 && (
+          <BreakdownLine
+            label={t('variableCosts')}
+            amountCents={variableCostsCents}
+            icon={<Package className="h-4 w-4 text-red-500 dark:text-red-400" />}
+            isSubtraction
+          />
+        )}
+
+        {/* Gross Profit (if variable costs available) */}
+        {variableCostsCents > 0 && (
+          <>
+            <div className="border-t border-dashed border-muted-foreground/30 my-1" />
+            <BreakdownLine
+              label={t('grossProfit')}
+              subtitle={t('grossProfitSubtitle')}
+              amountCents={grossProfitCents}
+              tooltip={t('grossProfitTooltip')}
+              icon={<TrendingUp className="h-4 w-4 text-slate-600 dark:text-slate-400" />}
+              isTotal
+              variant="gross"
+            />
+          </>
+        )}
+
         {/* Registered Expenses */}
         <BreakdownLine
           label={t('expenses')}
@@ -191,10 +271,12 @@ export function ProfitBreakdownCard({
         {/* Divider */}
         <div className="border-t border-dashed border-muted-foreground/30 my-2" />
 
-        {/* Real Profit (Total) */}
+        {/* Net Profit (Real - Total) */}
         <BreakdownLine
-          label={t('realProfit')}
+          label={t('netProfit')}
+          subtitle={t('netProfitSubtitle')}
           amountCents={netProfitCents}
+          tooltip={t('netProfitTooltip')}
           icon={
             isProfitable ? (
               <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -205,21 +287,42 @@ export function ProfitBreakdownCard({
             )
           }
           isTotal
+          variant="net"
         />
+
+        {/* Theoretical Profit (if available) */}
+        {theoreticalTotalCostsCents > 0 && (
+          <BreakdownLine
+            label={t('theoreticalProfit')}
+            subtitle={t('theoreticalProfitSubtitle')}
+            amountCents={calculatedTheoreticalProfitCents}
+            tooltip={t('theoreticalProfitTooltip')}
+            icon={<Calculator className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
+            isTotal
+            variant="theoretical"
+          />
+        )}
 
         {/* Comparison with theoretical (optional) */}
         {differenceCents !== undefined && differenceCents !== 0 && (
-          <p className={cn(
-            "text-xs text-center pt-2",
+          <div className={cn(
+            "flex items-center gap-2 justify-center text-xs pt-2 px-3 py-2 rounded-lg mt-2",
             differenceCents > 0
-              ? "text-emerald-600 dark:text-emerald-400"
-              : "text-amber-600 dark:text-amber-400"
+              ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300"
+              : "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300"
           )}>
-            {differenceCents > 0
-              ? t('spentLess', { amount: formatCurrency(Math.abs(differenceCents)) })
-              : t('spentMore', { amount: formatCurrency(Math.abs(differenceCents)) })
-            }
-          </p>
+            {differenceCents > 0 ? (
+              <TrendingDown className="h-4 w-4" />
+            ) : (
+              <TrendingUp className="h-4 w-4" />
+            )}
+            <span className="font-medium">
+              {differenceCents > 0
+                ? t('spentLess', { amount: formatCurrency(Math.abs(differenceCents)) })
+                : t('spentMore', { amount: formatCurrency(Math.abs(differenceCents)) })
+              }
+            </span>
+          </div>
         )}
 
         {/* Status message */}

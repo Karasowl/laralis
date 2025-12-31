@@ -50,7 +50,7 @@ export async function POST(
     // Get current treatment
     const { data: treatment, error: fetchError } = await supabaseAdmin
       .from('treatments')
-      .select('id, price_cents, amount_paid_cents, status, is_paid')
+      .select('id, price_cents, amount_paid_cents, pending_balance_cents, status, is_paid')
       .eq('id', params.id)
       .eq('clinic_id', clinicId)
       .single();
@@ -62,34 +62,38 @@ export async function POST(
       );
     }
 
-    // Calculate new amount paid
-    const currentPaid = treatment.amount_paid_cents || 0;
-    const newPaid = currentPaid + amount_cents;
-    const balance = (treatment.price_cents || 0) - newPaid;
+    // Get current pending balance
+    const currentBalance = treatment.pending_balance_cents || 0;
 
-    // Validate payment doesn't exceed price
-    if (newPaid > (treatment.price_cents || 0)) {
+    // Validate payment doesn't exceed pending balance
+    if (amount_cents > currentBalance) {
       return NextResponse.json(
         {
           error: 'Payment exceeds balance',
-          message: `Maximum payment allowed: ${(treatment.price_cents || 0) - currentPaid} cents`,
-          max_payment_cents: (treatment.price_cents || 0) - currentPaid
+          message: `Maximum payment allowed: ${currentBalance} cents`,
+          max_payment_cents: currentBalance
         },
         { status: 400 }
       );
     }
 
-    // Update treatment with new payment amount
-    // Note: is_paid is calculated by trigger in DB
+    // Calculate new values
+    const currentPaid = treatment.amount_paid_cents || 0;
+    const newPaid = currentPaid + amount_cents;
+    const newBalance = currentBalance - amount_cents;
+
+    // Update treatment - directly set pending_balance_cents
+    // Note: is_paid is calculated by trigger based on pending_balance_cents
     const { data: updated, error: updateError } = await supabaseAdmin
       .from('treatments')
       .update({
         amount_paid_cents: newPaid,
+        pending_balance_cents: newBalance,
         updated_at: new Date().toISOString(),
       })
       .eq('id', params.id)
       .eq('clinic_id', clinicId)
-      .select('id, price_cents, amount_paid_cents, is_paid, status')
+      .select('id, price_cents, amount_paid_cents, pending_balance_cents, is_paid, status')
       .single();
 
     if (updateError) {
@@ -103,7 +107,7 @@ export async function POST(
     return NextResponse.json({
       data: {
         ...updated,
-        balance_cents: (updated.price_cents || 0) - (updated.amount_paid_cents || 0),
+        balance_cents: updated.pending_balance_cents || 0,
         payment_registered_cents: amount_cents,
       },
       message: updated.is_paid ? 'Payment completed - fully paid' : 'Payment registered successfully',

@@ -12,7 +12,8 @@ import {
   XCircle,
   BarChart3,
   Clock,
-  ClipboardList
+  ClipboardList,
+  Settings
 } from 'lucide-react'
 
 export interface NavigationItem {
@@ -82,31 +83,34 @@ export function getNavigationSections(t: any, options: { onboardingCompleted?: b
       title: t('navigation.finance'),
       items: [
         {
-          href: '/fixed-costs',
-          label: t('navigation.fixed_costs'),
-          icon: DollarSign
-        },
+          href: '/equilibrium',
+          label: t('navigation.equilibrium'),
+          icon: Calculator
+        }
+      ]
+    },
+    {
+      title: t('navigation.configuration'),
+      items: [
         {
           href: '/time',
           label: t('navigation.time'),
           icon: Clock
         },
-        // DEPRECATED (2025-11-17): Tariffs functionality migrated to Services module
-        // Discounts are now configured directly in each service
-        // {
-        //   href: '/tariffs',
-        //   label: t('navigation.tariffs'),
-        //   icon: Calculator
-        // },
         {
           href: '/assets',
           label: t('navigation.assets'),
           icon: PiggyBank
         },
         {
-          href: '/equilibrium',
-          label: t('navigation.equilibrium'),
-          icon: Calculator
+          href: '/fixed-costs',
+          label: t('navigation.fixed_costs'),
+          icon: DollarSign
+        },
+        {
+          href: '/settings',
+          label: t('navigation.settings'),
+          icon: Settings
         }
       ]
     }

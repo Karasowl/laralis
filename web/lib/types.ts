@@ -284,6 +284,7 @@ export interface Treatment {
   notes?: string;
   price_cents: number;
   amount_paid_cents: number;
+  pending_balance_cents: number;
   is_paid: boolean;
   payment_method?: string;
   payment_date?: string;

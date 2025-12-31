@@ -17,6 +17,11 @@ Cada entrada sigue la estructura:
 
 ## Entradas
 
+### 2025-12-31
+
+- **[2025-12-31-fix-dashboard-comparison-filter.md](2025-12-31-fix-dashboard-comparison-filter.md)** - Fix P1: El filtro de "Comparación" del dashboard existía en la UI pero no afectaba los datos. Implementado soporte completo: fetching paralelo del período anterior, cálculo de cambios porcentuales, nuevo componente ComparisonIndicator, indicadores visuales con tendencias (↗/↘) y colores semánticos.
+- **[2025-12-31-multi-user-permissions-system.md](2025-12-31-multi-user-permissions-system.md)** - Feature P0: Sistema completo de roles y permisos multi-usuario. Incluye: workspace_users con 5 roles, clinic_users con 5 roles, sistema de invitaciones con tokens, UI de Team Settings con 3 tabs, componentes `<Can>` para rendering condicional, hooks usePermissions/useWorkspaceMembers/useClinicMembers, 10+ nuevas APIs, 3 migraciones SQL, ~150 nuevas keys i18n.
+
 ### 2025-12-18
 
 - **[2025-12-18-fix-service-price-drift-bug.md](2025-12-18-fix-service-price-drift-bug.md)** - Fix P0 crítico: Precios de servicios cambiaban solos con el tiempo. Causa raíz: trigger recalculaba price_cents basándose en costos potencialmente desactualizados cada vez que se editaba un servicio. Solución: nuevo campo original_price_cents + trigger reescrito para SOLO aplicar descuentos.
@@ -68,6 +73,9 @@ Cada entrada sigue la estructura:
 - [2025-08-09-bootstrap-proyecto.md](2025-08-09-bootstrap-proyecto.md) - Setup inicial completo
 - [2025-10-22-export-import-system.md](2025-10-22-export-import-system.md) - Sistema completo de export/import con migraciones
 
+### Multi-Tenancy & Permisos
+- [2025-12-31-multi-user-permissions-system.md](2025-12-31-multi-user-permissions-system.md) - Sistema completo de roles, permisos, invitaciones, y UI de Team Settings
+
 ### Onboarding & Auth
 - [2025-12-14-fix-profile-phone-not-showing.md](2025-12-14-fix-profile-phone-not-showing.md) - Fix de mismatch phone field: auth.users.phone vs user_metadata.phone
 - [2025-10-18-fix-service-recipe-requirement-too-strict.md](2025-10-18-fix-service-recipe-requirement-too-strict.md) - Fix de requirement excesivamente estricto que bloqueaba el wizard
@@ -87,6 +95,7 @@ Cada entrada sigue la estructura:
 - [2025-08-09-supplies-services-module.md](2025-08-09-supplies-services-module.md) - Cálculos de costos variables y tratamientos
 
 ### UI/UX
+- [2025-12-31-fix-dashboard-comparison-filter.md](2025-12-31-fix-dashboard-comparison-filter.md) - Fix de filtro de comparación en Dashboard (período anterior / año anterior)
 - [2025-12-14-fix-break-even-days-remaining-ux.md](2025-12-14-fix-break-even-days-remaining-ux.md) - Fix de mensaje confuso "días restantes" en Punto de Equilibrio
 - [2025-12-08-fix-dashboard-date-filter.md](2025-12-08-fix-dashboard-date-filter.md) - Fix de filtro de fechas en Dashboard
 - [2025-10-18-improve-dark-mode-ux.md](2025-10-18-improve-dark-mode-ux.md) - Rediseño completo de dark mode con paleta moderna
@@ -111,6 +120,6 @@ Cada entrada sigue la estructura:
 
 ## Stats
 
-- **Total entradas**: 19
-- **Ultima actualizacion**: 2025-12-18
-- **Archivos documentados**: 140+
+- **Total entradas**: 21
+- **Ultima actualizacion**: 2025-12-31
+- **Archivos documentados**: 165+

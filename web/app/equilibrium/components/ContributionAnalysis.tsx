@@ -47,7 +47,13 @@ export function ContributionAnalysis({
               <TooltipTrigger>
                 <Info className="h-4 w-4 text-muted-foreground" />
               </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
+              <TooltipContent
+                className="max-w-[280px] sm:max-w-xs z-50"
+                side="bottom"
+                sideOffset={8}
+                collisionPadding={16}
+                avoidCollisions={true}
+              >
                 <p>{t('sections.costBreakdownTooltip')}</p>
               </TooltipContent>
             </Tooltip>

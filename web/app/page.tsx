@@ -43,7 +43,9 @@ import { useProfitAnalysis } from '@/hooks/use-profit-analysis'
 import { usePlannedVsActual } from '@/hooks/use-planned-vs-actual'
 import { useServices } from '@/hooks/use-services'
 import { useTimeSettings } from '@/hooks/use-time-settings'
+import { useCategories } from '@/hooks/use-categories'
 import { PlannedVsActualCard } from '@/components/dashboard/PlannedVsActualCard'
+import type { MetricType } from '@/components/dashboard/CategoryBreakdown'
 import { ProfitBreakdownCard } from '@/components/dashboard/ProfitBreakdownCard'
 import { ContributionAnalysis } from '@/app/equilibrium/components/ContributionAnalysis'
 import { formatCurrency } from '@/lib/format'
@@ -58,6 +60,7 @@ import {
   AlertCircle,
   RefreshCw
 } from 'lucide-react'
+import { ComparisonIndicator } from '@/components/dashboard/ComparisonIndicator'
 
 function DashboardSkeleton() {
   return (
@@ -130,6 +133,10 @@ export default function InsightsPage() {
   const { currentClinic } = useWorkspace()
   const [mounted, setMounted] = useState(false)
 
+  // State for category filter and metric selector
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  const [breakdownMetric, setBreakdownMetric] = useState<MetricType>('revenue')
+
   // Use centralized date filter hook
   const {
     period: filterPeriod,
@@ -145,16 +152,19 @@ export default function InsightsPage() {
   } = useDateFilter()
 
   // Map filter period to dashboard-compatible period
-  const dashboardPeriod = useMemo(() => {
+  const dashboardPeriod = useMemo((): 'day' | 'week' | 'month' | 'year' | 'custom' => {
     if (filterPeriod === 'today') return 'day'
-    if (filterPeriod === 'quarter') return 'custom' // Quarter uses custom date range
-    return filterPeriod
+    if (filterPeriod === 'quarter' || filterPeriod === 'allTime') return 'custom'
+    return filterPeriod as 'day' | 'week' | 'month' | 'year' | 'custom'
   }, [filterPeriod])
+
+  const comparisonEnabled = comparison !== 'none'
 
   const {
     metrics,
     charts,
     activities,
+    comparison: comparisonData,
     loading: dashboardLoading,
     error: dashboardError
   } = useDashboard({
@@ -162,7 +172,10 @@ export default function InsightsPage() {
     period: dashboardPeriod,
     from: currentRange?.from,
     to: currentRange?.to,
-    chartGranularity: granularity
+    chartGranularity: granularity,
+    previousFrom: previousRange?.from,
+    previousTo: previousRange?.to,
+    comparisonEnabled
   })
 
   const {
@@ -243,6 +256,12 @@ export default function InsightsPage() {
   const {
     settings: timeSettings
   } = useTimeSettings({ clinicId: currentClinic?.id })
+
+  // Categories for service filtering
+  const {
+    categories: serviceCategories,
+    loading: categoriesLoading
+  } = useCategories('services')
 
   // Profit Analysis - Correct financial metrics
   const {
@@ -487,46 +506,87 @@ export default function InsightsPage() {
 
                 {/* 4 Key Metrics Cards - Mobile-first: 1 col -> 2 cols (tablet) -> 4 cols (desktop) */}
                 <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-                  <MetricCard
-                    title={getPeriodLabels.revenue}
-                    value={formatCurrency(metrics.revenue.current)}
-                    valueInCents={metrics.revenue.current}
-                    change={metrics.revenue.change}
-                    changeType={metrics.revenue.change > 0 ? 'increase' : metrics.revenue.change < 0 ? 'decrease' : 'neutral'}
-                    icon={DollarSign}
-                    color="text-green-600"
-                    subtitle={getPeriodLabels.comparison}
-                  />
+                  <div className="space-y-2">
+                    <MetricCard
+                      title={getPeriodLabels.revenue}
+                      value={formatCurrency(metrics.revenue.current)}
+                      valueInCents={metrics.revenue.current}
+                      change={metrics.revenue.change}
+                      changeType={metrics.revenue.change > 0 ? 'increase' : metrics.revenue.change < 0 ? 'decrease' : 'neutral'}
+                      icon={DollarSign}
+                      color="text-green-600"
+                      subtitle={getPeriodLabels.comparison}
+                    />
+                    {comparisonData?.revenue && (
+                      <ComparisonIndicator
+                        change={comparisonData.revenue.change}
+                        trend={comparisonData.revenue.trend}
+                        comparisonType={comparison === 'last-year' ? 'last-year' : 'previous'}
+                        className="px-3"
+                      />
+                    )}
+                  </div>
 
-                  <MetricCard
-                    title={getPeriodLabels.expenses}
-                    value={formatCurrency(metrics.expenses.current)}
-                    valueInCents={metrics.expenses.current}
-                    change={metrics.expenses.change}
-                    changeType={metrics.expenses.change > 0 ? 'increase' : metrics.expenses.change < 0 ? 'decrease' : 'neutral'}
-                    lowerIsBetter
-                    icon={Receipt}
-                    color="text-destructive"
-                    subtitle={getPeriodLabels.comparison}
-                  />
+                  <div className="space-y-2">
+                    <MetricCard
+                      title={getPeriodLabels.expenses}
+                      value={formatCurrency(metrics.expenses.current)}
+                      valueInCents={metrics.expenses.current}
+                      change={metrics.expenses.change}
+                      changeType={metrics.expenses.change > 0 ? 'increase' : metrics.expenses.change < 0 ? 'decrease' : 'neutral'}
+                      lowerIsBetter
+                      icon={Receipt}
+                      color="text-destructive"
+                      subtitle={getPeriodLabels.comparison}
+                    />
+                    {comparisonData?.expenses && (
+                      <ComparisonIndicator
+                        change={comparisonData.expenses.change}
+                        trend={comparisonData.expenses.trend}
+                        comparisonType={comparison === 'last-year' ? 'last-year' : 'previous'}
+                        lowerIsBetter
+                        className="px-3"
+                      />
+                    )}
+                  </div>
 
-                  <MetricCard
-                    title={t('active_patients')}
-                    value={metrics.patients.total}
-                    change={metrics.patients.change}
-                    changeType={metrics.patients.change > 0 ? 'increase' : metrics.patients.change < 0 ? 'decrease' : 'neutral'}
-                    icon={Users}
-                    color="text-primary"
-                    subtitle={`${metrics.patients.new} ${getPeriodLabels.newPatients}`}
-                  />
+                  <div className="space-y-2">
+                    <MetricCard
+                      title={t('active_patients')}
+                      value={metrics.patients.total}
+                      change={metrics.patients.change}
+                      changeType={metrics.patients.change > 0 ? 'increase' : metrics.patients.change < 0 ? 'decrease' : 'neutral'}
+                      icon={Users}
+                      color="text-primary"
+                      subtitle={`${metrics.patients.new} ${getPeriodLabels.newPatients}`}
+                    />
+                    {comparisonData?.patients && (
+                      <ComparisonIndicator
+                        change={comparisonData.patients.change}
+                        trend={comparisonData.patients.trend}
+                        comparisonType={comparison === 'last-year' ? 'last-year' : 'previous'}
+                        className="px-3"
+                      />
+                    )}
+                  </div>
 
-                  <MetricCard
-                    title={tNav('treatments')}
-                    value={metrics.treatments.total}
-                    icon={Activity}
-                    color="text-purple-600"
-                    subtitle={`${metrics.treatments.completed} ${t('completed')}`}
-                  />
+                  <div className="space-y-2">
+                    <MetricCard
+                      title={tNav('treatments')}
+                      value={metrics.treatments.total}
+                      icon={Activity}
+                      color="text-purple-600"
+                      subtitle={`${metrics.treatments.completed} ${t('completed')}`}
+                    />
+                    {comparisonData?.treatments && (
+                      <ComparisonIndicator
+                        change={comparisonData.treatments.change}
+                        trend={comparisonData.treatments.trend}
+                        comparisonType={comparison === 'last-year' ? 'last-year' : 'previous'}
+                        className="px-3"
+                      />
+                    )}
+                  </div>
                 </div>
 
                 {/* Financial Metrics - Gross and Real Profit */}
@@ -608,6 +668,9 @@ export default function InsightsPage() {
                       netMarginPct={profitAnalysis.profits.real_margin_pct}
                       theoreticalProfitCents={profitAnalysis.profits.theoretical_profit_cents}
                       differenceCents={profitAnalysis.profits.difference_cents}
+                      variableCostsCents={profitAnalysis.costs.variable_cents}
+                      fixedCostsCents={profitAnalysis.costs.configured_fixed_cents}
+                      depreciationCents={profitAnalysis.costs.depreciation_cents}
                     />
                   )}
 
@@ -637,6 +700,15 @@ export default function InsightsPage() {
                     data={charts.categories}
                     title={t('services_breakdown')}
                     description={t('by_category')}
+                    categories={serviceCategories.map(cat => ({
+                      id: cat.id || '',
+                      name: cat.name || ''
+                    }))}
+                    selectedCategories={selectedCategories}
+                    onCategoryChange={setSelectedCategories}
+                    metric={breakdownMetric}
+                    onMetricChange={setBreakdownMetric}
+                    showMetricSelector={true}
                   />
                 </div>
 
@@ -672,6 +744,8 @@ export default function InsightsPage() {
               cac={marketingMetrics?.metrics.cac.cents || 0}
               ltv={marketingMetrics?.metrics.ltv.cents || 0}
               conversionRate={marketingMetrics?.metrics.conversionRate.value || 0}
+              campaignRevenue={marketingMetrics?.rawData.totalRevenueCents || 0}
+              adSpend={marketingMetrics?.rawData.marketingExpensesCents || 0}
               loading={marketingMetricsLoading}
             />
 
