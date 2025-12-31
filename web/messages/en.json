@@ -122,7 +122,8 @@
       "adults": "Adults (31-45)",
       "mature": "Mature (46-60)",
       "seniors": "Seniors (61+)"
-    }
+    },
+    "hasDebt": "With pending debt"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -2503,10 +2504,13 @@
       "margin": "Utility %",
       "sale_price": "Sale Price",
       "status": "Status",
-      "notes": "Notes"
+      "notes": "Notes",
+      "paymentStatus": "Payment Status",
+      "amountPaid": "Amount Paid"
     },
     "filters": {
-      "patient": "Patient"
+      "patient": "Patient",
+      "hasBalance": "With pending balance"
     },
     "sale_price_helper": "Final sale price - utility adjusts automatically",
     "timeHelp": "Appointment time (optional)",
@@ -2528,7 +2532,21 @@
       "registered": "registered",
       "completionRate": "Completion Rate",
       "averagePrice": "Average Price",
-      "perTreatment": "per treatment"
+      "perTreatment": "per treatment",
+      "accountsReceivable": "Accounts Receivable",
+      "treatmentsWithBalance": "{count} treatments with balance"
+    },
+    "payment": {
+      "paid": "Paid",
+      "pending": "Pending",
+      "balance": "Balance",
+      "registerPayment": "Register Payment",
+      "paymentAmount": "Payment Amount",
+      "remainingBalance": "Remaining Balance",
+      "payFull": "Pay Full",
+      "paymentSuccess": "Payment registered successfully",
+      "paymentError": "Error registering payment",
+      "cancel": "Cancel"
     },
     "empty": {
       "title": "No treatments recorded",
@@ -4340,6 +4358,15 @@
     "empty": {
       "title": "No prescriptions",
       "description": "No medical prescriptions recorded. Create a new prescription."
+    },
+    "filters": {
+      "title": "Filters",
+      "status": "Status",
+      "patient": "Patient",
+      "dateFrom": "From",
+      "dateTo": "To",
+      "all": "All",
+      "reset": "Clear"
     }
   },
   "medications": {
@@ -4418,6 +4445,159 @@
       "deleteFailed": "Failed to Delete Snapshot",
       "downloadFailed": "Failed to Download Snapshot",
       "restoreFailed": "Failed to Restore Snapshot"
+    }
+  },
+  "team": {
+    "title": "Team Management",
+    "description": "Manage workspace members, clinic access, and invitations",
+    "noAccess": "You don't have permission to view team settings",
+    "tabs": {
+      "workspace": "Workspace",
+      "clinics": "Clinics",
+      "invitations": "Invitations"
+    },
+    "common": {
+      "save": "Save",
+      "cancel": "Cancel"
+    },
+    "roles": {
+      "owner": "Owner",
+      "super_admin": "Super Admin",
+      "admin": "Admin",
+      "editor": "Editor",
+      "viewer": "Viewer",
+      "doctor": "Doctor",
+      "assistant": "Assistant",
+      "receptionist": "Receptionist"
+    },
+    "workspace": {
+      "title": "Workspace Members",
+      "noMembers": "No workspace members found"
+    },
+    "clinics": {
+      "title": "Clinic Members",
+      "noMembers": "No clinic members found",
+      "noMembersHint": "Members with workspace access can be assigned specific clinic roles",
+      "chair": "Chair {chair}"
+    },
+    "invitations": {
+      "title": "Invitations",
+      "pending": "pending",
+      "noInvitations": "No invitations found",
+      "noInvitationsHint": "Invite new members to join your workspace",
+      "sentBy": "Invited by {name}"
+    },
+    "invite": {
+      "button": "Invite Member",
+      "title": "Invite New Member",
+      "description": "Send an invitation to join your workspace",
+      "email": "Email Address",
+      "emailPlaceholder": "colleague@example.com",
+      "invalidEmail": "Please enter a valid email address",
+      "role": "Role",
+      "selectRole": "Select a role",
+      "message": "Personal Message",
+      "messagePlaceholder": "Add a personal message to the invitation...",
+      "optional": "optional",
+      "send": "Send Invitation",
+      "success": "Invitation sent successfully",
+      "error": "Failed to send invitation",
+      "resend": "Resend",
+      "resendSuccess": "Invitation resent successfully",
+      "resendError": "Failed to resend invitation",
+      "cancel": "Cancel Invitation",
+      "cancelSuccess": "Invitation cancelled",
+      "cancelError": "Failed to cancel invitation",
+      "confirmCancel": "Cancel this invitation?",
+      "confirmCancelDescription": "The invitation to {email} will be cancelled and the link will no longer work.",
+      "status": {
+        "pending": "Pending",
+        "accepted": "Accepted",
+        "rejected": "Rejected",
+        "expired": "Expired"
+      }
+    },
+    "members": {
+      "removeSuccess": "Member removed successfully",
+      "removeError": "Failed to remove member",
+      "updateSuccess": "Member updated successfully",
+      "updateError": "Failed to update member",
+      "editTitle": "Edit Member",
+      "editDescription": "Update role and permissions for {name}"
+    },
+    "actions": {
+      "editPermissions": "Edit Permissions",
+      "removeAccess": "Remove Access",
+      "removeFromClinic": "Remove from Clinic",
+      "confirmRemove": "Remove this member?",
+      "confirmRemoveDescription": "{name} will lose access to this workspace",
+      "confirmRemoveFromClinic": "Remove from clinic?",
+      "confirmRemoveFromClinicDescription": "{name} will lose access to {clinic}"
+    }
+  },
+  "invite": {
+    "title": "You've been invited!",
+    "description": "You've been invited to join {workspace}",
+    "workspace": "Workspace",
+    "clinic": "Clinic",
+    "role": "Your Role",
+    "expires": "Expires",
+    "invitedYou": "Invited you to join",
+    "authRequired": "You need to sign in or create an account to accept this invitation",
+    "accept": "Accept Invitation",
+    "reject": "Decline",
+    "loginToAccept": "Sign in to accept",
+    "createAccount": "Create account",
+    "goToLogin": "Go to Login",
+    "goHome": "Go Home",
+    "acceptSuccess": "Invitation accepted! Welcome to the team.",
+    "acceptError": "Failed to accept invitation",
+    "rejectSuccess": "Invitation declined",
+    "rejectError": "Failed to decline invitation",
+    "roles": {
+      "owner": "Owner",
+      "super_admin": "Super Admin",
+      "admin": "Admin",
+      "editor": "Editor",
+      "viewer": "Viewer",
+      "doctor": "Doctor",
+      "assistant": "Assistant",
+      "receptionist": "Receptionist"
+    },
+    "expired": {
+      "title": "Invitation Expired",
+      "description": "This invitation has expired. Please request a new one."
+    },
+    "invalid": {
+      "title": "Invalid Invitation",
+      "description": "This invitation link is invalid or has been cancelled."
+    },
+    "alreadyAccepted": {
+      "title": "Already Accepted",
+      "description": "This invitation has already been accepted."
+    },
+    "alreadyRejected": {
+      "title": "Invitation Declined",
+      "description": "This invitation was previously declined."
+    },
+    "accepted": {
+      "title": "Welcome to the Team!",
+      "description": "You've successfully joined the workspace.",
+      "redirecting": "Redirecting to dashboard..."
+    },
+    "rejected": {
+      "title": "Invitation Declined",
+      "description": "You've declined the invitation."
+    }
+  },
+  "permissions": {
+    "locked": {
+      "title": "Access Restricted",
+      "description": "Contact your administrator for access"
+    },
+    "denied": {
+      "title": "Access Denied",
+      "description": "You don't have permission to access this feature"
     }
   }
 }

@@ -492,7 +492,7 @@ export default function InsightsPage() {
                     value={formatCurrency(metrics.revenue.current)}
                     valueInCents={metrics.revenue.current}
                     change={metrics.revenue.change}
-                    changeType={metrics.revenue.change > 0 ? 'increase' : 'decrease'}
+                    changeType={metrics.revenue.change > 0 ? 'increase' : metrics.revenue.change < 0 ? 'decrease' : 'neutral'}
                     icon={DollarSign}
                     color="text-green-600"
                     subtitle={getPeriodLabels.comparison}
@@ -503,7 +503,8 @@ export default function InsightsPage() {
                     value={formatCurrency(metrics.expenses.current)}
                     valueInCents={metrics.expenses.current}
                     change={metrics.expenses.change}
-                    changeType={metrics.expenses.change > 0 ? 'increase' : 'decrease'}
+                    changeType={metrics.expenses.change > 0 ? 'increase' : metrics.expenses.change < 0 ? 'decrease' : 'neutral'}
+                    lowerIsBetter
                     icon={Receipt}
                     color="text-destructive"
                     subtitle={getPeriodLabels.comparison}
@@ -513,7 +514,7 @@ export default function InsightsPage() {
                     title={t('active_patients')}
                     value={metrics.patients.total}
                     change={metrics.patients.change}
-                    changeType="increase"
+                    changeType={metrics.patients.change > 0 ? 'increase' : metrics.patients.change < 0 ? 'decrease' : 'neutral'}
                     icon={Users}
                     color="text-primary"
                     subtitle={`${metrics.patients.new} ${getPeriodLabels.newPatients}`}

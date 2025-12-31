@@ -31,6 +31,7 @@ const treatmentSchema = z.object({
   variable_cost_cents: z.coerce.number().int().nonnegative().optional(),
   margin_pct: z.coerce.number().min(0).optional(), // No upper limit - in-house services can have very high margins
   price_cents: z.coerce.number().int().nonnegative().optional(),
+  amount_paid_cents: z.coerce.number().int().nonnegative().optional(), // Partial payments
   status: z.enum(['pending', 'completed', 'cancelled', 'scheduled', 'in_progress']).optional(),
   notes: z.string().optional(),
   snapshot_costs: z.record(z.any()).optional(),
@@ -47,6 +48,7 @@ export async function GET(request: NextRequest) {
     const { clinicId } = clinicContext;
 
     const patientId = searchParams.get('patient_id') || searchParams.get('patient');
+    const hasBalance = searchParams.get('has_balance') === 'true';
 
     let query = supabaseAdmin
       .from('treatments')
@@ -60,6 +62,11 @@ export async function GET(request: NextRequest) {
 
     if (patientId) {
       query = query.eq('patient_id', patientId);
+    }
+
+    // Filter treatments with pending balance (completed but not fully paid)
+    if (hasBalance) {
+      query = query.eq('status', 'completed').eq('is_paid', false);
     }
 
     const { data, error } = await query;
@@ -77,6 +84,9 @@ export async function GET(request: NextRequest) {
       // Map DB column names to UI expectations (support legacy schema)
       minutes: (row.duration_minutes ?? row.minutes) ?? 0,
       fixed_per_minute_cents: (row.fixed_cost_per_minute_cents ?? row.fixed_per_minute_cents) ?? 0,
+      // Ensure payment fields are present
+      amount_paid_cents: row.amount_paid_cents ?? 0,
+      is_paid: row.is_paid ?? false,
       // Map status from DB to UI ('scheduled'|'in_progress' -> 'pending')
       status: (row.status === 'scheduled' || row.status === 'in_progress') ? 'pending' : (row.status || 'pending'),
     }));
@@ -205,6 +215,7 @@ export async function POST(request: NextRequest) {
       variable_cost_cents: payloadBody.variable_cost_cents ?? 0,
       margin_pct: marginVal || 60,
       price_cents: priceVal || 0,
+      amount_paid_cents: payloadBody.amount_paid_cents ?? 0, // Partial payments support
       status: normalizedStatus,
       notes: payloadBody.notes?.trim() ? payloadBody.notes.trim() : null,
       snapshot_costs: payloadBody.snapshot_costs || {}

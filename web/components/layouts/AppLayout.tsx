@@ -14,7 +14,7 @@ import { UserMenu } from './UserMenu'
 import { getNavigationSections } from './NavigationConfig'
 import { Button } from '@/components/ui/button'
 import { ContextIndicator } from './ContextIndicator'
-import { Sun, Moon, Activity } from 'lucide-react'
+import { Sun, Moon, Activity, Settings as SettingsIcon } from 'lucide-react'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { OnboardingListeners } from '@/components/onboarding/OnboardingListeners'
 
@@ -61,6 +61,9 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   // Get navigation sections with translations
   const navigationSections = getNavigationSections(t, { onboardingCompleted })
+  const footerItems = onboardingCompleted
+    ? [{ href: '/settings', label: t('navigation.settings'), icon: SettingsIcon }]
+    : []
 
   // Map user data for UserMenu component
   const userData = user ? {
@@ -114,6 +117,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       )}>
         <Sidebar
           sections={navigationSections}
+          footerItems={footerItems}
           isCollapsed={sidebarCollapsed}
           onToggleCollapse={handleCollapse}
           className="w-full"
@@ -129,6 +133,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           <div className="flex-1 overflow-hidden">
             <Sidebar
               sections={navigationSections}
+              footerItems={footerItems}
               isCollapsed={false}
               onToggleCollapse={() => setMobileSidebarOpen(false)}
               className="h-full"

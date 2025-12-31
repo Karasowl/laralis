@@ -21,7 +21,7 @@ import { formatDate, formatCurrency } from '@/lib/format'
 import { getLocalDateISO } from '@/lib/utils' 
 import { zPatientForm, ZPatientForm } from '@/lib/zod'
 import { Patient } from '@/lib/types'
-import { Users, Phone, Mail, Calendar, MapPin, Plus, User, Eye, MessageCircle, FileText } from 'lucide-react'
+import { Users, Phone, Mail, Calendar, MapPin, Plus, User, Eye, MessageCircle, FileText, CreditCard } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 // Helper function to calculate age from birth date
@@ -80,15 +80,22 @@ export default function PatientsPage() {
 
   const statsByPatient = useMemo(() => {
     const visitsMap = new Map<string, Set<string>>()
-    const out = new Map<string, { visits: number; treatments: number; spent_cents: number }>()
+    const out = new Map<string, { visits: number; treatments: number; spent_cents: number; balance_cents: number }>()
     ;(treatments || []).forEach((t: any) => {
       if (!t || t.status === 'cancelled') return
       const pid = t.patient_id
       if (!pid) return
       let entry = out.get(pid)
-      if (!entry) { entry = { visits: 0, treatments: 0, spent_cents: 0 }; out.set(pid, entry) }
+      if (!entry) { entry = { visits: 0, treatments: 0, spent_cents: 0, balance_cents: 0 }; out.set(pid, entry) }
       entry.treatments += 1
-      if (t.status === 'completed') entry.spent_cents += t.price_cents || 0
+      if (t.status === 'completed') {
+        entry.spent_cents += t.price_cents || 0
+        // Calculate pending balance (price - amount paid)
+        const pendingBalance = (t.price_cents || 0) - (t.amount_paid_cents || 0)
+        if (pendingBalance > 0 && !t.is_paid) {
+          entry.balance_cents += pendingBalance
+        }
+      }
       const day = (t.treatment_date || '').slice(0, 10)
       if (day) {
         let set = visitsMap.get(pid)
@@ -97,7 +104,7 @@ export default function PatientsPage() {
       }
     })
     visitsMap.forEach((set, pid) => {
-      const entry = out.get(pid) || { visits: 0, treatments: 0, spent_cents: 0 }
+      const entry = out.get(pid) || { visits: 0, treatments: 0, spent_cents: 0, balance_cents: 0 }
       entry.visits = set.size
       out.set(pid, entry)
     })
@@ -139,7 +146,8 @@ export default function PatientsPage() {
     source_id: [],
     gender: '',
     age_range: '',
-    first_visit_date: { from: '', to: '' }
+    first_visit_date: { from: '', to: '' },
+    has_debt: false
   })
 
   // Filter configurations
@@ -176,18 +184,23 @@ export default function PatientsPage() {
       key: 'first_visit_date',
       label: tFields('first_visit'),
       type: 'date-range'
+    },
+    {
+      key: 'has_debt',
+      label: tFilters('hasDebt'),
+      type: 'boolean'
     }
   ], [tFields, tFilters, t, patientSources])
 
-  // Apply standard filters to patients (excludes age_range which needs custom logic)
+  // Apply standard filters to patients (excludes age_range and has_debt which need custom logic)
   const standardFilterConfigs = useMemo(() =>
-    filterConfigs.filter(c => c.key !== 'age_range'),
+    filterConfigs.filter(c => c.key !== 'age_range' && c.key !== 'has_debt'),
     [filterConfigs]
   )
   const standardFiltered = useSmartFilter(patients || [], filterValues, standardFilterConfigs)
 
   // Apply age range filter (custom logic since age is calculated, not a direct field)
-  const filteredPatients = useMemo(() => {
+  const ageFiltered = useMemo(() => {
     const ageRange = filterValues.age_range
     if (!ageRange) return standardFiltered
 
@@ -197,6 +210,16 @@ export default function PatientsPage() {
       return isAgeInRange(age, ageRange)
     })
   }, [standardFiltered, filterValues.age_range])
+
+  // Apply debt filter (custom logic since debt is calculated from treatments)
+  const filteredPatients = useMemo(() => {
+    if (!filterValues.has_debt) return ageFiltered
+
+    return ageFiltered.filter((patient: Patient) => {
+      const stats = statsByPatient.get(patient.id)
+      return stats && stats.balance_cents > 0
+    })
+  }, [ageFiltered, filterValues.has_debt, statsByPatient])
 
   // Form
   const initialValues: ZPatientForm = {
@@ -357,10 +380,20 @@ export default function PatientsPage() {
       className: 'min-w-[140px]',
       render: (_value: any, patient: Patient) => {
         if (!patient) return null;
+        const stats = statsByPatient.get(patient.id)
+        const hasDebt = stats && stats.balance_cents > 0
         return (
           <div>
-            <div className="font-medium text-sm lg:text-base whitespace-nowrap">
-              {patient.first_name} {patient.last_name}
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-sm lg:text-base whitespace-nowrap">
+                {patient.first_name} {patient.last_name}
+              </span>
+              {hasDebt && (
+                <Badge variant="warning" className="text-xs gap-1 px-1.5 py-0.5">
+                  <CreditCard className="h-3 w-3" />
+                  {formatCurrency(stats.balance_cents)}
+                </Badge>
+              )}
             </div>
             {patient.email && (
               <div className="text-xs lg:text-sm text-muted-foreground hidden xl:block truncate max-w-[200px]">{patient.email}</div>
@@ -788,6 +821,7 @@ export default function PatientsPage() {
               treatments: statsByPatient.get(viewPatient.id)?.treatments ?? 0,
               spent_cents: statsByPatient.get(viewPatient.id)?.spent_cents ?? 0,
               visits: statsByPatient.get(viewPatient.id)?.visits ?? 0,
+              balance_cents: statsByPatient.get(viewPatient.id)?.balance_cents ?? 0,
             }}
           />
         )}

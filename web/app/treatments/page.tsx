@@ -23,6 +23,8 @@ import { useCurrentClinic } from '@/hooks/use-current-clinic'
 import { useRequirementsGuard } from '@/lib/requirements/useGuard'
 import { toast } from 'sonner'
 import { useTreatments, Treatment, Patient, Service } from '@/hooks/use-treatments'
+import { PaymentDialog } from './components/PaymentDialog'
+import { CreditCard } from 'lucide-react'
 import { formatCurrency } from '@/lib/money'
 import { getLocalDateISO } from '@/lib/utils'
 import { formatDate } from '@/lib/format'
@@ -103,7 +105,9 @@ export default function TreatmentsPage() {
     updateTreatment,
     deleteTreatment,
     fetchTreatments,
-    loadRelatedData
+    loadRelatedData,
+    registerPayment,
+    summary
   } = useTreatments({ clinicId: currentClinic?.id, patientId: patientFilter || undefined })
 
   // Keep a ref of services to use immediately after refresh
@@ -162,23 +166,36 @@ export default function TreatmentsPage() {
       label: t('treatments.fields.price'),
       type: 'number-range',
       multiplier: 100 // User inputs in pesos, data is in cents
+    },
+    {
+      key: 'has_balance',
+      label: t('treatments.filters.hasBalance'),
+      type: 'boolean'
     }
   ], [t, services, patients])
 
   // Apply filters to treatments
   const smartFilteredTreatments = useSmartFilter(treatments, filterValues, filterConfigs)
 
+  // Apply balance filter (treatments with pending balance)
+  const balanceFilteredTreatments = useMemo(() => {
+    if (!filterValues.has_balance) return smartFilteredTreatments
+    return smartFilteredTreatments.filter((t: Treatment) =>
+      t.status === 'completed' && !t.is_paid
+    )
+  }, [smartFilteredTreatments, filterValues.has_balance])
+
   // Search state
   const [searchTerm, setSearchTerm] = useState('')
 
   // Apply type filter (all, appointments, treatments)
   const typeFilteredTreatments = useMemo(() => {
-    if (typeFilter === 'all') return smartFilteredTreatments
+    if (typeFilter === 'all') return balanceFilteredTreatments
 
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
-    return smartFilteredTreatments.filter((treatment: Treatment) => {
+    return balanceFilteredTreatments.filter((treatment: Treatment) => {
       const treatmentDate = new Date(treatment.treatment_date + 'T12:00:00')
       treatmentDate.setHours(0, 0, 0, 0)
       const isCompleted = treatment.status === 'completed' || treatment.status === 'cancelled'
@@ -192,7 +209,7 @@ export default function TreatmentsPage() {
         return isPast || isCompleted
       }
     })
-  }, [smartFilteredTreatments, typeFilter])
+  }, [balanceFilteredTreatments, typeFilter])
 
   // Apply text search filter
   const filteredTreatments = useMemo(() => {
@@ -240,6 +257,7 @@ export default function TreatmentsPage() {
   const [deleteTreatmentData, setDeleteTreatmentData] = useState<any>(null)
   const [refundTreatmentData, setRefundTreatmentData] = useState<Treatment | null>(null)
   const [isRefunding, setIsRefunding] = useState(false)
+  const [paymentTreatment, setPaymentTreatment] = useState<Treatment | null>(null)
 
   // URL params for create/edit from calendar view
   const createParam = searchParams?.get('create')
@@ -532,6 +550,29 @@ export default function TreatmentsPage() {
         </div>
       )
     },
+    // Payment status column
+    {
+      key: 'payment_status',
+      label: t('treatments.fields.paymentStatus'),
+      render: (_value: any, treatment: Treatment) => {
+        if (treatment?.status === 'cancelled') {
+          return <span className="text-muted-foreground">—</span>
+        }
+        const balanceCents = (treatment?.price_cents || 0) - (treatment?.amount_paid_cents || 0)
+        const isPaid = treatment?.is_paid || balanceCents <= 0
+
+        return isPaid ? (
+          <Badge variant="success">{t('treatments.payment.paid')}</Badge>
+        ) : (
+          <div className="flex flex-col gap-1">
+            <Badge variant="warning">{t('treatments.payment.pending')}</Badge>
+            <span className="text-xs text-muted-foreground">
+              {t('treatments.payment.balance')}: {formatCurrency(balanceCents)}
+            </span>
+          </div>
+        )
+      }
+    },
     // Profit - hidden on tablet (less important, can be derived)
     {
       key: 'profit',
@@ -632,6 +673,14 @@ export default function TreatmentsPage() {
                 })
                 setEditTreatment(treatment)
               }, tCommon('edit')),
+              // Only show payment action for completed treatments with pending balance
+              ...(treatment?.status === 'completed' && !treatment?.is_paid
+                ? [{
+                    icon: <CreditCard className="h-4 w-4" />,
+                    label: t('treatments.payment.registerPayment'),
+                    onClick: () => setPaymentTreatment(treatment),
+                  }]
+                : []),
               // Only show refund action for completed treatments that are not already refunded
               ...(treatment?.status === 'completed' && !treatment?.is_refunded
                 ? [createRefundAction(() => setRefundTreatmentData(treatment), t('treatments.refund.button'))]
@@ -858,8 +907,15 @@ export default function TreatmentsPage() {
               icon: DollarSign,
               color: 'warning'
             },
+            {
+              label: t('treatments.summary.accountsReceivable'),
+              value: formatCurrency(summary.pendingBalanceCents),
+              subtitle: t('treatments.summary.treatmentsWithBalance', { count: summary.treatmentsWithBalance }),
+              icon: CreditCard,
+              color: 'danger'
+            },
           ]}
-          columns={4}
+          columns={5}
         />
 
         <SmartFilters
@@ -980,6 +1036,13 @@ export default function TreatmentsPage() {
           description={t('treatments.refund.confirmDescription')}
           onConfirm={handleRefund}
           isSubmitting={isRefunding}
+        />
+
+        <PaymentDialog
+          open={!!paymentTreatment}
+          onOpenChange={(open) => !open && setPaymentTreatment(null)}
+          treatment={paymentTreatment}
+          onSubmit={registerPayment}
         />
       </div>
     </AppLayout>

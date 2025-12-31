@@ -1,24 +1,18 @@
 import {
-  Home,
   Users,
   Calendar,
   Receipt,
   Package,
   DollarSign,
-  Settings as SettingsIcon,
   PiggyBank,
   Briefcase,
   Calculator,
-  Building,
   Megaphone,
   Wrench,
   XCircle,
   BarChart3,
-  Shield,
-  PackageOpen,
   Clock,
-  ClipboardList,
-  FileSpreadsheet
+  ClipboardList
 } from 'lucide-react'
 
 export interface NavigationItem {
@@ -39,13 +33,8 @@ export function getNavigationSections(t: any, options: { onboardingCompleted?: b
       items: [
         {
           href: '/',
-          label: t('navigation.insights'),
+          label: t('navigation.dashboard'),
           icon: BarChart3
-        },
-        {
-          href: '/patients',
-          label: t('navigation.patients'),
-          icon: Users
         },
         {
           href: '/treatments',
@@ -53,14 +42,19 @@ export function getNavigationSections(t: any, options: { onboardingCompleted?: b
           icon: Calendar
         },
         {
+          href: '/patients',
+          label: t('navigation.patients'),
+          icon: Users
+        },
+        {
+          href: '/expenses',
+          label: t('navigation.expenses'),
+          icon: Receipt
+        },
+        {
           href: '/prescriptions',
           label: t('navigation.prescriptions'),
           icon: ClipboardList
-        },
-        {
-          href: '/quotes',
-          label: t('navigation.quotes'),
-          icon: FileSpreadsheet
         }
       ]
     },
@@ -81,11 +75,6 @@ export function getNavigationSections(t: any, options: { onboardingCompleted?: b
           href: '/marketing',
           label: t('navigation.marketing'),
           icon: Megaphone
-        },
-        {
-          href: '/expenses',
-          label: t('navigation.expenses'),
-          icon: Receipt
         }
       ]
     },
@@ -118,46 +107,6 @@ export function getNavigationSections(t: any, options: { onboardingCompleted?: b
           href: '/equilibrium',
           label: t('navigation.equilibrium'),
           icon: Calculator
-        }
-      ]
-    },
-    {
-      title: t('navigation.administration'),
-      items: [
-        {
-          href: '/settings',
-          label: t('navigation.settings'),
-          icon: SettingsIcon
-        },
-        {
-          href: '/settings/workspaces',
-          label: t('navigation.workspaces'),
-          icon: Building
-        },
-        {
-          href: '/settings/account',
-          label: t('navigation.account'),
-          icon: Home
-        },
-        {
-          href: '/settings/preferences',
-          label: t('navigation.preferences'),
-          icon: Calculator
-        },
-        {
-          href: '/settings/security',
-          label: t('navigation.security'),
-          icon: Shield
-        },
-        {
-          href: '/settings/export-import',
-          label: t('navigation.exportImport'),
-          icon: PackageOpen
-        },
-        {
-          href: '/settings/reset',
-          label: t('navigation.reset'),
-          icon: XCircle
         }
       ]
     }

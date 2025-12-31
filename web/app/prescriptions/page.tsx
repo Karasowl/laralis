@@ -14,6 +14,7 @@ import { usePatients } from '@/hooks/use-patients'
 import { useToast } from '@/hooks/use-toast'
 import { PrescriptionForm } from './components/PrescriptionForm'
 import { PrescriptionTable } from './components/PrescriptionTable'
+import { PrescriptionFilters, PrescriptionFiltersState } from './components/PrescriptionFilters'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { Prescription, Patient } from '@/lib/types'
@@ -59,8 +60,19 @@ export default function PrescriptionsPage() {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [selectedPrescription, setSelectedPrescription] = useState<PrescriptionWithPatient | null>(null)
   const [prescriptionToCancel, setPrescriptionToCancel] = useState<PrescriptionWithPatient | null>(null)
+  const [filters, setFilters] = useState<PrescriptionFiltersState>({
+    status: '',
+    patientId: '',
+    startDate: '',
+    endDate: '',
+  })
 
-  const { prescriptions, loading, createPrescription, cancelPrescription, downloadPDF, refresh } = usePrescriptions()
+  const { prescriptions, loading, createPrescription, cancelPrescription, downloadPDF, refresh } = usePrescriptions({
+    status: filters.status || undefined,
+    patientId: filters.patientId || undefined,
+    startDate: filters.startDate || undefined,
+    endDate: filters.endDate || undefined,
+  })
   const { patients } = usePatients()
 
   const form = useForm<PrescriptionFormData>({
@@ -222,7 +234,13 @@ export default function PrescriptionsPage() {
           }
         />
 
-        <div className="mt-6">
+        <div className="mt-6 space-y-4">
+          <PrescriptionFilters
+            filters={filters}
+            onFiltersChange={setFilters}
+            patients={patientOptions}
+            t={t}
+          />
           <PrescriptionTable
             prescriptions={(prescriptions || []) as PrescriptionWithPatient[]}
             loading={loading}
@@ -261,7 +279,7 @@ export default function PrescriptionsPage() {
         >
           {selectedPrescription && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">{t('prescriptions.fields.patient')}</p>
                   <p className="font-medium">

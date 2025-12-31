@@ -24,7 +24,7 @@ export type { DatePreset, DateRange }
 export { detectPreset, getPresetRange }
 
 // Filter types
-export type FilterType = 'date-range' | 'select' | 'multi-select' | 'number-range' | 'granularity' | 'comparison'
+export type FilterType = 'date-range' | 'select' | 'multi-select' | 'number-range' | 'granularity' | 'comparison' | 'boolean'
 
 // Granularity and Comparison types
 export type Granularity = 'day' | 'week' | 'month'
@@ -103,6 +103,9 @@ export function SmartFilters({ filters, values, onChange, className }: SmartFilt
         case 'comparison':
           defaults[f.key] = 'none' // Default comparison
           break
+        case 'boolean':
+          defaults[f.key] = false
+          break
         case 'select':
         default:
           defaults[f.key] = ''
@@ -176,6 +179,8 @@ function FilterControl({ config, value, onChange }: FilterControlProps) {
       return <GranularityFilter config={config} value={value} onChange={onChange} />
     case 'comparison':
       return <ComparisonFilter config={config} value={value} onChange={onChange} />
+    case 'boolean':
+      return <BooleanFilter config={config} value={value} onChange={onChange} />
     default:
       return null
   }
@@ -506,6 +511,26 @@ function ComparisonFilter({ config, value, onChange }: FilterControlProps) {
         </div>
       </PopoverContent>
     </Popover>
+  )
+}
+
+// Boolean Filter (toggle)
+function BooleanFilter({ config, value, onChange }: FilterControlProps) {
+  const isActive = Boolean(value)
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={() => onChange(!isActive)}
+      className={cn(
+        'h-8 border-dashed',
+        isActive && 'border-primary bg-primary/5 text-primary'
+      )}
+    >
+      {isActive && <Check className="h-3.5 w-3.5 mr-1.5" />}
+      <span className="max-w-[150px] truncate">{config.label}</span>
+    </Button>
   )
 }
 

@@ -72,6 +72,8 @@ export interface Treatment {
   variable_cost_cents: number
   margin_pct: number
   price_cents: number
+  amount_paid_cents: number
+  is_paid: boolean
   tariff_version?: number
   status: 'pending' | 'completed' | 'cancelled'
   notes?: string
@@ -140,13 +142,22 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
     const pendingTreatments = nonCancelled.filter(t => t.status === 'pending').length
     const averagePrice = completedTreatments > 0 ? totalRevenue / completedTreatments : 0
 
+    // Partial payments tracking
+    const treatmentsWithBalance = completed.filter(t => !t.is_paid).length
+    const pendingBalanceCents = completed
+      .filter(t => !t.is_paid)
+      .reduce((sum, t) => sum + ((t.price_cents || 0) - (t.amount_paid_cents || 0)), 0)
+
     return {
       totalRevenue,
       totalTreatments,
       completedTreatments,
       pendingTreatments,
       averagePrice,
-      completionRate: totalTreatments > 0 ? (completedTreatments / totalTreatments) * 100 : 0
+      completionRate: totalTreatments > 0 ? (completedTreatments / totalTreatments) * 100 : 0,
+      // Partial payments
+      treatmentsWithBalance,
+      pendingBalanceCents,
     }
   }, [uniqueTreatments])
 
@@ -337,6 +348,36 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
     }
   }, [crud, servicesApi.data, t])
 
+  // Register a payment for a treatment
+  const registerPayment = useCallback(async (
+    treatmentId: string,
+    amountCents: number
+  ): Promise<boolean> => {
+    try {
+      const response = await fetch(`/api/treatments/${treatmentId}/payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ amount_cents: amountCents }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        toast.error(errorData.message || t('treatments.payment.paymentError'))
+        return false
+      }
+
+      const result = await response.json()
+      toast.success(result.message || t('treatments.payment.paymentSuccess'))
+      await crud.refresh()
+      return true
+    } catch (error) {
+      console.error('Error registering payment:', error)
+      toast.error(t('treatments.payment.paymentError'))
+      return false
+    }
+  }, [crud, t])
+
   return {
     // From CRUD operations
     treatments: uniqueTreatments,
@@ -361,6 +402,7 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
     createTreatment,
     updateTreatment,
     deleteTreatment: crud.handleDelete,
+    registerPayment,
 
     // SWR state
     isValidating: crud.isValidating,

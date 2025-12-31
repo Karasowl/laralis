@@ -122,10 +122,11 @@
       "adults": "Adultos (31-45)",
       "mature": "Maduros (46-60)",
       "seniors": "Mayores (61+)"
-    }
+    },
+    "hasDebt": "Con deuda pendiente"
   },
   "navigation": {
-    "dashboard": "Inicio",
+    "dashboard": "Dashboard",
     "patients": "Pacientes",
     "treatments": "Tratamientos",
     "operations": "Operaciones",
@@ -2683,10 +2684,13 @@
       "status": "Estado",
       "margin": "Margen (%)",
       "sale_price": "Precio de Venta",
-      "notes": "Notas"
+      "notes": "Notas",
+      "paymentStatus": "Estado de Pago",
+      "amountPaid": "Monto Pagado"
     },
     "filters": {
-      "patient": "Paciente"
+      "patient": "Paciente",
+      "hasBalance": "Con saldo pendiente"
     },
     "sale_price_helper": "Precio final de venta - el margen se ajusta automáticamente",
     "timeHelp": "Hora de la cita (opcional)",
@@ -2716,7 +2720,21 @@
       "registered": "Registrados",
       "completionRate": "Tasa de Finalización",
       "averagePrice": "Precio Promedio",
-      "perTreatment": "Por tratamiento"
+      "perTreatment": "Por tratamiento",
+      "accountsReceivable": "Cuentas por Cobrar",
+      "treatmentsWithBalance": "{count} tratamientos con saldo"
+    },
+    "payment": {
+      "paid": "Pagado",
+      "pending": "Pendiente",
+      "balance": "Saldo",
+      "registerPayment": "Registrar Pago",
+      "paymentAmount": "Monto del Pago",
+      "remainingBalance": "Saldo Restante",
+      "payFull": "Pagar Total",
+      "paymentSuccess": "Pago registrado exitosamente",
+      "paymentError": "Error al registrar pago",
+      "cancel": "Cancelar"
     },
     "status": {
       "completed": "Completado",
@@ -4619,6 +4637,15 @@
     "empty": {
       "title": "Sin recetas",
       "description": "No hay recetas médicas registradas. Crea una nueva receta."
+    },
+    "filters": {
+      "title": "Filtros",
+      "status": "Estado",
+      "patient": "Paciente",
+      "dateFrom": "Desde",
+      "dateTo": "Hasta",
+      "all": "Todos",
+      "reset": "Limpiar"
     }
   },
   "medications": {
@@ -4697,6 +4724,159 @@
       "deleteFailed": "Error al Eliminar Snapshot",
       "downloadFailed": "Error al Descargar Snapshot",
       "restoreFailed": "Error al Restaurar Snapshot"
+    }
+  },
+  "team": {
+    "title": "Gestión de Equipo",
+    "description": "Administra miembros del workspace, acceso a clínicas e invitaciones",
+    "noAccess": "No tienes permiso para ver la configuración del equipo",
+    "tabs": {
+      "workspace": "Workspace",
+      "clinics": "Clínicas",
+      "invitations": "Invitaciones"
+    },
+    "common": {
+      "save": "Guardar",
+      "cancel": "Cancelar"
+    },
+    "roles": {
+      "owner": "Propietario",
+      "super_admin": "Super Admin",
+      "admin": "Administrador",
+      "editor": "Editor",
+      "viewer": "Visualizador",
+      "doctor": "Doctor",
+      "assistant": "Asistente",
+      "receptionist": "Recepcionista"
+    },
+    "workspace": {
+      "title": "Miembros del Workspace",
+      "noMembers": "No se encontraron miembros del workspace"
+    },
+    "clinics": {
+      "title": "Miembros de Clínica",
+      "noMembers": "No se encontraron miembros de la clínica",
+      "noMembersHint": "Los miembros con acceso al workspace pueden ser asignados a roles específicos de clínica",
+      "chair": "Sillón {chair}"
+    },
+    "invitations": {
+      "title": "Invitaciones",
+      "pending": "pendientes",
+      "noInvitations": "No se encontraron invitaciones",
+      "noInvitationsHint": "Invita nuevos miembros para unirse a tu workspace",
+      "sentBy": "Invitado por {name}"
+    },
+    "invite": {
+      "button": "Invitar Miembro",
+      "title": "Invitar Nuevo Miembro",
+      "description": "Envía una invitación para unirse a tu workspace",
+      "email": "Correo Electrónico",
+      "emailPlaceholder": "colega@ejemplo.com",
+      "invalidEmail": "Por favor ingresa un correo electrónico válido",
+      "role": "Rol",
+      "selectRole": "Selecciona un rol",
+      "message": "Mensaje Personal",
+      "messagePlaceholder": "Agrega un mensaje personal a la invitación...",
+      "optional": "opcional",
+      "send": "Enviar Invitación",
+      "success": "Invitación enviada exitosamente",
+      "error": "Error al enviar la invitación",
+      "resend": "Reenviar",
+      "resendSuccess": "Invitación reenviada exitosamente",
+      "resendError": "Error al reenviar la invitación",
+      "cancel": "Cancelar Invitación",
+      "cancelSuccess": "Invitación cancelada",
+      "cancelError": "Error al cancelar la invitación",
+      "confirmCancel": "¿Cancelar esta invitación?",
+      "confirmCancelDescription": "La invitación para {email} será cancelada y el enlace dejará de funcionar.",
+      "status": {
+        "pending": "Pendiente",
+        "accepted": "Aceptada",
+        "rejected": "Rechazada",
+        "expired": "Expirada"
+      }
+    },
+    "members": {
+      "removeSuccess": "Miembro eliminado exitosamente",
+      "removeError": "Error al eliminar miembro",
+      "updateSuccess": "Miembro actualizado exitosamente",
+      "updateError": "Error al actualizar miembro",
+      "editTitle": "Editar Miembro",
+      "editDescription": "Actualizar rol y permisos para {name}"
+    },
+    "actions": {
+      "editPermissions": "Editar Permisos",
+      "removeAccess": "Revocar Acceso",
+      "removeFromClinic": "Eliminar de Clínica",
+      "confirmRemove": "¿Eliminar a este miembro?",
+      "confirmRemoveDescription": "{name} perderá acceso a este workspace",
+      "confirmRemoveFromClinic": "¿Eliminar de la clínica?",
+      "confirmRemoveFromClinicDescription": "{name} perderá acceso a {clinic}"
+    }
+  },
+  "invite": {
+    "title": "¡Has sido invitado!",
+    "description": "Has sido invitado a unirte a {workspace}",
+    "workspace": "Workspace",
+    "clinic": "Clínica",
+    "role": "Tu Rol",
+    "expires": "Expira",
+    "invitedYou": "Te invitó a unirte",
+    "authRequired": "Necesitas iniciar sesión o crear una cuenta para aceptar esta invitación",
+    "accept": "Aceptar Invitación",
+    "reject": "Rechazar",
+    "loginToAccept": "Inicia sesión para aceptar",
+    "createAccount": "Crear cuenta",
+    "goToLogin": "Ir a Iniciar Sesión",
+    "goHome": "Ir al Inicio",
+    "acceptSuccess": "¡Invitación aceptada! Bienvenido al equipo.",
+    "acceptError": "Error al aceptar la invitación",
+    "rejectSuccess": "Invitación rechazada",
+    "rejectError": "Error al rechazar la invitación",
+    "roles": {
+      "owner": "Propietario",
+      "super_admin": "Super Admin",
+      "admin": "Administrador",
+      "editor": "Editor",
+      "viewer": "Visualizador",
+      "doctor": "Doctor",
+      "assistant": "Asistente",
+      "receptionist": "Recepcionista"
+    },
+    "expired": {
+      "title": "Invitación Expirada",
+      "description": "Esta invitación ha expirado. Por favor solicita una nueva."
+    },
+    "invalid": {
+      "title": "Invitación Inválida",
+      "description": "Este enlace de invitación es inválido o ha sido cancelado."
+    },
+    "alreadyAccepted": {
+      "title": "Ya Aceptada",
+      "description": "Esta invitación ya fue aceptada."
+    },
+    "alreadyRejected": {
+      "title": "Invitación Rechazada",
+      "description": "Esta invitación fue rechazada anteriormente."
+    },
+    "accepted": {
+      "title": "¡Bienvenido al Equipo!",
+      "description": "Te has unido exitosamente al workspace.",
+      "redirecting": "Redirigiendo al dashboard..."
+    },
+    "rejected": {
+      "title": "Invitación Rechazada",
+      "description": "Has rechazado la invitación."
+    }
+  },
+  "permissions": {
+    "locked": {
+      "title": "Acceso Restringido",
+      "description": "Contacta a tu administrador para obtener acceso"
+    },
+    "denied": {
+      "title": "Acceso Denegado",
+      "description": "No tienes permiso para acceder a esta función"
     }
   }
 }
