@@ -4938,32 +4938,168 @@
     "faqTitle": "Preguntas Frecuentes",
     "needMoreHelp": "¿Necesitas más ayuda?",
     "madeWith": "Hecho con ❤️ para dentistas",
+    "searchPlaceholder": "Buscar en la ayuda...",
+    "noResults": "No se encontraron resultados",
+    "backToHelp": "Volver a Ayuda",
+    "readTime": "{minutes} min de lectura",
     "guides": {
-      "gettingStarted": "Primeros Pasos",
-      "managingPatients": "Gestión de Pacientes",
-      "financialReports": "Reportes Financieros",
-      "keyboardShortcuts": "Atajos de Teclado"
+      "gettingStarted": {
+        "title": "Primeros Pasos",
+        "description": "Aprende a configurar tu clínica en Laralis",
+        "intro": "Esta guía te llevará paso a paso para configurar tu clínica en Laralis y empezar a usarlo en menos de 10 minutos.",
+        "step1": {
+          "title": "Crea tu Workspace",
+          "content": "Al registrarte, el primer paso es crear un Workspace. Un workspace es tu espacio de trabajo principal donde puedes tener múltiples clínicas. Ingresa el nombre de tu consultorio o grupo de clínicas."
+        },
+        "step2": {
+          "title": "Configura tu Primera Clínica",
+          "content": "Dentro del workspace, crea tu primera clínica. Ingresa el nombre, dirección y datos de contacto. Esta información aparecerá en tus documentos y reportes."
+        },
+        "step3": {
+          "title": "Configura tus Horarios",
+          "content": "Ve a Configuración > Tiempo para establecer tus días y horas de trabajo. Esto es importante para calcular tu capacidad productiva y punto de equilibrio."
+        },
+        "step4": {
+          "title": "Agrega tus Servicios",
+          "content": "En la sección Servicios, agrega los tratamientos que ofreces con sus precios. Puedes configurar costos variables, márgenes y descuentos."
+        },
+        "step5": {
+          "title": "Registra tu Primer Paciente",
+          "content": "Ve a Pacientes y agrega tu primer paciente. Solo necesitas nombre y un dato de contacto. El historial se irá llenando conforme registres tratamientos."
+        },
+        "tip": "Consejo: Puedes usar el asistente de voz Lara (botón flotante) para agregar datos más rápido hablando."
+      },
+      "patients": {
+        "title": "Gestión de Pacientes",
+        "description": "Aprende a manejar el expediente de tus pacientes",
+        "intro": "Laralis te permite mantener un expediente completo de cada paciente con su historial de tratamientos, pagos y notas clínicas.",
+        "addPatient": {
+          "title": "Agregar un Paciente",
+          "content": "Ve a Pacientes > Agregar Paciente. Los campos obligatorios son nombre y al menos un dato de contacto (teléfono o email). Puedes agregar fecha de nacimiento, notas y fuente de adquisición."
+        },
+        "patientHistory": {
+          "title": "Ver Historial",
+          "content": "Haz clic en cualquier paciente para ver su ficha completa. Verás todos sus tratamientos, balance pendiente, y notas. Puedes editar su información en cualquier momento."
+        },
+        "pendingBalance": {
+          "title": "Balance Pendiente",
+          "content": "Cuando un tratamiento no está pagado completamente, aparece como balance pendiente. Puedes ver el total pendiente de cada paciente y del consultorio en general."
+        },
+        "acquisitionSource": {
+          "title": "Fuente de Adquisición",
+          "content": "Registrar cómo llegó cada paciente te ayuda a medir el ROI de tu publicidad. Puedes crear fuentes personalizadas como 'Facebook', 'Referido', 'Google', etc."
+        },
+        "export": {
+          "title": "Exportar Datos",
+          "content": "Puedes exportar la lista de pacientes a Excel desde Configuración > Exportar/Importar. Esto es útil para respaldos o migración."
+        }
+      },
+      "finances": {
+        "title": "Finanzas y Reportes",
+        "description": "Entiende tus números y toma mejores decisiones",
+        "intro": "Laralis calcula automáticamente tus métricas financieras para que sepas exactamente cuánto ganas y qué necesitas para ser rentable.",
+        "dashboard": {
+          "title": "El Dashboard",
+          "content": "Tu dashboard muestra un resumen de ingresos, gastos, tratamientos y pacientes del período seleccionado. Usa los filtros de fecha para ver diferentes períodos."
+        },
+        "breakEven": {
+          "title": "Punto de Equilibrio",
+          "content": "El punto de equilibrio es el monto mínimo que necesitas facturar para cubrir todos tus costos. Se calcula dividiendo tus costos fijos entre tu margen de contribución. Si facturas menos, pierdes dinero."
+        },
+        "fixedVsVariable": {
+          "title": "Costos Fijos vs Variables",
+          "content": "Los costos fijos (renta, salarios, servicios) se pagan siempre, hagas o no tratamientos. Los costos variables (materiales) aumentan con cada tratamiento. Ambos afectan tu punto de equilibrio."
+        },
+        "margins": {
+          "title": "Márgenes de Servicios",
+          "content": "Cada servicio tiene un margen que es la diferencia entre precio y costo. Laralis te muestra el margen de cada servicio para que puedas ajustar precios inteligentemente."
+        },
+        "reports": {
+          "title": "Reportes Mensuales",
+          "content": "En el Dashboard puedes ver comparativas mensuales. Usa el filtro de comparación para ver cómo te fue este mes vs el anterior o vs el mismo mes del año pasado."
+        }
+      },
+      "shortcuts": {
+        "title": "Atajos de Teclado",
+        "description": "Trabaja más rápido con atajos de teclado",
+        "intro": "Aprende estos atajos para navegar Laralis sin usar el mouse y ser más productivo.",
+        "global": "Atajos Globales",
+        "navigation": "Navegación",
+        "actions": "Acciones",
+        "shortcutsList": {
+          "search": "Abrir búsqueda global",
+          "newPatient": "Nuevo paciente",
+          "newTreatment": "Nuevo tratamiento",
+          "dashboard": "Ir al Dashboard",
+          "patients": "Ir a Pacientes",
+          "treatments": "Ir a Tratamientos",
+          "escape": "Cerrar modal/cancelar",
+          "save": "Guardar formulario",
+          "voiceAssistant": "Activar asistente de voz"
+        },
+        "tip": "Consejo: Presiona ? en cualquier página para ver los atajos disponibles."
+      }
     },
     "faq": {
       "howToAddPatient": {
         "question": "¿Cómo agrego un nuevo paciente?",
-        "answer": "Ve a la sección Pacientes y haz clic en el botón 'Agregar Paciente'. Completa la información requerida y guarda."
+        "answer": "Ve a Pacientes y haz clic en 'Agregar Paciente'. Completa nombre y al menos un dato de contacto, luego guarda."
       },
       "howToCreateTreatment": {
         "question": "¿Cómo registro un tratamiento?",
-        "answer": "Ve a Tratamientos, haz clic en 'Nuevo Tratamiento', selecciona el paciente, servicio, fecha y hora, luego guarda."
+        "answer": "Ve a Tratamientos > Nuevo Tratamiento. Selecciona paciente, servicio, fecha y hora. Puedes agregar notas y marcar si está pagado."
       },
       "whatIsBreakEven": {
         "question": "¿Qué es el Punto de Equilibrio?",
-        "answer": "Es el monto mínimo de ingresos que necesitas para cubrir todos tus costos fijos y variables. Te ayuda a saber cuántos tratamientos necesitas hacer para no perder dinero."
+        "answer": "Es el monto mínimo de ingresos para cubrir todos tus costos. Te dice cuántos tratamientos necesitas para no perder dinero."
       },
       "howToTrackExpenses": {
         "question": "¿Cómo registro mis gastos?",
-        "answer": "Ve a la sección Gastos, haz clic en 'Nuevo Gasto', selecciona la categoría, ingresa el monto y descripción."
+        "answer": "Ve a Gastos > Nuevo Gasto. Selecciona categoría, ingresa monto y descripción. Los gastos afectan tu punto de equilibrio."
       },
       "howToUseMarketing": {
         "question": "¿Cómo uso el módulo de Marketing?",
-        "answer": "En Marketing puedes crear campañas publicitarias y rastrear qué pacientes llegaron por cada campaña. Esto te ayuda a medir el ROI de tu publicidad."
+        "answer": "En Marketing creas campañas y las asocias a pacientes. Así mides cuántos pacientes y cuánto ingreso generó cada campaña."
+      },
+      "howToConfigureTime": {
+        "question": "¿Por qué es importante configurar mis horarios?",
+        "answer": "Tus horarios determinan tu capacidad productiva. Esto se usa para calcular el costo por minuto y el punto de equilibrio correctamente."
+      },
+      "whatIsFixedCost": {
+        "question": "¿Qué son los costos fijos?",
+        "answer": "Son gastos que pagas siempre sin importar cuántos pacientes atiendas: renta, salarios, servicios, seguros, etc."
+      },
+      "whatIsVariableCost": {
+        "question": "¿Qué son los costos variables?",
+        "answer": "Son materiales que usas en cada tratamiento: guantes, anestesia, resinas, etc. Aumentan con cada paciente atendido."
+      },
+      "howToCalculatePrice": {
+        "question": "¿Cómo calculo el precio de un servicio?",
+        "answer": "Laralis suma tu costo fijo por minuto + costo variable de materiales + el margen que quieras ganar. Puedes ajustar el precio final manualmente."
+      },
+      "canIHaveMultipleClinics": {
+        "question": "¿Puedo tener múltiples clínicas?",
+        "answer": "Sí. Dentro de un workspace puedes crear varias clínicas. Cada una tiene sus propios pacientes, servicios y reportes."
+      },
+      "howToInviteStaff": {
+        "question": "¿Cómo invito a mi equipo?",
+        "answer": "Ve a Configuración > Equipo. Puedes invitar por email y asignar roles con diferentes permisos (admin, doctor, recepcionista, etc)."
+      },
+      "isMyDataSecure": {
+        "question": "¿Mis datos están seguros?",
+        "answer": "Sí. Usamos encriptación en tránsito y en reposo. Tus datos están en servidores seguros y cumplimos con estándares de privacidad."
+      },
+      "canIExportData": {
+        "question": "¿Puedo exportar mis datos?",
+        "answer": "Sí. Ve a Configuración > Exportar/Importar. Puedes exportar todos tus datos en formato JSON para respaldo o migración."
+      },
+      "howToUseVoiceAssistant": {
+        "question": "¿Cómo uso el asistente de voz?",
+        "answer": "Haz clic en el botón flotante de Lara (esquina inferior derecha). Puedes dictar pacientes, tratamientos y hacer preguntas sobre tu clínica."
+      },
+      "whatIfINeedHelp": {
+        "question": "¿Qué hago si necesito más ayuda?",
+        "answer": "Puedes escribirnos a soporte@laralis.com o usar el chat en vivo. Respondemos en menos de 24 horas."
       }
     },
     "contact": {
@@ -4974,7 +5110,7 @@
       "chat": {
         "title": "Chat en Vivo",
         "description": "Habla con nuestro equipo",
-        "comingSoon": "Próximamente"
+        "available": "Disponible"
       }
     }
   },
