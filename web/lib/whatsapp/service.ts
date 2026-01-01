@@ -200,6 +200,30 @@ export async function sendWhatsAppNotification(
 }
 
 /**
+ * Send a plain WhatsApp message (non-template).
+ */
+export async function sendWhatsAppMessage(params: {
+  clinicId: string
+  recipientPhone: string
+  content: string
+}): Promise<SendMessageResult> {
+  const { clinicId, recipientPhone, content } = params
+
+  const config = await getWhatsAppConfig(clinicId)
+  if (!config || !config.enabled) {
+    return { success: false, error: 'WhatsApp is not enabled for this clinic' }
+  }
+
+  const provider = getProviderFromConfig(config)
+  const validation = provider.validateConfig(config)
+  if (!validation.valid) {
+    return { success: false, error: validation.error }
+  }
+
+  return provider.sendMessage(recipientPhone, content, config)
+}
+
+/**
  * Send appointment confirmation via WhatsApp
  */
 export async function sendAppointmentConfirmation(params: {
