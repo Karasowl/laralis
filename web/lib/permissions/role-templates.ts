@@ -96,6 +96,19 @@ export function getWorkspaceRolePermissions(role: WorkspaceRole): PermissionMap 
         'campaigns.edit': true,
         'campaigns.delete': true,
 
+        // Leads: full access
+        'leads.view': true,
+        'leads.create': true,
+        'leads.edit': true,
+        'leads.delete': true,
+
+        // Inbox: full access
+        'inbox.view': true,
+        'inbox.assign': true,
+        'inbox.reply': true,
+        'inbox.close': true,
+        'inbox.transfer': true,
+
         // Settings: full access
         'settings.view': true,
         'settings.edit': true,
@@ -180,6 +193,19 @@ export function getWorkspaceRolePermissions(role: WorkspaceRole): PermissionMap 
         'campaigns.edit': false,
         'campaigns.delete': false,
 
+        // Leads: view only
+        'leads.view': true,
+        'leads.create': false,
+        'leads.edit': false,
+        'leads.delete': false,
+
+        // Inbox: view and reply
+        'inbox.view': true,
+        'inbox.assign': false,
+        'inbox.reply': true,
+        'inbox.close': false,
+        'inbox.transfer': false,
+
         // No settings or team
         'settings.view': false,
         'settings.edit': false,
@@ -256,6 +282,15 @@ export function getWorkspaceRolePermissions(role: WorkspaceRole): PermissionMap 
         'campaigns.create': false,
         'campaigns.edit': false,
         'campaigns.delete': false,
+        'leads.view': false,
+        'leads.create': false,
+        'leads.edit': false,
+        'leads.delete': false,
+        'inbox.view': false,
+        'inbox.assign': false,
+        'inbox.reply': false,
+        'inbox.close': false,
+        'inbox.transfer': false,
         'settings.view': false,
         'settings.edit': false,
         'team.view': false,
@@ -325,6 +360,19 @@ export function getClinicRolePermissions(role: ClinicRole): PermissionMap {
         'supplies.delete': false,
         'supplies.manage_stock': false,
 
+        // Leads: view only
+        'leads.view': true,
+        'leads.create': false,
+        'leads.edit': false,
+        'leads.delete': false,
+
+        // Inbox: view only
+        'inbox.view': true,
+        'inbox.assign': false,
+        'inbox.reply': false,
+        'inbox.close': false,
+        'inbox.transfer': false,
+
         // Lara: entry and query mode
         'lara.use_entry_mode': true,
         'lara.use_query_mode': true,
@@ -372,6 +420,19 @@ export function getClinicRolePermissions(role: ClinicRole): PermissionMap {
         'supplies.delete': false,
         'supplies.manage_stock': true,
 
+        // Leads: view only
+        'leads.view': true,
+        'leads.create': false,
+        'leads.edit': false,
+        'leads.delete': false,
+
+        // Inbox: view and reply
+        'inbox.view': true,
+        'inbox.assign': false,
+        'inbox.reply': true,
+        'inbox.close': true,
+        'inbox.transfer': false,
+
         // Lara: entry mode only
         'lara.use_entry_mode': true,
         'lara.use_query_mode': false,
@@ -418,6 +479,19 @@ export function getClinicRolePermissions(role: ClinicRole): PermissionMap {
         'supplies.edit': false,
         'supplies.delete': false,
         'supplies.manage_stock': false,
+
+        // Leads: full access
+        'leads.view': true,
+        'leads.create': true,
+        'leads.edit': true,
+        'leads.delete': true,
+
+        // Inbox: full access
+        'inbox.view': true,
+        'inbox.assign': true,
+        'inbox.reply': true,
+        'inbox.close': true,
+        'inbox.transfer': true,
 
         // Lara: entry mode only
         'lara.use_entry_mode': true,

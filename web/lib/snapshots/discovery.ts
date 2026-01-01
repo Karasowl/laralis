@@ -28,6 +28,7 @@ const KNOWN_INDIRECT_TABLES: Array<{
 }> = [
   { child: 'chat_messages', parent: 'chat_sessions', fk: 'session_id' },
   { child: 'ai_feedback', parent: 'chat_sessions', fk: 'session_id' },
+  { child: 'inbox_messages', parent: 'inbox_conversations', fk: 'conversation_id' },
   { child: 'prescription_items', parent: 'prescriptions', fk: 'prescription_id' },
   { child: 'quote_items', parent: 'quotes', fk: 'quote_id' },
   { child: 'marketing_campaign_status_history', parent: 'marketing_campaigns', fk: 'campaign_id' },
@@ -161,6 +162,9 @@ export class TableDiscoveryService {
       'categories', // Hybrid
       // Marketing
       'marketing_campaigns',
+      'marketing_campaign_channels',
+      'leads',
+      'inbox_conversations',
       // Users and invitations
       'clinic_users',
       'invitations',
@@ -280,6 +284,8 @@ export class TableDiscoveryService {
       marketing_campaign_status_history: ['marketing_campaigns'],
       // chat_messages depende de chat_sessions
       chat_messages: ['chat_sessions'],
+      // inbox_messages depende de inbox_conversations
+      inbox_messages: ['inbox_conversations'],
       // prescription_items depende de prescriptions
       prescription_items: ['prescriptions'],
       // quote_items depende de quotes y services
