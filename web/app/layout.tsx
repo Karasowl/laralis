@@ -7,6 +7,7 @@ import { BrowserExtensionsCleanup } from '@/components/providers/browser-extensi
 import { IntlProvider } from '@/components/providers/intl-provider';
 import { SwrProvider } from '@/components/providers/swr-provider';
 import { FloatingAssistant } from '@/components/ai-assistant/FloatingAssistant';
+import { TawkChat } from '@/components/tawk-chat';
 
 export default async function RootLayout({
   children,
@@ -33,6 +34,7 @@ export default async function RootLayout({
               <WorkspaceProvider>
                 {children}
                 <FloatingAssistant />
+                <TawkChat />
                 <Toaster
                 richColors
                 position="top-right"

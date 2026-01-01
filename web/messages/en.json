@@ -4659,32 +4659,168 @@
     "faqTitle": "Frequently Asked Questions",
     "needMoreHelp": "Need more help?",
     "madeWith": "Made with ❤️ for dentists",
+    "searchPlaceholder": "Search help...",
+    "noResults": "No results found",
+    "backToHelp": "Back to Help",
+    "readTime": "{minutes} min read",
     "guides": {
-      "gettingStarted": "Getting Started",
-      "managingPatients": "Managing Patients",
-      "financialReports": "Financial Reports",
-      "keyboardShortcuts": "Keyboard Shortcuts"
+      "gettingStarted": {
+        "title": "Getting Started",
+        "description": "Learn how to set up your clinic in Laralis",
+        "intro": "This guide will walk you through setting up your clinic in Laralis and getting started in less than 10 minutes.",
+        "step1": {
+          "title": "Create Your Workspace",
+          "content": "When you sign up, the first step is to create a Workspace. A workspace is your main work area where you can have multiple clinics. Enter the name of your practice or clinic group."
+        },
+        "step2": {
+          "title": "Set Up Your First Clinic",
+          "content": "Within the workspace, create your first clinic. Enter the name, address, and contact details. This information will appear on your documents and reports."
+        },
+        "step3": {
+          "title": "Configure Your Schedule",
+          "content": "Go to Settings > Time to set your working days and hours. This is important for calculating your productive capacity and break-even point."
+        },
+        "step4": {
+          "title": "Add Your Services",
+          "content": "In the Services section, add the treatments you offer with their prices. You can configure variable costs, margins, and discounts."
+        },
+        "step5": {
+          "title": "Register Your First Patient",
+          "content": "Go to Patients and add your first patient. You only need a name and contact info. The history will fill in as you register treatments."
+        },
+        "tip": "Tip: You can use the Lara voice assistant (floating button) to add data faster by speaking."
+      },
+      "patients": {
+        "title": "Managing Patients",
+        "description": "Learn how to manage your patient records",
+        "intro": "Laralis lets you maintain a complete record for each patient with their treatment history, payments, and clinical notes.",
+        "addPatient": {
+          "title": "Adding a Patient",
+          "content": "Go to Patients > Add Patient. Required fields are name and at least one contact (phone or email). You can add birth date, notes, and acquisition source."
+        },
+        "patientHistory": {
+          "title": "Viewing History",
+          "content": "Click on any patient to see their full record. You'll see all treatments, pending balance, and notes. You can edit their information at any time."
+        },
+        "pendingBalance": {
+          "title": "Pending Balance",
+          "content": "When a treatment isn't fully paid, it shows as pending balance. You can see the total pending for each patient and for the entire practice."
+        },
+        "acquisitionSource": {
+          "title": "Acquisition Source",
+          "content": "Recording how each patient found you helps measure your advertising ROI. You can create custom sources like 'Facebook', 'Referral', 'Google', etc."
+        },
+        "export": {
+          "title": "Exporting Data",
+          "content": "You can export the patient list to Excel from Settings > Export/Import. This is useful for backups or migration."
+        }
+      },
+      "finances": {
+        "title": "Finances & Reports",
+        "description": "Understand your numbers and make better decisions",
+        "intro": "Laralis automatically calculates your financial metrics so you know exactly how much you're earning and what you need to be profitable.",
+        "dashboard": {
+          "title": "The Dashboard",
+          "content": "Your dashboard shows a summary of revenue, expenses, treatments, and patients for the selected period. Use the date filters to view different periods."
+        },
+        "breakEven": {
+          "title": "Break-Even Point",
+          "content": "The break-even point is the minimum amount you need to bill to cover all your costs. It's calculated by dividing your fixed costs by your contribution margin. If you bill less, you lose money."
+        },
+        "fixedVsVariable": {
+          "title": "Fixed vs Variable Costs",
+          "content": "Fixed costs (rent, salaries, utilities) are paid regardless of treatments. Variable costs (materials) increase with each treatment. Both affect your break-even point."
+        },
+        "margins": {
+          "title": "Service Margins",
+          "content": "Each service has a margin which is the difference between price and cost. Laralis shows you the margin for each service so you can adjust prices intelligently."
+        },
+        "reports": {
+          "title": "Monthly Reports",
+          "content": "In the Dashboard you can see monthly comparisons. Use the comparison filter to see how you did this month vs previous or vs same month last year."
+        }
+      },
+      "shortcuts": {
+        "title": "Keyboard Shortcuts",
+        "description": "Work faster with keyboard shortcuts",
+        "intro": "Learn these shortcuts to navigate Laralis without using the mouse and be more productive.",
+        "global": "Global Shortcuts",
+        "navigation": "Navigation",
+        "actions": "Actions",
+        "shortcutsList": {
+          "search": "Open global search",
+          "newPatient": "New patient",
+          "newTreatment": "New treatment",
+          "dashboard": "Go to Dashboard",
+          "patients": "Go to Patients",
+          "treatments": "Go to Treatments",
+          "escape": "Close modal/cancel",
+          "save": "Save form",
+          "voiceAssistant": "Activate voice assistant"
+        },
+        "tip": "Tip: Press ? on any page to see available shortcuts."
+      }
     },
     "faq": {
       "howToAddPatient": {
         "question": "How do I add a new patient?",
-        "answer": "Go to the Patients section and click 'Add Patient'. Fill in the required information and save."
+        "answer": "Go to Patients and click 'Add Patient'. Fill in the name and at least one contact, then save."
       },
       "howToCreateTreatment": {
         "question": "How do I register a treatment?",
-        "answer": "Go to Treatments, click 'New Treatment', select patient, service, date and time, then save."
+        "answer": "Go to Treatments > New Treatment. Select patient, service, date and time. You can add notes and mark if it's paid."
       },
       "whatIsBreakEven": {
         "question": "What is the Break-Even Point?",
-        "answer": "It's the minimum revenue you need to cover all your fixed and variable costs. It helps you know how many treatments you need to avoid losing money."
+        "answer": "It's the minimum revenue to cover all your costs. It tells you how many treatments you need to not lose money."
       },
       "howToTrackExpenses": {
         "question": "How do I track my expenses?",
-        "answer": "Go to the Expenses section, click 'New Expense', select the category, enter the amount and description."
+        "answer": "Go to Expenses > New Expense. Select category, enter amount and description. Expenses affect your break-even point."
       },
       "howToUseMarketing": {
         "question": "How do I use the Marketing module?",
-        "answer": "In Marketing you can create advertising campaigns and track which patients came from each campaign. This helps you measure your advertising ROI."
+        "answer": "In Marketing you create campaigns and associate them with patients. This way you measure how many patients and how much revenue each campaign generated."
+      },
+      "howToConfigureTime": {
+        "question": "Why is it important to configure my schedule?",
+        "answer": "Your schedule determines your productive capacity. This is used to correctly calculate the cost per minute and break-even point."
+      },
+      "whatIsFixedCost": {
+        "question": "What are fixed costs?",
+        "answer": "These are expenses you pay regardless of how many patients you see: rent, salaries, utilities, insurance, etc."
+      },
+      "whatIsVariableCost": {
+        "question": "What are variable costs?",
+        "answer": "These are materials used in each treatment: gloves, anesthesia, resins, etc. They increase with each patient treated."
+      },
+      "howToCalculatePrice": {
+        "question": "How do I calculate a service price?",
+        "answer": "Laralis adds your fixed cost per minute + variable material cost + the margin you want to earn. You can manually adjust the final price."
+      },
+      "canIHaveMultipleClinics": {
+        "question": "Can I have multiple clinics?",
+        "answer": "Yes. Within a workspace you can create multiple clinics. Each has its own patients, services, and reports."
+      },
+      "howToInviteStaff": {
+        "question": "How do I invite my team?",
+        "answer": "Go to Settings > Team. You can invite by email and assign roles with different permissions (admin, doctor, receptionist, etc)."
+      },
+      "isMyDataSecure": {
+        "question": "Is my data secure?",
+        "answer": "Yes. We use encryption in transit and at rest. Your data is on secure servers and we comply with privacy standards."
+      },
+      "canIExportData": {
+        "question": "Can I export my data?",
+        "answer": "Yes. Go to Settings > Export/Import. You can export all your data in JSON format for backup or migration."
+      },
+      "howToUseVoiceAssistant": {
+        "question": "How do I use the voice assistant?",
+        "answer": "Click the floating Lara button (bottom right corner). You can dictate patients, treatments, and ask questions about your clinic."
+      },
+      "whatIfINeedHelp": {
+        "question": "What if I need more help?",
+        "answer": "You can email us at soporte@laralis.com or use the live chat. We respond within 24 hours."
       }
     },
     "contact": {
@@ -4695,7 +4831,7 @@
       "chat": {
         "title": "Live Chat",
         "description": "Talk to our team",
-        "comingSoon": "Coming Soon"
+        "available": "Available"
       }
     }
   },

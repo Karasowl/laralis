@@ -91,7 +91,8 @@
       "Bash(npm run lint:*)",
       "Bash(powershell:*)",
       "Bash(python3:*)",
-      "Bash(timeout 60 npm run build:*)"
+      "Bash(timeout 60 npm run build:*)",
+      "WebFetch(domain:help.crisp.chat)"
     ],
     "deny": []
   }
