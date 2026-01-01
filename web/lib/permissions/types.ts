@@ -38,6 +38,10 @@ export const PERMISSION_RESOURCES = {
 
   // Marketing
   campaigns: ['view', 'create', 'edit', 'delete'] as const,
+  leads: ['view', 'create', 'edit', 'delete'] as const,
+
+  // Inbox
+  inbox: ['view', 'assign', 'reply', 'close', 'transfer'] as const,
 
   // Configuration
   settings: ['view', 'edit'] as const,
@@ -297,7 +301,12 @@ export function getPermissionCategories(): {
     {
       key: 'marketing',
       label: 'Marketing',
-      resources: ['campaigns'],
+      resources: ['campaigns', 'leads'],
+    },
+    {
+      key: 'inbox',
+      label: 'Inbox',
+      resources: ['inbox'],
     },
     {
       key: 'admin',
