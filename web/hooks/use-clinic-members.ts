@@ -39,7 +39,10 @@ export function useClinicMembers(clinicId?: string) {
     ? `/api/team/clinic-members?clinicId=${clinicId}`
     : '/api/team/clinic-members';
 
-  const { data, loading, error, refetch } = useApi<ClinicMembersResponse>(endpoint);
+  const { data, loading, error, refetch } = useApi<ClinicMembersResponse>(
+    endpoint,
+    { autoFetch: true }
+  );
 
   /**
    * Add an existing workspace user to the clinic
