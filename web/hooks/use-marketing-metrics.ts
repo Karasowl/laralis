@@ -38,6 +38,10 @@ export interface MarketingMetrics {
     totalPatients: number
     totalRevenueCents: number
     convertedPatients: number
+    periodActivePatients?: number
+    totalLeads?: number
+    convertedLeads?: number
+    conversionSource?: 'leads' | 'patients'
   }
 }
 

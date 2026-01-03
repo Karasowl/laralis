@@ -98,6 +98,9 @@ interface FullClinicSnapshot {
     assets: any
     expenses: any
     fixed_costs: any
+    leads: any
+    inbox_conversations: any
+    inbox_messages: any
     // Full records for AI context (with notes, times, etc.)
     full_patients: FullPatient[]
     full_treatments: FullTreatment[]
@@ -108,6 +111,7 @@ interface FullClinicSnapshot {
     profitability: any
     efficiency: any
     top_performers: any
+    leads: any
   }
 }
 
@@ -190,16 +194,29 @@ export class ClinicSnapshotService {
     ])
 
     // Load remaining data in parallel
-    const [patients, treatments, services, supplies, expenses, fullPatients, fullTreatments] =
-      await Promise.all([
-        this.loadPatients(supabase, clinicId, startDate),
-        this.loadTreatments(supabase, clinicId, startDate),
-        this.loadServices(supabase, clinicId, clinic, fixedCosts, assets),
-        this.loadSupplies(supabase, clinicId),
-        this.loadExpenses(supabase, clinicId, startDate),
-        this.loadFullPatients(supabase, clinicId),
-        this.loadFullTreatments(supabase, clinicId, startDate),
-      ])
+    const [
+      patients,
+      treatments,
+      services,
+      supplies,
+      expenses,
+      fullPatients,
+      fullTreatments,
+      leads,
+      inboxConversations,
+      inboxMessages,
+    ] = await Promise.all([
+      this.loadPatients(supabase, clinicId, startDate),
+      this.loadTreatments(supabase, clinicId, startDate),
+      this.loadServices(supabase, clinicId, clinic, fixedCosts, assets),
+      this.loadSupplies(supabase, clinicId),
+      this.loadExpenses(supabase, clinicId, startDate),
+      this.loadFullPatients(supabase, clinicId),
+      this.loadFullTreatments(supabase, clinicId, startDate),
+      this.loadLeads(supabase, clinicId, startDate),
+      this.loadInboxConversations(supabase, clinicId),
+      this.loadInboxMessages(supabase, clinicId, startDate),
+    ])
 
     // Calculate analytics using all the loaded data
     const analytics = this.calculateAnalytics({
@@ -211,6 +228,7 @@ export class ClinicSnapshotService {
       assets,
       expenses,
       fixedCosts,
+      leads,
       period,
     })
 
@@ -226,6 +244,9 @@ export class ClinicSnapshotService {
         assets: this.optimizeJson(assets),
         expenses: this.optimizeJson(expenses),
         fixed_costs: this.optimizeJson(fixedCosts),
+        leads: this.optimizeJson(leads),
+        inbox_conversations: this.optimizeJson(inboxConversations),
+        inbox_messages: this.optimizeJson(inboxMessages),
         // Full patient and treatment records with notes for AI context
         full_patients: this.optimizeJson(fullPatients),
         full_treatments: this.optimizeJson(fullTreatments),
@@ -610,6 +631,167 @@ export class ClinicSnapshotService {
     }
   }
 
+  private async loadLeads(
+    supabase: SupabaseClient,
+    clinicId: string,
+    startDate: Date
+  ) {
+    const { count: totalLeads } = await supabase
+      .from('leads')
+      .select('id', { count: 'exact', head: true })
+      .eq('clinic_id', clinicId)
+
+    const { count: convertedTotal } = await supabase
+      .from('leads')
+      .select('id', { count: 'exact', head: true })
+      .eq('clinic_id', clinicId)
+      .or('status.eq.converted,converted_patient_id.not.is.null')
+
+    const { data: leadsInPeriod } = await supabase
+      .from('leads')
+      .select('id, status, campaign_id, converted_patient_id, converted_at, created_at, marketing_campaigns(id, name)')
+      .eq('clinic_id', clinicId)
+      .gte('created_at', startDate.toISOString())
+
+    const { data: recentLeads } = await supabase
+      .from('leads')
+      .select('id, full_name, email, phone, status, created_at, converted_at, converted_patient_id, campaign_id, marketing_campaigns(id, name)')
+      .eq('clinic_id', clinicId)
+      .order('created_at', { ascending: false })
+      .limit(50)
+
+    const byStatus = (leadsInPeriod || []).reduce(
+      (acc, lead: any) => {
+        const status = lead.status || 'unknown'
+        acc[status] = (acc[status] || 0) + 1
+        return acc
+      },
+      {} as Record<string, number>
+    )
+
+    const byCampaign = (leadsInPeriod || []).reduce(
+      (acc, lead: any) => {
+        const name = lead.marketing_campaigns?.name || 'unknown'
+        acc[name] = (acc[name] || 0) + 1
+        return acc
+      },
+      {} as Record<string, number>
+    )
+
+    const newInPeriod = leadsInPeriod?.length || 0
+    const convertedInPeriod = (leadsInPeriod || []).filter(
+      (lead: any) => lead.status === 'converted' || lead.converted_patient_id
+    ).length
+    const conversionRate = newInPeriod > 0 ? (convertedInPeriod / newInPeriod) * 100 : 0
+
+    const recent = (recentLeads || []).map((lead: any) => ({
+      id: lead.id,
+      full_name: lead.full_name,
+      email: lead.email,
+      phone: lead.phone,
+      status: lead.status,
+      created_at: lead.created_at,
+      converted_at: lead.converted_at,
+      converted_patient_id: lead.converted_patient_id,
+      campaign_id: lead.campaign_id,
+      campaign_name: lead.marketing_campaigns?.name || null,
+    }))
+
+    return {
+      total: totalLeads || 0,
+      converted_total: convertedTotal || 0,
+      new_in_period: newInPeriod,
+      converted_in_period: convertedInPeriod,
+      conversion_rate_pct: Math.round(conversionRate * 100) / 100,
+      by_status: byStatus,
+      by_campaign: byCampaign,
+      recent,
+    }
+  }
+
+  private async loadInboxConversations(supabase: SupabaseClient, clinicId: string) {
+    const { data: statusRows } = await supabase
+      .from('inbox_conversations')
+      .select('status')
+      .eq('clinic_id', clinicId)
+
+    const byStatus = (statusRows || []).reduce(
+      (acc, row: any) => {
+        const status = row.status || 'unknown'
+        acc[status] = (acc[status] || 0) + 1
+        return acc
+      },
+      {} as Record<string, number>
+    )
+
+    const openCount = (statusRows || []).filter((row: any) => row.status !== 'closed').length
+    const inProgressCount = (statusRows || []).filter((row: any) => row.status === 'in_progress').length
+
+    const { data: recent } = await supabase
+      .from('inbox_conversations')
+      .select(`
+        id,
+        channel,
+        contact_name,
+        contact_address,
+        status,
+        conversation_state,
+        assigned_user_id,
+        last_message_at,
+        last_message_preview,
+        unread_count,
+        campaign_id,
+        lead_id,
+        patient_id,
+        created_at
+      `)
+      .eq('clinic_id', clinicId)
+      .order('last_message_at', { ascending: false, nullsFirst: false })
+      .order('created_at', { ascending: false })
+      .limit(50)
+
+    return {
+      total: statusRows?.length || 0,
+      open_count: openCount,
+      in_progress_count: inProgressCount,
+      by_status: byStatus,
+      recent: recent || [],
+    }
+  }
+
+  private async loadInboxMessages(
+    supabase: SupabaseClient,
+    clinicId: string,
+    startDate: Date
+  ) {
+    const { data: messages } = await supabase
+      .from('inbox_messages')
+      .select(`
+        id,
+        conversation_id,
+        role,
+        direction,
+        content,
+        message_type,
+        created_at,
+        inbox_conversations!inner(clinic_id)
+      `)
+      .eq('inbox_conversations.clinic_id', clinicId)
+      .gte('created_at', startDate.toISOString())
+      .order('created_at', { ascending: false })
+      .limit(200)
+
+    const recent = (messages || []).map((message: any) => {
+      const { inbox_conversations, ...rest } = message
+      return rest
+    })
+
+    return {
+      total_in_period: recent.length,
+      recent,
+    }
+  }
+
   private async loadFullPatients(
     supabase: SupabaseClient,
     clinicId: string
@@ -693,7 +875,7 @@ export class ClinicSnapshotService {
   // ==========================================================================
 
   private calculateAnalytics(data: any) {
-    const { clinic, treatments, services, assets, expenses, fixedCosts, period } = data
+    const { clinic, treatments, services, assets, expenses, fixedCosts, leads, period } = data
 
     // Calculate total fixed costs (manual + depreciation)
     const manualFixedCosts = fixedCosts.monthly_total_cents
@@ -850,6 +1032,14 @@ export class ClinicSnapshotService {
           warning: calculationWarning,
         },
       },
+      leads: {
+        total: leads?.total || 0,
+        new_in_period: leads?.new_in_period || 0,
+        converted_in_period: leads?.converted_in_period || 0,
+        conversion_rate_pct: leads?.conversion_rate_pct || 0,
+        by_status: leads?.by_status || {},
+        by_campaign: leads?.by_campaign || {},
+      },
       margins: {
         avg_variable_cost_pct: Math.round(avgVariableCostPct * 100) / 100,
         contribution_margin_pct: Math.round(contributionMarginPct * 100) / 100,
@@ -889,6 +1079,26 @@ export class ClinicSnapshotService {
           description: 'Patient management - stores all clinic patients',
           key_fields: ['name', 'email', 'phone', 'source', 'created_at'],
           relationships: ['Has many treatments'],
+        },
+        leads: {
+          description: 'Inbound leads captured before becoming patients',
+          key_fields: ['full_name', 'phone', 'status', 'campaign_id', 'created_at'],
+          relationships: ['May convert to patients', 'Linked to inbox_conversations'],
+        },
+        inbox_conversations: {
+          description: 'Inbound/outbound conversation threads (WhatsApp, phone, web)',
+          key_fields: ['contact_address', 'status', 'assigned_user_id', 'last_message_at'],
+          relationships: ['Has many inbox_messages', 'Belongs to lead/patient', 'Belongs to campaign'],
+        },
+        inbox_messages: {
+          description: 'Messages exchanged inside inbox conversations',
+          key_fields: ['conversation_id', 'direction', 'role', 'content', 'created_at'],
+          relationships: ['Belongs to inbox_conversations'],
+        },
+        marketing_campaign_channels: {
+          description: 'Channel routing for campaigns (WhatsApp numbers, phone lines)',
+          key_fields: ['campaign_id', 'channel_type', 'channel_address', 'is_active'],
+          relationships: ['Belongs to marketing_campaigns'],
         },
         treatments: {
           description:
@@ -955,6 +1165,7 @@ export class ClinicSnapshotService {
         capacity_utilization:
           '(Total Minutes Used ÷ Available Treatment Minutes) × 100',
         depreciation: 'Purchase Price ÷ Depreciation Months (prorated if mid-month)',
+        lead_conversion_rate: 'Converted Leads / Total Leads * 100',
       },
     }
   }

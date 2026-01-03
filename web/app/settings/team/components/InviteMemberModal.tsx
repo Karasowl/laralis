@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -27,8 +28,12 @@ import {
 import { Loader2, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { useInvitations } from '@/hooks/use-invitations';
+import { useCustomRoles } from '@/hooks/use-custom-roles';
+import { useWorkspace } from '@/contexts/workspace-context';
+import { useCurrentClinic } from '@/hooks/use-current-clinic';
 import { WORKSPACE_ROLES, CLINIC_ROLES } from '@/lib/permissions/types';
-import type { WorkspaceRole, ClinicRole, Role } from '@/lib/permissions/types';
+import type { Role, PermissionMap, RoleScope } from '@/lib/permissions/types';
+import { PermissionMatrix } from './PermissionMatrix';
 
 const inviteSchema = z.object({
   email: z.string().email(),
@@ -53,7 +58,13 @@ export function InviteMemberModal({
 }: InviteMemberModalProps) {
   const t = useTranslations('team');
   const { createInvitation } = useInvitations();
+  const { roles: customRoles } = useCustomRoles(scope);
+  const { clinics } = useWorkspace();
+  const { currentClinic } = useCurrentClinic();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [customRoleId, setCustomRoleId] = useState<string | null>(null);
+  const [customPermissions, setCustomPermissions] = useState<PermissionMap | null>(null);
+  const [clinicIds, setClinicIds] = useState<string[]>([]);
 
   const {
     register,
@@ -72,10 +83,51 @@ export function InviteMemberModal({
   });
 
   const selectedRole = watch('role');
+  const selectedCustomRole = useMemo(
+    () => customRoles.find((roleItem) => roleItem.id === customRoleId) || null,
+    [customRoles, customRoleId]
+  );
+
+  const allClinicsSelected = scope === 'workspace' && clinicIds.length === 0;
+
+  useEffect(() => {
+    if (!open) return;
+    if (scope === 'clinic' && currentClinic?.id) {
+      setClinicIds([currentClinic.id]);
+    } else if (scope === 'workspace') {
+      setClinicIds([]);
+    }
+  }, [open, scope, currentClinic?.id]);
+
+  useEffect(() => {
+    if (selectedCustomRole?.base_role) {
+      setValue('role', selectedCustomRole.base_role as Role);
+    }
+  }, [selectedCustomRole, setValue]);
 
   const roles = scope === 'workspace'
-    ? Object.entries(WORKSPACE_ROLES).filter(([key]) => key !== 'owner')
+    ? Object.entries(WORKSPACE_ROLES).filter(
+        ([key]) => key !== 'owner' && key !== 'super_admin'
+      )
     : Object.entries(CLINIC_ROLES);
+
+  const toggleAllClinics = (checked: boolean) => {
+    if (checked) {
+      setClinicIds([]);
+    } else {
+      setClinicIds(clinics.map((clinic) => clinic.id));
+    }
+  };
+
+  const toggleClinic = (clinicId: string, checked: boolean) => {
+    setClinicIds((prev) => {
+      const next = checked ? [...prev, clinicId] : prev.filter((id) => id !== clinicId);
+      if (scope === 'clinic' && next.length === 0 && currentClinic?.id) {
+        return [currentClinic.id];
+      }
+      return next.length === 0 ? prev : next;
+    });
+  };
 
   const onSubmit = async (data: InviteFormData) => {
     setIsSubmitting(true);
@@ -83,6 +135,10 @@ export function InviteMemberModal({
     const result = await createInvitation({
       email: data.email,
       role: data.role as Role,
+      scope: scope as RoleScope,
+      clinic_ids: clinicIds,
+      custom_permissions: customPermissions || undefined,
+      custom_role_id: customRoleId || null,
       message: data.message || undefined,
     });
 
@@ -100,13 +156,16 @@ export function InviteMemberModal({
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
       reset();
+      setCustomRoleId(null);
+      setCustomPermissions(null);
+      setClinicIds([]);
     }
     onOpenChange(newOpen);
   };
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{t('invite.title')}</DialogTitle>
           <DialogDescription>{t('invite.description')}</DialogDescription>
@@ -149,6 +208,84 @@ export function InviteMemberModal({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>{t('customRoles.customRole')}</Label>
+            <Select
+              value={customRoleId || 'none'}
+              onValueChange={(value) =>
+                setCustomRoleId(value === 'none' ? null : value)
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={t('customRoles.selectRole')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">{t('customRoles.none')}</SelectItem>
+                {customRoles.map((roleItem) => (
+                  <SelectItem key={roleItem.id} value={roleItem.id}>
+                    {roleItem.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {scope === 'workspace' && clinics.length > 0 && (
+            <div className="space-y-2">
+              <Label>{t('allowedClinics.title')}</Label>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  checked={allClinicsSelected}
+                  onCheckedChange={(value) => toggleAllClinics(Boolean(value))}
+                />
+                <span className="text-sm">{t('allowedClinics.all')}</span>
+              </div>
+              {!allClinicsSelected && (
+                <div className="space-y-2 rounded-md border border-border/70 p-3">
+                  {clinics.map((clinic) => (
+                    <label key={clinic.id} className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={clinicIds.includes(clinic.id)}
+                        onCheckedChange={(value) => toggleClinic(clinic.id, Boolean(value))}
+                      />
+                      <span>{clinic.name}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {scope === 'clinic' && clinics.length > 0 && (
+            <div className="space-y-2">
+              <Label>{t('clinics.assignClinics')}</Label>
+              <div className="space-y-2 rounded-md border border-border/70 p-3">
+                {clinics.map((clinic) => (
+                  <label key={clinic.id} className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={clinicIds.includes(clinic.id)}
+                      onCheckedChange={(value) => toggleClinic(clinic.id, Boolean(value))}
+                    />
+                    <span>{clinic.name}</span>
+                  </label>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {t('clinics.assignClinicsHint')}
+              </p>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label>{t('permissions.customize')}</Label>
+            <PermissionMatrix
+              baseRole={(selectedCustomRole?.base_role || selectedRole) as any}
+              scope={scope}
+              overrides={customPermissions}
+              onChange={setCustomPermissions}
+            />
           </div>
 
           <div className="space-y-2">

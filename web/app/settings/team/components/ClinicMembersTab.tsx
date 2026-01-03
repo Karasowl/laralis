@@ -15,10 +15,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, UserPlus, Building2, Trash2, Edit, Stethoscope } from 'lucide-react';
+import { MoreHorizontal, UserPlus, Building2, Trash2, Edit, Stethoscope, Users } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Can } from '@/components/auth';
 import { EditMemberModal } from './EditMemberModal';
+import { AddClinicMemberModal } from './AddClinicMemberModal';
+import { InviteMemberModal } from './InviteMemberModal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { toast } from 'sonner';
 import type { ClinicMember, ClinicRole } from '@/lib/permissions/types';
@@ -28,6 +30,8 @@ export function ClinicMembersTab() {
   const { clinic } = useCurrentClinic();
   const { members, loading, removeMember, refetch } = useClinicMembers(clinic?.id);
 
+  const [addMemberOpen, setAddMemberOpen] = useState(false);
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<ClinicMember | null>(null);
   const [removingMember, setRemovingMember] = useState<ClinicMember | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
@@ -92,7 +96,7 @@ export function ClinicMembersTab() {
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-2">
             <CardTitle className="text-lg font-medium">
               {t('clinics.title')}
@@ -103,6 +107,31 @@ export function ClinicMembersTab() {
                 {clinic.name}
               </Badge>
             )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Can permission="team.invite">
+              <Button
+                size="sm"
+                onClick={() => setInviteModalOpen(true)}
+                className="gap-2"
+                disabled={!clinic}
+              >
+                <UserPlus className="h-4 w-4" />
+                {t('invite.button')}
+              </Button>
+            </Can>
+            <Can permission="team.edit_roles">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setAddMemberOpen(true)}
+                className="gap-2"
+                disabled={!clinic}
+              >
+                <Users className="h-4 w-4" />
+                {t('clinics.addMember')}
+              </Button>
+            </Can>
           </div>
         </CardHeader>
         <CardContent>
@@ -194,6 +223,29 @@ export function ClinicMembersTab() {
           }}
         />
       )}
+
+      {clinic && (
+        <AddClinicMemberModal
+          open={addMemberOpen}
+          onOpenChange={setAddMemberOpen}
+          clinicId={clinic.id}
+          existingMembers={members}
+          onSuccess={() => {
+            setAddMemberOpen(false);
+            refetch();
+          }}
+        />
+      )}
+
+      <InviteMemberModal
+        open={inviteModalOpen}
+        onOpenChange={setInviteModalOpen}
+        scope="clinic"
+        onSuccess={() => {
+          setInviteModalOpen(false);
+          refetch();
+        }}
+      />
 
       <ConfirmDialog
         open={!!removingMember}

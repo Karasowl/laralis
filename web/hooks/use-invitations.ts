@@ -2,7 +2,13 @@
 
 import { useCallback } from 'react';
 import { useApi } from './use-api';
-import type { InvitationWithInviter, InvitationStatus, Role, PermissionMap } from '@/lib/permissions/types';
+import type {
+  InvitationWithInviter,
+  InvitationStatus,
+  Role,
+  PermissionMap,
+  RoleScope,
+} from '@/lib/permissions/types';
 
 interface InvitationsResponse {
   invitations: (InvitationWithInviter & { status: InvitationStatus })[];
@@ -12,8 +18,10 @@ interface InvitationsResponse {
 interface CreateInvitationInput {
   email: string;
   role: Role;
+  scope?: RoleScope;
   clinic_ids?: string[];
   custom_permissions?: PermissionMap;
+  custom_role_id?: string | null;
   message?: string;
 }
 

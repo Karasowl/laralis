@@ -8,6 +8,7 @@ import {
   Briefcase,
   Calculator,
   Megaphone,
+  MessageCircle,
   Wrench,
   XCircle,
   BarChart3,
@@ -46,6 +47,11 @@ export function getNavigationSections(t: any, options: { onboardingCompleted?: b
           href: '/patients',
           label: t('navigation.patients'),
           icon: Users
+        },
+        {
+          href: '/inbox',
+          label: t('navigation.inbox'),
+          icon: MessageCircle
         },
         {
           href: '/expenses',

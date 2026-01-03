@@ -8,6 +8,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 const updateMemberSchema = z.object({
   role: z.enum(['admin', 'doctor', 'assistant', 'receptionist', 'viewer']).optional(),
   custom_permissions: z.record(z.boolean()).nullable().optional(),
+  custom_role_id: z.string().uuid().nullable().optional(),
   can_access_all_patients: z.boolean().optional(),
   assigned_chair: z.string().nullable().optional(),
   schedule: z.record(z.unknown()).nullable().optional(),
@@ -126,6 +127,10 @@ export async function PUT(
 
     if (validatedData.custom_permissions !== undefined) {
       updateData.custom_permissions = validatedData.custom_permissions;
+    }
+
+    if (validatedData.custom_role_id !== undefined) {
+      updateData.custom_role_id = validatedData.custom_role_id;
     }
 
     if (validatedData.can_access_all_patients !== undefined) {

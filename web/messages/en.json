@@ -130,6 +130,7 @@
   "navigation": {
     "dashboard": "Dashboard",
     "patients": "Patients",
+    "inbox": "Inbox",
     "treatments": "Treatments",
     "operations": "Operations",
     "expenses": "Expenses",
@@ -164,6 +165,64 @@
     "security": "Security",
     "exportImport": "Export & Import",
     "reset": "Reset & Delete"
+  },
+  "inbox": {
+    "title": "Inbox",
+    "subtitle": "WhatsApp conversations and lead handoff in one place.",
+    "search": {
+      "placeholder": "Search by name, number, or campaign"
+    },
+    "labels": {
+      "campaign": "Campaign",
+      "lead": "Lead",
+      "patient": "Patient",
+      "assigned": "Assigned",
+      "assignedToYou": "Assigned to you",
+      "unassigned": "Unassigned"
+    },
+    "status": {
+      "bot": "Bot",
+      "pending": "Pending",
+      "in_progress": "In progress",
+      "closed": "Closed"
+    },
+    "state": {
+      "collecting_name": "Collecting name",
+      "collecting_email": "Collecting email",
+      "chatting": "Chatting"
+    },
+    "actions": {
+      "assign": "Assign to me",
+      "assigned": "Assigned",
+      "takeOver": "Take over",
+      "resumeBot": "Resume bot",
+      "transfer": "Transfer",
+      "close": "Close",
+      "reply": "Send reply"
+    },
+    "composer": {
+      "placeholder": "Write a reply...",
+      "sendHint": "Enter to send · Shift+Enter for a new line",
+      "closedNotice": "Conversation closed"
+    },
+    "empty": {
+      "title": "No conversations yet",
+      "description": "Inbound WhatsApp messages will appear here.",
+      "preview": "No messages yet",
+      "noClinic": "Select a clinic to view inbound conversations."
+    },
+    "emptyConversation": {
+      "title": "Select a conversation",
+      "description": "Choose a thread to read and reply.",
+      "noMessages": "No messages yet",
+      "noMessagesDescription": "This conversation has no messages."
+    },
+    "errors": {
+      "loadConversations": "Failed to load conversations",
+      "loadMessages": "Failed to load messages",
+      "sendMessage": "Failed to send message",
+      "updateConversation": "Failed to update conversation"
+    }
   },
   "dark_mode": "Dark Mode",
   "toggle_theme": "Toggle Theme",
@@ -1705,6 +1764,10 @@
       "deleteWarningText": "This will permanently delete the workspace and all its data.",
       "deleteConfirmInstructions": "Please type the workspace name to confirm:",
       "deleteConfirmLabel": "Workspace name"
+    },
+    "team": {
+      "title": "Team & Roles",
+      "description": "Invite members and manage permissions"
     },
     "clinics": {
       "title": "Clinics",
@@ -4506,7 +4569,8 @@
     "tabs": {
       "workspace": "Workspace",
       "clinics": "Clinics",
-      "invitations": "Invitations"
+      "invitations": "Invitations",
+      "roles": "Roles"
     },
     "common": {
       "save": "Save",
@@ -4530,7 +4594,51 @@
       "title": "Clinic Members",
       "noMembers": "No clinic members found",
       "noMembersHint": "Members with workspace access can be assigned specific clinic roles",
-      "chair": "Chair {chair}"
+      "chair": "Chair {chair}",
+      "addMemberTitle": "Add member to clinic",
+      "addMemberDescription": "Assign an existing workspace member to this clinic.",
+      "addMember": "Add to clinic",
+      "loadingMembers": "Loading workspace members...",
+      "noAvailableMembers": "All workspace members are already assigned to this clinic.",
+      "selectMember": "Select member",
+      "assignClinics": "Clinics to assign",
+      "assignClinicsHint": "Choose which clinics this invitation should include."
+    },
+    "allowedClinics": {
+      "title": "Allowed clinics",
+      "all": "All clinics"
+    },
+    "permissions": {
+      "customize": "Customize permissions"
+    },
+    "customRoles": {
+      "title": "Custom Roles",
+      "subtitle": "Create templates with tailored permissions for your team.",
+      "createButton": "New Role",
+      "createTitle": "Create Custom Role",
+      "editTitle": "Edit Custom Role",
+      "description": "Define the scope, base role, and permissions for this role.",
+      "name": "Role name",
+      "invalidName": "Enter at least 2 characters",
+      "descriptionLabel": "Description",
+      "scopeLabel": "Scope",
+      "scopeWorkspace": "Workspace",
+      "scopeClinic": "Clinic",
+      "scope": {
+        "workspace": "Workspace",
+        "clinic": "Clinic"
+      },
+      "baseRole": "Base role",
+      "baseRoleNone": "No base role",
+      "permissions": "Permissions",
+      "resetPermissions": "Reset",
+      "empty": "No custom roles yet",
+      "deleteTitle": "Delete custom role?",
+      "deleteDescription": "The role \"{name}\" will be removed.",
+      "deleteConfirm": "Delete role",
+      "customRole": "Custom role",
+      "none": "None",
+      "selectRole": "Select a custom role"
     },
     "invitations": {
       "title": "Invitations",
@@ -4650,6 +4758,55 @@
     "denied": {
       "title": "Access Denied",
       "description": "You don't have permission to access this feature"
+    },
+    "categories": {
+      "clinical": "Clinical Operations",
+      "catalog": "Catalog",
+      "financial": "Financial",
+      "marketing": "Marketing",
+      "inbox": "Inbox",
+      "admin": "Administration",
+      "ai": "AI Assistant"
+    },
+    "resources": {
+      "patients": "Patients",
+      "treatments": "Treatments",
+      "prescriptions": "Prescriptions",
+      "quotes": "Quotes",
+      "services": "Services",
+      "supplies": "Supplies",
+      "expenses": "Expenses",
+      "fixed_costs": "Fixed costs",
+      "assets": "Assets",
+      "financial_reports": "Financial reports",
+      "break_even": "Break-even",
+      "campaigns": "Campaigns",
+      "leads": "Leads",
+      "inbox": "Inbox",
+      "settings": "Settings",
+      "team": "Team",
+      "lara": "Lara",
+      "export_import": "Export & import"
+    },
+    "actions": {
+      "view": "View",
+      "create": "Create",
+      "edit": "Edit",
+      "delete": "Delete",
+      "mark_paid": "Mark paid",
+      "print": "Print",
+      "send": "Send",
+      "set_prices": "Set prices",
+      "manage_stock": "Manage stock",
+      "export": "Export",
+      "assign": "Assign",
+      "reply": "Reply",
+      "close": "Close",
+      "transfer": "Transfer",
+      "use_entry_mode": "Entry mode",
+      "use_query_mode": "Query mode",
+      "execute_actions": "Execute actions",
+      "import": "Import"
     }
   },
   "helpPage": {

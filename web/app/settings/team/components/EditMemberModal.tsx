@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -26,14 +27,18 @@ import { Loader2, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWorkspaceMembers } from '@/hooks/use-workspace-members';
 import { useClinicMembers } from '@/hooks/use-clinic-members';
+import { useCustomRoles } from '@/hooks/use-custom-roles';
+import { useWorkspace } from '@/contexts/workspace-context';
 import {
   WORKSPACE_ROLES,
   CLINIC_ROLES,
+  type PermissionMap,
   type WorkspaceMember,
   type ClinicMember,
   type WorkspaceRole,
   type ClinicRole,
 } from '@/lib/permissions/types';
+import { PermissionMatrix } from './PermissionMatrix';
 
 const editSchema = z.object({
   role: z.string().min(1),
@@ -59,7 +64,20 @@ export function EditMemberModal({
   const t = useTranslations('team');
   const { updateMember: updateWorkspaceMember } = useWorkspaceMembers();
   const { updateMember: updateClinicMember } = useClinicMembers();
+  const { clinics } = useWorkspace();
+  const { roles: customRoles } = useCustomRoles(scope);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isWorkspaceScope = scope === 'workspace';
+  const initialAllowedClinics = isWorkspaceScope
+    ? (member as WorkspaceMember).allowed_clinics || []
+    : [];
+  const [allowedClinics, setAllowedClinics] = useState<string[]>(initialAllowedClinics);
+  const [customRoleId, setCustomRoleId] = useState<string | null>(
+    member.custom_role_id || null
+  );
+  const [customPermissions, setCustomPermissions] = useState<PermissionMap | null>(
+    member.custom_permissions || null
+  );
 
   const {
     handleSubmit,
@@ -74,6 +92,20 @@ export function EditMemberModal({
   });
 
   const selectedRole = watch('role');
+  const selectedCustomRole = useMemo(
+    () => customRoles.find((roleItem) => roleItem.id === customRoleId) || null,
+    [customRoles, customRoleId]
+  );
+
+  useEffect(() => {
+    setValue('role', member.role);
+    setCustomRoleId(member.custom_role_id || null);
+    setCustomPermissions(member.custom_permissions || null);
+    if (isWorkspaceScope) {
+      const nextAllowed = (member as WorkspaceMember).allowed_clinics || [];
+      setAllowedClinics(nextAllowed);
+    }
+  }, [member, isWorkspaceScope, setValue]);
 
   const roles =
     scope === 'workspace'
@@ -82,15 +114,38 @@ export function EditMemberModal({
         )
       : Object.entries(CLINIC_ROLES);
 
+  const allClinicsSelected = isWorkspaceScope && allowedClinics.length === 0;
+
+  const toggleAllClinics = (checked: boolean) => {
+    if (checked) {
+      setAllowedClinics([]);
+    } else {
+      setAllowedClinics(clinics.map((clinic) => clinic.id));
+    }
+  };
+
+  const toggleClinic = (clinicId: string, checked: boolean) => {
+    setAllowedClinics((prev) => {
+      const next = checked ? [...prev, clinicId] : prev.filter((id) => id !== clinicId);
+      return next.length === 0 ? prev : next;
+    });
+  };
+
   const onSubmit = async (data: EditFormData) => {
     setIsSubmitting(true);
 
     const updateFn =
       scope === 'workspace' ? updateWorkspaceMember : updateClinicMember;
-    const updateData =
-      scope === 'workspace'
-        ? { role: data.role as WorkspaceRole }
-        : { role: data.role as ClinicRole };
+    const updateData: Record<string, unknown> = {
+      role: data.role,
+    };
+
+    if (scope === 'workspace') {
+      updateData.allowed_clinics = allClinicsSelected ? [] : allowedClinics;
+    }
+
+    updateData.custom_permissions = customPermissions || null;
+    updateData.custom_role_id = customRoleId || null;
 
     const result = await updateFn(member.id, updateData);
 
@@ -148,14 +203,70 @@ export function EditMemberModal({
             </Select>
           </div>
 
-          {/* TODO: Add custom permissions editor */}
-          {/* <div className="space-y-2">
+          <div className="space-y-2">
+            <Label>{t('customRoles.customRole')}</Label>
+            <Select
+              value={customRoleId || 'none'}
+              onValueChange={(value) => {
+                const next = value === 'none' ? null : value;
+                setCustomRoleId(next);
+                const base = customRoles.find((item) => item.id === next)?.base_role;
+                if (base) {
+                  setValue('role', base);
+                }
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">{t('customRoles.none')}</SelectItem>
+                {customRoles.map((roleItem) => (
+                  <SelectItem key={roleItem.id} value={roleItem.id}>
+                    {roleItem.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {isWorkspaceScope && clinics.length > 0 && (
+            <div className="space-y-2">
+              <Label>{t('allowedClinics.title')}</Label>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  checked={allClinicsSelected}
+                  onCheckedChange={(value) => toggleAllClinics(Boolean(value))}
+                />
+                <span className="text-sm">{t('allowedClinics.all')}</span>
+              </div>
+              {!allClinicsSelected && (
+                <div className="space-y-2 rounded-md border border-border/70 p-3">
+                  {clinics.map((clinic) => (
+                    <label key={clinic.id} className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={allowedClinics.includes(clinic.id)}
+                        onCheckedChange={(value) =>
+                          toggleClinic(clinic.id, Boolean(value))
+                        }
+                      />
+                      <span>{clinic.name}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="space-y-2">
             <Label>{t('permissions.customize')}</Label>
             <PermissionMatrix
-              permissions={member.custom_permissions}
-              onChange={(p) => setValue('custom_permissions', p)}
+              baseRole={(selectedCustomRole?.base_role || selectedRole) as any}
+              scope={scope}
+              overrides={customPermissions}
+              onChange={setCustomPermissions}
             />
-          </div> */}
+          </div>
 
           <DialogFooter>
             <Button

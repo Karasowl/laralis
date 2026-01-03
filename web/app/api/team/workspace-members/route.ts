@@ -136,6 +136,7 @@ const createInvitationSchema = z.object({
   role: z.enum(['admin', 'editor', 'viewer']),
   allowed_clinics: z.array(z.string().uuid()).optional(),
   custom_permissions: z.record(z.boolean()).optional(),
+  custom_role_id: z.string().uuid().nullable().optional(),
   message: z.string().optional(),
 });
 
@@ -250,10 +251,12 @@ export async function POST(request: NextRequest) {
         workspace_id: workspaceId,
         email: validatedData.email,
         role: validatedData.role,
+        clinic_ids: validatedData.allowed_clinics || [],
+        custom_role_id: validatedData.custom_role_id || null,
         token,
         expires_at: expiresAt.toISOString(),
         invited_by: userId,
-        permissions: validatedData.custom_permissions || null,
+        custom_permissions: validatedData.custom_permissions || null,
         message: validatedData.message || null,
       })
       .select()

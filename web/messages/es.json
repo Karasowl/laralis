@@ -130,6 +130,7 @@
   "navigation": {
     "dashboard": "Dashboard",
     "patients": "Pacientes",
+    "inbox": "Bandeja de entrada",
     "treatments": "Tratamientos",
     "operations": "Operaciones",
     "expenses": "Gastos",
@@ -164,6 +165,64 @@
     "security": "Seguridad",
     "exportImport": "Exportar e Importar",
     "reset": "Reiniciar y Eliminar"
+  },
+  "inbox": {
+    "title": "Bandeja de entrada",
+    "subtitle": "Conversaciones de WhatsApp y traspaso de leads en un solo lugar.",
+    "search": {
+      "placeholder": "Busca por nombre, número o campaña"
+    },
+    "labels": {
+      "campaign": "Campaña",
+      "lead": "Lead",
+      "patient": "Paciente",
+      "assigned": "Asignado",
+      "assignedToYou": "Asignado a ti",
+      "unassigned": "Sin asignar"
+    },
+    "status": {
+      "bot": "Bot",
+      "pending": "Pendiente",
+      "in_progress": "En curso",
+      "closed": "Cerrado"
+    },
+    "state": {
+      "collecting_name": "Recolectando nombre",
+      "collecting_email": "Recolectando email",
+      "chatting": "En conversación"
+    },
+    "actions": {
+      "assign": "Asignarme",
+      "assigned": "Asignado",
+      "takeOver": "Tomar control",
+      "resumeBot": "Reanudar bot",
+      "transfer": "Transferir",
+      "close": "Cerrar",
+      "reply": "Enviar respuesta"
+    },
+    "composer": {
+      "placeholder": "Escribe una respuesta...",
+      "sendHint": "Enter para enviar · Shift+Enter para nueva línea",
+      "closedNotice": "Conversación cerrada"
+    },
+    "empty": {
+      "title": "Aún no hay conversaciones",
+      "description": "Los mensajes entrantes de WhatsApp aparecerán aquí.",
+      "preview": "Sin mensajes todavía",
+      "noClinic": "Selecciona una clínica para ver las conversaciones."
+    },
+    "emptyConversation": {
+      "title": "Selecciona una conversación",
+      "description": "Elige un hilo para leer y responder.",
+      "noMessages": "Sin mensajes todavía",
+      "noMessagesDescription": "Esta conversación no tiene mensajes."
+    },
+    "errors": {
+      "loadConversations": "No se pudieron cargar las conversaciones",
+      "loadMessages": "No se pudieron cargar los mensajes",
+      "sendMessage": "No se pudo enviar el mensaje",
+      "updateConversation": "No se pudo actualizar la conversación"
+    }
   },
   "dark_mode": "Modo Oscuro",
   "toggle_theme": "Cambiar Tema",
@@ -1753,6 +1812,10 @@
   "settings": {
     "title": "Configuración",
     "subtitle": "Configura tus preferencias personales, seguridad y mantenimiento del workspace.",
+    "team": {
+      "title": "Equipo y roles",
+      "description": "Invita miembros y gestiona permisos"
+    },
     "groups": {
       "personal": {
         "title": "Configuración Personal",
@@ -4785,7 +4848,8 @@
     "tabs": {
       "workspace": "Workspace",
       "clinics": "Clínicas",
-      "invitations": "Invitaciones"
+      "invitations": "Invitaciones",
+      "roles": "Roles"
     },
     "common": {
       "save": "Guardar",
@@ -4809,7 +4873,51 @@
       "title": "Miembros de Clínica",
       "noMembers": "No se encontraron miembros de la clínica",
       "noMembersHint": "Los miembros con acceso al workspace pueden ser asignados a roles específicos de clínica",
-      "chair": "Sillón {chair}"
+      "chair": "Sillón {chair}",
+      "addMemberTitle": "Agregar miembro a la clinica",
+      "addMemberDescription": "Asigna un miembro del workspace a esta clinica.",
+      "addMember": "Agregar a la clinica",
+      "loadingMembers": "Cargando miembros del workspace...",
+      "noAvailableMembers": "Todos los miembros del workspace ya estan asignados a esta clinica.",
+      "selectMember": "Selecciona un miembro",
+      "assignClinics": "Clinicas a asignar",
+      "assignClinicsHint": "Elige las clinicas que incluira esta invitacion."
+    },
+    "allowedClinics": {
+      "title": "Clinicas permitidas",
+      "all": "Todas las clinicas"
+    },
+    "permissions": {
+      "customize": "Personalizar permisos"
+    },
+    "customRoles": {
+      "title": "Roles personalizados",
+      "subtitle": "Crea plantillas con permisos a la medida.",
+      "createButton": "Nuevo rol",
+      "createTitle": "Crear rol personalizado",
+      "editTitle": "Editar rol personalizado",
+      "description": "Define el alcance, rol base y permisos de este rol.",
+      "name": "Nombre del rol",
+      "invalidName": "Ingresa al menos 2 caracteres",
+      "descriptionLabel": "Descripcion",
+      "scopeLabel": "Alcance",
+      "scopeWorkspace": "Espacio de trabajo",
+      "scopeClinic": "Clinica",
+      "scope": {
+        "workspace": "Espacio de trabajo",
+        "clinic": "Clinica"
+      },
+      "baseRole": "Rol base",
+      "baseRoleNone": "Sin rol base",
+      "permissions": "Permisos",
+      "resetPermissions": "Restablecer",
+      "empty": "Aun no hay roles personalizados",
+      "deleteTitle": "Eliminar rol personalizado?",
+      "deleteDescription": "Se eliminara el rol \"{name}\".",
+      "deleteConfirm": "Eliminar rol",
+      "customRole": "Rol personalizado",
+      "none": "Ninguno",
+      "selectRole": "Selecciona un rol"
     },
     "invitations": {
       "title": "Invitaciones",
@@ -4929,6 +5037,55 @@
     "denied": {
       "title": "Acceso Denegado",
       "description": "No tienes permiso para acceder a esta función"
+    },
+    "categories": {
+      "clinical": "Operacion clinica",
+      "catalog": "Catalogo",
+      "financial": "Finanzas",
+      "marketing": "Marketing",
+      "inbox": "Bandeja",
+      "admin": "Administracion",
+      "ai": "Asistente de IA"
+    },
+    "resources": {
+      "patients": "Pacientes",
+      "treatments": "Tratamientos",
+      "prescriptions": "Recetas",
+      "quotes": "Cotizaciones",
+      "services": "Servicios",
+      "supplies": "Insumos",
+      "expenses": "Gastos",
+      "fixed_costs": "Costos fijos",
+      "assets": "Activos",
+      "financial_reports": "Reportes financieros",
+      "break_even": "Punto de equilibrio",
+      "campaigns": "Campanas",
+      "leads": "Leads",
+      "inbox": "Bandeja",
+      "settings": "Configuracion",
+      "team": "Equipo",
+      "lara": "Lara",
+      "export_import": "Exportar e importar"
+    },
+    "actions": {
+      "view": "Ver",
+      "create": "Crear",
+      "edit": "Editar",
+      "delete": "Eliminar",
+      "mark_paid": "Marcar pagado",
+      "print": "Imprimir",
+      "send": "Enviar",
+      "set_prices": "Definir precios",
+      "manage_stock": "Gestionar stock",
+      "export": "Exportar",
+      "assign": "Asignar",
+      "reply": "Responder",
+      "close": "Cerrar",
+      "transfer": "Transferir",
+      "use_entry_mode": "Modo entrada",
+      "use_query_mode": "Modo consulta",
+      "execute_actions": "Ejecutar acciones",
+      "import": "Importar"
     }
   },
   "helpPage": {

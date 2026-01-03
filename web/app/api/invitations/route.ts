@@ -75,6 +75,7 @@ export async function GET(request: NextRequest) {
         role,
         permissions,
         custom_permissions,
+        custom_role_id,
         token,
         expires_at,
         invited_by,
@@ -156,8 +157,10 @@ export async function GET(request: NextRequest) {
 const createInvitationSchema = z.object({
   email: z.string().email('Invalid email address'),
   role: z.enum(['admin', 'editor', 'viewer', 'doctor', 'assistant', 'receptionist']),
+  scope: z.enum(['workspace', 'clinic']).optional(),
   clinic_ids: z.array(z.string().uuid()).optional(),
   custom_permissions: z.record(z.boolean()).optional(),
+  custom_role_id: z.string().uuid().nullable().optional(),
   message: z.string().max(500).optional(),
 });
 
@@ -265,19 +268,48 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
-    // Determine if this is a clinic-specific role
-    const clinicRoles = ['doctor', 'assistant', 'receptionist'];
-    const isClinicRole = clinicRoles.includes(validatedData.role);
+    const clinicRoles = ['admin', 'doctor', 'assistant', 'receptionist', 'viewer'];
+    const workspaceRoles = ['admin', 'editor', 'viewer'];
+    const legacyClinicRoles = ['doctor', 'assistant', 'receptionist'];
+    const isClinicInvite =
+      validatedData.scope === 'clinic' ||
+      (!validatedData.scope && legacyClinicRoles.includes(validatedData.role));
+
+    if (validatedData.scope === 'clinic' && !clinicRoles.includes(validatedData.role)) {
+      return NextResponse.json(
+        { error: 'Invalid role for clinic invitation' },
+        { status: 400 }
+      );
+    }
+
+    if (validatedData.scope === 'workspace' && !workspaceRoles.includes(validatedData.role)) {
+      return NextResponse.json(
+        { error: 'Invalid role for workspace invitation' },
+        { status: 400 }
+      );
+    }
+
+    const clinicIds =
+      validatedData.clinic_ids && validatedData.clinic_ids.length > 0
+        ? [...validatedData.clinic_ids]
+        : isClinicInvite
+          ? [clinicId]
+          : [];
+
+    if (isClinicInvite && !clinicIds.includes(clinicId)) {
+      clinicIds.unshift(clinicId);
+    }
 
     // Create invitation
     const { data: invitation, error: createError } = await supabaseAdmin
       .from('invitations')
       .insert({
         workspace_id: workspaceId,
-        clinic_id: isClinicRole ? clinicId : null,
-        clinic_ids: validatedData.clinic_ids || [],
+        clinic_id: isClinicInvite ? clinicId : null,
+        clinic_ids: clinicIds,
         email: validatedData.email,
         role: validatedData.role,
+        custom_role_id: validatedData.custom_role_id || null,
         token,
         expires_at: expiresAt.toISOString(),
         invited_by: userId,
