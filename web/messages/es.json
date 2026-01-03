@@ -4890,6 +4890,24 @@
     "permissions": {
       "customize": "Personalizar permisos"
     },
+    "selfAccess": {
+      "title": "Mi acceso",
+      "description": "Resumen de acceso para {clinic}.",
+      "descriptionNoClinic": "Resumen de acceso para tu clinica actual.",
+      "workspaceRole": "Rol en el workspace",
+      "clinicRole": "Rol en la clinica",
+      "none": "Ninguno",
+      "permissionsTitle": "Permisos clave",
+      "permissions": {
+        "patients": "Pacientes",
+        "treatments": "Tratamientos",
+        "inbox": "Bandeja",
+        "expenses": "Gastos",
+        "settings": "Configuracion",
+        "team": "Gestion de equipo"
+      },
+      "footer": "Si necesitas cambios, contacta a un admin del workspace."
+    },
     "customRoles": {
       "title": "Roles personalizados",
       "subtitle": "Crea plantillas con permisos a la medida.",

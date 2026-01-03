@@ -4611,6 +4611,24 @@
     "permissions": {
       "customize": "Customize permissions"
     },
+    "selfAccess": {
+      "title": "My access",
+      "description": "Access summary for {clinic}.",
+      "descriptionNoClinic": "Access summary for your current clinic.",
+      "workspaceRole": "Workspace role",
+      "clinicRole": "Clinic role",
+      "none": "None",
+      "permissionsTitle": "Key permissions",
+      "permissions": {
+        "patients": "Patients",
+        "treatments": "Treatments",
+        "inbox": "Inbox",
+        "expenses": "Expenses",
+        "settings": "Settings",
+        "team": "Team management"
+      },
+      "footer": "If you need changes, contact a workspace admin."
+    },
     "customRoles": {
       "title": "Custom Roles",
       "subtitle": "Create templates with tailored permissions for your team.",
