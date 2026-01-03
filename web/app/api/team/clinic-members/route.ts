@@ -142,6 +142,7 @@ const addMemberSchema = z.object({
   user_id: z.string().uuid('Invalid user ID'),
   role: z.enum(['admin', 'doctor', 'assistant', 'receptionist', 'viewer']),
   custom_permissions: z.record(z.boolean()).optional(),
+  custom_role_id: z.string().uuid().nullable().optional(),
   can_access_all_patients: z.boolean().optional(),
   assigned_chair: z.string().optional(),
 });
@@ -244,6 +245,7 @@ export async function POST(request: NextRequest) {
         user_id: validatedData.user_id,
         role: validatedData.role,
         custom_permissions: validatedData.custom_permissions || null,
+        custom_role_id: validatedData.custom_role_id || null,
         can_access_all_patients: validatedData.can_access_all_patients ?? false,
         assigned_chair: validatedData.assigned_chair || null,
         is_active: true,

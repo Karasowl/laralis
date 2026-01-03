@@ -295,7 +295,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
 
-COMMENT ON FUNCTION check_user_permission IS
+COMMENT ON FUNCTION check_user_permission(UUID, UUID, TEXT, TEXT) IS
 'Verifica si un usuario tiene un permiso específico para una clínica.
 Flujo: Owner → Super Admin → Clinic Access → Custom Perms → Clinic Role → Workspace Role';
 
@@ -313,7 +313,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
 
-COMMENT ON FUNCTION has_permission IS
+COMMENT ON FUNCTION has_permission(UUID, TEXT, TEXT) IS
 'Wrapper de check_user_permission que usa auth.uid() automáticamente';
 
 -- =============================================================================
@@ -421,7 +421,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
 
-COMMENT ON FUNCTION get_user_permissions IS
+COMMENT ON FUNCTION get_user_permissions(UUID, UUID) IS
 'Retorna todos los permisos de un usuario para una clínica como JSONB';
 
 -- =============================================================================

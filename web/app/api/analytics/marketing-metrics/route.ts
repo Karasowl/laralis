@@ -112,6 +112,24 @@ export async function GET(request: NextRequest) {
     const newPatientsCount = newPatients?.length || 0
     console.log('[marketing-metrics] New patients:', newPatientsCount)
 
+    // 2.1 Obtener leads del periodo (para conversion rate)
+    const { data: leadsInPeriod, error: leadsError } = await supabaseAdmin
+      .from('leads')
+      .select('id, status, converted_patient_id')
+      .eq('clinic_id', clinicId)
+      .gte('created_at', startDate.toISOString())
+      .lte('created_at', endDate.toISOString())
+
+    if (leadsError) {
+      console.error('[marketing-metrics] Error fetching leads:', leadsError)
+      throw leadsError
+    }
+
+    const totalLeads = leadsInPeriod?.length || 0
+    const convertedLeads = (leadsInPeriod || []).filter(
+      (lead: any) => lead.status === 'converted' || lead.converted_patient_id
+    ).length
+
     // 3. Obtener TODOS los pacientes (para LTV)
     const { data: allPatients, error: allPatientsError } = await supabaseAdmin
       .from('patients')
@@ -157,7 +175,9 @@ export async function GET(request: NextRequest) {
     // LTV uses period revenue / active patients in period (not all-time patients)
     const periodActivePatients = convertedPatients > 0 ? convertedPatients : 1
     const ltv = calculateLTV(totalRevenueCents, periodActivePatients)
-    const conversionRate = calculateConversionRate(convertedPatients, totalPatients)
+    const conversionRate = totalLeads > 0
+      ? calculateConversionRate(convertedLeads, totalLeads)
+      : calculateConversionRate(convertedPatients, totalPatients)
     const ltvCacRatio = calculateLTVCACRatio(ltv, cac)
     const ratioQuality = getLTVCACRatioQuality(ltvCacRatio)
 
@@ -198,7 +218,10 @@ export async function GET(request: NextRequest) {
         totalPatients,
         totalRevenueCents,
         convertedPatients,
-        periodActivePatients
+        periodActivePatients,
+        totalLeads,
+        convertedLeads,
+        conversionSource: totalLeads > 0 ? 'leads' : 'patients'
       }
     })
 

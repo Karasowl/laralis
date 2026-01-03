@@ -151,6 +151,7 @@ export interface Invitation {
   role: Role;
   permissions: PermissionMap | null;
   custom_permissions: PermissionMap | null;
+  custom_role_id: string | null;
   token: string;
   expires_at: string;
   invited_by: string;
@@ -175,8 +176,10 @@ export interface InvitationWithInviter extends Invitation {
 export interface CreateInvitationInput {
   email: string;
   role: Role;
+  scope?: RoleScope;
   clinic_ids?: string[];
   custom_permissions?: PermissionMap;
+  custom_role_id?: string | null;
   message?: string;
 }
 

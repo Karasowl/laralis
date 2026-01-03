@@ -14,6 +14,7 @@ interface InviteMemberInput {
   role: WorkspaceRole;
   allowed_clinics?: string[];
   custom_permissions?: PermissionMap;
+  custom_role_id?: string | null;
   message?: string;
 }
 
@@ -21,6 +22,7 @@ interface UpdateMemberInput {
   role?: WorkspaceRole;
   allowed_clinics?: string[];
   custom_permissions?: PermissionMap | null;
+  custom_role_id?: string | null;
   is_active?: boolean;
 }
 

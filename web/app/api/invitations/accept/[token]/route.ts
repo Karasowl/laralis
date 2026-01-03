@@ -169,6 +169,28 @@ export async function POST(
       );
     }
 
+    // Resolve custom role scope (if provided)
+    let customRoleScope: 'workspace' | 'clinic' | null = null;
+
+    if (invitation.custom_role_id) {
+      const { data: roleTemplate } = await supabaseAdmin
+        .from('custom_role_templates')
+        .select('scope, workspace_id')
+        .eq('id', invitation.custom_role_id)
+        .single();
+
+      if (roleTemplate && roleTemplate.workspace_id === invitation.workspace_id) {
+        customRoleScope = roleTemplate.scope as 'workspace' | 'clinic';
+      }
+    }
+
+    const workspaceCustomRoleId =
+      customRoleScope === 'workspace' ? invitation.custom_role_id : null;
+    const clinicCustomRoleId =
+      customRoleScope === 'clinic' ? invitation.custom_role_id : null;
+
+    const isClinicInvite = Boolean(invitation.clinic_id);
+
     // Check if already a workspace member
     const { data: existingMember } = await supabaseAdmin
       .from('workspace_users')
@@ -177,10 +199,18 @@ export async function POST(
       .eq('user_id', user.id)
       .single();
 
-    // Determine workspace role (clinic roles map to 'editor' at workspace level)
-    const clinicRoles = ['doctor', 'assistant', 'receptionist'];
-    const isClinicRole = clinicRoles.includes(invitation.role);
-    const workspaceRole = isClinicRole ? 'editor' : invitation.role;
+    // Determine workspace role (clinic invites map to editor by default)
+    const workspaceRole = isClinicInvite
+      ? invitation.role === 'viewer'
+        ? 'viewer'
+        : 'editor'
+      : invitation.role;
+    const workspaceCustomPermissions = isClinicInvite
+      ? null
+      : invitation.custom_permissions;
+    const clinicCustomPermissions = isClinicInvite
+      ? invitation.custom_permissions
+      : null;
 
     if (!existingMember) {
       // Create workspace membership
@@ -191,7 +221,8 @@ export async function POST(
           user_id: user.id,
           role: workspaceRole,
           allowed_clinics: invitation.clinic_ids || [],
-          custom_permissions: invitation.custom_permissions,
+          custom_permissions: workspaceCustomPermissions,
+          custom_role_id: workspaceCustomRoleId,
           is_active: true,
           joined_at: new Date().toISOString(),
         });
@@ -205,14 +236,23 @@ export async function POST(
       }
     } else {
       // Reactivate if inactive
+      const workspaceUpdate: Record<string, unknown> = { is_active: true };
+
+      if (!isClinicInvite) {
+        workspaceUpdate.custom_permissions = workspaceCustomPermissions;
+        workspaceUpdate.custom_role_id = workspaceCustomRoleId;
+      } else if (workspaceCustomRoleId) {
+        workspaceUpdate.custom_role_id = workspaceCustomRoleId;
+      }
+
       await supabaseAdmin
         .from('workspace_users')
-        .update({ is_active: true })
+        .update(workspaceUpdate)
         .eq('id', existingMember.id);
     }
 
     // Create clinic membership if this is a clinic-specific role
-    if (isClinicRole && invitation.clinic_id) {
+    if (isClinicInvite && invitation.clinic_id) {
       // Check if already a clinic member
       const { data: existingClinicMember } = await supabaseAdmin
         .from('clinic_users')
@@ -228,7 +268,8 @@ export async function POST(
             clinic_id: invitation.clinic_id,
             user_id: user.id,
             role: invitation.role,
-            custom_permissions: invitation.custom_permissions,
+            custom_permissions: clinicCustomPermissions,
+            custom_role_id: clinicCustomRoleId,
             is_active: true,
             can_access_all_patients: invitation.role === 'doctor',
             joined_at: new Date().toISOString(),
@@ -248,6 +289,8 @@ export async function POST(
           .update({
             is_active: true,
             role: invitation.role,
+            custom_permissions: clinicCustomPermissions,
+            custom_role_id: clinicCustomRoleId,
           })
           .eq('id', existingClinicMember.id);
       }
@@ -272,6 +315,8 @@ export async function POST(
               clinic_id: clinicId,
               user_id: user.id,
               role: invitation.role,
+              custom_permissions: clinicCustomPermissions,
+              custom_role_id: clinicCustomRoleId,
               is_active: true,
               can_access_all_patients: invitation.role === 'doctor',
               joined_at: new Date().toISOString(),

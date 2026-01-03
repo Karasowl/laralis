@@ -13,6 +13,7 @@ interface AddMemberInput {
   user_id: string;
   role: ClinicRole;
   custom_permissions?: PermissionMap;
+  custom_role_id?: string | null;
   can_access_all_patients?: boolean;
   assigned_chair?: string;
 }
@@ -20,6 +21,7 @@ interface AddMemberInput {
 interface UpdateMemberInput {
   role?: ClinicRole;
   custom_permissions?: PermissionMap | null;
+  custom_role_id?: string | null;
   can_access_all_patients?: boolean;
   assigned_chair?: string | null;
   schedule?: Record<string, unknown> | null;
