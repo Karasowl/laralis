@@ -27,6 +27,11 @@ interface CanProps {
    * Optional fallback to render if user doesn't have permission
    */
   fallback?: ReactNode;
+
+  /**
+   * Optional fallback to render while permissions are loading
+   */
+  loadingFallback?: ReactNode;
 }
 
 /**
@@ -56,12 +61,18 @@ interface CanProps {
  *   <InviteButton />
  * </Can>
  */
-export function Can({ permission, mode = 'all', children, fallback = null }: CanProps) {
+export function Can({
+  permission,
+  mode = 'all',
+  children,
+  fallback = null,
+  loadingFallback = null,
+}: CanProps) {
   const { can, canAll, canAny, loading } = usePermissions();
 
   // While loading, don't render anything (prevents flash)
   if (loading) {
-    return null;
+    return <>{loadingFallback}</>;
   }
 
   const permissions = Array.isArray(permission) ? permission : [permission];
@@ -88,11 +99,12 @@ export function CanNot({
   mode = 'all',
   children,
   fallback = null,
+  loadingFallback = null,
 }: CanProps) {
   const { can, canAll, canAny, loading } = usePermissions();
 
   if (loading) {
-    return null;
+    return <>{loadingFallback}</>;
   }
 
   const permissions = Array.isArray(permission) ? permission : [permission];
