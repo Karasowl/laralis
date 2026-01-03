@@ -31,7 +31,8 @@ interface PermissionsResponse {
  */
 export function usePermissions() {
   const { data, loading, error, refetch } = useApi<PermissionsResponse>(
-    '/api/permissions/my'
+    '/api/permissions/my',
+    { autoFetch: true }
   );
 
   const permissions = useMemo(() => data?.permissions ?? {}, [data?.permissions]);
