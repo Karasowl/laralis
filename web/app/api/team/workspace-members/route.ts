@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch all workspace members with user profile info
+    // Fetch all workspace members
     const { data: members, error } = await supabaseAdmin
       .from('workspace_users')
       .select(`
@@ -83,12 +83,7 @@ export async function GET(request: NextRequest) {
         custom_role_id,
         allowed_clinics,
         is_active,
-        joined_at,
-        user_profiles (
-          email,
-          full_name,
-          avatar_url
-        )
+        joined_at
       `)
       .eq('workspace_id', workspaceId)
       .order('joined_at', { ascending: true });
@@ -101,13 +96,32 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const membersWithMissingProfile = (members || [])
-      .map((member) => ({
-        userId: member.user_id,
-        profile: member.user_profiles as UserProfileRelation | null,
-      }))
-      .filter((member) => !member.profile?.email)
-      .map((member) => member.userId);
+    const userIds = (members || []).map((member) => member.user_id);
+    const profilesById = new Map<string, UserProfileRelation>();
+
+    if (userIds.length > 0) {
+      const { data: profiles, error: profilesError } = await supabaseAdmin
+        .from('user_profiles')
+        .select('id, email, full_name, avatar_url')
+        .in('id', userIds);
+
+      if (profilesError) {
+        console.error('[workspace-members] Error fetching profiles:', profilesError);
+      } else {
+        (profiles || []).forEach((profile) => {
+          profilesById.set(profile.id, {
+            email: profile.email,
+            full_name: profile.full_name,
+            avatar_url: profile.avatar_url,
+          });
+        });
+      }
+    }
+
+    const membersWithMissingProfile = userIds.filter((memberId) => {
+      const profile = profilesById.get(memberId);
+      return !profile?.email;
+    });
 
     const missingProfileIds = Array.from(new Set(membersWithMissingProfile));
     const authFallbacks = new Map<string, UserProfileRelation>();
@@ -150,7 +164,7 @@ export async function GET(request: NextRequest) {
 
     // Transform to expected format
     const transformedMembers: WorkspaceMember[] = (members || []).map((m) => {
-      const profile = m.user_profiles as UserProfileRelation | null;
+      const profile = profilesById.get(m.user_id) || null;
       const fallbackProfile = authFallbacks.get(m.user_id) || null;
       const email = profile?.email || fallbackProfile?.email || '';
       const fullName = profile?.full_name ?? fallbackProfile?.full_name ?? null;
