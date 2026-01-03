@@ -34,6 +34,8 @@ export function usePermissions() {
     '/api/permissions/my',
     { autoFetch: true }
   );
+  const hasResolved = Boolean(data) || Boolean(error);
+  const isLoading = loading || !hasResolved;
 
   const permissions = useMemo(() => data?.permissions ?? {}, [data?.permissions]);
 
@@ -109,7 +111,7 @@ export function usePermissions() {
     isSuperUser,
 
     // State
-    loading,
+    loading: isLoading,
     error,
     refetch,
   };

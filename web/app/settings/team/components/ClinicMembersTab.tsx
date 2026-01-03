@@ -109,7 +109,15 @@ export function ClinicMembersTab() {
             )}
           </div>
           <div className="flex flex-wrap gap-2">
-            <Can permission="team.invite">
+            <Can
+              permission="team.invite"
+              loadingFallback={
+                <Button size="sm" className="gap-2" disabled>
+                  <UserPlus className="h-4 w-4" />
+                  {t('invite.button')}
+                </Button>
+              }
+            >
               <Button
                 size="sm"
                 onClick={() => setInviteModalOpen(true)}
@@ -120,7 +128,15 @@ export function ClinicMembersTab() {
                 {t('invite.button')}
               </Button>
             </Can>
-            <Can permission="team.edit_roles">
+            <Can
+              permission="team.edit_roles"
+              loadingFallback={
+                <Button size="sm" variant="outline" className="gap-2" disabled>
+                  <Users className="h-4 w-4" />
+                  {t('clinics.addMember')}
+                </Button>
+              }
+            >
               <Button
                 size="sm"
                 variant="outline"
@@ -179,7 +195,14 @@ export function ClinicMembersTab() {
                     {t(`roles.${member.role}`)}
                   </Badge>
 
-                  <Can permission="team.edit_roles">
+                  <Can
+                    permission="team.edit_roles"
+                    loadingFallback={
+                      <Button variant="ghost" size="icon" disabled>
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    }
+                  >
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon">
