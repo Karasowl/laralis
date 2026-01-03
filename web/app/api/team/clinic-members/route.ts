@@ -7,7 +7,7 @@ import type { ClinicMember, ClinicRole } from '@/lib/permissions';
 
 // Type for the user_profiles relation from Supabase query
 interface UserProfileRelation {
-  email: string;
+  email: string | null;
   full_name: string | null;
   avatar_url: string | null;
 }
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch all clinic members with user profile info
+    // Fetch all clinic members
     const { data: members, error } = await supabaseAdmin
       .from('clinic_users')
       .select(`
@@ -88,12 +88,7 @@ export async function GET(request: NextRequest) {
         joined_at,
         can_access_all_patients,
         assigned_chair,
-        schedule,
-        user_profiles!inner (
-          email,
-          full_name,
-          avatar_url
-        )
+        schedule
       `)
       .eq('clinic_id', clinicId)
       .order('joined_at', { ascending: true });
@@ -106,23 +101,96 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const userIds = (members || []).map((member) => member.user_id);
+    const profilesById = new Map<string, UserProfileRelation>();
+
+    if (userIds.length > 0) {
+      const { data: profiles, error: profilesError } = await supabaseAdmin
+        .from('user_profiles')
+        .select('id, email, full_name, avatar_url')
+        .in('id', userIds);
+
+      if (profilesError) {
+        console.error('[clinic-members] Error fetching profiles:', profilesError);
+      } else {
+        (profiles || []).forEach((profile) => {
+          profilesById.set(profile.id, {
+            email: profile.email,
+            full_name: profile.full_name,
+            avatar_url: profile.avatar_url,
+          });
+        });
+      }
+    }
+
+    const membersWithMissingProfile = userIds.filter((memberId) => {
+      const profile = profilesById.get(memberId);
+      return !profile?.email;
+    });
+    const missingProfileIds = Array.from(new Set(membersWithMissingProfile));
+    const authFallbacks = new Map<string, UserProfileRelation>();
+
+    if (missingProfileIds.length > 0) {
+      const authResults = await Promise.all(
+        missingProfileIds.map(async (memberId) => {
+          const { data } = await supabaseAdmin.auth.admin.getUserById(memberId);
+          const user = data?.user;
+
+          if (!user) return null;
+
+          const metadata = user.user_metadata as Record<string, unknown> | undefined;
+          const fullName =
+            typeof metadata?.full_name === 'string'
+              ? metadata.full_name
+              : typeof metadata?.name === 'string'
+                ? metadata.name
+                : null;
+          const avatarUrl =
+            typeof metadata?.avatar_url === 'string' ? metadata.avatar_url : null;
+
+          return {
+            userId: memberId,
+            profile: {
+              email: user.email || null,
+              full_name: fullName,
+              avatar_url: avatarUrl,
+            },
+          };
+        })
+      );
+
+      authResults.forEach((result) => {
+        if (result?.profile) {
+          authFallbacks.set(result.userId, result.profile);
+        }
+      });
+    }
+
     // Transform to expected format
-    const transformedMembers: ClinicMember[] = (members || []).map((m) => ({
-      id: m.id,
-      user_id: m.user_id,
-      clinic_id: m.clinic_id,
-      role: m.role as ClinicRole,
-      custom_permissions: m.custom_permissions,
-      custom_role_id: m.custom_role_id,
-      is_active: m.is_active,
-      joined_at: m.joined_at,
-      can_access_all_patients: m.can_access_all_patients,
-      assigned_chair: m.assigned_chair,
-      schedule: m.schedule as Record<string, unknown> | null,
-      email: (m.user_profiles as unknown as UserProfileRelation).email,
-      full_name: (m.user_profiles as unknown as UserProfileRelation).full_name,
-      avatar_url: (m.user_profiles as unknown as UserProfileRelation).avatar_url,
-    }));
+    const transformedMembers: ClinicMember[] = (members || []).map((m) => {
+      const profile = profilesById.get(m.user_id) || null;
+      const fallbackProfile = authFallbacks.get(m.user_id) || null;
+      const email = profile?.email || fallbackProfile?.email || '';
+      const fullName = profile?.full_name ?? fallbackProfile?.full_name ?? null;
+      const avatarUrl = profile?.avatar_url ?? fallbackProfile?.avatar_url ?? null;
+
+      return {
+        id: m.id,
+        user_id: m.user_id,
+        clinic_id: m.clinic_id,
+        role: m.role as ClinicRole,
+        custom_permissions: m.custom_permissions,
+        custom_role_id: m.custom_role_id,
+        is_active: m.is_active,
+        joined_at: m.joined_at,
+        can_access_all_patients: m.can_access_all_patients,
+        assigned_chair: m.assigned_chair,
+        schedule: m.schedule as Record<string, unknown> | null,
+        email,
+        full_name: fullName,
+        avatar_url: avatarUrl,
+      };
+    });
 
     return NextResponse.json({
       members: transformedMembers,
