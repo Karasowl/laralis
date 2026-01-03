@@ -37,7 +37,10 @@ export function useWorkspaceMembers(workspaceId?: string) {
     ? `/api/team/workspace-members?workspaceId=${workspaceId}`
     : '/api/team/workspace-members';
 
-  const { data, loading, error, refetch } = useApi<WorkspaceMembersResponse>(endpoint);
+  const { data, loading, error, refetch } = useApi<WorkspaceMembersResponse>(
+    endpoint,
+    { autoFetch: true }
+  );
 
   /**
    * Invite a new member to the workspace
