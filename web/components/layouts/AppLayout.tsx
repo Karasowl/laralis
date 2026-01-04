@@ -8,6 +8,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { useWorkspace } from '@/contexts/workspace-context'
 import { useTheme } from '@/components/providers/theme-provider'
+import { usePermissions } from '@/hooks/use-permissions'
 import { Sidebar } from './Sidebar'
 import { MobileHeader } from './MobileHeader'
 import { UserMenu } from './UserMenu'
@@ -17,10 +18,19 @@ import { ContextIndicator } from './ContextIndicator'
 import { Sun, Moon, Activity, Settings as SettingsIcon } from 'lucide-react'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { OnboardingListeners } from '@/components/onboarding/OnboardingListeners'
+import type { Permission } from '@/lib/permissions/types'
 
 interface AppLayoutProps {
   children: React.ReactNode
 }
+
+const financePermissions: Permission[] = [
+  'financial_reports.view',
+  'expenses.view',
+  'fixed_costs.view',
+  'assets.view',
+  'break_even.view'
+]
 
 export function AppLayout({ children }: AppLayoutProps) {
   const t = useT()
@@ -28,6 +38,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   const pathname = usePathname()
   const router = useRouter()
   const { workspace, currentClinic, user, signOut } = useWorkspace()
+  const { canAny, loading: permissionsLoading } = usePermissions()
   const onboardingCompleted = Boolean(workspace?.onboarding_completed)
   const { theme, setTheme } = useTheme()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -60,7 +71,10 @@ export function AppLayout({ children }: AppLayoutProps) {
   }
 
   // Get navigation sections with translations
-  const navigationSections = getNavigationSections(t, { onboardingCompleted })
+  const canViewFinance = canAny(financePermissions)
+  const showDashboard = permissionsLoading || canViewFinance
+  const showFinance = permissionsLoading || canViewFinance
+  const navigationSections = getNavigationSections(t, { onboardingCompleted, showDashboard, showFinance })
   const footerItems = onboardingCompleted
     ? [{ href: '/settings', label: t('navigation.settings'), icon: SettingsIcon }]
     : []

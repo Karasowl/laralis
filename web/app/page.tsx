@@ -31,6 +31,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Progress } from '@/components/ui/progress'
 import { useWorkspace } from '@/contexts/workspace-context'
 import { useDashboard } from '@/hooks/use-dashboard'
+import { usePermissions } from '@/hooks/use-permissions'
 import { useReports } from '@/hooks/use-reports'
 import { useEquilibrium } from '@/hooks/use-equilibrium'
 import { useDateFilter } from '@/hooks/use-date-filter'
@@ -129,8 +130,10 @@ export default function InsightsPage() {
   const tFilters = useTranslations('dashboardComponents.dateFilter')
   const tNav = useTranslations('navigation')
   const tReports = useTranslations('reports')
+  const tPermissions = useTranslations('permissions')
   const router = useRouter()
   const { currentClinic } = useWorkspace()
+  const { canAny, loading: permissionsLoading } = usePermissions()
   const [mounted, setMounted] = useState(false)
 
   // State for category filter and metric selector
@@ -160,6 +163,19 @@ export default function InsightsPage() {
 
   const comparisonEnabled = comparison !== 'none'
 
+  const financePermissions = useMemo(
+    () => [
+      'financial_reports.view',
+      'expenses.view',
+      'fixed_costs.view',
+      'assets.view',
+      'break_even.view'
+    ] as const,
+    []
+  )
+  const canViewFinance = !permissionsLoading && canAny([...financePermissions])
+  const dashboardClinicId = canViewFinance ? currentClinic?.id : undefined
+
   const {
     metrics,
     charts,
@@ -168,7 +184,7 @@ export default function InsightsPage() {
     loading: dashboardLoading,
     error: dashboardError
   } = useDashboard({
-    clinicId: currentClinic?.id,
+    clinicId: dashboardClinicId,
     period: dashboardPeriod,
     from: currentRange?.from,
     to: currentRange?.to,
@@ -185,7 +201,7 @@ export default function InsightsPage() {
     error: reportsError,
     fetchReportsData
   } = useReports({
-    clinicId: currentClinic?.id,
+    clinicId: dashboardClinicId,
     startDate: currentRange?.from,
     endDate: currentRange?.to
   })
@@ -194,7 +210,7 @@ export default function InsightsPage() {
     data: equilibriumData,
     loading: equilibriumLoading
   } = useEquilibrium({
-    clinicId: currentClinic?.id,
+    clinicId: dashboardClinicId,
     startDate: currentRange?.from,
     endDate: currentRange?.to
   })
@@ -203,7 +219,7 @@ export default function InsightsPage() {
     data: roiData,
     loading: roiLoading
   } = useServiceROI({
-    clinicId: currentClinic?.id,
+    clinicId: dashboardClinicId,
     startDate: currentRange?.from,
     endDate: currentRange?.to
   })
@@ -213,7 +229,7 @@ export default function InsightsPage() {
     data: marketingMetrics,
     loading: marketingMetricsLoading
   } = useMarketingMetrics({
-    clinicId: currentClinic?.id,
+    clinicId: dashboardClinicId,
     startDate: currentRange?.from,
     endDate: currentRange?.to
   })
@@ -222,7 +238,7 @@ export default function InsightsPage() {
     data: cacTrendData,
     loading: cacTrendLoading
   } = useCACTrend({
-    clinicId: currentClinic?.id,
+    clinicId: dashboardClinicId,
     startDate: currentRange?.from,
     endDate: currentRange?.to
   })
@@ -231,7 +247,7 @@ export default function InsightsPage() {
     data: channelROIData,
     loading: channelROILoading
   } = useChannelROI({
-    clinicId: currentClinic?.id,
+    clinicId: dashboardClinicId,
     startDate: currentRange?.from,
     endDate: currentRange?.to
   })
@@ -240,7 +256,7 @@ export default function InsightsPage() {
     data: acquisitionTrendsData,
     loading: acquisitionTrendsLoading
   } = useAcquisitionTrends({
-    clinicId: currentClinic?.id,
+    clinicId: dashboardClinicId,
     startDate: currentRange?.from,
     endDate: currentRange?.to,
     projectionMonths: 3
@@ -250,12 +266,12 @@ export default function InsightsPage() {
   const {
     services,
     loading: servicesLoading
-  } = useServices({ clinicId: currentClinic?.id })
+  } = useServices({ clinicId: dashboardClinicId })
 
   // Time settings for monthly goal
   const {
     settings: timeSettings
-  } = useTimeSettings({ clinicId: currentClinic?.id })
+  } = useTimeSettings({ clinicId: dashboardClinicId, autoLoad: canViewFinance })
 
   // Categories for service filtering
   const {
@@ -268,7 +284,7 @@ export default function InsightsPage() {
     data: profitAnalysis,
     loading: profitAnalysisLoading
   } = useProfitAnalysis({
-    clinicId: currentClinic?.id,
+    clinicId: dashboardClinicId,
     startDate: currentRange?.from,
     endDate: currentRange?.to
   })
@@ -278,7 +294,7 @@ export default function InsightsPage() {
     data: plannedVsActual,
     loading: plannedVsActualLoading
   } = usePlannedVsActual({
-    clinicId: currentClinic?.id,
+    clinicId: dashboardClinicId,
     startDate: currentRange?.from,
     endDate: currentRange?.to
   })
@@ -433,6 +449,71 @@ export default function InsightsPage() {
       setComparison(comp === 'lastYear' ? 'last-year' : comp as 'none' | 'previous' | 'last-year')
     }
   }, [setFilterPeriod, setGranularity, setComparison, setCustomRange])
+
+  if (permissionsLoading) {
+    return (
+      <AppLayout>
+        <div className="p-4 lg:p-8 max-w-[1600px] mx-auto space-y-4 sm:space-y-6">
+          <PageHeader
+            title={t('title')}
+            subtitle={t('subtitle', { clinic: currentClinic?.name || '' })}
+          />
+          <DashboardSkeleton />
+        </div>
+      </AppLayout>
+    )
+  }
+
+  if (!canViewFinance) {
+    const maskedValue = '***'
+    return (
+      <AppLayout>
+        <div className="p-4 lg:p-8 max-w-[1600px] mx-auto space-y-4 sm:space-y-6">
+          <PageHeader
+            title={t('title')}
+            subtitle={t('subtitle', { clinic: currentClinic?.name || '' })}
+          />
+
+          <Alert variant="destructive">
+            <AlertTitle>{tPermissions('denied.title')}</AlertTitle>
+            <AlertDescription>{tPermissions('denied.description')}</AlertDescription>
+          </Alert>
+
+          <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+            <MetricCard
+              title={getPeriodLabels.revenue}
+              value={maskedValue}
+              icon={DollarSign}
+              color="text-green-600"
+              subtitle={getPeriodLabels.comparison}
+            />
+            <MetricCard
+              title={getPeriodLabels.expenses}
+              value={maskedValue}
+              lowerIsBetter
+              icon={Receipt}
+              color="text-destructive"
+              subtitle={getPeriodLabels.comparison}
+            />
+            <MetricCard
+              title={t('active_patients')}
+              value={maskedValue}
+              icon={Users}
+              color="text-primary"
+              subtitle={`${maskedValue} ${getPeriodLabels.newPatients}`}
+            />
+            <MetricCard
+              title={tNav('treatments')}
+              value={maskedValue}
+              icon={Activity}
+              color="text-purple-600"
+              subtitle={`${maskedValue} ${t('completed')}`}
+            />
+          </div>
+        </div>
+      </AppLayout>
+    )
+  }
 
   return (
     <AppLayout>

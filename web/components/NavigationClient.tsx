@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { usePermissions } from '@/hooks/use-permissions';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,26 +13,43 @@ import {
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
 import { ChevronDown, Users, Calculator, FileText } from 'lucide-react';
+import type { Permission } from '@/lib/permissions/types';
+
+const financePermissions: Permission[] = [
+  'financial_reports.view',
+  'expenses.view',
+  'fixed_costs.view',
+  'assets.view',
+  'break_even.view'
+];
 
 export function NavigationClient() {
   const t = useTranslations();
   const router = useRouter();
+  const { canAny, loading: permissionsLoading } = usePermissions();
+  const canViewFinance = canAny(financePermissions);
+  const showFinance = permissionsLoading || canViewFinance;
+  const showDashboard = showFinance;
   
   return (
     <nav className="hidden md:flex items-center space-x-6 text-sm">
-      <Link 
-        href="/" 
-        className="text-foreground/60 hover:text-foreground transition-colors"
-      >
-        {t('nav.home')}
-      </Link>
+      {showDashboard && (
+        <Link 
+          href="/" 
+          className="text-foreground/60 hover:text-foreground transition-colors"
+        >
+          {t('nav.home')}
+        </Link>
+      )}
 
-      <Link
-        href="/expenses"
-        className="text-foreground/60 hover:text-foreground transition-colors"
-      >
-        {t('nav.expenses')}
-      </Link>
+      {showFinance && (
+        <Link
+          href="/expenses"
+          className="text-foreground/60 hover:text-foreground transition-colors"
+        >
+          {t('nav.expenses')}
+        </Link>
+      )}
 
       {/* Operaciones Diarias */}
       <DropdownMenu>
@@ -52,16 +70,20 @@ export function NavigationClient() {
               {t('nav.treatments')}
             </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link href="/expenses" className="cursor-pointer">
-              {t('nav.expenses')}
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link href="/reports" className="cursor-pointer">
-              {t('nav.reports')}
-            </Link>
-          </DropdownMenuItem>
+          {showFinance && (
+            <DropdownMenuItem asChild>
+              <Link href="/expenses" className="cursor-pointer">
+                {t('nav.expenses')}
+              </Link>
+            </DropdownMenuItem>
+          )}
+          {showFinance && (
+            <DropdownMenuItem asChild>
+              <Link href="/reports" className="cursor-pointer">
+                {t('nav.reports')}
+              </Link>
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
       
@@ -73,28 +95,32 @@ export function NavigationClient() {
           <ChevronDown className="h-3 w-3" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
-          <DropdownMenuLabel>{t('nav.initialConfig')}</DropdownMenuLabel>
-          <DropdownMenuItem asChild>
-            <Link href="/assets" className="cursor-pointer">
-              {t('nav.assets')}
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link href="/fixed-costs" className="cursor-pointer">
-              {t('nav.fixedCosts')}
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link href="/time" className="cursor-pointer">
-              {t('nav.time')}
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link href="/equilibrium" className="cursor-pointer">
-              {t('nav.equilibrium')}
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
+          {showFinance && (
+            <>
+              <DropdownMenuLabel>{t('nav.initialConfig')}</DropdownMenuLabel>
+              <DropdownMenuItem asChild>
+                <Link href="/assets" className="cursor-pointer">
+                  {t('nav.assets')}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/fixed-costs" className="cursor-pointer">
+                  {t('nav.fixedCosts')}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/time" className="cursor-pointer">
+                  {t('nav.time')}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/equilibrium" className="cursor-pointer">
+                  {t('nav.equilibrium')}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+            </>
+          )}
           <DropdownMenuLabel>{t('nav.variableCosts')}</DropdownMenuLabel>
           <DropdownMenuItem asChild>
             <Link href="/supplies" className="cursor-pointer">
