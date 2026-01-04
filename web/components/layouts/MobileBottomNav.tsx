@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { usePermissions } from '@/hooks/use-permissions';
 import { 
   LayoutDashboard,
   Users,
@@ -31,6 +32,7 @@ import {
   DropdownMenuGroup
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
+import type { Permission } from '@/lib/permissions/types';
 
 interface NavItem {
   label: string;
@@ -44,31 +46,50 @@ interface MobileBottomNavProps {
   onSignOut: () => void;
 }
 
+const financePermissions: Permission[] = [
+  'financial_reports.view',
+  'expenses.view',
+  'fixed_costs.view',
+  'assets.view',
+  'break_even.view'
+];
+
 export function MobileBottomNav({ user, workspace, onSignOut }: MobileBottomNavProps) {
   const t = useTranslations();
   const pathname = usePathname();
   const router = useRouter();
+  const { canAny, loading: permissionsLoading } = usePermissions();
+  const canViewFinance = canAny(financePermissions);
+  const showFinance = permissionsLoading || canViewFinance;
+  const showDashboard = showFinance;
 
   // Main bottom nav items (4 + more menu)
   const bottomNavItems: NavItem[] = [
-    { label: t('nav.dashboard'), href: '/', icon: LayoutDashboard },
+    ...(showDashboard ? [{ label: t('nav.dashboard'), href: '/', icon: LayoutDashboard }] : []),
     { label: t('nav.patients'), href: '/patients', icon: Users },
     { label: t('nav.treatments'), href: '/treatments', icon: Activity },
-    { label: t('nav.reports'), href: '/reports', icon: ChartBar },
+    ...(showFinance ? [{ label: t('nav.reports'), href: '/reports', icon: ChartBar }] : []),
   ];
 
   // Items in the "More" menu
+  const baseOperations: NavItem[] = [
+    { label: t('nav.expenses'), href: '/expenses', icon: Receipt },
+    { label: t('nav.equilibrium'), href: '/equilibrium', icon: ChartBar },
+  ];
+  const baseInventory: NavItem[] = [
+    { label: t('nav.supplies'), href: '/supplies', icon: Package },
+    { label: t('nav.services'), href: '/services', icon: Briefcase },
+    { label: t('nav.assets'), href: '/assets', icon: Wrench },
+    { label: t('nav.fixedCosts'), href: '/fixed-costs', icon: Calculator },
+  ];
+  const operationsItems = showFinance ? baseOperations : [];
+  const inventoryItems = showFinance
+    ? baseInventory
+    : baseInventory.filter((item) => item.href !== '/assets' && item.href !== '/fixed-costs');
+
   const moreMenuItems = {
-    operations: [
-      { label: t('nav.expenses'), href: '/expenses', icon: Receipt },
-      { label: t('nav.equilibrium'), href: '/equilibrium', icon: ChartBar },
-    ],
-    inventory: [
-      { label: t('nav.supplies'), href: '/supplies', icon: Package },
-      { label: t('nav.services'), href: '/services', icon: Briefcase },
-      { label: t('nav.assets'), href: '/assets', icon: Wrench },
-      { label: t('nav.fixedCosts'), href: '/fixed-costs', icon: Calculator },
-    ],
+    operations: operationsItems,
+    inventory: inventoryItems,
     settings: [
       { label: t('nav.settings'), href: '/settings', icon: Settings },
     ]
@@ -89,9 +110,16 @@ export function MobileBottomNav({ user, workspace, onSignOut }: MobileBottomNavP
     return allMoreItems.some(item => isActive(item.href));
   };
 
+  const showOperations = moreMenuItems.operations.length > 0;
+  const showInventory = moreMenuItems.inventory.length > 0;
+  const showSettings = moreMenuItems.settings.length > 0;
+
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-t border-border">
-      <div className="grid grid-cols-5 h-16">
+      <div
+        className="grid h-16"
+        style={{ gridTemplateColumns: `repeat(${bottomNavItems.length + 1}, minmax(0, 1fr))` }}
+      >
         {bottomNavItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href);
@@ -183,100 +211,106 @@ export function MobileBottomNav({ user, workspace, onSignOut }: MobileBottomNavP
             )}
 
             {/* Finance Section */}
-            <DropdownMenuGroup>
-              <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">
-                {t('nav.sections.finance')}
-              </DropdownMenuLabel>
-              {moreMenuItems.operations.map((item) => {
-                const Icon = item.icon;
-                const active = isActive(item.href);
-                return (
-                  <DropdownMenuItem
-                    key={item.href}
-                    onClick={() => router.push(item.href)}
-                    className={cn(
-                      "cursor-pointer",
-                      active && "bg-primary/10 text-primary"
-                    )}
-                  >
-                    <Icon className="mr-2 h-4 w-4" />
-                    <span>{item.label}</span>
-                  </DropdownMenuItem>
-                );
-              })}
-            </DropdownMenuGroup>
+            {showOperations && (
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">
+                  {t('nav.sections.finance')}
+                </DropdownMenuLabel>
+                {moreMenuItems.operations.map((item) => {
+                  const Icon = item.icon;
+                  const active = isActive(item.href);
+                  return (
+                    <DropdownMenuItem
+                      key={item.href}
+                      onClick={() => router.push(item.href)}
+                      className={cn(
+                        "cursor-pointer",
+                        active && "bg-primary/10 text-primary"
+                      )}
+                    >
+                      <Icon className="mr-2 h-4 w-4" />
+                      <span>{item.label}</span>
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuGroup>
+            )}
 
-            <DropdownMenuSeparator />
+            {showOperations && showInventory && <DropdownMenuSeparator />}
 
             {/* Inventory Section */}
-            <DropdownMenuGroup>
-              <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">
-                {t('nav.sections.inventory')}
-              </DropdownMenuLabel>
-              {moreMenuItems.inventory.map((item) => {
-                const Icon = item.icon;
-                const active = isActive(item.href);
-                return (
-                  <DropdownMenuItem
-                    key={item.href}
-                    onClick={() => router.push(item.href)}
-                    className={cn(
-                      "cursor-pointer",
-                      active && "bg-primary/10 text-primary"
-                    )}
-                  >
-                    <Icon className="mr-2 h-4 w-4" />
-                    <span>{item.label}</span>
-                  </DropdownMenuItem>
-                );
-              })}
-            </DropdownMenuGroup>
+            {showInventory && (
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">
+                  {t('nav.sections.inventory')}
+                </DropdownMenuLabel>
+                {moreMenuItems.inventory.map((item) => {
+                  const Icon = item.icon;
+                  const active = isActive(item.href);
+                  return (
+                    <DropdownMenuItem
+                      key={item.href}
+                      onClick={() => router.push(item.href)}
+                      className={cn(
+                        "cursor-pointer",
+                        active && "bg-primary/10 text-primary"
+                      )}
+                    >
+                      <Icon className="mr-2 h-4 w-4" />
+                      <span>{item.label}</span>
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuGroup>
+            )}
 
-            <DropdownMenuSeparator />
+            {(showOperations || showInventory) && showSettings && <DropdownMenuSeparator />}
 
             {/* Settings Section */}
-            <DropdownMenuGroup>
-              <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">
-                {t('nav.sections.configuration')}
-              </DropdownMenuLabel>
-              {moreMenuItems.settings.map((item) => {
-                const Icon = item.icon;
-                const active = isActive(item.href);
-                return (
-                  <DropdownMenuItem
-                    key={item.href}
-                    onClick={() => router.push(item.href)}
-                    className={cn(
-                      "cursor-pointer",
-                      active && "bg-primary/10 text-primary"
-                    )}
-                  >
-                    <Icon className="mr-2 h-4 w-4" />
-                    <span>{item.label}</span>
-                  </DropdownMenuItem>
-                );
-              })}
-              
-              <DropdownMenuItem 
-                onClick={() => router.push('/profile')}
-                className="cursor-pointer"
-              >
-                <User className="mr-2 h-4 w-4" />
-                <span>{t('nav.profile')}</span>
-              </DropdownMenuItem>
-              
-              {workspace && (
+            {showSettings && (
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">
+                  {t('nav.sections.configuration')}
+                </DropdownMenuLabel>
+                {moreMenuItems.settings.map((item) => {
+                  const Icon = item.icon;
+                  const active = isActive(item.href);
+                  return (
+                    <DropdownMenuItem
+                      key={item.href}
+                      onClick={() => router.push(item.href)}
+                      className={cn(
+                        "cursor-pointer",
+                        active && "bg-primary/10 text-primary"
+                      )}
+                    >
+                      <Icon className="mr-2 h-4 w-4" />
+                      <span>{item.label}</span>
+                    </DropdownMenuItem>
+                  );
+                })}
+                
                 <DropdownMenuItem 
-                  onClick={() => router.push('/settings/workspaces')}
+                  onClick={() => router.push('/profile')}
                   className="cursor-pointer"
                 >
-                  <Building2 className="mr-2 h-4 w-4" />
-                  <span>{t('nav.workspaces')}</span>
+                  <User className="mr-2 h-4 w-4" />
+                  <span>{t('nav.profile')}</span>
                 </DropdownMenuItem>
-              )}
-            </DropdownMenuGroup>
+                
+                {workspace && (
+                  <DropdownMenuItem 
+                    onClick={() => router.push('/settings/workspaces')}
+                    className="cursor-pointer"
+                  >
+                    <Building2 className="mr-2 h-4 w-4" />
+                    <span>{t('nav.workspaces')}</span>
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuGroup>
+            )}
 
-            <DropdownMenuSeparator />
+            {showSettings && <DropdownMenuSeparator />}
 
             {/* Logout */}
             <DropdownMenuItem 

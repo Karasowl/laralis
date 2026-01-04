@@ -29,7 +29,13 @@ export interface NavigationSection {
   items: NavigationItem[]
 }
 
-export function getNavigationSections(t: any, options: { onboardingCompleted?: boolean } = {}): NavigationSection[] {
+export interface NavigationOptions {
+  onboardingCompleted?: boolean
+  showDashboard?: boolean
+  showFinance?: boolean
+}
+
+export function getNavigationSections(t: any, options: NavigationOptions = {}): NavigationSection[] {
   const baseSections: NavigationSection[] = [
     {
       items: [
@@ -122,11 +128,33 @@ export function getNavigationSections(t: any, options: { onboardingCompleted?: b
     }
   ];
 
+  const showDashboard = options.showDashboard ?? true
+  const showFinance = options.showFinance ?? true
+  const financeRoutes = new Set(['/expenses', '/equilibrium', '/assets', '/fixed-costs', '/time', '/reports'])
+
+  const sectionsWithDashboard = showDashboard
+    ? baseSections
+    : baseSections
+      .map(section => ({
+        ...section,
+        items: section.items.filter(item => item.href !== '/')
+      }))
+      .filter(section => section.items.length > 0)
+
+  const sections = showFinance
+    ? sectionsWithDashboard
+    : sectionsWithDashboard
+      .map(section => ({
+        ...section,
+        items: section.items.filter(item => !financeRoutes.has(item.href))
+      }))
+      .filter(section => section.items.length > 0)
+
   const onboardingCompleted = options.onboardingCompleted ?? true;
 
   if (!onboardingCompleted) {
     const allowed = new Set(['/setup', '/services', '/supplies', '/assets', '/fixed-costs']);
-    const filtered = baseSections
+    const filtered = sections
       .map(section => ({
         ...section,
         items: section.items.filter(item => allowed.has(item.href))
@@ -151,5 +179,5 @@ export function getNavigationSections(t: any, options: { onboardingCompleted?: b
     return [setupSection, ...filtered];
   }
 
-  return baseSections;
+  return sections;
 }
