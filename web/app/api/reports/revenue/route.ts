@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
 
 
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
-import { resolveClinicContext } from '@/lib/clinic'
+import { withPermission } from '@/lib/middleware/with-permission'
 
 const querySchema = z.object({
   clinicId: z.string().optional(),
@@ -32,7 +31,7 @@ function formatISO(date: Date) {
   return date.toISOString().split('T')[0]
 }
 
-export async function GET(request: NextRequest) {
+export const GET = withPermission('financial_reports.view', async (request, context) => {
   try {
     const searchParams = Object.fromEntries(request.nextUrl.searchParams.entries())
     const parsed = querySchema.safeParse(searchParams)
@@ -42,16 +41,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid query parameters', message }, { status: 400 })
     }
 
-    const { clinicId: requestedClinicId, period = 'month', from, to } = parsed.data
-
-    const cookieStore = cookies()
-    const clinicContext = await resolveClinicContext({ requestedClinicId, cookieStore })
-
-    if ('error' in clinicContext) {
-      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status })
-    }
-
-    const clinicId = clinicContext.clinicId
+    const { period = 'month', from, to } = parsed.data
+    const clinicId = context.clinicId
     const now = new Date()
 
     let rangeStart: Date
@@ -120,4 +111,4 @@ export async function GET(request: NextRequest) {
     console.error('Unexpected error in GET /api/reports/revenue:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-}
+})

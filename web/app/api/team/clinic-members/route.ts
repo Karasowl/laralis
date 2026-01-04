@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { z } from 'zod';
 import { resolveClinicContext } from '@/lib/clinic';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import type { ClinicMember, ClinicRole } from '@/lib/permissions';
+import type { ClinicMember, ClinicRole, WorkspaceRole } from '@/lib/permissions';
 
 // Type for the user_profiles relation from Supabase query
 interface UserProfileRelation {
@@ -102,6 +102,27 @@ export async function GET(request: NextRequest) {
     }
 
     const userIds = (members || []).map((member) => member.user_id);
+    const workspaceRolesByUser = new Map<string, WorkspaceRole>();
+
+    if (userIds.length > 0) {
+      const { data: workspaceMembers, error: workspaceMembersError } =
+        await supabaseAdmin
+          .from('workspace_users')
+          .select('user_id, role')
+          .eq('workspace_id', clinic.workspace_id)
+          .in('user_id', userIds);
+
+      if (workspaceMembersError) {
+        console.error('[clinic-members] Error fetching workspace roles:', workspaceMembersError);
+      } else {
+        (workspaceMembers || []).forEach((workspaceMember) => {
+          workspaceRolesByUser.set(
+            workspaceMember.user_id,
+            workspaceMember.role as WorkspaceRole
+          );
+        });
+      }
+    }
     const profilesById = new Map<string, UserProfileRelation>();
 
     if (userIds.length > 0) {
@@ -179,6 +200,7 @@ export async function GET(request: NextRequest) {
         user_id: m.user_id,
         clinic_id: m.clinic_id,
         role: m.role as ClinicRole,
+        workspace_role: workspaceRolesByUser.get(m.user_id) || null,
         custom_permissions: m.custom_permissions,
         custom_role_id: m.custom_role_id,
         is_active: m.is_active,

@@ -9,9 +9,11 @@ import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
 import { Settings, RefreshCw } from 'lucide-react'
 import { useEquilibrium } from '@/hooks/use-equilibrium'
+import { usePermissions } from '@/hooks/use-permissions'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { centsToPesos } from '@/lib/money'
 import { toast } from 'sonner'
+import { PermissionGate } from '@/components/auth/PermissionGate'
 import {
   FinancialBase,
   ContributionAnalysis,
@@ -24,6 +26,8 @@ export default function EquilibriumPage() {
   const t = useTranslations('equilibrium')
   const { currentClinic } = useWorkspace()
   const router = useRouter()
+  const { can } = usePermissions()
+  const canView = can('break_even.view')
 
   const roundPercent = (value: number) =>
     Number.isFinite(value) ? Number(Number(value).toFixed(1)) : 0
@@ -35,7 +39,7 @@ export default function EquilibriumPage() {
     resetSimulation,
     refreshData,
   } = useEquilibrium({
-    clinicId: currentClinic?.id,
+    clinicId: canView ? currentClinic?.id : undefined,
     defaultWorkDays: 20,
     defaultVariableCostPercentage: 35,
     safetyMarginPercentage: 20,
@@ -131,93 +135,97 @@ export default function EquilibriumPage() {
   if (loading) {
     return (
       <AppLayout>
-        <div className="p-4 lg:p-8 max-w-5xl mx-auto">
-          <PageHeader title={t('title')} subtitle={t('subtitle')} />
-          <div className="space-y-6 mt-6">
-            {[1, 2, 3, 4].map(i => (
-              <Card key={i}>
-                <CardHeader className="space-y-2">
-                  <div className="h-4 w-32 bg-muted animate-pulse rounded" />
-                  <div className="h-8 w-48 bg-muted animate-pulse rounded" />
-                </CardHeader>
-              </Card>
-            ))}
+        <PermissionGate permission="break_even.view" fallbackType="message">
+          <div className="p-4 lg:p-8 max-w-5xl mx-auto">
+            <PageHeader title={t('title')} subtitle={t('subtitle')} />
+            <div className="space-y-6 mt-6">
+              {[1, 2, 3, 4].map(i => (
+                <Card key={i}>
+                  <CardHeader className="space-y-2">
+                    <div className="h-4 w-32 bg-muted animate-pulse rounded" />
+                    <div className="h-8 w-48 bg-muted animate-pulse rounded" />
+                  </CardHeader>
+                </Card>
+              ))}
+            </div>
           </div>
-        </div>
+        </PermissionGate>
       </AppLayout>
     )
   }
 
   return (
     <AppLayout>
-      <div className="p-4 lg:p-8 max-w-5xl mx-auto space-y-8">
-        <PageHeader
-          title={t('title')}
-          subtitle={t('subtitle')}
-          actions={
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => router.push('/time')}>
-                <Settings className="h-4 w-4 mr-2" />
-                {t('go_to_time_settings')}
-              </Button>
-              <Button variant="outline" size="sm" onClick={refreshData}>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                {t('refresh')}
-              </Button>
-            </div>
-          }
-        />
+      <PermissionGate permission="break_even.view" fallbackType="message">
+        <div className="p-4 lg:p-8 max-w-5xl mx-auto space-y-8">
+          <PageHeader
+            title={t('title')}
+            subtitle={t('subtitle')}
+            actions={
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => router.push('/time')}>
+                  <Settings className="h-4 w-4 mr-2" />
+                  {t('go_to_time_settings')}
+                </Button>
+                <Button variant="outline" size="sm" onClick={refreshData}>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  {t('refresh')}
+                </Button>
+              </div>
+            }
+          />
 
-        {/* Section 1: Financial Base */}
-        <FinancialBase
-          fixedCostsCents={data.fixedCostsCents}
-          breakEvenRevenueCents={data.breakEvenRevenueCents}
-        />
+          {/* Section 1: Financial Base */}
+          <FinancialBase
+            fixedCostsCents={data.fixedCostsCents}
+            breakEvenRevenueCents={data.breakEvenRevenueCents}
+          />
 
-        {/* Section 2: Contribution Analysis */}
-        <ContributionAnalysis
-          variableCostPercentage={data.variableCostPercentage}
-          contributionMargin={data.contributionMargin}
-          variableCostSource={data.variableCostSource}
-          autoVariableCostPercentage={data.autoVariableCostPercentage}
-          autoVariableCostSampleSize={data.autoVariableCostSampleSize}
-          autoVariableCostPeriodDays={data.autoVariableCostPeriod?.days ?? 90}
-        />
+          {/* Section 2: Contribution Analysis */}
+          <ContributionAnalysis
+            variableCostPercentage={data.variableCostPercentage}
+            contributionMargin={data.contributionMargin}
+            variableCostSource={data.variableCostSource}
+            autoVariableCostPercentage={data.autoVariableCostPercentage}
+            autoVariableCostSampleSize={data.autoVariableCostSampleSize}
+            autoVariableCostPeriodDays={data.autoVariableCostPeriod?.days ?? 90}
+          />
 
-        {/* Section 3: Monthly Goal */}
-        <MonthlyGoalSection
-          monthlyTargetCents={data.monthlyTargetCents}
-          dailyTargetCents={data.dailyTargetCents}
-          workDays={data.workDays}
-          safetyMarginPercentage={data.safetyMarginPercentage}
-          safetyMarginCents={data.safetyMarginCents}
-          manualMonthlyTargetCents={data.manualMonthlyTargetCents}
-          customSafetyMarginPercentage={data.customSafetyMarginPercentage}
-        />
+          {/* Section 3: Monthly Goal */}
+          <MonthlyGoalSection
+            monthlyTargetCents={data.monthlyTargetCents}
+            dailyTargetCents={data.dailyTargetCents}
+            workDays={data.workDays}
+            safetyMarginPercentage={data.safetyMarginPercentage}
+            safetyMarginCents={data.safetyMarginCents}
+            manualMonthlyTargetCents={data.manualMonthlyTargetCents}
+            customSafetyMarginPercentage={data.customSafetyMarginPercentage}
+          />
 
-        {/* Section 4: Current Progress */}
-        <ProgressSection
-          currentRevenueCents={data.currentRevenueCents}
-          monthlyTargetCents={data.monthlyTargetCents}
-          revenueGapCents={data.revenueGapCents}
-          progressPercentage={data.progressPercentage || 0}
-          daysToBreakEven={data.daysToBreakEven}
-          remainingWorkingDays={data.remainingWorkingDays}
-        />
+          {/* Section 4: Current Progress */}
+          <ProgressSection
+            currentRevenueCents={data.currentRevenueCents}
+            monthlyTargetCents={data.monthlyTargetCents}
+            revenueGapCents={data.revenueGapCents}
+            progressPercentage={data.progressPercentage || 0}
+            daysToBreakEven={data.daysToBreakEven}
+            remainingWorkingDays={data.remainingWorkingDays}
+          />
 
-        {/* Section 5: Simulation (Collapsible) */}
-        <SimulationControls
-          values={simulationValues}
-          baseWorkDays={data.baseWorkDays}
-          autoVariableCostPercentage={data.autoVariableCostPercentage}
-          autoVariableCostSampleSize={data.autoVariableCostSampleSize}
-          autoVariableCostPeriodDays={data.autoVariableCostPeriod?.days ?? 90}
-          variableCostSource={data.variableCostSource}
-          onFieldChange={handleSimulationFieldChange}
-          onApply={handleApplySimulation}
-          onReset={handleResetSimulation}
-        />
-      </div>
+          {/* Section 5: Simulation (Collapsible) */}
+          <SimulationControls
+            values={simulationValues}
+            baseWorkDays={data.baseWorkDays}
+            autoVariableCostPercentage={data.autoVariableCostPercentage}
+            autoVariableCostSampleSize={data.autoVariableCostSampleSize}
+            autoVariableCostPeriodDays={data.autoVariableCostPeriod?.days ?? 90}
+            variableCostSource={data.variableCostSource}
+            onFieldChange={handleSimulationFieldChange}
+            onApply={handleApplySimulation}
+            onReset={handleResetSimulation}
+          />
+        </div>
+      </PermissionGate>
     </AppLayout>
   )
 }

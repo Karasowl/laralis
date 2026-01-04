@@ -4873,6 +4873,7 @@
       "title": "Miembros de Clínica",
       "noMembers": "No se encontraron miembros de la clínica",
       "noMembersHint": "Los miembros con acceso al workspace pueden ser asignados a roles específicos de clínica",
+      "workspaceRole": "Workspace: {role}",
       "chair": "Sillón {chair}",
       "addMemberTitle": "Agregar miembro a la clinica",
       "addMemberDescription": "Asigna un miembro del workspace a esta clinica.",
@@ -4888,7 +4889,9 @@
       "all": "Todas las clinicas"
     },
     "permissions": {
-      "customize": "Personalizar permisos"
+      "customize": "Personalizar permisos",
+      "customizeHint": "Los permisos del rol base ya est n marcados. Activa o desactiva solo lo que quieras ajustar.",
+      "workspaceOverrideHint": "Este usuario tambi‚n es {role} en el workspace; su acceso puede ser mayor que lo mostrado aqu¡."
     },
     "selfAccess": {
       "title": "Mi acceso",

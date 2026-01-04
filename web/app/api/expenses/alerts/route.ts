@@ -1,30 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { withPermission } from '@/lib/middleware/with-permission'
 
 export const dynamic = 'force-dynamic'
 
 
 type Severity = 'high' | 'medium' | 'low'
 
-export async function GET(request: NextRequest) {
+export const GET = withPermission('expenses.view', async (request, context) => {
   try {
-    const supabase = createClient()
-    const { searchParams } = new URL(request.url)
-
-    const clinicId = searchParams.get('clinic_id')
-
-    // Require session
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-    if (sessionError || !session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    if (!clinicId) {
-      return NextResponse.json({ error: 'clinic_id is required' }, { status: 400 })
-    }
+    const clinicId = context.clinicId
 
     // Fetch supplies for low stock + price change insights
-    const { data: supplies, error: suppliesError } = await supabase
+    const { data: supplies, error: suppliesError } = await supabaseAdmin
       .from('supplies')
       .select('id,name,category,stock_quantity,min_stock_alert,price_per_portion_cents,last_purchase_price_cents')
       .eq('clinic_id', clinicId)
@@ -69,14 +57,14 @@ export async function GET(request: NextRequest) {
     const start = new Date(now.getFullYear(), now.getMonth(), 1)
     const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
 
-    const { data: fixedCosts, error: fcError } = await supabase
+    const { data: fixedCosts, error: fcError } = await supabaseAdmin
       .from('fixed_costs')
       .select('amount_cents')
       .eq('clinic_id', clinicId)
 
     if (fcError) console.warn('alerts: fixed_costs error', fcError)
 
-    const { data: expenses, error: expError } = await supabase
+    const { data: expenses, error: expError } = await supabaseAdmin
       .from('expenses')
       .select('amount_cents,expense_date')
       .eq('clinic_id', clinicId)
@@ -129,5 +117,5 @@ export async function GET(request: NextRequest) {
     console.error('Unexpected error in GET /api/expenses/alerts:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-}
+})
 

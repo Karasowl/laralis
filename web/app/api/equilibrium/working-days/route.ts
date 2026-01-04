@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { withPermission } from '@/lib/middleware/with-permission'
 import { detectWorkingDayPattern, type TreatmentRecord } from '@/lib/calc/dates'
 
 export const dynamic = 'force-dynamic'
@@ -13,18 +14,10 @@ export const dynamic = 'force-dynamic'
  * - clinicId: Required. The clinic ID to analyze
  * - lookbackDays: Optional. Number of days to look back (default: 60)
  */
-export async function GET(request: NextRequest) {
+export const GET = withPermission('break_even.view', async (request, context) => {
   try {
     const searchParams = request.nextUrl.searchParams
-    const clinicId = searchParams.get('clinicId')
     const lookbackDays = parseInt(searchParams.get('lookbackDays') || '60')
-
-    if (!clinicId) {
-      return NextResponse.json(
-        { error: 'clinicId is required' },
-        { status: 400 }
-      )
-    }
 
     if (lookbackDays < 1 || lookbackDays > 365) {
       return NextResponse.json(
@@ -33,27 +26,16 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const supabase = await createClient()
-
-    // Verify user has access to this clinic
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     // Calculate cutoff date
     const cutoffDate = new Date()
     cutoffDate.setDate(cutoffDate.getDate() - lookbackDays)
     const cutoffDateStr = cutoffDate.toISOString().split('T')[0]
 
-    // Query treatments in the lookback period
-    // RLS policies will ensure user only sees treatments from their clinics
-    const { data: treatments, error } = await supabase
+    const { data: treatments, error } = await supabaseAdmin
       .from('treatments')
       .select('treatment_date')
-      .eq('clinic_id', clinicId)
-      .eq('status', 'completed') // Only completed treatments
+      .eq('clinic_id', context.clinicId)
+      .eq('status', 'completed')
       .gte('treatment_date', cutoffDateStr)
       .order('treatment_date', { ascending: true })
 
@@ -65,12 +47,10 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Cast to TreatmentRecord type
     const treatmentRecords: TreatmentRecord[] = (treatments || []).map(t => ({
       treatment_date: t.treatment_date
     }))
 
-    // Detect pattern
     const detectedPattern = detectWorkingDayPattern(
       treatmentRecords,
       lookbackDays
@@ -90,4 +70,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     )
   }
-}
+})

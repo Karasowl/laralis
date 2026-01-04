@@ -165,7 +165,7 @@ export function InviteMemberModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="max-h-[85vh] max-w-[95vw] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>{t('invite.title')}</DialogTitle>
           <DialogDescription>{t('invite.description')}</DialogDescription>
@@ -280,6 +280,9 @@ export function InviteMemberModal({
 
           <div className="space-y-2">
             <Label>{t('permissions.customize')}</Label>
+            <p className="text-xs text-muted-foreground">
+              {t('permissions.customizeHint')}
+            </p>
             <PermissionMatrix
               baseRole={(selectedCustomRole?.base_role || selectedRole) as any}
               scope={scope}

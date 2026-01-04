@@ -1,32 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { expenseDbSchema, type UpdateExpenseRequest } from '@/lib/types/expenses'
+import { withPermission } from '@/lib/middleware/with-permission'
 
 export const dynamic = 'force-dynamic'
 
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export const GET = withPermission('expenses.view', async (request, context) => {
   try {
-    const supabase = createClient()
-    
-    // Get user session
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-    if (sessionError || !session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const expenseId = request.nextUrl.pathname.split('/').pop()
+    if (!expenseId) {
+      return NextResponse.json({ error: 'Expense ID is required' }, { status: 400 })
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('expenses')
       .select(`
         *,
         supply:related_supply_id(id, name, category),
         asset:related_asset_id(id, name, category)
       `)
-      .eq('id', params.id)
+      .eq('id', expenseId)
+      .eq('clinic_id', context.clinicId)
       .single()
 
     if (error) {
@@ -43,19 +38,13 @@ export async function GET(
     console.error('Unexpected error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-}
+})
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export const PUT = withPermission('expenses.edit', async (request, context) => {
   try {
-    const supabase = createClient()
-    
-    // Get user session
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-    if (sessionError || !session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const expenseId = request.nextUrl.pathname.split('/').pop()
+    if (!expenseId) {
+      return NextResponse.json({ error: 'Expense ID is required' }, { status: 400 })
     }
 
     const body = await request.json()
@@ -81,10 +70,11 @@ export async function PUT(
     }
 
     // Check if expense exists and get current data
-    const { data: currentExpense, error: fetchError } = await supabase
+    const { data: currentExpense, error: fetchError } = await supabaseAdmin
       .from('expenses')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', expenseId)
+      .eq('clinic_id', context.clinicId)
       .single()
 
     if (fetchError) {
@@ -199,7 +189,8 @@ export async function PUT(
         next_recurrence_date: nextRecurrenceDate,
         updated_at: new Date().toISOString()
       })
-      .eq('id', params.id)
+      .eq('id', expenseId)
+      .eq('clinic_id', context.clinicId)
       .select(`
         *,
         supply:related_supply_id(id, name, category),
@@ -272,26 +263,21 @@ export async function PUT(
     console.error('Unexpected error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-}
+})
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export const DELETE = withPermission('expenses.delete', async (request, context) => {
   try {
-    const supabase = createClient()
-    
-    // Get user session
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-    if (sessionError || !session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const expenseId = request.nextUrl.pathname.split('/').pop()
+    if (!expenseId) {
+      return NextResponse.json({ error: 'Expense ID is required' }, { status: 400 })
     }
 
     // Get expense data before deletion for inventory cleanup
-    const { data: expense, error: fetchError } = await supabase
+    const { data: expense, error: fetchError } = await supabaseAdmin
       .from('expenses')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', expenseId)
+      .eq('clinic_id', context.clinicId)
       .single()
 
     if (fetchError) {
@@ -325,7 +311,8 @@ export async function DELETE(
     const { error: deleteError } = await supabaseAdmin
       .from('expenses')
       .delete()
-      .eq('id', params.id)
+      .eq('id', expenseId)
+      .eq('clinic_id', context.clinicId)
 
     if (deleteError) {
       console.error('Error deleting expense:', deleteError)
@@ -338,4 +325,4 @@ export async function DELETE(
     console.error('Unexpected error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-}
+})

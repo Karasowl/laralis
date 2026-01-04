@@ -103,9 +103,10 @@ export async function PUT(
       );
     }
 
+    const body = await request.json();
+
     // Cannot modify yourself (role/is_active)
     if (targetMember.user_id === userId) {
-      const body = await request.json();
       if (body.role || body.is_active === false) {
         return NextResponse.json(
           { error: 'Cannot modify your own role or deactivate yourself' },
@@ -114,8 +115,33 @@ export async function PUT(
       }
     }
 
+    const { data: targetWorkspaceMember } = await supabaseAdmin
+      .from('workspace_users')
+      .select('role')
+      .eq('workspace_id', clinic.workspace_id)
+      .eq('user_id', targetMember.user_id)
+      .eq('is_active', true)
+      .single();
+
+    if (targetWorkspaceMember?.role === 'owner') {
+      const blockedFields = [
+        'role',
+        'custom_permissions',
+        'custom_role_id',
+        'is_active',
+        'can_access_all_patients',
+      ];
+      const hasBlockedChange = blockedFields.some((field) => field in body);
+
+      if (hasBlockedChange) {
+        return NextResponse.json(
+          { error: 'Cannot modify access for workspace owner' },
+          { status: 403 }
+        );
+      }
+    }
+
     // Parse and validate request body
-    const body = await request.json();
     const validatedData = updateMemberSchema.parse(body);
 
     // Build update object
@@ -275,6 +301,21 @@ export async function DELETE(
     if (targetMember.clinic_id !== clinicId) {
       return NextResponse.json(
         { error: 'Member not in this clinic' },
+        { status: 403 }
+      );
+    }
+
+    const { data: targetWorkspaceMember } = await supabaseAdmin
+      .from('workspace_users')
+      .select('role')
+      .eq('workspace_id', clinic.workspace_id)
+      .eq('user_id', targetMember.user_id)
+      .eq('is_active', true)
+      .single();
+
+    if (targetWorkspaceMember?.role === 'owner') {
+      return NextResponse.json(
+        { error: 'Cannot remove workspace owner from clinic' },
         { status: 403 }
       );
     }

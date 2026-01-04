@@ -21,6 +21,7 @@ import { SummaryCards } from '@/components/ui/summary-cards'
 import { useCurrentClinic } from '@/hooks/use-current-clinic'
 import { useWorkspace } from '@/contexts/workspace-context'
 import { useFixedCosts } from '@/hooks/use-fixed-costs'
+import { usePermissions } from '@/hooks/use-permissions'
 import type { FixedCost } from '@/hooks/use-fixed-costs'
 import { formatCurrency } from '@/lib/money'
 import { getCategoryDisplayName } from '@/lib/format'
@@ -29,6 +30,7 @@ import { FixedCostCategory, FixedCostFrequency } from '@/lib/types'
 import { Receipt, TrendingUp, Calculator, DollarSign, Plus } from 'lucide-react'
 import { z } from 'zod'
 import { toast } from 'sonner'
+import { PermissionGate } from '@/components/auth/PermissionGate'
 
 type FixedCostFormData = z.infer<typeof zFixedCostForm>
 
@@ -61,6 +63,10 @@ export default function FixedCostsPage() {
   const { currentClinic } = useCurrentClinic()
   const { workspace } = useWorkspace()
   const router = useRouter()
+  const { can } = usePermissions()
+  const canCreate = can('fixed_costs.create')
+  const canEdit = can('fixed_costs.edit')
+  const canDelete = can('fixed_costs.delete')
   const {
     fixedCosts,
     loading,
@@ -91,6 +97,7 @@ export default function FixedCostsPage() {
 
   // Submit handlers
   const handleCreate = async (data: FixedCostFormData) => {
+    if (!canCreate) return
     const success = await createFixedCost({
       category: data.category,
       concept: data.concept,
@@ -116,6 +123,7 @@ export default function FixedCostsPage() {
   }
 
   const handleEdit = async (data: FixedCostFormData) => {
+    if (!canEdit) return
     if (!editCost) return
     const success = await updateFixedCost(editCost.id, {
       category: data.category,
@@ -140,6 +148,7 @@ export default function FixedCostsPage() {
   }
 
   const handleDelete = async () => {
+    if (!canDelete) return
     if (!deleteCost) return
     const success = await deleteFixedCost(deleteCost.id)
     if (success) {
@@ -179,9 +188,10 @@ export default function FixedCostsPage() {
       label: t('common.actions'),
       sortable: false,
       render: (_value: unknown, cost: FixedCost) => (
-        <ActionDropdown
-          actions={[
-            createEditAction(() => {
+        (() => {
+          const actions = []
+          if (canEdit) {
+            actions.push(createEditAction(() => {
               form.reset({
                 category: cost.category as FixedCostCategory,
                 concept: cost.concept,
@@ -189,10 +199,12 @@ export default function FixedCostsPage() {
                 frequency: 'monthly'
               })
               setEditCost(cost)
-            }, tCommon('edit')),
-            createDeleteAction(() => setDeleteCost(cost), tCommon('delete'))
-          ]}
-        />
+            }, tCommon('edit')))
+          }
+          if (canDelete) actions.push(createDeleteAction(() => setDeleteCost(cost), tCommon('delete')))
+          if (actions.length === 0) return null
+          return <ActionDropdown actions={actions} />
+        })()
       )
     }
   ]
@@ -258,17 +270,20 @@ export default function FixedCostsPage() {
 
   return (
     <AppLayout>
-      <div className="container mx-auto p-6 max-w-7xl space-y-6">
-        <PageHeader
-          title={t('fixedCosts.title')}
-          subtitle={t('fixedCosts.subtitle')}
-          actions={
-            <Button onClick={() => { form.reset(fixedCostInitialValues); setCreateOpen(true) }}>
-              <Plus className="h-4 w-4 mr-2" />
-              {t('fixedCosts.addCost')}
-            </Button>
-          }
-        />
+      <PermissionGate permission="fixed_costs.view" fallbackType="message">
+        <div className="container mx-auto p-6 max-w-7xl space-y-6">
+          <PageHeader
+            title={t('fixedCosts.title')}
+            subtitle={t('fixedCosts.subtitle')}
+            actions={
+              canCreate ? (
+                <Button onClick={() => { form.reset(fixedCostInitialValues); setCreateOpen(true) }}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  {t('fixedCosts.addCost')}
+                </Button>
+              ) : undefined
+            }
+          />
 
         <SummaryCards
           cards={[
@@ -402,37 +417,44 @@ export default function FixedCostsPage() {
         </div>
 
         {/* Create Modal */}
-        <FormModal
-          open={createOpen}
-          onOpenChange={(open) => { setCreateOpen(open); if (!open) form.reset(fixedCostInitialValues) }}
-          title={t('fixedCosts.create')}
-          onSubmit={form.handleSubmit(handleCreate)}
-        >
-            <FixedCostForm form={form} frequencyOptions={frequencyOptions} t={t} />
-        </FormModal>
+        {canCreate && (
+          <FormModal
+            open={createOpen}
+            onOpenChange={(open) => { setCreateOpen(open); if (!open) form.reset(fixedCostInitialValues) }}
+            title={t('fixedCosts.create')}
+            onSubmit={form.handleSubmit(handleCreate)}
+          >
+              <FixedCostForm form={form} frequencyOptions={frequencyOptions} t={t} />
+          </FormModal>
+        )}
 
         {/* Edit Modal */}
-        <FormModal
-          open={!!editCost}
-          onOpenChange={(open) => !open && setEditCost(null)}
-          title={t('fixedCosts.edit')}
-          onSubmit={form.handleSubmit(handleEdit)}
-        >
-          <FixedCostForm form={form} frequencyOptions={frequencyOptions} t={t} />
-        </FormModal>
+        {canEdit && (
+          <FormModal
+            open={!!editCost}
+            onOpenChange={(open) => !open && setEditCost(null)}
+            title={t('fixedCosts.edit')}
+            onSubmit={form.handleSubmit(handleEdit)}
+          >
+            <FixedCostForm form={form} frequencyOptions={frequencyOptions} t={t} />
+          </FormModal>
+        )}
 
         {/* Delete Confirmation */}
-        <ConfirmDialog
-          open={!!deleteCost}
-          onOpenChange={(open) => !open && setDeleteCost(null)}
-          title={t('fixedCosts.delete')}
-          description={t('fixedCosts.deleteConfirm', {
-            concept: deleteCost?.concept || ''
-          })}
-          onConfirm={handleDelete}
-          variant="destructive"
-        />
+        {canDelete && (
+          <ConfirmDialog
+            open={!!deleteCost}
+            onOpenChange={(open) => !open && setDeleteCost(null)}
+            title={t('fixedCosts.delete')}
+            description={t('fixedCosts.deleteConfirm', {
+              concept: deleteCost?.concept || ''
+            })}
+            onConfirm={handleDelete}
+            variant="destructive"
+          />
+        )}
       </div>
+      </PermissionGate>
     </AppLayout>
   )
 }
@@ -514,4 +536,3 @@ function FixedCostForm({ form, frequencyOptions, t }: FixedCostFormProps) {
     </FormSection>
   )
 }
-

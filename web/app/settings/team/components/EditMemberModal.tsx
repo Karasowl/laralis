@@ -78,6 +78,10 @@ export function EditMemberModal({
   const [customPermissions, setCustomPermissions] = useState<PermissionMap | null>(
     member.custom_permissions || null
   );
+  const workspaceRole =
+    scope === 'clinic' ? (member as ClinicMember).workspace_role || null : null;
+  const hasWorkspaceOverride =
+    workspaceRole === 'owner' || workspaceRole === 'super_admin';
 
   const {
     handleSubmit,
@@ -96,6 +100,9 @@ export function EditMemberModal({
     () => customRoles.find((roleItem) => roleItem.id === customRoleId) || null,
     [customRoles, customRoleId]
   );
+  const matrixBaseRole = hasWorkspaceOverride
+    ? workspaceRole
+    : (selectedCustomRole?.base_role || selectedRole);
 
   useEffect(() => {
     setValue('role', member.role);
@@ -168,7 +175,7 @@ export function EditMemberModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[85vh] max-w-[95vw] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>{t('members.editTitle')}</DialogTitle>
           <DialogDescription>
@@ -184,6 +191,7 @@ export function EditMemberModal({
             <Select
               value={selectedRole}
               onValueChange={(value) => setValue('role', value)}
+              disabled={hasWorkspaceOverride}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -215,6 +223,7 @@ export function EditMemberModal({
                   setValue('role', base);
                 }
               }}
+              disabled={hasWorkspaceOverride}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -260,11 +269,22 @@ export function EditMemberModal({
 
           <div className="space-y-2">
             <Label>{t('permissions.customize')}</Label>
+            <p className="text-xs text-muted-foreground">
+              {t('permissions.customizeHint')}
+            </p>
+            {hasWorkspaceOverride && (
+              <p className="text-xs text-muted-foreground">
+                {t('permissions.workspaceOverrideHint', {
+                  role: t(`roles.${workspaceRole}`),
+                })}
+              </p>
+            )}
             <PermissionMatrix
-              baseRole={(selectedCustomRole?.base_role || selectedRole) as any}
+              baseRole={(matrixBaseRole || selectedRole) as any}
               scope={scope}
               overrides={customPermissions}
               onChange={setCustomPermissions}
+              disabled={hasWorkspaceOverride}
             />
           </div>
 

@@ -129,6 +129,7 @@ export interface WorkspaceMember extends BaseMember {
 export interface ClinicMember extends BaseMember {
   clinic_id: string;
   role: ClinicRole;
+  workspace_role?: WorkspaceRole | null;
   can_access_all_patients: boolean;
   assigned_chair: string | null;
   schedule: Record<string, unknown> | null;
