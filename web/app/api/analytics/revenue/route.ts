@@ -6,36 +6,22 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { withPermission } from '@/lib/middleware/with-permission'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-export async function GET(request: NextRequest) {
+export const GET = withPermission('financial_reports.view', async (request, context) => {
   try {
     const searchParams = request.nextUrl.searchParams
-    const clinicId = searchParams.get('clinic_id')
     const startDate = searchParams.get('start_date')
     const endDate = searchParams.get('end_date')
     const groupBy = searchParams.get('group_by') || 'day'
-
-    if (!clinicId) {
-      return NextResponse.json({ error: 'clinic_id is required' }, { status: 400 })
-    }
-
-    const supabase = await createClient()
-
-    // Verify access
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const clinicId = context.clinicId
 
     // Build query
-    let query = supabase
+    let query = supabaseAdmin
       .from('treatments')
       .select('treatment_date, price_cents')
       .eq('clinic_id', clinicId)
@@ -91,4 +77,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     )
   }
-}
+})

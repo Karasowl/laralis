@@ -1,30 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
-import { resolveClinicContext } from '@/lib/clinic'
+import { withPermission } from '@/lib/middleware/with-permission'
 
 export const dynamic = 'force-dynamic'
 
 
 const DEFAULT_LOOKBACK_DAYS = 90
 
-export async function GET(request: NextRequest) {
+export const GET = withPermission('break_even.view', async (request, context) => {
   try {
-    const cookieStore = cookies()
-    const searchParams = request.nextUrl.searchParams
-    const clinicContext = await resolveClinicContext({
-      requestedClinicId: searchParams.get('clinicId'),
-      cookieStore
-    })
-
-    if ('error' in clinicContext) {
-      return NextResponse.json(
-        { error: clinicContext.error.message },
-        { status: clinicContext.error.status }
-      )
-    }
-
-    const { clinicId } = clinicContext
     const today = new Date()
     const from = new Date(today)
     from.setDate(from.getDate() - DEFAULT_LOOKBACK_DAYS)
@@ -35,7 +19,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabaseAdmin
       .from('treatments')
       .select('price_cents, variable_cost_cents')
-      .eq('clinic_id', clinicId)
+      .eq('clinic_id', context.clinicId)
       .eq('status', 'completed')
       .gte('treatment_date', fromISO)
       .lte('treatment_date', toISO)
@@ -87,4 +71,4 @@ export async function GET(request: NextRequest) {
     console.error('Unexpected error in GET /api/equilibrium/variable-cost:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-}
+})

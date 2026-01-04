@@ -4594,6 +4594,7 @@
       "title": "Clinic Members",
       "noMembers": "No clinic members found",
       "noMembersHint": "Members with workspace access can be assigned specific clinic roles",
+      "workspaceRole": "Workspace: {role}",
       "chair": "Chair {chair}",
       "addMemberTitle": "Add member to clinic",
       "addMemberDescription": "Assign an existing workspace member to this clinic.",
@@ -4609,7 +4610,9 @@
       "all": "All clinics"
     },
     "permissions": {
-      "customize": "Customize permissions"
+      "customize": "Customize permissions",
+      "customizeHint": "Base role permissions are preselected. Toggle only what you want to change.",
+      "workspaceOverrideHint": "This user is also {role} in the workspace; their access can be broader than what's shown here."
     },
     "selfAccess": {
       "title": "My access",

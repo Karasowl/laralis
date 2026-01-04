@@ -68,7 +68,8 @@ export function withPermission(
 
     // Get clinic ID from query params or body
     const url = new URL(request.url);
-    const clinicIdFromQuery = url.searchParams.get('clinicId');
+    const clinicIdFromQuery =
+      url.searchParams.get('clinicId') || url.searchParams.get('clinic_id');
 
     // Resolve clinic context
     const context = await resolveClinicContext({
@@ -137,7 +138,8 @@ export function withAllPermissions(
   return async (request: NextRequest): Promise<NextResponse> => {
     const cookieStore = cookies();
     const url = new URL(request.url);
-    const clinicIdFromQuery = url.searchParams.get('clinicId');
+    const clinicIdFromQuery =
+      url.searchParams.get('clinicId') || url.searchParams.get('clinic_id');
 
     const context = await resolveClinicContext({
       requestedClinicId: clinicIdFromQuery,
@@ -207,7 +209,8 @@ export function withAnyPermission(
   return async (request: NextRequest): Promise<NextResponse> => {
     const cookieStore = cookies();
     const url = new URL(request.url);
-    const clinicIdFromQuery = url.searchParams.get('clinicId');
+    const clinicIdFromQuery =
+      url.searchParams.get('clinicId') || url.searchParams.get('clinic_id');
 
     const context = await resolveClinicContext({
       requestedClinicId: clinicIdFromQuery,

@@ -12,6 +12,7 @@ import { CategorySelect } from '@/components/ui/category-select';
 import { SummaryCards } from '@/components/ui/summary-cards';
 import { Card } from '@/components/ui/card';
 import { useCrudOperations } from '@/hooks/use-crud-operations';
+import { usePermissions } from '@/hooks/use-permissions';
 import { formatCurrency } from '@/lib/money';
 import { Asset } from '@/lib/types';
 import { zAssetForm } from '@/lib/zod';
@@ -21,6 +22,7 @@ import { getLocalDateISO } from '@/lib/utils';
 import { useWorkspace } from '@/contexts/workspace-context';
 import { evaluateRequirements } from '@/lib/requirements';
 import { toast } from 'sonner';
+import { PermissionGate } from '@/components/auth/PermissionGate';
 
 type AssetFormData = z.infer<typeof zAssetForm>;
 
@@ -30,6 +32,10 @@ export default function AssetsPage() {
   const todayIso = getLocalDateISO();
   const router = useRouter();
   const { currentClinic, workspace } = useWorkspace();
+  const { can } = usePermissions();
+  const canCreate = can('assets.create');
+  const canEdit = can('assets.edit');
+  const canDelete = can('assets.delete');
   
   // CRUD operations
   const crud = useCrudOperations<Asset & { id: string }>({
@@ -90,6 +96,9 @@ export default function AssetsPage() {
 
   // Form submission
   const onSubmit = async (data: AssetFormData) => {
+    if (crud.editingItem ? !canEdit : !canCreate) {
+      return;
+    }
     const payload = {
       name: data.name,
       category: data.category || undefined,
@@ -115,6 +124,7 @@ export default function AssetsPage() {
 
   // Handle edit
   const handleEdit = (asset: Asset & { id: string }) => {
+    if (!canEdit) return;
     crud.handleEdit(asset);
     reset({
       name: asset.name,
@@ -126,6 +136,7 @@ export default function AssetsPage() {
 
   // Handle dialog open
   const handleOpenDialog = () => {
+    if (!canCreate) return;
     reset(assetInitialValues);
     crud.openDialog();
   };
@@ -274,7 +285,7 @@ export default function AssetsPage() {
   }, [crud.loading, crud.items, currentClinic?.id, workspace?.onboarding_completed, router, setupT]);
 
   return (
-    <>
+    <PermissionGate permission="assets.view" fallbackType="message">
       <CrudPageLayout
         title={t('assets.pageTitle')}
         subtitle={t('assets.pageSubtitle')}
@@ -282,96 +293,98 @@ export default function AssetsPage() {
         loading={crud.loading}
         columns={columns}
         mobileColumns={mobileColumns}
-        onAdd={handleOpenDialog}
-        onEdit={handleEdit}
-        onDelete={crud.handleDeleteClick}
+        onAdd={canCreate ? handleOpenDialog : undefined}
+        onEdit={canEdit ? handleEdit : undefined}
+        onDelete={canDelete ? crud.handleDeleteClick : undefined}
         addButtonLabel={t('assets.addAssetButton')}
         emptyIcon={<Package className="h-8 w-8" />}
         emptyTitle={t('assets.emptyTitle')}
         emptyDescription={t('assets.emptyDescription')}
-        deleteConfirmOpen={crud.deleteConfirmOpen}
-        onDeleteConfirmChange={(open) => { if (!open) crud.closeDialog() }}
-        deletingItem={crud.deletingItem}
-        onDeleteConfirm={crud.handleDeleteConfirm}
+        deleteConfirmOpen={canDelete ? crud.deleteConfirmOpen : false}
+        onDeleteConfirmChange={canDelete ? (open) => { if (!open) crud.closeDialog() } : undefined}
+        deletingItem={canDelete ? crud.deletingItem : null}
+        onDeleteConfirm={canDelete ? crud.handleDeleteConfirm : undefined}
         summaryCards={summaryCards}
         additionalContent={additionalContent}
       >
-        <FormModal
-          open={crud.isDialogOpen}
-          onOpenChange={() => { crud.closeDialog(); reset(assetInitialValues); }}
-          title={crud.editingItem ? t('assets.editAssetDialogTitle') : t('assets.addAssetDialogTitle')}
-          onSubmit={handleSubmit(onSubmit)}
-          isSubmitting={crud.isSubmitting}
-          cancelLabel={t('assets.formCancelButton')}
-          submitLabel={crud.editingItem ? t('assets.formUpdateButton') : t('assets.formSaveButton')}
-          maxWidth="md"
-        >
-          <div className="space-y-4">
-            <InputField
-              label={t('assets.formNameLabel')}
-              value={watch('name')}
-              onChange={(v: string | number | React.ChangeEvent<HTMLInputElement>) => {
-                const value = typeof v === 'string' ? v : typeof v === 'number' ? String(v) : (typeof v === 'object' && v !== null && 'target' in v ? (v as React.ChangeEvent<HTMLInputElement>).target.value : '')
-                setValue('name', value)
-              }}
-              error={errors.name?.message}
-              required
-            />
+        {(canCreate || canEdit) && (
+          <FormModal
+            open={crud.isDialogOpen}
+            onOpenChange={() => { crud.closeDialog(); reset(assetInitialValues); }}
+            title={crud.editingItem ? t('assets.editAssetDialogTitle') : t('assets.addAssetDialogTitle')}
+            onSubmit={handleSubmit(onSubmit)}
+            isSubmitting={crud.isSubmitting}
+            cancelLabel={t('assets.formCancelButton')}
+            submitLabel={crud.editingItem ? t('assets.formUpdateButton') : t('assets.formSaveButton')}
+            maxWidth="md"
+          >
+            <div className="space-y-4">
+              <InputField
+                label={t('assets.formNameLabel')}
+                value={watch('name')}
+                onChange={(v: string | number | React.ChangeEvent<HTMLInputElement>) => {
+                  const value = typeof v === 'string' ? v : typeof v === 'number' ? String(v) : (typeof v === 'object' && v !== null && 'target' in v ? (v as React.ChangeEvent<HTMLInputElement>).target.value : '')
+                  setValue('name', value)
+                }}
+                error={errors.name?.message}
+                required
+              />
 
-            <div>
-              <label className="text-sm font-medium mb-2 block">
-                {t('assets.formCategoryLabel')}
-              </label>
-              <CategorySelect
-                type="assets"
-                value={watch('category')}
-                onValueChange={(v) => setValue('category', v)}
-                placeholder={t('categories.selectCategory')}
+              <div>
+                <label className="text-sm font-medium mb-2 block">
+                  {t('assets.formCategoryLabel')}
+                </label>
+                <CategorySelect
+                  type="assets"
+                  value={watch('category')}
+                  onValueChange={(v) => setValue('category', v)}
+                  placeholder={t('categories.selectCategory')}
+                />
+              </div>
+
+              <FormGrid columns={2}>
+                <InputField
+                  label={t('assets.formPriceLabel')}
+                  type="number"
+                  value={watch('purchase_price_pesos')}
+                  onChange={(v: string | number | React.ChangeEvent<HTMLInputElement>) => {
+                    const value = typeof v === 'number' ? v : parseFloat(String(v)) || 0
+                    setValue('purchase_price_pesos', value)
+                  }}
+                  placeholder={t('validation.placeholders.amount')}
+                  step="0.01"
+                  error={errors.purchase_price_pesos?.message}
+                  helperText={t('businessSetup.assets.priceHelp')}
+                  required
+                />
+
+                <InputField
+                  label={t('assets.formMonthsLabel')}
+                  type="number"
+                  value={watch('depreciation_months')}
+                  onChange={(v: string | number | React.ChangeEvent<HTMLInputElement>) => {
+                    const value = typeof v === 'number' ? v : parseInt(String(v)) || 1
+                    setValue('depreciation_months', value)
+                  }}
+                  error={errors.depreciation_months?.message}
+                  required
+                />
+              </FormGrid>
+              
+              <InputField
+                label={t('assets.formPurchaseDateLabel')}
+                type="date"
+                value={watch('purchase_date') ?? ''}
+                onChange={(v: string | number | React.ChangeEvent<HTMLInputElement>) => {
+                  const value = typeof v === 'string' ? v : (typeof v === 'object' && v !== null && 'target' in v ? (v as React.ChangeEvent<HTMLInputElement>).target.value : '')
+                  setValue('purchase_date', value)
+                }}
+                error={errors.purchase_date?.message}
               />
             </div>
-
-            <FormGrid columns={2}>
-              <InputField
-                label={t('assets.formPriceLabel')}
-                type="number"
-                value={watch('purchase_price_pesos')}
-                onChange={(v: string | number | React.ChangeEvent<HTMLInputElement>) => {
-                  const value = typeof v === 'number' ? v : parseFloat(String(v)) || 0
-                  setValue('purchase_price_pesos', value)
-                }}
-                placeholder={t('validation.placeholders.amount')}
-                step="0.01"
-                error={errors.purchase_price_pesos?.message}
-                helperText={t('businessSetup.assets.priceHelp')}
-                required
-              />
-
-              <InputField
-                label={t('assets.formMonthsLabel')}
-                type="number"
-                value={watch('depreciation_months')}
-                onChange={(v: string | number | React.ChangeEvent<HTMLInputElement>) => {
-                  const value = typeof v === 'number' ? v : parseInt(String(v)) || 1
-                  setValue('depreciation_months', value)
-                }}
-                error={errors.depreciation_months?.message}
-                required
-              />
-            </FormGrid>
-            
-            <InputField
-              label={t('assets.formPurchaseDateLabel')}
-              type="date"
-              value={watch('purchase_date') ?? ''}
-              onChange={(v: string | number | React.ChangeEvent<HTMLInputElement>) => {
-                const value = typeof v === 'string' ? v : (typeof v === 'object' && v !== null && 'target' in v ? (v as React.ChangeEvent<HTMLInputElement>).target.value : '')
-                setValue('purchase_date', value)
-              }}
-              error={errors.purchase_date?.message}
-            />
-          </div>
-        </FormModal>
+          </FormModal>
+        )}
       </CrudPageLayout>
-    </>
+    </PermissionGate>
   );
 }

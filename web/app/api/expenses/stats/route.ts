@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { withPermission } from '@/lib/middleware/with-permission'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,27 +18,15 @@ interface StatsByMonth {
   count: number
 }
 
-export async function GET(request: NextRequest) {
+export const GET = withPermission('expenses.view', async (request, context) => {
   try {
-    const supabase = createClient()
     const { searchParams } = new URL(request.url)
-
-    const clinicId = searchParams.get('clinic_id')
+    const clinicId = context.clinicId
     const startDate = searchParams.get('start_date')
     const endDate = searchParams.get('end_date')
 
-    // Require session like other endpoints
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-    if (sessionError || !session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    if (!clinicId) {
-      return NextResponse.json({ error: 'clinic_id is required' }, { status: 400 })
-    }
-
     // Build expenses query within date range
-    let q = supabase
+    let q = supabaseAdmin
       .from('expenses')
       .select('expense_date, category, amount_cents, is_variable')
       .eq('clinic_id', clinicId)
@@ -87,7 +76,7 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => a.month.localeCompare(b.month))
 
     // Planned (fixed costs for clinic)
-    const { data: fixedCosts, error: fcError } = await supabase
+    const { data: fixedCosts, error: fcError } = await supabaseAdmin
       .from('fixed_costs')
       .select('amount_cents')
       .eq('clinic_id', clinicId)
@@ -129,5 +118,5 @@ export async function GET(request: NextRequest) {
     console.error('Unexpected error in GET /api/expenses/stats:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-}
+})
 

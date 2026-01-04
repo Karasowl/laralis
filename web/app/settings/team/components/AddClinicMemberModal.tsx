@@ -103,7 +103,7 @@ export function AddClinicMemberModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="max-h-[85vh] max-w-[95vw] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>{t('clinics.addMemberTitle')}</DialogTitle>
           <DialogDescription>{t('clinics.addMemberDescription')}</DialogDescription>
@@ -177,6 +177,9 @@ export function AddClinicMemberModal({
 
             <div className="space-y-2">
               <Label>{t('permissions.customize')}</Label>
+              <p className="text-xs text-muted-foreground">
+                {t('permissions.customizeHint')}
+              </p>
               <PermissionMatrix
                 baseRole={(selectedCustomRole?.base_role || role) as ClinicRole}
                 scope="clinic"

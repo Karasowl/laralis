@@ -15,7 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, UserPlus, Building2, Trash2, Edit, Stethoscope, Users } from 'lucide-react';
+import { MoreHorizontal, UserPlus, Building2, Trash2, Edit, Stethoscope, Users, Crown } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Can } from '@/components/auth';
 import { EditMemberModal } from './EditMemberModal';
@@ -185,6 +185,18 @@ export function ClinicMembersTab() {
                         </Badge>
                       )}
                     </div>
+                    {member.workspace_role && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        {member.workspace_role === 'owner' && (
+                          <Crown className="h-3 w-3 text-yellow-500" />
+                        )}
+                        <span>
+                          {t('clinics.workspaceRole', {
+                            role: t(`roles.${member.workspace_role}`),
+                          })}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <Badge
@@ -195,38 +207,40 @@ export function ClinicMembersTab() {
                     {t(`roles.${member.role}`)}
                   </Badge>
 
-                  <Can
-                    permission="team.edit_roles"
-                    loadingFallback={
-                      <Button variant="ghost" size="icon" disabled>
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    }
-                  >
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
+                  {member.workspace_role !== 'owner' && (
+                    <Can
+                      permission="team.edit_roles"
+                      loadingFallback={
+                        <Button variant="ghost" size="icon" disabled>
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => setEditingMember(member)}
-                        >
-                          <Edit className="h-4 w-4 mr-2" />
-                          {t('actions.editPermissions')}
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-destructive"
-                          onClick={() => setRemovingMember(member)}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          {t('actions.removeFromClinic')}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </Can>
+                      }
+                    >
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => setEditingMember(member)}
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            {t('actions.editPermissions')}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={() => setRemovingMember(member)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            {t('actions.removeFromClinic')}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </Can>
+                  )}
                 </div>
               ))}
             </div>

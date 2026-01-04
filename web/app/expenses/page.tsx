@@ -16,10 +16,12 @@ import { FormModal } from '@/components/ui/form-modal'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { DataTable } from '@/components/ui/DataTable'
 import { useExpenses } from '@/hooks/use-expenses'
+import { usePermissions } from '@/hooks/use-permissions'
 import { expenseFormSchema, type ExpenseFormData, type ExpenseWithRelations } from '@/lib/types/expenses'
 import { formatCurrency } from '@/lib/money'
 import { useFilteredSummary } from '@/hooks/use-filtered-summary'
 import { expenseSummaryConfig } from '@/lib/calc/summary-configs'
+import { PermissionGate } from '@/components/auth/PermissionGate'
 
 import {
   ExpenseForm,
@@ -52,6 +54,10 @@ export default function ExpensesPage() {
     refresh,
     clinicId,
   } = useExpenses()
+  const { can } = usePermissions()
+  const canCreate = can('expenses.create')
+  const canEdit = can('expenses.edit')
+  const canDelete = can('expenses.delete')
 
   // Get all options from hook
   const {
@@ -89,14 +95,16 @@ export default function ExpensesPage() {
 
   // Modal handlers
   const openCreateModal = useCallback(() => {
+    if (!canCreate) return
     createForm.reset(getDefaultFormValues())
     setCreateOpen(true)
-  }, [createForm])
+  }, [createForm, canCreate])
 
   const openEditModal = useCallback((expense: ExpenseWithRelations) => {
+    if (!canEdit) return
     setEditExpense(expense)
     editForm.reset(mapExpenseToFormValues(expense))
-  }, [editForm])
+  }, [editForm, canEdit])
 
   const closeEditModal = useCallback(() => {
     setEditExpense(null)
@@ -107,6 +115,8 @@ export default function ExpensesPage() {
   const { columns, mobileColumns, getCategoryLabel } = useExpenseColumns({
     onEdit: openEditModal,
     onDelete: setDeleteTarget,
+    canEdit,
+    canDelete,
   })
 
   // Filter handlers
@@ -147,6 +157,7 @@ export default function ExpensesPage() {
   }, [setFilters])
 
   const deleteExpenseConfirmed = async () => {
+    if (!canDelete) return
     if (!deleteTarget) return
     setDeleteLoading(true)
     const success = await deleteExpense(deleteTarget.id)
@@ -155,6 +166,7 @@ export default function ExpensesPage() {
   }
 
   const handleCreateSubmit = createForm.handleSubmit(async (values) => {
+    if (!canCreate) return
     const success = await createExpense(values)
     if (success) {
       setCreateOpen(false)
@@ -163,6 +175,7 @@ export default function ExpensesPage() {
   })
 
   const handleEditSubmit = editForm.handleSubmit(async (values) => {
+    if (!canEdit) return
     if (!editExpense) return
     const success = await updateExpense(editExpense.id, values)
     if (success) closeEditModal()
@@ -227,17 +240,20 @@ export default function ExpensesPage() {
 
   return (
     <AppLayout>
-      <div className="container mx-auto max-w-7xl space-y-6 px-4 py-6">
-        <PageHeader
-          title={t('title')}
-          subtitle={t('subtitle')}
-          actions={
-            <Button onClick={openCreateModal} className="gap-2">
-              <Plus className="h-4 w-4" />
-              {t('actions.new')}
-            </Button>
-          }
-        />
+      <PermissionGate permission="expenses.view" fallbackType="message">
+        <div className="container mx-auto max-w-7xl space-y-6 px-4 py-6">
+          <PageHeader
+            title={t('title')}
+            subtitle={t('subtitle')}
+            actions={
+              canCreate ? (
+                <Button onClick={openCreateModal} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  {t('actions.new')}
+                </Button>
+              ) : undefined
+            }
+          />
 
         <Alert className="bg-primary/10 border-primary/30 text-primary/95">
           <Info className="h-5 w-5" />
@@ -289,56 +305,63 @@ export default function ExpensesPage() {
 
         <ExpenseAlertsCard alerts={alerts} t={t} />
 
-        <FormModal
-          open={createOpen}
-          onOpenChange={(open) => { setCreateOpen(open); if (!open) createForm.reset(getDefaultFormValues()) }}
-          title={t('form.createTitle')}
-          submitLabel={t('form.submit.create')}
-          onSubmit={handleCreateSubmit}
-          isSubmitting={isSubmitting}
-        >
-          <ExpenseForm
-            form={createForm}
-            t={t}
-            categoryOptions={categoryOptions.slice(1)}
-            getSubcategoriesForCategory={getSubcategoriesForCategory}
-            supplyOptions={supplyOptions}
-            campaignOptions={campaignOptions}
-            fixedCostOptions={fixedCostOptions}
-          />
-        </FormModal>
+        {canCreate && (
+          <FormModal
+            open={createOpen}
+            onOpenChange={(open) => { setCreateOpen(open); if (!open) createForm.reset(getDefaultFormValues()) }}
+            title={t('form.createTitle')}
+            submitLabel={t('form.submit.create')}
+            onSubmit={handleCreateSubmit}
+            isSubmitting={isSubmitting}
+          >
+            <ExpenseForm
+              form={createForm}
+              t={t}
+              categoryOptions={categoryOptions.slice(1)}
+              getSubcategoriesForCategory={getSubcategoriesForCategory}
+              supplyOptions={supplyOptions}
+              campaignOptions={campaignOptions}
+              fixedCostOptions={fixedCostOptions}
+            />
+          </FormModal>
+        )}
 
-        <FormModal
-          open={Boolean(editExpense)}
-          onOpenChange={(open) => { if (!open) closeEditModal() }}
-          title={t('form.editTitle')}
-          submitLabel={t('form.submit.update')}
-          onSubmit={handleEditSubmit}
-          isSubmitting={isSubmitting}
-        >
-          <ExpenseForm
-            form={editForm}
-            t={t}
-            categoryOptions={categoryOptions.slice(1)}
-            getSubcategoriesForCategory={getSubcategoriesForCategory}
-            supplyOptions={supplyOptions}
-            campaignOptions={campaignOptions}
-            fixedCostOptions={fixedCostOptions}
-          />
-        </FormModal>
+        {canEdit && (
+          <FormModal
+            open={Boolean(editExpense)}
+            onOpenChange={(open) => { if (!open) closeEditModal() }}
+            title={t('form.editTitle')}
+            submitLabel={t('form.submit.update')}
+            onSubmit={handleEditSubmit}
+            isSubmitting={isSubmitting}
+          >
+            <ExpenseForm
+              form={editForm}
+              t={t}
+              categoryOptions={categoryOptions.slice(1)}
+              getSubcategoriesForCategory={getSubcategoriesForCategory}
+              supplyOptions={supplyOptions}
+              campaignOptions={campaignOptions}
+              fixedCostOptions={fixedCostOptions}
+            />
+          </FormModal>
+        )}
 
-        <ConfirmDialog
-          open={Boolean(deleteTarget)}
-          onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}
-          title={t('modals.delete.title')}
-          description={deleteTarget ? t('modals.delete.description', { description: deleteTarget.description || deleteTarget.vendor || '' }) : undefined}
-          onConfirm={deleteExpenseConfirmed}
-          confirmText={tCommon('delete')}
-          cancelText={tCommon('cancel')}
-          variant="destructive"
-          loading={deleteLoading}
-        />
+        {canDelete && (
+          <ConfirmDialog
+            open={Boolean(deleteTarget)}
+            onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}
+            title={t('modals.delete.title')}
+            description={deleteTarget ? t('modals.delete.description', { description: deleteTarget.description || deleteTarget.vendor || '' }) : undefined}
+            onConfirm={deleteExpenseConfirmed}
+            confirmText={tCommon('delete')}
+            cancelText={tCommon('cancel')}
+            variant="destructive"
+            loading={deleteLoading}
+          />
+        )}
       </div>
+      </PermissionGate>
     </AppLayout>
   )
 }

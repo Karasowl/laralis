@@ -14,7 +14,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { withPermission } from '@/lib/middleware/with-permission'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -45,34 +46,19 @@ function calculatePeriodInfo(startDate: string | null, endDate: string | null): 
   return { periodDays, daysInMonth }
 }
 
-export async function GET(request: NextRequest) {
+export const GET = withPermission('financial_reports.view', async (request, context) => {
   try {
     const searchParams = request.nextUrl.searchParams
-    const clinicId = searchParams.get('clinic_id')
     const startDate = searchParams.get('start_date')
     const endDate = searchParams.get('end_date')
-
-    if (!clinicId) {
-      return NextResponse.json({ error: 'clinic_id is required' }, { status: 400 })
-    }
-
-    const supabase = await createClient()
-
-    // Verify access
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const clinicId = context.clinicId
 
     // Calculate period days for prorating monthly costs
     const { periodDays, daysInMonth } = calculatePeriodInfo(startDate, endDate)
 
     // ===== 1. Get Revenue from completed treatments =====
     // Include variable_cost_cents for accurate gross profit calculation
-    let treatmentsQuery = supabase
+    let treatmentsQuery = supabaseAdmin
       .from('treatments')
       .select('price_cents, variable_cost_cents')
       .eq('clinic_id', clinicId)
@@ -105,7 +91,7 @@ export async function GET(request: NextRequest) {
     ) || 0
 
     // ===== 3. Get Expenses (for real fixed costs tracking) =====
-    let expensesQuery = supabase
+    let expensesQuery = supabaseAdmin
       .from('expenses')
       .select('amount_cents, is_variable')
       .eq('clinic_id', clinicId)
@@ -130,7 +116,7 @@ export async function GET(request: NextRequest) {
     ) || 0
 
     // ===== 4. Get CONFIGURED Fixed Costs from fixed_costs table =====
-    const { data: configuredFixedCosts, error: fixedCostsError } = await supabase
+    const { data: configuredFixedCosts, error: fixedCostsError } = await supabaseAdmin
       .from('fixed_costs')
       .select('amount_cents')
       .eq('clinic_id', clinicId)
@@ -151,7 +137,7 @@ export async function GET(request: NextRequest) {
     )
 
     // ===== 5. Get Assets for depreciation calculation =====
-    const { data: assets, error: assetsError } = await supabase
+    const { data: assets, error: assetsError } = await supabaseAdmin
       .from('assets')
       .select('purchase_price_cents, depreciation_months, purchase_date')
       .eq('clinic_id', clinicId)
@@ -263,4 +249,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     )
   }
-}
+})

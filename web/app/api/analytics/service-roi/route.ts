@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
-import { resolveClinicContext } from '@/lib/clinic'
+import { withPermission } from '@/lib/middleware/with-permission'
 
 export const dynamic = 'force-dynamic'
 
@@ -79,21 +78,10 @@ function calculateMedian(values: number[]): number {
     : sorted[mid]
 }
 
-export async function GET(request: NextRequest) {
+export const GET = withPermission('financial_reports.view', async (request, context) => {
   try {
     const searchParams = request.nextUrl.searchParams
-    const cookieStore = cookies()
-
-    const clinicContext = await resolveClinicContext({
-      requestedClinicId: searchParams.get('clinicId'),
-      cookieStore
-    })
-
-    if ('error' in clinicContext) {
-      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status })
-    }
-
-    const { clinicId } = clinicContext
+    const { clinicId } = context
 
     // Parse date range - supports explicit dates or days lookback
     const startDateParam = searchParams.get('startDate')
@@ -299,4 +287,4 @@ export async function GET(request: NextRequest) {
     console.error('Unexpected error in GET /api/analytics/service-roi:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-}
+})

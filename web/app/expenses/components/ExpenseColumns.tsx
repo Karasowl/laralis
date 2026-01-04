@@ -12,9 +12,16 @@ import { formatDate } from '@/lib/format'
 interface UseExpenseColumnsProps {
   onEdit: (expense: ExpenseWithRelations) => void
   onDelete: (expense: ExpenseWithRelations) => void
+  canEdit?: boolean
+  canDelete?: boolean
 }
 
-export function useExpenseColumns({ onEdit, onDelete }: UseExpenseColumnsProps) {
+export function useExpenseColumns({
+  onEdit,
+  onDelete,
+  canEdit = true,
+  canDelete = true
+}: UseExpenseColumnsProps) {
   const t = useTranslations('expenses')
   const tCommon = useTranslations('common')
   const locale = useLocale()
@@ -120,17 +127,16 @@ export function useExpenseColumns({ onEdit, onDelete }: UseExpenseColumnsProps) 
         key: 'actions',
         label: tCommon('actions'),
         sortable: false,
-        render: (_value, expense) => (
-          <ActionDropdown
-            actions={[
-              createEditAction(() => onEdit(expense), tCommon('edit')),
-              createDeleteAction(() => onDelete(expense), tCommon('delete')),
-            ]}
-          />
-        ),
+        render: (_value, expense) => {
+          const actions = []
+          if (canEdit) actions.push(createEditAction(() => onEdit(expense), tCommon('edit')))
+          if (canDelete) actions.push(createDeleteAction(() => onDelete(expense), tCommon('delete')))
+          if (actions.length === 0) return null
+          return <ActionDropdown actions={actions} />
+        },
       },
     ],
-    [locale, t, tCommon, getCategoryLabel, getSubcategoryLabel, onEdit, onDelete]
+    [locale, t, tCommon, getCategoryLabel, getSubcategoryLabel, onEdit, onDelete, canEdit, canDelete]
   )
 
   const mobileColumns: Column<ExpenseWithRelations>[] = useMemo(
@@ -164,17 +170,16 @@ export function useExpenseColumns({ onEdit, onDelete }: UseExpenseColumnsProps) 
         key: 'actions',
         label: tCommon('actions'),
         sortable: false,
-        render: (_value, expense) => (
-          <ActionDropdown
-            actions={[
-              createEditAction(() => onEdit(expense), tCommon('edit')),
-              createDeleteAction(() => onDelete(expense), tCommon('delete')),
-            ]}
-          />
-        ),
+        render: (_value, expense) => {
+          const actions = []
+          if (canEdit) actions.push(createEditAction(() => onEdit(expense), tCommon('edit')))
+          if (canDelete) actions.push(createDeleteAction(() => onDelete(expense), tCommon('delete')))
+          if (actions.length === 0) return null
+          return <ActionDropdown actions={actions} />
+        },
       },
     ],
-    [locale, t, tCommon, getCategoryLabel, getSubcategoryLabel, onEdit, onDelete]
+    [locale, t, tCommon, getCategoryLabel, getSubcategoryLabel, onEdit, onDelete, canEdit, canDelete]
   )
 
   return { columns, mobileColumns, getCategoryLabel }

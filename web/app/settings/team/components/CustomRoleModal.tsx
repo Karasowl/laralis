@@ -154,7 +154,7 @@ export function CustomRoleModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="max-h-[85vh] max-w-[95vw] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>
             {isEditing ? t('customRoles.editTitle') : t('customRoles.createTitle')}
@@ -236,6 +236,9 @@ export function CustomRoleModal({
                 {t('customRoles.resetPermissions')}
               </Button>
             </div>
+            <p className="text-xs text-muted-foreground">
+              {t('permissions.customizeHint')}
+            </p>
             <PermissionMatrix
               baseRole={(baseRole || null) as any}
               scope={scope}

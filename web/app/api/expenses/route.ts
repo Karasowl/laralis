@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { withPermission } from '@/lib/middleware/with-permission'
 import {
   expenseDbSchema,
   type CreateExpenseRequest,
@@ -10,22 +10,10 @@ import {
 
 export const dynamic = 'force-dynamic'
 
-export async function GET(request: NextRequest) {
+export const GET = withPermission('expenses.view', async (request, context) => {
   try {
-    const supabase = createClient()
     const { searchParams } = new URL(request.url)
-    
-    // Get user session
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-    if (sessionError || !session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Get clinic_id from query params
-    const clinicId = searchParams.get('clinic_id')
-    if (!clinicId) {
-      return NextResponse.json({ error: 'clinic_id is required' }, { status: 400 })
-    }
+    const clinicId = context.clinicId
 
     // Build filters
     const filters: ExpenseFilters = {
@@ -41,7 +29,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Build query
-    let query = supabase
+    let query = supabaseAdmin
       .from('expenses')
       .select(`
         *,
@@ -93,19 +81,12 @@ export async function GET(request: NextRequest) {
     console.error('Unexpected error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-}
+})
 
-export async function POST(request: NextRequest) {
+export const POST = withPermission('expenses.create', async (request, context) => {
   try {
-    const supabase = createClient()
-    
-    // Get user session
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-    if (sessionError || !session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const body = await request.json()
+    const clinicId = context.clinicId
 
     // Convert price_pesos to price_cents BEFORE validation (same pattern as supplies)
     let dataToValidate = { ...body }
@@ -243,7 +224,7 @@ export async function POST(request: NextRequest) {
         amount_cents: amountCents,
         category: resolvedCategory || expenseData.category,
         category_id: resolvedCategoryId || category_id || null,
-        clinic_id: body.clinic_id,
+        clinic_id: clinicId,
         next_recurrence_date: nextRecurrenceDate
       })
       .select()
@@ -256,7 +237,7 @@ export async function POST(request: NextRequest) {
         amount_cents: amountCents,
         category: resolvedCategory || expenseData.category,
         category_id: resolvedCategoryId || category_id || null,
-        clinic_id: body.clinic_id
+        clinic_id: clinicId
       })
       return NextResponse.json({ error: 'Failed to create expense', message: expenseError.message }, { status: 500 })
     }
@@ -269,7 +250,7 @@ export async function POST(request: NextRequest) {
       const { data: asset, error: assetError } = await supabaseAdmin
         .from('assets')
         .insert({
-          clinic_id: body.clinic_id,
+          clinic_id: clinicId,
           name: asset_name,
           category: expenseData.subcategory || expenseData.category,
           acquisition_cost_cents: amountCents,
@@ -336,4 +317,4 @@ export async function POST(request: NextRequest) {
     console.error('Unexpected error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-}
+})
