@@ -1,11 +1,13 @@
 'use client'
 
+import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
-import { MessageSquare, User, Building2, Phone, Bell, Clock } from 'lucide-react'
+import { MessageSquare, User, Building2, Phone, Bell, Clock, Eye, EyeOff } from 'lucide-react'
 import { type SMSConfig, DEFAULT_SMS_CONFIG } from '@/lib/sms/types'
 
 export type { SMSConfig }
@@ -17,6 +19,15 @@ interface SMSSettingsCardProps {
 
 export function SMSSettingsCard({ settings, onChange }: SMSSettingsCardProps) {
   const t = useTranslations('settings.notifications.sms')
+  const tCommon = useTranslations('common')
+  const [showTokens, setShowTokens] = useState(false)
+
+  const updateRoot = <K extends keyof SMSConfig>(key: K, value: SMSConfig[K]) => {
+    onChange({
+      ...settings,
+      [key]: value,
+    })
+  }
 
   // Helper to update nested patient settings
   const updatePatient = (key: keyof SMSConfig['patient'], value: boolean) => {
@@ -61,13 +72,71 @@ export function SMSSettingsCard({ settings, onChange }: SMSSettingsCardProps) {
 
       <CardContent className={!isEnabled ? 'opacity-50 pointer-events-none' : ''}>
         <div className="space-y-6">
+          {/* Twilio Config */}
+          <div className="rounded-lg border p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <MessageSquare className="h-4 w-4 text-green-500" />
+                {t('twilio_config')}
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowTokens(!showTokens)}
+              >
+                {showTokens ? (
+                  <EyeOff className="h-4 w-4 mr-1" />
+                ) : (
+                  <Eye className="h-4 w-4 mr-1" />
+                )}
+                {showTokens ? tCommon('hide') : tCommon('show')}
+              </Button>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="sms-twilio-sid">{t('twilio_account_sid')}</Label>
+                <Input
+                  id="sms-twilio-sid"
+                  type={showTokens ? 'text' : 'password'}
+                  value={settings.twilio_account_sid || ''}
+                  onChange={(e) => updateRoot('twilio_account_sid', e.target.value)}
+                  placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="sms-twilio-token">{t('twilio_auth_token')}</Label>
+                <Input
+                  id="sms-twilio-token"
+                  type={showTokens ? 'text' : 'password'}
+                  value={settings.twilio_auth_token || ''}
+                  onChange={(e) => updateRoot('twilio_auth_token', e.target.value)}
+                  placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                />
+              </div>
+
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="sms-twilio-phone">{t('twilio_phone_number')}</Label>
+                <Input
+                  id="sms-twilio-phone"
+                  value={settings.twilio_phone_number || ''}
+                  onChange={(e) => updateRoot('twilio_phone_number', e.target.value)}
+                  placeholder="+14155238886"
+                />
+                <p className="text-xs text-muted-foreground">{t('twilio_phone_help')}</p>
+              </div>
+            </div>
+          </div>
+
           {/* Country Code */}
           <div className="space-y-2">
             <Label htmlFor="sms-country-code">{t('country_code')}</Label>
             <Input
               id="sms-country-code"
               value={settings.default_country_code}
-              onChange={(e) => onChange({ ...settings, default_country_code: e.target.value })}
+              onChange={(e) => updateRoot('default_country_code', e.target.value)}
               placeholder="52"
               className="w-32"
             />

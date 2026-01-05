@@ -15,6 +15,7 @@ import {
   ChevronRight,
   PackageOpen,
   Calendar,
+  CalendarCheck,
   Mail,
   Archive,
 } from 'lucide-react';
@@ -89,6 +90,14 @@ export default function SettingsPage() {
           href: '/settings/calendar',
           icon: Calendar,
           color: 'text-blue-600',
+        },
+        {
+          id: 'booking',
+          title: t('settings.booking.title'),
+          description: t('settings.booking.description'),
+          href: '/settings/booking',
+          icon: CalendarCheck,
+          color: 'text-emerald-600',
         },
         {
           id: 'notifications',

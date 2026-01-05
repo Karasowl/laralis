@@ -25,6 +25,110 @@ const DEFAULT_WHATSAPP_CONFIG: WhatsAppConfig = {
   reminder_hours_before: 24,
 }
 
+const DEFAULT_TEMPLATES: Array<Pick<WhatsAppTemplate, 'name' | 'template_type' | 'content' | 'language'>> = [
+  {
+    name: 'Confirmacion de Cita',
+    template_type: 'appointment_confirmation',
+    content:
+      'Hola {{patient_name}}, tu cita en {{clinic_name}} ha sido confirmada para el {{date}} a las {{time}}. Servicio: {{service_name}}. Te esperamos!',
+    language: 'es',
+  },
+  {
+    name: 'Recordatorio de Cita',
+    template_type: 'appointment_reminder',
+    content:
+      'Hola {{patient_name}}, te recordamos que tienes una cita {{time_until}} en {{clinic_name}}. Fecha: {{date}} a las {{time}}.',
+    language: 'es',
+  },
+  {
+    name: 'Cita Cancelada',
+    template_type: 'appointment_cancelled',
+    content:
+      'Hola {{patient_name}}, tu cita del {{date}} a las {{time}} en {{clinic_name}} fue cancelada. Contactanos para reagendar.',
+    language: 'es',
+  },
+  {
+    name: 'Solicitud Recibida',
+    template_type: 'booking_received',
+    content:
+      'Hola {{patient_name}}, recibimos tu solicitud de cita en {{clinic_name}} para el {{date}} a las {{time}}. Te confirmaremos pronto.',
+    language: 'es',
+  },
+  {
+    name: 'Reserva Confirmada',
+    template_type: 'booking_confirmed',
+    content:
+      'Hola {{patient_name}}, tu solicitud de cita en {{clinic_name}} fue confirmada. Te esperamos el {{date}} a las {{time}}.',
+    language: 'es',
+  },
+  {
+    name: 'Appointment Confirmation',
+    template_type: 'appointment_confirmation',
+    content:
+      'Hi {{patient_name}}, your appointment at {{clinic_name}} has been confirmed for {{date}} at {{time}}. Service: {{service_name}}. See you there!',
+    language: 'en',
+  },
+  {
+    name: 'Appointment Reminder',
+    template_type: 'appointment_reminder',
+    content:
+      'Hi {{patient_name}}, this is a reminder that you have an appointment {{time_until}} at {{clinic_name}}. Date: {{date}} at {{time}}.',
+    language: 'en',
+  },
+  {
+    name: 'Appointment Cancelled',
+    template_type: 'appointment_cancelled',
+    content:
+      'Hi {{patient_name}}, we regret to inform you that your appointment on {{date}} at {{time}} at {{clinic_name}} has been cancelled. Contact us to reschedule.',
+    language: 'en',
+  },
+  {
+    name: 'Booking Received',
+    template_type: 'booking_received',
+    content:
+      'Hi {{patient_name}}, we have received your appointment request at {{clinic_name}} for {{date}} at {{time}}. We will confirm shortly.',
+    language: 'en',
+  },
+  {
+    name: 'Booking Confirmed',
+    template_type: 'booking_confirmed',
+    content:
+      'Hi {{patient_name}}, your appointment request at {{clinic_name}} has been confirmed! See you on {{date}} at {{time}}.',
+    language: 'en',
+  },
+]
+
+async function ensureDefaultTemplates(clinicId: string): Promise<void> {
+  const { count, error } = await supabaseAdmin
+    .from('whatsapp_templates')
+    .select('id', { count: 'exact', head: true })
+    .eq('clinic_id', clinicId)
+
+  if (error) {
+    console.error('[whatsapp] Failed checking templates:', error)
+    return
+  }
+
+  if (count && count > 0) return
+
+  const rows = DEFAULT_TEMPLATES.map((template) => ({
+    clinic_id: clinicId,
+    name: template.name,
+    template_type: template.template_type,
+    content: template.content,
+    language: template.language,
+    is_active: true,
+  }))
+
+  const { error: insertError } = await supabaseAdmin
+    .from('whatsapp_templates')
+    .upsert(rows, { onConflict: 'clinic_id,template_type,language' })
+
+  if (insertError) {
+    console.error('[whatsapp] Failed seeding templates:', insertError)
+  }
+}
+
 /**
  * Get WhatsApp config for a clinic
  */
@@ -69,6 +173,8 @@ export async function getTemplate(
   templateType: NotificationType,
   language: string = 'es'
 ): Promise<WhatsAppTemplate | null> {
+  await ensureDefaultTemplates(clinicId)
+
   const { data, error } = await supabaseAdmin
     .from('whatsapp_templates')
     .select('*')

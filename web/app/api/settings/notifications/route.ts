@@ -12,10 +12,12 @@ import { resolveClinicContext } from '@/lib/clinic';
 
 export const dynamic = 'force-dynamic';
 
+const whatsappProviderSchema = z.enum(['twilio', '360dialog', 'dialog360']);
+
 // WhatsApp settings schema
 const whatsappSettingsSchema = z.object({
   enabled: z.boolean(),
-  provider: z.enum(['twilio', 'dialog360']),
+  provider: whatsappProviderSchema,
   twilio_account_sid: z.string().optional(),
   twilio_auth_token: z.string().optional(),
   twilio_phone_number: z.string().optional(),
@@ -49,6 +51,10 @@ const smsStaffSettingsSchema = z.object({
 const smsSettingsSchema = z.object({
   enabled: z.boolean().optional(),
   default_country_code: z.string().optional(),
+  provider: z.enum(['twilio']).optional(),
+  twilio_account_sid: z.string().optional(),
+  twilio_auth_token: z.string().optional(),
+  twilio_phone_number: z.string().optional(),
   // New format fields
   patient: smsPatientSettingsSchema,
   staff: smsStaffSettingsSchema,
@@ -112,6 +118,12 @@ export async function GET() {
 
     const settings = clinic?.notification_settings as NotificationSettings | null;
 
+    const whatsapp = settings?.whatsapp ?? undefined;
+    const normalizedWhatsapp =
+      whatsapp && whatsapp.provider === 'dialog360'
+        ? { ...whatsapp, provider: '360dialog' }
+        : whatsapp;
+
     return NextResponse.json({
       data: {
         email_enabled: settings?.email_enabled ?? DEFAULT_SETTINGS.email_enabled,
@@ -120,7 +132,7 @@ export async function GET() {
         reminder_hours_before: settings?.reminder_hours_before ?? DEFAULT_SETTINGS.reminder_hours_before,
         sender_name: settings?.sender_name ?? DEFAULT_SETTINGS.sender_name,
         reply_to_email: settings?.reply_to_email ?? DEFAULT_SETTINGS.reply_to_email,
-        whatsapp: settings?.whatsapp ?? undefined,
+        whatsapp: normalizedWhatsapp,
         sms: settings?.sms ?? undefined,
       },
     });
@@ -170,6 +182,9 @@ export async function PUT(request: NextRequest) {
     }
 
     const settings = parseResult.data;
+    if (settings.whatsapp?.provider === 'dialog360') {
+      settings.whatsapp.provider = '360dialog';
+    }
     console.log('[settings/notifications][PUT] Parsed settings:', JSON.stringify(settings, null, 2));
 
     const { error } = await supabaseAdmin
