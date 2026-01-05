@@ -68,6 +68,10 @@ function mergeSMSConfigWithDefaults(smsSettings: Partial<SMSConfig>): SMSConfig 
   return {
     enabled: smsSettings.enabled ?? DEFAULT_SMS_CONFIG.enabled,
     default_country_code: smsSettings.default_country_code ?? DEFAULT_SMS_CONFIG.default_country_code,
+    provider: smsSettings.provider ?? DEFAULT_SMS_CONFIG.provider,
+    twilio_account_sid: smsSettings.twilio_account_sid ?? DEFAULT_SMS_CONFIG.twilio_account_sid,
+    twilio_auth_token: smsSettings.twilio_auth_token ?? DEFAULT_SMS_CONFIG.twilio_auth_token,
+    twilio_phone_number: smsSettings.twilio_phone_number ?? DEFAULT_SMS_CONFIG.twilio_phone_number,
     patient: {
       ...DEFAULT_SMS_CONFIG.patient,
       ...(smsSettings.patient || {}),
@@ -101,21 +105,21 @@ export async function isSMSEnabled(clinicId: string): Promise<boolean> {
 }
 
 /**
- * Get Twilio credentials from environment variables
+ * Get Twilio credentials from clinic settings or environment variables
  */
-function getTwilioCredentials() {
+function getTwilioCredentials(config?: SMSConfig) {
   return {
-    accountSid: process.env.TWILIO_ACCOUNT_SID || '',
-    authToken: process.env.TWILIO_AUTH_TOKEN || '',
-    phoneNumber: process.env.TWILIO_PHONE_NUMBER || '',
+    accountSid: config?.twilio_account_sid || process.env.TWILIO_ACCOUNT_SID || '',
+    authToken: config?.twilio_auth_token || process.env.TWILIO_AUTH_TOKEN || '',
+    phoneNumber: config?.twilio_phone_number || process.env.TWILIO_PHONE_NUMBER || '',
   }
 }
 
 /**
- * Validate Twilio config from environment variables
+ * Validate Twilio config from settings or environment variables
  */
-function validateTwilioConfig(): { valid: boolean; error?: string } {
-  const { accountSid, authToken, phoneNumber } = getTwilioCredentials()
+function validateTwilioConfig(config?: SMSConfig): { valid: boolean; error?: string } {
+  const { accountSid, authToken, phoneNumber } = getTwilioCredentials(config)
   if (!accountSid) {
     return { valid: false, error: 'TWILIO_ACCOUNT_SID not configured' }
   }
@@ -155,9 +159,10 @@ export function formatPhoneNumber(phone: string, countryCode: string): string {
  */
 async function sendViaTwilio(
   to: string,
-  message: string
+  message: string,
+  config?: SMSConfig
 ): Promise<SendSMSResult> {
-  const { accountSid, authToken, phoneNumber } = getTwilioCredentials()
+  const { accountSid, authToken, phoneNumber } = getTwilioCredentials(config)
 
   if (!accountSid || !authToken || !phoneNumber) {
     return { success: false, error: 'Twilio config incomplete' }
@@ -252,7 +257,7 @@ export async function sendSMS(params: SendSMSParams): Promise<SendSMSResult> {
   }
 
   // Validate Twilio credentials
-  const validation = validateTwilioConfig()
+  const validation = validateTwilioConfig(config)
   if (!validation.valid) {
     return { success: false, error: validation.error }
   }
@@ -261,7 +266,7 @@ export async function sendSMS(params: SendSMSParams): Promise<SendSMSResult> {
   const formattedPhone = formatPhoneNumber(recipientPhone, config.default_country_code)
 
   // Send SMS
-  const result = await sendViaTwilio(formattedPhone, message)
+  const result = await sendViaTwilio(formattedPhone, message, config)
 
   // Log the notification
   const { error: logError } = await supabaseAdmin.from('sms_notifications').insert({

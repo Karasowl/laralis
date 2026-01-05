@@ -61,6 +61,10 @@ export interface SMSStaffSettings {
 export interface SMSConfig {
   enabled: boolean                 // Master switch for SMS
   default_country_code: string     // Default country code (e.g., "52" for Mexico)
+  provider?: SMSProvider           // SMS provider (default: twilio)
+  twilio_account_sid?: string      // Optional per-clinic Twilio SID
+  twilio_auth_token?: string       // Optional per-clinic Twilio auth token
+  twilio_phone_number?: string     // Optional per-clinic Twilio phone number
   patient: SMSPatientSettings      // Patient notification settings
   staff: SMSStaffSettings          // Staff notification settings
 }
@@ -71,6 +75,10 @@ export interface SMSConfig {
 export const DEFAULT_SMS_CONFIG: SMSConfig = {
   enabled: false,
   default_country_code: '52',
+  provider: 'twilio',
+  twilio_account_sid: '',
+  twilio_auth_token: '',
+  twilio_phone_number: '',
   patient: {
     on_treatment_created: true,
     on_treatment_updated: true,

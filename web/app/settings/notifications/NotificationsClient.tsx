@@ -86,6 +86,9 @@ function shallowEqual(a: NotificationSettings, b: NotificationSettings): boolean
   return (
     sa.enabled === sb.enabled &&
     sa.default_country_code === sb.default_country_code &&
+    sa.twilio_account_sid === sb.twilio_account_sid &&
+    sa.twilio_auth_token === sb.twilio_auth_token &&
+    sa.twilio_phone_number === sb.twilio_phone_number &&
     sa.patient.on_treatment_created === sb.patient.on_treatment_created &&
     sa.patient.on_treatment_updated === sb.patient.on_treatment_updated &&
     sa.patient.reminder_24h === sb.patient.reminder_24h &&
@@ -109,6 +112,7 @@ export function NotificationsClient() {
   const [initialState, setInitialState] = useState<NotificationSettings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testingEmail, setTestingEmail] = useState(false);
 
   // Push notifications hook
   const {
@@ -139,6 +143,10 @@ export function NotificationsClient() {
 
         if (!mounted) return;
 
+        const normalizedWhatsapp = settings?.whatsapp?.provider === 'dialog360'
+          ? { ...settings.whatsapp, provider: '360dialog' }
+          : settings?.whatsapp;
+
         const normalized: NotificationSettings = {
           email_enabled: settings?.email_enabled ?? true,
           confirmation_enabled: settings?.confirmation_enabled ?? true,
@@ -148,7 +156,7 @@ export function NotificationsClient() {
           reply_to_email: settings?.reply_to_email ?? null,
           whatsapp: {
             ...DEFAULT_WHATSAPP,
-            ...(settings?.whatsapp || {}),
+            ...(normalizedWhatsapp || {}),
           },
           sms: {
             ...DEFAULT_SMS_CONFIG,
@@ -224,6 +232,28 @@ export function NotificationsClient() {
 
   const handleReset = () => {
     setState(initialState);
+  };
+
+  const handleTestEmail = async () => {
+    setTestingEmail(true);
+    try {
+      const response = await fetch('/api/settings/notifications/test', {
+        method: 'POST',
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error || 'Failed to send test email');
+      }
+      toast({ title: t('testEmailSent') });
+    } catch (error) {
+      console.error('[NotificationsClient] Failed to send test email', error);
+      toast({
+        title: t('testEmailError'),
+        variant: 'destructive',
+      });
+    } finally {
+      setTestingEmail(false);
+    }
   };
 
   return (
@@ -355,6 +385,20 @@ export function NotificationsClient() {
               placeholder={t('reply_to_email_placeholder')}
             />
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Test Email */}
+      <Card className={!state.email_enabled ? 'opacity-50 pointer-events-none' : ''}>
+        <CardHeader>
+          <CardTitle>{t('testEmail')}</CardTitle>
+          <CardDescription>{t('testEmailDescription')}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button type="button" onClick={handleTestEmail} disabled={testingEmail}>
+            {testingEmail && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {t('testEmail')}
+          </Button>
         </CardContent>
       </Card>
 
