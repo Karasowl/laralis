@@ -28,6 +28,7 @@ web/.env.local
 web/.env.development.local
 web/.env.test.local
 web/.env.production.local
+web/cypress.env.json
 
 # Testing
 web/coverage/
@@ -73,6 +74,7 @@ web/*.tsbuildinfo
 # Temporary files
 tmp/
 temp/
+_match_laralis.txt
 
 # Supabase local development
 supabase/.temp
