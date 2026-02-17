@@ -50,6 +50,7 @@ const treatmentFormSchema = z.object({
   service_id: z.string().min(1),
   treatment_date: z.string().min(1),
   treatment_time: z.string().optional(), // HH:MM format for appointment time
+  quantity: z.number().int().min(1).max(100).optional(),
   minutes: z.number().min(1),
   margin_pct: z.number().min(0), // No upper limit - in-house services can have very high margins
   sale_price: z.number().min(0).optional(), // Price in pesos (converted to cents in hook)
@@ -272,6 +273,7 @@ export default function TreatmentsPage() {
     service_id: '',
     treatment_date: getLocalDateISO(),
     treatment_time: '',
+    quantity: 1,
     minutes: 30,
     margin_pct: 60,
     sale_price: undefined, // undefined means "calculate from service/margin", 0 would be a valid price
@@ -998,6 +1000,7 @@ export default function TreatmentsPage() {
             patients={patientOptions}
             services={serviceOptions}
             statusOptions={statusFormOptions}
+            showQuantityField
             onServiceChange={handleServiceChange}
             onCreatePatient={handleCreatePatient}
             onCreateService={handleCreateService}

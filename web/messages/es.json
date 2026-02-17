@@ -2808,6 +2808,7 @@
       "patient": "Paciente",
       "service": "Servicio",
       "duration": "Duración",
+      "multiplier": "Cantidad",
       "price": "Precio",
       "profit": "Ganancia",
       "status": "Estado",
@@ -2832,6 +2833,7 @@
     "selectService": "Seleccionar servicio",
     "selectStatus": "Seleccionar estado",
     "durationHelp": "Duración en minutos",
+    "multiplierHelp": "Crea varios tratamientos iguales en un solo guardado",
     "marginHelp": "Porcentaje de margen sobre el costo",
     "notesPlaceholder": "Notas adicionales sobre el tratamiento...",
     "addTreatment": "Agregar Tratamiento",
@@ -2911,6 +2913,7 @@
     "errors": {
       "completedRequiresPrice": "Para marcar como completado, debe ingresar un precio de venta mayor a $0"
     },
+    "batchCreateSuccess": "Se crearon {count} tratamientos correctamente",
     "serviceChangeNotAllowed": "No se puede cambiar el servicio de un tratamiento existente"
   },
   "reports": {

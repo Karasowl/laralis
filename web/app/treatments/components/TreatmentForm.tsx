@@ -35,6 +35,7 @@ interface TreatmentFormProps {
   patients: Array<{ value: string; label: string }>
   services: Array<{ value: string; label: string }>
   statusOptions: Array<{ value: string; label: string }>
+  showQuantityField?: boolean
   onServiceChange: (serviceId: string) => void
   onCreatePatient?: (data: any) => Promise<any>
   onCreateService?: (data: any) => Promise<any>
@@ -50,6 +51,7 @@ export function TreatmentForm({
   patients,
   services,
   statusOptions,
+  showQuantityField = false,
   onServiceChange,
   onCreatePatient,
   onCreateService,
@@ -297,7 +299,7 @@ export function TreatmentForm({
       </FormSection>
 
       <FormSection title={t('treatments.treatmentDetails')}>
-        <FormGrid columns={3}>
+        <FormGrid columns={showQuantityField ? 4 : 3}>
           <InputField
             label={t('treatments.fields.date')}
             type="date"
@@ -324,6 +326,21 @@ export function TreatmentForm({
             error={form.formState.errors.minutes?.message}
             required
           />
+
+          {showQuantityField && (
+            <InputField
+              label={t('treatments.fields.multiplier')}
+              type="number"
+              {...form.register('quantity', {
+                setValueAs: (value: string) => value === '' ? undefined : Number(value),
+              })}
+              placeholder="1"
+              min={1}
+              max={100}
+              helperText={t('treatments.multiplierHelp')}
+              error={form.formState.errors.quantity?.message}
+            />
+          )}
         </FormGrid>
 
         {/* Conflict Warning */}

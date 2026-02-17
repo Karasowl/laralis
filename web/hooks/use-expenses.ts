@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { useTranslations } from 'next-intl'
 
 import { useApi } from '@/hooks/use-api'
+import { useWorkspace } from '@/contexts/workspace-context'
 import { useCurrentClinic } from '@/hooks/use-current-clinic'
 import type {
   ExpenseFilters,
@@ -60,12 +61,33 @@ interface UseExpensesOptions {
   autoLoad?: boolean
 }
 
+function getClientClinicId(): string | null {
+  if (typeof document === 'undefined') return null
+
+  try {
+    const cookieMatch = document.cookie.match(/(?:^|; )clinicId=([^;]+)/)
+    if (cookieMatch?.[1]) {
+      return decodeURIComponent(cookieMatch[1])
+    }
+
+    if (typeof localStorage !== 'undefined') {
+      const stored = localStorage.getItem('selectedClinicId')
+      if (stored) return stored
+    }
+  } catch {
+    // Ignore access errors for cookie/localStorage and return null fallback.
+  }
+
+  return null
+}
+
 export function useExpenses(options: UseExpensesOptions = {}) {
   const { clinicId: providedClinicId, filters: externalFilters = {}, limit, autoLoad = true } = options
+  const { currentClinic: workspaceClinic } = useWorkspace()
   const { currentClinic } = useCurrentClinic()
   const t = useTranslations('expenses')
 
-  const effectiveClinicId = providedClinicId ?? currentClinic?.id ?? null
+  const effectiveClinicId = providedClinicId ?? workspaceClinic?.id ?? currentClinic?.id ?? getClientClinicId() ?? null
   const [filtersState, setFiltersState] = useState<ExpenseFilters>({})
   const [searchTerm, setSearchTerm] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -207,16 +229,17 @@ export function useExpenses(options: UseExpensesOptions = {}) {
 
   const createExpense = useCallback(
     async (data: ExpenseFormData): Promise<boolean> => {
-      if (!effectiveClinicId) {
+      const activeClinicId = effectiveClinicId ?? getClientClinicId()
+      if (!activeClinicId) {
         toast.error(t('messages.noClinic'))
         return false
       }
 
       setIsSubmitting(true)
       try {
-        await handleRequest('POST', '/api/expenses', {
+        await handleRequest('POST', `/api/expenses?clinicId=${encodeURIComponent(activeClinicId)}`, {
           ...data,
-          clinic_id: effectiveClinicId,
+          clinic_id: activeClinicId,
         })
         await refresh()
         toast.success(t('messages.createSuccess', { entity: t('entity') }))
@@ -234,9 +257,15 @@ export function useExpenses(options: UseExpensesOptions = {}) {
 
   const updateExpense = useCallback(
     async (id: string, data: Partial<ExpenseFormData>): Promise<boolean> => {
+      const activeClinicId = effectiveClinicId ?? getClientClinicId()
+      if (!activeClinicId) {
+        toast.error(t('messages.noClinic'))
+        return false
+      }
+
       setIsSubmitting(true)
       try {
-        await handleRequest('PUT', `/api/expenses/${id}`, data)
+        await handleRequest('PUT', `/api/expenses/${id}?clinicId=${encodeURIComponent(activeClinicId)}`, data)
         await refresh()
         toast.success(t('messages.updateSuccess', { entity: t('entity') }))
         return true
@@ -248,13 +277,19 @@ export function useExpenses(options: UseExpensesOptions = {}) {
         setIsSubmitting(false)
       }
     },
-    [handleRequest, refresh, t]
+    [effectiveClinicId, handleRequest, refresh, t]
   )
 
   const deleteExpense = useCallback(
     async (id: string): Promise<boolean> => {
+      const activeClinicId = effectiveClinicId ?? getClientClinicId()
+      if (!activeClinicId) {
+        toast.error(t('messages.noClinic'))
+        return false
+      }
+
       try {
-        await handleRequest('DELETE', `/api/expenses/${id}`)
+        await handleRequest('DELETE', `/api/expenses/${id}?clinicId=${encodeURIComponent(activeClinicId)}`)
         await refresh()
         toast.success(t('messages.deleteSuccess', { entity: t('entity') }))
         return true
@@ -264,7 +299,7 @@ export function useExpenses(options: UseExpensesOptions = {}) {
         return false
       }
     },
-    [handleRequest, refresh, t]
+    [effectiveClinicId, handleRequest, refresh, t]
   )
 
   const loading = listApi.loading || statsApi.loading || alertsApi.loading

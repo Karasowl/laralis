@@ -2631,6 +2631,7 @@
       "patient": "Patient",
       "service": "Service",
       "duration": "Duration",
+      "multiplier": "Quantity",
       "price": "Price",
       "profit": "Profit",
       "margin": "Utility %",
@@ -2648,6 +2649,14 @@
     "timeHelp": "Appointment time (optional)",
     "serviceLockedTitle": "Service cannot be changed",
     "serviceLockedMessage": "You cannot change the service of an existing treatment. Service: {service}",
+    "patientAndService": "Patient and Service",
+    "treatmentDetails": "Treatment Details",
+    "durationHelp": "Duration in minutes",
+    "multiplierHelp": "Create multiple identical treatments in one save",
+    "additionalInfo": "Additional Information",
+    "selectPatient": "Select patient",
+    "selectService": "Select service",
+    "selectStatus": "Select status",
     "marginHelp": "Optional percentage added to base cost",
     "searchPlaceholder": "Search by patient, service, or notes...",
     "emptyTitle": "No treatments found",
@@ -2701,6 +2710,7 @@
     "errors": {
       "completedRequiresPrice": "To mark as completed, you must enter a sale price greater than $0"
     },
+    "batchCreateSuccess": "{count} treatments were created successfully",
     "serviceChangeNotAllowed": "You cannot change the service of an existing treatment",
     "refund": {
       "title": "Refund Treatment",

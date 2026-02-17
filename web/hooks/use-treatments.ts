@@ -191,6 +191,11 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
       selectedService = listTwice.find((s: Service) => s.id === data.service_id)
     }
 
+    const requestedQuantity = Number(data.quantity ?? data.multiplier ?? 1)
+    const quantity = Number.isFinite(requestedQuantity)
+      ? Math.max(1, Math.min(100, Math.floor(requestedQuantity)))
+      : 1
+
     // Calculate snapshot costs with graceful fallback
     const fixedPerMinuteCents = timeSettingsApi.data?.data?.fixed_per_minute_cents || 0
     const variableCost = selectedService?.variable_cost_cents || 0
@@ -235,6 +240,7 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
 
     const treatmentData = {
       ...data,
+      quantity,
       fixed_per_minute_cents: fixedPerMinuteCents,
       variable_cost_cents: variableCost,
       price_cents: price,
@@ -262,11 +268,16 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
       }
 
       const result = await response.json()
+      const createdCount = Number(result?.created_count || 1)
 
       // Show calendar sync toast if applicable
       showCalendarSyncToast(result.calendarSync, t)
 
-      toast.success(t('common.createSuccess', { entity: 'Treatment' }))
+      if (createdCount > 1) {
+        toast.success(t('treatments.batchCreateSuccess', { count: createdCount }))
+      } else {
+        toast.success(t('common.createSuccess', { entity: 'Treatment' }))
+      }
       await crud.refresh()
       return true
     } catch (error) {

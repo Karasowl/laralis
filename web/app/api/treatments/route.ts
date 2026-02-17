@@ -25,6 +25,8 @@ const treatmentSchema = z.object({
   service_id: z.string().min(1, 'Service is required'),
   treatment_date: z.string().optional(),
   treatment_time: z.string().optional(), // HH:MM format for appointment time
+  quantity: z.coerce.number().int().min(1).max(100).optional(),
+  multiplier: z.coerce.number().int().min(1).max(100).optional(),
   minutes: z.coerce.number().int().positive('Minutes must be positive').optional(),
   duration_minutes: z.coerce.number().int().positive('Minutes must be positive').optional(),
   fixed_per_minute_cents: z.coerce.number().int().nonnegative().optional(),
@@ -207,6 +209,12 @@ export async function POST(request: NextRequest) {
     if (normalizedStatus === 'completed' && (!priceVal || priceVal <= 0)) {
       return NextResponse.json({ error: 'precondition_failed', message: 'Tariff/price is required to complete a treatment.' }, { status: 412 });
     }
+    const quantityRaw = payloadBody.quantity ?? payloadBody.multiplier ?? 1;
+    const quantity = Number(quantityRaw);
+    if (!Number.isFinite(quantity) || quantity < 1 || quantity > 100) {
+      return NextResponse.json({ error: 'validation_error', message: 'quantity must be between 1 and 100.' }, { status: 400 });
+    }
+    const treatmentCount = Math.floor(quantity);
 
     // Map UI payload to DB column names and allowed values
     const treatmentData = {
@@ -230,19 +238,19 @@ export async function POST(request: NextRequest) {
     // Dynamic insert tolerant to schema variations:
     // - Start with new columns; if error says a column doesn't exist, remove it and retry.
     // - Also try legacy aliases in the initial payload to maximize success.
-    let payload: any = {
+    const basePayload: any = {
       ...treatmentData,
       // Include legacy aliases; DB will ignore extra keys that don't exist after we prune
       minutes: treatmentData.duration_minutes,
       fixed_per_minute_cents: treatmentData.fixed_cost_per_minute_cents,
     };
+    let payloadRows: any[] = Array.from({ length: treatmentCount }, () => ({ ...basePayload }));
 
     const triedMissing: Set<string> = new Set();
     let insertResult = await supabaseAdmin
       .from('treatments')
-      .insert(payload)
-      .select()
-      .single();
+      .insert(payloadRows)
+      .select();
 
     // Up to 4 attempts pruning missing columns reported by PostgREST
     for (let attempt = 0; attempt < 4 && insertResult.error; attempt++) {
@@ -252,12 +260,15 @@ export async function POST(request: NextRequest) {
       const missingCol = match[1];
       if (triedMissing.has(missingCol)) break;
       triedMissing.add(missingCol);
-      delete payload[missingCol];
+      payloadRows = payloadRows.map((row) => {
+        const cloned = { ...row };
+        delete cloned[missingCol];
+        return cloned;
+      });
       insertResult = await supabaseAdmin
         .from('treatments')
-        .insert(payload)
-        .select()
-        .single();
+        .insert(payloadRows)
+        .select();
     }
 
     if (insertResult.error) {
@@ -267,11 +278,15 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+    const createdRows = (insertResult.data || []) as any[];
+    const created = createdRows[0] || null;
+    if (!created) {
+      return NextResponse.json({ error: 'Failed to create treatment', message: 'No treatment rows were created.' }, { status: 500 });
+    }
 
     // After creating a treatment, if it's completed and earlier than the patient's recorded first visit,
     // adjust the patient's first_visit_date to the earliest completed treatment date.
     try {
-      const created = insertResult.data as any;
       const patientId = created?.patient_id;
       const status = created?.status;
       if (patientId && status === 'completed') {
@@ -309,12 +324,13 @@ export async function POST(request: NextRequest) {
       console.warn('[treatments POST] Failed to adjust patient first_visit_date:', e);
     }
 
+    const shouldDispatchCreationSideEffects = treatmentCount === 1;
+
     // Sync to Google Calendar if connected (for syncable statuses: pending/scheduled/in_progress)
     let calendarSync: CalendarSyncResult | null = null;
     try {
-      const created = insertResult.data as any;
       const syncableStatuses = ['scheduled', 'pending', 'in_progress'];
-      if (created && syncableStatuses.includes(created.status)) {
+      if (shouldDispatchCreationSideEffects && created && syncableStatuses.includes(created.status)) {
         // Fetch patient and service names for the event
         const { data: patient } = await supabaseAdmin
           .from('patients')
@@ -360,9 +376,8 @@ export async function POST(request: NextRequest) {
     // Send confirmation email (non-blocking, best-effort)
     let emailSent = false;
     try {
-      const created = insertResult.data as any;
       const syncableStatuses = ['scheduled', 'pending', 'in_progress'];
-      if (created && syncableStatuses.includes(created.status)) {
+      if (shouldDispatchCreationSideEffects && created && syncableStatuses.includes(created.status)) {
         // Fetch clinic notification settings
         const { data: clinic } = await supabaseAdmin
           .from('clinics')
@@ -440,9 +455,8 @@ export async function POST(request: NextRequest) {
     // Send SMS notifications (non-blocking, best-effort)
     let smsSent = false;
     try {
-      const created = insertResult.data as any;
       const syncableStatuses = ['scheduled', 'pending', 'in_progress'];
-      if (created && syncableStatuses.includes(created.status)) {
+      if (shouldDispatchCreationSideEffects && created && syncableStatuses.includes(created.status)) {
         // Fetch clinic info
         const { data: clinic } = await supabaseAdmin
           .from('clinics')
@@ -492,9 +506,11 @@ export async function POST(request: NextRequest) {
       console.warn('[treatments POST] Failed to send SMS notifications:', e);
     }
 
+    const createdCount = createdRows.length;
     return NextResponse.json({
-      data: insertResult.data,
-      message: 'Treatment created successfully',
+      data: createdCount === 1 ? created : createdRows,
+      created_count: createdCount,
+      message: createdCount === 1 ? 'Treatment created successfully' : `${createdCount} treatments created successfully`,
       calendarSync: calendarSync || undefined,
       emailSent,
       smsSent,
