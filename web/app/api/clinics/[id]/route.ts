@@ -2,9 +2,23 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { z } from 'zod'
+import { readJson, validateSchema } from '@/lib/validation'
 
 export const dynamic = 'force-dynamic'
 
+const updateClinicSchema = z.object({
+  name: z.string().min(1).optional(),
+  address: z.string().optional(),
+  phone: z.string().optional(),
+  email: z.string().email().or(z.literal('')).optional(),
+  currency: z.string().min(2).max(10).optional(),
+  locale: z.string().min(2).optional(),
+  is_active: z.boolean().optional(),
+  auto_complete_appointments: z.boolean().optional(),
+}).refine((data) => Object.keys(data).length > 0, {
+  message: 'At least one field must be provided',
+})
 
 async function ensureClinicOwnership(userId: string, clinicId: string) {
   // Load clinic to get workspace_id
@@ -54,7 +68,15 @@ export async function PUT(
       return NextResponse.json({ error: guard.status === 404 ? 'Clinic not found' : 'Forbidden' }, { status: guard.status })
     }
 
-    const body = await request.json()
+    const bodyResult = await readJson(request)
+    if ('error' in bodyResult) {
+      return bodyResult.error
+    }
+    const parsed = validateSchema(updateClinicSchema, bodyResult.data)
+    if ('error' in parsed) {
+      return parsed.error
+    }
+    const body = parsed.data
     const patch: any = {}
     if (body.name !== undefined) patch.name = body.name
     if (body.address !== undefined) patch.address = body.address || null

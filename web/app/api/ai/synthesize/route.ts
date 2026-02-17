@@ -8,15 +8,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { aiService } from '@/lib/ai'
 import { hasAIConfig, validateAIConfig } from '@/lib/ai/config'
+import { z } from 'zod'
+import { readJson, validateSchema } from '@/lib/validation'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
 
-interface SynthesizeRequest {
-  text: string
-  voice?: string
-  language?: string
-}
+const synthesizeRequestSchema = z.object({
+  text: z.string().min(1, 'No text provided').max(500, 'Text too long (max 500 characters)'),
+  voice: z.string().min(1).optional(),
+  language: z.string().min(1).optional(),
+})
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,20 +40,15 @@ export async function POST(request: NextRequest) {
         { status: 503 }
       )
     }
-    const body: SynthesizeRequest = await request.json()
-    const { text, voice } = body
-
-    if (!text) {
-      return NextResponse.json({ error: 'No text provided' }, { status: 400 })
+    const bodyResult = await readJson(request)
+    if ('error' in bodyResult) {
+      return bodyResult.error
     }
-
-    // Keep text short to avoid long processing times
-    if (text.length > 500) {
-      return NextResponse.json(
-        { error: 'Text too long (max 500 characters)' },
-        { status: 400 }
-      )
+    const parsed = validateSchema(synthesizeRequestSchema, bodyResult.data)
+    if ('error' in parsed) {
+      return parsed.error
     }
+    const { text, voice } = parsed.data
 
     // Synthesize using AI service
     const audioBuffer = await aiService.speakText(text, voice)

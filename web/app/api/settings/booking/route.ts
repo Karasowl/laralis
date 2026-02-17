@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { resolveClinicContext } from '@/lib/clinic';
+import { readJson } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic';
 
@@ -163,7 +164,11 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const payload = await request.json();
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
+    }
+    const payload = bodyResult.data;
     const parsed = bookingSettingsSchema.safeParse(payload);
     if (!parsed.success) {
       return NextResponse.json(

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { withPermission } from '@/lib/middleware/with-permission';
+import { readJson } from '@/lib/validation';
 
 const createSchema = z.object({
   name: z.string().min(2),
@@ -38,7 +39,11 @@ export const GET = withPermission('team.view', async (request, ctx) => {
 
 export const POST = withPermission('team.edit_roles', async (request: NextRequest, ctx) => {
   try {
-    const body = await request.json();
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
+    }
+    const body = bodyResult.data;
     const validated = createSchema.parse(body);
     const slug = slugify(validated.name);
 

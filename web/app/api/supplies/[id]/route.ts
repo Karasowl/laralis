@@ -4,6 +4,7 @@ import { zSupply } from '@/lib/zod';
 import type { Supply, ApiResponse } from '@/lib/types';
 import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
+import { readJson } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic'
 
@@ -69,8 +70,12 @@ export async function PUT(
   { params }: RouteParams
 ): Promise<NextResponse<ApiResponse<Supply>>> {
   try {
-    const body = await request.json();
-    console.log('PUT /api/supplies/[id] - Received body:', body, 'ID:', params.id);
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
+    }
+    const body = bodyResult.data;
+    console.info('PUT /api/supplies/[id] - Received body:', body, 'ID:', params.id);
     
     const cookieStore = cookies();
     const clinicContext = await resolveClinicContext({ cookieStore });
@@ -94,7 +99,7 @@ export async function PUT(
       dataToValidate.cost_per_portion_cents = Math.round(dataToValidate.price_cents / dataToValidate.portions);
     }
     
-    console.log('Data to validate:', dataToValidate);
+    console.info('Data to validate:', dataToValidate);
     
     // Validate request body
     const validationResult = zSupply.safeParse(dataToValidate);

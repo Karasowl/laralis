@@ -70,8 +70,8 @@ export async function GET(request: NextRequest) {
       endDateStr = endDate.toISOString().split('T')[0]
     }
 
-    console.log('[marketing-metrics] Fetching for clinic:', clinicId)
-    console.log('[marketing-metrics] Date range:', startDateStr, 'to', endDateStr)
+    console.info('[marketing-metrics] Fetching for clinic:', clinicId)
+    console.info('[marketing-metrics] Date range:', startDateStr, 'to', endDateStr)
 
     // 1. Obtener gastos de marketing del periodo
     const { data: marketingExpenses, error: expensesError } = await supabaseAdmin
@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
       })
       .reduce((sum: number, expense: any) => sum + (expense.amount_cents || 0), 0)
 
-    console.log('[marketing-metrics] Marketing expenses:', marketingExpensesCents)
+    console.info('[marketing-metrics] Marketing expenses:', marketingExpensesCents)
 
     // 2. Obtener pacientes nuevos del periodo
     const { data: newPatients, error: patientsError } = await supabaseAdmin
@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
     }
 
     const newPatientsCount = newPatients?.length || 0
-    console.log('[marketing-metrics] New patients:', newPatientsCount)
+    console.info('[marketing-metrics] New patients:', newPatientsCount)
 
     // 2.1 Obtener leads del periodo (para conversion rate)
     const { data: leadsInPeriod, error: leadsError } = await supabaseAdmin
@@ -167,8 +167,8 @@ export async function GET(request: NextRequest) {
     )
     const convertedPatients = uniquePatients.size
 
-    console.log('[marketing-metrics] Total revenue:', totalRevenueCents)
-    console.log('[marketing-metrics] Converted patients:', convertedPatients, '/', totalPatients)
+    console.info('[marketing-metrics] Total revenue:', totalRevenueCents)
+    console.info('[marketing-metrics] Converted patients:', convertedPatients, '/', totalPatients)
 
     // 6. Calcular métricas usando el motor de cálculos
     const cac = calculateCAC(marketingExpensesCents, newPatientsCount)
@@ -181,10 +181,10 @@ export async function GET(request: NextRequest) {
     const ltvCacRatio = calculateLTVCACRatio(ltv, cac)
     const ratioQuality = getLTVCACRatioQuality(ltvCacRatio)
 
-    console.log('[marketing-metrics] CAC:', cac)
-    console.log('[marketing-metrics] LTV:', ltv)
-    console.log('[marketing-metrics] Conversion Rate:', conversionRate)
-    console.log('[marketing-metrics] LTV/CAC Ratio:', ltvCacRatio)
+    console.info('[marketing-metrics] CAC:', cac)
+    console.info('[marketing-metrics] LTV:', ltv)
+    console.info('[marketing-metrics] Conversion Rate:', conversionRate)
+    console.info('[marketing-metrics] LTV/CAC Ratio:', ltvCacRatio)
 
     // 7. Preparar respuesta
     return NextResponse.json({

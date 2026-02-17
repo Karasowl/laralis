@@ -181,6 +181,19 @@ Este documento establece las reglas y estándares de codificación que DEBEN seg
 - **IMPORTACIÓN**: Usar @import en globals.css principal
 - **ACCIÓN**: Si un CSS supera 100 líneas, dividirlo inmediatamente
 
+### 17. **Rutas API con requestId y logger estructurado**
+- **OBLIGATORIO**: nuevas rutas en `web/app/api/**` deben usar toolkit de `web/lib/api`
+- **MÍNIMO**:
+  - `withRouteContext()` para contexto uniforme
+  - `readJsonBody()` para parseo seguro
+  - logger estructurado (`createRouteLogger`)
+- **PROHIBIDO**: agregar `console.log` en rutas API
+
+### 18. **Uso restringido de supabaseAdmin**
+- **REGLA**: `supabaseAdmin` solo en contexto server (`app/api`, cron, webhooks, utilidades server)
+- **PROHIBIDO**: imports en componentes, hooks, contextos y páginas cliente
+- **ENFORCEMENT**: ESLint con `no-restricted-imports`
+
 ## 🔧 Herramientas de Enforcement
 
 ### Pre-commit Checks

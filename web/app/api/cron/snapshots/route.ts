@@ -11,10 +11,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { createSnapshotExporter, SnapshotStorageService } from '@/lib/snapshots'
+import { z } from 'zod'
+import { readJson, validateSchema } from '@/lib/validation'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300 // 5 minutes max for all clinics
+
+const snapshotRequestSchema = z.object({
+  clinic_id: z.string().uuid(),
+})
 
 interface SnapshotResult {
   clinicId: string
@@ -59,7 +65,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (!clinics || clinics.length === 0) {
-      console.log('[cron/snapshots] No active clinics found')
+      console.info('[cron/snapshots] No active clinics found')
       return NextResponse.json({
         success: true,
         message: 'No active clinics to snapshot',
@@ -68,7 +74,7 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    console.log(`[cron/snapshots] Processing ${clinics.length} clinics`)
+    console.info(`[cron/snapshots] Processing ${clinics.length} clinics`)
 
     // Process each clinic
     const results: SnapshotResult[] = []
@@ -108,7 +114,7 @@ export async function GET(request: NextRequest) {
           totalRecords: result.stats.totalRecords,
         })
 
-        console.log(
+        console.info(
           `[cron/snapshots] ✓ ${clinic.name}: ${result.stats.totalRecords} records`
         )
       } catch (error) {
@@ -132,7 +138,7 @@ export async function GET(request: NextRequest) {
         cleanedUp += deleted
       }
       if (cleanedUp > 0) {
-        console.log(`[cron/snapshots] Cleaned up ${cleanedUp} expired snapshots`)
+        console.info(`[cron/snapshots] Cleaned up ${cleanedUp} expired snapshots`)
       }
     } catch (cleanupError) {
       console.warn('[cron/snapshots] Cleanup warning:', cleanupError)
@@ -142,7 +148,7 @@ export async function GET(request: NextRequest) {
     const failureCount = results.filter((r) => !r.success).length
     const duration = Date.now() - startTime
 
-    console.log(
+    console.info(
       `[cron/snapshots] Completed: ${successCount} success, ${failureCount} failed, ${duration}ms`
     )
 
@@ -180,15 +186,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const body = await request.json()
-    const clinicId = body.clinic_id
-
-    if (!clinicId) {
-      return NextResponse.json(
-        { error: 'clinic_id is required' },
-        { status: 400 }
-      )
+    const bodyResult = await readJson(request)
+    if ('error' in bodyResult) {
+      return bodyResult.error
     }
+    const parsed = validateSchema(snapshotRequestSchema, bodyResult.data)
+    if ('error' in parsed) {
+      return parsed.error
+    }
+    const clinicId = parsed.data.clinic_id
 
     // Get clinic info
     const { data: clinic, error: clinicError } = await supabaseAdmin

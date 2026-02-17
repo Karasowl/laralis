@@ -11,6 +11,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { cookies } from 'next/headers'
 import { resolveClinicContext } from '@/lib/clinic'
 import { z } from 'zod'
+import { readJson } from '@/lib/validation'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,7 +39,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse and validate body
-    const body = await request.json()
+    const bodyResult = await readJson(request)
+    if ('error' in bodyResult) {
+      return bodyResult.error
+    }
+    const body = bodyResult.data as { clinicId?: string }
     const validation = feedbackSchema.safeParse(body)
 
     if (!validation.success) {

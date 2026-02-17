@@ -1,0 +1,532 @@
+{
+  "generatedAt": "2026-02-05T23:43:06.774Z",
+  "scope": "web",
+  "totals": {
+    "fetchOccurrences": 206,
+    "filesWithFetch": 78,
+    "anyOccurrences": 765,
+    "filesWithAny": 163,
+    "apiRoutes": 160,
+    "apiRoutesWithConsoleLog": 0,
+    "apiRoutesWithValidationSignals": 95,
+    "apiRoutesWithoutValidationSignals": 65,
+    "filesOver400Lines": 58
+  },
+  "details": {
+    "filesWithFetch": [
+      "web/app/api/marketing/platforms/[id]/route.ts",
+      "web/app/auth/debug/page.tsx",
+      "web/app/book/[slug]/page.tsx",
+      "web/app/inbox/InboxClient.tsx",
+      "web/app/patients/[id]/page.tsx",
+      "web/app/patients/page.tsx",
+      "web/app/services/page.tsx",
+      "web/app/settings/SettingsClient.tsx",
+      "web/app/settings/account/page.tsx",
+      "web/app/settings/booking/BookingSettingsClient.tsx",
+      "web/app/settings/calendar/page.tsx",
+      "web/app/settings/calendar/select/page.tsx",
+      "web/app/settings/export-import/components/ExportSection.tsx",
+      "web/app/settings/export-import/components/ImportSection.tsx",
+      "web/app/settings/marketing/MarketingSettingsClient.tsx",
+      "web/app/settings/notifications/NotificationsClient.tsx",
+      "web/app/settings/preferences/PreferencesClient.tsx",
+      "web/app/settings/reset/page.tsx",
+      "web/app/settings/security/SecuritySettingsClient.tsx",
+      "web/app/settings/team/components/ClinicMembersTab.tsx",
+      "web/app/settings/team/components/InvitationsTab.tsx",
+      "web/app/settings/team/components/WorkspaceMembersTab.tsx",
+      "web/app/settings/workspaces/WorkspacesClinicsSettingsClient.tsx",
+      "web/app/setup/cancel/page.tsx",
+      "web/app/setup/page.tsx",
+      "web/app/tariffs/components/GlobalDiscountModal.tsx",
+      "web/app/test-platforms/page.tsx",
+      "web/app/time/page.tsx",
+      "web/app/treatments/components/TreatmentForm.tsx",
+      "web/app/treatments/page.tsx",
+      "web/components/ai-assistant/AudioPlayer.tsx",
+      "web/components/ai-assistant/EntryMode/GenericEntryFlow.tsx",
+      "web/components/ai-assistant/EntryMode/PatientEntryFlow.tsx",
+      "web/components/ai-assistant/QueryMode/ChatHistoryList.tsx",
+      "web/components/ai-assistant/QueryMode/QueryAssistant.tsx",
+      "web/components/ai-assistant/VoiceRecorder.tsx",
+      "web/components/profile/DeleteAccountDialog.tsx",
+      "web/components/services/ServiceQuickWizard.tsx",
+      "web/components/stats/RefundStats.tsx",
+      "web/components/ui/action-confirm-card.tsx",
+      "web/components/ui/category-select.tsx",
+      "web/hooks/use-api.ts",
+      "web/hooks/use-categories.ts",
+      "web/hooks/use-chat-session.ts",
+      "web/hooks/use-clinic-members.ts",
+      "web/hooks/use-crud-operations.ts",
+      "web/hooks/use-custom-roles.ts",
+      "web/hooks/use-dashboard.ts",
+      "web/hooks/use-expenses.ts",
+      "web/hooks/use-invitations.ts",
+      "web/hooks/use-marketing-roi.ts",
+      "web/hooks/use-onboarding.ts",
+      "web/hooks/use-permissions.ts",
+      "web/hooks/use-prescriptions.ts",
+      "web/hooks/use-push-notifications.ts",
+      "web/hooks/use-reports.ts",
+      "web/hooks/use-reset.ts",
+      "web/hooks/use-services.ts",
+      "web/hooks/use-setup-status.ts",
+      "web/hooks/use-snapshots.ts",
+      "web/hooks/use-swr-crud.ts",
+      "web/hooks/use-tariffs.ts",
+      "web/hooks/use-treatments.ts",
+      "web/hooks/use-workspace-members.ts",
+      "web/lib/ai/providers/llm/deepseek.ts",
+      "web/lib/ai/providers/llm/kimi.ts",
+      "web/lib/ai/providers/llm/openai.ts",
+      "web/lib/ai/providers/stt/deepgram.ts",
+      "web/lib/ai/providers/stt/whisper.ts",
+      "web/lib/ai/providers/tts/deepgram.ts",
+      "web/lib/ai/providers/tts/fishaudio.ts",
+      "web/lib/ai/providers/tts/openai.ts",
+      "web/lib/analytics.ts",
+      "web/lib/google-calendar.ts",
+      "web/lib/requirements/validators.ts",
+      "web/lib/sms/service.ts",
+      "web/lib/whatsapp/providers/dialog360.ts",
+      "web/lib/whatsapp/providers/twilio.ts"
+    ],
+    "filesWithAny": [
+      "web/app/api/actions/adjust-service-margin/route.ts",
+      "web/app/api/actions/analyze-patient-retention/route.ts",
+      "web/app/api/actions/bulk-update-prices/route.ts",
+      "web/app/api/actions/compare-periods/route.ts",
+      "web/app/api/actions/create-expense/route.ts",
+      "web/app/api/actions/forecast-revenue/route.ts",
+      "web/app/api/actions/history/route.ts",
+      "web/app/api/actions/identify-underperforming-services/route.ts",
+      "web/app/api/actions/optimize-inventory/route.ts",
+      "web/app/api/actions/simulate-price-change/route.ts",
+      "web/app/api/actions/update-service-price/route.ts",
+      "web/app/api/actions/update-time-settings/route.ts",
+      "web/app/api/ai/chat/history/route.ts",
+      "web/app/api/ai/sessions/[id]/messages/route.ts",
+      "web/app/api/analytics/cac-trend/route.ts",
+      "web/app/api/analytics/channel-roi/route.ts",
+      "web/app/api/analytics/marketing-metrics/route.ts",
+      "web/app/api/analytics/service-roi/route.ts",
+      "web/app/api/analytics/services/top/route.ts",
+      "web/app/api/analytics/treatments/frequency/route.ts",
+      "web/app/api/categories/[id]/route.ts",
+      "web/app/api/categories/route.ts",
+      "web/app/api/clinic/[clinicId]/export/route.ts",
+      "web/app/api/clinics/[id]/route.ts",
+      "web/app/api/dashboard/activities/route.ts",
+      "web/app/api/dashboard/charts/revenue/route.ts",
+      "web/app/api/invitations/accept/[token]/route.ts",
+      "web/app/api/marketing/campaigns/[id]/route.ts",
+      "web/app/api/marketing/campaigns/roi/route.ts",
+      "web/app/api/marketing/campaigns/route.ts",
+      "web/app/api/marketing/platforms/[id]/route.ts",
+      "web/app/api/onboarding/route.ts",
+      "web/app/api/patients/[id]/route.ts",
+      "web/app/api/public/clinic/[slug]/route.ts",
+      "web/app/api/reports/revenue/route.ts",
+      "web/app/api/reset/route.ts",
+      "web/app/api/services/[id]/cost/route.ts",
+      "web/app/api/services/[id]/route.ts",
+      "web/app/api/services/route.ts",
+      "web/app/api/settings/security/mfa/confirm/route.ts",
+      "web/app/api/settings/security/mfa/recovery/route.ts",
+      "web/app/api/settings/security/mfa/setup/route.ts",
+      "web/app/api/settings/time/route.ts",
+      "web/app/api/settings/user/route.ts",
+      "web/app/api/supplies/[id]/route.ts",
+      "web/app/api/tariffs/route.ts",
+      "web/app/api/time/cost-per-minute/route.ts",
+      "web/app/api/treatments/[id]/route.ts",
+      "web/app/api/treatments/check-conflicts/route.ts",
+      "web/app/api/treatments/route.ts",
+      "web/app/api/workspaces/[id]/route.ts",
+      "web/app/api/workspaces/route.ts",
+      "web/app/auth/debug/page.tsx",
+      "web/app/expenses/components/ExpenseAlerts.tsx",
+      "web/app/expenses/components/ExpenseCharts.tsx",
+      "web/app/expenses/components/ExpenseFilters.tsx",
+      "web/app/expenses/page.tsx",
+      "web/app/inbox/InboxClient.tsx",
+      "web/app/patients/[id]/page.tsx",
+      "web/app/patients/components/PatientFormUnified.tsx",
+      "web/app/patients/page.tsx",
+      "web/app/profile/ProfileClient.tsx",
+      "web/app/services/components/BulkDiscountModal.tsx",
+      "web/app/services/components/CategoryModal.tsx",
+      "web/app/services/components/ServiceForm.tsx",
+      "web/app/services/components/ServicesTable.tsx",
+      "web/app/services/components/SingleDiscountModal.tsx",
+      "web/app/services/components/SuppliesManager.tsx",
+      "web/app/services/page.tsx",
+      "web/app/settings/calendar/page.tsx",
+      "web/app/settings/export-import/components/ImportSection.tsx",
+      "web/app/settings/marketing/MarketingSettingsClient.tsx",
+      "web/app/settings/security/SecuritySettingsClient.tsx",
+      "web/app/settings/team/components/CustomRoleModal.tsx",
+      "web/app/settings/team/components/EditMemberModal.tsx",
+      "web/app/settings/team/components/InviteMemberModal.tsx",
+      "web/app/settings/workspaces/WorkspacesClinicsSettingsClient.tsx",
+      "web/app/setup/page.tsx",
+      "web/app/test-platforms/page.tsx",
+      "web/app/time/components/TimeMetricCard.tsx",
+      "web/app/treatments/calendar/components/CalendarTypes.ts",
+      "web/app/treatments/calendar/components/TodayAppointments.tsx",
+      "web/app/treatments/components/TreatmentForm.tsx",
+      "web/app/treatments/page.tsx",
+      "web/components/ai-assistant/DataVisualization.tsx",
+      "web/components/ai-assistant/EntryMode/EntryAssistant.tsx",
+      "web/components/ai-assistant/EntryMode/GenericEntryFlow.tsx",
+      "web/components/ai-assistant/QueryMode/QueryAssistant.tsx",
+      "web/components/auth/AuthForm.tsx",
+      "web/components/auth/Can.tsx",
+      "web/components/auth/PermissionGate.tsx",
+      "web/components/dashboard/CategoryBreakdown.tsx",
+      "web/components/dashboard/RevenueChart.tsx",
+      "web/components/dashboard/marketing/ChannelROIChart.tsx",
+      "web/components/dashboard/profitability/ProfitTrendsChart.tsx",
+      "web/components/layouts/MobileBottomNav.tsx",
+      "web/components/layouts/NavigationConfig.tsx",
+      "web/components/onboarding/ChecklistStep.tsx",
+      "web/components/onboarding/OnboardingListeners.tsx",
+      "web/components/pricing/TariffDrawer.tsx",
+      "web/components/providers/intl-provider.tsx",
+      "web/components/services/ServiceQuickWizard.tsx",
+      "web/components/ui/DataTable.tsx",
+      "web/components/ui/action-confirm-card.tsx",
+      "web/components/ui/category-select.tsx",
+      "web/components/ui/crud-page-layout.tsx",
+      "web/components/ui/dialog.tsx",
+      "web/components/ui/form-field.tsx",
+      "web/components/ui/mobile-modal.tsx",
+      "web/components/ui/select-with-create.tsx",
+      "web/components/ui/smart-filters.tsx",
+      "web/components/ui/summary-cards.tsx",
+      "web/contexts/workspace-context.tsx",
+      "web/hooks/use-api.ts",
+      "web/hooks/use-auth.ts",
+      "web/hooks/use-chat-session.ts",
+      "web/hooks/use-crud-operations.ts",
+      "web/hooks/use-dashboard.ts",
+      "web/hooks/use-equilibrium.ts",
+      "web/hooks/use-filtered-summary.ts",
+      "web/hooks/use-fixed-costs.ts",
+      "web/hooks/use-onboarding.ts",
+      "web/hooks/use-patients.ts",
+      "web/hooks/use-services.ts",
+      "web/hooks/use-setup-status.ts",
+      "web/hooks/use-swr-crud.ts",
+      "web/hooks/use-tariffs.ts",
+      "web/hooks/use-time-settings.ts",
+      "web/hooks/use-treatments.ts",
+      "web/i18n/request.ts",
+      "web/lib/ai/ClinicSnapshotService.ts",
+      "web/lib/ai/actions/analytics-actions.ts",
+      "web/lib/ai/actions/operational-actions.ts",
+      "web/lib/ai/actions/pricing-actions.ts",
+      "web/lib/ai/cache/snapshot-cache.ts",
+      "web/lib/ai/context/ConversationContextManager.ts",
+      "web/lib/ai/contexts/EntityContextBuilder.ts",
+      "web/lib/ai/prompts/entry-prompt.ts",
+      "web/lib/ai/prompts/query-prompt.ts",
+      "web/lib/ai/providers/tts/fishaudio.ts",
+      "web/lib/ai/query/functions.ts",
+      "web/lib/ai/service.ts",
+      "web/lib/api-security.ts",
+      "web/lib/calendar/conflict-detection.ts",
+      "web/lib/clinic-tables.ts",
+      "web/lib/export/checksum.ts",
+      "web/lib/export/exporter.ts",
+      "web/lib/export/importer.ts",
+      "web/lib/export/migrations.ts",
+      "web/lib/export/migrator.ts",
+      "web/lib/export/types.ts",
+      "web/lib/export/validator.ts",
+      "web/lib/i18n.ts",
+      "web/lib/middleware/with-permission.ts",
+      "web/lib/money.ts",
+      "web/lib/permissions/types.ts",
+      "web/lib/push/service.ts",
+      "web/lib/requirements/autofix.ts",
+      "web/lib/requirements/index.ts",
+      "web/lib/requirements/useGuard.ts",
+      "web/lib/requirements/validators.ts",
+      "web/lib/whatsapp/providers/dialog360.ts",
+      "web/lib/zod.ts"
+    ],
+    "apiRoutesWithConsoleLog": [],
+    "apiRoutesWithoutValidationSignals": [
+      "web/app/api/account/delete/route.ts",
+      "web/app/api/actions/history/route.ts",
+      "web/app/api/ai/transcribe/route.ts",
+      "web/app/api/analytics/acquisition-trends/route.ts",
+      "web/app/api/analytics/break-even/route.ts",
+      "web/app/api/analytics/cac-trend/route.ts",
+      "web/app/api/analytics/channel-roi/route.ts",
+      "web/app/api/analytics/compare/route.ts",
+      "web/app/api/analytics/expenses/route.ts",
+      "web/app/api/analytics/inventory/alerts/route.ts",
+      "web/app/api/analytics/marketing-metrics/route.ts",
+      "web/app/api/analytics/patients/stats/route.ts",
+      "web/app/api/analytics/planned-vs-actual/route.ts",
+      "web/app/api/analytics/predictions/route.ts",
+      "web/app/api/analytics/profit-analysis/route.ts",
+      "web/app/api/analytics/refunds/route.ts",
+      "web/app/api/analytics/revenue/route.ts",
+      "web/app/api/analytics/route.ts",
+      "web/app/api/analytics/service-roi/route.ts",
+      "web/app/api/analytics/services/top/route.ts",
+      "web/app/api/analytics/treatments/frequency/route.ts",
+      "web/app/api/assets/summary/route.ts",
+      "web/app/api/auth/force-logout/route.ts",
+      "web/app/api/auth/google-calendar/callback/route.ts",
+      "web/app/api/auth/google-calendar/route.ts",
+      "web/app/api/campaigns/route.ts",
+      "web/app/api/clinic/[clinicId]/export/route.ts",
+      "web/app/api/cron/complete-appointments/route.ts",
+      "web/app/api/cron/send-reminders/route.ts",
+      "web/app/api/dashboard/activities/route.ts",
+      "web/app/api/dashboard/appointments/route.ts",
+      "web/app/api/dashboard/charts/categories/route.ts",
+      "web/app/api/dashboard/charts/revenue/route.ts",
+      "web/app/api/dashboard/charts/services/route.ts",
+      "web/app/api/dashboard/expenses/route.ts",
+      "web/app/api/dashboard/patients/route.ts",
+      "web/app/api/dashboard/revenue/route.ts",
+      "web/app/api/dashboard/supplies/route.ts",
+      "web/app/api/dashboard/treatments/route.ts",
+      "web/app/api/equilibrium/route.ts",
+      "web/app/api/equilibrium/variable-cost/route.ts",
+      "web/app/api/equilibrium/working-days/route.ts",
+      "web/app/api/expenses/alerts/route.ts",
+      "web/app/api/expenses/stats/route.ts",
+      "web/app/api/invitations/[id]/resend/route.ts",
+      "web/app/api/invitations/accept/[token]/route.ts",
+      "web/app/api/invitations/reject/[token]/route.ts",
+      "web/app/api/marketing/campaigns/roi/route.ts",
+      "web/app/api/marketing/platforms/[id]/route.ts",
+      "web/app/api/marketing/roi/route.ts",
+      "web/app/api/permissions/check/route.ts",
+      "web/app/api/permissions/my/route.ts",
+      "web/app/api/prescriptions/[id]/pdf/route.ts",
+      "web/app/api/public/availability/route.ts",
+      "web/app/api/public/clinic/[slug]/route.ts",
+      "web/app/api/reset/status/route.ts",
+      "web/app/api/services/[id]/cost/route.ts",
+      "web/app/api/settings/notifications/test/route.ts",
+      "web/app/api/settings/security/mfa/route.ts",
+      "web/app/api/settings/security/mfa/setup/route.ts",
+      "web/app/api/setup/status/route.ts",
+      "web/app/api/snapshots/[snapshotId]/route.ts",
+      "web/app/api/snapshots/discover/route.ts",
+      "web/app/api/time/cost-per-minute/route.ts",
+      "web/app/api/whatsapp/webhook/route.ts"
+    ],
+    "topLargeFiles": [
+      {
+        "file": "web/lib/export/importer.ts",
+        "lines": 1482
+      },
+      {
+        "file": "web/lib/ai/ClinicSnapshotService.ts",
+        "lines": 1205
+      },
+      {
+        "file": "web/lib/export/types.ts",
+        "lines": 1125
+      },
+      {
+        "file": "web/app/treatments/page.tsx",
+        "lines": 1095
+      },
+      {
+        "file": "web/lib/ai/service.ts",
+        "lines": 950
+      },
+      {
+        "file": "web/components/ai-assistant/QueryMode/QueryAssistant.tsx",
+        "lines": 883
+      },
+      {
+        "file": "web/app/page.tsx",
+        "lines": 878
+      },
+      {
+        "file": "web/lib/ai/actions/pricing-actions.ts",
+        "lines": 835
+      },
+      {
+        "file": "web/app/patients/page.tsx",
+        "lines": 831
+      },
+      {
+        "file": "web/lib/export/exporter.ts",
+        "lines": 798
+      },
+      {
+        "file": "web/app/services/components/ServicesTable.tsx",
+        "lines": 760
+      },
+      {
+        "file": "web/app/settings/marketing/MarketingSettingsClient.tsx",
+        "lines": 726
+      },
+      {
+        "file": "web/app/inbox/InboxClient.tsx",
+        "lines": 711
+      },
+      {
+        "file": "web/app/settings/security/SecuritySettingsClient.tsx",
+        "lines": 673
+      },
+      {
+        "file": "web/lib/sms/service.ts",
+        "lines": 650
+      },
+      {
+        "file": "web/lib/ai/actions/analytics-actions.ts",
+        "lines": 650
+      },
+      {
+        "file": "web/components/services/ServiceQuickWizard.tsx",
+        "lines": 626
+      },
+      {
+        "file": "web/lib/ai/prompts/query-prompt.ts",
+        "lines": 605
+      },
+      {
+        "file": "web/lib/permissions/role-templates.ts",
+        "lines": 603
+      },
+      {
+        "file": "web/components/ui/smart-filters.tsx",
+        "lines": 596
+      },
+      {
+        "file": "web/app/book/[slug]/page.tsx",
+        "lines": 591
+      },
+      {
+        "file": "web/hooks/use-filtered-summary.test.ts",
+        "lines": 583
+      },
+      {
+        "file": "web/app/services/page.tsx",
+        "lines": 580
+      },
+      {
+        "file": "web/app/settings/workspaces/WorkspacesClinicsSettingsClient.tsx",
+        "lines": 566
+      },
+      {
+        "file": "web/lib/google-calendar.ts",
+        "lines": 565
+      },
+      {
+        "file": "web/lib/email/service.ts",
+        "lines": 550
+      },
+      {
+        "file": "web/app/settings/booking/BookingSettingsClient.tsx",
+        "lines": 548
+      },
+      {
+        "file": "web/app/fixed-costs/page.tsx",
+        "lines": 539
+      },
+      {
+        "file": "web/app/settings/notifications/NotificationsClient.tsx",
+        "lines": 538
+      },
+      {
+        "file": "web/app/api/cron/send-reminders/route.ts",
+        "lines": 530
+      },
+      {
+        "file": "web/lib/ai/context/ConversationContextManager.ts",
+        "lines": 525
+      },
+      {
+        "file": "web/lib/export/validator.ts",
+        "lines": 523
+      },
+      {
+        "file": "web/lib/calc/dates.test.ts",
+        "lines": 521
+      },
+      {
+        "file": "web/components/dashboard/BreakEvenProgress.tsx",
+        "lines": 521
+      },
+      {
+        "file": "web/lib/ai/actions/operational-actions.ts",
+        "lines": 517
+      },
+      {
+        "file": "web/app/api/treatments/route.ts",
+        "lines": 510
+      },
+      {
+        "file": "web/lib/analytics.ts",
+        "lines": 508
+      },
+      {
+        "file": "web/hooks/use-equilibrium.ts",
+        "lines": 496
+      },
+      {
+        "file": "web/hooks/use-dashboard.ts",
+        "lines": 489
+      },
+      {
+        "file": "web/lib/whatsapp/service.ts",
+        "lines": 486
+      },
+      {
+        "file": "web/app/treatments/components/TreatmentForm.tsx",
+        "lines": 479
+      },
+      {
+        "file": "web/app/api/invitations/route.ts",
+        "lines": 478
+      },
+      {
+        "file": "web/app/settings/snapshots/SnapshotsClient.tsx",
+        "lines": 468
+      },
+      {
+        "file": "web/app/supplies/page.tsx",
+        "lines": 464
+      },
+      {
+        "file": "web/contexts/workspace-context.tsx",
+        "lines": 449
+      },
+      {
+        "file": "web/hooks/use-treatments.ts",
+        "lines": 449
+      },
+      {
+        "file": "web/components/ui/date-range-picker.tsx",
+        "lines": 447
+      },
+      {
+        "file": "web/components/dashboard/ServiceROIAnalysis.tsx",
+        "lines": 447
+      },
+      {
+        "file": "web/lib/snapshots/discovery.ts",
+        "lines": 443
+      },
+      {
+        "file": "web/components/ai-assistant/EntryMode/GenericEntryFlow.tsx",
+        "lines": 436
+      }
+    ]
+  }
+}

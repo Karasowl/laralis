@@ -3,8 +3,15 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { deleteTreatmentFromCalendar } from '@/lib/google-calendar';
+import { z } from 'zod';
+import { readJson, validateSchema } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic'
+
+const refundSchema = z.object({
+  clinic_id: z.string().uuid().optional(),
+  refund_reason: z.string().trim().min(1),
+});
 
 interface RouteParams {
   params: { id: string };
@@ -27,7 +34,15 @@ export async function PATCH(
   { params }: RouteParams
 ) {
   try {
-    const body = await request.json();
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
+    }
+    const parsed = validateSchema(refundSchema, bodyResult.data);
+    if ('error' in parsed) {
+      return parsed.error;
+    }
+    const body = parsed.data;
     const cookieStore = cookies();
     const clinicContext = await resolveClinicContext({ requestedClinicId: body?.clinic_id, cookieStore });
 
@@ -37,14 +52,6 @@ export async function PATCH(
 
     const { clinicId } = clinicContext;
     const { refund_reason } = body;
-
-    // Validate refund reason is provided
-    if (!refund_reason || typeof refund_reason !== 'string' || refund_reason.trim().length === 0) {
-      return NextResponse.json({
-        error: 'Refund reason is required',
-        code: 'REASON_REQUIRED'
-      }, { status: 400 });
-    }
 
     // First, fetch the treatment to verify it exists and check its current state
     const { data: treatment, error: fetchError } = await supabaseAdmin

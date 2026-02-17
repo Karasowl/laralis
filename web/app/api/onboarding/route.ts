@@ -1,14 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { z } from 'zod';
+import { readJson, validateSchema } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic'
 
+const onboardingSchema = z.object({
+  workspace: z.object({
+    name: z.string().min(1),
+    description: z.string().optional(),
+  }),
+  clinic: z.object({
+    name: z.string().min(1),
+    address: z.string().optional(),
+    phone: z.string().optional(),
+    email: z.string().email().or(z.literal('')).optional(),
+  }),
+});
 
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const body = await request.json();
-    const { workspace, clinic } = body;
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
+    }
+    const parsed = validateSchema(onboardingSchema, bodyResult.data);
+    if ('error' in parsed) {
+      return parsed.error;
+    }
+    const { workspace, clinic } = parsed.data;
 
     // Try to refresh session first
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -45,7 +66,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('[onboarding] User authenticated:', {
+    console.info('[onboarding] User authenticated:', {
       userId: user.id,
       email: user.email,
       workspaceName: workspace.name,

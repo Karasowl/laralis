@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
+import { readJson } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic';
 
@@ -158,7 +159,11 @@ export async function PUT(request: NextRequest) {
     }
 
     const { clinicId } = clinicContext;
-    const body = await request.json();
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
+    }
+    const body = bodyResult.data as Record<string, unknown>;
 
     // Handle empty string for reply_to_email
     if (body.reply_to_email === '') {
@@ -166,7 +171,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Log incoming body for debugging
-    console.log('[settings/notifications][PUT] Received body:', JSON.stringify(body, null, 2));
+    console.info('[settings/notifications][PUT] Received body:', JSON.stringify(body, null, 2));
 
     const parseResult = notificationSettingsSchema.safeParse(body);
 
@@ -185,7 +190,7 @@ export async function PUT(request: NextRequest) {
     if (settings.whatsapp?.provider === 'dialog360') {
       settings.whatsapp.provider = '360dialog';
     }
-    console.log('[settings/notifications][PUT] Parsed settings:', JSON.stringify(settings, null, 2));
+    console.info('[settings/notifications][PUT] Parsed settings:', JSON.stringify(settings, null, 2));
 
     const { error } = await supabaseAdmin
       .from('clinics')

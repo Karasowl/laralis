@@ -10,6 +10,14 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { aiService } from '@/lib/ai/service'
 import type { ActionParams } from '@/lib/ai/types'
+import { z } from 'zod'
+import { readJson, validateSchema } from '@/lib/validation'
+
+const identifyUnderperformingSchema = z.object({
+  min_margin_pct: z.coerce.number().min(0).optional(),
+  include_suggestions: z.boolean().optional(),
+  clinic_id: z.string().uuid(),
+})
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,13 +32,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // 2. Parse request body
-    const body = await request.json()
-    const { min_margin_pct, include_suggestions, clinic_id } = body
-
-    if (!clinic_id) {
-      return NextResponse.json({ error: 'clinic_id is required' }, { status: 400 })
+    // 2. Parse and validate request body
+    const bodyResult = await readJson(request)
+    if ('error' in bodyResult) {
+      return bodyResult.error
     }
+    const parsed = validateSchema(identifyUnderperformingSchema, bodyResult.data)
+    if ('error' in parsed) {
+      return parsed.error
+    }
+    const { min_margin_pct, include_suggestions, clinic_id } = parsed.data
 
     // 3. Verify user has access to the clinic
     const { data: membership, error: membershipError } = await supabase

@@ -102,7 +102,7 @@ export function ServiceForm({
 
   // Sync handlers for margin_pct <-> target_price
   const handleMarginChange = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const newMargin = parseFloat(e.target.value) || 0
+    const newMargin = Math.min(999.99, parseFloat(e.target.value) || 0)
     const newPriceCents = calcularPrecioFinal(totalServiceCostCents, newMargin)
     form.setValue('margin_pct', newMargin)
     form.setValue('target_price', Math.round(newPriceCents / 100), { shouldValidate: false })
@@ -115,7 +115,7 @@ export function ServiceForm({
       ? calculateRequiredMargin(totalServiceCostCents, newPriceCents) * 100
       : 0
     form.setValue('target_price', newPricePesos)
-    form.setValue('margin_pct', Math.round(requiredMargin * 10) / 10, { shouldValidate: false })
+    form.setValue('margin_pct', Math.min(999.99, Math.round(requiredMargin * 10) / 10), { shouldValidate: false })
   }, [totalServiceCostCents, form])
 
   return (
@@ -183,6 +183,7 @@ export function ServiceForm({
                 onChange={handleMarginChange}
                 placeholder="30"
                 min={0}
+                max={999.99}
                 step={0.1}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pr-8 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               />

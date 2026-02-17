@@ -2,20 +2,27 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { z } from 'zod';
+import { readJson, validateSchema } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic'
+
+const sendCodeSchema = z.object({
+  email: z.string().email(),
+});
 
 
 export async function POST(request: NextRequest) {
   try {
-    const { email } = await request.json();
-    
-    if (!email) {
-      return NextResponse.json(
-        { error: 'Email is required' },
-        { status: 400 }
-      );
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
     }
+    const parsed = validateSchema(sendCodeSchema, bodyResult.data);
+    if ('error' in parsed) {
+      return parsed.error;
+    }
+    const { email } = parsed.data;
 
     // Crear cliente de Supabase para verificar autenticación
     const cookieStore = cookies();
@@ -123,7 +130,7 @@ export async function POST(request: NextRequest) {
       });
 
     // OTP enviado exitosamente por Supabase
-    console.log(`
+    console.info(`
       ========================================
       ✅ Código de verificación enviado por Supabase
       📧 Email: ${email}

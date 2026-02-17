@@ -2,9 +2,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { z } from 'zod'
+import { readJson, validateSchema } from '@/lib/validation'
 
 export const dynamic = 'force-dynamic'
 
+const createClinicSchema = z.object({
+  name: z.string().min(1),
+  address: z.string().optional(),
+  phone: z.string().optional(),
+  email: z.string().email().or(z.literal('')).optional(),
+  currency: z.string().min(2).max(10).optional(),
+  locale: z.string().min(2).optional(),
+})
 
 // GET /api/workspaces/[id]/clinics - list clinics for a workspace owned by the user
 export async function GET(
@@ -93,17 +103,15 @@ export async function POST(
       return NextResponse.json({ error: 'Workspace not found or unauthorized' }, { status: 404 })
     }
 
-    const body = await request.json()
-    const name: string | undefined = body?.name
-    const address: string | undefined = body?.address
-    const phone: string | undefined = body?.phone
-    const email: string | undefined = body?.email
-    const currency: string | undefined = body?.currency
-    const locale: string | undefined = body?.locale
-
-    if (!name) {
-      return NextResponse.json({ error: 'Name is required' }, { status: 400 })
+    const bodyResult = await readJson(request)
+    if ('error' in bodyResult) {
+      return bodyResult.error
     }
+    const parsed = validateSchema(createClinicSchema, bodyResult.data)
+    if ('error' in parsed) {
+      return parsed.error
+    }
+    const { name, address, phone, email, currency, locale } = parsed.data
 
     const { data, error } = await supabaseAdmin
       .from('clinics')

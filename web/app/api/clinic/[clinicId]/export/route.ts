@@ -185,7 +185,7 @@ export async function GET(
  * Uses supabaseAdmin to bypass RLS after access verification
  */
 async function loadFullClinicData(clinicId: string): Promise<FullExportData> {
-  console.log('[AI Export] Loading full clinic data for:', clinicId)
+  console.info('[AI Export] Loading full clinic data for:', clinicId)
 
   // Run all queries in parallel for performance
   const [
@@ -323,7 +323,7 @@ async function loadFullClinicData(clinicId: string): Promise<FullExportData> {
   if (campaignsResult.error) console.error('[AI Export] Campaigns error:', campaignsResult.error)
 
 
-  console.log('[AI Export] Results:', {
+  console.info('[AI Export] Results:', {
     patients: patientsResult.data?.length || 0,
     treatments: treatmentsResult.data?.length || 0,
     services: servicesResult.data?.length || 0,

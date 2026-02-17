@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { z } from 'zod'
+import { readJson, validateSchema } from '@/lib/validation'
 
 export const dynamic = 'force-dynamic'
+
+const recurringExpenseSchema = z.object({
+  clinic_id: z.string().uuid(),
+})
 
 /**
  * Cron endpoint to process recurring expenses.
@@ -33,7 +39,7 @@ export async function GET(request: NextRequest) {
     }
 
     const result = data?.[0] || { generated_count: 0, expense_ids: [] }
-    console.log(`[cron/recurring-expenses] Generated ${result.generated_count} expense entries`)
+    console.info(`[cron/recurring-expenses] Generated ${result.generated_count} expense entries`)
 
     return NextResponse.json({
       success: true,
@@ -52,12 +58,15 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const clinicId = body.clinic_id
-
-    if (!clinicId) {
-      return NextResponse.json({ error: 'clinic_id is required' }, { status: 400 })
+    const bodyResult = await readJson(request)
+    if ('error' in bodyResult) {
+      return bodyResult.error
     }
+    const parsed = validateSchema(recurringExpenseSchema, bodyResult.data)
+    if ('error' in parsed) {
+      return parsed.error
+    }
+    const clinicId = parsed.data.clinic_id
 
     // Call the database function for specific clinic
     const { data, error } = await supabaseAdmin

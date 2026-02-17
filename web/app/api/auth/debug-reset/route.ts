@@ -1,16 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { z } from 'zod'
+import { readJson, validateSchema } from '@/lib/validation'
 
 export const dynamic = 'force-dynamic'
 
+const debugResetSchema = z.object({
+  email: z.string().email(),
+})
 
 export async function POST(request: NextRequest) {
   try {
-    const { email } = await request.json()
-    
-    if (!email) {
-      return NextResponse.json({ error: 'Email is required' }, { status: 400 })
+    const bodyResult = await readJson(request)
+    if ('error' in bodyResult) {
+      return bodyResult.error
     }
+    const parsed = validateSchema(debugResetSchema, bodyResult.data)
+    if ('error' in parsed) {
+      return parsed.error
+    }
+    const { email } = parsed.data
 
     const supabase = await createClient()
     

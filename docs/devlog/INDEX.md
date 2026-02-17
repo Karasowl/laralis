@@ -17,6 +17,18 @@ Cada entrada sigue la estructura:
 
 ## Entradas
 
+### 2026-02-05
+
+- **[2026-02-05-refactor-phase1-baseline.md](2026-02-05-refactor-phase1-baseline.md)** - Refactor incremental: baseline automatizado, CI minima, PR checklist, toolkit API (`requestId` + logger), migracion inicial de rutas `expenses/*`, estabilizacion de `useExpenses` y limpieza de temporales/duplicados.
+
+### 2026-02-04
+
+- **[2026-02-04-block-service-role-client.md](2026-02-04-block-service-role-client.md)** - Fix de seguridad: `supabaseAdmin` ahora es server-only y lanza error si se evalua en navegador, evitando uso accidental en cliente.
+- **[2026-02-04-security-headers-and-api-validation.md](2026-02-04-security-headers-and-api-validation.md)** - Hardening: CSP + HSTS (prod) y validacion Zod en endpoints criticos con helper compartido.
+- **[2026-02-04-api-validation-actions.md](2026-02-04-api-validation-actions.md)** - Validacion Zod aplicada a endpoints `api/actions/*`.
+- **[2026-02-04-api-validation-remaining.md](2026-02-04-api-validation-remaining.md)** - Validacion Zod en endpoints restantes fuera de `api/actions/*`.
+- **[2026-02-04-api-validation-additional.md](2026-02-04-api-validation-additional.md)** - Parseo seguro adicional y validacion Zod en endpoints complementarios.
+
 ### 2025-12-31
 
 - **[2025-12-31-fix-dashboard-comparison-filter.md](2025-12-31-fix-dashboard-comparison-filter.md)** - Fix P1: El filtro de "Comparación" del dashboard existía en la UI pero no afectaba los datos. Implementado soporte completo: fetching paralelo del período anterior, cálculo de cambios porcentuales, nuevo componente ComparisonIndicator, indicadores visuales con tendencias (↗/↘) y colores semánticos.
@@ -69,6 +81,11 @@ Cada entrada sigue la estructura:
 ## Por Área
 
 ### Infraestructura
+- [2026-02-05-refactor-phase1-baseline.md](2026-02-05-refactor-phase1-baseline.md) - Baseline de deuda tecnica + guardrails + toolkit API + limpieza inicial
+- [2026-02-04-block-service-role-client.md](2026-02-04-block-service-role-client.md) - Fix seguridad: supabaseAdmin server-only
+- [2026-02-04-security-headers-and-api-validation.md](2026-02-04-security-headers-and-api-validation.md) - Hardening: headers CSP/HSTS + validacion Zod
+- [2026-02-04-api-validation-remaining.md](2026-02-04-api-validation-remaining.md) - Validacion Zod en endpoints restantes
+- [2026-02-04-api-validation-additional.md](2026-02-04-api-validation-additional.md) - Parseo seguro adicional en endpoints complementarios
 - [2025-11-17-tariff-to-service-architecture-migration.md](2025-11-17-tariff-to-service-architecture-migration.md) - ⚠️ BREAKING: Deprecación de tariffs, services ahora es el pricing catalog
 - [2025-08-09-bootstrap-proyecto.md](2025-08-09-bootstrap-proyecto.md) - Setup inicial completo
 - [2025-10-22-export-import-system.md](2025-10-22-export-import-system.md) - Sistema completo de export/import con migraciones
@@ -117,9 +134,11 @@ Cada entrada sigue la estructura:
 ### API Endpoints
 - [2025-10-18-fix-services-revenue-rls-errors.md](2025-10-18-fix-services-revenue-rls-errors.md) - Fix de errores en /api/services y /api/dashboard/revenue
 - [2025-10-22-export-import-system.md](2025-10-22-export-import-system.md) - Endpoints /api/export/generate, /validate, /import
+- [2026-02-04-api-validation-remaining.md](2026-02-04-api-validation-remaining.md) - Validacion Zod en endpoints restantes
+- [2026-02-04-api-validation-additional.md](2026-02-04-api-validation-additional.md) - Parseo seguro adicional en endpoints complementarios
 
 ## Stats
 
-- **Total entradas**: 21
-- **Ultima actualizacion**: 2025-12-31
-- **Archivos documentados**: 165+
+- **Total entradas**: 27
+- **Ultima actualizacion**: 2026-02-05
+- **Archivos documentados**: 235+

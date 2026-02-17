@@ -3,12 +3,30 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { cookies } from 'next/headers'
 import { resolveClinicContext } from '@/lib/clinic'
 import { checkConflicts, Appointment } from '@/lib/calendar/conflict-detection'
+import { z } from 'zod'
+import { readJson, validateSchema } from '@/lib/validation'
 
 export const dynamic = 'force-dynamic'
 
+const conflictSchema = z.object({
+  clinic_id: z.string().uuid().optional(),
+  date: z.string().min(1),
+  time: z.string().min(1),
+  duration_minutes: z.coerce.number().int().positive().optional(),
+  exclude_id: z.string().uuid().optional(),
+})
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
+    const bodyResult = await readJson(request)
+    if ('error' in bodyResult) {
+      return bodyResult.error
+    }
+    const parsed = validateSchema(conflictSchema, bodyResult.data)
+    if ('error' in parsed) {
+      return parsed.error
+    }
+    const body = parsed.data
     const cookieStore = cookies()
 
     const clinicContext = await resolveClinicContext({
@@ -25,15 +43,7 @@ export async function POST(request: NextRequest) {
 
     const { clinicId } = clinicContext
 
-    // Validate required fields
     const { date, time, duration_minutes, exclude_id } = body
-
-    if (!date || !time) {
-      return NextResponse.json(
-        { error: 'Date and time are required' },
-        { status: 400 }
-      )
-    }
 
     const duration = duration_minutes || 30
 

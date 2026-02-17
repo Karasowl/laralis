@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { withPermission } from '@/lib/middleware/with-permission';
+import { readJson } from '@/lib/validation';
 
 const updateSchema = z.object({
   name: z.string().min(2).optional(),
@@ -24,7 +25,11 @@ export const PUT = withPermission(
     }
 
     try {
-      const body = await request.json();
+      const bodyResult = await readJson(request);
+      if ('error' in bodyResult) {
+        return bodyResult.error;
+      }
+      const body = bodyResult.data;
       const validated = updateSchema.parse(body);
 
       const { data: existing } = await supabaseAdmin

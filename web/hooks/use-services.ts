@@ -137,10 +137,11 @@ export function useServices(options: UseServicesOptions = {}) {
   const createService = useCallback(async (data: any): Promise<boolean> => {
     const { supplies: serviceSupplies, ...serviceData } = data
 
-    // CRITICAL FIX: Preserve target_price if provided (user's desired sale price)
-    // Only fall back to price_cents or base_price_cents if target_price is not set
-    const priceField = (serviceData.target_price !== undefined && serviceData.target_price !== null)
-      ? { target_price: serviceData.target_price }
+    // Ignore default/empty target price (0) to avoid forcing zero-priced services.
+    const normalizedTargetPrice = Number(serviceData.target_price)
+    const hasTargetPrice = Number.isFinite(normalizedTargetPrice) && normalizedTargetPrice > 0
+    const priceField = hasTargetPrice
+      ? { target_price: normalizedTargetPrice }
       : { price_cents: serviceData.price_cents ?? serviceData.base_price_cents ?? 0 }
 
     const payload = {
@@ -185,10 +186,11 @@ export function useServices(options: UseServicesOptions = {}) {
   const updateService = useCallback(async (id: string, data: any): Promise<boolean> => {
     const { supplies: serviceSupplies, ...serviceData } = data
 
-    // CRITICAL FIX: Preserve target_price if provided (user's desired sale price)
-    // Only fall back to price_cents or base_price_cents if target_price is not set
-    const priceField = (serviceData.target_price !== undefined && serviceData.target_price !== null)
-      ? { target_price: serviceData.target_price }
+    // Ignore default/empty target price (0) to avoid forcing zero-priced services.
+    const normalizedTargetPrice = Number(serviceData.target_price)
+    const hasTargetPrice = Number.isFinite(normalizedTargetPrice) && normalizedTargetPrice > 0
+    const priceField = hasTargetPrice
+      ? { target_price: normalizedTargetPrice }
       : { price_cents: serviceData.price_cents ?? serviceData.base_price_cents ?? 0 }
 
     const payload = {

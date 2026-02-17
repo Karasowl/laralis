@@ -10,6 +10,17 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { aiService } from '@/lib/ai/service'
 import type { ActionParams } from '@/lib/ai/types'
+import { z } from 'zod'
+import { readJson, validateSchema } from '@/lib/validation'
+
+const createExpenseSchema = z.object({
+  amount_cents: z.coerce.number().int().positive(),
+  category_id: z.string().uuid(),
+  description: z.string().min(1),
+  expense_date: z.string().min(1),
+  clinic_id: z.string().uuid(),
+  dry_run: z.boolean().optional(),
+})
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,33 +35,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // 2. Parse request body
-    const body = await request.json()
-    const { amount_cents, category_id, description, expense_date, clinic_id, dry_run = false } = body
-
-    // 3. Validate required parameters
-    if (!amount_cents || amount_cents <= 0) {
-      return NextResponse.json(
-        { error: 'amount_cents is required and must be positive' },
-        { status: 400 }
-      )
+    // 2. Parse and validate request body
+    const bodyResult = await readJson(request)
+    if ('error' in bodyResult) {
+      return bodyResult.error
     }
-
-    if (!category_id) {
-      return NextResponse.json({ error: 'category_id is required' }, { status: 400 })
+    const parsed = validateSchema(createExpenseSchema, bodyResult.data)
+    if ('error' in parsed) {
+      return parsed.error
     }
-
-    if (!description) {
-      return NextResponse.json({ error: 'description is required' }, { status: 400 })
-    }
-
-    if (!expense_date) {
-      return NextResponse.json({ error: 'expense_date is required' }, { status: 400 })
-    }
-
-    if (!clinic_id) {
-      return NextResponse.json({ error: 'clinic_id is required' }, { status: 400 })
-    }
+    const { amount_cents, category_id, description, expense_date, clinic_id, dry_run } = parsed.data
+    const dryRun = dry_run ?? false
 
     // 4. Verify user has access to the clinic
     const { data: membership, error: membershipError } = await supabase
@@ -80,7 +75,7 @@ export async function POST(request: NextRequest) {
       clinicId: clinic_id,
       userId: user.id,
       supabase: supabaseAdmin,
-      dryRun: dry_run,
+      dryRun,
     })
 
     // 7. Return result

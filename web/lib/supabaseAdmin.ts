@@ -10,9 +10,9 @@ if (!isConfigured && typeof window === 'undefined') {
   console.warn('⚠️ Supabase is not configured. Please add NEXT_PUBLIC_SUPABASE_URL to your .env.local file');
 }
 
-// SECURITY: Service role key MUST never be used in browser
-if (typeof window !== 'undefined' && supabaseServiceRoleKey) {
-  throw new Error('SECURITY ERROR: Service role key cannot be used in browser environment');
+// SECURITY: supabaseAdmin must never be imported or used in the browser
+if (typeof window !== 'undefined') {
+  throw new Error('SECURITY ERROR: supabaseAdmin is server-only and cannot be used in the browser');
 }
 
 // En servidor usamos service role key, en cliente SOLO anon key

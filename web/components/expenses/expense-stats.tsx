@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Card } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -11,6 +11,7 @@ import { TrendingUp, TrendingDown, DollarSign, Receipt, Target, AlertTriangle } 
 import { formatMoney } from '@/lib/money'
 import { type ExpenseStats } from '@/lib/types/expenses'
 import { useCurrentClinic } from '@/hooks/use-current-clinic'
+import { useApi } from '@/hooks/use-api'
 import { cn, getLocalDateISO } from '@/lib/utils'
 
 interface ExpenseStatsProps {
@@ -21,49 +22,25 @@ export default function ExpenseStats({ detailed = false }: ExpenseStatsProps) {
   const t = useTranslations('expenses')
   const tRoot = useTranslations()
   const { currentClinic } = useCurrentClinic()
-  
-  const [stats, setStats] = useState<ExpenseStats | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [dateRange, setDateRange] = useState({
+  const [dateRange] = useState({
     start_date: getLocalDateISO(new Date(new Date().getFullYear(), new Date().getMonth(), 1)),
     end_date: getLocalDateISO()
   })
 
-  const fetchStats = async () => {
-    if (!currentClinic?.id) {
-      // No clinic context available yet; show empty state (not skeleton)
-      setStats(null)
-      setLoading(false)
-      return
-    }
+  const statsEndpoint = useMemo(() => {
+    if (!currentClinic?.id) return null
+    const params = new URLSearchParams({
+      clinic_id: currentClinic.id,
+      start_date: dateRange.start_date,
+      end_date: dateRange.end_date,
+    })
+    return `/api/expenses/stats?${params.toString()}`
+  }, [currentClinic?.id, dateRange.end_date, dateRange.start_date])
 
-    try {
-      setLoading(true)
-      
-      const params = new URLSearchParams({
-        clinic_id: currentClinic.id,
-        start_date: dateRange.start_date,
-        end_date: dateRange.end_date
-      })
-
-      const response = await fetch(`/api/expenses/stats?${params}`)
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch stats')
-      }
-
-      setStats(data.data)
-    } catch (error) {
-      console.error('Error fetching expense stats:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchStats()
-  }, [currentClinic?.id, dateRange])
+  const { data, loading } = useApi<{ data: ExpenseStats }>(statsEndpoint, {
+    autoFetch: !!statsEndpoint,
+  })
+  const stats = data?.data ?? null
 
   if (loading) {
     return (
@@ -165,7 +142,7 @@ export default function ExpenseStats({ detailed = false }: ExpenseStatsProps) {
           <Card className="p-6">
             <h3 className="text-lg font-semibold mb-4">{t('category_breakdown')}</h3>
             <div className="space-y-4">
-              {stats.by_category.map((category, index) => (
+              {stats.by_category.map((category) => (
                 <div key={category.category} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">

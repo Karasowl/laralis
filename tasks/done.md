@@ -1,5 +1,92 @@
 # Done
 
+## 2026-02-04
+
+### TASK-20260204-block-service-role-client ✅
+**Completado**: 2026-02-04  
+**Priority**: P1  
+**Estimate**: XS  
+**Area**: infra  
+
+Bloqueo explícito de `supabaseAdmin` en cliente para evitar uso accidental fuera del servidor.
+
+**Entregables**:
+- [x] Guard server-only en `web/lib/supabaseAdmin.ts`
+- [x] Tasks actualizadas (active/backlog/done + weekly rollup)
+- [x] Devlog con pasos y validación
+
+**Archivos creados/actualizados**: `web/lib/supabaseAdmin.ts`, `tasks/`, `docs/devlog/`
+
+### TASK-20260204-security-headers ✅
+**Completado**: 2026-02-04  
+**Priority**: P1  
+**Estimate**: XS  
+**Area**: infra  
+
+Headers de seguridad agregados a `next.config.mjs`, incluyendo CSP y HSTS (solo prod).
+
+**Entregables**:
+- [x] CSP definido y aplicado
+- [x] HSTS solo en producción
+
+**Archivos creados/actualizados**: `web/next.config.mjs`, `tasks/`, `docs/devlog/`
+
+### TASK-20260204-api-zod-validation-phase-1 ✅
+**Completado**: 2026-02-04  
+**Priority**: P1  
+**Estimate**: S  
+**Area**: data  
+
+Validación Zod aplicada a endpoints críticos con helper compartido.
+
+**Entregables**:
+- [x] Helper `web/lib/validation.ts`
+- [x] Endpoints críticos con validación
+
+**Archivos creados/actualizados**: `web/lib/validation.ts`, `web/app/api/*`, `tasks/`, `docs/devlog/`
+
+### TASK-20260204-api-zod-validation-phase-2-actions ✅
+**Completado**: 2026-02-04  
+**Priority**: P1  
+**Estimate**: S  
+**Area**: data  
+
+Validacion Zod aplicada a endpoints `api/actions/*`.
+
+**Entregables**:
+- [x] Acciones con schema Zod y parseo seguro
+- [x] Respuestas 400 consistentes
+
+**Archivos creados/actualizados**: `web/app/api/actions/*`, `tasks/`, `docs/devlog/`
+
+### TASK-20260204-api-zod-validation-phase-3-remaining ✅
+**Completado**: 2026-02-04  
+**Priority**: P1  
+**Estimate**: M  
+**Area**: data  
+
+Validacion Zod aplicada a endpoints restantes fuera de `api/actions/*`.
+
+**Entregables**:
+- [x] Schemas y parseo seguro en endpoints restantes
+- [x] Respuestas 400 consistentes
+
+**Archivos creados/actualizados**: `web/app/api/*`, `tasks/`, `docs/devlog/`
+
+### TASK-20260204-api-zod-validation-phase-4-additional ✅
+**Completado**: 2026-02-04  
+**Priority**: P1  
+**Estimate**: M  
+**Area**: data  
+
+Validacion Zod y parseo seguro en endpoints adicionales con `request.json()` directo.
+
+**Entregables**:
+- [x] Endpoints adicionales con parseo seguro
+- [x] Validaciones existentes reutilizadas
+
+**Archivos creados/actualizados**: `web/app/api/*`, `tasks/`, `docs/devlog/`
+
 ## 2025-08-09
 
 ### TASK-20250809-supplies-services ✅

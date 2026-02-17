@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useCallback } from 'react'
+import { useEffect, useMemo, type ChangeEvent } from 'react'
 import { useTranslations } from 'next-intl'
 import { UseFormReturn, useWatch } from 'react-hook-form'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -19,10 +19,8 @@ import {
   FormSection,
 } from '@/components/ui/form-field'
 import { SelectWithCreate } from '@/components/ui/select-with-create'
-import {
-  ExpenseFormData,
-  EXPENSE_SUBCATEGORIES
-} from '@/lib/types/expenses'
+import { ExpenseFormData } from '@/lib/types/expenses'
+import type { CategoryRow } from '@/hooks/use-categories'
 
 interface Supply {
   id: string
@@ -30,10 +28,17 @@ interface Supply {
   category: string
 }
 
+type CategoryNode = CategoryRow & {
+  id?: string
+  parent_id?: string | null
+  name?: string | null
+  display_name?: string | null
+}
+
 interface CreateExpenseFormProps {
   form: UseFormReturn<ExpenseFormData>
   supplies: Supply[]
-  categories?: any[]
+  categories?: CategoryNode[]
   showAssetFields: boolean
   setShowAssetFields: (show: boolean) => void
 }
@@ -52,27 +57,20 @@ export function CreateExpenseForm({
   const watchCategory = useWatch({ control: form.control, name: 'category' })
   const watchCreateAsset = useWatch({ control: form.control, name: 'create_asset' })
 
-  // DEBUG: Ver qué categorías llegan
-  console.log('=== DEBUG CreateExpenseForm ===');
-  console.log('Total categories received:', categories?.length);
-  console.log('Categories sample:', categories?.slice(0, 3));
-
   // PERFORMANCE FIX: Memoize parent categories (no parent_id)
   const parentCategories = useMemo(
-    () => {
-      const parents = (categories || []).filter((c: any) => !c.parent_id);
-      console.log('Parent categories:', parents.length, parents.map(p => p.display_name || p.name));
-      return parents;
-    },
+    () => (categories || []).filter((c) => !c.parent_id),
     [categories]
   )
 
   // PERFORMANCE FIX: Memoize category options to avoid recreation on every render
   const categoryOptions = useMemo(
-    () => parentCategories.map((c: any) => ({
-      value: c.display_name || c.name,
-      label: c.display_name || c.name
-    })),
+    () => parentCategories
+      .map((c) => {
+        const label = c.display_name || c.name || ''
+        return { value: label, label }
+      })
+      .filter((option) => option.value.length > 0),
     [parentCategories]
   )
 
@@ -87,42 +85,26 @@ export function CreateExpenseForm({
 
   // PERFORMANCE FIX: Memoize subcategory calculation using dynamic filtering
   const subcategoryOptions = useMemo(() => {
-    console.log('=== CALCULATING SUBCATEGORIES ===');
-    console.log('watchCategory:', watchCategory);
-
-    if (!watchCategory) {
-      console.log('No category selected, returning empty');
-      return []
-    }
+    if (!watchCategory) return []
 
     // Find the selected parent category
     const selectedParent = parentCategories.find(
-      (c: any) => (c.display_name || c.name) === watchCategory
+      (c) => (c.display_name || c.name) === watchCategory
     )
-
-    console.log('Selected parent:', selectedParent);
-
-    if (!selectedParent) {
-      console.log('Selected parent not found!');
-      return []
-    }
+    if (!selectedParent) return []
 
     // Filter subcategories that have this category as parent
     const subcategories = (categories || []).filter(
-      (c: any) => c.parent_id === selectedParent.id
+      (c) => c.parent_id === selectedParent.id
     )
 
-    console.log(`Subcategories for ${watchCategory}:`, subcategories.length);
-    console.log('Subcategory names:', subcategories.map(s => s.display_name || s.name));
-
     // Map to options format
-    const options = subcategories.map((c: any) => ({
-      value: c.display_name || c.name,
-      label: c.display_name || c.name
-    }));
-
-    console.log('Subcategory options:', options);
-    return options;
+    return subcategories
+      .map((c) => {
+        const label = c.display_name || c.name || ''
+        return { value: label, label }
+      })
+      .filter((option) => option.value.length > 0)
   }, [watchCategory, categories, parentCategories])
 
   // Show asset fields when category is "Equipos"
@@ -168,8 +150,9 @@ export function CreateExpenseForm({
                   label={tFields('amount')}
                   placeholder="0.00"
                   value={field.value ?? ''}
-                  onChange={(value) => {
-                    const num = typeof value === 'number' ? value : parseFloat(String(value))
+                  onChange={(value: string | number | ChangeEvent<HTMLInputElement>) => {
+                    const raw = typeof value === 'object' ? value.target.value : value
+                    const num = typeof raw === 'number' ? raw : parseFloat(String(raw))
                     field.onChange(Number.isFinite(num) ? num : undefined)
                   }}
                   error={fieldState.error?.message}
@@ -194,7 +177,7 @@ export function CreateExpenseForm({
                   onChange={(val) => {
                     // Update both display string and category_id
                     field.onChange(val)
-                    const match = categories.find((c: any) => (c.display_name || c.name) === val)
+                    const match = categories.find((c) => (c.display_name || c.name || '') === val)
                     if (match) {
                       form.setValue('category_id', match.id)
                     }
@@ -307,7 +290,11 @@ export function CreateExpenseForm({
                     label={tFields('quantity')}
                     placeholder={t('quantity_placeholder')}
                     value={field.value || 0}
-                    onChange={(value) => field.onChange(parseInt(value.toString()) || undefined)}
+                    onChange={(value: string | number | ChangeEvent<HTMLInputElement>) => {
+                      const raw = typeof value === 'object' ? value.target.value : value
+                      const parsed = parseInt(String(raw), 10)
+                      field.onChange(Number.isFinite(parsed) ? parsed : undefined)
+                    }}
                     error={fieldState.error?.message}
                   />
                 )}
@@ -365,7 +352,11 @@ export function CreateExpenseForm({
                       label={tFields('useful_life')}
                       placeholder={t('useful_life_placeholder')}
                       value={field.value || 0}
-                      onChange={(value) => field.onChange(parseInt(value.toString()) || undefined)}
+                      onChange={(value: string | number | ChangeEvent<HTMLInputElement>) => {
+                        const raw = typeof value === 'object' ? value.target.value : value
+                        const parsed = parseInt(String(raw), 10)
+                        field.onChange(Number.isFinite(parsed) ? parsed : undefined)
+                      }}
                       error={fieldState.error?.message}
                     />
                   )}

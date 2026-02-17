@@ -43,6 +43,7 @@
     "i18n:scan": "node scripts/scan-i18n-usage.mjs",
     "i18n:lint": "node scripts/collect-used-i18n.mjs && node scripts/missing-used-i18n.mjs && node scripts/scan-i18n-usage.mjs",
     "i18n:fix-es": "node scripts/fix-es-encoding.mjs && node scripts/scan-i18n-usage.mjs",
+    "refactor:metrics": "node scripts/refactor-metrics.mjs",
     "version:patch": "node ../scripts/bump-version.js patch",
     "version:minor": "node ../scripts/bump-version.js minor",
     "version:major": "node ../scripts/bump-version.js major"

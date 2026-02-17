@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { withPermission } from '@/lib/middleware/with-permission'
 import { sendWhatsAppMessage } from '@/lib/whatsapp/service'
+import { readJson, validateSchema } from '@/lib/validation'
 
 const schema = z.object({
   conversationId: z.string().uuid(),
@@ -10,11 +11,13 @@ const schema = z.object({
 })
 
 export const POST = withPermission('inbox.reply', async (request, context) => {
-  const body = await request.json().catch(() => null)
-  const parsed = schema.safeParse(body)
-
-  if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
+  const bodyResult = await readJson(request)
+  if ('error' in bodyResult) {
+    return bodyResult.error
+  }
+  const parsed = validateSchema(schema, bodyResult.data, 'Invalid payload')
+  if ('error' in parsed) {
+    return parsed.error
   }
 
   const { conversationId, content } = parsed.data

@@ -3,20 +3,28 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { deleteClinicData } from '@/lib/clinic-tables';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { z } from 'zod';
+import { readJson, validateSchema } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic'
+
+const deleteAccountSchema = z.object({
+  email: z.string().email(),
+  code: z.string().min(1),
+});
 
 
 export async function DELETE(request: NextRequest) {
   try {
-    const { email, code } = await request.json();
-    
-    if (!email || !code) {
-      return NextResponse.json(
-        { error: 'Email and code are required' },
-        { status: 400 }
-      );
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
     }
+    const parsed = validateSchema(deleteAccountSchema, bodyResult.data);
+    if ('error' in parsed) {
+      return parsed.error;
+    }
+    const { email, code } = parsed.data;
 
     // Crear cliente de Supabase para verificar autenticaciÃ³n
     const cookieStore = cookies();

@@ -11,6 +11,8 @@ import { cookies } from 'next/headers';
 import { validateBundle } from '@/lib/export/validator';
 import { previewMigration } from '@/lib/export/migrator';
 import type { ExportBundle } from '@/lib/export/types';
+import { z } from 'zod';
+import { readJson, validateSchema } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 1 minute for validation
@@ -19,6 +21,13 @@ export const maxDuration = 60; // 1 minute for validation
  * Maximum bundle size: 100MB
  */
 const MAX_BUNDLE_SIZE = 100 * 1024 * 1024;
+
+const exportBundleSchema = z
+  .object({
+    metadata: z.object({}).passthrough(),
+    data: z.object({}).passthrough(),
+  })
+  .passthrough();
 
 /**
  * POST handler
@@ -63,24 +72,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Parse bundle from request body
-    let bundle: ExportBundle;
-    try {
-      bundle = await request.json();
-    } catch (error) {
-      return NextResponse.json(
-        { error: 'Invalid JSON format', details: error instanceof Error ? error.message : String(error) },
-        { status: 400 }
-      );
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
     }
-
-    // Basic structure check
-    if (!bundle || !bundle.metadata || !bundle.data) {
-      return NextResponse.json(
-        { error: 'Invalid bundle structure. Missing metadata or data.' },
-        { status: 400 }
-      );
+    const parsed = validateSchema(exportBundleSchema, bodyResult.data);
+    if ('error' in parsed) {
+      return parsed.error;
     }
+    const bundle = parsed.data as ExportBundle;
 
     // Preview migrations
     const migrationPreview = previewMigration(bundle);

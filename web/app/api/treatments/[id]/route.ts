@@ -3,9 +3,31 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { syncTreatmentToCalendar, deleteTreatmentFromCalendar, CalendarSyncResult } from '@/lib/google-calendar';
+import { z } from 'zod';
+import { readJson, validateSchema } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic'
 
+const treatmentUpdateSchema = z.object({
+  clinic_id: z.string().uuid().optional(),
+  patient_id: z.string().uuid().optional(),
+  service_id: z.string().uuid().optional(),
+  treatment_date: z.string().min(1).optional(),
+  treatment_time: z.string().optional(),
+  minutes: z.coerce.number().int().positive().optional(),
+  fixed_per_minute_cents: z.coerce.number().int().nonnegative().optional(),
+  variable_cost_cents: z.coerce.number().int().nonnegative().optional(),
+  margin_pct: z.coerce.number().nonnegative().optional(),
+  price_cents: z.coerce.number().int().nonnegative().optional(),
+  amount_paid_cents: z.coerce.number().int().nonnegative().optional(),
+  pending_balance_cents: z.coerce.number().int().nonnegative().optional(),
+  status: z.string().min(1).optional(),
+  notes: z.string().optional(),
+  snapshot_costs: z.unknown().optional(),
+  _allow_service_change: z.boolean().optional(),
+}).refine((data) => Object.keys(data).length > 0, {
+  message: 'No fields to update',
+});
 
 interface RouteParams {
   params: { id: string };
@@ -16,7 +38,15 @@ export async function PUT(
   { params }: RouteParams
 ) {
   try {
-    const body = await request.json();
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
+    }
+    const parsed = validateSchema(treatmentUpdateSchema, bodyResult.data);
+    if ('error' in parsed) {
+      return parsed.error;
+    }
+    const body = parsed.data;
     const cookieStore = cookies();
     const clinicContext = await resolveClinicContext({ requestedClinicId: body?.clinic_id, cookieStore });
     if ('error' in clinicContext) {
@@ -155,7 +185,7 @@ export async function PUT(
               .update({ scheduled_for: newScheduledFor.toISOString() })
               .eq('id', reminder.id);
           }
-          console.log(`[treatments PUT] Updated ${pendingReminders.length} scheduled reminders for treatment ${params.id}`);
+          console.info(`[treatments PUT] Updated ${pendingReminders.length} scheduled reminders for treatment ${params.id}`);
         }
       } catch (e) {
         console.warn('[treatments PUT] Failed to update scheduled reminders:', e);

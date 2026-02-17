@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { z } from 'zod';
 import { resolveClinicContext } from '@/lib/clinic';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { readJson } from '@/lib/validation';
 
 // Schema for updating a workspace member
 const updateMemberSchema = z.object({
@@ -37,6 +38,12 @@ export async function PUT(
   const { clinicId, userId } = context;
 
   try {
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
+    }
+    const body = bodyResult.data as Record<string, unknown>;
+
     // Get workspace ID from clinic
     const { data: clinic } = await supabaseAdmin
       .from('clinics')
@@ -105,7 +112,6 @@ export async function PUT(
 
     // Cannot modify yourself (except allowed_clinics)
     if (targetMember.user_id === userId) {
-      const body = await request.json();
       if (body.role || body.is_active === false) {
         return NextResponse.json(
           { error: 'Cannot modify your own role or deactivate yourself' },
@@ -123,7 +129,6 @@ export async function PUT(
     }
 
     // Parse and validate request body
-    const body = await request.json();
     const validatedData = updateMemberSchema.parse(body);
 
     // Build update object

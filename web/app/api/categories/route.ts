@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
+import { readJson, validateSchema } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic'
 
@@ -22,6 +23,18 @@ const categorySchema = z.object({
   is_active: z.boolean().default(true),
   metadata: z.record(z.any()).optional().default({})
 });
+
+const categoryCreateSchema = z.object({
+  name: z.string().min(1),
+  code: z.string().optional(),
+  parent_id: z.string().uuid().optional().nullable(),
+  description: z.string().optional().nullable(),
+  icon: z.string().optional().nullable(),
+  color: z.string().optional().nullable(),
+  display_order: z.number().int().min(0).optional(),
+  is_active: z.boolean().optional(),
+  metadata: z.record(z.any()).optional(),
+}).passthrough();
 
 function buildCodeFromName(rawName: string): string {
   return rawName
@@ -114,7 +127,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
+    }
+    const body = bodyResult.data;
     const cookieStore = cookies();
     const searchParams = request.nextUrl.searchParams;
 
@@ -131,6 +148,11 @@ export async function POST(request: NextRequest) {
     const typeCode = searchParams.get('type');
 
     if (typeCode) {
+      const parsed = validateSchema(categoryCreateSchema, body, 'Invalid payload');
+      if ('error' in parsed) {
+        return parsed.error;
+      }
+      const payload = parsed.data;
       const { data: typeData } = await db
         .from('category_types')
         .select('id')
@@ -138,29 +160,26 @@ export async function POST(request: NextRequest) {
         .eq('code', typeCode)
         .maybeSingle();
 
-      const rawName = String(body?.name || '').trim();
-      if (!rawName) {
-        return NextResponse.json({ error: 'Name is required' }, { status: 400 });
-      }
+      const rawName = payload.name.trim();
 
-      const code = body?.code && String(body.code).trim().length > 0
-        ? String(body.code)
+      const code = payload.code && String(payload.code).trim().length > 0
+        ? String(payload.code)
         : buildCodeFromName(rawName);
 
       if (typeData?.id) {
         const insertPayload = {
           clinic_id: clinicId,
           category_type_id: typeData.id,
-          parent_id: body?.parent_id ?? null,
+          parent_id: payload.parent_id ?? null,
           code,
           name: rawName,
-          description: body?.description ?? null,
-          icon: body?.icon ?? null,
-          color: body?.color ?? null,
-          display_order: typeof body?.display_order === 'number' ? body.display_order : 0,
+          description: payload.description ?? null,
+          icon: payload.icon ?? null,
+          color: payload.color ?? null,
+          display_order: typeof payload.display_order === 'number' ? payload.display_order : 0,
           is_system: false,
-          is_active: body?.is_active ?? true,
-          metadata: body?.metadata ?? {},
+          is_active: payload.is_active ?? true,
+          metadata: payload.metadata ?? {},
         } as any;
 
         const { data, error } = await db
@@ -192,8 +211,8 @@ export async function POST(request: NextRequest) {
         name: code,
         display_name: rawName,
         is_system: false,
-        is_active: body?.is_active ?? true,
-        display_order: typeof body?.display_order === 'number' ? body.display_order : 999,
+        is_active: payload.is_active ?? true,
+        display_order: typeof payload.display_order === 'number' ? payload.display_order : 999,
       } as any;
 
       const { data: legacyData, error: legacyErr } = await db
@@ -213,7 +232,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ data: legacyData });
     }
 
-    const validatedData = categorySchema.parse(body);
+    const validated = validateSchema(categorySchema, body, 'Invalid payload');
+    if ('error' in validated) {
+      return validated.error;
+    }
+    const validatedData = validated.data;
 
     const { data, error } = await supabaseAdmin
       .from('categories')
@@ -232,12 +255,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ data });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Invalid input', details: error.errors },
-        { status: 400 }
-      );
-    }
     console.error('Unexpected error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

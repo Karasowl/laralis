@@ -65,6 +65,7 @@ export function useTimeSettings(options: UseTimeSettingsOptions = {}) {
     resolvedClinicId ? `/api/settings/time?clinicId=${resolvedClinicId}` : null,
     { autoFetch: autoLoad && !!resolvedClinicId }
   )
+  const saveSettingsApi = useApi<{ data?: TimeSettings; message?: string }>('/api/settings/time')
   
   const fixedCostsApi = useApi<{ data: any[] }>(
     resolvedClinicId ? `/api/fixed-costs?clinicId=${resolvedClinicId}` : null,
@@ -128,7 +129,6 @@ export function useTimeSettings(options: UseTimeSettingsOptions = {}) {
         monthly_goal_cents: apiSettings.monthly_goal_cents ?? null,
         working_days_config: apiSettings.working_days_config || null
       }
-      try { console.log('[useTimeSettings] loaded from API', apiSettings) } catch {}
       setSettings(nextSettings)
       draftRef.current = nextSettings
       setHasRecord(true)
@@ -172,37 +172,34 @@ export function useTimeSettings(options: UseTimeSettingsOptions = {}) {
     }
 
     try {
-      const response = await fetch('/api/settings/time', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
+      const result = await saveSettingsApi.post(
+        {
           work_days: Number(draft.work_days) || 0,
           hours_per_day: Number(draft.hours_per_day) || 0,
           real_pct: Number(draft.real_pct) || 0,
           monthly_goal_cents: draft.monthly_goal_cents,
           working_days_config: draft.working_days_config,
-          clinic_id: cid
-        })
-      })
+          clinic_id: cid,
+        },
+        { showErrorToast: false, updateState: false }
+      )
 
-      if (response.ok) {
-        toast.success(t('settings.saved_successfully'))
-        draftRef.current = draft
-        // Refresh settings after save
-        await settingsApi.get()
-        return true
-      } else {
-        const errorPayload = await response.json().catch(() => ({})) as { message?: string }
-        toast.error(errorPayload?.message || t('settings.save_error'))
+      if (!result.success) {
+        toast.error(result.error || t('settings.save_error'))
         return false
       }
+
+      toast.success(t('settings.saved_successfully'))
+      draftRef.current = draft
+      // Refresh settings after save
+      await settingsApi.get()
+      return true
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Error saving settings'
       toast.error(errorMsg)
       return false
     }
-  }, [resolvedClinicId, settings, t, settingsApi])
+  }, [resolvedClinicId, t, settingsApi, saveSettingsApi])
   
   // Refresh all data
   const refreshData = useCallback(async () => {

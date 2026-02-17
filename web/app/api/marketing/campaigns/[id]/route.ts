@@ -1,8 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { z } from 'zod'
+import { readJson, validateSchema } from '@/lib/validation'
 
 export const dynamic = 'force-dynamic'
+
+const campaignPatchSchema = z
+  .object({
+    name: z.string().min(1).optional(),
+    code: z.string().nullable().optional(),
+    platform_id: z.string().uuid().optional(),
+    is_active: z.boolean().optional(),
+    is_archived: z.boolean().optional(),
+    archived_at: z.string().nullable().optional(),
+    reactivated_at: z.string().nullable().optional(),
+  })
+  .passthrough()
 
 
 // GET /api/marketing/campaigns/[id] - Get a specific campaign
@@ -63,7 +77,15 @@ export async function PATCH(
       )
     }
 
-    const body = await request.json()
+    const bodyResult = await readJson(request)
+    if ('error' in bodyResult) {
+      return bodyResult.error
+    }
+    const parsed = validateSchema(campaignPatchSchema, bodyResult.data)
+    if ('error' in parsed) {
+      return parsed.error
+    }
+    const body = parsed.data
 
     // Normalize archive toggling: if archived_at provided, set is_archived accordingly
     const nowIso = new Date().toISOString()

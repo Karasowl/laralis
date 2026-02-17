@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Card } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -20,6 +20,7 @@ import {
 import { formatMoney } from '@/lib/money'
 import { type LowStockAlert } from '@/lib/types/expenses'
 import { useCurrentClinic } from '@/hooks/use-current-clinic'
+import { useApi } from '@/hooks/use-api'
 import { cn } from '@/lib/utils'
 
 interface ExpenseAlertsData {
@@ -56,39 +57,17 @@ interface ExpenseAlertsData {
 export default function ExpenseAlerts() {
   const t = useTranslations('expenses')
   const { currentClinic } = useCurrentClinic()
-  
-  const [alerts, setAlerts] = useState<ExpenseAlertsData | null>(null)
-  const [loading, setLoading] = useState(true)
   const [dismissed, setDismissed] = useState<Set<string>>(new Set())
 
-  const fetchAlerts = async () => {
-    if (!currentClinic?.id) {
-      setAlerts(null)
-      setLoading(false)
-      return
-    }
-
-    try {
-      setLoading(true)
-      
-      const response = await fetch(`/api/expenses/alerts?clinic_id=${currentClinic.id}`)
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch alerts')
-      }
-
-      setAlerts(data.data)
-    } catch (error) {
-      console.error('Error fetching expense alerts:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchAlerts()
+  const alertsEndpoint = useMemo(() => {
+    if (!currentClinic?.id) return null
+    return `/api/expenses/alerts?clinic_id=${currentClinic.id}`
   }, [currentClinic?.id])
+
+  const { data, loading } = useApi<{ data: ExpenseAlertsData }>(alertsEndpoint, {
+    autoFetch: !!alertsEndpoint,
+  })
+  const alerts = data?.data ?? null
 
   const dismissAlert = (alertId: string) => {
     setDismissed(prev => new Set(Array.from(prev).concat(alertId)))

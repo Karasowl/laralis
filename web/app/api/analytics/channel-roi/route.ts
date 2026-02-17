@@ -66,8 +66,8 @@ export async function GET(request: NextRequest) {
       endDateStr = endDate.toISOString().split('T')[0]
     }
 
-    console.log('[channel-roi] Fetching for clinic:', clinicId)
-    console.log('[channel-roi] Date range:', startDateStr, 'to', endDateStr)
+    console.info('[channel-roi] Fetching for clinic:', clinicId)
+    console.info('[channel-roi] Date range:', startDateStr, 'to', endDateStr)
 
     // 1. Get user's REAL marketing campaigns (NOT dummy patient_sources)
     // Use .or() to handle NULL values - campaigns might have is_archived = null
@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
       throw campaignsError
     }
 
-    console.log('[channel-roi] Found campaigns:', campaigns?.length || 0)
+    console.info('[channel-roi] Found campaigns:', campaigns?.length || 0)
 
     // If no campaigns exist, return empty state with helpful message
     if (!campaigns || campaigns.length === 0) {
@@ -174,7 +174,7 @@ export async function GET(request: NextRequest) {
       .filter((e: any) => e.categories?.name === 'marketing')
       .reduce((sum: number, e: any) => sum + (e.amount_cents || 0), 0)
 
-    console.log('[channel-roi] Total marketing expenses:', totalMarketingExpenses)
+    console.info('[channel-roi] Total marketing expenses:', totalMarketingExpenses)
 
     // 5. Calculate metrics per CAMPAIGN (not patient_source)
     const totalPatients = (patients || []).length
@@ -230,8 +230,8 @@ export async function GET(request: NextRequest) {
     const bestChannel = sortedChannels.find(c => c.patients > 0) || sortedChannels[0]
     const worstChannel = [...sortedChannels].reverse().find(c => c.patients > 0) || sortedChannels[sortedChannels.length - 1]
 
-    console.log('[channel-roi] Best campaign:', bestChannel?.campaign.name, bestChannel?.roi.value)
-    console.log('[channel-roi] Worst campaign:', worstChannel?.campaign.name, worstChannel?.roi.value)
+    console.info('[channel-roi] Best campaign:', bestChannel?.campaign.name, bestChannel?.roi.value)
+    console.info('[channel-roi] Worst campaign:', worstChannel?.campaign.name, worstChannel?.roi.value)
 
     return NextResponse.json({
       period,

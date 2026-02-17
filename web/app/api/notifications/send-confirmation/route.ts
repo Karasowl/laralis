@@ -14,12 +14,18 @@ import {
   AppointmentEmailData,
   isConfirmationEnabled,
 } from '@/lib/email/service';
+import { z } from 'zod';
+import { readJson, validateSchema } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic';
 
 interface SendConfirmationRequest {
   treatmentId: string;
 }
+
+const sendConfirmationSchema = z.object({
+  treatmentId: z.string().uuid(),
+});
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,14 +40,15 @@ export async function POST(request: NextRequest) {
     }
 
     const { clinicId } = clinicContext;
-    const body: SendConfirmationRequest = await request.json();
-
-    if (!body.treatmentId) {
-      return NextResponse.json(
-        { error: 'Treatment ID is required' },
-        { status: 400 }
-      );
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
     }
+    const parsed = validateSchema(sendConfirmationSchema, bodyResult.data);
+    if ('error' in parsed) {
+      return parsed.error;
+    }
+    const body: SendConfirmationRequest = parsed.data;
 
     // Get treatment with related data
     const { data: treatment, error: treatmentError } = await supabaseAdmin

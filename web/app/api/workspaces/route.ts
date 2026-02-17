@@ -2,8 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { z } from 'zod';
+import { readJson, validateSchema } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic'
+
+const workspaceCreateSchema = z.object({
+  workspaceName: z.string().min(1).optional(),
+  name: z.string().min(1).optional(),
+  workspaceSlug: z.string().min(1).optional(),
+  slug: z.string().min(1).optional(),
+  clinicName: z.string().min(1).optional(),
+  clinicAddress: z.string().optional(),
+  description: z.string().optional(),
+  onboarding_completed: z.boolean().optional(),
+  onboarding_step: z.number().int().nonnegative().optional(),
+}).refine((data) => Boolean(data.workspaceName || data.name), {
+  message: 'workspaceName or name is required',
+}).refine((data) => Boolean(data.workspaceSlug || data.slug), {
+  message: 'workspaceSlug or slug is required',
+});
 
 
 export async function GET(request: NextRequest) {
@@ -146,7 +164,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
+    }
+    const parsed = validateSchema(workspaceCreateSchema, bodyResult.data);
+    if ('error' in parsed) {
+      return parsed.error;
+    }
+    const body = parsed.data;
     
     // Support both formats: onboarding (with clinic) and regular creation (without clinic)
     const workspaceName = body.workspaceName || body.name;
@@ -157,7 +183,7 @@ export async function POST(request: NextRequest) {
     const onboardingCompleted = body.onboarding_completed !== undefined ? body.onboarding_completed : !!clinicName;
     const onboardingStep = body.onboarding_step !== undefined ? body.onboarding_step : (clinicName ? 3 : 0);
 
-    console.log('Creating workspace with data:', { workspaceName, workspaceSlug, clinicName, userId: user.id });
+    console.info('Creating workspace with data:', { workspaceName, workspaceSlug, clinicName, userId: user.id });
 
     // Validar datos requeridos
     if (!workspaceName || !workspaceSlug) {
@@ -195,7 +221,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Workspace created successfully:', workspace.id);
+    console.info('Workspace created successfully:', workspace.id);
 
     let clinic = null;
     

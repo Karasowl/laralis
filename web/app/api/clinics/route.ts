@@ -5,15 +5,28 @@ import { cookies } from 'next/headers'
 import { setClinicIdCookie } from '@/lib/clinic'
 import { createClient } from '@/lib/supabase/server'
 import { createServerClient } from '@supabase/ssr'
+import { z } from 'zod'
+import { readJson, validateSchema } from '@/lib/validation'
 
 export const dynamic = 'force-dynamic'
 
+const selectClinicSchema = z.object({
+  clinicId: z.string().uuid(),
+})
+
+const workspaceQuerySchema = z.object({
+  workspaceId: z.string().uuid().optional(),
+})
 
 export async function GET(request: Request) {
   try {
     const cookieStore = cookies()
     const { searchParams } = new URL(request.url)
     const workspaceId = searchParams.get('workspaceId')
+    const queryValidation = validateSchema(workspaceQuerySchema, { workspaceId })
+    if ('error' in queryValidation) {
+      return queryValidation.error
+    }
 
     // Crear cliente de Supabase para el servidor con el usuario autenticado
     const supabase = createServerClient(
@@ -97,13 +110,15 @@ export async function GET(request: Request) {
 // POST endpoint to set the selected clinic (context)
 export async function POST(request: Request) {
   try {
-    const { clinicId } = await request.json()
-
-    if (!clinicId) {
-      return NextResponse.json<ApiResponse<null>>({
-        error: 'Clinic ID is required'
-      }, { status: 400 })
+    const bodyResult = await readJson(request)
+    if ('error' in bodyResult) {
+      return bodyResult.error
     }
+    const parsed = validateSchema(selectClinicSchema, bodyResult.data)
+    if ('error' in parsed) {
+      return parsed.error
+    }
+    const { clinicId } = parsed.data
 
     const cookieStore = cookies()
     const supabase = createClient()

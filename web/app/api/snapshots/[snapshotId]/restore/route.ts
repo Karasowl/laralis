@@ -17,9 +17,18 @@ import {
   RestoreSnapshotRequest,
   RestoreSnapshotResponse,
 } from '@/lib/snapshots'
+import { z } from 'zod'
+import { validateSchema } from '@/lib/validation'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+
+const restoreRequestSchema = z.object({
+  mode: z.enum(['replace', 'merge']).optional(),
+  createBackupFirst: z.boolean().optional(),
+  tables: z.array(z.string()).optional(),
+  dryRun: z.boolean().optional(),
+})
 
 /**
  * POST /api/snapshots/[snapshotId]/restore
@@ -93,13 +102,23 @@ export async function POST(
       )
     }
 
-    // Parse request body
-    let body: RestoreSnapshotRequest = {}
-    try {
-      body = await request.json()
-    } catch {
-      // Empty body is fine, use defaults
+    let bodyData: unknown = {}
+    const rawBody = await request.text()
+    if (rawBody.trim()) {
+      try {
+        bodyData = JSON.parse(rawBody)
+      } catch {
+        return NextResponse.json(
+          { error: 'Invalid JSON payload' },
+          { status: 400 }
+        )
+      }
     }
+    const parsed = validateSchema(restoreRequestSchema, bodyData)
+    if ('error' in parsed) {
+      return parsed.error
+    }
+    const body: RestoreSnapshotRequest = parsed.data
 
     // Download snapshot from storage
     const storage = new SnapshotStorageService(supabaseAdmin)

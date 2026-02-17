@@ -1,3 +1,31 @@
 {
-  "extends": ["next/core-web-vitals", "next/typescript"]
+  "extends": ["next/core-web-vitals", "next/typescript"],
+  "overrides": [
+    {
+      "files": [
+        "app/**/*.ts",
+        "app/**/*.tsx",
+        "components/**/*.ts",
+        "components/**/*.tsx",
+        "contexts/**/*.ts",
+        "contexts/**/*.tsx",
+        "hooks/**/*.ts",
+        "hooks/**/*.tsx"
+      ],
+      "excludedFiles": ["app/api/**/*.ts", "app/api/**/*.tsx"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "@/lib/supabaseAdmin",
+                "message": "Do not import supabaseAdmin in client/domain files. Use '@/lib/supabase/client' or route handlers with RLS."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
 }

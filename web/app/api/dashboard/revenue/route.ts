@@ -127,10 +127,10 @@ export async function GET(request: NextRequest) {
     // If explicit dates are provided, use them as custom range (overrides period)
     const period: SupportedPeriod = (dateFrom && dateTo) ? 'custom' : rawPeriod
 
-    console.log('[revenue] Fetching for clinic:', clinicId, 'period:', period, 'dates:', dateFrom, dateTo)
+    console.info('[revenue] Fetching for clinic:', clinicId, 'period:', period, 'dates:', dateFrom, dateTo)
 
     const ranges = computeRanges(period, dateFrom, dateTo)
-    console.log('[revenue] Date ranges - Current:', toDateParam(ranges.current.start), 'to', toDateParam(ranges.current.end))
+    console.info('[revenue] Date ranges - Current:', toDateParam(ranges.current.start), 'to', toDateParam(ranges.current.end))
 
     const { data: currentTreatments, error: currentErr } = await supabaseAdmin
       .from('treatments')
@@ -145,9 +145,9 @@ export async function GET(request: NextRequest) {
       throw currentErr
     }
 
-    console.log('[revenue] Found current treatments:', currentTreatments?.length || 0)
+    console.info('[revenue] Found current treatments:', currentTreatments?.length || 0)
     if (currentTreatments && currentTreatments.length > 0) {
-      console.log('[revenue] First current treatment:', currentTreatments[0])
+      console.info('[revenue] First current treatment:', currentTreatments[0])
     }
 
     const { data: previousTreatments, error: previousErr } = await supabaseAdmin
@@ -163,12 +163,12 @@ export async function GET(request: NextRequest) {
       throw previousErr
     }
 
-    console.log('[revenue] Found previous treatments:', previousTreatments?.length || 0)
+    console.info('[revenue] Found previous treatments:', previousTreatments?.length || 0)
 
     const currentTotal = sumRevenue(currentTreatments || [])
     const previousTotal = sumRevenue(previousTreatments || [])
 
-    console.log('[revenue] Totals - Current:', currentTotal, 'Previous:', previousTotal)
+    console.info('[revenue] Totals - Current:', currentTotal, 'Previous:', previousTotal)
 
     return NextResponse.json({
       revenue: {

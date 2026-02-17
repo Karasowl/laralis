@@ -240,6 +240,34 @@ Archivos:
 4. **Validación**: Zod en formularios
 5. **Sanitización**: Inputs sanitizados automáticamente
 
+## 🛡️ API Toolkit (2026-02)
+
+Para estandarizar rutas `app/api/**` se agregó una capa común en `web/lib/api`:
+
+- `types.ts`: `ApiErrorEnvelope`, `ApiSuccessEnvelope`, `RouteHandlerContext`, `ValidatedBody`, `DbAccessPolicy`
+- `request-id.ts`: generación y propagación de `x-request-id`
+- `logger.ts`: logging estructurado por request (sin `console.log`)
+- `validation.ts`: `readJsonBody` y parseo de payload con Zod
+- `route-handler.ts`: wrapper `withRouteContext()` para contexto y manejo uniforme de errores
+
+Objetivo: mantener contratos API actuales, pero normalizar observabilidad, validación y trazabilidad.
+
+Rutas ya migradas al toolkit:
+- `web/app/api/services/route.ts`
+- `web/app/api/patients/route.ts`
+- `web/app/api/expenses/route.ts`
+- `web/app/api/expenses/[id]/route.ts`
+- `web/app/api/expenses/stats/route.ts`
+- `web/app/api/expenses/alerts/route.ts`
+
+## 🧱 Validación Unificada (2026-02)
+
+Se introdujo una estructura de schemas para converger validaciones sin romper imports actuales:
+
+- `web/lib/validation/schemas/domain/*` (re-export de schemas de dominio)
+- `web/lib/validation/schemas/api/*` (re-export de schemas API + seguridad)
+- `web/lib/validation/index.ts` (barrel de transición)
+
 ## 🚀 Performance
 
 ### Optimizaciones Implementadas
