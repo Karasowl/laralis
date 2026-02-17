@@ -10,6 +10,15 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { aiService } from '@/lib/ai/service'
 import type { ActionParams } from '@/lib/ai/types'
+import { z } from 'zod'
+import { readJson, validateSchema } from '@/lib/validation'
+
+const simulatePriceChangeSchema = z.object({
+  service_id: z.string().uuid().optional(),
+  change_type: z.enum(['percentage', 'fixed']),
+  change_value: z.coerce.number(),
+  clinic_id: z.string().uuid(),
+})
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,25 +33,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // 2. Parse request body
-    const body = await request.json()
-    const { service_id, change_type, change_value, clinic_id } = body
-
-    // 3. Validate required parameters
-    if (!change_type || !['percentage', 'fixed'].includes(change_type)) {
-      return NextResponse.json(
-        { error: 'change_type must be "percentage" or "fixed"' },
-        { status: 400 }
-      )
+    // 2. Parse and validate request body
+    const bodyResult = await readJson(request)
+    if ('error' in bodyResult) {
+      return bodyResult.error
     }
-
-    if (change_value === undefined || change_value === null) {
-      return NextResponse.json({ error: 'change_value is required' }, { status: 400 })
+    const parsed = validateSchema(simulatePriceChangeSchema, bodyResult.data)
+    if ('error' in parsed) {
+      return parsed.error
     }
-
-    if (!clinic_id) {
-      return NextResponse.json({ error: 'clinic_id is required' }, { status: 400 })
-    }
+    const { service_id, change_type, change_value, clinic_id } = parsed.data
 
     // 4. Verify user has access to the clinic
     const { data: membership, error: membershipError } = await supabase

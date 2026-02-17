@@ -19,9 +19,16 @@ import {
   ListSnapshotsResponse,
   CreateSnapshotResponse,
 } from '@/lib/snapshots'
+import { z } from 'zod'
+import { validateSchema } from '@/lib/validation'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+
+const createSnapshotSchema = z.object({
+  type: z.enum(['manual', 'scheduled', 'pre-restore']).optional(),
+  encrypt: z.boolean().optional(),
+})
 
 /**
  * GET /api/snapshots
@@ -155,13 +162,23 @@ export async function POST(request: NextRequest) {
     const { data: user } = await supabaseAdmin.auth.admin.getUserById(userId)
     const userEmail = user?.user?.email || ''
 
-    // Parse request body
-    let body: CreateSnapshotRequest = {}
-    try {
-      body = await request.json()
-    } catch {
-      // Empty body is fine, use defaults
+    let bodyData: unknown = {}
+    const rawBody = await request.text()
+    if (rawBody.trim()) {
+      try {
+        bodyData = JSON.parse(rawBody)
+      } catch {
+        return NextResponse.json(
+          { error: 'Invalid JSON payload' },
+          { status: 400 }
+        )
+      }
     }
+    const parsed = validateSchema(createSnapshotSchema, bodyData)
+    if ('error' in parsed) {
+      return parsed.error
+    }
+    const body: CreateSnapshotRequest = parsed.data
 
     // Create exporter and export
     const exporter = createSnapshotExporter(supabaseAdmin, clinicId, {

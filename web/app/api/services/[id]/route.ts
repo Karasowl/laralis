@@ -4,8 +4,25 @@ import { zService } from '@/lib/zod';
 import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import type { Service, ServiceSupply, ApiResponse } from '@/lib/types';
+import { readJson } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic'
+
+const MAX_MARGIN_PCT = 999.99
+const MAX_TARGET_PRICE_PESOS = Number.MAX_SAFE_INTEGER / 100
+// Keep compatibility with legacy DBs where some service price fields may still be INTEGER.
+const MAX_ORIGINAL_PRICE_CENTS = 2_147_483_647
+const MAX_DISCOUNT_VALUE = 99_999_999.99
+const ALLOWED_DISCOUNT_TYPES = new Set(['none', 'percentage', 'fixed'])
+
+const toFiniteNumber = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  return null
+}
 
 
 const normalizeSupplyList = (supplies?: Array<{ supply_id?: string; qty?: number | null; quantity?: number | null }>) => {
@@ -102,7 +119,11 @@ export async function PUT(
   { params }: RouteParams
 ): Promise<NextResponse<ApiResponse<Service>>> {
   try {
-    const body = await request.json();
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
+    }
+    const body = bodyResult.data;
     const cookieStore = cookies();
     const clinicContext = await resolveClinicContext({ requestedClinicId: body?.clinic_id, cookieStore });
     if ('error' in clinicContext) {
@@ -132,8 +153,55 @@ export async function PUT(
     const category = body.category || 'otros';
     const description = body.description || null;
 
-    // Get margin percentage, default to 30%
-    const margin_pct = typeof body.margin_pct === 'number' ? body.margin_pct : 30;
+    const marginCandidate = toFiniteNumber(body.margin_pct) ?? 30;
+    if (!Number.isFinite(marginCandidate) || marginCandidate < 0 || marginCandidate > MAX_MARGIN_PCT) {
+      return NextResponse.json(
+        { error: 'Validation failed', message: 'margin_pct must be between 0 and 999.99' },
+        { status: 400 }
+      );
+    }
+    const margin_pct = marginCandidate;
+
+    const targetPricePesos = toFiniteNumber(body.target_price);
+    if (targetPricePesos !== null && (targetPricePesos < 0 || targetPricePesos > MAX_TARGET_PRICE_PESOS)) {
+      return NextResponse.json(
+        { error: 'Validation failed', message: 'target_price is out of allowed range' },
+        { status: 400 }
+      );
+    }
+
+    const explicitOriginalPriceCents = toFiniteNumber(body.original_price_cents);
+    if (
+      explicitOriginalPriceCents !== null &&
+      (explicitOriginalPriceCents < 0 || explicitOriginalPriceCents > MAX_ORIGINAL_PRICE_CENTS)
+    ) {
+      return NextResponse.json(
+        { error: 'Validation failed', message: 'original_price_cents is out of allowed range' },
+        { status: 400 }
+      );
+    }
+
+    const discount_type = typeof body.discount_type === 'string' ? body.discount_type : 'none';
+    if (!ALLOWED_DISCOUNT_TYPES.has(discount_type)) {
+      return NextResponse.json(
+        { error: 'Validation failed', message: 'discount_type must be one of: none, percentage, fixed' },
+        { status: 400 }
+      );
+    }
+
+    const discount_value = toFiniteNumber(body.discount_value) ?? 0;
+    if (!Number.isFinite(discount_value) || discount_value < 0 || discount_value > MAX_DISCOUNT_VALUE) {
+      return NextResponse.json(
+        { error: 'Validation failed', message: 'discount_value is out of allowed range' },
+        { status: 400 }
+      );
+    }
+    if (discount_type === 'percentage' && discount_value > 100) {
+      return NextResponse.json(
+        { error: 'Validation failed', message: 'discount_value cannot exceed 100 for percentage discounts' },
+        { status: 400 }
+      );
+    }
 
     // FIX: Calculate original_price_cents (price BEFORE discount)
     // The trigger will automatically calculate price_cents from original_price_cents + discount
@@ -144,15 +212,16 @@ export async function PUT(
     // 4. Otherwise, calculate from base_price + margin (for backwards compatibility)
     let original_price_cents: number;
 
-    if (body.target_price !== undefined && body.target_price !== null) {
+    // Ignore zero/default target price to avoid forcing unintended zero-priced services.
+    if (targetPricePesos !== null && targetPricePesos > 0) {
       // User specified a target price - this is the price BEFORE discount
-      original_price_cents = Math.round((body.target_price || 0) * 100);
-    } else if (body.original_price_cents !== undefined && body.original_price_cents !== null) {
+      original_price_cents = Math.round(targetPricePesos * 100);
+    } else if (explicitOriginalPriceCents !== null) {
       // Explicit original_price_cents provided
-      original_price_cents = Math.round(body.original_price_cents || 0);
+      original_price_cents = Math.round(explicitOriginalPriceCents);
     } else if (body.price_cents !== undefined && body.price_cents !== null) {
       // price_cents provided - if no discount, use as original; if discount exists, keep current original
-      const hasDiscount = body.discount_type && body.discount_type !== 'none';
+      const hasDiscount = discount_type !== 'none';
       if (hasDiscount) {
         // Need to fetch current original_price_cents from DB
         const { data: currentService } = await supabaseAdmin
@@ -172,6 +241,12 @@ export async function PUT(
       // No price information provided, default to 0
       original_price_cents = 0;
     }
+    if (original_price_cents < 0 || original_price_cents > MAX_ORIGINAL_PRICE_CENTS) {
+      return NextResponse.json(
+        { error: 'Validation failed', message: 'Calculated original price is out of allowed range' },
+        { status: 400 }
+      );
+    }
 
     // Note: price_cents will be calculated by the trigger from original_price_cents + discount
 
@@ -187,8 +262,8 @@ export async function PUT(
         original_price_cents,
         margin_pct,
         // FIX BUG 3: Always update discount fields to allow removal
-        discount_type: body.discount_type !== undefined ? body.discount_type : 'none',
-        discount_value: body.discount_value !== undefined ? body.discount_value : 0,
+        discount_type,
+        discount_value,
         discount_reason: body.discount_reason !== undefined && body.discount_reason !== null ? body.discount_reason : null,
         // Note: price_cents and final_price_with_discount_cents are auto-calculated by trigger
         updated_at: new Date().toISOString()
@@ -203,6 +278,15 @@ export async function PUT(
         return NextResponse.json(
           { error: 'Service not found' },
           { status: 404 }
+        );
+      }
+      if (error.code === '22003') {
+        return NextResponse.json(
+          {
+            error: 'numeric_overflow',
+            message: 'Uno de los valores numéricos excede el límite permitido (precio, margen o descuento).'
+          },
+          { status: 400 }
         );
       }
       

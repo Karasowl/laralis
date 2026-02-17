@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { z } from 'zod'
+import { readJson } from '@/lib/validation'
 
 export const dynamic = 'force-dynamic'
 
@@ -137,7 +138,11 @@ async function getServiceCosts(serviceId: string, clinicId: string) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
+    const bodyResult = await readJson(request)
+    if ('error' in bodyResult) {
+      return bodyResult.error
+    }
+    const body = bodyResult.data
     const parsed = saveTariffsSchema.safeParse(body)
 
     if (!parsed.success) {

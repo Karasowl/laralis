@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    console.log(`[cron/send-reminders] Processing ${pendingReminders.length} reminders`);
+    console.info(`[cron/send-reminders] Processing ${pendingReminders.length} reminders`);
 
     // Process each reminder
     for (const reminder of pendingReminders) {
@@ -136,7 +136,7 @@ export async function GET(request: NextRequest) {
 
         // Skip if patient has no email
         if (!patient.email) {
-          console.log(`[cron/send-reminders] Skipping reminder ${reminder.id}: No patient email`);
+          console.info(`[cron/send-reminders] Skipping reminder ${reminder.id}: No patient email`);
           await markReminderStatus(reminder.id, 'cancelled', 'No patient email');
           results.skipped++;
           continue;
@@ -145,7 +145,7 @@ export async function GET(request: NextRequest) {
         // Skip if notifications are disabled
         const settings = clinic.notification_settings;
         if (!settings?.email_enabled || !settings?.reminder_enabled) {
-          console.log(`[cron/send-reminders] Skipping reminder ${reminder.id}: Notifications disabled`);
+          console.info(`[cron/send-reminders] Skipping reminder ${reminder.id}: Notifications disabled`);
           await markReminderStatus(reminder.id, 'cancelled', 'Notifications disabled');
           results.skipped++;
           continue;
@@ -161,7 +161,7 @@ export async function GET(request: NextRequest) {
 
         // Skip if appointment has passed
         if (hoursUntil < 0) {
-          console.log(`[cron/send-reminders] Skipping reminder ${reminder.id}: Appointment passed`);
+          console.info(`[cron/send-reminders] Skipping reminder ${reminder.id}: Appointment passed`);
           await markReminderStatus(reminder.id, 'cancelled', 'Appointment already passed');
           results.skipped++;
           continue;
@@ -254,7 +254,7 @@ export async function GET(request: NextRequest) {
     }
 
     const duration = Date.now() - startTime;
-    console.log(`[cron/send-reminders] Completed in ${duration}ms:`, results);
+    console.info(`[cron/send-reminders] Completed in ${duration}ms:`, results);
 
     return NextResponse.json({
       message: 'Reminder processing complete',
@@ -396,7 +396,7 @@ async function sendGranularSMSReminders(params: {
       });
 
       if (result.success) {
-        console.log(`[cron/send-reminders] Patient SMS ${reminderType} sent for reminder ${reminderId}`);
+        console.info(`[cron/send-reminders] Patient SMS ${reminderType} sent for reminder ${reminderId}`);
       } else {
         console.error(`[cron/send-reminders] Patient SMS failed for reminder ${reminderId}:`, result.error);
       }
@@ -436,7 +436,7 @@ async function sendGranularSMSReminders(params: {
         });
 
         if (result.success) {
-          console.log(`[cron/send-reminders] Staff SMS ${reminderType} sent for reminder ${reminderId}`);
+          console.info(`[cron/send-reminders] Staff SMS ${reminderType} sent for reminder ${reminderId}`);
         } else {
           console.error(`[cron/send-reminders] Staff SMS failed for reminder ${reminderId}:`, result.error);
         }
@@ -459,7 +459,7 @@ async function sendGranularSMSReminders(params: {
         });
 
         if (result.success) {
-          console.log(`[cron/send-reminders] Staff extra SMS ${reminderType} sent for reminder ${reminderId}`);
+          console.info(`[cron/send-reminders] Staff extra SMS ${reminderType} sent for reminder ${reminderId}`);
         } else {
           console.error(`[cron/send-reminders] Staff extra SMS failed for reminder ${reminderId}:`, result.error);
         }

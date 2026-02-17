@@ -10,21 +10,22 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { WorkspaceExporter, ExportError } from '@/lib/export/exporter';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { z } from 'zod';
+import { readJson, validateSchema } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 minutes timeout for large exports
 
-/**
- * Export request body
- */
-interface ExportRequest {
-  workspaceId: string;
-  options?: {
-    includeAuditLogs?: boolean;
-    includeHistorical?: boolean;
-    compress?: boolean;
-  };
-}
+const exportRequestSchema = z.object({
+  workspaceId: z.string().uuid(),
+  options: z
+    .object({
+      includeAuditLogs: z.boolean().optional(),
+      includeHistorical: z.boolean().optional(),
+      compress: z.boolean().optional(),
+    })
+    .optional(),
+});
 
 /**
  * Verify user has permission to export workspace
@@ -79,12 +80,15 @@ export async function POST(request: NextRequest) {
 
   try {
     // Parse request body
-    const body: ExportRequest = await request.json();
-    const { workspaceId, options = {} } = body;
-
-    if (!workspaceId) {
-      return NextResponse.json({ error: 'workspaceId is required' }, { status: 400 });
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
     }
+    const parsed = validateSchema(exportRequestSchema, bodyResult.data);
+    if ('error' in parsed) {
+      return parsed.error;
+    }
+    const { workspaceId, options = {} } = parsed.data;
 
     // Create Supabase client
     const cookieStore = cookies();

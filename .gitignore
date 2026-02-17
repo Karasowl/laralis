@@ -74,6 +74,13 @@ web/*.tsbuildinfo
 # Temporary files
 tmp/
 temp/
+tmp*.txt
+tmp*.tsx
+tmp*.json
+_tmp*.txt
+_tmp*.json
+*.backup
+*.deprecated
 _match_laralis.txt
 
 # Supabase local development

@@ -6,6 +6,15 @@
 - [x] ~~TASK-20251207-public-booking~~ - Autoagendamiento público (link sin login) ✅ Implementado 2025-12-12
 - [x] ~~TASK-20251207-email-notifications~~ - Notificaciones email automáticas (confirmación + recordatorio) ✅ Implementado 2025-12-12
 
+## Seguridad
+
+- [x] ~~TASK-20260204-block-service-role-client~~ - Bloquear supabaseAdmin en cliente ✅ Implementado 2026-02-04
+- [x] ~~TASK-20260204-security-headers~~ - Agregar headers de seguridad en Next.js ✅ Implementado 2026-02-04
+- [x] ~~TASK-20260204-api-zod-validation-phase-1~~ - Validar payloads API con Zod (fase 1) ✅ Implementado 2026-02-04
+- [x] ~~TASK-20260204-api-zod-validation-phase-2-actions~~ - Validar endpoints actions con Zod ✅ Implementado 2026-02-04
+- [x] ~~TASK-20260204-api-zod-validation-phase-3-remaining~~ - Validar endpoints restantes con Zod ✅ Implementado 2026-02-04
+- [x] ~~TASK-20260204-api-zod-validation-phase-4-additional~~ - Validar endpoints adicionales con Zod ✅ Implementado 2026-02-04
+
 ## P1 - Plan Profesional
 
 ### Nuevas tareas (Análisis competitivo 2025-12-07)
@@ -53,4 +62,4 @@ Las siguientes tareas del backlog original ya fueron implementadas:
 - [Pricing Strategy](../docs/competencia/PRICING-STRATEGY.md)
 - [Análisis Dentalink](../docs/competencia/dentalink/ANALISIS.md)
 
-Última actualización: 2025-12-12
+Última actualización: 2026-02-04

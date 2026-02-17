@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { withPermission } from '@/lib/middleware/with-permission';
 import { zAsset } from '@/lib/zod';
 import type { Asset, ApiResponse } from '@/lib/types';
+import { readJson } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic'
 
@@ -16,7 +17,11 @@ export const PUT = withPermission(
         return NextResponse.json({ error: 'Asset ID is required' }, { status: 400 });
       }
 
-      const body = await request.json();
+      const bodyResult = await readJson(request);
+      if ('error' in bodyResult) {
+        return bodyResult.error;
+      }
+      const body = bodyResult.data;
       const { clinicId } = context;
 
       const dataToValidate = { ...body, clinic_id: clinicId } as Record<string, unknown>;

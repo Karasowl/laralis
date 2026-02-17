@@ -49,16 +49,16 @@ export async function GET(request: NextRequest) {
       // Usar fechas específicas
       rangeStart = new Date(startDateParam)
       rangeEnd = new Date(endDateParam)
-      console.log('[cac-trend] Using date range:', startDateParam, 'to', endDateParam)
+      console.info('[cac-trend] Using date range:', startDateParam, 'to', endDateParam)
     } else {
       // Fallback a months
       rangeEnd = new Date()
       rangeStart = new Date()
       rangeStart.setMonth(rangeStart.getMonth() - months)
-      console.log('[cac-trend] Using months:', months)
+      console.info('[cac-trend] Using months:', months)
     }
 
-    console.log('[cac-trend] Fetching for clinic:', clinicId)
+    console.info('[cac-trend] Fetching for clinic:', clinicId)
 
     // Calcular rangos de fechas para cada mes dentro del rango
     const monthRanges: Array<{ start: string; end: string; label: string }> = []
@@ -154,9 +154,9 @@ export async function GET(request: NextRequest) {
 
     const currentCAC = cacByMonth[cacByMonth.length - 1]?.cacCents || 0
 
-    console.log('[cac-trend] CAC by month:', cacByMonth)
-    console.log('[cac-trend] Average CAC:', avgCAC)
-    console.log('[cac-trend] Current CAC:', currentCAC)
+    console.info('[cac-trend] CAC by month:', cacByMonth)
+    console.info('[cac-trend] Average CAC:', avgCAC)
+    console.info('[cac-trend] Current CAC:', currentCAC)
 
     return NextResponse.json({
       months: monthRanges.length, // Número real de meses en el rango

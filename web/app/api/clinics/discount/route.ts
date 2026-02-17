@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { resolveClinicContext } from '@/lib/clinic'
+import { readJson } from '@/lib/validation'
 
 export const dynamic = 'force-dynamic'
 
@@ -67,7 +68,11 @@ export async function GET(request: NextRequest) {
  */
 export async function PUT(request: NextRequest) {
   try {
-    const body = await request.json()
+    const bodyResult = await readJson(request)
+    if ('error' in bodyResult) {
+      return bodyResult.error
+    }
+    const body = bodyResult.data
     const parsed = globalDiscountSchema.safeParse(body)
 
     if (!parsed.success) {

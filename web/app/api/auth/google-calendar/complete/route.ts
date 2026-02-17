@@ -11,8 +11,14 @@ import {
   completeCalendarConnection,
   getPendingCalendarConfig,
 } from '@/lib/google-calendar'
+import { z } from 'zod'
+import { readJson, validateSchema } from '@/lib/validation'
 
 export const dynamic = 'force-dynamic'
+
+const completeCalendarSchema = z.object({
+  calendarId: z.string().min(1),
+})
 
 /**
  * POST: Complete calendar connection with selected calendar
@@ -45,15 +51,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Get selected calendar from body
-    const body = await request.json()
-    const { calendarId } = body
-
-    if (!calendarId) {
-      return NextResponse.json(
-        { error: 'Calendar ID is required' },
-        { status: 400 }
-      )
+    const bodyResult = await readJson(request)
+    if ('error' in bodyResult) {
+      return bodyResult.error
     }
+    const parsed = validateSchema(completeCalendarSchema, bodyResult.data)
+    if ('error' in parsed) {
+      return parsed.error
+    }
+    const { calendarId } = parsed.data
 
     // Complete the connection
     await completeCalendarConnection(clinicId, calendarId)

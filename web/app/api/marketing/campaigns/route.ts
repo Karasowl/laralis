@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { z } from 'zod';
+import { readJson, validateSchema } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic'
 
@@ -12,6 +13,15 @@ const createCampaignSchema = z.object({
   name: z.string().min(1),
   code: z.string().optional().nullable(),
 });
+
+const updateCampaignSchema = z.object({
+  id: z.string().uuid(),
+  clinic_id: z.string().uuid().optional(),
+  name: z.string().min(1).optional(),
+  code: z.string().nullable().optional(),
+  is_active: z.boolean().optional(),
+  is_archived: z.boolean().optional(),
+}).passthrough();
 
 export async function GET(request: NextRequest) {
   try {
@@ -106,10 +116,14 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('[POST /api/marketing/campaigns] Starting...');
+    console.info('[POST /api/marketing/campaigns] Starting...');
     
-    const body = await request.json();
-    console.log('[POST /api/marketing/campaigns] Request body:', JSON.stringify(body, null, 2));
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
+    }
+    const body = bodyResult.data;
+    console.info('[POST /api/marketing/campaigns] Request body:', JSON.stringify(body, null, 2));
     
     const cookieStore = cookies();
     const clinicContext = await resolveClinicContext({ requestedClinicId: body?.clinic_id, cookieStore });
@@ -117,7 +131,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
     const { clinicId } = clinicContext;
-    console.log('[POST /api/marketing/campaigns] Clinic ID:', clinicId);
+    console.info('[POST /api/marketing/campaigns] Clinic ID:', clinicId);
 
     if (!clinicId) {
       console.error('[POST /api/marketing/campaigns] No clinic context available');
@@ -137,7 +151,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar que el platform_id existe antes de insertar
-    console.log('[POST /api/marketing/campaigns] Checking platform_id:', validation.data.platform_id);
+    console.info('[POST /api/marketing/campaigns] Checking platform_id:', validation.data.platform_id);
     const { data: platformCheck, error: platformError } = await supabaseAdmin
       .from('categories')
       .select('id, name, display_name')
@@ -157,7 +171,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('[POST /api/marketing/campaigns] Platform verified:', platformCheck.display_name || platformCheck.name);
+    console.info('[POST /api/marketing/campaigns] Platform verified:', platformCheck.display_name || platformCheck.name);
 
     const insertData = {
       clinic_id: clinicId,
@@ -166,7 +180,7 @@ export async function POST(request: NextRequest) {
       code: validation.data.code || null,
     };
 
-    console.log('[POST /api/marketing/campaigns] Inserting:', JSON.stringify(insertData, null, 2));
+    console.info('[POST /api/marketing/campaigns] Inserting:', JSON.stringify(insertData, null, 2));
 
     const { data, error } = await supabaseAdmin
       .from('marketing_campaigns')
@@ -192,7 +206,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('[POST /api/marketing/campaigns] Campaign created successfully:', data.id);
+    console.info('[POST /api/marketing/campaigns] Campaign created successfully:', data.id);
     return NextResponse.json({ data });
   } catch (error) {
     console.error('[POST /api/marketing/campaigns] Unexpected error:', error);
@@ -208,11 +222,16 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const body = await request.json();
-    const id = body?.id as string | undefined;
-    if (!id) {
-      return NextResponse.json({ error: 'Missing campaign id' }, { status: 400 });
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
     }
+    const parsed = validateSchema(updateCampaignSchema, bodyResult.data);
+    if ('error' in parsed) {
+      return parsed.error;
+    }
+    const body = parsed.data;
+    const id = body.id;
 
     const cookieStore = cookies();
     const clinicContext = await resolveClinicContext({ requestedClinicId: body?.clinic_id, cookieStore });

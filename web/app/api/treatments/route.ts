@@ -14,6 +14,7 @@ import {
   sendAllTreatmentCreatedNotifications,
   TreatmentNotificationParams,
 } from '@/lib/sms/service';
+import { readJson } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic'
 
@@ -104,7 +105,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const rawBody = await request.json();
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
+    }
+    const rawBody = bodyResult.data;
     const parsed = treatmentSchema.safeParse(rawBody);
     if (!parsed.success) {
       const message = parsed.error.errors.map(err => err.message).join(', ');
@@ -476,10 +481,10 @@ export async function POST(request: NextRequest) {
           smsSent = smsResults.patient.success || smsResults.staff.primary.success;
 
           if (smsResults.patient.success) {
-            console.log(`[treatments POST] SMS sent to patient for treatment ${created.id}`);
+            console.info(`[treatments POST] SMS sent to patient for treatment ${created.id}`);
           }
           if (smsResults.staff.primary.success) {
-            console.log(`[treatments POST] SMS sent to staff for treatment ${created.id}`);
+            console.info(`[treatments POST] SMS sent to staff for treatment ${created.id}`);
           }
         }
       }

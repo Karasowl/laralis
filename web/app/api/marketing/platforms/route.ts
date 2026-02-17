@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { z } from 'zod';
+import { readJson, validateSchema } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic'
 
@@ -11,6 +12,18 @@ const createPlatformSchema = z.object({
   display_name: z.string().min(1),
   name: z.string().optional().nullable(),
 });
+
+const updatePlatformSchema = z.object({
+  id: z.string().uuid(),
+  clinic_id: z.string().uuid().optional(),
+  display_name: z.string().min(1).optional(),
+  is_active: z.boolean().optional(),
+}).passthrough();
+
+const deletePlatformSchema = z.object({
+  id: z.string().uuid(),
+  clinic_id: z.string().uuid().optional(),
+}).passthrough();
 
 export async function GET(request: NextRequest) {
   try {
@@ -66,7 +79,11 @@ export async function POST(request: NextRequest) {
   try {
     const cookieStore = cookies();
     const searchParams = request.nextUrl.searchParams;
-    const body = await request.json();
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
+    }
+    const body = bodyResult.data;
 
     const clinicContext = await resolveClinicContext({
       requestedClinicId: body?.clinic_id || searchParams.get('clinicId'),
@@ -114,11 +131,16 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const body = await request.json();
-    const id = body?.id as string | undefined;
-    if (!id) {
-      return NextResponse.json({ error: 'Missing platform id' }, { status: 400 });
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
     }
+    const parsed = validateSchema(updatePlatformSchema, bodyResult.data);
+    if ('error' in parsed) {
+      return parsed.error;
+    }
+    const body = parsed.data;
+    const id = body.id;
 
     const cookieStore = cookies();
     const clinicContext = await resolveClinicContext({
@@ -182,11 +204,16 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const body = await request.json();
-    const id = body?.id as string | undefined;
-    if (!id) {
-      return NextResponse.json({ error: 'Missing platform id' }, { status: 400 });
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
     }
+    const parsed = validateSchema(deletePlatformSchema, bodyResult.data);
+    if ('error' in parsed) {
+      return parsed.error;
+    }
+    const body = parsed.data;
+    const id = body.id;
 
     const cookieStore = cookies();
     const clinicContext = await resolveClinicContext({

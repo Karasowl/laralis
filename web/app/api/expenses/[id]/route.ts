@@ -1,64 +1,83 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
-import { expenseDbSchema, type UpdateExpenseRequest } from '@/lib/types/expenses'
+import { expenseDbSchema } from '@/lib/types/expenses'
 import { withPermission } from '@/lib/middleware/with-permission'
+import { readJson } from '@/lib/validation'
+import { withRouteContext } from '@/lib/api/route-handler'
+import { createRouteLogger } from '@/lib/api/logger'
 
 export const dynamic = 'force-dynamic'
 
+type CategoryLookup = {
+  id: string
+  name: string | null
+  display_name: string | null
+}
 
-export const GET = withPermission('expenses.view', async (request, context) => {
-  try {
-    const expenseId = request.nextUrl.pathname.split('/').pop()
-    if (!expenseId) {
-      return NextResponse.json({ error: 'Expense ID is required' }, { status: 400 })
-    }
-
-    const { data, error } = await supabaseAdmin
-      .from('expenses')
-      .select(`
-        *,
-        supply:related_supply_id(id, name, category),
-        asset:related_asset_id(id, name, category)
-      `)
-      .eq('id', expenseId)
-      .eq('clinic_id', context.clinicId)
-      .single()
-
-    if (error) {
-      if (error.code === 'PGRST116') {
-        return NextResponse.json({ error: 'Expense not found' }, { status: 404 })
+export const GET = withPermission('expenses.view', async (request, context) =>
+  withRouteContext(request, async ({ requestId }) => {
+    const logger = createRouteLogger(requestId)
+    try {
+      const expenseId = request.nextUrl.pathname.split('/').pop()
+      if (!expenseId) {
+        return NextResponse.json({ error: 'Expense ID is required' }, { status: 400 })
       }
-      console.error('Error fetching expense:', error)
-      return NextResponse.json({ error: 'Failed to fetch expense' }, { status: 500 })
-    }
 
-    return NextResponse.json({ data })
+      const { data, error } = await supabaseAdmin
+        .from('expenses')
+        .select(`
+          *,
+          supply:related_supply_id(id, name, category),
+          asset:related_asset_id(id, name, category)
+        `)
+        .eq('id', expenseId)
+        .eq('clinic_id', context.clinicId)
+        .single()
 
-  } catch (error) {
-    console.error('Unexpected error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
-})
+      if (error) {
+        if (error.code === 'PGRST116') {
+          return NextResponse.json({ error: 'Expense not found' }, { status: 404 })
+        }
+        logger.error('expenses.detail.fetch_failed', { error: error.message, expenseId })
+        return NextResponse.json({ error: 'Failed to fetch expense' }, { status: 500 })
+      }
 
-export const PUT = withPermission('expenses.edit', async (request, context) => {
-  try {
-    const expenseId = request.nextUrl.pathname.split('/').pop()
-    if (!expenseId) {
-      return NextResponse.json({ error: 'Expense ID is required' }, { status: 400 })
-    }
-
-    const body = await request.json()
-
-    // Convert price_pesos to price_cents BEFORE validation (same pattern as supplies)
-    let dataToValidate = { ...body }
-    if ('amount_pesos' in body) {
-      dataToValidate.amount_cents = Math.round(body.amount_pesos * 100)
-      console.log('[Expense Update] Converting pesos to cents:', {
-        amount_pesos: body.amount_pesos,
-        amount_cents: dataToValidate.amount_cents
+      return NextResponse.json({ data })
+    } catch (error) {
+      logger.error('expenses.detail.unexpected_error', {
+        error: error instanceof Error ? error.message : String(error),
       })
-      delete dataToValidate.amount_pesos
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
+  })
+)
+
+export const PUT = withPermission('expenses.edit', async (request, context) =>
+  withRouteContext(request, async ({ requestId }) => {
+    const logger = createRouteLogger(requestId)
+    try {
+      const expenseId = request.nextUrl.pathname.split('/').pop()
+      if (!expenseId) {
+        return NextResponse.json({ error: 'Expense ID is required' }, { status: 400 })
+      }
+
+      const bodyResult = await readJson(request)
+      if ('error' in bodyResult) {
+        return bodyResult.error
+      }
+      const rawBody = bodyResult.data as Record<string, unknown>
+
+    // Convert amount_pesos to amount_cents BEFORE validation (same pattern as supplies)
+    const { amount_pesos, ...bodyWithoutPesos } = rawBody
+    let amountCents = typeof rawBody.amount_cents === 'number' ? Math.round(rawBody.amount_cents) : undefined
+    if (typeof amount_pesos === 'number') {
+      amountCents = Math.round(amount_pesos * 100)
+      console.info('[Expense Update] Converting pesos to cents:', {
+        amount_pesos,
+        amount_cents: amountCents
+      })
+    }
+    const dataToValidate = { ...bodyWithoutPesos, amount_cents: amountCents }
 
     // Validate input using DB schema (partial update)
     const validationResult = expenseDbSchema.partial().safeParse(dataToValidate)
@@ -81,7 +100,7 @@ export const PUT = withPermission('expenses.edit', async (request, context) => {
       if (fetchError.code === 'PGRST116') {
         return NextResponse.json({ error: 'Expense not found' }, { status: 404 })
       }
-      console.error('Error fetching expense:', fetchError)
+      logger.error('expenses.update.fetch_current_failed', { error: fetchError.message, expenseId })
       return NextResponse.json({ error: 'Failed to fetch expense' }, { status: 500 })
     }
 
@@ -91,7 +110,11 @@ export const PUT = withPermission('expenses.edit', async (request, context) => {
       asset_name,
       asset_useful_life_years,
       ...updateData
-    } = validationResult.data as any
+    } = validationResult.data
+    // UI-only fields are intentionally ignored in updates
+    void create_asset
+    void asset_name
+    void asset_useful_life_years
 
     // Resolve category if needed (similar to POST endpoint)
     let resolvedCategoryId = updateData.category_id
@@ -125,7 +148,8 @@ export const PUT = withPermission('expenses.edit', async (request, context) => {
 
       if (cat) {
         resolvedCategoryId = cat.id
-        resolvedCategory = (cat as any).display_name || (cat as any).name
+        const normalizedCat = cat as CategoryLookup
+        resolvedCategory = normalizedCat.display_name || normalizedCat.name || resolvedCategory
       }
     } else if (resolvedCategoryId && !resolvedCategory) {
       // If category_id provided but category string not provided, resolve category name
@@ -135,7 +159,8 @@ export const PUT = withPermission('expenses.edit', async (request, context) => {
         .eq('id', resolvedCategoryId)
         .single()
       if (cat) {
-        resolvedCategory = (cat as any).display_name || (cat as any).name
+        const normalizedCat = cat as Pick<CategoryLookup, 'name' | 'display_name'>
+        resolvedCategory = normalizedCat.display_name || normalizedCat.name || resolvedCategory
       }
     }
 
@@ -199,7 +224,7 @@ export const PUT = withPermission('expenses.edit', async (request, context) => {
       .single()
 
     if (updateError) {
-      console.error('Error updating expense:', updateError)
+      logger.error('expenses.update.update_failed', { error: updateError.message, expenseId })
       return NextResponse.json({ error: 'Failed to update expense' }, { status: 500 })
     }
 
@@ -259,18 +284,23 @@ export const PUT = withPermission('expenses.edit', async (request, context) => {
 
     return NextResponse.json({ data: updatedExpense })
 
-  } catch (error) {
-    console.error('Unexpected error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
-})
-
-export const DELETE = withPermission('expenses.delete', async (request, context) => {
-  try {
-    const expenseId = request.nextUrl.pathname.split('/').pop()
-    if (!expenseId) {
-      return NextResponse.json({ error: 'Expense ID is required' }, { status: 400 })
+    } catch (error) {
+      logger.error('expenses.update.unexpected_error', {
+        error: error instanceof Error ? error.message : String(error),
+      })
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
+  })
+)
+
+export const DELETE = withPermission('expenses.delete', async (request, context) =>
+  withRouteContext(request, async ({ requestId }) => {
+    const logger = createRouteLogger(requestId)
+    try {
+      const expenseId = request.nextUrl.pathname.split('/').pop()
+      if (!expenseId) {
+        return NextResponse.json({ error: 'Expense ID is required' }, { status: 400 })
+      }
 
     // Get expense data before deletion for inventory cleanup
     const { data: expense, error: fetchError } = await supabaseAdmin
@@ -284,7 +314,7 @@ export const DELETE = withPermission('expenses.delete', async (request, context)
       if (fetchError.code === 'PGRST116') {
         return NextResponse.json({ error: 'Expense not found' }, { status: 404 })
       }
-      console.error('Error fetching expense:', fetchError)
+      logger.error('expenses.delete.fetch_current_failed', { error: fetchError.message, expenseId })
       return NextResponse.json({ error: 'Failed to fetch expense' }, { status: 500 })
     }
 
@@ -315,14 +345,17 @@ export const DELETE = withPermission('expenses.delete', async (request, context)
       .eq('clinic_id', context.clinicId)
 
     if (deleteError) {
-      console.error('Error deleting expense:', deleteError)
+      logger.error('expenses.delete.delete_failed', { error: deleteError.message, expenseId })
       return NextResponse.json({ error: 'Failed to delete expense' }, { status: 500 })
     }
 
     return NextResponse.json({ message: 'Expense deleted successfully' })
 
-  } catch (error) {
-    console.error('Unexpected error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
-})
+    } catch (error) {
+      logger.error('expenses.delete.unexpected_error', {
+        error: error instanceof Error ? error.message : String(error),
+      })
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
+  })
+)

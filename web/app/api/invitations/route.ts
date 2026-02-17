@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { z } from 'zod';
 import { resolveClinicContext } from '@/lib/clinic';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { readJson } from '@/lib/validation';
 
 /**
  * GET /api/invitations
@@ -216,7 +217,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse and validate request body
-    const body = await request.json();
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
+    }
+    const body = bodyResult.data;
     const validatedData = createInvitationSchema.parse(body);
 
     // Check if email already has an active invitation

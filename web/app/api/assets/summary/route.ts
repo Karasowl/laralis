@@ -37,9 +37,9 @@ export const GET = withPermission(
       const assets = data || [];
 
       // Debug logging
-      console.log(`[Assets Summary] Found ${assets.length} assets for clinic ${clinicId}`);
+      console.info(`[Assets Summary] Found ${assets.length} assets for clinic ${clinicId}`);
       if (assets.length > 0) {
-        console.log('[Assets Summary] Sample asset:', {
+        console.info('[Assets Summary] Sample asset:', {
           purchase_price_cents: assets[0].purchase_price_cents,
           depreciation_months: assets[0].depreciation_months
         });
@@ -52,16 +52,16 @@ export const GET = withPermission(
         const price = Number(a.purchase_price_cents || 0);
         const months = Number(a.depreciation_months || 0);
 
-        console.log(`[Assets Summary] Processing asset: price=${price}, months=${months}`);
+        console.info(`[Assets Summary] Processing asset: price=${price}, months=${months}`);
 
         if (price <= 0 || months <= 0) {
-          console.log('[Assets Summary] Skipping asset with invalid price or months');
+          console.info('[Assets Summary] Skipping asset with invalid price or months');
           return sum;
         }
 
         try {
           const depreciation = calculateMonthlyDepreciation(price, months);
-          console.log(`[Assets Summary] Calculated monthly depreciation: ${depreciation}`);
+          console.info(`[Assets Summary] Calculated monthly depreciation: ${depreciation}`);
           return sum + depreciation;
         } catch (err) {
           console.error('[Assets Summary] Error calculating depreciation:', err);
@@ -69,7 +69,7 @@ export const GET = withPermission(
         }
       }, 0);
 
-      console.log(`[Assets Summary] Total monthly depreciation: ${monthly_depreciation_cents}`);
+      console.info(`[Assets Summary] Total monthly depreciation: ${monthly_depreciation_cents}`);
 
       const asset_count = assets.length;
 

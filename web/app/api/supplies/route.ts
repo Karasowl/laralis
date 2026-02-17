@@ -4,6 +4,7 @@ import { zSupply } from '@/lib/zod';
 import type { Supply, ApiResponse } from '@/lib/types';
 import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
+import { readJson } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic'
 
@@ -76,7 +77,11 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
 
 export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse<Supply>>> {
   try {
-    const body = await request.json();
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
+    }
+    const body = bodyResult.data;
 
     const cookieStore = cookies();
     const clinicContext = await resolveClinicContext({ requestedClinicId: body?.clinic_id, cookieStore });

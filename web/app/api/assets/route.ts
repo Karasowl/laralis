@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { withPermission } from '@/lib/middleware/with-permission';
 import { zAsset } from '@/lib/zod';
 import type { Asset, ApiResponse } from '@/lib/types';
+import { readJson } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic'
 
@@ -57,7 +58,11 @@ export const POST = withPermission(
   'assets.create',
   async (request, context): Promise<NextResponse<ApiResponse<Asset>>> => {
     try {
-      const body = await request.json();
+      const bodyResult = await readJson(request);
+      if ('error' in bodyResult) {
+        return bodyResult.error;
+      }
+      const body = bodyResult.data;
       const { clinicId } = context;
 
       const { purchase_price_pesos, ...bodyWithoutPesos } = body as {

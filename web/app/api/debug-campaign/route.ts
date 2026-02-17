@@ -2,16 +2,32 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
+import { z } from 'zod';
+import { readJson, validateSchema } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic'
 
+const debugCampaignSchema = z.object({
+  clinic_id: z.string().uuid().optional(),
+  platform_id: z.string().uuid(),
+  name: z.string().min(1),
+  code: z.string().min(1).nullable().optional(),
+});
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('=== DEBUG: Campaign Creation ===');
+    console.info('=== DEBUG: Campaign Creation ===');
 
-    const body = await request.json();
-    console.log('1. Request body:', JSON.stringify(body, null, 2));
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
+    }
+    const parsed = validateSchema(debugCampaignSchema, bodyResult.data);
+    if ('error' in parsed) {
+      return parsed.error;
+    }
+    const body = parsed.data;
+    console.info('1. Request body:', JSON.stringify(body, null, 2));
 
     const cookieStore = cookies();
     const clinicContext = await resolveClinicContext({
@@ -27,9 +43,9 @@ export async function POST(request: NextRequest) {
     }
 
     const { clinicId } = clinicContext;
-    console.log('2. Clinic ID:', clinicId);
+    console.info('2. Clinic ID:', clinicId);
 
-    console.log('3. Checking if platform exists with ID:', body.platform_id);
+    console.info('3. Checking if platform exists with ID:', body.platform_id);
     const { data: platformData, error: platformError } = await supabaseAdmin
       .from('categories')
       .select('*')
@@ -52,7 +68,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('4. Platform found:', platformData);
+    console.info('4. Platform found:', platformData);
 
     const insertData = {
       clinic_id: clinicId,
@@ -61,7 +77,7 @@ export async function POST(request: NextRequest) {
       code: body.code || null,
     };
 
-    console.log('5. Insert data:', JSON.stringify(insertData, null, 2));
+    console.info('5. Insert data:', JSON.stringify(insertData, null, 2));
 
     const { data, error } = await supabaseAdmin
       .from('marketing_campaigns')
@@ -85,7 +101,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('7. Campaign created successfully:', data);
+    console.info('7. Campaign created successfully:', data);
     return NextResponse.json({ data });
   } catch (error) {
     console.error('8. Unexpected error:', error);
@@ -113,8 +129,8 @@ export async function GET(request: NextRequest) {
 
     const { clinicId } = clinicContext;
 
-    console.log('=== DEBUG: Get Platforms ===');
-    console.log('Clinic ID:', clinicId);
+    console.info('=== DEBUG: Get Platforms ===');
+    console.info('Clinic ID:', clinicId);
 
     const { data: platforms, error } = await supabaseAdmin
       .from('categories')
@@ -130,7 +146,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log('Platforms found:', platforms?.length);
+    console.info('Platforms found:', platforms?.length);
 
     return NextResponse.json({
       platforms,

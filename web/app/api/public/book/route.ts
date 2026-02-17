@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { z } from 'zod'
 import { sendBookingConfirmation } from '@/lib/email/service'
 import { sendBookingReceivedWhatsApp } from '@/lib/whatsapp'
+import { readJson } from '@/lib/validation'
 
 export const dynamic = 'force-dynamic'
 
@@ -37,7 +38,11 @@ interface BookingConfig {
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const body = await request.json()
+    const bodyResult = await readJson(request)
+    if ('error' in bodyResult) {
+      return bodyResult.error
+    }
+    const body = bodyResult.data
 
     // Validate input
     const validation = bookingSchema.safeParse(body)

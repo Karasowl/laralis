@@ -4,8 +4,26 @@ import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { deleteClinicData } from '@/lib/clinic-tables';
+import { z } from 'zod';
+import { readJson, validateSchema } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic'
+
+const resetSchema = z.object({
+  resetType: z.enum([
+    'initial_setup',
+    'patients',
+    'treatments',
+    'expenses',
+    'services',
+    'supplies',
+    'fixed_costs',
+    'assets',
+    'time_settings',
+    'custom_categories',
+    'all_data',
+  ]),
+});
 
 
 async function deleteWorkspaceData(workspaceId: string) {
@@ -84,12 +102,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
-    const resetType = body?.resetType as string | undefined;
-
-    if (!resetType) {
-      return NextResponse.json({ error: 'Reset type is required' }, { status: 400 });
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
     }
+    const parsed = validateSchema(resetSchema, bodyResult.data);
+    if ('error' in parsed) {
+      return parsed.error;
+    }
+    const { resetType } = parsed.data;
 
     const workspaceCookie = cookieStore.get('workspaceId')?.value || null;
 

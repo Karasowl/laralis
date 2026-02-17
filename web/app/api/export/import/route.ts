@@ -10,7 +10,9 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { WorkspaceBundleImporter } from '@/lib/export/importer';
-import type { ExportBundle, ImportOptions } from '@/lib/export/types';
+import type { ImportOptions } from '@/lib/export/types';
+import { z } from 'zod';
+import { readJson, validateSchema } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 minutes timeout for large imports
@@ -20,13 +22,25 @@ export const maxDuration = 300; // 5 minutes timeout for large imports
  */
 const MAX_BUNDLE_SIZE = 100 * 1024 * 1024;
 
-/**
- * Import request body
- */
-interface ImportRequest {
-  bundle: ExportBundle;
-  options?: Partial<ImportOptions>;
-}
+const importOptionsSchema = z.object({
+  mode: z.enum(['create', 'merge']).optional(),
+  targetWorkspaceId: z.string().uuid().optional(),
+  skipValidation: z.boolean().optional(),
+  dryRun: z.boolean().optional(),
+  overwrite: z.boolean().optional(),
+});
+
+const exportBundleSchema = z
+  .object({
+    metadata: z.object({}).passthrough(),
+    data: z.object({}).passthrough(),
+  })
+  .passthrough();
+
+const importRequestSchema = z.object({
+  bundle: exportBundleSchema,
+  options: importOptionsSchema.optional(),
+});
 
 /**
  * POST handler
@@ -73,29 +87,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Parse request body
-    let body: ImportRequest;
-    try {
-      body = await request.json();
-    } catch (error) {
-      return NextResponse.json(
-        {
-          error: 'Invalid JSON format',
-          details: error instanceof Error ? error.message : String(error),
-        },
-        { status: 400 }
-      );
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
     }
-
-    const { bundle, options = {} } = body;
-
-    // Validate bundle structure
-    if (!bundle || !bundle.metadata || !bundle.data) {
-      return NextResponse.json(
-        { error: 'Invalid bundle structure. Missing metadata or data.' },
-        { status: 400 }
-      );
+    const parsed = validateSchema(importRequestSchema, bodyResult.data);
+    if ('error' in parsed) {
+      return parsed.error;
     }
+    const { bundle, options = {} } = parsed.data;
 
     // Set default import options
     const importOptions: ImportOptions = {

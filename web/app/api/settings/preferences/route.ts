@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
+import { readJson } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic'
 
@@ -108,7 +109,11 @@ export async function GET() {
 
 export async function PUT(request: NextRequest) {
   try {
-    const body = await request.json();
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
+    }
+    const body = bodyResult.data;
     const parseResult = preferencesSchema.safeParse(body);
 
     if (!parseResult.success) {

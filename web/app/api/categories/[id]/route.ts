@@ -3,11 +3,17 @@ import { supabaseAdmin, isUsingServiceRole } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { createClient } from '@/lib/supabase/server';
+import { z } from 'zod';
+import { readJson, validateSchema } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic'
 
 
 const diacriticRegex = /[\u0300-\u036f]/g;
+
+const categoryUpdateSchema = z.object({
+  name: z.string().min(1, 'Name is required')
+});
 
 function slugify(input: string) {
   return String(input)
@@ -32,9 +38,15 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const { clinicId } = clinicContext;
     const typeCode = (searchParams.get('type') || 'services') as 'services' | 'supplies' | 'expenses' | 'assets';
 
-    const body = await request.json();
-    const newNameRaw = String(body?.name || '').trim();
-    if (!newNameRaw) return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
+    }
+    const parsed = validateSchema(categoryUpdateSchema, bodyResult.data);
+    if ('error' in parsed) {
+      return parsed.error;
+    }
+    const newNameRaw = parsed.data.name.trim();
     const newCode = slugify(newNameRaw);
 
     const db = isUsingServiceRole ? supabaseAdmin : createClient();

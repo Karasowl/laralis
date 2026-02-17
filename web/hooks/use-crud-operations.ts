@@ -124,7 +124,6 @@ export function useCrudOperations<T extends { id: string; name?: string }>(
       }
 
       const url = urlObj.pathname + (urlObj.search ? urlObj.search : '')
-      try { console.log('[useCrudOperations] fetch', url) } catch {}
       const response = await fetch(url, { credentials: 'include', signal: controller.signal })
       
       if (!response.ok) {
@@ -139,7 +138,6 @@ export function useCrudOperations<T extends { id: string; name?: string }>(
         : data;
       
       if (fetchId === lastFetchIdRef.current) {
-        try { console.log('[useCrudOperations] fetched', config.endpoint, Array.isArray(transformedData) ? transformedData.length : 'n/a') } catch {}
         setItems(transformedData);
       }
     } catch (error) {
@@ -229,7 +227,6 @@ export function useCrudOperations<T extends { id: string; name?: string }>(
         throw new Error(errorResponse.message || errorResponse.error);
       }
 
-      try { console.log('[useCrudOperations] create response ok', config.endpoint) } catch {}
       toast.success(t('common.createSuccess', { entity: config.entityName }));
       await fetchItems();
       return true;

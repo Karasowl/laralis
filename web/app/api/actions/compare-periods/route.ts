@@ -10,6 +10,17 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { aiService } from '@/lib/ai/service'
 import type { ActionParams } from '@/lib/ai/types'
+import { z } from 'zod'
+import { readJson, validateSchema } from '@/lib/validation'
+
+const comparePeriodsSchema = z.object({
+  period1_start: z.string().min(1),
+  period1_end: z.string().min(1),
+  period2_start: z.string().min(1),
+  period2_end: z.string().min(1),
+  metrics: z.array(z.enum(['revenue', 'expenses', 'treatments', 'patients'])).optional(),
+  clinic_id: z.string().uuid(),
+})
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,21 +35,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // 2. Parse request body
-    const body = await request.json()
-    const { period1_start, period1_end, period2_start, period2_end, metrics, clinic_id } = body
-
-    // 3. Validate required parameters
-    if (!period1_start || !period1_end || !period2_start || !period2_end) {
-      return NextResponse.json(
-        { error: 'All period dates are required (period1_start, period1_end, period2_start, period2_end)' },
-        { status: 400 }
-      )
+    // 2. Parse and validate request body
+    const bodyResult = await readJson(request)
+    if ('error' in bodyResult) {
+      return bodyResult.error
     }
-
-    if (!clinic_id) {
-      return NextResponse.json({ error: 'clinic_id is required' }, { status: 400 })
+    const parsed = validateSchema(comparePeriodsSchema, bodyResult.data)
+    if ('error' in parsed) {
+      return parsed.error
     }
+    const { period1_start, period1_end, period2_start, period2_end, metrics, clinic_id } = parsed.data
 
     // 4. Verify user has access to the clinic
     const { data: membership, error: membershipError } = await supabase

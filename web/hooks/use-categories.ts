@@ -7,6 +7,7 @@ export type CategoryType = 'services' | 'supplies' | 'expenses' | 'assets'
 export interface CategoryRow {
   id?: string
   clinic_id?: string | null
+  parent_id?: string | null
   category_type_id?: string | null
   entity_type?: string | null
   code?: string | null

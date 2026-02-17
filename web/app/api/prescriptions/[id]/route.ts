@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { resolveClinicContext } from '@/lib/clinic'
 import { z } from 'zod'
+import { readJson } from '@/lib/validation'
 
 export const dynamic = 'force-dynamic'
 
@@ -100,7 +101,11 @@ export async function PUT(
 ): Promise<NextResponse> {
   try {
     const cookieStore = await cookies()
-    const body = await request.json()
+    const bodyResult = await readJson(request)
+    if ('error' in bodyResult) {
+      return bodyResult.error
+    }
+    const body = bodyResult.data
     const { id } = await params
 
     const clinicContext = await resolveClinicContext({

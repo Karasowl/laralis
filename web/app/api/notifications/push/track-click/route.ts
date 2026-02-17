@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { z } from 'zod'
+import { readJson, validateSchema } from '@/lib/validation'
 
 interface TrackClickBody {
   notificationId: string
 }
+
+const trackClickSchema = z.object({
+  notificationId: z.string().uuid(),
+})
 
 /**
  * POST /api/notifications/push/track-click
@@ -13,14 +19,15 @@ interface TrackClickBody {
  */
 export async function POST(request: NextRequest) {
   try {
-    const body: TrackClickBody = await request.json()
-
-    if (!body.notificationId) {
-      return NextResponse.json(
-        { error: 'Missing notificationId' },
-        { status: 400 }
-      )
+    const bodyResult = await readJson(request)
+    if ('error' in bodyResult) {
+      return bodyResult.error
     }
+    const parsed = validateSchema(trackClickSchema, bodyResult.data)
+    if ('error' in parsed) {
+      return parsed.error
+    }
+    const body: TrackClickBody = parsed.data
 
     // Update notification status
     const { error } = await supabaseAdmin

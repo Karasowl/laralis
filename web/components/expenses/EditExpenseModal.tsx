@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ChangeEvent } from 'react'
 import { useTranslations } from 'next-intl'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -10,12 +10,13 @@ import { FormSection, FormGrid, InputField, SelectField, TextareaField } from '@
 import { getLocalDateISO } from '@/lib/utils'
 import { Form } from '@/components/ui/form'
 import { ExpenseWithRelations, ExpenseFormData, EXPENSE_SUBCATEGORIES } from '@/lib/types/expenses'
-import { useCategories } from '@/hooks/use-categories'
+import { useCategories, type CategoryRow } from '@/hooks/use-categories'
 import { CategoryModal } from '@/app/services/components/CategoryModal'
 
 // Schema for expense form
 const expenseSchema = z.object({
   expense_date: z.string(),
+  category_id: z.string().optional(),
   category: z.string().min(1, 'Category is required'),
   subcategory: z.string().optional(),
   description: z.string().optional(),
@@ -30,10 +31,9 @@ interface EditExpenseModalProps {
   open: boolean
   onClose: () => void
   onSave: (id: string, data: Partial<ExpenseFormData>) => Promise<boolean>
-  categories?: any[]
 }
 
-export function EditExpenseModal({ expense, open, onClose, onSave, categories = [] }: EditExpenseModalProps) {
+export function EditExpenseModal({ expense, open, onClose, onSave }: EditExpenseModalProps) {
   const t = useTranslations('expenses')
   const tFields = useTranslations('fields')
   const tServices = useTranslations('services')
@@ -110,24 +110,31 @@ export function EditExpenseModal({ expense, open, onClose, onSave, categories = 
         <div className="space-y-4">
           <FormSection title={t('basic_information')}>
             <FormGrid columns={2}>
-              <InputField
-                type="date"
-                label={tFields('date')}
-                value={form.watch('expense_date')}
-                onChange={(value) => form.setValue('expense_date', value as string)}
-                error={form.formState.errors.expense_date?.message}
-                required
-              />
+                <InputField
+                  type="date"
+                  label={tFields('date')}
+                  value={form.watch('expense_date')}
+                  onChange={(value: string | number | ChangeEvent<HTMLInputElement>) => {
+                    const next = typeof value === 'object' ? value.target.value : String(value)
+                    form.setValue('expense_date', next)
+                  }}
+                  error={form.formState.errors.expense_date?.message}
+                  required
+                />
               
-              <InputField
-                type="number"
-                step="0.01"
-                label={tFields('amount')}
-                value={form.watch('amount_pesos') || 0}
-                onChange={(value) => form.setValue('amount_pesos', typeof value === 'number' ? value : parseFloat(String(value)))}
-                error={form.formState.errors.amount_pesos?.message}
-                required
-              />
+                <InputField
+                  type="number"
+                  step="0.01"
+                  label={tFields('amount')}
+                  value={form.watch('amount_pesos') || 0}
+                  onChange={(value: string | number | ChangeEvent<HTMLInputElement>) => {
+                    const raw = typeof value === 'object' ? value.target.value : value
+                    const numeric = typeof raw === 'number' ? raw : parseFloat(String(raw))
+                    form.setValue('amount_pesos', Number.isFinite(numeric) ? numeric : 0)
+                  }}
+                  error={form.formState.errors.amount_pesos?.message}
+                  required
+                />
             </FormGrid>
           </FormSection>
 
@@ -139,14 +146,18 @@ export function EditExpenseModal({ expense, open, onClose, onSave, categories = 
                 onChange={(value) => {
                   form.setValue('category', value)
                   // Attempt to map to category_id if list provided
-                  const match = (expenseCats || []).find((c: any) => (c.display_name || c.name) === value)
+                  const match = (expenseCats || []).find((c: CategoryRow) => (c.display_name || c.name) === value)
                   if (match) {
-                    // @ts-ignore: category_id exists in schema (optional)
                     form.setValue('category_id', match.id)
                   }
                 }}
                 options={(expenseCats && expenseCats.length > 0
-                  ? expenseCats.map((c: any) => ({ value: c.display_name || c.name, label: c.display_name || c.name }))
+                  ? expenseCats
+                      .map((c: CategoryRow) => {
+                        const label = c.display_name || c.name || ''
+                        return { value: label, label }
+                      })
+                      .filter((option) => option.value.length > 0)
                   : [
                     { value: 'Equipos', label: 'Equipos' },
                     { value: 'Insumos', label: 'Insumos' },
@@ -178,7 +189,10 @@ export function EditExpenseModal({ expense, open, onClose, onSave, categories = 
             <TextareaField
               label={tFields('description')}
               value={form.watch('description') || ''}
-              onChange={(value) => form.setValue('description', value)}
+              onChange={(value: string | ChangeEvent<HTMLTextAreaElement>) => {
+                const next = typeof value === 'string' ? value : value.target.value
+                form.setValue('description', next)
+              }}
               placeholder={t('description_placeholder')}
               error={form.formState.errors.description?.message}
             />
@@ -187,7 +201,10 @@ export function EditExpenseModal({ expense, open, onClose, onSave, categories = 
               <InputField
                 label={tFields('vendor')}
                 value={form.watch('vendor') || ''}
-                onChange={(value) => form.setValue('vendor', value as string)}
+                onChange={(value: string | number | ChangeEvent<HTMLInputElement>) => {
+                  const next = typeof value === 'object' ? value.target.value : String(value)
+                  form.setValue('vendor', next)
+                }}
                 placeholder={t('vendor_placeholder')}
                 error={form.formState.errors.vendor?.message}
               />
@@ -195,7 +212,10 @@ export function EditExpenseModal({ expense, open, onClose, onSave, categories = 
               <InputField
                 label={tFields('invoice_number')}
                 value={form.watch('invoice_number') || ''}
-                onChange={(value) => form.setValue('invoice_number', value as string)}
+                onChange={(value: string | number | ChangeEvent<HTMLInputElement>) => {
+                  const next = typeof value === 'object' ? value.target.value : String(value)
+                  form.setValue('invoice_number', next)
+                }}
                 placeholder={t('invoice_placeholder')}
                 error={form.formState.errors.invoice_number?.message}
               />
@@ -207,7 +227,7 @@ export function EditExpenseModal({ expense, open, onClose, onSave, categories = 
       <CategoryModal
         open={categoryModalOpen}
         onOpenChange={setCategoryModalOpen}
-        categories={expenseCats as any[]}
+        categories={expenseCats as CategoryRow[]}
         onCreateCategory={createCategory}
         onUpdateCategory={updateCategory}
         onDeleteCategory={deleteCategory}

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { resolveClinicContext } from '@/lib/clinic'
 import { cookies } from 'next/headers'
+import { z } from 'zod'
+import { readJson, validateSchema } from '@/lib/validation'
 
 interface SubscribeBody {
   endpoint: string
@@ -11,6 +13,15 @@ interface SubscribeBody {
     auth: string
   }
 }
+
+const subscribeSchema = z.object({
+  endpoint: z.string().min(1),
+  expirationTime: z.number().int().nullable().optional(),
+  keys: z.object({
+    p256dh: z.string().min(1),
+    auth: z.string().min(1),
+  }),
+})
 
 /**
  * POST /api/notifications/push/subscribe
@@ -39,15 +50,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const body: SubscribeBody = await request.json()
-
-    // Validate request body
-    if (!body.endpoint || !body.keys?.p256dh || !body.keys?.auth) {
-      return NextResponse.json(
-        { error: 'Missing required fields: endpoint, keys.p256dh, keys.auth' },
-        { status: 400 }
-      )
+    const bodyResult = await readJson(request)
+    if ('error' in bodyResult) {
+      return bodyResult.error
     }
+    const parsed = validateSchema(subscribeSchema, bodyResult.data)
+    if ('error' in parsed) {
+      return parsed.error
+    }
+    const body: SubscribeBody = parsed.data
 
     // Extract device info from headers
     const userAgent = request.headers.get('user-agent') || undefined

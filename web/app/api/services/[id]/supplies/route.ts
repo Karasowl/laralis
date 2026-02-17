@@ -4,6 +4,7 @@ import { zServiceSupply } from '@/lib/zod';
 import type { ServiceSupply, Supply, ApiResponse } from '@/lib/types';
 import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
+import { readJson } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic'
 
@@ -85,7 +86,11 @@ export async function POST(
   { params }: RouteParams
 ): Promise<NextResponse<ApiResponse<ServiceSupply>>> {
   try {
-    const body = await request.json();
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
+    }
+    const body = bodyResult.data;
     const cookieStore = cookies();
     const clinicContext = await resolveClinicContext({ cookieStore });
     if ('error' in clinicContext) {
@@ -187,7 +192,11 @@ export async function DELETE(
   { params }: RouteParams
 ): Promise<NextResponse<ApiResponse<null>>> {
   try {
-    const body = await request.json();
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
+    }
+    const body = bodyResult.data as { supply_id?: string };
     const cookieStore = cookies();
     const clinicContext = await resolveClinicContext({ cookieStore });
     if ('error' in clinicContext) {

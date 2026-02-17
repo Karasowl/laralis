@@ -10,6 +10,24 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { aiService } from '@/lib/ai/service'
 import type { ActionParams } from '@/lib/ai/types'
+import { z } from 'zod'
+import { readJson, validateSchema } from '@/lib/validation'
+
+const updateTimeSettingsSchema = z.object({
+  work_days: z.coerce.number().int().positive().optional(),
+  hours_per_day: z.coerce.number().positive().optional(),
+  real_productivity_pct: z.coerce.number().min(0).max(100).optional(),
+  clinic_id: z.string().uuid(),
+  dry_run: z.boolean().optional(),
+}).refine(
+  (data) =>
+    data.work_days !== undefined ||
+    data.hours_per_day !== undefined ||
+    data.real_productivity_pct !== undefined,
+  {
+    message: 'At least one setting (work_days, hours_per_day, or real_productivity_pct) is required',
+  }
+)
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,21 +42,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // 2. Parse request body
-    const body = await request.json()
-    const { work_days, hours_per_day, real_productivity_pct, clinic_id, dry_run = false } = body
-
-    // 3. Validate that at least one setting is provided
-    if (work_days === undefined && hours_per_day === undefined && real_productivity_pct === undefined) {
-      return NextResponse.json(
-        { error: 'At least one setting (work_days, hours_per_day, or real_productivity_pct) is required' },
-        { status: 400 }
-      )
+    // 2. Parse and validate request body
+    const bodyResult = await readJson(request)
+    if ('error' in bodyResult) {
+      return bodyResult.error
     }
-
-    if (!clinic_id) {
-      return NextResponse.json({ error: 'clinic_id is required' }, { status: 400 })
+    const parsed = validateSchema(updateTimeSettingsSchema, bodyResult.data)
+    if ('error' in parsed) {
+      return parsed.error
     }
+    const { work_days, hours_per_day, real_productivity_pct, clinic_id, dry_run } = parsed.data
+    const dryRun = dry_run ?? false
 
     // 4. Verify user has access to the clinic
     const { data: membership, error: membershipError } = await supabase
@@ -67,7 +81,7 @@ export async function POST(request: NextRequest) {
       clinicId: clinic_id,
       userId: user.id,
       supabase: supabaseAdmin,
-      dryRun: dry_run,
+      dryRun,
     })
 
     // 7. Return result

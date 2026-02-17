@@ -3,8 +3,14 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import type { ApiResponse } from '@/lib/types';
 import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
+import { z } from 'zod';
+import { readJson, validateSchema } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic'
+
+const serviceSupplyUpdateSchema = z.object({
+  qty: z.number().min(0),
+});
 
 
 interface RouteParams {
@@ -86,7 +92,14 @@ export async function PUT(
   { params }: RouteParams
 ): Promise<NextResponse<ApiResponse<null>>> {
   try {
-    const body = await request.json();
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
+    }
+    const parsed = validateSchema(serviceSupplyUpdateSchema, bodyResult.data);
+    if ('error' in parsed) {
+      return parsed.error;
+    }
     const cookieStore = cookies();
     const ctx = await resolveClinicContext({ cookieStore });
     if ('error' in ctx) {
@@ -109,14 +122,7 @@ export async function PUT(
       );
     }
 
-    const { qty } = body;
-
-    if (typeof qty !== 'number' || qty < 0) {
-      return NextResponse.json(
-        { error: 'Invalid quantity' },
-        { status: 400 }
-      );
-    }
+    const { qty } = parsed.data;
 
     // Double-check service belongs to clinic
     const { data: service } = await supabaseAdmin

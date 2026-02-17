@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
 
-    console.log('[campaigns/roi] API called with:', {
+    console.info('[campaigns/roi] API called with:', {
       clinicId,
       includeArchived,
       platformId,
@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
 
     const { data: campaigns, error: campaignsError } = await campaignsQuery;
 
-    console.log('[campaigns/roi] Campaigns fetched:', {
+    console.info('[campaigns/roi] Campaigns fetched:', {
       count: campaigns?.length,
       campaigns: campaigns?.map(c => ({ id: c.id, name: c.name, is_active: c.is_active, is_archived: c.is_archived })),
       error: campaignsError
@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (!campaigns || campaigns.length === 0) {
-      console.log('[campaigns/roi] No campaigns found - returning empty response');
+      console.info('[campaigns/roi] No campaigns found - returning empty response');
       return NextResponse.json({
         data: [],
         summary: {
@@ -119,7 +119,7 @@ export async function GET(request: NextRequest) {
       .eq('clinic_id', clinicId)
       .in('campaign_id', campaignIds);
 
-    console.log('[campaigns/roi] Patients fetched:', {
+    console.info('[campaigns/roi] Patients fetched:', {
       count: patients?.length,
       campaignIds,
       samplePatients: patients?.slice(0, 3).map(p => ({ id: p.id, campaign_id: p.campaign_id })),
@@ -207,7 +207,7 @@ export async function GET(request: NextRequest) {
 
     const { data: expenses, error: expensesError } = await expensesQuery;
 
-    console.log('[campaigns/roi] Expenses query result:', {
+    console.info('[campaigns/roi] Expenses query result:', {
       count: expenses?.length,
       totalCents: expenses?.reduce((sum, e) => sum + (e.amount_cents || 0), 0),
       dateRange: { startDate, endDate },
@@ -283,7 +283,7 @@ export async function GET(request: NextRequest) {
       totalCampaigns: campaignROIs.length,
     };
 
-    console.log('[campaigns/roi] Final response:', {
+    console.info('[campaigns/roi] Final response:', {
       campaignsCount: campaignROIs.length,
       campaigns: campaignROIs.map(c => ({
         name: c.name,

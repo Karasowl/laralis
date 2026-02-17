@@ -2,8 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { z } from 'zod';
+import { readJson, validateSchema } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic'
+
+const updateWorkspaceSchema = z.object({
+  name: z.string().min(1).optional(),
+  description: z.string().nullable().optional(),
+  onboarding_completed: z.boolean().optional(),
+  onboarding_step: z.number().int().nonnegative().optional(),
+}).refine((data) => Object.keys(data).length > 0, {
+  message: 'No fields to update',
+});
 
 
 export async function PUT(
@@ -41,21 +52,15 @@ export async function PUT(
       );
     }
 
-    const body = await request.json();
-    const { name, description, onboarding_completed, onboarding_step } = body;
-
-    // Permitir actualizaciones parciales: nombre/descr o flags de onboarding
-    if (
-      (name === undefined || name === null) &&
-      description === undefined &&
-      onboarding_completed === undefined &&
-      onboarding_step === undefined
-    ) {
-      return NextResponse.json(
-        { error: 'No fields to update' },
-        { status: 400 }
-      );
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
     }
+    const parsed = validateSchema(updateWorkspaceSchema, bodyResult.data);
+    if ('error' in parsed) {
+      return parsed.error;
+    }
+    const { name, description, onboarding_completed, onboarding_step } = parsed.data;
 
     // Verificar que el workspace pertenece al usuario
     const { data: existingWorkspace, error: fetchError } = await supabaseAdmin

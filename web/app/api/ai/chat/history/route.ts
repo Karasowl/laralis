@@ -1,9 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { aiService } from '@/lib/ai/service';
+import { z } from 'zod';
+import { readJson, validateSchema } from '@/lib/validation';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+const chatActionSchema = z.discriminatedUnion('action', [
+    z.object({
+        action: z.literal('create_session'),
+        clinicId: z.string().uuid(),
+    }),
+    z.object({
+        action: z.literal('add_message'),
+        sessionId: z.string().uuid(),
+        message: z.string().min(1),
+        role: z.string().min(1),
+        metadata: z.record(z.unknown()).optional(),
+    }),
+    z.object({
+        action: z.literal('generate_title'),
+        sessionId: z.string().uuid(),
+        message: z.string().min(1),
+    }),
+]);
+
+const updateSessionSchema = z.object({
+    sessionId: z.string().uuid(),
+    title: z.string().min(1),
+});
+
+const deleteSessionSchema = z.object({
+    sessionId: z.string().uuid(),
+});
 
 // GET: Load latest session, specific session, or list of sessions
 export async function GET(request: NextRequest) {
@@ -92,15 +122,23 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const body = await request.json();
-        const { action, clinicId, sessionId, message, role, metadata } = body;
+        const bodyResult = await readJson(request);
+        if ('error' in bodyResult) {
+            return bodyResult.error;
+        }
+        const parsed = validateSchema(chatActionSchema, bodyResult.data);
+        if ('error' in parsed) {
+            return parsed.error;
+        }
 
-        if (action === 'create_session') {
+        const payload = parsed.data;
+
+        if (payload.action === 'create_session') {
             const { data, error } = await supabase
                 .from('ai_chat_sessions')
                 .insert({
                     user_id: user.id,
-                    clinic_id: clinicId,
+                    clinic_id: payload.clinicId,
                     title: 'Nueva conversación',
                 })
                 .select()
@@ -110,16 +148,12 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ session: data });
         }
 
-        if (action === 'add_message') {
-            if (!sessionId || !message || !role) {
-                return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-            }
-
+        if (payload.action === 'add_message') {
             // Verify session ownership
             const { data: session, error: sessionError } = await supabase
                 .from('ai_chat_sessions')
                 .select('id')
-                .eq('id', sessionId)
+                .eq('id', payload.sessionId)
                 .eq('user_id', user.id)
                 .single();
 
@@ -130,10 +164,10 @@ export async function POST(request: NextRequest) {
             const { data, error } = await supabase
                 .from('ai_chat_messages')
                 .insert({
-                    session_id: sessionId,
-                    role,
-                    content: message,
-                    metadata: metadata || {}
+                    session_id: payload.sessionId,
+                    role: payload.role,
+                    content: payload.message,
+                    metadata: payload.metadata || {}
                 })
                 .select()
                 .single();
@@ -144,22 +178,18 @@ export async function POST(request: NextRequest) {
             await supabase
                 .from('ai_chat_sessions')
                 .update({ updated_at: new Date().toISOString() })
-                .eq('id', sessionId);
+                .eq('id', payload.sessionId);
 
             return NextResponse.json({ message: data });
         }
 
-        if (action === 'generate_title') {
-            if (!sessionId || !message) { // message here is the first user message + assistant response context
-                return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-            }
-
+        if (payload.action === 'generate_title') {
             // Use AI to generate a title
             // We'll use a simple chat completion for this
             const prompt = `Summarize the following conversation start into a very short title (max 4-5 words) in Spanish. Do not use quotes.
             
             Conversation:
-            ${message}`;
+            ${payload.message}`;
 
             const title = await aiService.chat([
                 { role: 'system', content: 'You are a helpful assistant that summarizes conversations into short titles.' },
@@ -172,7 +202,7 @@ export async function POST(request: NextRequest) {
             const { data, error } = await supabase
                 .from('ai_chat_sessions')
                 .update({ title: cleanTitle })
-                .eq('id', sessionId)
+                .eq('id', payload.sessionId)
                 .eq('user_id', user.id)
                 .select()
                 .single();
@@ -200,12 +230,15 @@ export async function PATCH(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const body = await request.json();
-        const { sessionId, title } = body;
-
-        if (!sessionId || !title) {
-            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+        const bodyResult = await readJson(request);
+        if ('error' in bodyResult) {
+            return bodyResult.error;
         }
+        const parsed = validateSchema(updateSessionSchema, bodyResult.data);
+        if ('error' in parsed) {
+            return parsed.error;
+        }
+        const { sessionId, title } = parsed.data;
 
         const { data, error } = await supabase
             .from('ai_chat_sessions')
@@ -237,15 +270,15 @@ export async function DELETE(request: NextRequest) {
 
         const searchParams = request.nextUrl.searchParams;
         const sessionId = searchParams.get('sessionId');
-
-        if (!sessionId) {
-            return NextResponse.json({ error: 'Missing sessionId' }, { status: 400 });
+        const parsed = validateSchema(deleteSessionSchema, { sessionId });
+        if ('error' in parsed) {
+            return parsed.error;
         }
 
         const { error } = await supabase
             .from('ai_chat_sessions')
             .delete()
-            .eq('id', sessionId)
+            .eq('id', parsed.data.sessionId)
             .eq('user_id', user.id);
 
         if (error) throw error;

@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { withPermission } from '@/lib/middleware/with-permission';
 import { zFixedCost } from '@/lib/zod';
 import type { FixedCost, ApiResponse } from '@/lib/types';
+import { readJson } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic'
 
@@ -64,7 +65,11 @@ export const PUT = withPermission(
         );
       }
 
-      const body = await request.json();
+      const bodyResult = await readJson(request);
+      if ('error' in bodyResult) {
+        return bodyResult.error;
+      }
+      const body = bodyResult.data;
       const { clinicId } = context;
 
       const validationResult = zFixedCost.safeParse({ ...body, clinic_id: clinicId });

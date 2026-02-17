@@ -11,20 +11,19 @@ import { formatMoney } from '@/lib/money'
 import { formatDate } from '@/lib/utils'
 import { useExpenses } from '@/hooks/use-expenses'
 import { useCurrentClinic } from '@/hooks/use-current-clinic'
-import { ExpenseWithRelations } from '@/lib/types/expenses'
+import type { ExpenseFilters, ExpenseFormData, ExpenseWithRelations } from '@/lib/types/expenses'
 import { ExpenseDetailsModal } from './ExpenseDetailsModal'
 import { EditExpenseModal } from './EditExpenseModal'
 
 interface ExpensesTableProps {
   limit?: number
-  filters?: any
-  onFiltersChange?: (filters: any) => void
+  filters?: ExpenseFilters
+  onFiltersChange?: (filters: ExpenseFilters) => void
 }
 
 export default function ExpensesTable({ 
   limit, 
-  filters: externalFilters,
-  onFiltersChange 
+  filters: externalFilters
 }: ExpensesTableProps) {
   const t = useTranslations('expenses')
   const tCommon = useTranslations('common')
@@ -40,14 +39,9 @@ export default function ExpensesTable({
   const {
     expenses,
     loading,
-    error,
-    filters,
-    updateFilters,
     updateExpense,
     deleteExpense,
-    searchTerm,
     setSearchTerm,
-    categories
   } = useExpenses({
     clinicId: currentClinic?.id,
     filters: externalFilters,
@@ -64,7 +58,7 @@ export default function ExpensesTable({
     }
   }
 
-  const handleEdit = async (id: string, data: any) => {
+  const handleEdit = async (id: string, data: Partial<ExpenseFormData>) => {
     const success = await updateExpense(id, data)
     return success
   }
@@ -74,7 +68,7 @@ export default function ExpensesTable({
     {
       key: 'expense_date',
       label: tFields('date'),
-      render: (_value: any, expense: ExpenseWithRelations) => (
+      render: (_value: unknown, expense: ExpenseWithRelations) => (
         <div className="flex items-center gap-2">
           <Receipt className="h-4 w-4 text-muted-foreground" />
           {formatDate(expense.expense_date)}
@@ -84,7 +78,7 @@ export default function ExpensesTable({
     {
       key: 'category',
       label: tFields('category'),
-      render: (_value: any, expense: ExpenseWithRelations) => (
+      render: (_value: unknown, expense: ExpenseWithRelations) => (
         <div className="space-y-1">
           <Badge variant="outline">{expense.category}</Badge>
           {expense.subcategory && (
@@ -96,7 +90,7 @@ export default function ExpensesTable({
     {
       key: 'description',
       label: tFields('description'),
-      render: (_value: any, expense: ExpenseWithRelations) => (
+      render: (_value: unknown, expense: ExpenseWithRelations) => (
         <div className="max-w-xs">
           <p className="font-medium truncate">{expense.description || '-'}</p>
           {expense.vendor && (
@@ -108,7 +102,7 @@ export default function ExpensesTable({
     {
       key: 'amount',
       label: tFields('amount'),
-      render: (_value: any, expense: ExpenseWithRelations) => (
+      render: (_value: unknown, expense: ExpenseWithRelations) => (
         <div className="text-right font-mono">
           {formatMoney(expense.amount_cents)}
         </div>
@@ -118,7 +112,7 @@ export default function ExpensesTable({
     {
       key: 'status',
       label: tFields('status'),
-      render: (_value: any, expense: ExpenseWithRelations) => {
+      render: () => {
         // Por ahora todos los gastos se consideran pagados
         const isPaid = true
         return (
@@ -132,7 +126,7 @@ export default function ExpensesTable({
       key: 'actions',
       label: tCommon('actions'),
       sortable: false,
-      render: (_value: any, expense: ExpenseWithRelations) => (
+      render: (_value: unknown, expense: ExpenseWithRelations) => (
         <ActionDropdown
           actions={[
             {
@@ -179,7 +173,6 @@ export default function ExpensesTable({
         open={!!editingExpense}
         onClose={() => setEditingExpense(null)}
         onSave={handleEdit}
-        categories={categories}
       />
 
       {/* Delete Confirmation */}

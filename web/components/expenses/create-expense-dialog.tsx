@@ -16,16 +16,15 @@ import {
 import { useCurrentClinic } from '@/hooks/use-current-clinic'
 import { useExpenses } from '@/hooks/use-expenses'
 import { useSupplies } from '@/hooks/use-supplies'
-import { useCategories } from '@/hooks/use-categories'
+import { useCategories, type CategoryRow } from '@/hooks/use-categories'
 import { CategoryModal } from '@/app/services/components/CategoryModal'
-import { parseMoney } from '@/lib/money'
 import { CreateExpenseForm } from './CreateExpenseForm'
 
 export default function CreateExpenseDialog() {
   const t = useTranslations('expenses')
   const tServices = useTranslations('services')
   const { currentClinic } = useCurrentClinic()
-  const { createExpense, categories } = useExpenses({ clinicId: currentClinic?.id })
+  const { createExpense } = useExpenses({ clinicId: currentClinic?.id })
   const {
     categories: expenseCategories,
     createCategory,
@@ -102,7 +101,7 @@ export default function CreateExpenseDialog() {
       <CreateExpenseForm 
         form={form} 
         supplies={supplies} 
-        categories={expenseCategories as any[]}
+        categories={expenseCategories as CategoryRow[]}
         showAssetFields={showAssetFields}
         setShowAssetFields={setShowAssetFields}
       />
@@ -110,7 +109,7 @@ export default function CreateExpenseDialog() {
       <CategoryModal
         open={categoryModalOpen}
         onOpenChange={setCategoryModalOpen}
-        categories={expenseCategories as any[]}
+        categories={expenseCategories as CategoryRow[]}
         onCreateCategory={createCategory}
         onUpdateCategory={updateCategory}
         onDeleteCategory={deleteCategory}

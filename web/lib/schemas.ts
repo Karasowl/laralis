@@ -110,8 +110,8 @@ export const serviceSchema = z.object({
   category: z.string().default('otros'),
   est_minutes: z.number().min(1).max(1440), // Min 1 minute, max 24 hours (physical day limit)
   base_price_cents: z.number().min(0),
-  margin_pct: z.number().min(0).default(30),
-  target_price: z.number().min(0).optional(),
+  margin_pct: z.number().min(0).max(999.99).default(30),
+  target_price: z.number().min(0).max(Number.MAX_SAFE_INTEGER / 100).optional(),
   description: z.string().optional(),
   supplies: z.array(z.object({
     supply_id: z.string(),

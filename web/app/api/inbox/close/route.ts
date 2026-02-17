@@ -2,17 +2,20 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { withPermission } from '@/lib/middleware/with-permission'
+import { readJson, validateSchema } from '@/lib/validation'
 
 const schema = z.object({
   conversationId: z.string().uuid(),
 })
 
 export const POST = withPermission('inbox.close', async (request, context) => {
-  const body = await request.json().catch(() => null)
-  const parsed = schema.safeParse(body)
-
-  if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
+  const bodyResult = await readJson(request)
+  if ('error' in bodyResult) {
+    return bodyResult.error
+  }
+  const parsed = validateSchema(schema, bodyResult.data, 'Invalid payload')
+  if ('error' in parsed) {
+    return parsed.error
   }
 
   const { conversationId } = parsed.data

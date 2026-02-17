@@ -16,17 +16,26 @@ import { aiService } from '@/lib/ai'
 import type { QueryContext, ConversationContextData } from '@/lib/ai'
 import { hasAIConfig, validateAIConfig } from '@/lib/ai/config'
 import { ConversationContextManager } from '@/lib/ai/context'
+import { z } from 'zod'
+import { readJson, validateSchema } from '@/lib/validation'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300 // 5 minutes for Kimi K2 Thinking
 
-interface QueryRequest {
-  query: string
-  clinicId?: string
-  locale?: string
-  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
-  model?: 'kimi-k2-thinking' | 'moonshot-v1-32k'
-}
+const queryRequestSchema = z.object({
+  query: z.string().min(1),
+  clinicId: z.string().uuid().optional(),
+  locale: z.string().min(1).optional(),
+  conversationHistory: z
+    .array(
+      z.object({
+        role: z.enum(['user', 'assistant']),
+        content: z.string().min(1),
+      })
+    )
+    .optional(),
+  model: z.enum(['kimi-k2-thinking', 'moonshot-v1-32k']).optional(),
+})
 
 export async function POST(request: NextRequest) {
   try {
@@ -49,15 +58,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const body: QueryRequest = await request.json()
-    const { query, clinicId: requestedClinicId, locale = 'es', conversationHistory, model } = body
-
-    if (!query) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required field: query' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      )
+    const bodyResult = await readJson(request)
+    if ('error' in bodyResult) {
+      return bodyResult.error
     }
+    const parsed = validateSchema(queryRequestSchema, bodyResult.data)
+    if ('error' in parsed) {
+      return parsed.error
+    }
+    const { query, clinicId: requestedClinicId, locale = 'es', conversationHistory, model } = parsed.data
 
     // Resolve clinic context (handles auth and access control automatically)
     const cookieStore = cookies()

@@ -2,10 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { resolveClinicContext } from '@/lib/clinic'
 import { cookies } from 'next/headers'
+import { z } from 'zod'
+import { readJson, validateSchema } from '@/lib/validation'
 
 interface UnsubscribeBody {
   endpoint: string
 }
+
+const unsubscribeSchema = z.object({
+  endpoint: z.string().min(1),
+})
 
 /**
  * POST /api/notifications/push/unsubscribe
@@ -24,14 +30,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const body: UnsubscribeBody = await request.json()
-
-    if (!body.endpoint) {
-      return NextResponse.json(
-        { error: 'Missing required field: endpoint' },
-        { status: 400 }
-      )
+    const bodyResult = await readJson(request)
+    if ('error' in bodyResult) {
+      return bodyResult.error
     }
+    const parsed = validateSchema(unsubscribeSchema, bodyResult.data)
+    if ('error' in parsed) {
+      return parsed.error
+    }
+    const body: UnsubscribeBody = parsed.data
 
     // Mark subscription as inactive instead of deleting
     const { error } = await supabaseAdmin

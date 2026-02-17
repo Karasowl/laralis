@@ -20,7 +20,7 @@ export function BusinessSwitcher() {
   const [selectedClinicId, setSelectedClinicId] = useState<string>('');
   
   // Use useApi hook for fetching clinics
-  const { data: clinicsData, loading, error } = useApi<{ data: Clinic[] }>(
+  const { data: clinicsData, loading, post } = useApi<{ data: Clinic[] }>(
     '/api/clinics',
     { autoFetch: true }
   );
@@ -47,23 +47,22 @@ export function BusinessSwitcher() {
 
   const handleClinicChange = useCallback(async (clinicId: string) => {
     try {
-      const response = await fetch('/api/clinics', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ clinicId }),
-      });
+      const result = await post(
+        { clinicId },
+        {
+          showErrorToast: true,
+          updateState: false,
+        }
+      )
 
-      if (response.ok) {
-        setSelectedClinicId(clinicId);
-        // Refresh the page to reload data with new clinic context
-        router.refresh();
+      if (result.success) {
+        setSelectedClinicId(clinicId)
+        router.refresh()
       }
     } catch (error) {
-      console.error('Failed to switch clinic:', error);
+      console.error('Failed to switch clinic:', error)
     }
-  }, [router]);
+  }, [post, router])
 
   if (loading) {
     return <Skeleton className="w-full sm:w-[180px] md:w-[200px] h-10" />;

@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
     }
 
     const count = updated?.length || 0
-    console.log(`[cron/complete-appointments] Auto-completed ${count} appointments for ${clinicIds.length} clinics`)
+    console.info(`[cron/complete-appointments] Auto-completed ${count} appointments for ${clinicIds.length} clinics`)
 
     return NextResponse.json({
       success: true,

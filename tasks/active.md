@@ -2,6 +2,17 @@
 
 ## En Progreso
 
+- [ ] TASK-20260205-refactor-cleanup-phase-1 - Baseline + guardrails + normalización inicial API
+  - **Priority**: P1
+  - **Estimate**: M
+  - **Status**:
+    - ✅ Baseline de métricas (`web/scripts/refactor-metrics.mjs`)
+    - ✅ CI mínima y PR template
+    - ✅ Toolkit API (`web/lib/api/*`) + adopción inicial en `services`, `patients` y módulo `expenses` (`route`, `[id]`, `stats`, `alerts`)
+    - ✅ Estabilización de `useExpenses` para compatibilidad con consumidores actuales
+    - ✅ Limpieza de temporales/duplicados críticos
+    - ⏳ Pendiente: migración por olas de rutas restantes y división de archivos > 400 líneas
+
 - [x] **TASK-20251209-dashboard-mega-refactor** - Dashboard Mega Refactor (P0 - CRÍTICO) ✅ COMPLETADO
   - **Priority**: P0 - Crítico
   - **Estimate**: XL (1+ semana)
@@ -77,6 +88,44 @@
   - Contexto multi-tenant (Workspaces/Clinics) y snapshots en tratamientos
   - Criterios de aceptación reforzados (i18n EN/ES, AA, Zod, dinero en centavos)
   - Gobernanza: sección Tasks/Devlog y i18n keys para navegación
+
+## Completado Hoy - 2026-02-04
+
+- [x] TASK-20260204-block-service-role-client - Bloquear supabaseAdmin en cliente ✅ COMPLETADO
+  - **Priority**: P1
+  - **Estimate**: XS
+  - **Status**: Guard server-only aplicado en `supabaseAdmin`
+  - Ver: `tasks/TASK-20260204-block-service-role-client.md`
+
+- [x] TASK-20260204-security-headers - Agregar headers de seguridad en Next.js ✅ COMPLETADO
+  - **Priority**: P1
+  - **Estimate**: XS
+  - **Status**: CSP + HSTS (prod) configurados en `next.config.mjs`
+  - Ver: `tasks/TASK-20260204-security-headers.md`
+
+- [x] TASK-20260204-api-zod-validation-phase-1 - Validar payloads API con Zod (fase 1) ✅ COMPLETADO
+  - **Priority**: P1
+  - **Estimate**: S
+  - **Status**: Helper + endpoints críticos con validación
+  - Ver: `tasks/TASK-20260204-api-zod-validation-phase-1.md`
+
+- [x] TASK-20260204-api-zod-validation-phase-2-actions - Validar endpoints actions con Zod ✅ COMPLETADO
+  - **Priority**: P1
+  - **Estimate**: S
+  - **Status**: Endpoints `api/actions/*` con validación
+  - Ver: `tasks/TASK-20260204-api-zod-validation-phase-2-actions.md`
+
+- [x] TASK-20260204-api-zod-validation-phase-3-remaining - Validar endpoints restantes con Zod ✅ COMPLETADO
+  - **Priority**: P1
+  - **Estimate**: M
+  - **Status**: Endpoints restantes con validación
+  - Ver: `tasks/TASK-20260204-api-zod-validation-phase-3-remaining.md`
+
+- [x] TASK-20260204-api-zod-validation-phase-4-additional - Validar endpoints adicionales con Zod ✅ COMPLETADO
+  - **Priority**: P1
+  - **Estimate**: M
+  - **Status**: Endpoints adicionales con parseo seguro
+  - Ver: `tasks/TASK-20260204-api-zod-validation-phase-4-additional.md`
 
 ## Completado Hoy - 2025-08-09
 

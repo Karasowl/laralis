@@ -9,6 +9,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { aiService } from '@/lib/ai'
 import type { Message, EntryContext } from '@/lib/ai'
 import { hasAIConfig, validateAIConfig } from '@/lib/ai/config'
+import { z } from 'zod'
+import { readJson, validateSchema } from '@/lib/validation'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -25,6 +27,12 @@ interface EntryResponse {
   is_valid: boolean
   validation_error: string | null
 }
+
+const chatRequestSchema = z.object({
+  userInput: z.string().min(1),
+  mode: z.enum(['entry', 'simple']).optional().default('simple'),
+  context: z.unknown().optional(),
+})
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,12 +54,15 @@ export async function POST(request: NextRequest) {
         { status: 503 }
       )
     }
-    const body: ChatRequest = await request.json()
-    const { userInput, context, mode } = body
-
-    if (!userInput) {
-      return NextResponse.json({ error: 'No user input provided' }, { status: 400 })
+    const bodyResult = await readJson(request)
+    if ('error' in bodyResult) {
+      return bodyResult.error
     }
+    const parsed = validateSchema(chatRequestSchema, bodyResult.data)
+    if ('error' in parsed) {
+      return parsed.error
+    }
+    const { userInput, context, mode } = parsed.data as ChatRequest
 
     let response: string
 

@@ -10,6 +10,7 @@ import {
   sanitizeSearchParams
 } from '@/lib/api-security';
 import { apiLimiter } from '@/lib/rate-limit';
+import { readJson } from '@/lib/validation';
 
 export async function GET(request: NextRequest) {
   // 1. Check rate limiting
@@ -62,15 +63,11 @@ export async function POST(request: NextRequest) {
   if (rateLimitResponse) return rateLimitResponse;
 
   // 2. Parse and validate request body
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json(
-      { error: 'Invalid JSON' },
-      { status: 400 }
-    );
+  const bodyResult = await readJson(request);
+  if ('error' in bodyResult) {
+    return bodyResult.error;
   }
+  const body = bodyResult.data;
 
   // 3. Validate with Zod schema
   const { data: validatedData, error: validationError } = validateRequest(

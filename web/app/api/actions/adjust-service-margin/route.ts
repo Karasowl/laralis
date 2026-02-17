@@ -10,6 +10,16 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { aiService } from '@/lib/ai/service'
 import type { ActionParams } from '@/lib/ai/types'
+import { z } from 'zod'
+import { readJson, validateSchema } from '@/lib/validation'
+
+const adjustServiceMarginSchema = z.object({
+  service_id: z.string().uuid(),
+  target_margin_pct: z.coerce.number().min(0),
+  adjust_price: z.boolean().optional(),
+  clinic_id: z.string().uuid(),
+  dry_run: z.boolean().optional(),
+})
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,29 +34,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // 2. Parse request body
-    const body = await request.json()
-    const { service_id, target_margin_pct, adjust_price = false, clinic_id, dry_run = false } = body
-
-    // 3. Validate required parameters
-    if (!service_id) {
-      return NextResponse.json({ error: 'service_id is required' }, { status: 400 })
+    // 2. Parse and validate request body
+    const bodyResult = await readJson(request)
+    if ('error' in bodyResult) {
+      return bodyResult.error
     }
-
-    if (target_margin_pct === undefined || target_margin_pct === null) {
-      return NextResponse.json({ error: 'target_margin_pct is required' }, { status: 400 })
+    const parsed = validateSchema(adjustServiceMarginSchema, bodyResult.data)
+    if ('error' in parsed) {
+      return parsed.error
     }
-
-    if (target_margin_pct < 0) {
-      return NextResponse.json(
-        { error: 'target_margin_pct must be non-negative' },
-        { status: 400 }
-      )
-    }
-
-    if (!clinic_id) {
-      return NextResponse.json({ error: 'clinic_id is required' }, { status: 400 })
-    }
+    const { service_id, target_margin_pct, adjust_price, clinic_id, dry_run } = parsed.data
+    const adjustPrice = adjust_price ?? false
+    const dryRun = dry_run ?? false
 
     // 4. Verify user has access to the clinic
     const { data: membership, error: membershipError } = await supabase
@@ -67,7 +66,7 @@ export async function POST(request: NextRequest) {
     const params: ActionParams['adjust_service_margin'] = {
       service_id,
       target_margin_pct,
-      adjust_price,
+      adjust_price: adjustPrice,
     }
 
     // 6. Execute action via AIService
@@ -76,7 +75,7 @@ export async function POST(request: NextRequest) {
       clinicId: clinic_id,
       userId: user.id,
       supabase: supabaseAdmin,
-      dryRun: dry_run,
+      dryRun,
     })
 
     // 7. Return result

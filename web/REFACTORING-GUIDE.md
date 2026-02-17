@@ -3,6 +3,29 @@
 ## 🎯 Objetivo
 Migrar todo el código a una arquitectura DRY usando componentes reutilizables y hooks genéricos.
 
+## 🚦 Estado Actual (2026-02)
+
+### Baseline y guardrails implementados
+- ✅ Script de baseline técnico: `npm run refactor:metrics`
+- ✅ CI mínima en GitHub Actions (`.github/workflows/web-quality.yml`)
+- ✅ Pull request template con checklist de seguridad y compatibilidad
+- ✅ Regla ESLint para bloquear `@/lib/supabaseAdmin` en capas cliente/dominio
+- ✅ `console.log` eliminado de `web/app/api/**`
+
+### Toolkit API implementado
+- ✅ `web/lib/api/*` con `requestId`, logger estructurado y helpers de validación/respuesta
+- ✅ Rutas migradas inicialmente al toolkit:
+  - `web/app/api/services/route.ts`
+  - `web/app/api/patients/route.ts`
+  - `web/app/api/expenses/route.ts`
+  - `web/app/api/expenses/[id]/route.ts`
+  - `web/app/api/expenses/stats/route.ts`
+  - `web/app/api/expenses/alerts/route.ts`
+
+### Limpieza de repositorio
+- ✅ Eliminados temporales/versiones backup/deprecated no usados
+- ✅ Eliminados duplicados sin uso (`ThemeProvider.tsx`, `FormField.tsx`, `use-swr-api.ts`)
+
 ## ✅ Trabajo Completado
 
 ### 1. Componentes UI Reutilizables
@@ -52,11 +75,11 @@ const crud = useCrudOperations({
 
 **Archivos a migrar:**
 - [ ] hooks/use-supplies.ts
-- [ ] hooks/use-expenses.ts  
-- [ ] hooks/use-time-settings.ts
-- [ ] components/BusinessSwitcher.tsx
-- [ ] components/expenses/expense-stats.tsx
-- [ ] components/expenses/expense-alerts.tsx
+- [x] hooks/use-expenses.ts  
+- [x] hooks/use-time-settings.ts
+- [x] components/BusinessSwitcher.tsx
+- [x] components/expenses/expense-stats.tsx
+- [x] components/expenses/expense-alerts.tsx
 
 ### ALTO - Refactorizar páginas grandes
 

@@ -1,9 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { useTranslations } from 'next-intl'
 
+import { useApi } from '@/hooks/use-api'
 import { useCurrentClinic } from '@/hooks/use-current-clinic'
 import type {
   ExpenseFilters,
@@ -54,25 +55,30 @@ interface ExpenseAlerts {
 
 interface UseExpensesOptions {
   clinicId?: string
+  filters?: Partial<ExpenseFilters>
+  limit?: number
   autoLoad?: boolean
 }
 
 export function useExpenses(options: UseExpensesOptions = {}) {
-  const { clinicId: providedClinicId, autoLoad = true } = options
+  const { clinicId: providedClinicId, filters: externalFilters = {}, limit, autoLoad = true } = options
   const { currentClinic } = useCurrentClinic()
-
   const t = useTranslations('expenses')
+
   const effectiveClinicId = providedClinicId ?? currentClinic?.id ?? null
-
-  const [expenses, setExpenses] = useState<ExpenseWithRelations[]>([])
-  const [filters, setFiltersState] = useState<ExpenseFilters>({})
-  const [stats, setStats] = useState<ExpenseStats | null>(null)
-  const [alerts, setAlerts] = useState<ExpenseAlerts | null>(null)
-
-  const [listLoading, setListLoading] = useState(false)
-  const [statsLoading, setStatsLoading] = useState(false)
-  const [alertsLoading, setAlertsLoading] = useState(false)
+  const [filtersState, setFiltersState] = useState<ExpenseFilters>({})
+  const [searchTerm, setSearchTerm] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const filters = useMemo(() => {
+    const merged: ExpenseFilters = { ...filtersState, ...externalFilters }
+    const clean: ExpenseFilters = {}
+    for (const [key, value] of Object.entries(merged)) {
+      if (value === undefined || value === null || value === '') continue
+      ;(clean as Record<string, unknown>)[key] = value
+    }
+    return clean
+  }, [externalFilters, filtersState])
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams()
@@ -88,110 +94,91 @@ export function useExpenses(options: UseExpensesOptions = {}) {
     return params
   }, [filters])
 
-  const fetchExpenses = useCallback(async () => {
-    if (!effectiveClinicId) return
-    setListLoading(true)
-
-    try {
-      const params = new URLSearchParams(queryString)
-      params.set('clinic_id', effectiveClinicId)
-
-      const response = await fetch(`/api/expenses?${params.toString()}`, {
-        credentials: 'include',
-      })
-
-      const payload = await response.json().catch(() => null)
-
-      if (!response.ok) {
-        throw new Error(payload?.error || payload?.message || 'Failed to fetch expenses')
-      }
-
-      const list = Array.isArray(payload?.data) ? (payload.data as ExpenseWithRelations[]) : []
-      setExpenses(list)
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      toast.error(message)
-    } finally {
-      setListLoading(false)
-    }
+  const listEndpoint = useMemo(() => {
+    if (!effectiveClinicId) return null
+    const params = new URLSearchParams(queryString)
+    params.set('clinic_id', effectiveClinicId)
+    return `/api/expenses?${params.toString()}`
   }, [effectiveClinicId, queryString])
 
-  const fetchStats = useCallback(async () => {
-    if (!effectiveClinicId) return
-    setStatsLoading(true)
+  const statsEndpoint = useMemo(() => {
+    if (!effectiveClinicId) return null
+    const params = new URLSearchParams()
+    params.set('clinic_id', effectiveClinicId)
+    if (filters.start_date) params.set('start_date', filters.start_date)
+    if (filters.end_date) params.set('end_date', filters.end_date)
+    return `/api/expenses/stats?${params.toString()}`
+  }, [effectiveClinicId, filters.end_date, filters.start_date])
 
-    try {
-      const params = new URLSearchParams()
-      params.set('clinic_id', effectiveClinicId)
-      if (filters.start_date) params.set('start_date', filters.start_date)
-      if (filters.end_date) params.set('end_date', filters.end_date)
-
-      const response = await fetch(`/api/expenses/stats?${params.toString()}`, {
-        credentials: 'include',
-      })
-
-      const payload = await response.json().catch(() => null)
-      if (!response.ok) {
-        throw new Error(payload?.error || payload?.message || 'Failed to fetch expense stats')
-      }
-
-      setStats(payload?.data ?? null)
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      toast.error(message)
-    } finally {
-      setStatsLoading(false)
-    }
-  }, [effectiveClinicId, filters.start_date, filters.end_date])
-
-  const fetchAlerts = useCallback(async () => {
-    if (!effectiveClinicId) return
-    setAlertsLoading(true)
-
-    try {
-      const params = new URLSearchParams()
-      params.set('clinic_id', effectiveClinicId)
-
-      const response = await fetch(`/api/expenses/alerts?${params.toString()}`, {
-        credentials: 'include',
-      })
-
-      const payload = await response.json().catch(() => null)
-      if (!response.ok) {
-        throw new Error(payload?.error || payload?.message || 'Failed to fetch alerts')
-      }
-
-      setAlerts(payload?.data ?? null)
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      toast.error(message)
-    } finally {
-      setAlertsLoading(false)
-    }
+  const alertsEndpoint = useMemo(() => {
+    if (!effectiveClinicId) return null
+    const params = new URLSearchParams()
+    params.set('clinic_id', effectiveClinicId)
+    return `/api/expenses/alerts?${params.toString()}`
   }, [effectiveClinicId])
 
+  const listApi = useApi<{ data: ExpenseWithRelations[] }>(listEndpoint, {
+    autoFetch: autoLoad && !!listEndpoint,
+  })
+  const statsApi = useApi<{ data: ExpenseStats }>(statsEndpoint, {
+    autoFetch: autoLoad && !!statsEndpoint,
+  })
+  const alertsApi = useApi<{ data: ExpenseAlerts }>(alertsEndpoint, {
+    autoFetch: autoLoad && !!alertsEndpoint,
+  })
+
+  const rawExpenses = useMemo(
+    () => (Array.isArray(listApi.data?.data) ? listApi.data.data : []),
+    [listApi.data]
+  )
+
+  const categories = useMemo(() => {
+    const categoryNames = Array.from(new Set(rawExpenses.map((item) => item.category).filter(Boolean)))
+    return categoryNames.map((name) => ({
+      id: `category-${String(name).toLowerCase().replace(/\s+/g, '-')}`,
+      name,
+      display_name: name,
+    }))
+  }, [rawExpenses])
+
+  const expenses = useMemo(() => {
+    const base = searchTerm.trim()
+      ? rawExpenses.filter((item) => {
+          const term = searchTerm.toLowerCase().trim()
+          return (
+            item.description?.toLowerCase().includes(term) ||
+            item.vendor?.toLowerCase().includes(term) ||
+            item.category?.toLowerCase().includes(term) ||
+            item.subcategory?.toLowerCase().includes(term)
+          )
+        })
+      : rawExpenses
+
+    if (typeof limit === 'number' && limit > 0) {
+      return base.slice(0, limit)
+    }
+
+    return base
+  }, [limit, rawExpenses, searchTerm])
+  const stats = statsApi.data?.data ?? null
+  const alerts = alertsApi.data?.data ?? null
+  const error = listApi.error ?? statsApi.error ?? alertsApi.error
+
   const refresh = useCallback(async () => {
-    await Promise.all([fetchExpenses(), fetchStats(), fetchAlerts()])
-  }, [fetchAlerts, fetchExpenses, fetchStats])
-
-  useEffect(() => {
-    if (!autoLoad || !effectiveClinicId) return
-    void fetchExpenses()
-    void fetchStats()
-  }, [autoLoad, effectiveClinicId, fetchExpenses, fetchStats])
-
-  useEffect(() => {
-    if (!autoLoad || !effectiveClinicId) return
-    void fetchAlerts()
-  }, [autoLoad, effectiveClinicId, fetchAlerts])
+    const calls: Array<Promise<unknown>> = []
+    if (listEndpoint) calls.push(listApi.get())
+    if (statsEndpoint) calls.push(statsApi.get())
+    if (alertsEndpoint) calls.push(alertsApi.get())
+    await Promise.all(calls)
+  }, [alertsApi, alertsEndpoint, listApi, listEndpoint, statsApi, statsEndpoint])
 
   const updateFilters = useCallback((updates: Partial<ExpenseFilters>) => {
-    setFiltersState(prev => {
+    setFiltersState((prev) => {
       const next: ExpenseFilters = { ...prev, ...updates }
       const clean: ExpenseFilters = {}
       for (const [key, value] of Object.entries(next)) {
         if (value === undefined || value === null || value === '') continue
-        ;(clean as any)[key] = value
+        ;(clean as Record<string, unknown>)[key] = value
       }
       return clean
     })
@@ -201,30 +188,22 @@ export function useExpenses(options: UseExpensesOptions = {}) {
     setFiltersState({})
   }, [])
 
-  const handleRequest = useCallback(
-    async (method: 'POST' | 'PUT' | 'DELETE', endpoint: string, body?: any) => {
-      console.log('[use-expenses] Making request:', { method, endpoint, body })
+  const handleRequest = useCallback(async (method: 'POST' | 'PUT' | 'DELETE', endpoint: string, body?: unknown) => {
+    const response = await fetch(endpoint, {
+      method,
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    })
 
-      const response = await fetch(endpoint, {
-        method,
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        ...(body ? { body: JSON.stringify(body) } : {}),
-      })
+    const payload = await response.json().catch(() => null)
+    if (!response.ok) {
+      const errorMsg = payload?.error || payload?.message || 'Request failed'
+      throw new Error(errorMsg)
+    }
 
-      const payload = await response.json().catch(() => null)
-      console.log('[use-expenses] Response:', { status: response.status, ok: response.ok, payload })
-
-      if (!response.ok) {
-        const errorMsg = payload?.error || payload?.message || 'Request failed'
-        console.error('[use-expenses] Request failed:', errorMsg, payload)
-        throw new Error(errorMsg)
-      }
-
-      return payload
-    },
-    []
-  )
+    return payload
+  }, [])
 
   const createExpense = useCallback(
     async (data: ExpenseFormData): Promise<boolean> => {
@@ -288,18 +267,23 @@ export function useExpenses(options: UseExpensesOptions = {}) {
     [handleRequest, refresh, t]
   )
 
-  const loading = listLoading || statsLoading || alertsLoading
+  const loading = listApi.loading || statsApi.loading || alertsApi.loading
 
   return {
     expenses,
     filters,
+    error,
     stats,
     alerts,
+    categories,
+    searchTerm,
+    setSearchTerm,
     loading,
-    listLoading,
-    statsLoading,
-    alertsLoading,
+    listLoading: listApi.loading,
+    statsLoading: statsApi.loading,
+    alertsLoading: alertsApi.loading,
     isSubmitting,
+    updateFilters,
     setFilters: updateFilters,
     resetFilters,
     refresh,
