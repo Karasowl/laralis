@@ -118,8 +118,8 @@ export function getPresetRange(preset: DatePreset): DateRange {
       }
 
     case 'allTime':
-      // Return empty strings to indicate "all time" / no filter
-      return { from: '', to: '' }
+      // Use a wide bounded range to avoid ambiguity with reset states
+      return { from: '2020-01-01', to: toISODate(today) }
 
     case 'custom':
     default:
@@ -130,6 +130,9 @@ export function getPresetRange(preset: DatePreset): DateRange {
 // Detect which preset matches current range
 export function detectPreset(range: DateRange): DatePreset {
   if (!range.from && !range.to) return 'allTime'
+
+  const allTimeRange = getPresetRange('allTime')
+  if (range.from === allTimeRange.from && range.to === allTimeRange.to) return 'allTime'
 
   const presets: DatePreset[] = [
     'today',
@@ -265,13 +268,14 @@ export function DateRangePicker({
     return tFilters('dateRange')
   }
 
-  const hasValue = value.from || value.to
+  const hasValue = Boolean(value.from || value.to) && currentPreset !== 'allTime'
   const calendarValue = React.useMemo(() => {
+    if (currentPreset === 'allTime') return undefined
     const from = fromISODate(value.from)
     const to = fromISODate(value.to)
     if (!from && !to) return undefined
     return { from: from || undefined, to: to || undefined }
-  }, [value])
+  }, [value, currentPreset])
 
   const content = (
     <div className="flex flex-col md:flex-row">
@@ -444,3 +448,4 @@ export function getPeriodLabel(
 
   return t('filters.datePresets.allTime')
 }
+

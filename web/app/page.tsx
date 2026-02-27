@@ -339,6 +339,7 @@ export default function InsightsPage() {
           newPatients: t('new_this_year'),
         }
       case 'custom':
+      case 'allTime':
         return {
           revenue: t('period_revenue'),
           expenses: t('period_expenses'),
@@ -378,26 +379,34 @@ export default function InsightsPage() {
 
   // Adapt useDateFilter state to SmartFilters format
   const dashboardFilterValues: FilterValues = useMemo(() => ({
-    dateRange: customRange.from && customRange.to
-      ? customRange
-      : currentRange,
+    dateRange: filterPeriod === 'allTime'
+      ? { from: '', to: '' }
+      : filterPeriod === 'custom'
+        ? customRange
+        : currentRange,
     granularity,
     comparison: comparison === 'last-year' ? 'lastYear' : comparison // Adapt type
-  }), [currentRange, customRange, granularity, comparison])
+  }), [filterPeriod, currentRange, customRange, granularity, comparison])
 
   // Handle SmartFilters changes
   const handleDashboardFilterChange = useCallback((newValues: FilterValues) => {
     // Handle date range changes
     if (newValues.dateRange !== undefined) {
-      const range = newValues.dateRange as { from: string; to: string }
+      const incoming = newValues.dateRange as { from?: string; to?: string }
+      const range = {
+        from: incoming?.from || '',
+        to: incoming?.to || ''
+      }
 
-      // Handle clear/reset case (empty range) or allTime
+      // Empty range in dashboard means "all time"
       if (!range.from && !range.to) {
-        // Reset to default period (month)
-        setFilterPeriod('month')
+        setFilterPeriod('allTime')
         setCustomRange({ from: '', to: '' })
-        // Don't return - continue processing other filters
-      } else if (range.from && range.to) {
+      } else if (!range.from || !range.to) {
+        // Keep partial selection so calendar can complete custom range
+        setFilterPeriod('custom')
+        setCustomRange(range)
+      } else {
         // Detect if it's a preset or custom range
         const preset = detectPreset(range)
         // Map detected presets to filter periods
@@ -405,26 +414,31 @@ export default function InsightsPage() {
         // but we need to map to our period types
         if (preset === 'today') {
           setFilterPeriod('today')
+          setCustomRange({ from: '', to: '' })
         } else if (preset === 'yesterday') {
           // Yesterday maps to custom range
           setFilterPeriod('custom')
           setCustomRange(range)
         } else if (preset === 'last7days' || preset === 'thisWeek') {
           setFilterPeriod('week')
+          setCustomRange({ from: '', to: '' })
         } else if (preset === 'lastWeek') {
           // Last week maps to custom range
           setFilterPeriod('custom')
           setCustomRange(range)
         } else if (preset === 'last30days' || preset === 'thisMonth') {
           setFilterPeriod('month')
+          setCustomRange({ from: '', to: '' })
         } else if (preset === 'lastMonth') {
           // Last month maps to custom range
           setFilterPeriod('custom')
           setCustomRange(range)
         } else if (preset === 'last90days') {
           setFilterPeriod('quarter')
+          setCustomRange({ from: '', to: '' })
         } else if (preset === 'thisYear') {
           setFilterPeriod('year')
+          setCustomRange({ from: '', to: '' })
         } else if (preset === 'allTime') {
           // All time = show all data from 2020 to today
           setFilterPeriod('allTime')
@@ -875,3 +889,4 @@ export default function InsightsPage() {
     </AppLayout>
   )
 }
+

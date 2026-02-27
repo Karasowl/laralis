@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 
 // Types moved here to avoid circular dependency with DateFilterBar
 export type DatePeriod = 'today' | 'week' | 'month' | 'quarter' | 'year' | 'allTime' | 'custom'
@@ -41,17 +41,29 @@ export function useDateFilter(): UseDateFilterReturn {
     const month = now.getMonth()
     const day = now.getDate()
 
-    // Handle custom period with fallback to current month if dates incomplete
+    // Handle custom period, preserving partial selections as single-day ranges
     if (period === 'custom') {
       if (customRange.from && customRange.to) {
         return customRange
       }
-      // Fallback: use current month if custom dates are incomplete
+      if (customRange.from) {
+        return {
+          from: customRange.from,
+          to: customRange.from
+        }
+      }
+      if (customRange.to) {
+        return {
+          from: customRange.to,
+          to: customRange.to
+        }
+      }
+      // If empty, fallback to current month
       const firstDay = new Date(year, month, 1)
       const lastDay = new Date(year, month + 1, 0)
       return {
-        from: customRange.from || formatDate(firstDay),
-        to: customRange.to || formatDate(lastDay)
+        from: formatDate(firstDay),
+        to: formatDate(lastDay)
       }
     }
 
@@ -186,3 +198,4 @@ function formatDate(date: Date): string {
   const day = String(date.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
 }
+
