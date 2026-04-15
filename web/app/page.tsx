@@ -846,6 +846,7 @@ export default function InsightsPage() {
 
             {/* Campaign ROI Analysis */}
             <CampaignROISection
+              clinicId={dashboardClinicId}
               startDate={currentRange?.from}
               endDate={currentRange?.to}
             />

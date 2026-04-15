@@ -2,10 +2,16 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useCurrentClinic } from '@/hooks/use-current-clinic';
 import { MarketingROITable } from './MarketingROITable';
 
 interface CampaignROISectionProps {
+  /**
+   * Clinic id to query. Pass it explicitly from the parent — do NOT rely on
+   * useCurrentClinic here: in production /api/clinics may fail with
+   * "Invalid payload" inside useCurrentClinic, leaving clinicId undefined
+   * and silently preventing this section from ever fetching its data.
+   */
+  clinicId?: string;
   includeArchived?: boolean;
   platformId?: string;
   startDate?: string;
@@ -35,14 +41,13 @@ interface ApiCampaign {
  * Inlining the fetch here guarantees a fresh module hash on next build.
  */
 export function CampaignROISection({
+  clinicId,
   includeArchived = false,
   platformId,
   startDate,
   endDate,
 }: CampaignROISectionProps) {
   const t = useTranslations('dashboardComponents.marketingROI');
-  const { currentClinic } = useCurrentClinic();
-  const clinicId = currentClinic?.id;
 
   const [campaigns, setCampaigns] = useState<ApiCampaign[]>([]);
   const [loading, setLoading] = useState(false);

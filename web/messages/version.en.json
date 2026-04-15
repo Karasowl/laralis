@@ -15,6 +15,13 @@
       "documentation": "Documentation"
     },
     "releases": {
+      "v0_3_8": {
+        "date": "2026-04-15",
+        "title": "Campaign ROI Analysis - root cause fixed",
+        "fixed": [
+          "CampaignROISection was internally using useCurrentClinic, which was failing with 'Invalid payload' error on /api/clinics. As a result, clinicId stayed undefined and the fetch never fired. Now clinicId is passed as a prop from page.tsx (same source the other working dashboard widgets use). The 'Campaign ROI Analysis' table now loads campaigns with their metrics."
+        ]
+      },
       "v0_3_7": {
         "date": "2026-04-15",
         "title": "Campaign ROI Analysis - inline fetch in the component",
