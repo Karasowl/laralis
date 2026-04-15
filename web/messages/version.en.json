@@ -15,6 +15,13 @@
       "documentation": "Documentation"
     },
     "releases": {
+      "v0_3_3": {
+        "date": "2026-04-15",
+        "title": "Definitive fix - Campaign ROI in Dashboard Marketing",
+        "fixed": [
+          "channel-roi endpoint was selecting a 'description' column from marketing_campaigns that doesn't exist in production - causing 500 and showing 'Create your first campaign' even with campaigns. Now loads correctly."
+        ]
+      },
       "v0_3_2": {
         "date": "2026-04-15",
         "title": "Dashboard Marketing - Campaign ROI",

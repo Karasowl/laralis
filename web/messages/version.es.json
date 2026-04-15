@@ -15,6 +15,13 @@
       "documentation": "Documentación"
     },
     "releases": {
+      "v0_3_3": {
+        "date": "2026-04-15",
+        "title": "Fix definitivo - ROI por campaña en Dashboard Marketing",
+        "fixed": [
+          "Endpoint channel-roi consultaba la columna 'description' de marketing_campaigns que no existe en producción - causaba error 500 y mostraba 'Crear tu primera campaña' aunque hubiera campañas. Ahora carga correctamente."
+        ]
+      },
       "v0_3_2": {
         "date": "2026-04-15",
         "title": "Dashboard Marketing - ROI por campaña",

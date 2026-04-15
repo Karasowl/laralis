@@ -77,7 +77,6 @@ export async function GET(request: NextRequest) {
         id,
         name,
         code,
-        description,
         platform_id,
         start_date,
         end_date,
@@ -228,7 +227,6 @@ export async function GET(request: NextRequest) {
           id: campaign.id,
           name: campaign.name,
           code: campaign.code,
-          description: campaign.description,
           isActive: campaign.is_active
         },
         patients: campaignPatientCount,
