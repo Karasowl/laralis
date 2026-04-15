@@ -15,6 +15,13 @@
       "documentation": "Documentación"
     },
     "releases": {
+      "v0_4_0": {
+        "date": "2026-04-15",
+        "title": "Gráficas de Marketing - granularidad adaptativa",
+        "improved": [
+          "Tendencias de Adquisición y Evolución del CAC ahora ajustan automáticamente el tamaño del bucket según el rango seleccionado: por día si es ≤ 45 días, por semana si es ≤ 1 año, por mes si es mayor. Antes siempre eran mensuales y con 'Este mes' salía un solo punto / línea plana que parecía rota."
+        ]
+      },
       "v0_3_9": {
         "date": "2026-04-15",
         "title": "/api/clinics ya no falla con 'Invalid payload'",

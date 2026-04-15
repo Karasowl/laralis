@@ -3,30 +3,31 @@ import { cookies } from 'next/headers'
 import { resolveClinicContext } from '@/lib/clinic'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { calculateCAC } from '@/lib/calc/marketing'
+import { buildBuckets, chooseGranularity, findBucketKey } from '@/lib/calc/buckets'
 
 export const dynamic = 'force-dynamic'
 
 /**
  * GET /api/analytics/cac-trend
  *
- * Calcula la evolución del CAC (Customer Acquisition Cost) por mes
- * para mostrar tendencia en gráfica
+ * Customer Acquisition Cost evolution over time, with adaptive bucketing:
+ *   <= 45 days  -> daily
+ *   <= 365 days -> weekly
+ *   >  365 days -> monthly
  *
- * Query params:
- * - clinicId: UUID (opcional, se obtiene del contexto)
- * - months: number (meses hacia atrás, default: 12) - usado si no hay startDate/endDate
- * - startDate: YYYY-MM-DD (opcional, fecha de inicio del rango)
- * - endDate: YYYY-MM-DD (opcional, fecha de fin del rango)
+ * Response shape preserved (`trend: [{ month, period, cacCents, ... }]`)
+ * so existing chart consumers don't need to change. The `month` field is
+ * just the bucket label and may now be a day or week label depending on
+ * the selected range.
  */
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = cookies()
     const searchParams = request.nextUrl.searchParams
 
-    // Resolver contexto de clínica
     const ctx = await resolveClinicContext({
       requestedClinicId: searchParams.get('clinicId'),
-      cookieStore
+      cookieStore,
     })
 
     if ('error' in ctx) {
@@ -41,138 +42,151 @@ export async function GET(request: NextRequest) {
     const endDateParam = searchParams.get('endDate')
     const months = parseInt(searchParams.get('months') || '12', 10)
 
-    // Determinar rango de fechas
     let rangeStart: Date
     let rangeEnd: Date
 
     if (startDateParam && endDateParam) {
-      // Usar fechas específicas
       rangeStart = new Date(startDateParam)
       rangeEnd = new Date(endDateParam)
-      console.info('[cac-trend] Using date range:', startDateParam, 'to', endDateParam)
     } else {
-      // Fallback a months
       rangeEnd = new Date()
       rangeStart = new Date()
       rangeStart.setMonth(rangeStart.getMonth() - months)
-      console.info('[cac-trend] Using months:', months)
     }
 
-    console.info('[cac-trend] Fetching for clinic:', clinicId)
+    const granularity = chooseGranularity(rangeStart, rangeEnd)
+    const buckets = buildBuckets(rangeStart, rangeEnd, granularity)
 
-    // Calcular rangos de fechas para cada mes dentro del rango
-    const monthRanges: Array<{ start: string; end: string; label: string }> = []
-
-    // Empezar desde el primer día del mes de rangeStart
-    const currentMonth = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1)
-    const endMonth = new Date(rangeEnd.getFullYear(), rangeEnd.getMonth(), 1)
-
-    while (currentMonth <= endMonth) {
-      const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1)
-      const monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0)
-
-      monthRanges.push({
-        start: monthStart.toISOString().split('T')[0],
-        end: monthEnd.toISOString().split('T')[0],
-        label: monthStart.toLocaleDateString('es-MX', {
-          year: 'numeric',
-          month: 'short'
-        })
+    if (buckets.length === 0) {
+      return NextResponse.json({
+        granularity,
+        months: 0,
+        trend: [],
+        summary: {
+          currentCACCents: 0,
+          averageCACCents: 0,
+          lowestCACCents: null,
+          highestCACCents: 0,
+        },
       })
-
-      currentMonth.setMonth(currentMonth.getMonth() + 1)
     }
 
-    // Obtener gastos de marketing agrupados por mes
-    const { data: expenses, error: expensesError } = await supabaseAdmin
-      .from('expenses')
-      .select('amount_cents, expense_date, category_id, categories!inner(name)')
-      .eq('clinic_id', clinicId)
-      .gte('expense_date', monthRanges[0].start)
-      .lte('expense_date', monthRanges[monthRanges.length - 1].end)
+    const rangeStartIso = buckets[0].start
+    const rangeEndIso = buckets[buckets.length - 1].end
 
-    if (expensesError) {
-      console.error('[cac-trend] Error fetching expenses:', expensesError)
-      throw expensesError
+    // Fetch marketing expenses + patients in the entire range, then bucket
+    // them in-memory. Replaces the previous PostgREST `categories!inner`
+    // join (which was unreliable in production) with a two-step lookup.
+    const { data: marketingCategories, error: marketingCatError } =
+      await supabaseAdmin
+        .from('categories')
+        .select('id')
+        .eq('name', 'marketing')
+
+    if (marketingCatError) {
+      console.error('[cac-trend] Error fetching marketing category:', marketingCatError)
     }
 
-    // Filtrar solo marketing
-    const marketingExpenses = (expenses || [])
-      .filter((e: any) => e.categories?.name === 'marketing')
+    const marketingCategoryIds = (marketingCategories || []).map((c: any) => c.id)
 
-    // Obtener pacientes agrupados por mes
+    let marketingExpenses: Array<{ amount_cents: number; expense_date: string }> = []
+    if (marketingCategoryIds.length > 0) {
+      const { data: expenses, error: expensesError } = await supabaseAdmin
+        .from('expenses')
+        .select('amount_cents, expense_date')
+        .eq('clinic_id', clinicId)
+        .in('category_id', marketingCategoryIds)
+        .gte('expense_date', rangeStartIso)
+        .lte('expense_date', rangeEndIso)
+
+      if (expensesError) {
+        console.error('[cac-trend] Error fetching expenses:', expensesError)
+        throw expensesError
+      }
+      marketingExpenses = (expenses || []) as any
+    }
+
     const { data: patients, error: patientsError } = await supabaseAdmin
       .from('patients')
       .select('id, created_at')
       .eq('clinic_id', clinicId)
-      .gte('created_at', monthRanges[0].start)
-      .lte('created_at', monthRanges[monthRanges.length - 1].end + 'T23:59:59')
+      .gte('created_at', rangeStartIso)
+      .lte('created_at', rangeEndIso + 'T23:59:59')
 
     if (patientsError) {
       console.error('[cac-trend] Error fetching patients:', patientsError)
       throw patientsError
     }
 
-    // Calcular CAC por mes
-    const cacByMonth = monthRanges.map(range => {
-      // Gastos del mes
-      const monthExpenses = marketingExpenses
-        .filter((e: any) => {
-          const date = e.expense_date
-          return date >= range.start && date <= range.end
-        })
-        .reduce((sum: number, e: any) => sum + (e.amount_cents || 0), 0)
+    // Bucket aggregations.
+    const expensesByBucket = new Map<string, number>()
+    const patientsByBucket = new Map<string, number>()
+    buckets.forEach(b => {
+      expensesByBucket.set(b.key, 0)
+      patientsByBucket.set(b.key, 0)
+    })
 
-      // Pacientes del mes
-      const monthPatients = (patients || [])
-        .filter((p: any) => {
-          const created = p.created_at.split('T')[0]
-          return created >= range.start && created <= range.end
-        })
-        .length
-
-      const cac = calculateCAC(monthExpenses, monthPatients)
-
-      return {
-        month: range.label,
-        period: range.start,
-        cacCents: cac,
-        expensesCents: monthExpenses,
-        newPatients: monthPatients
+    marketingExpenses.forEach(e => {
+      const iso = (e.expense_date as string).slice(0, 10)
+      const key = findBucketKey(buckets, iso)
+      if (key) {
+        expensesByBucket.set(key, (expensesByBucket.get(key) || 0) + (e.amount_cents || 0))
       }
     })
 
-    // Calcular promedio y CAC actual
-    // FIXED: Only count months with ACTIVITY (either expenses OR patients)
-    // Don't count months with zero activity in the average
-    const activeMonths = cacByMonth.filter(m => m.expensesCents > 0 || m.newPatients > 0)
-    const avgCAC = activeMonths.length > 0
+    patients?.forEach(p => {
+      const iso = (p.created_at as string).slice(0, 10)
+      const key = findBucketKey(buckets, iso)
+      if (key) {
+        patientsByBucket.set(key, (patientsByBucket.get(key) || 0) + 1)
+      }
+    })
+
+    const trend = buckets.map(b => {
+      const expensesCents = expensesByBucket.get(b.key) || 0
+      const newPatients = patientsByBucket.get(b.key) || 0
+      const cacCents = calculateCAC(expensesCents, newPatients)
+      return {
+        month: b.label, // chart x-axis
+        period: b.start,
+        cacCents,
+        expensesCents,
+        newPatients,
+      }
+    })
+
+    // Average CAC over buckets that actually had activity (avoids dragging
+    // the average down to zero when most buckets are empty in a wide range).
+    const activeBuckets = trend.filter(t => t.expensesCents > 0 || t.newPatients > 0)
+    const avgCAC = activeBuckets.length > 0
       ? Math.round(
-          activeMonths.reduce((sum, m) => sum + m.cacCents, 0) / activeMonths.length
+          activeBuckets.reduce((sum, t) => sum + t.cacCents, 0) / activeBuckets.length
         )
       : 0
 
-    const currentCAC = cacByMonth[cacByMonth.length - 1]?.cacCents || 0
-
-    console.info('[cac-trend] CAC by month:', cacByMonth)
-    console.info('[cac-trend] Average CAC:', avgCAC)
-    console.info('[cac-trend] Current CAC:', currentCAC)
+    const currentCAC = trend[trend.length - 1]?.cacCents || 0
+    const positiveCacs = trend.map(t => t.cacCents).filter(c => c > 0)
 
     return NextResponse.json({
-      months: monthRanges.length, // Número real de meses en el rango
-      trend: cacByMonth,
+      granularity,
+      months: buckets.length,
+      trend,
       summary: {
         currentCACCents: currentCAC,
         averageCACCents: avgCAC,
-        lowestCACCents: Math.min(...cacByMonth.map(m => m.cacCents).filter(c => c > 0)),
-        highestCACCents: Math.max(...cacByMonth.map(m => m.cacCents))
-      }
+        lowestCACCents: positiveCacs.length > 0 ? Math.min(...positiveCacs) : null,
+        highestCACCents: trend.length > 0 ? Math.max(...trend.map(t => t.cacCents)) : 0,
+      },
     })
-
-  } catch (error) {
+  } catch (error: any) {
     console.error('[cac-trend] Error:', error)
     return NextResponse.json(
-      { error: 'Failed to calculate CAC trend' },
+      {
+        error: 'Failed to calculate CAC trend',
+        message: error?.message ?? String(error),
+        details: error?.details,
+        code: error?.code,
+      },
       { status: 500 }
     )
   }

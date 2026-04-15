@@ -15,6 +15,13 @@
       "documentation": "Documentation"
     },
     "releases": {
+      "v0_4_0": {
+        "date": "2026-04-15",
+        "title": "Marketing charts - adaptive granularity",
+        "improved": [
+          "Acquisition Trends and CAC Evolution charts now adjust bucket size automatically based on the selected range: daily if ≤ 45 days, weekly if ≤ 1 year, monthly otherwise. Previously they were always monthly, so 'Este mes' produced a single flat point that looked broken."
+        ]
+      },
       "v0_3_9": {
         "date": "2026-04-15",
         "title": "/api/clinics no longer fails with 'Invalid payload'",
