@@ -22,7 +22,12 @@ export async function GET(request: Request) {
   try {
     const cookieStore = cookies()
     const { searchParams } = new URL(request.url)
-    const workspaceId = searchParams.get('workspaceId')
+    // searchParams.get() returns null when the param is missing, but
+    // z.string().uuid().optional() only accepts undefined. Coerce here
+    // so that calling /api/clinics without any query string (the default
+    // path used by useCurrentClinic) doesn't fail validation with
+    // "Invalid payload".
+    const workspaceId = searchParams.get('workspaceId') ?? undefined
     const queryValidation = validateSchema(workspaceQuerySchema, { workspaceId })
     if ('error' in queryValidation) {
       return queryValidation.error

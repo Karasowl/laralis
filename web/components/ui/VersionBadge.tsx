@@ -26,8 +26,8 @@ export function VersionBadge() {
 
   // Get releases data from i18n
   // Using underscores instead of dots to avoid IntlError with nested keys
-  const releases = ['v0_3_8', 'v0_3_7', 'v0_3_6', 'v0_3_5', 'v0_3_4', 'v0_3_3', 'v0_3_2', 'v0_3_1', 'v0_3_0', 'v0_2_0', 'v0_1_0'];
-  const releaseVersions = ['0.3.8', '0.3.7', '0.3.6', '0.3.5', '0.3.4', '0.3.3', '0.3.2', '0.3.1', '0.3.0', '0.2.0', '0.1.0']; // For display purposes
+  const releases = ['v0_3_9', 'v0_3_8', 'v0_3_7', 'v0_3_6', 'v0_3_5', 'v0_3_4', 'v0_3_3', 'v0_3_2', 'v0_3_1', 'v0_3_0', 'v0_2_0', 'v0_1_0'];
+  const releaseVersions = ['0.3.9', '0.3.8', '0.3.7', '0.3.6', '0.3.5', '0.3.4', '0.3.3', '0.3.2', '0.3.1', '0.3.0', '0.2.0', '0.1.0']; // For display purposes
 
   return (
     <>

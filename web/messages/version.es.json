@@ -15,6 +15,13 @@
       "documentation": "Documentación"
     },
     "releases": {
+      "v0_3_9": {
+        "date": "2026-04-15",
+        "title": "/api/clinics ya no falla con 'Invalid payload'",
+        "fixed": [
+          "El endpoint /api/clinics devolvía 400 'Invalid payload' cuando se llamaba sin query params (caso por defecto de useCurrentClinic). searchParams.get() devuelve null si el parámetro no está, pero la validación con z.string().uuid().optional() sólo acepta undefined. Ahora se coerciona null a undefined antes de validar."
+        ]
+      },
       "v0_3_8": {
         "date": "2026-04-15",
         "title": "Análisis de ROI por Campaña - causa raíz arreglada",
