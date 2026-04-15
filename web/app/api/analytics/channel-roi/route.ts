@@ -71,17 +71,12 @@ export async function GET(request: NextRequest) {
 
     // 1. Get user's REAL marketing campaigns (NOT dummy patient_sources)
     // Use .or() to handle NULL values - campaigns might have is_archived = null
+    // Only select columns known to exist in production schema. The
+    // marketing_campaigns table on prod does NOT have description /
+    // start_date / end_date columns; selecting them caused 42703 errors.
     const { data: campaigns, error: campaignsError } = await supabaseAdmin
       .from('marketing_campaigns')
-      .select(`
-        id,
-        name,
-        code,
-        platform_id,
-        start_date,
-        end_date,
-        is_active
-      `)
+      .select('id, name, code, platform_id, is_active')
       .eq('clinic_id', clinicId)
       .or('is_archived.is.null,is_archived.eq.false')
 

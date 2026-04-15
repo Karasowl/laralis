@@ -15,6 +15,13 @@
       "documentation": "Documentation"
     },
     "releases": {
+      "v0_3_4": {
+        "date": "2026-04-15",
+        "title": "Campaign ROI - second pass",
+        "fixed": [
+          "Removed additional non-existent columns (start_date, end_date) from channel-roi query. The endpoint now only selects columns present in production schema."
+        ]
+      },
       "v0_3_3": {
         "date": "2026-04-15",
         "title": "Definitive fix - Campaign ROI in Dashboard Marketing",
