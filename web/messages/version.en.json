@@ -15,6 +15,13 @@
       "documentation": "Documentation"
     },
     "releases": {
+      "v0_3_7": {
+        "date": "2026-04-15",
+        "title": "Campaign ROI Analysis - inline fetch in the component",
+        "fixed": [
+          "After v0.3.5/v0.3.6, the useCampaignROI chunk was still being served with old code (confirmed via React fiber inspection: the component was still using useApi). Inlined the fetch directly into CampaignROISection to force a new module hash on build and eliminate the stuck-cached indirection."
+        ]
+      },
       "v0_3_6": {
         "date": "2026-04-15",
         "title": "Campaign ROI - hook rewritten with direct fetch",

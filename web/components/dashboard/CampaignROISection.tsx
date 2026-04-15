@@ -1,9 +1,9 @@
 'use client';
 
-import { useCampaignROI } from '@/hooks/use-campaign-roi';
+import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useCurrentClinic } from '@/hooks/use-current-clinic';
 import { MarketingROITable } from './MarketingROITable';
-import { useTranslations } from 'next-intl';
 
 interface CampaignROISectionProps {
   includeArchived?: boolean;
@@ -12,8 +12,27 @@ interface CampaignROISectionProps {
   endDate?: string;
 }
 
+interface ApiCampaign {
+  id: string;
+  name: string;
+  platform_id: string;
+  platform_name: string;
+  investmentCents: number;
+  revenueCents: number;
+  patientsCount: number;
+  roi: number;
+  avgRevenuePerPatientCents: number;
+  status: 'active' | 'inactive' | 'archived';
+}
+
 /**
- * Componente que carga y muestra las métricas de ROI por campaña individual
+ * Loads and renders the per-campaign ROI table for the dashboard.
+ *
+ * Fetches /api/marketing/campaigns/roi inline (no shared hook) because the
+ * previous useCampaignROI / useApi-based implementation never fired its
+ * useEffect in production despite multiple rewrite attempts (chunk-cache
+ * confirmed via React fiber inspection — old code kept being served).
+ * Inlining the fetch here guarantees a fresh module hash on next build.
  */
 export function CampaignROISection({
   includeArchived = false,
@@ -23,25 +42,61 @@ export function CampaignROISection({
 }: CampaignROISectionProps) {
   const t = useTranslations('dashboardComponents.marketingROI');
   const { currentClinic } = useCurrentClinic();
+  const clinicId = currentClinic?.id;
 
-  console.log('[CampaignROISection] props:', { startDate, endDate });
+  const [campaigns, setCampaigns] = useState<ApiCampaign[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const { campaigns, summary, loading, error } = useCampaignROI({
-    clinicId: currentClinic?.id,
-    includeArchived,
-    platformId,
-    startDate,
-    endDate,
-  });
+  useEffect(() => {
+    if (!clinicId) return;
 
-  console.log('[CampaignROISection] Hook response:', {
-    campaignsCount: campaigns?.length,
-    campaigns,
-    loading,
-    error
-  });
+    const params = new URLSearchParams();
+    params.set('clinicId', clinicId);
+    if (includeArchived) params.set('includeArchived', 'true');
+    if (platformId) params.set('platformId', platformId);
+    if (startDate) params.set('startDate', startDate);
+    if (endDate) params.set('endDate', endDate);
 
-  // Mapear campaigns de useCampaignROI a la estructura esperada por MarketingROITable
+    const url = `/api/marketing/campaigns/roi?${params.toString()}`;
+    let cancelled = false;
+
+    setLoading(true);
+    setError(null);
+
+    fetch(url, { credentials: 'include' })
+      .then(async (res) => {
+        const json = await res.json().catch(() => null);
+        if (!res.ok) {
+          throw new Error((json && (json.error || json.message)) || `HTTP ${res.status}`);
+        }
+        if (!cancelled) {
+          setCampaigns(Array.isArray(json?.data) ? json.data : []);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Unknown error');
+          setCampaigns([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [clinicId, includeArchived, platformId, startDate, endDate]);
+
+  if (error) {
+    return (
+      <div className="p-4 text-center text-red-600">
+        {t('error_loading_campaigns')}
+      </div>
+    );
+  }
+
   const mappedCampaigns = campaigns.map((campaign) => ({
     id: campaign.id,
     name: campaign.name,
@@ -51,23 +106,13 @@ export function CampaignROISection({
     patientsCount: campaign.patientsCount,
     roi: campaign.roi,
     avgRevenuePerPatientCents: campaign.avgRevenuePerPatientCents,
-    status: campaign.status === 'archived' ? 'completed' as const :
-            campaign.status === 'inactive' ? 'paused' as const :
-            'active' as const,
+    status:
+      campaign.status === 'archived'
+        ? ('completed' as const)
+        : campaign.status === 'inactive'
+        ? ('paused' as const)
+        : ('active' as const),
   }));
-
-  console.log('[CampaignROISection] Mapped campaigns:', {
-    count: mappedCampaigns.length,
-    mappedCampaigns
-  });
-
-  if (error) {
-    return (
-      <div className="p-4 text-center text-red-600">
-        {t('error_loading_campaigns')}
-      </div>
-    );
-  }
 
   return (
     <MarketingROITable
