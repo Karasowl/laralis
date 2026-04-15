@@ -3,8 +3,26 @@ import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic'
 
 
+/**
+ * JSON-encode + close-tag-safe escape for embedding strings inside
+ * inline <script>. Without this, an env var that ever contained
+ * `</script>` or backslash sequences would either break parsing or
+ * enable XSS on this page.
+ */
+function safeScriptString(value: string | undefined): string {
+  return JSON.stringify(value ?? '')
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029')
+}
+
 export async function GET() {
-  // Crear una respuesta HTML simple que fuerce el logout usando JavaScript del lado del cliente
+  // Pre-escape env vars so the inline <script> below cannot be broken
+  // out of by any future value.
+  const supabaseUrl = safeScriptString(process.env.NEXT_PUBLIC_SUPABASE_URL)
+  const supabaseAnonKey = safeScriptString(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
   const html = `
     <!DOCTYPE html>
     <html>
@@ -99,8 +117,8 @@ export async function GET() {
             const { createBrowserClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/ssr@0.5.2/+esm');
             
             const supabase = createBrowserClient(
-              '${process.env.NEXT_PUBLIC_SUPABASE_URL}',
-              '${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}'
+              ${supabaseUrl},
+              ${supabaseAnonKey}
             );
             
             await supabase.auth.signOut();

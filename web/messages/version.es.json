@@ -15,6 +15,14 @@
       "documentation": "Documentación"
     },
     "releases": {
+      "v0_5_0": {
+        "date": "2026-04-15",
+        "title": "Hardening - servicios públicos + escape XSS",
+        "security": [
+          "El endpoint público /api/public/clinic/[slug] ya no expone TODOS los servicios activos cuando no hay whitelist. Antes, cualquiera con un slug podía scrapear precios completos. Ahora hay que publicar explícitamente vía public_booking_services.",
+          "/api/auth/force-logout: las env vars NEXT_PUBLIC_SUPABASE_* se interpolaban directo en un <script> inline. Ahora se escapan con safeScriptString (JSON.stringify + escape de </script>, line-separators) para evitar XSS si el valor contuviera caracteres peligrosos."
+        ]
+      },
       "v0_4_3": {
         "date": "2026-04-15",
         "title": "Bugs funcionales del audit",

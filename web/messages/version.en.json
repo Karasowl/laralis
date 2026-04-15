@@ -15,6 +15,14 @@
       "documentation": "Documentation"
     },
     "releases": {
+      "v0_5_0": {
+        "date": "2026-04-15",
+        "title": "Hardening - public services + XSS escape",
+        "security": [
+          "Public /api/public/clinic/[slug] no longer dumps every active service when no whitelist exists. Previously anyone with a slug could scrape full price lists. Owners must now explicitly publish services via public_booking_services.",
+          "/api/auth/force-logout: NEXT_PUBLIC_SUPABASE_* env vars were interpolated raw into an inline <script>. Now escaped via safeScriptString (JSON.stringify + escape </script>, line separators) to prevent XSS if a value ever contained dangerous characters."
+        ]
+      },
       "v0_4_3": {
         "date": "2026-04-15",
         "title": "Functional bugs from the audit",

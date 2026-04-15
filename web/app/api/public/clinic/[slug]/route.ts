@@ -123,31 +123,13 @@ export async function GET(
         category: ws.services.category
       }))
     } else {
-      // No whitelist - get all active services
-      const { data: allServices } = await supabaseAdmin
-        .from('services')
-        .select(`
-          id,
-          name,
-          description,
-          price_cents,
-          est_minutes,
-          category
-        `)
-        .eq('clinic_id', clinic.id)
-        .eq('is_active', true)
-        .order('name', { ascending: true })
-
-      if (allServices) {
-        services = allServices.map(s => ({
-          id: s.id,
-          name: s.name,
-          description: s.description,
-          price_cents: s.price_cents,
-          duration_minutes: s.est_minutes || bookingConfig.slot_duration_minutes,
-          category: s.category
-        }))
-      }
+      // SECURITY: a missing whitelist used to dump every active service
+      // (with prices) for any clinic addressable by slug. Combined with
+      // unauthenticated slug enumeration that meant competitors could
+      // scrape full price lists. Default to an empty list — owners must
+      // explicitly publish services via the public_booking_services
+      // whitelist before they appear on the booking page.
+      services = []
     }
 
     const response: PublicClinicResponse = {
