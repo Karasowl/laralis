@@ -15,6 +15,14 @@
       "documentation": "Documentación"
     },
     "releases": {
+      "v0_3_2": {
+        "date": "2026-04-15",
+        "title": "Dashboard Marketing - ROI por campaña",
+        "fixed": [
+          "Gráfica 'ROI por campaña' ya muestra las campañas existentes (antes fallaba con error 500 y pedía crear la primera campaña aunque existieran)",
+          "Mensaje de error del endpoint channel-roi ahora incluye el detalle del fallo para facilitar diagnóstico"
+        ]
+      },
       "v0_3_1": {
         "date": "2026-04-15",
         "title": "Filtro de fecha del Dashboard - Rango personalizado",

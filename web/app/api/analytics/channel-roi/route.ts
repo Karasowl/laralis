@@ -158,21 +158,39 @@ export async function GET(request: NextRequest) {
       throw expensesError
     }
 
-    // Also get total marketing expenses for campaigns without direct links
-    const { data: allMarketingExpenses, error: allExpensesError } = await supabaseAdmin
-      .from('expenses')
-      .select('amount_cents, category_id, categories!inner(name)')
-      .eq('clinic_id', clinicId)
-      .gte('expense_date', startDateStr)
-      .lte('expense_date', endDateStr)
+    // Also get total marketing expenses for campaigns without direct links.
+    // Done in two steps (instead of `categories!inner(name)` join) because the
+    // implicit FK join was triggering PostgREST "multiple relationships" or
+    // "relationship not found" errors on some schemas and caused the whole
+    // endpoint to 500. Two explicit queries are both safer and easier to debug.
+    const { data: marketingCategories, error: marketingCatError } = await supabaseAdmin
+      .from('categories')
+      .select('id')
+      .eq('name', 'marketing')
 
-    if (allExpensesError) {
-      console.error('[channel-roi] Error fetching all expenses:', allExpensesError)
+    if (marketingCatError) {
+      console.error('[channel-roi] Error fetching marketing category:', marketingCatError)
     }
 
-    const totalMarketingExpenses = (allMarketingExpenses || [])
-      .filter((e: any) => e.categories?.name === 'marketing')
-      .reduce((sum: number, e: any) => sum + (e.amount_cents || 0), 0)
+    const marketingCategoryIds = (marketingCategories || []).map((c: any) => c.id)
+
+    let totalMarketingExpenses = 0
+    if (marketingCategoryIds.length > 0) {
+      const { data: allMarketingExpenses, error: allExpensesError } = await supabaseAdmin
+        .from('expenses')
+        .select('amount_cents')
+        .eq('clinic_id', clinicId)
+        .in('category_id', marketingCategoryIds)
+        .gte('expense_date', startDateStr)
+        .lte('expense_date', endDateStr)
+
+      if (allExpensesError) {
+        console.error('[channel-roi] Error fetching all marketing expenses:', allExpensesError)
+      }
+
+      totalMarketingExpenses = (allMarketingExpenses || [])
+        .reduce((sum: number, e: any) => sum + (e.amount_cents || 0), 0)
+    }
 
     console.info('[channel-roi] Total marketing expenses:', totalMarketingExpenses)
 
@@ -260,7 +278,10 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('[channel-roi] Error:', error)
     return NextResponse.json(
-      { error: 'Failed to calculate channel ROI' },
+      {
+        error: 'Failed to calculate channel ROI',
+        message: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     )
   }
