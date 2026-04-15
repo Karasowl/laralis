@@ -3934,16 +3934,20 @@
         "trendDescription": "Last 3 months vs previous 3",
         "costPerPatient": "Cost per Patient",
         "revenuePerPatient": "Revenue/Patient",
-        "revenue": "Revenue"
+        "revenue": "Revenue",
+        "best": "Best campaign",
+        "worst": "Needs optimization"
       },
       "table": {
         "title": "Monthly Breakdown",
         "description": "ROI analysis by month",
+        "campaign": "Campaign",
         "period": "Period",
         "investment": "Investment",
         "revenue": "Revenue",
         "patients": "Patients",
-        "roi": "ROI"
+        "roi": "ROI",
+        "status": "Status"
       },
       "help": {
         "title": "How does this analysis work?",

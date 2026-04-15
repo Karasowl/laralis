@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { resolveClinicContext } from '@/lib/clinic'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { calculateROI } from '@/lib/calc/marketing'
+import { getFirstTreatmentDateByPatient } from '@/lib/calc/patient-acquisition'
 
 export const dynamic = 'force-dynamic'
 
@@ -107,19 +108,32 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // 2. Get patients linked to campaigns (via campaign_id)
-    const { data: patients, error: patientsError } = await supabaseAdmin
+    // 2. Get all patients linked to campaigns (no date filter — we'll
+    //    filter in-memory by the patient's FIRST treatment date, which is
+    //    the dashboard's definition of "new patient").
+    const { data: patientsLinked, error: patientsError } = await supabaseAdmin
       .from('patients')
-      .select('id, campaign_id, created_at')
+      .select('id, campaign_id')
       .eq('clinic_id', clinicId)
-      .gte('created_at', startDate.toISOString())
-      .lte('created_at', endDate.toISOString())
       .not('campaign_id', 'is', null)
 
     if (patientsError) {
       console.error('[channel-roi] Error fetching patients:', patientsError)
       throw patientsError
     }
+
+    const linkedIds = (patientsLinked || []).map((p: any) => p.id)
+    const firstTreatmentByPatient = await getFirstTreatmentDateByPatient(clinicId, {
+      patientIds: linkedIds,
+    })
+
+    // Keep only the patients whose first treatment falls inside the range.
+    // If a campaign-linked patient has no treatments at all (firstTreatment
+    // is undefined) they don't count as an acquired patient for this period.
+    const patients = (patientsLinked || []).filter((p: any) => {
+      const iso = firstTreatmentByPatient.get(p.id)
+      return iso !== undefined && iso >= startDateStr && iso <= endDateStr
+    })
 
     // 3. Get revenue from treatments of these patients
     const patientIds = (patients || []).map((p: any) => p.id)

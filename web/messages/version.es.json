@@ -15,6 +15,16 @@
       "documentation": "Documentación"
     },
     "releases": {
+      "v0_4_1": {
+        "date": "2026-04-15",
+        "title": "Pacientes nuevos = primer tratamiento + textos de ROI traducidos",
+        "improved": [
+          "En todas las gráficas de Marketing (Tendencias de Adquisición, Evolución del CAC, ROI por campaña, métricas LTV/CAC) un 'paciente nuevo' ya se cuenta por la fecha de su PRIMER tratamiento, no por la fecha en que se ingresaron sus datos. Los leads que nunca llegaron a venir a una cita ya no inflan los números."
+        ],
+        "fixed": [
+          "Tabla 'Análisis de ROI por Campaña' ahora muestra los encabezados traducidos (Campaña, Estado) y los banners 'Mejor campaña' / 'Requiere optimización' en lugar de los keys i18n crudos."
+        ]
+      },
       "v0_4_0": {
         "date": "2026-04-15",
         "title": "Gráficas de Marketing - granularidad adaptativa",

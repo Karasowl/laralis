@@ -3,6 +3,10 @@ import { cookies } from 'next/headers'
 import { resolveClinicContext } from '@/lib/clinic'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import {
+  getFirstTreatmentDateByPatient,
+  patientsAcquiredInRange,
+} from '@/lib/calc/patient-acquisition'
+import {
   calculateCAC,
   calculateLTV,
   calculateConversionRate,
@@ -96,21 +100,17 @@ export async function GET(request: NextRequest) {
 
     console.info('[marketing-metrics] Marketing expenses:', marketingExpensesCents)
 
-    // 2. Obtener pacientes nuevos del periodo
-    const { data: newPatients, error: patientsError } = await supabaseAdmin
-      .from('patients')
-      .select('id, created_at')
-      .eq('clinic_id', clinicId)
-      .gte('created_at', startDate.toISOString())
-      .lte('created_at', endDate.toISOString())
-
-    if (patientsError) {
-      console.error('[marketing-metrics] Error fetching patients:', patientsError)
-      throw patientsError
-    }
-
-    const newPatientsCount = newPatients?.length || 0
-    console.info('[marketing-metrics] New patients:', newPatientsCount)
+    // 2. "Pacientes nuevos" = pacientes cuyo PRIMER tratamiento cae en el
+    //    periodo. patients.created_at se descartó porque cuenta leads que
+    //    nunca llegaron a venir a una cita.
+    const firstTreatmentByPatient = await getFirstTreatmentDateByPatient(clinicId)
+    const acquiredInPeriod = patientsAcquiredInRange(
+      firstTreatmentByPatient,
+      startDateStr,
+      endDateStr
+    )
+    const newPatientsCount = acquiredInPeriod.size
+    console.info('[marketing-metrics] New patients (by first treatment):', newPatientsCount)
 
     // 2.1 Obtener leads del periodo (para conversion rate)
     const { data: leadsInPeriod, error: leadsError } = await supabaseAdmin

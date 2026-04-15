@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { resolveClinicContext } from '@/lib/clinic'
 import { cookies } from 'next/headers'
 import { buildBuckets, chooseGranularity, findBucketKey } from '@/lib/calc/buckets'
+import { getFirstTreatmentDateByPatient } from '@/lib/calc/patient-acquisition'
 
 export const dynamic = 'force-dynamic'
 
@@ -41,42 +41,19 @@ export async function GET(request: NextRequest) {
       : new Date(now.getFullYear(), now.getMonth() - months + 1, 1)
     const rangeEnd = endDate ? new Date(endDate) : now
 
-    // Fetch all patients within the range (we'll bucket them in-memory).
-    let patientsQuery = supabaseAdmin
-      .from('patients')
-      .select('created_at')
-      .eq('clinic_id', clinicContext.clinicId)
-      .order('created_at', { ascending: true })
-
-    if (startDate && endDate) {
-      patientsQuery = patientsQuery
-        .gte('created_at', startDate)
-        .lte('created_at', endDate + 'T23:59:59')
-    } else {
-      const cutoffDate = new Date()
-      cutoffDate.setMonth(cutoffDate.getMonth() - months)
-      patientsQuery = patientsQuery.gte('created_at', cutoffDate.toISOString())
-    }
-
-    const { data: patients, error } = await patientsQuery
-
-    if (error) {
-      console.error('[AcquisitionTrends] Database error:', error)
-      return NextResponse.json(
-        { error: 'Failed to fetch patient data' },
-        { status: 500 }
-      )
-    }
-
     // Adaptive granularity: short ranges -> daily buckets, etc.
     const granularity = chooseGranularity(rangeStart, rangeEnd)
     const buckets = buildBuckets(rangeStart, rangeEnd, granularity)
 
+    // "New patient" is defined by the date of the patient's FIRST treatment
+    // (the moment they actually came in), NOT patients.created_at. This
+    // matches the dashboard convention used across all marketing analytics.
+    const firstTreatmentDate = await getFirstTreatmentDateByPatient(clinicContext.clinicId)
+
     const counts = new Map<string, number>()
     buckets.forEach(b => counts.set(b.key, 0))
 
-    patients?.forEach(p => {
-      const iso = (p.created_at as string).slice(0, 10)
+    firstTreatmentDate.forEach((iso) => {
       const key = findBucketKey(buckets, iso)
       if (key) counts.set(key, (counts.get(key) || 0) + 1)
     })

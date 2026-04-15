@@ -4,6 +4,7 @@ import { resolveClinicContext } from '@/lib/clinic'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { calculateCAC } from '@/lib/calc/marketing'
 import { buildBuckets, chooseGranularity, findBucketKey } from '@/lib/calc/buckets'
+import { getFirstTreatmentDateByPatient } from '@/lib/calc/patient-acquisition'
 
 export const dynamic = 'force-dynamic'
 
@@ -106,17 +107,10 @@ export async function GET(request: NextRequest) {
       marketingExpenses = (expenses || []) as any
     }
 
-    const { data: patients, error: patientsError } = await supabaseAdmin
-      .from('patients')
-      .select('id, created_at')
-      .eq('clinic_id', clinicId)
-      .gte('created_at', rangeStartIso)
-      .lte('created_at', rangeEndIso + 'T23:59:59')
-
-    if (patientsError) {
-      console.error('[cac-trend] Error fetching patients:', patientsError)
-      throw patientsError
-    }
+    // "New patient" = patient whose FIRST treatment falls in the bucket.
+    // patients.created_at is the lead-capture date and over-counts contacts
+    // who never converted into actual visits.
+    const firstTreatmentDate = await getFirstTreatmentDateByPatient(clinicId)
 
     // Bucket aggregations.
     const expensesByBucket = new Map<string, number>()
@@ -134,8 +128,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    patients?.forEach(p => {
-      const iso = (p.created_at as string).slice(0, 10)
+    firstTreatmentDate.forEach((iso) => {
       const key = findBucketKey(buckets, iso)
       if (key) {
         patientsByBucket.set(key, (patientsByBucket.get(key) || 0) + 1)

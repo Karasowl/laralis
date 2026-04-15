@@ -4200,16 +4200,20 @@
         "trendDescription": "Últimos 3 meses vs 3 anteriores",
         "costPerPatient": "Costo por Paciente",
         "revenuePerPatient": "Ingreso/Paciente",
-        "revenue": "Ingresos"
+        "revenue": "Ingresos",
+        "best": "Mejor campaña",
+        "worst": "Requiere optimización"
       },
       "table": {
         "title": "Desglose Mensual",
         "description": "Análisis de ROI por mes",
+        "campaign": "Campaña",
         "period": "Período",
         "investment": "Inversión",
         "revenue": "Ingresos",
         "patients": "Pacientes",
-        "roi": "ROI"
+        "roi": "ROI",
+        "status": "Estado"
       },
       "help": {
         "title": "¿Cómo se calcula el ROI?",

@@ -15,6 +15,16 @@
       "documentation": "Documentation"
     },
     "releases": {
+      "v0_4_1": {
+        "date": "2026-04-15",
+        "title": "New patients = first treatment + translated ROI labels",
+        "improved": [
+          "Across all Marketing dashboard charts (Acquisition Trends, CAC Evolution, Campaign ROI, LTV/CAC metrics), a 'new patient' is now counted by the date of their FIRST treatment, not by patients.created_at. Leads that never showed up for a real appointment no longer inflate the numbers."
+        ],
+        "fixed": [
+          "'Campaign ROI Analysis' table now shows translated headers (Campaign, Status) and 'Best campaign' / 'Needs optimization' banners instead of raw i18n keys."
+        ]
+      },
       "v0_4_0": {
         "date": "2026-04-15",
         "title": "Marketing charts - adaptive granularity",
