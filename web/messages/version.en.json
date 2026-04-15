@@ -15,6 +15,13 @@
       "documentation": "Documentation"
     },
     "releases": {
+      "v0_3_6": {
+        "date": "2026-04-15",
+        "title": "Campaign ROI - hook rewritten with direct fetch",
+        "fixed": [
+          "Rewrote useCampaignROI without the useApi abstraction (whose auto-fetch effect was not firing for this endpoint). Now uses an explicit useEffect and the 'Campaign ROI Analysis' table loads as expected."
+        ]
+      },
       "v0_3_5": {
         "date": "2026-04-15",
         "title": "'Campaign ROI Analysis' table now loads campaigns",

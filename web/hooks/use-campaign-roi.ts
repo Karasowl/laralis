@@ -1,4 +1,6 @@
-import { useApi } from './use-api';
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
 import { useCurrentClinic } from './use-current-clinic';
 
 export interface CampaignROI {
@@ -35,85 +37,71 @@ export interface UseCampaignROIOptions {
   endDate?: string;
 }
 
+const EMPTY_SUMMARY: CampaignROISummary = {
+  totalInvestmentCents: 0,
+  totalRevenueCents: 0,
+  totalPatientsCount: 0,
+  averageROI: 0,
+  totalCampaigns: 0,
+};
+
 /**
- * Hook para obtener métricas de ROI por campaña individual
+ * Hook to fetch per-campaign ROI metrics.
+ *
+ * Bypasses the shared `useApi` abstraction because the auto-fetch effect there
+ * was not firing for this specific endpoint (race between clinicId resolution
+ * and effect deps left the hook with `loading=false, data=null` forever).
+ * This explicit useEffect avoids that whole class of issues.
  */
 export function useCampaignROI(options: UseCampaignROIOptions = {}) {
   const { currentClinic } = useCurrentClinic();
   const clinicId = options.clinicId || currentClinic?.id;
+  const { includeArchived, platformId, startDate, endDate } = options;
 
-  // Construir query params solo si hay clinicId
-  const params = new URLSearchParams();
-  if (clinicId) {
+  const [data, setData] = useState<CampaignROIResponse | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    if (!clinicId) return;
+
+    const params = new URLSearchParams();
     params.append('clinicId', clinicId);
-  }
-  if (options.includeArchived) {
-    params.append('includeArchived', 'true');
-  }
-  if (options.platformId) {
-    params.append('platformId', options.platformId);
-  }
-  if (options.startDate) {
-    params.append('startDate', options.startDate);
-  }
-  if (options.endDate) {
-    params.append('endDate', options.endDate);
-  }
+    if (includeArchived) params.append('includeArchived', 'true');
+    if (platformId) params.append('platformId', platformId);
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
 
-  // Solo construir endpoint si hay clinicId válido
-  const endpoint = clinicId
-    ? `/api/marketing/campaigns/roi?${params.toString()}`
-    : null;
+    const url = `/api/marketing/campaigns/roi?${params.toString()}`;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(url, { credentials: 'include' });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        const msg = (json && (json.error || json.message)) || `HTTP ${res.status}`;
+        throw new Error(msg);
+      }
+      setData(json);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [clinicId, includeArchived, platformId, startDate, endDate]);
 
-  console.log('[useCampaignROI] Hook invoked with:', {
-    clinicId,
-    includeArchived: options.includeArchived,
-    platformId: options.platformId,
-    startDate: options.startDate,
-    endDate: options.endDate,
-    endpoint
-  });
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
-  // autoFetch must be a stable literal `true`. Using `Boolean(clinicId)`
-  // here meant the effect deps started as [false, null] and the auto-fetch
-  // never re-fired when clinicId resolved later (race / dep churn). All
-  // sister hooks (use-channel-roi, use-marketing-metrics, use-cac-trend)
-  // use `true`; useApi already short-circuits when endpoint is null, so
-  // the request still won't fire until the URL is ready.
-  const { data, loading, error, execute } = useApi<CampaignROIResponse>(endpoint, {
-    autoFetch: true,
-  });
-
-  console.log('[useCampaignROI] Response:', {
-    hasData: !!data,
-    dataKeys: data ? Object.keys(data) : [],
-    campaignsCount: data?.data?.length,
-    campaigns: data?.data,
-    summary: data?.summary,
-    loading,
-    error
-  });
-
-  // Extract campaigns array - ensure it's always an array
-  const campaigns = Array.isArray(data?.data) ? data.data : [];
-
-  console.log('[useCampaignROI] Final campaigns array:', {
-    isArray: Array.isArray(campaigns),
-    length: campaigns.length,
-    campaigns
-  });
+  const campaigns = Array.isArray(data?.data) ? data!.data : [];
 
   return {
     campaigns,
-    summary: data?.summary || {
-      totalInvestmentCents: 0,
-      totalRevenueCents: 0,
-      totalPatientsCount: 0,
-      averageROI: 0,
-      totalCampaigns: 0,
-    },
+    summary: data?.summary ?? EMPTY_SUMMARY,
     loading,
     error,
-    refetch: execute,
+    refetch: fetchData,
   };
 }

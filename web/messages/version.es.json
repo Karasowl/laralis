@@ -15,6 +15,13 @@
       "documentation": "Documentación"
     },
     "releases": {
+      "v0_3_6": {
+        "date": "2026-04-15",
+        "title": "ROI por campaña - reescritura del hook con fetch directo",
+        "fixed": [
+          "Reescrito useCampaignROI sin la abstracción useApi (cuyo auto-fetch no disparaba para este endpoint en concreto). Ahora usa un useEffect explícito y la tabla 'Análisis de ROI por Campaña' carga los datos."
+        ]
+      },
       "v0_3_5": {
         "date": "2026-04-15",
         "title": "Tabla 'Análisis de ROI por Campaña' ahora carga las campañas",
