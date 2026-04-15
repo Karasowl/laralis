@@ -15,6 +15,14 @@
       "documentation": "Documentation"
     },
     "releases": {
+      "v0_3_2": {
+        "date": "2026-04-15",
+        "title": "Dashboard Marketing - Campaign ROI",
+        "fixed": [
+          "Campaign ROI chart now shows existing campaigns (was failing with 500 and asking to create first campaign even when campaigns existed)",
+          "channel-roi endpoint error response now includes the underlying error message for easier debugging"
+        ]
+      },
       "v0_3_1": {
         "date": "2026-04-15",
         "title": "Dashboard date filter - custom range",
