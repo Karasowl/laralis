@@ -174,6 +174,10 @@ export function DateRangePicker({
   const [internalPreset, setInternalPreset] = React.useState<DatePreset>(() =>
     detectPreset(value)
   )
+  // Local draft for custom range selection. Parent is only notified once
+  // both endpoints are set (or user presses Apply), so partial clicks
+  // never trigger re-renders that could race with the calendar UI.
+  const [draftRange, setDraftRange] = React.useState<DateRange>(value)
 
   const currentPreset = controlledPreset ?? internalPreset
   const dateLocale = locale === 'es' ? es : enUS
@@ -184,6 +188,15 @@ export function DateRangePicker({
       setInternalPreset(detectPreset(value))
     }
   }, [value, controlledPreset])
+
+  // Keep draft in sync with external value (e.g. preset changes, external resets).
+  // We only rehydrate when the popover is closed to avoid overwriting an
+  // in-progress selection on every parent render.
+  React.useEffect(() => {
+    if (!open) {
+      setDraftRange(value)
+    }
+  }, [value, open])
 
   const presets: { value: DatePreset; label: string }[] = [
     { value: 'today', label: t('today') },
@@ -202,6 +215,7 @@ export function DateRangePicker({
   const handlePresetSelect = (preset: DatePreset) => {
     const range = getPresetRange(preset)
     setInternalPreset(preset)
+    setDraftRange(range)
     onPresetChange?.(preset)
     onChange(range, preset)
     if (preset !== 'custom') {
@@ -222,19 +236,33 @@ export function DateRangePicker({
       to: range.to ? toISODate(range.to) : '',
     }
 
+    // Only update local draft — don't notify the parent yet. This keeps the
+    // selection fully controlled by this component, prevents upstream
+    // re-renders from racing with clicks, and lets the user preview the range
+    // before committing via "Apply".
+    setDraftRange(newValue)
     setInternalPreset('custom')
-    onPresetChange?.('custom')
-    onChange(newValue, 'custom')
+  }
 
-    // Close when both dates selected
-    if (range.from && range.to) {
-      setOpen(false)
+  const handleApply = () => {
+    // If the user only picked a single date, treat it as a one-day range.
+    const finalRange: DateRange = draftRange.from && !draftRange.to
+      ? { from: draftRange.from, to: draftRange.from }
+      : draftRange
+
+    if (finalRange.from && finalRange.to) {
+      setInternalPreset('custom')
+      setDraftRange(finalRange)
+      onPresetChange?.('custom')
+      onChange(finalRange, 'custom')
     }
+    setOpen(false)
   }
 
   const handleClear = () => {
     const allTime = getPresetRange('allTime')
     setInternalPreset('allTime')
+    setDraftRange(allTime)
     onPresetChange?.('allTime')
     onChange(allTime, 'allTime')
     setOpen(false)
@@ -269,13 +297,14 @@ export function DateRangePicker({
   }
 
   const hasValue = Boolean(value.from || value.to) && currentPreset !== 'allTime'
+  // Calendar reflects the local draft so intermediate clicks show up instantly
+  // without waiting for the parent to commit the value.
   const calendarValue = React.useMemo(() => {
-    if (currentPreset === 'allTime') return undefined
-    const from = fromISODate(value.from)
-    const to = fromISODate(value.to)
+    const from = fromISODate(draftRange.from)
+    const to = fromISODate(draftRange.to)
     if (!from && !to) return undefined
     return { from: from || undefined, to: to || undefined }
-  }, [value, currentPreset])
+  }, [draftRange])
 
   const content = (
     <div className="flex flex-col md:flex-row">
@@ -349,8 +378,26 @@ export function DateRangePicker({
           <DrawerHeader>
             <DrawerTitle>{tFilters('dateRange')}</DrawerTitle>
           </DrawerHeader>
-          <div className="pb-6 max-h-[70vh] overflow-y-auto">
+          <div className="pb-2 max-h-[65vh] overflow-y-auto">
             {content}
+          </div>
+          {/* Footer actions - mobile */}
+          <div className="flex items-center justify-between gap-2 p-4 border-t bg-muted/30">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleClear}
+              className="text-muted-foreground"
+            >
+              {tFilters('clear')}
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleApply}
+              disabled={!draftRange.from}
+            >
+              {t('apply')}
+            </Button>
           </div>
         </DrawerContent>
       </Drawer>
@@ -394,7 +441,11 @@ export function DateRangePicker({
           >
             {tFilters('clear')}
           </Button>
-          <Button size="sm" onClick={() => setOpen(false)}>
+          <Button
+            size="sm"
+            onClick={handleApply}
+            disabled={!draftRange.from}
+          >
             {t('apply')}
           </Button>
         </div>
