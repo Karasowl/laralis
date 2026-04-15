@@ -15,6 +15,18 @@
       "documentation": "Documentación"
     },
     "releases": {
+      "v0_3_1": {
+        "date": "2026-04-15",
+        "title": "Filtro de fecha del Dashboard - Rango personalizado",
+        "fixed": [
+          "El rango de fechas personalizado en el Dashboard ahora se puede seleccionar correctamente (antes no se completaba la selección al segundo clic)",
+          "El calendario del filtro ya no se ve estrecho - cada mes tiene ancho mínimo para que las celdas sean legibles en desktop y mobile"
+        ],
+        "improved": [
+          "Botón 'Aplicar' visible y funcional también en la vista móvil del filtro de fechas",
+          "La selección intermedia ahora se previsualiza localmente antes de confirmar con 'Aplicar'"
+        ]
+      },
       "v0_3_0": {
         "date": "2025-12-05",
         "title": "Mejoras en Tratamientos y Correcciones Críticas",

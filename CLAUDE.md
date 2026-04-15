@@ -238,6 +238,26 @@ See @docs/CODING-STANDARDS.md for complete rules. Key points:
 \- Touching `lib/calc` => update/add tests.
 \- Files >400 lines must be split before merge.
 
+\## Version bump (MANDATORY on every PR)
+
+**REGLA**: cada PR que modifique código desplegado (UI, APIs, lógica visible al usuario) DEBE bumpear la versión. Esto permite verificar en producción, mirando el badge de versión en la esquina inferior izquierda del sidebar, si un deploy realmente incluyó los cambios (la caché del navegador o del CDN a veces hace dudar).
+
+\### Qué bumpear en cada PR
+1. `web/package.json` → campo `version` (semver):
+   - **patch** (`0.3.0` → `0.3.1`): bug fixes y tweaks de UI.
+   - **minor** (`0.3.1` → `0.4.0`): features nuevas que no rompen nada.
+   - **major** (`0.x.y` → `1.0.0`): breaking changes visibles al usuario.
+2. `web/components/ui/VersionBadge.tsx` → arrays `releases` y `releaseVersions` (agregar la nueva versión al principio, formato `v0_3_1` y `0.3.1` respectivamente).
+3. `web/messages/version.es.json` y `web/messages/version.en.json` → nuevo bloque bajo `releases` con `date`, `title` y al menos uno de `added` / `improved` / `fixed` / `removed` / `security` / `ui` / `performance` / `documentation`.
+
+\### Cómo se verifica el deploy
+Después del merge, abrir la app en producción, hacer hard refresh (Ctrl+Shift+R) y mirar el badge `vX.Y.Z` en la esquina inferior izquierda. Si el número no coincide con el que acabas de bumpear, la caché del navegador o del CDN todavía sirve el build viejo (esperar / invalidar, no perder tiempo dudando del código).
+
+\### No bumpear en:
+- Cambios solo en docs (`docs/`, `README.md`, `CLAUDE.md`).
+- Cambios solo en tests que no afectan producción.
+- Refactors puramente internos sin cambio observable para el usuario.
+
 
 
 \## Testing \& TDD

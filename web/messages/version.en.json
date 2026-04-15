@@ -15,6 +15,18 @@
       "documentation": "Documentation"
     },
     "releases": {
+      "v0_3_1": {
+        "date": "2026-04-15",
+        "title": "Dashboard date filter - custom range",
+        "fixed": [
+          "Dashboard custom date range can now be selected correctly (second-click was not completing the range)",
+          "Filter calendar no longer feels cramped - each month now has a minimum width so cells are legible on desktop and mobile"
+        ],
+        "improved": [
+          "Apply button now also visible and working in the mobile drawer of the date filter",
+          "Intermediate selection is previewed locally before committing with Apply"
+        ]
+      },
       "v0_3_0": {
         "date": "2025-12-05",
         "title": "Treatment Improvements and Critical Fixes",
