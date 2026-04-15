@@ -15,6 +15,13 @@
       "documentation": "Documentación"
     },
     "releases": {
+      "v0_3_5": {
+        "date": "2026-04-15",
+        "title": "Tabla 'Análisis de ROI por Campaña' ahora carga las campañas",
+        "fixed": [
+          "La sección 'Análisis de ROI por Campaña' del Dashboard Marketing mostraba 'No hay campañas en el período seleccionado' aunque hubiera campañas con datos. El hook useCampaignROI usaba un patrón de autoFetch distinto al resto y nunca disparaba la petición. Ahora carga correctamente."
+        ]
+      },
       "v0_3_4": {
         "date": "2026-04-15",
         "title": "ROI por campaña - segunda iteración",

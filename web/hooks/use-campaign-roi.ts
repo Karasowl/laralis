@@ -74,8 +74,14 @@ export function useCampaignROI(options: UseCampaignROIOptions = {}) {
     endpoint
   });
 
+  // autoFetch must be a stable literal `true`. Using `Boolean(clinicId)`
+  // here meant the effect deps started as [false, null] and the auto-fetch
+  // never re-fired when clinicId resolved later (race / dep churn). All
+  // sister hooks (use-channel-roi, use-marketing-metrics, use-cac-trend)
+  // use `true`; useApi already short-circuits when endpoint is null, so
+  // the request still won't fire until the URL is ready.
   const { data, loading, error, execute } = useApi<CampaignROIResponse>(endpoint, {
-    autoFetch: Boolean(clinicId),
+    autoFetch: true,
   });
 
   console.log('[useCampaignROI] Response:', {

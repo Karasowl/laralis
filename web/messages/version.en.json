@@ -15,6 +15,13 @@
       "documentation": "Documentation"
     },
     "releases": {
+      "v0_3_5": {
+        "date": "2026-04-15",
+        "title": "'Campaign ROI Analysis' table now loads campaigns",
+        "fixed": [
+          "Dashboard Marketing's 'Campaign ROI Analysis' section showed 'No campaigns in the selected period' even when campaigns existed. The useCampaignROI hook used a different autoFetch pattern than its sister hooks and never triggered the request. Now loads correctly."
+        ]
+      },
       "v0_3_4": {
         "date": "2026-04-15",
         "title": "Campaign ROI - second pass",
