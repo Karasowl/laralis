@@ -34,12 +34,16 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
 
-    // Resolve the effective inclusive date range.
+    // Resolve the effective inclusive date range. Date-only strings
+    // (YYYY-MM-DD) are parsed by `new Date()` as UTC midnight, which in
+    // negative-UTC timezones (e.g. America/Mexico_City) shifts to the
+    // previous day in local time and skews bucket boundaries. Append
+    // T00:00:00 to force local-time interpretation.
     const now = new Date()
     const rangeStart = startDate
-      ? new Date(startDate)
+      ? new Date(`${startDate}T00:00:00`)
       : new Date(now.getFullYear(), now.getMonth() - months + 1, 1)
-    const rangeEnd = endDate ? new Date(endDate) : now
+    const rangeEnd = endDate ? new Date(`${endDate}T23:59:59`) : now
 
     // Adaptive granularity: short ranges -> daily buckets, etc.
     const granularity = chooseGranularity(rangeStart, rangeEnd)
@@ -99,8 +103,16 @@ export async function GET(request: NextRequest) {
       data: [...historical, ...projection],
     })
 
-  } catch (error) {
-    console.error('[AcquisitionTrends] Unexpected error:', error)
+  } catch (error: any) {
+    // Log all server-side detail for diagnosis without leaking schema
+    // info to the client. Same pattern as channel-roi/cac-trend.
+    console.error('[AcquisitionTrends] Unexpected error:', {
+      message: error?.message,
+      code: error?.code,
+      details: error?.details,
+      hint: error?.hint,
+      stack: error?.stack,
+    })
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

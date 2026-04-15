@@ -15,6 +15,17 @@
       "documentation": "Documentación"
     },
     "releases": {
+      "v0_4_3": {
+        "date": "2026-04-15",
+        "title": "Bugs funcionales del audit",
+        "fixed": [
+          "Timezone bug en analytics: 'YYYY-MM-DD' se parseaba como UTC midnight y desplazaba los buckets de inicio/fin un día en zonas con offset negativo (México). Ahora se interpreta como hora local.",
+          "4 hooks (useExpenseOptions, ReportsMarketing, expense-stats, expense-alerts) usaban autoFetch dinámico (Boolean(clinicId)) — mismo bug que escondió la sección de ROI por Campaña. Ahora todos usan literal true.",
+          "Endpoint acquisition-trends ahora loggea el detalle real del error 5xx server-side en vez de tragárselo como 'Internal server error'.",
+          "useCampaignROI: race condition al cambiar filtros rápido; respuestas viejas podían sobrescribir nuevas. Añadido AbortController + cancelled flag.",
+          "parseMoney usaba parseFloat('1234.56') * 100 = 123455.99... → off by one cent. Reescrito con parseo entero (parte entera + decimales por separado)."
+        ]
+      },
       "v0_4_2": {
         "date": "2026-04-15",
         "title": "Hardening de seguridad - tanda crítica",

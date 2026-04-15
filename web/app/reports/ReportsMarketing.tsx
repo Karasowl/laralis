@@ -48,7 +48,7 @@ export function ReportsMarketing({ clinicId, insights, loading }: ReportsMarketi
   const {
     data: campaignsResponse,
     loading: campaignsLoading,
-  } = useApi<{ data: Campaign[] }>(campaignsEndpoint, { autoFetch: Boolean(clinicId) })
+  } = useApi<{ data: Campaign[] }>(campaignsEndpoint, { autoFetch: true })
 
   const campaigns = useMemo(() => campaignsResponse?.data ?? [], [campaignsResponse])
   const totalPatientsFromCampaigns = useMemo(

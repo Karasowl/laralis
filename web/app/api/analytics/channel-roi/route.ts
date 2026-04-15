@@ -53,11 +53,14 @@ export async function GET(request: NextRequest) {
     let endDateStr: string
 
     if (startDateParam && endDateParam) {
-      // Use explicit date range
+      // Use explicit date range. Append explicit time so YYYY-MM-DD
+      // strings are parsed as local midnight, not UTC midnight (which
+      // would skew the comparison against patient/expense ISO dates in
+      // negative-UTC timezones).
       startDateStr = startDateParam
       endDateStr = endDateParam
-      startDate = new Date(startDateParam)
-      endDate = new Date(endDateParam)
+      startDate = new Date(`${startDateParam}T00:00:00`)
+      endDate = new Date(`${endDateParam}T23:59:59`)
     } else {
       // Fall back to period lookback
       endDate = new Date()

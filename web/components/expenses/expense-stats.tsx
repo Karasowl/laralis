@@ -38,7 +38,7 @@ export default function ExpenseStats({ detailed = false }: ExpenseStatsProps) {
   }, [currentClinic?.id, dateRange.end_date, dateRange.start_date])
 
   const { data, loading } = useApi<{ data: ExpenseStats }>(statsEndpoint, {
-    autoFetch: !!statsEndpoint,
+    autoFetch: true,
   })
   const stats = data?.data ?? null
 

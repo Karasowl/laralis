@@ -85,7 +85,11 @@ export function useExpenseOptions({ clinicId }: UseExpenseOptionsProps) {
   const suppliesEndpoint = clinicId ? `/api/supplies?clinicId=${clinicId}&limit=200` : null
   const suppliesApi = useApi<{ data: Array<{ id: string; name: string; category?: string }> }>(
     suppliesEndpoint,
-    { autoFetch: Boolean(clinicId) }
+    // Use literal `true`. Dynamic `Boolean(clinicId)` causes the
+    // useEffect's deps to start at `false` and the auto-fetch never
+    // re-fires when clinicId resolves later (same v0.3.5 cascade that
+    // broke useCampaignROI). useApi already short-circuits on null endpoint.
+    { autoFetch: true }
   )
 
   // Calculate parent categories (for dropdowns)

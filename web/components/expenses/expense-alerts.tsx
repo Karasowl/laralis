@@ -65,7 +65,7 @@ export default function ExpenseAlerts() {
   }, [currentClinic?.id])
 
   const { data, loading } = useApi<{ data: ExpenseAlertsData }>(alertsEndpoint, {
-    autoFetch: !!alertsEndpoint,
+    autoFetch: true,
   })
   const alerts = data?.data ?? null
 

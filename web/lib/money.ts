@@ -171,10 +171,26 @@ export function parseMoney(value: string | number): number {
     return pesosToCents(value);
   }
 
-  // Remove currency symbols and parse as float
-  const cleanValue = value.replace(/[^0-9.-]/g, '');
-  const pesos = parseFloat(cleanValue) || 0;
-  return pesosToCents(pesos);
+  // Strip everything except digits, decimal separator and a leading sign,
+  // then parse the integer + decimal parts SEPARATELY in integer math.
+  // The previous implementation did `parseFloat(cleanValue) * 100` which
+  // produces classic float drift: parseFloat('1234.56') * 100 yields
+  // 123455.99999..., off by one cent after Math.round.
+  const trimmed = value.replace(/[^0-9.\-]/g, '');
+  if (!trimmed || trimmed === '-' || trimmed === '.' || trimmed === '-.') return 0;
+
+  const negative = trimmed.startsWith('-');
+  const unsigned = negative ? trimmed.slice(1) : trimmed;
+  const [intPart = '0', fracPartRaw = ''] = unsigned.split('.');
+  // Pad / truncate the fractional part to exactly 2 digits.
+  const fracPart = (fracPartRaw + '00').slice(0, 2);
+
+  const intDigits = intPart.replace(/[^0-9]/g, '') || '0';
+  const fracDigits = fracPart.replace(/[^0-9]/g, '');
+
+  const cents = Number(intDigits) * 100 + Number(fracDigits || '0');
+  if (!Number.isFinite(cents)) return 0;
+  return negative ? -cents : cents;
 }
 
 /**
