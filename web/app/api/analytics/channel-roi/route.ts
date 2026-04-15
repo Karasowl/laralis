@@ -275,13 +275,24 @@ export async function GET(request: NextRequest) {
       }
     })
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('[channel-roi] Error:', error)
+    // Supabase errors are plain objects, not Error instances. Serialize
+    // them explicitly so the response carries something useful (message,
+    // details, hint, code) instead of the default "[object Object]".
+    const detail = error instanceof Error
+      ? { message: error.message, stack: error.stack }
+      : {
+          message: error?.message ?? 'Unknown error',
+          details: error?.details,
+          hint: error?.hint,
+          code: error?.code,
+          raw: (() => {
+            try { return JSON.stringify(error) } catch { return String(error) }
+          })(),
+        }
     return NextResponse.json(
-      {
-        error: 'Failed to calculate channel ROI',
-        message: error instanceof Error ? error.message : String(error),
-      },
+      { error: 'Failed to calculate channel ROI', ...detail },
       { status: 500 }
     )
   }
