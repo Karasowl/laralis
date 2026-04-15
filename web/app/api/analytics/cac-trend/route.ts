@@ -172,14 +172,17 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error: any) {
-    console.error('[cac-trend] Error:', error)
+    // Log full error server-side; respond with a generic message so DB
+    // schema details (column names, hints) don't leak to the client.
+    console.error('[cac-trend] Error:', {
+      message: error?.message,
+      code: error?.code,
+      details: error?.details,
+      hint: error?.hint,
+      stack: error?.stack,
+    })
     return NextResponse.json(
-      {
-        error: 'Failed to calculate CAC trend',
-        message: error?.message ?? String(error),
-        details: error?.details,
-        code: error?.code,
-      },
+      { error: 'Failed to calculate CAC trend' },
       { status: 500 }
     )
   }

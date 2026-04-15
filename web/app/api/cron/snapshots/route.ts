@@ -9,10 +9,13 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { createSnapshotExporter, SnapshotStorageService } from '@/lib/snapshots'
 import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
+import { requireCronAuth } from '@/lib/cron-auth'
+import { resolveClinicContext } from '@/lib/clinic'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -39,16 +42,8 @@ export async function GET(request: NextRequest) {
   const startTime = Date.now()
 
   try {
-    // Verify cron secret for security
-    const authHeader = request.headers.get('authorization')
-    const cronSecret = process.env.CRON_SECRET
-
-    // In production, require auth
-    if (process.env.NODE_ENV === 'production') {
-      if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-    }
+    const denied = requireCronAuth(request)
+    if (denied) return denied
 
     // Get all active clinics
     const { data: clinics, error: clinicsError } = await supabaseAdmin
@@ -176,16 +171,6 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    // Verify cron secret for security in production
-    const authHeader = request.headers.get('authorization')
-    const cronSecret = process.env.CRON_SECRET
-
-    if (process.env.NODE_ENV === 'production') {
-      if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-    }
-
     const bodyResult = await readJson(request)
     if ('error' in bodyResult) {
       return bodyResult.error
@@ -193,6 +178,26 @@ export async function POST(request: NextRequest) {
     const parsed = validateSchema(snapshotRequestSchema, bodyResult.data)
     if ('error' in parsed) {
       return parsed.error
+    }
+
+    // Auth: either a valid Vercel cron bearer token, OR an authenticated
+    // user that owns the requested clinic. Don't require both — manual
+    // snapshot from the dashboard should work without the cron secret.
+    const denied = requireCronAuth(request)
+    if (denied) {
+      const cookieStore = cookies()
+      const ctx = await resolveClinicContext({
+        requestedClinicId: parsed.data.clinic_id,
+        cookieStore,
+      })
+      if ('error' in ctx) {
+        return NextResponse.json(
+          { error: ctx.error.message },
+          { status: ctx.error.status }
+        )
+      }
+      // proceed using the verified clinicId from the user's context
+      parsed.data.clinic_id = ctx.clinicId
     }
     const clinicId = parsed.data.clinic_id
 

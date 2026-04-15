@@ -117,15 +117,22 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
-    // Guardar registro del código enviado para control de rate limit
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    // SECURITY: previously we stored a random 6-digit code in
+    // `verification_codes` and the delete-account endpoint accepted it as
+    // a fallback. The code was never actually emailed (Supabase OTP is
+    // what reaches the user), so the row was effectively a backdoor: any
+    // export/snapshot leak of that table would expose (email, code)
+    // pairs that could delete accounts. We now ONLY rely on Supabase's
+    // OTP. Track the send timestamp for rate-limit purposes only — no
+    // code is ever stored.
     await supabaseAdmin
       .from('verification_codes')
       .upsert({
         email,
-        code: verificationCode,
-        expires_at: new Date(Date.now() + 600000).toISOString(), // 10 minutos
-        used: false,
+        // Sentinel value that the delete endpoint refuses to match.
+        code: 'sent-via-supabase-otp',
+        expires_at: new Date(Date.now() + 600000).toISOString(),
+        used: true, // flag as already used so the fallback path can't accept it
         created_at: new Date().toISOString()
       });
 

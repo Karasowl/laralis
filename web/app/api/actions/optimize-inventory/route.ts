@@ -12,6 +12,7 @@ import { aiService } from '@/lib/ai/service'
 import type { ActionParams } from '@/lib/ai/types'
 import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
+import { assertClinicAccess } from '@/lib/auth/verify-clinic-access'
 
 const optimizeInventorySchema = z.object({
   days_ahead: z.coerce.number().int().positive().optional(),
@@ -41,23 +42,9 @@ export async function POST(request: NextRequest) {
     if ('error' in parsed) {
       return parsed.error
     }
-    const { days_ahead, reorder_threshold_pct, clinic_id } = parsed.data
-
-    // 3. Verify user has access to the clinic
-    const { data: membership, error: membershipError } = await supabase
-      .from('clinic_memberships')
-      .select('clinic_id')
-      .eq('clinic_id', clinic_id)
-      .eq('user_id', user.id)
-      .single()
-
-    if (membershipError || !membership) {
-      return NextResponse.json(
-        { error: 'You do not have access to this clinic' },
-        { status: 403 }
-      )
-    }
-
+    const { days_ahead, reorder_threshold_pct, clinic_id } = parsed.data    // Verify user has access to the clinic (uses user_has_clinic_access RPC).
+    const accessDenied = await assertClinicAccess(user.id, clinic_id, supabase)
+    if (accessDenied) return accessDenied
     // 4. Build action parameters
     const params: ActionParams['optimize_inventory'] = {
       days_ahead,

@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
+import { requireCronAuth } from '@/lib/cron-auth'
+import { resolveClinicContext } from '@/lib/clinic'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,16 +21,8 @@ const recurringExpenseSchema = z.object({
  */
 export async function GET(request: NextRequest) {
   try {
-    // Verify cron secret for security
-    const authHeader = request.headers.get('authorization')
-    const cronSecret = process.env.CRON_SECRET
-
-    // In production, require auth. In development, allow without.
-    if (process.env.NODE_ENV === 'production') {
-      if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-    }
+    const denied = requireCronAuth(request)
+    if (denied) return denied
 
     // Call the database function to process all recurring expenses
     const { data, error } = await supabaseAdmin
@@ -66,7 +61,23 @@ export async function POST(request: NextRequest) {
     if ('error' in parsed) {
       return parsed.error
     }
-    const clinicId = parsed.data.clinic_id
+
+    // SECURITY: this used to accept any clinic_id from the body without
+    // any auth at all. Resolve clinic via the authenticated user — they
+    // can only manually trigger recurring-expense processing for clinics
+    // they actually belong to.
+    const cookieStore = cookies()
+    const ctx = await resolveClinicContext({
+      requestedClinicId: parsed.data.clinic_id,
+      cookieStore,
+    })
+    if ('error' in ctx) {
+      return NextResponse.json(
+        { error: ctx.error.message },
+        { status: ctx.error.status }
+      )
+    }
+    const clinicId = ctx.clinicId
 
     // Call the database function for specific clinic
     const { data, error } = await supabaseAdmin

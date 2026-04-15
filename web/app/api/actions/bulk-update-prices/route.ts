@@ -13,6 +13,7 @@ import { aiService } from '@/lib/ai/service'
 import type { ActionParams } from '@/lib/ai/types'
 import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
+import { assertClinicAccess } from '@/lib/auth/verify-clinic-access'
 
 const bulkUpdatePricesSchema = z.object({
   change_type: z.enum(['percentage', 'fixed']),
@@ -46,23 +47,9 @@ export async function POST(request: NextRequest) {
       return parsed.error
     }
     const { change_type, change_value, service_ids, category, clinic_id, dry_run } = parsed.data
-    const dryRun = dry_run ?? false
-
-    // 4. Verify user has access to the clinic
-    const { data: membership, error: membershipError } = await supabase
-      .from('clinic_memberships')
-      .select('clinic_id')
-      .eq('clinic_id', clinic_id)
-      .eq('user_id', user.id)
-      .single()
-
-    if (membershipError || !membership) {
-      return NextResponse.json(
-        { error: 'You do not have access to this clinic' },
-        { status: 403 }
-      )
-    }
-
+    const dryRun = dry_run ?? false    // Verify user has access to the clinic (uses user_has_clinic_access RPC).
+    const accessDenied = await assertClinicAccess(user.id, clinic_id, supabase)
+    if (accessDenied) return accessDenied
     // 5. Build action parameters
     const params: ActionParams['bulk_update_prices'] = {
       change_type,

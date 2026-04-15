@@ -25,24 +25,11 @@ import {
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds max execution time
 
-// Verify cron secret to prevent unauthorized access
-function verifyCronSecret(request: NextRequest): boolean {
-  const authHeader = request.headers.get('authorization');
-  const cronSecret = process.env.CRON_SECRET;
-
-  // If no secret is configured, allow in development
-  if (!cronSecret) {
-    return process.env.NODE_ENV === 'development';
-  }
-
-  return authHeader === `Bearer ${cronSecret}`;
-}
+import { requireCronAuth } from '@/lib/cron-auth';
 
 export async function GET(request: NextRequest) {
-  // Verify authorization
-  if (!verifyCronSecret(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const denied = requireCronAuth(request);
+  if (denied) return denied;
 
   const startTime = Date.now();
   const results = {

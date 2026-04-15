@@ -12,6 +12,7 @@ import { aiService } from '@/lib/ai/service'
 import type { ActionParams } from '@/lib/ai/types'
 import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
+import { assertClinicAccess } from '@/lib/auth/verify-clinic-access'
 
 const simulatePriceChangeSchema = z.object({
   service_id: z.string().uuid().optional(),
@@ -42,23 +43,9 @@ export async function POST(request: NextRequest) {
     if ('error' in parsed) {
       return parsed.error
     }
-    const { service_id, change_type, change_value, clinic_id } = parsed.data
-
-    // 4. Verify user has access to the clinic
-    const { data: membership, error: membershipError } = await supabase
-      .from('clinic_memberships')
-      .select('clinic_id')
-      .eq('clinic_id', clinic_id)
-      .eq('user_id', user.id)
-      .single()
-
-    if (membershipError || !membership) {
-      return NextResponse.json(
-        { error: 'You do not have access to this clinic' },
-        { status: 403 }
-      )
-    }
-
+    const { service_id, change_type, change_value, clinic_id } = parsed.data    // Verify user has access to the clinic (uses user_has_clinic_access RPC).
+    const accessDenied = await assertClinicAccess(user.id, clinic_id, supabase)
+    if (accessDenied) return accessDenied
     // 5. Build action parameters
     const params: ActionParams['simulate_price_change'] = {
       service_id: service_id || undefined,

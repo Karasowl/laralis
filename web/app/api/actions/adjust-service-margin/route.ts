@@ -12,6 +12,7 @@ import { aiService } from '@/lib/ai/service'
 import type { ActionParams } from '@/lib/ai/types'
 import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
+import { assertClinicAccess } from '@/lib/auth/verify-clinic-access'
 
 const adjustServiceMarginSchema = z.object({
   service_id: z.string().uuid(),
@@ -45,23 +46,9 @@ export async function POST(request: NextRequest) {
     }
     const { service_id, target_margin_pct, adjust_price, clinic_id, dry_run } = parsed.data
     const adjustPrice = adjust_price ?? false
-    const dryRun = dry_run ?? false
-
-    // 4. Verify user has access to the clinic
-    const { data: membership, error: membershipError } = await supabase
-      .from('clinic_memberships')
-      .select('clinic_id')
-      .eq('clinic_id', clinic_id)
-      .eq('user_id', user.id)
-      .single()
-
-    if (membershipError || !membership) {
-      return NextResponse.json(
-        { error: 'You do not have access to this clinic' },
-        { status: 403 }
-      )
-    }
-
+    const dryRun = dry_run ?? false    // Verify user has access to the clinic (uses user_has_clinic_access RPC).
+    const accessDenied = await assertClinicAccess(user.id, clinic_id, supabase)
+    if (accessDenied) return accessDenied
     // 5. Build action parameters
     const params: ActionParams['adjust_service_margin'] = {
       service_id,

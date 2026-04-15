@@ -66,40 +66,19 @@ export async function DELETE(request: NextRequest) {
       type: 'email'
     });
 
-    // Si el OTP de Supabase funciona, el email estÃ¡ verificado
-    let emailVerified = !otpError && Boolean(otpData?.user);
+    // SECURITY: the only acceptable proof of email ownership for account
+    // deletion is a successful Supabase OTP verification (the user must
+    // have received and entered the actual code Supabase emailed them).
+    //
+    // The previous fallback queried a `verification_codes` row by
+    // (email, code) — but that code was never sent to the user; it just
+    // sat in the DB. Any leak of that table (snapshots, exports, backups)
+    // turned it into a pre-shared deletion key. Removed entirely.
+    const emailVerified = !otpError && Boolean(otpData?.user);
 
-    // Si el OTP de Supabase no funciona, verificar en nuestra tabla de fallback
-    if (!emailVerified) {
-      const { data: verificationCode, error: codeError } = await supabaseAdmin
-        .from('verification_codes')
-        .select('*')
-        .eq('email', email)
-        .eq('code', code)
-        .eq('used', false)
-        .gte('expires_at', new Date().toISOString())
-        .single();
-
-      if (codeError || !verificationCode) {
-        return NextResponse.json(
-          { error: 'Invalid or expired verification code' },
-          { status: 400 }
-        );
-      }
-
-      // Marcar cÃ³digo como usado
-      await supabaseAdmin
-        .from('verification_codes')
-        .update({ used: true })
-        .eq('email', email);
-      
-      emailVerified = true;
-    }
-
-    // Si el email no estÃ¡ verificado, rechazar
     if (!emailVerified) {
       return NextResponse.json(
-        { error: 'Could not verify email ownership' },
+        { error: 'Invalid or expired verification code' },
         { status: 400 }
       );
     }

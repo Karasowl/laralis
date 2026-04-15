@@ -15,6 +15,19 @@
       "documentation": "Documentación"
     },
     "releases": {
+      "v0_4_2": {
+        "date": "2026-04-15",
+        "title": "Hardening de seguridad - tanda crítica",
+        "security": [
+          "Multi-tenant leak en /api/dashboard/charts/revenue: leía clinicId del query sin verificar pertenencia. Ahora pasa por resolveClinicContext.",
+          "WhatsApp webhook ahora valida la firma X-Twilio-Signature; antes cualquiera podía simular mensajes y disparar IA/SMS billing.",
+          "Endpoints /api/cron/* ahora exigen Authorization Bearer CRON_SECRET en todos los entornos; el bypass por NODE_ENV !== 'production' permitía dispararlos en preview/dev sin auth.",
+          "12 endpoints actions/* consultaban tabla 'clinic_memberships' inexistente; ahora usan user_has_clinic_access RPC vía helper assertClinicAccess.",
+          "Account deletion: removida la 'fallback table' (verification_codes) que aceptaba un código nunca enviado al usuario y se convertía en clave pre-compartida si la tabla leakeaba.",
+          "Eliminados endpoints /api/debug-campaign y /api/auth/debug-reset (logs de body completo + writes sin auth en prod).",
+          "Endpoints analytics ya no devuelven detalles de error de Supabase (column/code/hint) en respuestas 5xx; sólo se loggean server-side."
+        ]
+      },
       "v0_4_1": {
         "date": "2026-04-15",
         "title": "Pacientes nuevos = primer tratamiento + textos de ROI traducidos",

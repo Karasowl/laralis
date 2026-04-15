@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { resolveClinicContext } from '@/lib/clinic'
 import { startOfWeek, format, addDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { parseLocalDate } from '@/lib/date-utils'
@@ -52,13 +54,27 @@ function formatLabel(key: string, granularity: string): string {
 export async function GET(request: NextRequest) {
   try {
     const sp = request.nextUrl.searchParams
-    const clinicId = sp.get('clinicId')
+    // SECURITY: never trust ?clinicId= blindly. resolveClinicContext
+    // verifies the requested clinic actually belongs to the authenticated
+    // user (or falls back to their default clinic). Bypassing this lets
+    // any logged-in user read another tenant's revenue/expenses.
+    const cookieStore = cookies()
+    const ctx = await resolveClinicContext({
+      requestedClinicId: sp.get('clinicId'),
+      cookieStore,
+    })
+    if ('error' in ctx) {
+      return NextResponse.json(
+        { error: ctx.error.message },
+        { status: ctx.error.status }
+      )
+    }
+    const { clinicId } = ctx
+
     const period = sp.get('period') || 'month'
     const granularity = sp.get('granularity') || 'month' // day, week, biweek, month
     const dateFrom = sp.get('date_from')
     const dateTo = sp.get('date_to')
-
-    if (!clinicId) return NextResponse.json({ error: 'Clinic ID required' }, { status: 400 })
 
     // Range: last 6 months or custom period
     const now = new Date()

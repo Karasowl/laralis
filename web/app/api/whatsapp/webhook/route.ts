@@ -1,10 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server'
+import crypto from 'node:crypto'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { aiService } from '@/lib/ai'
 import type { Message as AIMessage } from '@/lib/ai'
 import { hasAIConfig, validateAIConfig } from '@/lib/ai/config'
 import { buildInboxSystemPrompt } from '@/lib/ai/prompts/inbox-prompt'
 import { sendWhatsAppMessage } from '@/lib/whatsapp/service'
+
+/**
+ * Twilio signs every outbound webhook request with HMAC-SHA1 over
+ * `<full url> + sorted(form params concatenated as key+value)`,
+ * base64-encoded, in the `X-Twilio-Signature` header.
+ *
+ * Skipping validation lets anyone POST fake WhatsApp messages to this
+ * endpoint and burn AI / SMS credits, create fake leads, or talk to the
+ * bot pretending to be a patient. Always validate.
+ *
+ * Reference: https://www.twilio.com/docs/usage/security#validating-requests
+ */
+function verifyTwilioSignature(
+  signature: string | null,
+  url: string,
+  params: Record<string, string>,
+  authToken: string
+): boolean {
+  if (!signature || !authToken) return false
+  const sortedKeys = Object.keys(params).sort()
+  const data = sortedKeys.reduce((acc, key) => acc + key + params[key], url)
+  const expected = crypto
+    .createHmac('sha1', authToken)
+    .update(Buffer.from(data, 'utf-8'))
+    .digest('base64')
+  // timing-safe comparison
+  const sigBuf = Buffer.from(signature)
+  const expBuf = Buffer.from(expected)
+  if (sigBuf.length !== expBuf.length) return false
+  return crypto.timingSafeEqual(sigBuf, expBuf)
+}
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -42,11 +74,32 @@ export async function POST(request: NextRequest) {
     let campaignId = searchParams.get('campaignId')
 
     const form = await request.formData()
-    const fromRaw = String(form.get('From') || '')
-    const toRaw = String(form.get('To') || '')
-    const body = String(form.get('Body') || '').trim()
-    const profileName = String(form.get('ProfileName') || '').trim()
-    const messageSid = String(form.get('MessageSid') || '').trim()
+    const formParams: Record<string, string> = {}
+    form.forEach((value, key) => {
+      formParams[key] = String(value)
+    })
+
+    // Verify Twilio signature BEFORE we trust any field. Build the URL
+    // exactly as Twilio saw it (including query string). Use the
+    // x-forwarded-* headers because Vercel terminates TLS upstream.
+    const proto = request.headers.get('x-forwarded-proto') || 'https'
+    const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || ''
+    const fullUrl = `${proto}://${host}${request.nextUrl.pathname}${request.nextUrl.search}`
+    const authToken = process.env.TWILIO_AUTH_TOKEN || ''
+    const signature = request.headers.get('x-twilio-signature')
+
+    // Allow opting out only in dev. In production the signature is required.
+    const sigOk = verifyTwilioSignature(signature, fullUrl, formParams, authToken)
+    if (!sigOk && process.env.NODE_ENV === 'production') {
+      console.warn('[whatsapp/webhook] Rejecting unsigned request from', request.headers.get('x-forwarded-for'))
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 403 })
+    }
+
+    const fromRaw = formParams.From || ''
+    const toRaw = formParams.To || ''
+    const body = (formParams.Body || '').trim()
+    const profileName = (formParams.ProfileName || '').trim()
+    const messageSid = (formParams.MessageSid || '').trim()
 
     if (!fromRaw || !body) {
       return NextResponse.json({ error: 'Invalid request' }, { status: 400 })

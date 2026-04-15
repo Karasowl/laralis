@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { aiService } from '@/lib/ai/service'
+import { assertClinicAccess } from '@/lib/auth/verify-clinic-access'
 
 export const dynamic = 'force-dynamic'
 
@@ -37,20 +38,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'clinic_id is required' }, { status: 400 })
     }
 
-    // 4. Verify user has access to the clinic
-    const { data: membership, error: membershipError } = await supabase
-      .from('clinic_memberships')
-      .select('clinic_id')
-      .eq('clinic_id', clinicId)
-      .eq('user_id', user.id)
-      .single()
-
-    if (membershipError || !membership) {
-      return NextResponse.json(
-        { error: 'You do not have access to this clinic' },
-        { status: 403 }
-      )
-    }
+    // Verify user has access to the clinic (uses user_has_clinic_access RPC).
+    const accessDenied = await assertClinicAccess(user.id, clinicId, supabase)
+    if (accessDenied) return accessDenied
 
     // 5. Build filters
     const filters: any = {}
