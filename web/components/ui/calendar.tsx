@@ -134,7 +134,7 @@ export function Calendar({
       : ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
 
     return (
-      <div key={monthIndex} className="w-full">
+      <div key={monthIndex} className="w-full min-w-[280px]">
         {/* Month header */}
         <div className="flex items-center justify-between mb-4 px-1">
           {monthIndex === 0 ? (
@@ -229,7 +229,7 @@ export function Calendar({
     <div className={cn('p-3', className)}>
       <div className={cn(
         'flex',
-        numberOfMonths === 2 ? 'gap-8' : ''
+        numberOfMonths === 2 ? 'gap-6' : ''
       )}>
         {months.map((month, index) => renderMonth(month, index))}
       </div>
