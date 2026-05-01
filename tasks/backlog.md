@@ -30,6 +30,23 @@
 - [ ] TASK-20251207-cash-register - Control de cajas por usuario
 - [ ] TASK-20251207-doctor-settlements - Liquidación de comisiones a doctores
 
+## WhatsApp Mini-CRM (2026-04-25)
+
+### Implementadas hoy (Fase 1 + Fase 2.1)
+- [x] ~~TASK-20260425-whatsapp-inbox-nav-link~~ - Linkear página /inbox al menú principal ✅ Implementado 2026-04-25
+- [x] ~~TASK-20260425-ctwa-attribution~~ - Captura de metadata Click-to-WhatsApp en webhook (first-touch wins) ✅ Implementado 2026-04-25
+- [x] ~~TASK-20260425-lead-treatment-link~~ - FK lead_id en treatments + backfill ✅ Implementado 2026-04-25
+- [x] ~~TASK-20260425-lead-conversion-action~~ - Botón y endpoint Convertir lead a paciente ✅ Implementado 2026-04-25
+- [x] ~~TASK-20260425-whatsapp-onboarding-doc~~ - Documentación operativa de migración del número ✅ Implementado 2026-04-25
+
+### Pendientes (Fase 2.2 + 3 + 4)
+- [ ] TASK-20260425-whatsapp-status-diagnosis - Correr supabase/diagnostics/whatsapp_status.sql en cada workspace y reportar el estado actual de cada clínica (Fase 0 operativa)
+- [ ] TASK-20260425-leads-pipeline-ui - Vista kanban /leads con drag-and-drop entre estados (new/contacted/qualified/converted/lost), filtros por campaña y rango de fechas
+- [ ] TASK-20260425-lead-automations - Cron de rescate (24h, 48h, 7d sin respuesta) con plantillas pre-aprobadas y opt-out por palabra clave
+- [ ] TASK-20260425-google-calendar-bidirectional - Webhook receiver de Google Calendar (push notifications + watch channel renewal cada 7 días)
+- [ ] TASK-20260425-marketing-attribution-dashboard - Dashboard /marketing con desglose CTWA → revenue (gasto en ads / lead / paciente / treatment.price_cents)
+- [ ] TASK-20260425-whatsapp-cloudapi-referral - Cuando una clínica use 360dialog raw passthrough, parsear `entry[0].changes[0].value.messages[0].referral` además de los campos `Referral*` de Twilio
+
 ## P3 - Futuro
 
 ### Mejoras a Lara
@@ -62,4 +79,4 @@ Las siguientes tareas del backlog original ya fueron implementadas:
 - [Pricing Strategy](../docs/competencia/PRICING-STRATEGY.md)
 - [Análisis Dentalink](../docs/competencia/dentalink/ANALISIS.md)
 
-Última actualización: 2026-02-04
+Última actualización: 2026-04-25

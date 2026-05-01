@@ -198,7 +198,8 @@
       "resumeBot": "Reanudar bot",
       "transfer": "Transferir",
       "close": "Cerrar",
-      "reply": "Enviar respuesta"
+      "reply": "Enviar respuesta",
+      "convert": "Convertir a paciente"
     },
     "composer": {
       "placeholder": "Escribe una respuesta...",
@@ -216,6 +217,22 @@
       "description": "Elige un hilo para leer y responder.",
       "noMessages": "Sin mensajes todavía",
       "noMessagesDescription": "Esta conversación no tiene mensajes."
+    },
+    "convert": {
+      "title": "Convertir lead a paciente",
+      "description": "Crea el expediente del paciente y vincula esta conversación a su historial.",
+      "firstName": "Nombre",
+      "lastName": "Apellido",
+      "phone": "Teléfono",
+      "email": "Correo",
+      "notes": "Notas",
+      "notesPlaceholder": "Información adicional del prospecto",
+      "confirm": "Crear paciente",
+      "success": "Paciente creado y vinculado a la conversación",
+      "alreadyLinked": "Esta conversación ya estaba vinculada a un paciente",
+      "errors": {
+        "generic": "No se pudo convertir el lead a paciente"
+      }
     },
     "errors": {
       "loadConversations": "No se pudieron cargar las conversaciones",

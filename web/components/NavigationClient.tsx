@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
-import { ChevronDown, Users, Calculator, FileText } from 'lucide-react';
+import { ChevronDown, Users, Calculator, FileText, MessageCircle } from 'lucide-react';
 import type { Permission } from '@/lib/permissions/types';
 
 const financePermissions: Permission[] = [
@@ -26,10 +26,12 @@ const financePermissions: Permission[] = [
 export function NavigationClient() {
   const t = useTranslations();
   const router = useRouter();
-  const { canAny, loading: permissionsLoading } = usePermissions();
+  const { can, canAny, loading: permissionsLoading } = usePermissions();
   const canViewFinance = canAny(financePermissions);
   const showFinance = permissionsLoading || canViewFinance;
   const showDashboard = showFinance;
+  const canViewInbox = can('inbox.view');
+  const showInbox = permissionsLoading || canViewInbox;
   
   return (
     <nav className="hidden md:flex items-center space-x-6 text-sm">
@@ -51,6 +53,16 @@ export function NavigationClient() {
         </Link>
       )}
 
+      {showInbox && (
+        <Link
+          href="/inbox"
+          className="flex items-center gap-1 text-foreground/60 hover:text-foreground transition-colors"
+        >
+          <MessageCircle className="h-4 w-4" />
+          {t('nav.inbox')}
+        </Link>
+      )}
+
       {/* Operaciones Diarias */}
       <DropdownMenu>
         <DropdownMenuTrigger className="flex items-center gap-1 text-foreground/60 hover:text-foreground transition-colors">
@@ -60,6 +72,13 @@ export function NavigationClient() {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
           <DropdownMenuLabel>{t('nav.dailyOperations')}</DropdownMenuLabel>
+          {showInbox && (
+            <DropdownMenuItem asChild>
+              <Link href="/inbox" className="cursor-pointer">
+                {t('nav.inbox')}
+              </Link>
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem asChild>
             <Link href="/patients" className="cursor-pointer">
               {t('nav.patients')}

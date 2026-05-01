@@ -17,6 +17,10 @@ Cada entrada sigue la estructura:
 
 ## Entradas
 
+### 2026-04-25
+
+- **[2026-04-25-whatsapp-mini-crm.md](2026-04-25-whatsapp-mini-crm.md)** - Mini-CRM de WhatsApp: Inbox linkeado al menú principal, captura de metadata Click-to-WhatsApp en el webhook (first-touch wins), endpoint y dialog para convertir lead a paciente, FK explícita `treatments.lead_id` con backfill, schema bump v6, doc operativo de migración del número y SQL de diagnóstico de estado.
+
 ### 2026-02-05
 
 - **[2026-02-05-refactor-phase1-baseline.md](2026-02-05-refactor-phase1-baseline.md)** - Refactor incremental: baseline automatizado, CI minima, PR checklist, toolkit API (`requestId` + logger), migracion inicial de rutas `expenses/*`, estabilizacion de `useExpenses` y limpieza de temporales/duplicados.

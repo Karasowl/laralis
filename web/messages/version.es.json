@@ -15,6 +15,23 @@
       "documentation": "Documentación"
     },
     "releases": {
+      "v0_6_0": {
+        "date": "2026-04-25",
+        "title": "Mini-CRM de WhatsApp: Bandeja de entrada + atribución Click-to-WhatsApp",
+        "added": [
+          "La Bandeja de entrada (Inbox) ahora aparece en el menú principal. Antes existía la página pero estaba oculta del nav.",
+          "Botón 'Convertir a paciente' en el detalle de la conversación: crea el expediente y vincula la conversación al paciente, dejando atrás la conversión manual.",
+          "El webhook de WhatsApp ahora captura la metadata del ad de Click-to-WhatsApp (ctwa_clid, ad_id, source_url, headline, body, media) y la guarda en el lead con regla 'first-touch wins'.",
+          "treatments.lead_id (FK a leads): cierra el funnel anuncio → conversación → lead → paciente → tratamiento en un solo join, listo para revenue por ad."
+        ],
+        "improved": [
+          "Documentación operativa nueva (docs/whatsapp-onboarding.md) que explica cómo migrar el número de WhatsApp Business App al BSP, qué se pierde, cómo reaprobar plantillas y cómo configurar el webhook por clínica.",
+          "Script SQL de diagnóstico (supabase/diagnostics/whatsapp_status.sql) para saber qué clínicas tienen WhatsApp activo y qué provider están usando."
+        ],
+        "documentation": [
+          "Schema actualizado a v6 con columnas de atribución CTWA y FK lead_id en treatments. Migración 77 incluye backfill para conectar leads convertidos con su primer tratamiento."
+        ]
+      },
       "v0_5_0": {
         "date": "2026-04-15",
         "title": "Hardening - servicios públicos + escape XSS",

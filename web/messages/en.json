@@ -198,7 +198,8 @@
       "resumeBot": "Resume bot",
       "transfer": "Transfer",
       "close": "Close",
-      "reply": "Send reply"
+      "reply": "Send reply",
+      "convert": "Convert to patient"
     },
     "composer": {
       "placeholder": "Write a reply...",
@@ -216,6 +217,22 @@
       "description": "Choose a thread to read and reply.",
       "noMessages": "No messages yet",
       "noMessagesDescription": "This conversation has no messages."
+    },
+    "convert": {
+      "title": "Convert lead to patient",
+      "description": "Create the patient record and link this conversation to their history.",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "phone": "Phone",
+      "email": "Email",
+      "notes": "Notes",
+      "notesPlaceholder": "Additional information about the prospect",
+      "confirm": "Create patient",
+      "success": "Patient created and linked to the conversation",
+      "alreadyLinked": "This conversation was already linked to a patient",
+      "errors": {
+        "generic": "Failed to convert lead to patient"
+      }
     },
     "errors": {
       "loadConversations": "Failed to load conversations",

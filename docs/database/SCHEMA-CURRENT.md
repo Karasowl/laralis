@@ -1,15 +1,22 @@
 # Current Database Schema
 
-**Current Version:** v5
-**Date:** 2025-12-31
-**File:** [SCHEMA-v5-2025-12-31.md](schemas/SCHEMA-v5-2025-12-31.md)
-**Previous Version:** [v4 (2025-12-06)](schemas/SCHEMA-v4-2025-12-06.md)
+**Current Version:** v6
+**Date:** 2026-04-25
+**File:** [SCHEMA-v6-2026-04-25.md](schemas/SCHEMA-v6-2026-04-25.md)
+**Previous Version:** [v5 (2025-12-31)](schemas/SCHEMA-v5-2025-12-31.md)
 
 ---
 
 This file always points to the most recent schema version. When the schema changes, this file will be updated to reference the new version.
 
-## What's New in v5
+## What's New in v6
+
+**Lead attribution + Treatment link** (Migration 77):
+- `leads.ctwa_clid` and 7 sibling columns capture Click-to-WhatsApp ad metadata from the webhook (first-touch attribution).
+- `treatments.lead_id` (FK → leads, ON DELETE SET NULL) closes the funnel CTWA → conversation → lead → patient → treatment in a single join.
+- Backfill links existing converted leads to their first treatment.
+
+## What was New in v5
 
 **Explicit Pending Balance System** (Migration 73):
 - `treatments.pending_balance_cents` - Explicit user-marked pending balance field
@@ -39,10 +46,10 @@ This file always points to the most recent schema version. When the schema chang
 
 ## Quick Links
 
-- 📄 [Current Schema (v5)](schemas/SCHEMA-v5-2025-12-31.md)
+- 📄 [Current Schema (v6)](schemas/SCHEMA-v6-2026-04-25.md)
 - 📋 [Schema Changelog](SCHEMA-CHANGELOG.md)
 - 🔄 [All Schema Versions](schemas/)
-- 📜 [Previous Version (v4)](schemas/SCHEMA-v4-2025-12-06.md)
+- 📜 [Previous Version (v5)](schemas/SCHEMA-v5-2025-12-31.md)
 
 ## How to Update Schema
 
@@ -71,3 +78,4 @@ Examples:
 - `SCHEMA-v3-2025-11-17.md` - After deprecating tariffs
 - `SCHEMA-v4-2025-12-06.md` - After adding AI assistant tables
 - `SCHEMA-v5-2025-12-31.md` - After adding explicit pending balance
+- `SCHEMA-v6-2026-04-25.md` - After adding lead attribution (CTWA) + treatment link

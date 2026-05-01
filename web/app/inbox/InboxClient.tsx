@@ -12,7 +12,8 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
-import { Loader2, MessageCircle, Search, Send } from 'lucide-react'
+import { Loader2, MessageCircle, Search, Send, UserPlus } from 'lucide-react'
+import { ConvertLeadDialog } from '@/components/inbox/ConvertLeadDialog'
 
 type ConversationStatus = 'bot' | 'pending' | 'in_progress' | 'closed'
 type ConversationState = 'collecting_name' | 'collecting_email' | 'chatting'
@@ -61,6 +62,15 @@ interface InboxMessage {
   created_at: string
 }
 
+type StatusConfig = Record<
+  ConversationStatus,
+  {
+    label: string
+    variant: 'secondary' | 'warning' | 'success' | 'outline'
+    className?: string
+  }
+>
+
 const sortConversations = (items: InboxConversation[]) => {
   return [...items].sort((a, b) => {
     const aTime = new Date(a.last_message_at || a.created_at).getTime()
@@ -92,6 +102,7 @@ export default function InboxClient() {
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [convertOpen, setConvertOpen] = useState(false)
 
   const timeFormatter = useMemo(
     () => new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }),
@@ -106,7 +117,7 @@ export default function InboxClient() {
     [locale]
   )
 
-  const statusConfig = useMemo(() => ({
+  const statusConfig = useMemo<StatusConfig>(() => ({
     bot: { label: t('status.bot'), variant: 'secondary' as const },
     pending: { label: t('status.pending'), variant: 'warning' as const },
     in_progress: { label: t('status.in_progress'), variant: 'success' as const },
@@ -247,7 +258,7 @@ export default function InboxClient() {
 
       if (error) throw error
 
-      const next = sortConversations((data || []) as InboxConversation[])
+      const next = sortConversations((data || []) as unknown as InboxConversation[])
       setConversations(next)
       setSelectedConversationId((prev) =>
         prev && next.some((item) => item.id === prev) ? prev : next[0]?.id || null
@@ -607,6 +618,17 @@ export default function InboxClient() {
                     {actionLoading === 'transfer' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     {t('actions.transfer')}
                   </Button>
+                  {!selectedConversation.patients?.id && (
+                    <Button
+                      size="sm"
+                      variant="default"
+                      onClick={() => setConvertOpen(true)}
+                      disabled={selectedConversation.status === 'closed'}
+                    >
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      {t('actions.convert')}
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     variant="destructive"
@@ -705,6 +727,29 @@ export default function InboxClient() {
           </>
         )}
       </Card>
+
+      <ConvertLeadDialog
+        open={convertOpen}
+        onOpenChange={setConvertOpen}
+        conversationId={selectedConversation?.id || null}
+        defaultName={
+          selectedConversation?.leads?.full_name ||
+          selectedConversation?.contact_name ||
+          null
+        }
+        defaultPhone={
+          selectedConversation?.leads?.phone ||
+          selectedConversation?.contact_address ||
+          null
+        }
+        defaultEmail={null}
+        onConverted={() => {
+          if (selectedConversation?.id) {
+            // Refetch to update patient_id link in the list
+            fetchConversations()
+          }
+        }}
+      />
     </div>
   )
 }

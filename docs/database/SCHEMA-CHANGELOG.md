@@ -4,9 +4,46 @@ This file tracks all changes to the database schema across versions.
 
 ---
 
-## Version 5 (2025-12-31)
+## Version 6 (2026-04-25)
 
 **Status:** ✅ Current
+**Migration:** 77 (Lead attribution + Treatment link)
+**File:** [SCHEMA-v6-2026-04-25.md](schemas/SCHEMA-v6-2026-04-25.md)
+
+### Lead attribution and explicit Treatment link
+
+This version adds Click-to-WhatsApp ad attribution to leads and an explicit `lead_id` foreign key on treatments, closing the marketing funnel CTWA → conversation → lead → patient → treatment in a single queryable join.
+
+#### Modified Tables
+
+**`leads`** (Migration 77)
+- New columns (all nullable):
+  - `ctwa_clid` (TEXT) — Click-to-WhatsApp click identifier from Meta.
+  - `ad_id` (TEXT) — Ad/post id (`referral.source_id`).
+  - `ad_source_type` (VARCHAR(20)) — `"ad"` or `"post"`.
+  - `ad_source_url` (TEXT)
+  - `ad_headline` (TEXT)
+  - `ad_body` (TEXT)
+  - `ad_media_type` (VARCHAR(20))
+  - `ad_media_url` (TEXT)
+- New partial indexes: `idx_leads_ctwa_clid`, `idx_leads_ad_id`.
+
+**`treatments`** (Migration 77)
+- Added `lead_id` (UUID, FK → leads, ON DELETE SET NULL).
+- New partial index: `idx_treatments_lead`.
+- Backfill: links existing converted leads to their first treatment based on `converted_patient_id`.
+
+#### Code/UX Changes
+- `app/api/whatsapp/webhook/route.ts` now extracts the Twilio `Referral*` fields and persists them on the lead (first-touch wins).
+- New endpoint `app/api/inbox/convert/route.ts` converts a lead to a patient and writes `inbox_conversations.patient_id`.
+- New `<ConvertLeadDialog>` component in `components/inbox/`.
+- Inbox page is now linked from the main navigation (was hidden).
+
+---
+
+## Version 5 (2025-12-31)
+
+**Status:** Superseded by v6
 **Migration:** 73 (Explicit Pending Balance)
 **File:** [SCHEMA-v5-2025-12-31.md](schemas/SCHEMA-v5-2025-12-31.md)
 

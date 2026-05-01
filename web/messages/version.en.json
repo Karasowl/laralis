@@ -15,6 +15,23 @@
       "documentation": "Documentation"
     },
     "releases": {
+      "v0_6_0": {
+        "date": "2026-04-25",
+        "title": "WhatsApp mini-CRM: Inbox + Click-to-WhatsApp attribution",
+        "added": [
+          "Inbox now appears in the main navigation. The page existed but was hidden from the nav.",
+          "Convert-to-patient action in the conversation detail panel: creates the patient record and links the conversation to it, replacing the manual conversion flow.",
+          "WhatsApp webhook now captures Click-to-WhatsApp ad metadata (ctwa_clid, ad_id, source_url, headline, body, media) and stores it on the lead with first-touch wins.",
+          "treatments.lead_id (FK to leads): closes the funnel ad → conversation → lead → patient → treatment in a single join, ready for revenue-per-ad attribution."
+        ],
+        "improved": [
+          "New operational doc (docs/whatsapp-onboarding.md) covering migration from the WhatsApp Business mobile app to a BSP, what is lost, template re-approval, and webhook setup per clinic.",
+          "SQL diagnostic script (supabase/diagnostics/whatsapp_status.sql) to check which clinics have WhatsApp active and which provider they are using."
+        ],
+        "documentation": [
+          "Schema updated to v6 with CTWA attribution columns and treatments.lead_id FK. Migration 77 includes a backfill that links existing converted leads to their first treatment."
+        ]
+      },
       "v0_5_0": {
         "date": "2026-04-15",
         "title": "Hardening - public services + XSS escape",

@@ -82,7 +82,6 @@ export abstract class BaseWhatsAppProvider implements WhatsAppProviderInterface 
       undelivered: 'undelivered',
       // 360dialog statuses
       accepted: 'sent',
-      delivered: 'delivered',
       seen: 'read',
       error: 'failed',
     }

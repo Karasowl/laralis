@@ -67,6 +67,54 @@ function shouldHandoff(text: string): boolean {
   return HANDOFF_KEYWORDS.some((keyword) => lower.includes(keyword))
 }
 
+interface CtwaReferral {
+  ctwa_clid: string | null
+  ad_id: string | null
+  ad_source_type: string | null
+  ad_source_url: string | null
+  ad_headline: string | null
+  ad_body: string | null
+  ad_media_type: string | null
+  ad_media_url: string | null
+}
+
+/**
+ * Click-to-WhatsApp ads attach a `referral` object to the FIRST inbound
+ * message from a user that clicked the ad. Twilio surfaces it via
+ * Referral* form fields; 360dialog forwards Meta's payload almost verbatim
+ * but our webhook parses Twilio's form body, so for now we only support the
+ * Twilio path here. When a 360dialog raw passthrough endpoint is added,
+ * extend this to read `entry[0].changes[0].value.messages[0].referral`.
+ */
+function extractCtwaReferralFromTwilio(form: Record<string, string>): CtwaReferral | null {
+  const ctwaClid = form.ReferralCtwaClid?.trim()
+  const sourceId = form.ReferralSourceId?.trim()
+  const sourceType = form.ReferralSourceType?.trim()
+  const sourceUrl = form.ReferralSourceUrl?.trim()
+  const headline = form.ReferralHeadline?.trim()
+  const body = form.ReferralBody?.trim()
+  const mediaType = form.ReferralMediaType?.trim()
+  const mediaUrl = form.ReferralMediaUrl?.trim()
+
+  // Only emit a referral if at least one identifier-ish field is present.
+  // Twilio passes the same Referral* keys for posts (no ctwa_clid) so we
+  // accept ad_id (source_id) as a fallback signal.
+  if (!ctwaClid && !sourceId && !sourceUrl) {
+    return null
+  }
+
+  return {
+    ctwa_clid: ctwaClid || null,
+    ad_id: sourceId || null,
+    ad_source_type: sourceType || null,
+    ad_source_url: sourceUrl || null,
+    ad_headline: headline || null,
+    ad_body: body || null,
+    ad_media_type: mediaType || null,
+    ad_media_url: mediaUrl || null,
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
@@ -108,6 +156,7 @@ export async function POST(request: NextRequest) {
     const contactAddress = normalizeContactAddress(fromRaw)
     const channelAddress = normalizeContactAddress(toRaw)
     const normalizedPhone = stripWhatsAppPrefix(contactAddress)
+    const ctwaReferral = extractCtwaReferralFromTwilio(formParams)
 
     if (!clinicId) {
       const { data: channel } = await supabaseAdmin
@@ -165,6 +214,18 @@ export async function POST(request: NextRequest) {
           full_name: profileName || null,
           channel: 'whatsapp',
           status: 'new',
+          ...(ctwaReferral
+            ? {
+                ctwa_clid: ctwaReferral.ctwa_clid,
+                ad_id: ctwaReferral.ad_id,
+                ad_source_type: ctwaReferral.ad_source_type,
+                ad_source_url: ctwaReferral.ad_source_url,
+                ad_headline: ctwaReferral.ad_headline,
+                ad_body: ctwaReferral.ad_body,
+                ad_media_type: ctwaReferral.ad_media_type,
+                ad_media_url: ctwaReferral.ad_media_url,
+              }
+            : {}),
         })
         .select()
         .single()
@@ -178,11 +239,28 @@ export async function POST(request: NextRequest) {
         conversationState = 'chatting'
       }
     } else {
+      // Only fill CTWA fields if the existing lead never had attribution.
+      // First-touch wins: a returning visitor who clicks a different ad
+      // shouldn't overwrite the ad that originally generated this lead.
+      const referralUpdate = ctwaReferral && !lead?.ctwa_clid
+        ? {
+            ctwa_clid: ctwaReferral.ctwa_clid,
+            ad_id: ctwaReferral.ad_id,
+            ad_source_type: ctwaReferral.ad_source_type,
+            ad_source_url: ctwaReferral.ad_source_url,
+            ad_headline: ctwaReferral.ad_headline,
+            ad_body: ctwaReferral.ad_body,
+            ad_media_type: ctwaReferral.ad_media_type,
+            ad_media_url: ctwaReferral.ad_media_url,
+          }
+        : {}
+
       await supabaseAdmin
         .from('leads')
         .update({
           last_contacted_at: new Date().toISOString(),
           status: lead?.status === 'new' ? 'contacted' : lead?.status,
+          ...referralUpdate,
         })
         .eq('id', leadId)
     }
@@ -240,6 +318,7 @@ export async function POST(request: NextRequest) {
         from: contactAddress,
         to: channelAddress,
         profile_name: profileName || null,
+        ...(ctwaReferral ? { ctwa_referral: ctwaReferral } : {}),
       },
     })
 
