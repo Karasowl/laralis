@@ -1,0 +1,26 @@
+{
+  "timestamp": "2025-08-17T06:11:47.721Z",
+  "duration": "51.32",
+  "results": {
+    "unit": {
+      "passed": 0,
+      "failed": 0,
+      "total": 0,
+      "duration": 4.45
+    },
+    "e2e": {
+      "passed": 13,
+      "failed": 0,
+      "total": 13,
+      "duration": 46.79
+    },
+    "overall": {
+      "passed": 13,
+      "failed": 0,
+      "total": 13,
+      "startTime": 1755411056399
+    }
+  },
+  "issues": [],
+  "success": true
+}

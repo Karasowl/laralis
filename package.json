@@ -1,4 +1,23 @@
 {
+  "name": "laralis-suite",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev:dental",
+    "dev:dental": "npm --workspace @laralis/dental run dev",
+    "build": "npm run build:dental",
+    "build:dental": "npm --workspace @laralis/dental run build",
+    "start:dental": "npm --workspace @laralis/dental run start",
+    "typecheck": "npm run typecheck:dental",
+    "typecheck:dental": "npm --workspace @laralis/dental run typecheck",
+    "test:dental": "npm --workspace @laralis/dental run test",
+    "i18n:check": "npm run i18n:check:dental",
+    "i18n:check:dental": "npm --workspace @laralis/dental run i18n:check",
+    "i18n:lint:dental": "npm --workspace @laralis/dental run i18n:lint"
+  },
   "devDependencies": {
     "@types/pako": "^2.0.4",
     "supabase": "^2.53.6"

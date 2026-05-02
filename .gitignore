@@ -1,21 +1,20 @@
 .gitignore
 # Dependencies
 node_modules/
-web/node_modules/
-web/node_modules/
+apps/*/node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
 # Next.js
-web/.next/
-web/out/
-web/build/
-web/dist/
+apps/*/.next/
+apps/*/out/
+apps/*/build/
+apps/*/dist/
 
 # Vercel
-web/.vercel
+apps/*/.vercel
 .vercel
 
 # Environment variables
@@ -24,16 +23,16 @@ web/.vercel
 .env.development.local
 .env.test.local
 .env.production.local
-web/.env
-web/.env.local
-web/.env.development.local
-web/.env.test.local
-web/.env.production.local
-web/cypress.env.json
+apps/*/.env
+apps/*/.env.local
+apps/*/.env.development.local
+apps/*/.env.test.local
+apps/*/.env.production.local
+apps/*/cypress.env.json
 
 # Testing
-web/coverage/
-web/.nyc_output
+apps/*/coverage/
+apps/*/.nyc_output
 
 # Turbo
 .turbo
@@ -60,7 +59,7 @@ Thumbs.db
 # Logs
 *.log
 logs/
-web/logs/
+apps/*/logs/
 
 # Runtime data
 pids
@@ -70,7 +69,7 @@ pids
 
 # TypeScript
 *.tsbuildinfo
-web/*.tsbuildinfo
+apps/*/*.tsbuildinfo
 
 # Temporary files
 tmp/

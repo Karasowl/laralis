@@ -1,0 +1,311 @@
+{
+  "client": "Thunder Client",
+  "collectionName": "Laralis API Tests",
+  "dateExported": "2025-01-10T20:00:00.000Z",
+  "version": "1.1",
+  "folders": [
+    {
+      "_id": "auth-folder",
+      "name": "🔐 Authentication",
+      "containerId": "",
+      "created": "2025-01-10T20:00:00.000Z",
+      "sortNum": 10000
+    },
+    {
+      "_id": "patients-folder", 
+      "name": "👥 Patients API",
+      "containerId": "",
+      "created": "2025-01-10T20:00:00.000Z",
+      "sortNum": 20000
+    },
+    {
+      "_id": "multitenancy-folder",
+      "name": "🏢 Multi-Tenancy Tests",
+      "containerId": "",
+      "created": "2025-01-10T20:00:00.000Z", 
+      "sortNum": 30000
+    },
+    {
+      "_id": "marketing-folder",
+      "name": "📢 Marketing API",
+      "containerId": "",
+      "created": "2025-01-10T20:00:00.000Z",
+      "sortNum": 40000
+    },
+    {
+      "_id": "services-folder",
+      "name": "🛠️ Services API", 
+      "containerId": "",
+      "created": "2025-01-10T20:00:00.000Z",
+      "sortNum": 50000
+    }
+  ],
+  "requests": [
+    {
+      "_id": "login-request",
+      "colId": "laralis-collection",
+      "containerId": "auth-folder",
+      "name": "Login User",
+      "url": "{{baseUrl}}/auth/login",
+      "method": "POST",
+      "sortNum": 10000,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"email\": \"{{testUser1Email}}\",\n  \"password\": \"{{testUser1Password}}\"\n}",
+        "form": []
+      },
+      "tests": [
+        {
+          "type": "set-env-var",
+          "custom": "tc.response = JSON.parse(tc.response.body);\ntc.setVar('authToken', tc.response.access_token);\ntc.setVar('clinic1Id', tc.response.user.clinic_id);"
+        },
+        {
+          "type": "res-code",
+          "custom": "",
+          "action": "equal",
+          "value": "200"
+        }
+      ]
+    },
+    {
+      "_id": "get-patients",
+      "colId": "laralis-collection", 
+      "containerId": "patients-folder",
+      "name": "Get Patients (Clinic 1)",
+      "url": "{{baseUrl}}/api/patients?clinicId={{clinic1Id}}",
+      "method": "GET",
+      "sortNum": 20000,
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{authToken}}"
+        }
+      ],
+      "tests": [
+        {
+          "type": "res-code",
+          "custom": "",
+          "action": "equal", 
+          "value": "200"
+        },
+        {
+          "type": "json-query",
+          "custom": "",
+          "action": "equal",
+          "value": "array",
+          "query": "data"
+        },
+        {
+          "type": "custom-script",
+          "custom": "// Verificar que todos los pacientes pertenecen a la clínica correcta\nconst response = JSON.parse(tc.response.body);\nconst patients = response.data;\n\npatients.forEach(patient => {\n  tc.test('Patient belongs to correct clinic', () => {\n    tc.expect(patient.clinic_id).to.equal(tc.getVar('clinic1Id'));\n  });\n});"
+        }
+      ]
+    },
+    {
+      "_id": "create-patient",
+      "colId": "laralis-collection",
+      "containerId": "patients-folder", 
+      "name": "Create Patient",
+      "url": "{{baseUrl}}/api/patients",
+      "method": "POST",
+      "sortNum": 20100,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization", 
+          "value": "Bearer {{authToken}}"
+        }
+      ],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"first_name\": \"Test\",\n  \"last_name\": \"Patient\",\n  \"email\": \"test.patient@example.com\",\n  \"phone\": \"+52123456789\",\n  \"birth_date\": \"1990-01-01\",\n  \"first_visit_date\": \"2025-01-10\",\n  \"gender\": \"male\"\n}",
+        "form": []
+      },
+      "tests": [
+        {
+          "type": "res-code",
+          "custom": "",
+          "action": "equal",
+          "value": "200"
+        },
+        {
+          "type": "json-query",
+          "custom": "", 
+          "action": "equal",
+          "value": "{{clinic1Id}}",
+          "query": "data.clinic_id"
+        },
+        {
+          "type": "set-env-var",
+          "custom": "tc.response = JSON.parse(tc.response.body);\ntc.setVar('testPatientId', tc.response.data.id);"
+        }
+      ]
+    },
+    {
+      "_id": "unauthorized-access",
+      "colId": "laralis-collection",
+      "containerId": "multitenancy-folder",
+      "name": "Test Unauthorized Access",
+      "url": "{{baseUrl}}/api/patients",
+      "method": "GET", 
+      "sortNum": 30000,
+      "headers": [],
+      "tests": [
+        {
+          "type": "res-code",
+          "custom": "",
+          "action": "equal",
+          "value": "401"
+        },
+        {
+          "type": "json-query", 
+          "custom": "",
+          "action": "equal",
+          "value": "Unauthorized",
+          "query": "error"
+        }
+      ]
+    },
+    {
+      "_id": "cross-clinic-access",
+      "colId": "laralis-collection",
+      "containerId": "multitenancy-folder",
+      "name": "Test Cross-Clinic Access Prevention",
+      "url": "{{baseUrl}}/api/patients?clinicId={{clinic2Id}}",
+      "method": "GET",
+      "sortNum": 30100,
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{authToken}}"
+        }
+      ],
+      "tests": [
+        {
+          "type": "custom-script",
+          "custom": "// El usuario 1 no debería ver datos de clínica 2\nconst response = JSON.parse(tc.response.body);\n\nif (tc.response.status === 200) {\n  // Si devuelve datos, verificar que están vacíos o son de la clínica correcta\n  const patients = response.data || [];\n  \n  patients.forEach(patient => {\n    tc.test('No cross-clinic data access', () => {\n      tc.expect(patient.clinic_id).to.not.equal(tc.getVar('clinic2Id'));\n    });\n  });\n} else {\n  tc.test('Proper access control', () => {\n    tc.expect(tc.response.status).to.be.oneOf([400, 403, 404]);\n  });\n}"
+        }
+      ]
+    },
+    {
+      "_id": "get-marketing-platforms",
+      "colId": "laralis-collection",
+      "containerId": "marketing-folder",
+      "name": "Get Marketing Platforms",
+      "url": "{{baseUrl}}/api/marketing/platforms?clinicId={{clinic1Id}}",
+      "method": "GET",
+      "sortNum": 40000,
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{authToken}}"
+        }
+      ],
+      "tests": [
+        {
+          "type": "res-code",
+          "custom": "",
+          "action": "equal",
+          "value": "200"
+        },
+        {
+          "type": "custom-script",
+          "custom": "// Verificar que incluye plataformas del sistema y de la clínica\nconst response = JSON.parse(tc.response.body);\nconst platforms = response.data;\n\n// Debe tener al menos las plataformas del sistema\nconst systemPlatforms = platforms.filter(p => p.is_system);\ntc.test('Has system platforms', () => {\n  tc.expect(systemPlatforms.length).to.be.greaterThan(0);\n});\n\n// Todas las plataformas personalizadas deben ser de esta clínica\nconst customPlatforms = platforms.filter(p => !p.is_system);\ncustomPlatforms.forEach(platform => {\n  tc.test('Custom platform belongs to correct clinic', () => {\n    tc.expect(platform.clinic_id).to.equal(tc.getVar('clinic1Id'));\n  });\n});"
+        }
+      ]
+    },
+    {
+      "_id": "create-custom-platform",
+      "colId": "laralis-collection",
+      "containerId": "marketing-folder",
+      "name": "Create Custom Platform",
+      "url": "{{baseUrl}}/api/marketing/platforms",
+      "method": "POST",
+      "sortNum": 40100,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{authToken}}"
+        }
+      ],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"display_name\": \"Radio Local Test\"\n}",
+        "form": []
+      },
+      "tests": [
+        {
+          "type": "res-code", 
+          "custom": "",
+          "action": "equal",
+          "value": "200"
+        },
+        {
+          "type": "json-query",
+          "custom": "",
+          "action": "equal",
+          "value": "{{clinic1Id}}",
+          "query": "data.clinic_id"
+        },
+        {
+          "type": "json-query",
+          "custom": "",
+          "action": "equal", 
+          "value": false,
+          "query": "data.is_system"
+        }
+      ]
+    },
+    {
+      "_id": "get-services",
+      "colId": "laralis-collection",
+      "containerId": "services-folder",
+      "name": "Get Services",
+      "url": "{{baseUrl}}/api/services?clinicId={{clinic1Id}}",
+      "method": "GET",
+      "sortNum": 50000,
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{authToken}}"
+        }
+      ],
+      "tests": [
+        {
+          "type": "res-code",
+          "custom": "",
+          "action": "equal",
+          "value": "200"
+        },
+        {
+          "type": "custom-script",
+          "custom": "// Verificar que todos los servicios pertenecen a la clínica correcta\nconst response = JSON.parse(tc.response.body);\nconst services = response.data;\n\nservices.forEach(service => {\n  tc.test('Service belongs to correct clinic', () => {\n    tc.expect(service.clinic_id).to.equal(tc.getVar('clinic1Id'));\n  });\n});"
+        }
+      ]
+    }
+  ],
+  "env": {
+    "baseUrl": "http://localhost:3000",
+    "testUser1Email": "test1@example.com",
+    "testUser1Password": "testpass123",
+    "testUser2Email": "test2@example.com", 
+    "testUser2Password": "testpass123",
+    "clinic1Id": "",
+    "clinic2Id": "",
+    "authToken": "",
+    "testPatientId": ""
+  }
+}
