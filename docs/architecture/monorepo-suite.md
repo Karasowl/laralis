@@ -86,7 +86,13 @@ Verification after restore:
 
 The only mismatch was `storage.migrations`, with `61` rows in production and `59` rows in staging. That is Supabase internal Storage migration metadata for the different project versions, not Laralis business data.
 
-Important limitation: the Postgres restore copied Storage metadata rows, not the binary object files behind Supabase Storage. Any feature that downloads historical stored files may need a separate Storage object copy before it is treated as fully production-like.
+The Supabase Storage object files were also copied after the Postgres restore:
+
+- Bucket copied: `clinic-snapshots`
+- Objects copied: `248`
+- Copy failures: `0`
+- Bytes copied: `7990604`
+- Staging download smoke check: one restored object downloaded successfully with `71971` bytes.
 
 ### Vercel Environment Copy Caveat
 
