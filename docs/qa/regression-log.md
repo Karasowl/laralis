@@ -108,6 +108,51 @@ Comando de stage:
 npm --workspace @laralis/dental run test:e2e:stage:permissions
 ```
 
+## 2026-05-03 - Export/import de workspace requiere permisos granulares
+
+### Problema
+
+`POST /api/export/generate` tenia una comprobacion local de owner/super_admin, separada del sistema granular. `POST /api/export/import` verificaba autenticacion, pero no exigia permiso antes de crear un workspace importado con `supabaseAdmin`.
+
+Riesgo asociado:
+
+- Un rol custom con `export_import.export` podia quedar bloqueado por la logica antigua.
+- Un usuario con membresia de solo lectura podia intentar importar bundles por API.
+- Export/import no estaba cubierto por el spec permanente de permisos de stage.
+
+### Prueba permanente
+
+Archivo:
+
+```text
+apps/dental/cypress/e2e/stage/05-permission-boundaries.cy.ts
+```
+
+Casos protegidos:
+
+- `qa-viewer@laralis.test` recibe `403 Forbidden` al generar un export de workspace.
+- `qa-viewer@laralis.test` recibe `403 Forbidden` al intentar importar un bundle, incluso en `dryRun`.
+
+### Implementacion protegida
+
+Archivos:
+
+```text
+apps/dental/app/api/export/generate/route.ts
+apps/dental/app/api/export/import/route.ts
+apps/dental/lib/workspace-access.ts
+```
+
+Export usa `export_import.export`. Import usa `export_import.import`; si hay `targetWorkspaceId`, se valida contra ese workspace, y si es importacion nueva se exige el permiso en algun workspace accesible del usuario. Cuentas sin workspace existente siguen pudiendo usar import como bootstrap.
+
+### Verificacion
+
+Comando de stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:permissions
+```
+
 ## 2026-05-03 - Gestion de invitaciones requiere permisos de equipo
 
 ### Problema

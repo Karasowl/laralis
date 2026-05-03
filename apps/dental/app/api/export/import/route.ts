@@ -13,6 +13,10 @@ import { WorkspaceBundleImporter } from '@/lib/export/importer';
 import type { ImportOptions } from '@/lib/export/types';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
+import {
+  forbiddenIfMissingWorkspacePermission,
+  getAccessibleWorkspaceIds,
+} from '@/lib/workspace-access';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 minutes timeout for large imports
@@ -41,6 +45,35 @@ const importRequestSchema = z.object({
   bundle: exportBundleSchema,
   options: importOptionsSchema.optional(),
 });
+
+async function forbiddenIfMissingImportPermission(
+  userId: string,
+  targetWorkspaceId?: string
+): Promise<NextResponse<any> | null> {
+  if (targetWorkspaceId) {
+    return forbiddenIfMissingWorkspacePermission(
+      userId,
+      targetWorkspaceId,
+      'export_import.import'
+    );
+  }
+
+  const workspaceIds = await getAccessibleWorkspaceIds(userId);
+  if (workspaceIds.length === 0) return null;
+
+  let firstForbidden: NextResponse<any> | null = null;
+  for (const workspaceId of workspaceIds) {
+    const forbidden = await forbiddenIfMissingWorkspacePermission(
+      userId,
+      workspaceId,
+      'export_import.import'
+    );
+    if (!forbidden) return null;
+    firstForbidden ||= forbidden;
+  }
+
+  return firstForbidden;
+}
 
 /**
  * POST handler
@@ -96,6 +129,9 @@ export async function POST(request: NextRequest) {
       return parsed.error;
     }
     const { bundle, options = {} } = parsed.data;
+
+    const forbidden = await forbiddenIfMissingImportPermission(user.id, options.targetWorkspaceId);
+    if (forbidden) return forbidden;
 
     // Set default import options
     const importOptions: ImportOptions = {

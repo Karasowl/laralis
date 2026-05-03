@@ -12,6 +12,7 @@ import { WorkspaceExporter, ExportError } from '@/lib/export/exporter';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
+import { forbiddenIfMissingWorkspacePermission } from '@/lib/workspace-access';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 minutes timeout for large exports
@@ -26,51 +27,6 @@ const exportRequestSchema = z.object({
     })
     .optional(),
 });
-
-/**
- * Verify user has permission to export workspace
- */
-async function canExportWorkspace(
-  supabase: ReturnType<typeof createServerClient>,
-  userId: string,
-  workspaceId: string
-): Promise<{ allowed: boolean; reason?: string }> {
-  // Check if user is workspace owner
-  const { data: workspace, error: workspaceError } = await supabase
-    .from('workspaces')
-    .select('owner_id')
-    .eq('id', workspaceId)
-    .single();
-
-  if (workspaceError || !workspace) {
-    return { allowed: false, reason: 'Workspace not found' };
-  }
-
-  if (workspace.owner_id === userId) {
-    return { allowed: true };
-  }
-
-  // Check if user is super_admin in workspace
-  const { data: member, error: memberError } = await supabase
-    .from('workspace_members')
-    .select('role')
-    .eq('workspace_id', workspaceId)
-    .eq('user_id', userId)
-    .single();
-
-  if (memberError || !member) {
-    return { allowed: false, reason: 'User is not a member of this workspace' };
-  }
-
-  if (member.role === 'super_admin') {
-    return { allowed: true };
-  }
-
-  return {
-    allowed: false,
-    reason: 'Only workspace owners and super_admins can export data',
-  };
-}
 
 /**
  * POST handler
@@ -119,11 +75,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verify export permission
-    const permission = await canExportWorkspace(supabase, user.id, workspaceId);
-    if (!permission.allowed) {
-      return NextResponse.json({ error: permission.reason || 'Forbidden' }, { status: 403 });
-    }
+    const forbidden = await forbiddenIfMissingWorkspacePermission(
+      user.id,
+      workspaceId,
+      'export_import.export'
+    );
+    if (forbidden) return forbidden;
 
     // Create exporter and generate bundle
     const exporter = new WorkspaceExporter(supabaseAdmin, workspaceId, {

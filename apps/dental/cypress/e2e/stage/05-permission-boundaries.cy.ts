@@ -1093,6 +1093,29 @@ describe('Stage permission boundaries', () => {
             value: 0,
           }
         )
+        expectForbiddenPost(
+          '/api/export/generate',
+          {
+            workspaceId: clinicA.workspace_id,
+          },
+          'viewer cannot generate workspace export bundles'
+        )
+        expectForbiddenPost(
+          '/api/export/import',
+          {
+            bundle: {
+              metadata: {
+                workspaceId: clinicA.workspace_id,
+                workspaceName: 'QA forbidden import',
+              },
+              data: {},
+            },
+            options: {
+              dryRun: true,
+            },
+          },
+          'viewer cannot import workspace bundles'
+        )
       })
     })
   })
