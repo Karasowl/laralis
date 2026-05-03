@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { withRouteContext } from '@/lib/api/route-handler';
 import { createRouteLogger } from '@/lib/api/logger';
 import { readJsonBody } from '@/lib/api/validation';
+import { forbiddenIfMissingPermission } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic'
 
@@ -94,7 +95,9 @@ export async function GET(request: NextRequest) {
       if ('error' in clinicContext) {
         return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
       }
-      const { clinicId } = clinicContext;
+      const { clinicId, userId } = clinicContext;
+      const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'services.view');
+      if (forbidden) return forbidden;
 
       // Get time settings to calculate fixed costs
       const { data: timeSettings } = await supabaseAdmin
@@ -247,7 +250,9 @@ export async function POST(request: NextRequest) {
       if ('error' in clinicContext) {
         return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
       }
-      const { clinicId } = clinicContext;
+      const { clinicId, userId } = clinicContext;
+      const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'services.create');
+      if (forbidden) return forbidden;
 
       const { supplies, name, category, est_minutes, description, base_price_cents } = parseResult.data;
 

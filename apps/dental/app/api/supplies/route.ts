@@ -5,6 +5,7 @@ import type { Supply, ApiResponse } from '@/lib/types';
 import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { readJson } from '@/lib/validation';
+import { forbiddenIfMissingPermission } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic'
 
@@ -25,7 +26,9 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
     if ('error' in clinicContext) {
       return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
-    const { clinicId } = clinicContext;
+    const { clinicId, userId } = clinicContext;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'supplies.view');
+    if (forbidden) return forbidden;
 
     let query = supabaseAdmin
       .from('supplies')
@@ -88,7 +91,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     if ('error' in clinicContext) {
       return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
-    const { clinicId } = clinicContext;
+    const { clinicId, userId } = clinicContext;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'supplies.create');
+    if (forbidden) return forbidden;
     
     // Si viene con price_pesos, convertir a cents
     let dataToValidate = { ...body };

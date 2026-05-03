@@ -28,7 +28,7 @@ export async function forbiddenIfMissingPermission(
   userId: string,
   clinicId: string,
   permission: Permission
-): Promise<NextResponse | null> {
+): Promise<NextResponse<any> | null> {
   const allowed = await userHasPermission(userId, clinicId, permission)
 
   if (allowed) return null

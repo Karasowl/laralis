@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import type { Service, ServiceSupply, ApiResponse } from '@/lib/types';
 import { readJson } from '@/lib/validation';
+import { forbiddenIfMissingPermission } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic'
 
@@ -64,7 +65,9 @@ export async function GET(
     if ('error' in clinicContext) {
       return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
-    const { clinicId } = clinicContext;
+    const { clinicId, userId } = clinicContext;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'services.view');
+    if (forbidden) return forbidden;
 
     // Get service with its supplies
     const { data: service, error: serviceError } = await supabaseAdmin
@@ -129,7 +132,9 @@ export async function PUT(
     if ('error' in clinicContext) {
       return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
-    const { clinicId } = clinicContext;
+    const { clinicId, userId } = clinicContext;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'services.edit');
+    if (forbidden) return forbidden;
     
     // Extract supplies if provided
     const { supplies, ...serviceData } = body;
@@ -349,7 +354,9 @@ export async function DELETE(
     if ('error' in clinicContext) {
       return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
-    const { clinicId } = clinicContext;
+    const { clinicId, userId } = clinicContext;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'services.delete');
+    if (forbidden) return forbidden;
 
     // Check dependencies before deleting
     const dependencyMessages: string[] = []

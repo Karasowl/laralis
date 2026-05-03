@@ -167,3 +167,57 @@ Comando de stage:
 ```bash
 npm --workspace @laralis/dental run test:e2e:stage:permissions
 ```
+
+## 2026-05-03 - Permisos backend en catalogo clinico y tratamientos
+
+### Problema
+
+Despues de proteger pacientes, quedaban rutas criticas usando `supabaseAdmin` sin validar permisos granulares antes de escribir:
+
+- Insumos.
+- Servicios.
+- Tratamientos.
+
+Riesgo asociado:
+
+- Un usuario viewer podia quedar limitado en UI pero aun intentar escrituras directas contra API.
+- Las pruebas de permisos no detectaban fugas fuera de pacientes.
+- El sistema podia mezclar "visibilidad de boton" con seguridad real, cuando el bloqueo debe vivir tambien en backend.
+
+### Prueba permanente
+
+Archivo:
+
+```text
+apps/dental/cypress/e2e/stage/05-permission-boundaries.cy.ts
+```
+
+Casos protegidos:
+
+- `qa-viewer@laralis.test` conserva lectura en pacientes, insumos, servicios y tratamientos.
+- `POST/PUT/DELETE /api/supplies` responde `403 Forbidden` para viewer.
+- `POST/PUT/DELETE /api/services` responde `403 Forbidden` para viewer.
+- `POST/PUT/DELETE /api/treatments` responde `403 Forbidden` para viewer.
+
+### Implementacion protegida
+
+Archivos:
+
+```text
+apps/dental/app/api/supplies/route.ts
+apps/dental/app/api/supplies/[id]/route.ts
+apps/dental/app/api/services/route.ts
+apps/dental/app/api/services/[id]/route.ts
+apps/dental/app/api/treatments/route.ts
+apps/dental/app/api/treatments/[id]/route.ts
+```
+
+Cada ruta consulta `forbiddenIfMissingPermission` despues de resolver la clinica activa y antes de ejecutar lecturas o mutaciones de negocio.
+
+### Verificacion
+
+Comando de stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:permissions
+```

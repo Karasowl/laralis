@@ -15,6 +15,7 @@ import {
   TreatmentNotificationParams,
 } from '@/lib/sms/service';
 import { readJson } from '@/lib/validation';
+import { forbiddenIfMissingPermission } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic'
 
@@ -49,7 +50,9 @@ export async function GET(request: NextRequest) {
     if ('error' in clinicContext) {
       return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
-    const { clinicId } = clinicContext;
+    const { clinicId, userId } = clinicContext;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'treatments.view');
+    if (forbidden) return forbidden;
 
     const patientId = searchParams.get('patient_id') || searchParams.get('patient');
     const hasBalance = searchParams.get('has_balance') === 'true';
@@ -129,7 +132,9 @@ export async function POST(request: NextRequest) {
     if ('error' in clinicContext) {
       return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
-    const { clinicId } = clinicContext;
+    const { clinicId, userId } = clinicContext;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'treatments.create');
+    if (forbidden) return forbidden;
 
     // Validate required fields
     if (!payloadBody.patient_id || !payloadBody.service_id) {

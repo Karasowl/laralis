@@ -5,6 +5,7 @@ import { resolveClinicContext } from '@/lib/clinic';
 import { syncTreatmentToCalendar, deleteTreatmentFromCalendar, CalendarSyncResult } from '@/lib/google-calendar';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
+import { forbiddenIfMissingPermission } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic'
 
@@ -52,7 +53,9 @@ export async function PUT(
     if ('error' in clinicContext) {
       return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
-    const { clinicId } = clinicContext;
+    const { clinicId, userId } = clinicContext;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'treatments.edit');
+    if (forbidden) return forbidden;
 
     // En edición protegemos snapshot: no permitimos cambiar service_id salvo que se indique
     if (typeof body.service_id === 'string' && body._allow_service_change !== true) {
@@ -262,7 +265,9 @@ export async function DELETE(
     if ('error' in clinicContext) {
       return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
-    const { clinicId } = clinicContext;
+    const { clinicId, userId } = clinicContext;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'treatments.delete');
+    if (forbidden) return forbidden;
 
     // First, get the treatment to check for google_event_id
     const { data: treatment } = await supabaseAdmin
