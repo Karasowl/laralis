@@ -6,6 +6,7 @@ import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { readJson } from '@/lib/validation';
+import { forbiddenIfMissingPermission } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic'
 
@@ -62,6 +63,8 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
       if ('error' in ctx) {
         return NextResponse.json({ error: ctx.error.message }, { status: ctx.error.status });
       }
+      const forbidden = await forbiddenIfMissingPermission(ctx.userId, ctx.clinicId, 'settings.view');
+      if (forbidden) return forbidden;
       clinicId = ctx.clinicId;
     } else {
       clinicId = searchParams.get('clinicId') || cookieStore.get('clinicId')?.value || null;
@@ -145,6 +148,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       if ('error' in ctx) {
         return NextResponse.json({ error: ctx.error.message }, { status: ctx.error.status });
       }
+      const forbidden = await forbiddenIfMissingPermission(ctx.userId, ctx.clinicId, 'settings.edit');
+      if (forbidden) return forbidden;
       clinicId = ctx.clinicId;
     } else {
       const cookieClinic = cookieStore.get('clinicId')?.value || null;

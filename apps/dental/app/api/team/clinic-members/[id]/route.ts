@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { resolveClinicContext } from '@/lib/clinic';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { readJson } from '@/lib/validation';
+import { forbiddenIfMissingPermission } from '@/lib/permissions';
 
 // Schema for updating a clinic member
 const updateMemberSchema = z.object({
@@ -39,6 +40,9 @@ export async function PUT(
   const { clinicId, userId } = context;
 
   try {
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'team.edit_roles');
+    if (forbidden) return forbidden;
+
     const bodyResult = await readJson(request);
     if ('error' in bodyResult) {
       return bodyResult.error;
@@ -246,6 +250,9 @@ export async function DELETE(
   const { clinicId, userId } = context;
 
   try {
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'team.remove');
+    if (forbidden) return forbidden;
+
     // Get clinic and workspace
     const { data: clinic } = await supabaseAdmin
       .from('clinics')

@@ -6,6 +6,8 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { deleteClinicData } from '@/lib/clinic-tables';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
+import { resolveClinicContext } from '@/lib/clinic';
+import { forbiddenIfMissingPermission } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic'
 
@@ -147,6 +149,24 @@ export async function POST(request: NextRequest) {
     if (!clinicId) {
       return NextResponse.json({ error: 'No clinic found for reset' }, { status: 400 });
     }
+
+    const clinicContext = await resolveClinicContext({
+      requestedClinicId: clinicId,
+      cookieStore,
+    });
+    if ('error' in clinicContext) {
+      return NextResponse.json(
+        { error: clinicContext.error.message },
+        { status: clinicContext.error.status }
+      );
+    }
+
+    const forbidden = await forbiddenIfMissingPermission(
+      clinicContext.userId,
+      clinicContext.clinicId,
+      'export_import.import'
+    );
+    if (forbidden) return forbidden;
 
     let result: { success: boolean; message: string } = { success: true, message: '' };
 
@@ -325,6 +345,24 @@ export async function GET(request: NextRequest) {
     if (!clinicId) {
       return NextResponse.json({ error: 'No clinic selected' }, { status: 400 });
     }
+
+    const clinicContext = await resolveClinicContext({
+      requestedClinicId: clinicId,
+      cookieStore,
+    });
+    if ('error' in clinicContext) {
+      return NextResponse.json(
+        { error: clinicContext.error.message },
+        { status: clinicContext.error.status }
+      );
+    }
+
+    const forbidden = await forbiddenIfMissingPermission(
+      clinicContext.userId,
+      clinicContext.clinicId,
+      'settings.view'
+    );
+    if (forbidden) return forbidden;
 
     const [
       { count: servicesCount },

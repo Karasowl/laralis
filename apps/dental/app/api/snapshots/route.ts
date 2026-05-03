@@ -21,6 +21,7 @@ import {
 } from '@/lib/snapshots'
 import { z } from 'zod'
 import { validateSchema } from '@/lib/validation'
+import { forbiddenIfMissingPermission } from '@/lib/permissions'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -49,7 +50,9 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const { clinicId } = clinicContext
+    const { clinicId, userId } = clinicContext
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'export_import.export')
+    if (forbidden) return forbidden
 
     // Get snapshots from database (more reliable than storage manifest)
     const { data: snapshots, error } = await supabaseAdmin
@@ -130,6 +133,8 @@ export async function POST(request: NextRequest) {
     }
 
     const { clinicId, userId } = clinicContext
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'export_import.export')
+    if (forbidden) return forbidden
 
     // Verify user is owner (through workspace ownership)
     const { data: clinic, error: clinicError } = await supabaseAdmin

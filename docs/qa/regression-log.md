@@ -168,6 +168,62 @@ Comando de stage:
 npm --workspace @laralis/dental run test:e2e:stage:permissions
 ```
 
+## 2026-05-03 - Administracion sensible requiere permisos granulares
+
+### Problema
+
+Varias rutas administrativas verificaban acceso basico a la clinica o roles hardcodeados, pero no pasaban por el sistema granular de permisos.
+
+Riesgo asociado:
+
+- Un viewer podia intentar leer miembros, settings, snapshots o estados de reset por API.
+- Rutas de mutacion dependian de checks de rol locales en vez de permisos `team.*`, `settings.*` o `export_import.*`.
+- Operaciones destructivas como restore/reset quedaban fuera de la matriz permanente de permisos.
+
+### Prueba permanente
+
+Archivo:
+
+```text
+apps/dental/cypress/e2e/stage/05-permission-boundaries.cy.ts
+```
+
+Casos protegidos:
+
+- `qa-viewer@laralis.test` recibe `403 Forbidden` en listado, invitacion, edicion y borrado de miembros de workspace/clinica.
+- `qa-viewer@laralis.test` recibe `403 Forbidden` al leer o editar booking, notificaciones y configuracion de tiempo.
+- `qa-viewer@laralis.test` recibe `403 Forbidden` al listar, descubrir, crear, descargar, borrar o restaurar snapshots.
+- `qa-viewer@laralis.test` recibe `403 Forbidden` al consultar o ejecutar reset de datos.
+
+### Implementacion protegida
+
+Archivos:
+
+```text
+apps/dental/app/api/team/workspace-members/route.ts
+apps/dental/app/api/team/workspace-members/[id]/route.ts
+apps/dental/app/api/team/clinic-members/route.ts
+apps/dental/app/api/team/clinic-members/[id]/route.ts
+apps/dental/app/api/settings/booking/route.ts
+apps/dental/app/api/settings/notifications/route.ts
+apps/dental/app/api/settings/time/route.ts
+apps/dental/app/api/snapshots/route.ts
+apps/dental/app/api/snapshots/[snapshotId]/route.ts
+apps/dental/app/api/snapshots/[snapshotId]/restore/route.ts
+apps/dental/app/api/snapshots/discover/route.ts
+apps/dental/app/api/reset/route.ts
+```
+
+Team usa `team.view`, `team.invite`, `team.edit_roles` y `team.remove`. Settings usa `settings.view/edit`. Snapshots y restore/reset usan `export_import.export/import`.
+
+### Verificacion
+
+Comando de stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:permissions
+```
+
 ## 2026-05-03 - Acciones de Lara no deben saltarse permisos de modulo
 
 ### Problema

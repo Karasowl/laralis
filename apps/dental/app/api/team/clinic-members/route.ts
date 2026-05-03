@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { resolveClinicContext } from '@/lib/clinic';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import type { ClinicMember, ClinicRole, WorkspaceRole } from '@/lib/permissions';
+import { forbiddenIfMissingPermission } from '@/lib/permissions';
 import { readJson } from '@/lib/validation';
 
 // Type for the user_profiles relation from Supabase query
@@ -40,6 +41,9 @@ export async function GET(request: NextRequest) {
   const { clinicId, userId } = context;
 
   try {
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'team.view');
+    if (forbidden) return forbidden;
+
     // Verify user has access to this clinic
     const { data: accessCheck } = await supabaseAdmin.rpc(
       'is_clinic_member',
@@ -264,6 +268,9 @@ export async function POST(request: NextRequest) {
   const { clinicId, userId } = context;
 
   try {
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'team.edit_roles');
+    if (forbidden) return forbidden;
+
     // Get clinic and workspace
     const { data: clinic } = await supabaseAdmin
       .from('clinics')

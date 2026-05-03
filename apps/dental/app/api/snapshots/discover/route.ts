@@ -12,6 +12,7 @@ import { cookies } from 'next/headers'
 import { resolveClinicContext } from '@/lib/clinic'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { TableDiscoveryService, DiscoverTablesResponse } from '@/lib/snapshots'
+import { forbiddenIfMissingPermission } from '@/lib/permissions'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -35,7 +36,9 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const { clinicId } = clinicContext
+    const { clinicId, userId } = clinicContext
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'export_import.export')
+    if (forbidden) return forbidden
 
     // Discover tables
     const discovery = new TableDiscoveryService(supabaseAdmin)

@@ -47,6 +47,23 @@ describe('Stage permission boundaries', () => {
     })
   }
 
+  function expectForbiddenRequest(
+    method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
+    url: string,
+    label: string,
+    body?: Record<string, any>
+  ) {
+    cy.request({
+      method,
+      url,
+      body,
+      failOnStatusCode: false,
+    }).then((response) => {
+      expect(response.status, label).to.eq(403)
+      expect(response.body.error).to.eq('Forbidden')
+    })
+  }
+
   afterEach(() => {
     if (!ownerCreatedPatientId) return
 
@@ -91,7 +108,14 @@ describe('Stage permission boundaries', () => {
       expect(response.body.permissions['campaigns.edit']).to.eq(false)
       expect(response.body.permissions['campaigns.delete']).to.eq(false)
       expect(response.body.permissions['financial_reports.view']).to.eq(false)
+      expect(response.body.permissions['settings.view']).to.eq(false)
       expect(response.body.permissions['settings.edit']).to.eq(false)
+      expect(response.body.permissions['team.view']).to.eq(false)
+      expect(response.body.permissions['team.invite']).to.eq(false)
+      expect(response.body.permissions['team.edit_roles']).to.eq(false)
+      expect(response.body.permissions['team.remove']).to.eq(false)
+      expect(response.body.permissions['export_import.export']).to.eq(false)
+      expect(response.body.permissions['export_import.import']).to.eq(false)
       expect(response.body.permissions['lara.use_query_mode']).to.eq(false)
       expect(response.body.permissions['lara.execute_actions']).to.eq(false)
     })
@@ -606,6 +630,127 @@ describe('Stage permission boundaries', () => {
           dry_run: true,
         },
         'viewer cannot run Lara time settings updates'
+      )
+    })
+  })
+
+  it('blocks viewer administrative settings, team, snapshots, and reset endpoints at the API', () => {
+    const fakeId = '00000000-0000-4000-8000-000000000003'
+
+    cy.loginAsStageUser(viewerEmail, undefined, { allowSetup: true })
+    selectClinicA().then((clinicId) => {
+      expectForbiddenGet('/api/team/workspace-members', 'viewer cannot list workspace members')
+      expectForbiddenRequest(
+        'POST',
+        '/api/team/workspace-members',
+        'viewer cannot invite workspace members',
+        {
+          email: `${stamp}-invite@laralis.test`,
+          role: 'viewer',
+        }
+      )
+      expectForbiddenRequest(
+        'PUT',
+        `/api/team/workspace-members/${fakeId}`,
+        'viewer cannot edit workspace members',
+        { role: 'viewer' }
+      )
+      expectForbiddenRequest(
+        'DELETE',
+        `/api/team/workspace-members/${fakeId}`,
+        'viewer cannot remove workspace members'
+      )
+
+      expectForbiddenGet('/api/team/clinic-members', 'viewer cannot list clinic members')
+      expectForbiddenRequest(
+        'POST',
+        '/api/team/clinic-members',
+        'viewer cannot add clinic members',
+        {
+          user_id: fakeId,
+          role: 'viewer',
+        }
+      )
+      expectForbiddenRequest(
+        'PUT',
+        `/api/team/clinic-members/${fakeId}`,
+        'viewer cannot edit clinic members',
+        { role: 'viewer' }
+      )
+      expectForbiddenRequest(
+        'DELETE',
+        `/api/team/clinic-members/${fakeId}`,
+        'viewer cannot remove clinic members'
+      )
+
+      expectForbiddenGet('/api/settings/booking', 'viewer cannot read booking settings')
+      expectForbiddenRequest(
+        'PUT',
+        '/api/settings/booking',
+        'viewer cannot edit booking settings',
+        {
+          slug: `qa-${stamp}`,
+          booking_config: { enabled: false },
+          service_ids: [],
+        }
+      )
+      expectForbiddenGet('/api/settings/notifications', 'viewer cannot read notification settings')
+      expectForbiddenRequest(
+        'PUT',
+        '/api/settings/notifications',
+        'viewer cannot edit notification settings',
+        {
+          email_enabled: true,
+          confirmation_enabled: true,
+          reminder_enabled: true,
+          reminder_hours_before: 24,
+          sender_name: null,
+          reply_to_email: null,
+        }
+      )
+      expectForbiddenGet('/api/settings/time', 'viewer cannot read time settings')
+      expectForbiddenRequest(
+        'POST',
+        '/api/settings/time',
+        'viewer cannot edit time settings',
+        {
+          clinic_id: clinicId,
+          work_days: 20,
+          hours_per_day: 8,
+          real_pct: 80,
+        }
+      )
+
+      expectForbiddenGet('/api/snapshots', 'viewer cannot list snapshots')
+      expectForbiddenGet('/api/snapshots/discover', 'viewer cannot discover snapshot tables')
+      expectForbiddenRequest(
+        'POST',
+        '/api/snapshots',
+        'viewer cannot create snapshots',
+        { type: 'manual' }
+      )
+      expectForbiddenGet(
+        `/api/snapshots/${fakeId}?metadata=true&clinicId=${clinicId}`,
+        'viewer cannot download snapshot metadata'
+      )
+      expectForbiddenRequest(
+        'DELETE',
+        `/api/snapshots/${fakeId}`,
+        'viewer cannot delete snapshots'
+      )
+      expectForbiddenRequest(
+        'POST',
+        `/api/snapshots/${fakeId}/restore`,
+        'viewer cannot restore snapshots',
+        { dryRun: true }
+      )
+
+      expectForbiddenGet(`/api/reset?clinicId=${clinicId}`, 'viewer cannot read reset status')
+      expectForbiddenRequest(
+        'POST',
+        '/api/reset',
+        'viewer cannot reset clinic data',
+        { resetType: 'patients' }
       )
     })
   })

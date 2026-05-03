@@ -10,6 +10,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { readJson } from '@/lib/validation';
+import { forbiddenIfMissingPermission } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -101,7 +102,9 @@ export async function GET() {
       );
     }
 
-    const { clinicId } = clinicContext;
+    const { clinicId, userId } = clinicContext;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'settings.view');
+    if (forbidden) return forbidden;
 
     const { data: clinic, error } = await supabaseAdmin
       .from('clinics')
@@ -158,7 +161,10 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const { clinicId } = clinicContext;
+    const { clinicId, userId } = clinicContext;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'settings.edit');
+    if (forbidden) return forbidden;
+
     const bodyResult = await readJson(request);
     if ('error' in bodyResult) {
       return bodyResult.error;

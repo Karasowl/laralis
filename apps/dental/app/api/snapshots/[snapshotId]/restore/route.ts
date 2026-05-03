@@ -19,6 +19,7 @@ import {
 } from '@/lib/snapshots'
 import { z } from 'zod'
 import { validateSchema } from '@/lib/validation'
+import { forbiddenIfMissingPermission } from '@/lib/permissions'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -54,6 +55,8 @@ export async function POST(
     }
 
     const { clinicId, userId } = clinicContext
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'export_import.import')
+    if (forbidden) return forbidden
 
     // Verify user is owner (through workspace ownership)
     const { data: clinic, error: clinicError } = await supabaseAdmin

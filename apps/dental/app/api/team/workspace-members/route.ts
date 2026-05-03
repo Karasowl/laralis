@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { resolveClinicContext } from '@/lib/clinic';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import type { WorkspaceMember, WorkspaceRole } from '@/lib/permissions';
+import { forbiddenIfMissingPermission } from '@/lib/permissions';
 import { readJson } from '@/lib/validation';
 
 // Type for the user_profiles relation from Supabase query
@@ -36,6 +37,9 @@ export async function GET(request: NextRequest) {
   const { clinicId, userId } = context;
 
   try {
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'team.view');
+    if (forbidden) return forbidden;
+
     // Get workspace ID from clinic or param
     let workspaceId = workspaceIdParam;
 
@@ -233,6 +237,9 @@ export async function POST(request: NextRequest) {
   const { clinicId, userId } = context;
 
   try {
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'team.invite');
+    if (forbidden) return forbidden;
+
     // Get workspace ID from clinic
     const { data: clinic } = await supabaseAdmin
       .from('clinics')
