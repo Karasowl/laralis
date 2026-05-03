@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
+import { forbiddenIfMissingPermission } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic'
 
@@ -39,7 +40,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
 
-    const { clinicId } = clinicContext;
+    const { clinicId, userId } = clinicContext;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'campaigns.view');
+    if (forbidden) return forbidden;
     const activeOnly = searchParams.get('active') === 'true';
 
     let query = supabaseAdmin
@@ -94,7 +97,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
 
-    const { clinicId } = clinicContext;
+    const { clinicId, userId } = clinicContext;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'campaigns.create');
+    if (forbidden) return forbidden;
 
     const validation = createPlatformSchema.safeParse(body);
     if (!validation.success) {
@@ -152,7 +157,9 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
 
-    const { clinicId } = clinicContext;
+    const { clinicId, userId } = clinicContext;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'campaigns.edit');
+    if (forbidden) return forbidden;
 
     const { data: existing, error: fetchError } = await supabaseAdmin
       .from('categories')
@@ -225,7 +232,9 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
 
-    const { clinicId } = clinicContext;
+    const { clinicId, userId } = clinicContext;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'campaigns.delete');
+    if (forbidden) return forbidden;
 
     const { data: existing, error: fetchError } = await supabaseAdmin
       .from('categories')

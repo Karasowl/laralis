@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { z } from 'zod';
 import { readJson } from '@/lib/validation';
+import { forbiddenIfMissingPermission } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,7 +51,9 @@ export async function POST(
       );
     }
 
-    const { clinicId } = clinicContext;
+    const { clinicId, userId } = clinicContext;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'treatments.mark_paid');
+    if (forbidden) return forbidden;
 
     // Get current treatment
     const { data: treatment, error: fetchError } = await supabaseAdmin

@@ -3,11 +3,14 @@ import { cookies } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
+import { resolveClinicContext } from '@/lib/clinic'
+import { forbiddenIfMissingPermission } from '@/lib/permissions'
 
 export const dynamic = 'force-dynamic'
 
 const campaignPatchSchema = z
   .object({
+    clinic_id: z.string().uuid().optional(),
     name: z.string().min(1).optional(),
     code: z.string().nullable().optional(),
     platform_id: z.string().uuid().optional(),
@@ -25,21 +28,21 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = supabaseAdmin
     const cookieStore = cookies()
-    const clinicId = cookieStore.get('clinicId')?.value
+    const clinicContext = await resolveClinicContext({ cookieStore })
 
-    if (!clinicId) {
-      return NextResponse.json(
-        { error: 'No clinic selected' },
-        { status: 400 }
-      )
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status })
     }
+    const { clinicId, userId } = clinicContext
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'campaigns.view')
+    if (forbidden) return forbidden
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('marketing_campaigns')
       .select('*')
       .eq('id', params.id)
+      .eq('clinic_id', clinicId)
       .single()
 
     if (error) {
@@ -66,16 +69,7 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = supabaseAdmin
     const cookieStore = cookies()
-    const clinicId = cookieStore.get('clinicId')?.value
-
-    if (!clinicId) {
-      return NextResponse.json(
-        { error: 'No clinic selected' },
-        { status: 400 }
-      )
-    }
 
     const bodyResult = await readJson(request)
     if ('error' in bodyResult) {
@@ -86,6 +80,14 @@ export async function PATCH(
       return parsed.error
     }
     const body = parsed.data
+    const clinicContext = await resolveClinicContext({ requestedClinicId: body?.clinic_id, cookieStore })
+
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status })
+    }
+    const { clinicId, userId } = clinicContext
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'campaigns.edit')
+    if (forbidden) return forbidden
 
     // Normalize archive toggling: if archived_at provided, set is_archived accordingly
     const nowIso = new Date().toISOString()
@@ -101,10 +103,11 @@ export async function PATCH(
     }
 
     // Update the campaign
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('marketing_campaigns')
       .update(patch)
       .eq('id', params.id)
+      .eq('clinic_id', clinicId)
       .select('*')
       .single()
 
@@ -132,21 +135,21 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = supabaseAdmin
     const cookieStore = cookies()
-    const clinicId = cookieStore.get('clinicId')?.value
+    const clinicContext = await resolveClinicContext({ cookieStore })
 
-    if (!clinicId) {
-      return NextResponse.json(
-        { error: 'No clinic selected' },
-        { status: 400 }
-      )
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status })
     }
+    const { clinicId, userId } = clinicContext
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'campaigns.delete')
+    if (forbidden) return forbidden
 
     // Check if campaign has any associated patients
-    const { data: patients } = await supabase
+    const { data: patients } = await supabaseAdmin
       .from('patients')
       .select('id')
+      .eq('clinic_id', clinicId)
       .eq('campaign_id', params.id)
       .limit(1)
 
@@ -158,10 +161,11 @@ export async function DELETE(
     }
 
     // Delete the campaign
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('marketing_campaigns')
       .delete()
       .eq('id', params.id)
+      .eq('clinic_id', clinicId)
 
     if (error) {
       console.error('Error deleting campaign:', error)

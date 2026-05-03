@@ -221,3 +221,55 @@ Comando de stage:
 ```bash
 npm --workspace @laralis/dental run test:e2e:stage:permissions
 ```
+
+## 2026-05-03 - Marketing y pagos de tratamientos no deben saltarse permisos
+
+### Problema
+
+Las rutas de marketing todavia tenian mutaciones directas con `supabaseAdmin` sin permisos granulares. En particular, las rutas dinamicas de plataformas y campanas no filtraban consistentemente por `clinic_id`; una ruta de plataformas permitia borrar categorias de sistema.
+
+La ruta de pagos de tratamientos tambien actualizaba pagos usando `supabaseAdmin` sin exigir `treatments.mark_paid`.
+
+Riesgo asociado:
+
+- Un usuario sin permiso de marketing podia listar, crear, editar o borrar campanas/plataformas por API.
+- Una plataforma global del sistema podia eliminarse desde una ruta dinamica.
+- Un usuario sin permiso de cobro podia registrar pagos directamente contra un tratamiento.
+- Los datos de marketing podian quedar expuestos o modificados fuera de la clinica activa.
+
+### Prueba permanente
+
+Archivo:
+
+```text
+apps/dental/cypress/e2e/stage/05-permission-boundaries.cy.ts
+```
+
+Casos protegidos:
+
+- `qa-viewer@laralis.test` recibe `403 Forbidden` en lectura y escritura de plataformas/campanas de marketing.
+- `PUT/DELETE /api/marketing/platforms/:id` ya no permite saltarse permisos ni borrar plataformas de sistema.
+- `PATCH/DELETE /api/marketing/campaigns/:id` queda filtrado por clinica activa y permisos.
+- `POST /api/treatments/:id/payment` exige `treatments.mark_paid`.
+
+### Implementacion protegida
+
+Archivos:
+
+```text
+apps/dental/app/api/marketing/platforms/route.ts
+apps/dental/app/api/marketing/platforms/[id]/route.ts
+apps/dental/app/api/marketing/campaigns/route.ts
+apps/dental/app/api/marketing/campaigns/[id]/route.ts
+apps/dental/app/api/treatments/[id]/payment/route.ts
+```
+
+Marketing usa permisos `campaigns.view/create/edit/delete`. Los pagos de tratamientos usan `treatments.mark_paid`. Las rutas dinamicas ahora resuelven clinica activa con `resolveClinicContext`, filtran por `clinic_id` y mantienen las plataformas de sistema como solo lectura.
+
+### Verificacion
+
+Comando de stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:permissions
+```

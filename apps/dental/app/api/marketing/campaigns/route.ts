@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
+import { forbiddenIfMissingPermission } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic'
 
@@ -32,7 +33,9 @@ export async function GET(request: NextRequest) {
     if ('error' in clinicContext) {
       return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
-    const { clinicId } = clinicContext;
+    const { clinicId, userId } = clinicContext;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'campaigns.view');
+    if (forbidden) return forbidden;
     const activeOnly = searchParams.get('active') === 'true';
     const includeArchived = searchParams.get('includeArchived') === 'true';
     const platformId = searchParams.get('platformId');
@@ -130,7 +133,9 @@ export async function POST(request: NextRequest) {
     if ('error' in clinicContext) {
       return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
-    const { clinicId } = clinicContext;
+    const { clinicId, userId } = clinicContext;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'campaigns.create');
+    if (forbidden) return forbidden;
     console.info('[POST /api/marketing/campaigns] Clinic ID:', clinicId);
 
     if (!clinicId) {
@@ -238,7 +243,9 @@ export async function PUT(request: NextRequest) {
     if ('error' in clinicContext) {
       return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
-    const { clinicId } = clinicContext;
+    const { clinicId, userId } = clinicContext;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'campaigns.edit');
+    if (forbidden) return forbidden;
 
     // Ensure the campaign belongs to this clinic
     const { data: existing, error: fetchErr } = await supabaseAdmin

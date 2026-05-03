@@ -1,6 +1,6 @@
 # QA Inventory Report
 
-Generated: 2026-05-03T19:08:00.144Z
+Generated: 2026-05-03T19:19:40.623Z
 
 Status: fail
 Failing checks: 3
@@ -143,7 +143,7 @@ ui files: 435; files with data-testid: 1; data-testid occurrences: 4
 
 Status: warn
 
-api routes: 161; withPermission: 28; using supabaseAdmin: 129; admin without withPermission/cron guard: 96
+api routes: 161; permission guard: 41 (withPermission: 28, manual: 13); using supabaseAdmin: 129; admin without permission/cron guard: 83
 
 - app/api/actions/adjust-service-margin/route.ts
 - app/api/actions/analyze-patient-retention/route.ts
@@ -188,23 +188,23 @@ api routes: 161; withPermission: 28; using supabaseAdmin: 129; admin without wit
 - app/api/invitations/route.ts
 - app/api/invitations/[id]/resend/route.ts
 - app/api/marketing/campaigns/roi/route.ts
-- app/api/marketing/campaigns/route.ts
-- app/api/marketing/campaigns/[id]/route.ts
-- app/api/marketing/platforms/route.ts
-- app/api/marketing/platforms/[id]/route.ts
 - app/api/medications/route.ts
 - app/api/notifications/push/subscribe/route.ts
 - app/api/notifications/push/track-click/route.ts
 - app/api/notifications/push/unsubscribe/route.ts
 - app/api/notifications/send-confirmation/route.ts
 - app/api/patient-sources/route.ts
-- app/api/patients/route.ts
-- app/api/patients/[id]/route.ts
 - app/api/permissions/check/route.ts
 - app/api/permissions/my/route.ts
 - app/api/prescriptions/route.ts
 - app/api/prescriptions/[id]/pdf/route.ts
 - app/api/prescriptions/[id]/route.ts
+- app/api/public/availability/route.ts
+- app/api/public/book/route.ts
+- app/api/public/clinic/[slug]/route.ts
+- app/api/reset/route.ts
+- app/api/services/[id]/cost/route.ts
+- app/api/services/[id]/supplies/route.ts
 
 ## Cron guard inventory
 

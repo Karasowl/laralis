@@ -62,6 +62,11 @@ describe('Stage permission boundaries', () => {
       expect(response.body.permissions['treatments.create']).to.eq(false)
       expect(response.body.permissions['treatments.edit']).to.eq(false)
       expect(response.body.permissions['treatments.delete']).to.eq(false)
+      expect(response.body.permissions['treatments.mark_paid']).to.eq(false)
+      expect(response.body.permissions['campaigns.view']).to.eq(false)
+      expect(response.body.permissions['campaigns.create']).to.eq(false)
+      expect(response.body.permissions['campaigns.edit']).to.eq(false)
+      expect(response.body.permissions['campaigns.delete']).to.eq(false)
     })
   })
 
@@ -264,6 +269,179 @@ describe('Stage permission boundaries', () => {
             })
           })
         })
+      })
+    })
+  })
+
+  it('blocks viewer marketing and treatment payment endpoints at the API', () => {
+    let platformId: string | undefined
+    let campaignId: string | undefined
+    let treatmentWithBalanceId: string | undefined
+
+    cy.loginAsDoctor()
+    selectClinicA()
+
+    cy.request('/api/marketing/platforms').then((platformsResponse) => {
+      expect(platformsResponse.status).to.eq(200)
+      const platforms = rowsFromBody(platformsResponse.body)
+      expect(platforms.length, 'owner can read marketing platforms for permission fixture').to.be.greaterThan(0)
+      platformId = platforms[0].id
+    })
+
+    cy.request('/api/marketing/campaigns?includeArchived=true').then((campaignsResponse) => {
+      expect(campaignsResponse.status).to.eq(200)
+      const campaigns = rowsFromBody(campaignsResponse.body)
+      expect(campaigns.length, 'owner can read marketing campaigns for permission fixture').to.be.greaterThan(0)
+      campaignId = campaigns[0].id
+    })
+
+    cy.request('/api/treatments').then((treatmentsResponse) => {
+      expect(treatmentsResponse.status).to.eq(200)
+      const treatments = rowsFromBody(treatmentsResponse.body)
+      const treatmentWithBalance = treatments.find((treatment: any) => Number(treatment.pending_balance_cents || 0) > 0) || treatments[0]
+      expect(treatmentWithBalance?.id, 'treatment fixture for payment permission').to.exist
+      treatmentWithBalanceId = treatmentWithBalance.id
+    })
+
+    cy.then(() => {
+      expect(platformId, 'platform id fixture').to.exist
+      expect(campaignId, 'campaign id fixture').to.exist
+      expect(treatmentWithBalanceId, 'treatment payment fixture').to.exist
+
+      cy.loginAsStageUser(viewerEmail, undefined, { allowSetup: true })
+      selectClinicA()
+
+      cy.request({
+        url: '/api/marketing/platforms',
+        failOnStatusCode: false,
+      }).then((response) => {
+        expect(response.status, 'viewer cannot read marketing platforms').to.eq(403)
+        expect(response.body.error).to.eq('Forbidden')
+      })
+
+      cy.request({
+        method: 'POST',
+        url: '/api/marketing/platforms',
+        failOnStatusCode: false,
+        body: {
+          display_name: `QA Viewer Platform ${stamp}`,
+        },
+      }).then((response) => {
+        expect(response.status, 'viewer cannot create marketing platforms').to.eq(403)
+        expect(response.body.error).to.eq('Forbidden')
+      })
+
+      cy.request({
+        method: 'PUT',
+        url: '/api/marketing/platforms',
+        failOnStatusCode: false,
+        body: {
+          id: platformId,
+          display_name: `QA Viewer Platform ${stamp}`,
+        },
+      }).then((response) => {
+        expect(response.status, 'viewer cannot edit marketing platforms').to.eq(403)
+        expect(response.body.error).to.eq('Forbidden')
+      })
+
+      cy.request({
+        method: 'DELETE',
+        url: '/api/marketing/platforms',
+        failOnStatusCode: false,
+        body: {
+          id: platformId,
+        },
+      }).then((response) => {
+        expect(response.status, 'viewer cannot delete marketing platforms').to.eq(403)
+        expect(response.body.error).to.eq('Forbidden')
+      })
+
+      cy.request({
+        method: 'PUT',
+        url: `/api/marketing/platforms/${platformId}`,
+        failOnStatusCode: false,
+        body: {
+          display_name: `QA Viewer Platform ${stamp}`,
+        },
+      }).then((response) => {
+        expect(response.status, 'viewer cannot edit dynamic marketing platforms').to.eq(403)
+        expect(response.body.error).to.eq('Forbidden')
+      })
+
+      cy.request({
+        method: 'DELETE',
+        url: `/api/marketing/platforms/${platformId}`,
+        failOnStatusCode: false,
+      }).then((response) => {
+        expect(response.status, 'viewer cannot delete dynamic marketing platforms').to.eq(403)
+        expect(response.body.error).to.eq('Forbidden')
+      })
+
+      cy.request({
+        url: '/api/marketing/campaigns?includeArchived=true',
+        failOnStatusCode: false,
+      }).then((response) => {
+        expect(response.status, 'viewer cannot read marketing campaigns').to.eq(403)
+        expect(response.body.error).to.eq('Forbidden')
+      })
+
+      cy.request({
+        method: 'POST',
+        url: '/api/marketing/campaigns',
+        failOnStatusCode: false,
+        body: {
+          platform_id: platformId,
+          name: `QA Viewer Campaign ${stamp}`,
+        },
+      }).then((response) => {
+        expect(response.status, 'viewer cannot create marketing campaigns').to.eq(403)
+        expect(response.body.error).to.eq('Forbidden')
+      })
+
+      cy.request({
+        method: 'PUT',
+        url: '/api/marketing/campaigns',
+        failOnStatusCode: false,
+        body: {
+          id: campaignId,
+          name: `QA Viewer Campaign ${stamp}`,
+        },
+      }).then((response) => {
+        expect(response.status, 'viewer cannot edit marketing campaigns').to.eq(403)
+        expect(response.body.error).to.eq('Forbidden')
+      })
+
+      cy.request({
+        method: 'PATCH',
+        url: `/api/marketing/campaigns/${campaignId}`,
+        failOnStatusCode: false,
+        body: {
+          name: `QA Viewer Campaign ${stamp}`,
+        },
+      }).then((response) => {
+        expect(response.status, 'viewer cannot patch dynamic marketing campaigns').to.eq(403)
+        expect(response.body.error).to.eq('Forbidden')
+      })
+
+      cy.request({
+        method: 'DELETE',
+        url: `/api/marketing/campaigns/${campaignId}`,
+        failOnStatusCode: false,
+      }).then((response) => {
+        expect(response.status, 'viewer cannot delete dynamic marketing campaigns').to.eq(403)
+        expect(response.body.error).to.eq('Forbidden')
+      })
+
+      cy.request({
+        method: 'POST',
+        url: `/api/treatments/${treatmentWithBalanceId}/payment`,
+        failOnStatusCode: false,
+        body: {
+          amount_cents: 1,
+        },
+      }).then((response) => {
+        expect(response.status, 'viewer cannot register treatment payments').to.eq(403)
+        expect(response.body.error).to.eq('Forbidden')
       })
     })
   })

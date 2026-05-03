@@ -175,21 +175,27 @@ function analyzeApiSurface() {
 
   const rows = routeFiles.map(file => {
     const text = readText(file)
+    const withPermission = text.includes('withPermission(')
+    const manualPermission = text.includes('forbiddenIfMissingPermission(') || text.includes('userHasPermission(')
     return {
       route: rel(file),
-      withPermission: text.includes('withPermission('),
+      withPermission,
+      manualPermission,
+      permissionGuard: withPermission || manualPermission,
       supabaseAdmin: text.includes('supabaseAdmin'),
       requireCronAuth: text.includes('requireCronAuth')
     }
   })
 
   const withPermission = rows.filter(row => row.withPermission).length
+  const manualPermission = rows.filter(row => row.manualPermission).length
+  const permissionGuard = rows.filter(row => row.permissionGuard).length
   const adminRoutes = rows.filter(row => row.supabaseAdmin).length
-  const adminWithoutPermission = rows.filter(row => row.supabaseAdmin && !row.withPermission && !row.requireCronAuth)
+  const adminWithoutPermission = rows.filter(row => row.supabaseAdmin && !row.permissionGuard && !row.requireCronAuth)
 
   return {
     status: adminWithoutPermission.length ? 'warn' : 'pass',
-    summary: `api routes: ${rows.length}; withPermission: ${withPermission}; using supabaseAdmin: ${adminRoutes}; admin without withPermission/cron guard: ${adminWithoutPermission.length}`,
+    summary: `api routes: ${rows.length}; permission guard: ${permissionGuard} (withPermission: ${withPermission}, manual: ${manualPermission}); using supabaseAdmin: ${adminRoutes}; admin without permission/cron guard: ${adminWithoutPermission.length}`,
     details: adminWithoutPermission.slice(0, 60).map(row => row.route)
   }
 }

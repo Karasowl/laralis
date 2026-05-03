@@ -95,11 +95,11 @@ Cobertura actual:
 
 Cobertura actual:
 
-- `apps/dental/cypress/e2e/stage/05-permission-boundaries.cy.ts` inicia sesion como `qa-viewer@laralis.test` y verifica que sus permisos de pacientes, servicios, insumos y tratamientos son solo lectura.
-- El mismo spec comprueba que el backend bloquea con `403` escrituras de viewer en `POST /api/patients`, `POST/PUT/DELETE /api/supplies`, `POST/PUT/DELETE /api/services` y `POST/PUT/DELETE /api/treatments`.
+- `apps/dental/cypress/e2e/stage/05-permission-boundaries.cy.ts` inicia sesion como `qa-viewer@laralis.test` y verifica que sus permisos de pacientes, servicios, insumos y tratamientos son solo lectura, y que marketing/pagos no son accesibles para ese rol.
+- El mismo spec comprueba que el backend bloquea con `403` escrituras de viewer en `POST /api/patients`, `POST/PUT/DELETE /api/supplies`, `POST/PUT/DELETE /api/services`, `POST/PUT/DELETE /api/treatments`, endpoints de plataformas/campanas de marketing y `POST /api/treatments/:id/payment`.
 - El spec tambien comprueba que el owner sigue pudiendo crear y limpiar un paciente QA, para evitar que el guard rompa permisos legitimos.
-- `apps/dental/app/api/patients/*`, `apps/dental/app/api/supplies/*`, `apps/dental/app/api/services/*` y `apps/dental/app/api/treatments/*` son ahora las primeras superficies protegidas por permisos granulares reales de lectura, creacion, edicion y borrado.
-- Todavia falta extender el mismo patron a gastos, costos fijos, marketing, Lara, pagos especificos de tratamientos y endpoints de reportes.
+- `apps/dental/app/api/patients/*`, `apps/dental/app/api/supplies/*`, `apps/dental/app/api/services/*`, `apps/dental/app/api/treatments/*` y `apps/dental/app/api/marketing/*` son ahora las primeras superficies protegidas por permisos granulares reales de lectura, creacion, edicion y borrado.
+- Todavia falta extender el mismo patron a Lara, reportes/analytics, acciones IA y endpoints secundarios de inventario/calendario/notificaciones.
 - Brecha abierta: el viewer puede autenticarse y operar permisos por API, pero el flujo visual estricto todavia puede caer en onboarding. El spec usa `allowSetup` para aislar la prueba de permisos backend hasta que el middleware/UI de miembros quede resuelto.
 
 ## Capacidades que no pueden quedar fuera
