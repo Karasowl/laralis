@@ -115,16 +115,14 @@ export async function POST(request: NextRequest) {
     const workspaceCookie = cookieStore.get('workspaceId')?.value || null;
 
     if (resetType === 'initial_setup') {
-      const workspaceIds = new Set<string>();
-      if (workspaceCookie) workspaceIds.add(workspaceCookie);
-
       const { data: ownedWorkspaces, error: ownedError } = await supabaseAdmin
         .from('workspaces')
         .select('id')
         .eq('owner_id', user.id);
       if (ownedError) throw ownedError;
+      const allowedWorkspaceIds = new Set<string>();
       (ownedWorkspaces ?? []).forEach(ws => {
-        if (ws?.id) workspaceIds.add(ws.id);
+        if (ws?.id) allowedWorkspaceIds.add(ws.id);
       });
 
       const { data: memberWorkspaces, error: memberError } = await supabaseAdmin
@@ -133,17 +131,53 @@ export async function POST(request: NextRequest) {
         .eq('user_id', user.id);
       if (memberError) throw memberError;
       (memberWorkspaces ?? []).forEach(row => {
-        if (row?.workspace_id) workspaceIds.add(row.workspace_id);
+        if (row?.workspace_id) allowedWorkspaceIds.add(row.workspace_id);
       });
 
-      for (const wsId of Array.from(workspaceIds)) {
+      if (workspaceCookie && !allowedWorkspaceIds.has(workspaceCookie)) {
+        return NextResponse.json(
+          { error: 'Workspace not found for current user' },
+          { status: 403 }
+        );
+      }
+
+      const candidateIds = workspaceCookie
+        ? [workspaceCookie]
+        : Array.from(allowedWorkspaceIds);
+
+      if (candidateIds.length === 0) {
+        return NextResponse.json({ success: true, message: 'No initial setup to cancel' });
+      }
+
+      const { data: candidateWorkspaces, error: candidateError } = await supabaseAdmin
+        .from('workspaces')
+        .select('id, onboarding_completed')
+        .in('id', candidateIds);
+      if (candidateError) throw candidateError;
+
+      const completedWorkspace = (candidateWorkspaces ?? []).find(ws => ws?.onboarding_completed === true);
+      if (completedWorkspace) {
+        return NextResponse.json(
+          { error: 'Initial setup reset is only allowed for incomplete onboarding workspaces' },
+          { status: 409 }
+        );
+      }
+
+      const workspaceIds = (candidateWorkspaces ?? [])
+        .map(ws => ws?.id)
+        .filter((id): id is string => Boolean(id));
+
+      for (const wsId of workspaceIds) {
         await deleteWorkspaceData(wsId);
       }
 
-      await supabaseAdmin
-        .from('workspace_members')
-        .delete()
-        .eq('user_id', user.id);
+      if (workspaceIds.length > 0) {
+        await supabaseAdmin
+          .from('workspace_members')
+          .delete()
+          .eq('user_id', user.id)
+          .in('workspace_id', workspaceIds);
+      }
 
       const currentMetadata = { ...(user.user_metadata || {}) } as Record<string, unknown>;
       currentMetadata.onboarding_completed = false;
