@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { z } from 'zod'
 import { readJson } from '@/lib/validation'
+import { forbiddenIfMissingPermission, type Permission } from '@/lib/permissions'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,6 +25,9 @@ const updateSessionSchema = z.object({
 interface RouteContext {
   params: { id: string }
 }
+
+const laraPermissionForMode = (mode: string | null | undefined): Permission =>
+  mode === 'query' ? 'lara.use_query_mode' : 'lara.use_entry_mode'
 
 /**
  * GET /api/ai/sessions/[id]
@@ -59,6 +63,13 @@ export async function GET(
         { status: 404 }
       )
     }
+
+    const forbidden = await forbiddenIfMissingPermission(
+      session.user.id,
+      chatSession.clinic_id,
+      laraPermissionForMode(chatSession.mode)
+    )
+    if (forbidden) return forbidden
 
     // Get messages
     const limit = Math.min(parseInt(searchParams.get('limit') || '100'), 500)
@@ -134,6 +145,27 @@ export async function PATCH(
 
     const sessionId = params.id
 
+    const { data: existingSession, error: existingError } = await supabaseAdmin
+      .from('chat_sessions')
+      .select('id, clinic_id, mode')
+      .eq('id', sessionId)
+      .eq('user_id', session.user.id)
+      .single()
+
+    if (existingError || !existingSession) {
+      return NextResponse.json(
+        { error: 'Session not found' },
+        { status: 404 }
+      )
+    }
+
+    const forbidden = await forbiddenIfMissingPermission(
+      session.user.id,
+      existingSession.clinic_id,
+      laraPermissionForMode(existingSession.mode)
+    )
+    if (forbidden) return forbidden
+
     // Update session (verify ownership via WHERE clause)
     const { data: updated, error } = await supabaseAdmin
       .from('chat_sessions')
@@ -189,6 +221,27 @@ export async function DELETE(
     }
 
     const sessionId = params.id
+
+    const { data: existingSession, error: existingError } = await supabaseAdmin
+      .from('chat_sessions')
+      .select('id, clinic_id, mode')
+      .eq('id', sessionId)
+      .eq('user_id', session.user.id)
+      .single()
+
+    if (existingError || !existingSession) {
+      return NextResponse.json(
+        { error: 'Session not found' },
+        { status: 404 }
+      )
+    }
+
+    const forbidden = await forbiddenIfMissingPermission(
+      session.user.id,
+      existingSession.clinic_id,
+      laraPermissionForMode(existingSession.mode)
+    )
+    if (forbidden) return forbidden
 
     // Delete session (cascade deletes messages)
     const { error } = await supabaseAdmin

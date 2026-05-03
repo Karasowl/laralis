@@ -561,6 +561,29 @@ describe('Stage permission boundaries', () => {
 
     cy.loginAsStageUser(viewerEmail, undefined, { allowSetup: true })
     selectClinicA().then((clinicId) => {
+      expectForbiddenGet(
+        `/api/ai/sessions?clinicId=${clinicId}&mode=query`,
+        'viewer cannot list Lara query sessions'
+      )
+      expectForbiddenPost(
+        '/api/ai/sessions',
+        { clinicId, mode: 'query', title: `QA forbidden ${stamp}` },
+        'viewer cannot create Lara query sessions'
+      )
+      expectForbiddenPost(
+        '/api/ai/query',
+        { clinicId, query: 'Resume los ingresos de la clinica' },
+        'viewer cannot query Lara'
+      )
+      expectForbiddenGet(
+        `/api/ai/feedback?clinicId=${clinicId}`,
+        'viewer cannot read Lara feedback analytics'
+      )
+      expectForbiddenPost(
+        '/api/ai/feedback',
+        { clinicId, message_id: fakeServiceId, rating: 'positive' },
+        'viewer cannot create Lara feedback'
+      )
       expectForbiddenPost(
         '/api/actions/analyze-patient-retention',
         { clinic_id: clinicId, period_days: 90 },

@@ -18,6 +18,7 @@ import { hasAIConfig, validateAIConfig } from '@/lib/ai/config'
 import { ConversationContextManager } from '@/lib/ai/context'
 import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
+import { forbiddenIfMissingPermission } from '@/lib/permissions'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300 // 5 minutes for Kimi K2 Thinking
@@ -83,6 +84,8 @@ export async function POST(request: NextRequest) {
     }
 
     const { clinicId, userId } = clinicContext
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'lara.use_query_mode')
+    if (forbidden) return forbidden
 
     // Create Supabase client with auth
     const supabase = await createClient()

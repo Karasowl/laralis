@@ -12,6 +12,7 @@ import { cookies } from 'next/headers'
 import { resolveClinicContext } from '@/lib/clinic'
 import { z } from 'zod'
 import { readJson } from '@/lib/validation'
+import { forbiddenIfMissingPermission, userHasPermission } from '@/lib/permissions'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,6 +23,23 @@ const feedbackSchema = z.object({
   comment: z.string().max(1000).optional(),
   query_type: z.string().max(50).optional(),
 })
+
+async function forbiddenIfMissingAnyLaraAccess(userId: string, clinicId: string) {
+  const [canEntry, canQuery] = await Promise.all([
+    userHasPermission(userId, clinicId, 'lara.use_entry_mode'),
+    userHasPermission(userId, clinicId, 'lara.use_query_mode'),
+  ])
+
+  if (canEntry || canQuery) return null
+
+  return NextResponse.json(
+    {
+      error: 'Forbidden',
+      message: 'You do not have permission: lara.use_entry_mode or lara.use_query_mode',
+    },
+    { status: 403 }
+  )
+}
 
 /**
  * POST /api/ai/feedback
@@ -65,6 +83,9 @@ export async function POST(request: NextRequest) {
         { status: clinicContext.error.status }
       )
     }
+
+    const forbidden = await forbiddenIfMissingAnyLaraAccess(session.user.id, clinicContext.clinicId)
+    if (forbidden) return forbidden
 
     // Verify message exists and belongs to user's session
     const { data: message, error: msgError } = await supabaseAdmin
@@ -186,6 +207,13 @@ export async function GET(request: NextRequest) {
         { status: clinicContext.error.status }
       )
     }
+
+    const forbidden = await forbiddenIfMissingPermission(
+      session.user.id,
+      clinicContext.clinicId,
+      'lara.use_query_mode'
+    )
+    if (forbidden) return forbidden
 
     // Get feedback stats
     const { data: feedback, error } = await supabaseAdmin

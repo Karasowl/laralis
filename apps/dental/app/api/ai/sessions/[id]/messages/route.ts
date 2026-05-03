@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { z } from 'zod'
 import { readJson } from '@/lib/validation'
+import { forbiddenIfMissingPermission, type Permission } from '@/lib/permissions'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,6 +31,9 @@ const createMessageSchema = z.object({
 interface RouteContext {
   params: { id: string }
 }
+
+const laraPermissionForMode = (mode: string | null | undefined): Permission =>
+  mode === 'query' ? 'lara.use_query_mode' : 'lara.use_entry_mode'
 
 /**
  * POST /api/ai/sessions/[id]/messages
@@ -68,7 +72,7 @@ export async function POST(
     // Verify session ownership
     const { data: chatSession, error: fetchError } = await supabaseAdmin
       .from('chat_sessions')
-      .select('id, user_id')
+      .select('id, user_id, clinic_id, mode')
       .eq('id', sessionId)
       .eq('user_id', session.user.id)
       .single()
@@ -79,6 +83,13 @@ export async function POST(
         { status: 404 }
       )
     }
+
+    const forbidden = await forbiddenIfMissingPermission(
+      session.user.id,
+      chatSession.clinic_id,
+      laraPermissionForMode(chatSession.mode)
+    )
+    if (forbidden) return forbidden
 
     // Create message
     const { data: message, error } = await supabaseAdmin

@@ -12,6 +12,11 @@ import { cookies } from 'next/headers'
 import { resolveClinicContext } from '@/lib/clinic'
 import { z } from 'zod'
 import { readJson } from '@/lib/validation'
+import {
+  forbiddenIfMissingPermission,
+  userHasPermission,
+  type Permission,
+} from '@/lib/permissions'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,6 +25,26 @@ const createSessionSchema = z.object({
   mode: z.enum(['entry', 'query']),
   title: z.string().max(255).optional(),
 })
+
+const laraPermissionForMode = (mode: 'entry' | 'query'): Permission =>
+  mode === 'query' ? 'lara.use_query_mode' : 'lara.use_entry_mode'
+
+async function forbiddenIfMissingAnyLaraAccess(userId: string, clinicId: string) {
+  const [canEntry, canQuery] = await Promise.all([
+    userHasPermission(userId, clinicId, 'lara.use_entry_mode'),
+    userHasPermission(userId, clinicId, 'lara.use_query_mode'),
+  ])
+
+  if (canEntry || canQuery) return null
+
+  return NextResponse.json(
+    {
+      error: 'Forbidden',
+      message: 'You do not have permission: lara.use_entry_mode or lara.use_query_mode',
+    },
+    { status: 403 }
+  )
+}
 
 /**
  * GET /api/ai/sessions
@@ -55,6 +80,14 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0')
     const mode = searchParams.get('mode') as 'entry' | 'query' | null
     const includeArchived = searchParams.get('includeArchived') === 'true'
+    const forbidden = mode
+      ? await forbiddenIfMissingPermission(
+        clinicContext.userId,
+        clinicContext.clinicId,
+        laraPermissionForMode(mode)
+      )
+      : await forbiddenIfMissingAnyLaraAccess(clinicContext.userId, clinicContext.clinicId)
+    if (forbidden) return forbidden
 
     // Build query
     let query = supabaseAdmin
@@ -143,6 +176,13 @@ export async function POST(request: NextRequest) {
         { status: clinicContext.error.status }
       )
     }
+
+    const forbidden = await forbiddenIfMissingPermission(
+      clinicContext.userId,
+      clinicContext.clinicId,
+      laraPermissionForMode(validation.data.mode)
+    )
+    if (forbidden) return forbidden
 
     // Create session
     const { data: newSession, error } = await supabaseAdmin

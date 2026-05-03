@@ -9,6 +9,60 @@ Cada entrada debe explicar:
 - Como se verifica.
 - Que riesgo protege.
 
+## 2026-05-03 - Sesiones y consulta de Lara requieren permisos backend
+
+### Problema
+
+Las acciones de Lara ya estaban protegidas, pero quedaban rutas base del asistente fuera del mismo limite granular:
+
+- Crear/listar sesiones de AI.
+- Leer, archivar o borrar sesiones.
+- Agregar mensajes a sesiones.
+- Ejecutar `/api/ai/query`.
+- Leer o escribir feedback de AI.
+
+Riesgo asociado:
+
+- Un viewer podia intentar abrir la puerta de Lara por APIs de sesion aunque no pudiera ejecutar acciones.
+- `/api/ai/query` podia consultar datos si el usuario tenia contexto de clinica pero no permiso `lara.use_query_mode`.
+- Estadisticas de feedback del asistente quedaban expuestas sin permiso de Lara.
+
+### Prueba permanente
+
+Archivo:
+
+```text
+apps/dental/cypress/e2e/stage/05-permission-boundaries.cy.ts
+```
+
+Casos protegidos:
+
+- `qa-viewer@laralis.test` recibe `403 Forbidden` al listar o crear sesiones de query.
+- `qa-viewer@laralis.test` recibe `403 Forbidden` al llamar `/api/ai/query`.
+- `qa-viewer@laralis.test` recibe `403 Forbidden` al leer estadisticas de feedback o crear feedback de Lara.
+
+### Implementacion protegida
+
+Archivos:
+
+```text
+apps/dental/app/api/ai/query/route.ts
+apps/dental/app/api/ai/feedback/route.ts
+apps/dental/app/api/ai/sessions/route.ts
+apps/dental/app/api/ai/sessions/[id]/route.ts
+apps/dental/app/api/ai/sessions/[id]/messages/route.ts
+```
+
+Sesiones entry usan `lara.use_entry_mode`. Sesiones query y `/api/ai/query` usan `lara.use_query_mode`. Feedback exige acceso a Lara y las estadisticas de feedback exigen `lara.use_query_mode`.
+
+### Verificacion
+
+Comando de stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:permissions
+```
+
 ## 2026-05-03 - Dashboards financieros y export clinico requieren permisos backend
 
 ### Problema
