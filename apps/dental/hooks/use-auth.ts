@@ -124,6 +124,9 @@ export function useAuth(): UseAuthReturn {
       }
 
       const fullName = `${credentials.firstName || ''} ${credentials.lastName || ''}`.trim()
+      const cookieLocale = typeof document !== 'undefined'
+        ? document.cookie.split('; ').find(part => part.startsWith('locale='))?.split('=')[1]
+        : undefined
 
       const { error: signUpError, data } = await supabase.auth.signUp({
         email: credentials.email,
@@ -132,7 +135,8 @@ export function useAuth(): UseAuthReturn {
           data: {
             first_name: credentials.firstName,
             last_name: credentials.lastName,
-            full_name: fullName
+            full_name: fullName,
+            preferred_language: cookieLocale
           },
           // IMPORTANT: Tell Supabase where to redirect after email confirmation
           emailRedirectTo: `${window.location.origin}/auth/callback`
@@ -140,30 +144,49 @@ export function useAuth(): UseAuthReturn {
       })
 
       if (signUpError) {
-        setError(signUpError.message)
-        toast.error(signUpError.message)
+        const existingAccountError = /already registered|already exists|user already/i.test(signUpError.message)
+        const message = existingAccountError ? t('errors.emailExists') : signUpError.message
+        setError(message)
+        toast.error(message)
+        return false
+      }
+
+      const existingAccount = data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0
+      if (existingAccount) {
+        const message = t('errors.emailExists')
+        setError(message)
+        toast.error(message)
+        return false
+      }
+
+      if (!data.user) {
+        const message = t('errors.signUpError')
+        setError(message)
+        toast.error(message)
         return false
       }
 
       // Don't show toast here, the verify-email page will show all the info
       // toast.success(t('register_success'))
 
-      const cookieLocale = typeof document !== 'undefined'
-        ? document.cookie.split('; ').find(part => part.startsWith('locale='))?.split('=')[1]
-        : undefined
-
       const preferredLanguage = cookieLocale || (data.user?.user_metadata as Record<string, any> | null)?.preferred_language
-      if (preferredLanguage) {
+      if (preferredLanguage && data.session) {
         persistLocalePreference(preferredLanguage)
         try {
           await supabase.auth.updateUser({ data: { preferred_language: preferredLanguage } })
         } catch (error) {
           console.error('[useAuth] Failed to persist preferred language after registration', error)
         }
+      } else if (preferredLanguage) {
+        persistLocalePreference(preferredLanguage)
       }
 
-      // Redirect to verify email page with the email as parameter
-      if (data.user) {
+      if (data.session) {
+        router.refresh()
+        setTimeout(() => {
+          window.location.href = '/'
+        }, 500)
+      } else {
         router.push(`/auth/verify-email?email=${encodeURIComponent(credentials.email)}`)
       }
 

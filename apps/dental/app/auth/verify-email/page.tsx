@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { AuthLayout } from '@/components/auth/AuthLayout'
@@ -19,7 +19,24 @@ export default function VerifyEmailPage() {
   const [resending, setResending] = useState(false)
   const [resendCount, setResendCount] = useState(0)
   const [timeLeft, setTimeLeft] = useState(0)
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    supabase.auth.getUser().then(({ data }) => {
+      if (cancelled) return
+      if (data.user?.email_confirmed_at || data.user?.confirmed_at) {
+        router.replace('/')
+      }
+    }).catch((error) => {
+      console.error('[verify-email] Failed to check current user:', error)
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [router, supabase])
 
   // Timer for resend cooldown
   useEffect(() => {
@@ -45,7 +62,7 @@ export default function VerifyEmailPage() {
 
       if (error) {
         console.error('[verify-email] Resend error:', error)
-        toast.error(t('resendError'))
+        toast.error(error.message || t('resendError'))
       } else {
         toast.success(t('resendSuccess'))
         setResendCount(resendCount + 1)
