@@ -108,6 +108,56 @@ Comando de stage:
 npm --workspace @laralis/dental run test:e2e:stage:permissions
 ```
 
+## 2026-05-03 - Notificaciones sensibles y rutas publicas clasificadas
+
+### Problema
+
+El inventario QA marcaba rutas con `supabaseAdmin` que no tenian permiso granular ni contrato explicito. Mezclaba dos casos distintos:
+
+- Rutas sensibles que si disparan acciones, como correo de prueba y confirmaciones de tratamiento.
+- Rutas intencionalmente publicas, tokenizadas, self-service, de contexto o webhook, como booking publico, invitaciones por token, push subscription, delete-account y WhatsApp webhook.
+
+Riesgo asociado:
+
+- Un usuario viewer podia intentar disparar correos desde endpoints de notificaciones por API.
+- El inventario generaba ruido y no diferenciaba una fuga real de una ruta publica disenada para booking o webhooks.
+- Las rutas intencionales podian quedar sin contrato visible para futuros agentes.
+
+### Prueba permanente
+
+Archivo:
+
+```text
+apps/dental/cypress/e2e/stage/05-permission-boundaries.cy.ts
+```
+
+Casos protegidos:
+
+- `POST /api/settings/notifications/test` responde `403 Forbidden` para viewer.
+- `POST /api/notifications/send-confirmation` responde `403 Forbidden` para viewer antes de leer tratamiento o enviar correo.
+- `npm --workspace @laralis/dental run qa:check` exige que la superficie API quede sin rutas admin ambiguas.
+
+### Implementacion protegida
+
+Archivos:
+
+```text
+apps/dental/app/api/settings/notifications/test/route.ts
+apps/dental/app/api/notifications/send-confirmation/route.ts
+apps/dental/scripts/qa-inventory.mjs
+```
+
+Las rutas de correo usan `settings.edit` o `treatments.create`. El inventario acepta clasificaciones explicitas `@qa-public-route`, `@qa-self-service-route`, `@qa-context-route`, `@qa-token-route` y `@qa-webhook-guard` para rutas con contrato distinto a permisos granulares.
+
+### Verificacion
+
+Comandos:
+
+```bash
+npm --workspace @laralis/dental run qa:check
+npm --workspace @laralis/dental run test:e2e:stage:permissions
+```
+
 ## 2026-05-03 - Export/import de workspace requiere permisos granulares
 
 ### Problema

@@ -856,6 +856,14 @@ describe('Stage permission boundaries', () => {
           refund_reason: `QA forbidden ${stamp}`,
         }
       )
+      expectForbiddenRequest(
+        'POST',
+        '/api/notifications/send-confirmation',
+        'viewer cannot send treatment confirmation notifications',
+        {
+          treatmentId: fakeId,
+        }
+      )
     })
   })
 
@@ -955,6 +963,11 @@ describe('Stage permission boundaries', () => {
           sender_name: null,
           reply_to_email: null,
         }
+      )
+      expectForbiddenRequest(
+        'POST',
+        '/api/settings/notifications/test',
+        'viewer cannot send notification test emails'
       )
       expectForbiddenGet('/api/settings/time', 'viewer cannot read time settings')
       expectForbiddenRequest(

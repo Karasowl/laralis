@@ -5,6 +5,7 @@ import { cookies } from 'next/headers'
 import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
 
+// QA route contract: @qa-self-service-route authenticated current-user push unsubscription.
 interface UnsubscribeBody {
   endpoint: string
 }
@@ -23,10 +24,10 @@ export async function POST(request: NextRequest) {
     const cookieStore = await cookies()
     const clinicContext = await resolveClinicContext({ cookieStore })
 
-    if (!clinicContext.userId) {
+    if ('error' in clinicContext) {
       return NextResponse.json(
-        { error: 'Unauthorized: User not authenticated' },
-        { status: 401 }
+        { error: clinicContext.error.message },
+        { status: clinicContext.error.status }
       )
     }
 

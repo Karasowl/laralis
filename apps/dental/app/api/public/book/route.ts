@@ -5,6 +5,7 @@ import { sendBookingConfirmation } from '@/lib/email/service'
 import { sendBookingReceivedWhatsApp } from '@/lib/whatsapp'
 import { readJson } from '@/lib/validation'
 
+// QA route contract: @qa-public-route public booking request intake.
 export const dynamic = 'force-dynamic'
 
 const bookingSchema = z.object({

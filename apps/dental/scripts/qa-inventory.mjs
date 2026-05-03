@@ -172,6 +172,13 @@ function analyzeTestHooks() {
 
 function analyzeApiSurface() {
   const routeFiles = walk(path.join(cwd, 'app', 'api'), file => file.endsWith('route.ts'))
+  const qaClassificationMarkers = [
+    '@qa-public-route',
+    '@qa-self-service-route',
+    '@qa-context-route',
+    '@qa-token-route',
+    '@qa-webhook-guard'
+  ]
 
   const rows = routeFiles.map(file => {
     const text = readText(file)
@@ -184,11 +191,13 @@ function analyzeApiSurface() {
       text.includes('forbiddenIfMissingPermissions(') ||
       text.includes('forbiddenIfMissingWorkspacePermission(') ||
       text.includes('userHasPermission(')
+    const qaClassified = qaClassificationMarkers.some(marker => text.includes(marker))
     return {
       route: rel(file),
       withPermission,
       manualPermission,
       permissionGuard: withPermission || manualPermission,
+      qaClassified,
       supabaseAdmin: text.includes('supabaseAdmin'),
       requireCronAuth: text.includes('requireCronAuth')
     }
@@ -197,12 +206,18 @@ function analyzeApiSurface() {
   const withPermission = rows.filter(row => row.withPermission).length
   const manualPermission = rows.filter(row => row.manualPermission).length
   const permissionGuard = rows.filter(row => row.permissionGuard).length
+  const qaClassified = rows.filter(row => row.qaClassified).length
   const adminRoutes = rows.filter(row => row.supabaseAdmin).length
-  const adminWithoutPermission = rows.filter(row => row.supabaseAdmin && !row.permissionGuard && !row.requireCronAuth)
+  const adminWithoutPermission = rows.filter(row => (
+    row.supabaseAdmin &&
+    !row.permissionGuard &&
+    !row.requireCronAuth &&
+    !row.qaClassified
+  ))
 
   return {
     status: adminWithoutPermission.length ? 'warn' : 'pass',
-    summary: `api routes: ${rows.length}; permission guard: ${permissionGuard} (withPermission: ${withPermission}, manual: ${manualPermission}); using supabaseAdmin: ${adminRoutes}; admin without permission/cron guard: ${adminWithoutPermission.length}`,
+    summary: `api routes: ${rows.length}; permission guard: ${permissionGuard} (withPermission: ${withPermission}, manual: ${manualPermission}); qa classified: ${qaClassified}; using supabaseAdmin: ${adminRoutes}; admin without permission/cron guard/classification: ${adminWithoutPermission.length}`,
     details: adminWithoutPermission.slice(0, 60).map(row => row.route)
   }
 }

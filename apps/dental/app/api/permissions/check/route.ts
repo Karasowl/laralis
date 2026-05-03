@@ -4,6 +4,7 @@ import { resolveClinicContext } from '@/lib/clinic';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { isValidPermission, type Permission } from '@/lib/permissions';
 
+// QA route contract: @qa-self-service-route authenticated current-user permission check.
 /**
  * GET /api/permissions/check?permission=patients.create
  *

@@ -6,6 +6,7 @@ import { cookies } from 'next/headers';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
 
+// QA route contract: @qa-self-service-route authenticated current-user account deletion.
 export const dynamic = 'force-dynamic'
 
 const deleteAccountSchema = z.object({

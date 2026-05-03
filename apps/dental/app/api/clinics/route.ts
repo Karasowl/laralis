@@ -9,6 +9,7 @@ import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
 import { getAccessibleWorkspaceIds, userCanAccessWorkspace } from '@/lib/workspace-access'
 
+// QA route contract: @qa-context-route authenticated clinic list and active-clinic selection.
 export const dynamic = 'force-dynamic'
 
 const selectClinicSchema = z.object({

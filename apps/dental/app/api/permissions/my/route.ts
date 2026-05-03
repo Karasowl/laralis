@@ -4,6 +4,7 @@ import { resolveClinicContext } from '@/lib/clinic';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import type { PermissionMap, WorkspaceRole, ClinicRole } from '@/lib/permissions';
 
+// QA route contract: @qa-self-service-route authenticated current-user permission introspection.
 /**
  * GET /api/permissions/my
  *

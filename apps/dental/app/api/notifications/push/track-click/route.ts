@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
 
+// QA route contract: @qa-public-route service-worker click tracking by opaque notification id.
 interface TrackClickBody {
   notificationId: string
 }

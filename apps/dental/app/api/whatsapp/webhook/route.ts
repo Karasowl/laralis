@@ -7,6 +7,7 @@ import { hasAIConfig, validateAIConfig } from '@/lib/ai/config'
 import { buildInboxSystemPrompt } from '@/lib/ai/prompts/inbox-prompt'
 import { sendWhatsAppMessage } from '@/lib/whatsapp/service'
 
+// QA route contract: @qa-webhook-guard external Twilio webhook verified by provider signature.
 /**
  * Twilio signs every outbound webhook request with HMAC-SHA1 over
  * `<full url> + sorted(form params concatenated as key+value)`,

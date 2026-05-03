@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
+// QA route contract: @qa-public-route public booking availability lookup.
 export const dynamic = 'force-dynamic'
 
 interface BookingConfig {

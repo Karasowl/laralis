@@ -1,10 +1,10 @@
 # QA Inventory Report
 
-Generated: 2026-05-03T22:47:06.745Z
+Generated: 2026-05-03T23:05:18.865Z
 
 Status: fail
 Failing checks: 3
-Warning checks: 1
+Warning checks: 0
 
 ## QA docs
 
@@ -141,27 +141,9 @@ ui files: 435; files with data-testid: 1; data-testid occurrences: 4
 
 ## API permission surface
 
-Status: warn
+Status: pass
 
-api routes: 161; permission guard: 109 (withPermission: 30, manual: 79); using supabaseAdmin: 129; admin without permission/cron guard: 17
-
-- app/api/auth/delete-account/route.ts
-- app/api/auth/delete-account/send-code/route.ts
-- app/api/clinics/route.ts
-- app/api/invitations/accept/[token]/route.ts
-- app/api/invitations/reject/[token]/route.ts
-- app/api/notifications/push/subscribe/route.ts
-- app/api/notifications/push/track-click/route.ts
-- app/api/notifications/push/unsubscribe/route.ts
-- app/api/notifications/send-confirmation/route.ts
-- app/api/permissions/check/route.ts
-- app/api/permissions/my/route.ts
-- app/api/public/availability/route.ts
-- app/api/public/book/route.ts
-- app/api/public/clinic/[slug]/route.ts
-- app/api/settings/notifications/test/route.ts
-- app/api/setup/status/route.ts
-- app/api/whatsapp/webhook/route.ts
+api routes: 161; permission guard: 111 (withPermission: 30, manual: 81); qa classified: 15; using supabaseAdmin: 129; admin without permission/cron guard/classification: 0
 
 ## Cron guard inventory
 

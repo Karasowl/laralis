@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
+// QA route contract: @qa-token-route public invitation lookup plus authenticated email-matched acceptance.
 /**
  * GET /api/invitations/accept/[token]
  *

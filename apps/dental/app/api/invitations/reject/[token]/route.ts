@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
+// QA route contract: @qa-token-route public invitation rejection by opaque token.
 /**
  * POST /api/invitations/reject/[token]
  *

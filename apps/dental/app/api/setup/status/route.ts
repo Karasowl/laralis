@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { resolveClinicContext } from '@/lib/clinic'
 
+// QA route contract: @qa-context-route authenticated setup-status read for current clinic.
 export const dynamic = 'force-dynamic'
 
 

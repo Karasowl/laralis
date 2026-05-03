@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
+// QA route contract: @qa-public-route public booking clinic profile by slug.
 export const dynamic = 'force-dynamic'
 
 interface RouteParams {

@@ -4,6 +4,7 @@ import { resolveClinicContext } from '@/lib/clinic';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { sendConfirmationEmail } from '@/lib/email/service';
+import { forbiddenIfMissingPermission } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +19,13 @@ export async function POST() {
         { status: clinicContext.error.status }
       );
     }
+
+    const forbidden = await forbiddenIfMissingPermission(
+      clinicContext.userId,
+      clinicContext.clinicId,
+      'settings.edit'
+    );
+    if (forbidden) return forbidden;
 
     const supabase = createClient();
     const { data: authData, error: authError } = await supabase.auth.getUser();

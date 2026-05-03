@@ -16,6 +16,7 @@ import {
 } from '@/lib/email/service';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
+import { forbiddenIfMissingPermission } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,7 +40,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { clinicId } = clinicContext;
+    const { clinicId, userId } = clinicContext;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'treatments.create');
+    if (forbidden) return forbidden;
+
     const bodyResult = await readJson(request);
     if ('error' in bodyResult) {
       return bodyResult.error;

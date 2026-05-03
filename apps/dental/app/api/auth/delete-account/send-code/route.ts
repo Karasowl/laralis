@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
 
+// QA route contract: @qa-self-service-route authenticated current-user deletion OTP request.
 export const dynamic = 'force-dynamic'
 
 const sendCodeSchema = z.object({
