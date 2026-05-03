@@ -60,7 +60,7 @@ export default function PatientsPage() {
   const tEntities = useTranslations('entities')
   const tFilters = useTranslations('filters')
   const todayIso = getLocalDateISO()
-  const { currentClinic } = useWorkspace()
+  const { currentClinic, clinics, loading: workspaceLoading } = useWorkspace()
   const {
     patients,
     patientSources,
@@ -134,6 +134,7 @@ export default function PatientsPage() {
 
   // Modal states
   const [createOpen, setCreateOpen] = useState(false)
+  const [pendingCreateOpen, setPendingCreateOpen] = useState(false)
   const [editPatient, setEditPatient] = useState<Patient | null>(null)
   const [viewPatient, setViewPatient] = useState<Patient | null>(null)
   const [deletePatientData, setDeletePatientData] = useState<Patient | null>(null)
@@ -243,6 +244,14 @@ export default function PatientsPage() {
     defaultValues: initialValues,
     mode: 'onBlur', // PERFORMANCE: Validate only on blur
   })
+
+  useEffect(() => {
+    if (!pendingCreateOpen || workspaceLoading || !currentClinic?.id) return
+
+    form.reset(initialValues)
+    setCreateOpen(true)
+    setPendingCreateOpen(false)
+  }, [pendingCreateOpen, workspaceLoading, currentClinic?.id, form])
 
   // Load related data (sources, campaigns, platforms) on mount/clinic change
   useEffect(() => {
@@ -574,6 +583,10 @@ export default function PatientsPage() {
 
   // Handlers for SimpleCrudPage
   const openCreate = () => {
+    if (workspaceLoading || (!currentClinic?.id && clinics.length > 0)) {
+      setPendingCreateOpen(true)
+      return
+    }
     if (!currentClinic?.id) {
       // Si no hay clínica, ir a la configuración para crear una
       try { window.location.assign('/settings/workspaces') } catch {}
