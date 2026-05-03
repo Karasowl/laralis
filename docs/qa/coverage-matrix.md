@@ -104,9 +104,10 @@ Cobertura actual:
 - El spec tambien bloquea dashboards financieros y export clinico para viewer: revenue, expenses, actividades mixtas, charts financieros y `GET /api/clinic/:clinicId/export`; mantiene lectura de dashboards clinicos basicos de pacientes y tratamientos.
 - El spec tambien bloquea endpoints base de Lara para viewer: sesiones de consulta, `/api/ai/query`, feedback y estadisticas de feedback.
 - El spec tambien bloquea invitaciones para viewer: listar, crear, cancelar y reenviar invitaciones.
+- El spec tambien bloquea conversion de inbox a paciente para viewer y el inventario reconoce rutas protegidas con `withAllPermissions`/`withAnyPermission`.
 - El spec tambien comprueba que el owner sigue pudiendo crear y limpiar un paciente QA, para evitar que el guard rompa permisos legitimos.
 - `apps/dental/app/api/patients/*`, `apps/dental/app/api/supplies/*`, `apps/dental/app/api/services/*`, `apps/dental/app/api/treatments/*`, `apps/dental/app/api/marketing/*`, `apps/dental/app/api/prescriptions/*`, `apps/dental/app/api/categories/*`, `apps/dental/app/api/medications`, `apps/dental/app/api/patient-sources`, `apps/dental/app/api/tariffs`, `apps/dental/app/api/time/cost-per-minute`, `apps/dental/app/api/team/*`, `apps/dental/app/api/invitations`, `apps/dental/app/api/invitations/[id]/resend`, `apps/dental/app/api/settings/*`, `apps/dental/app/api/snapshots/*`, `apps/dental/app/api/reset`, `apps/dental/app/api/dashboard/*`, `apps/dental/app/api/clinic/[clinicId]/export`, `apps/dental/app/api/ai/query`, `apps/dental/app/api/ai/feedback` y `apps/dental/app/api/ai/sessions/*` ya tienen guards granulares en la superficie probada de stage.
-- Todavia falta extender el mismo patron a export/import workspace, inbox, invitaciones, workspaces/clinicas y endpoints publicos/booking.
+- Todavia falta extender el mismo patron a export/import workspace, workspaces/clinicas y clasificar endpoints publicos/booking.
 - Brecha abierta: el viewer puede autenticarse y operar permisos por API, pero el flujo visual estricto todavia puede caer en onboarding. El spec usa `allowSetup` para aislar la prueba de permisos backend hasta que el middleware/UI de miembros quede resuelto.
 
 ## Capacidades que no pueden quedar fuera

@@ -1,6 +1,6 @@
 # QA Inventory Report
 
-Generated: 2026-05-03T20:58:02.651Z
+Generated: 2026-05-03T21:01:46.567Z
 
 Status: fail
 Failing checks: 3
@@ -143,7 +143,7 @@ ui files: 435; files with data-testid: 1; data-testid occurrences: 4
 
 Status: warn
 
-api routes: 161; permission guard: 100 (withPermission: 29, manual: 71); using supabaseAdmin: 129; admin without permission/cron guard: 26
+api routes: 161; permission guard: 101 (withPermission: 30, manual: 71); using supabaseAdmin: 129; admin without permission/cron guard: 25
 
 - app/api/auth/delete-account/route.ts
 - app/api/auth/delete-account/send-code/route.ts
@@ -152,7 +152,6 @@ api routes: 161; permission guard: 100 (withPermission: 29, manual: 71); using s
 - app/api/clinics/[id]/route.ts
 - app/api/export/generate/route.ts
 - app/api/export/import/route.ts
-- app/api/inbox/convert/route.ts
 - app/api/invitations/accept/[token]/route.ts
 - app/api/invitations/reject/[token]/route.ts
 - app/api/notifications/push/subscribe/route.ts

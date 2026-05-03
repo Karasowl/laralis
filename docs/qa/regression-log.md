@@ -9,6 +9,52 @@ Cada entrada debe explicar:
 - Como se verifica.
 - Que riesgo protege.
 
+## 2026-05-03 - Inventario reconoce guards compuestos y conversion de inbox
+
+### Problema
+
+`POST /api/inbox/convert` ya estaba protegido con `withAllPermissions(['inbox.view', 'patients.create'])`, pero el inventario solo reconocia `withPermission(...)`. Eso dejaba una ruta protegida marcada como pendiente.
+
+Tambien faltaba una prueba permanente que validara que un viewer no puede convertir leads de inbox en pacientes.
+
+Riesgo asociado:
+
+- El inventario producia ruido y ocultaba mejor los huecos reales.
+- Una mutacion que crea pacientes desde inbox no estaba cubierta por Cypress.
+- El sistema QA podia tratar `withAllPermissions` y `withAnyPermission` como rutas sin guard.
+
+### Prueba permanente
+
+Archivo:
+
+```text
+apps/dental/cypress/e2e/stage/05-permission-boundaries.cy.ts
+```
+
+Caso protegido:
+
+- `qa-viewer@laralis.test` recibe `403 Forbidden` en `POST /api/inbox/convert`.
+
+### Implementacion protegida
+
+Archivos:
+
+```text
+apps/dental/app/api/inbox/convert/route.ts
+apps/dental/scripts/qa-inventory.mjs
+```
+
+El endpoint sigue usando `withAllPermissions(['inbox.view', 'patients.create'])`. El inventario ahora reconoce `withPermission`, `withAllPermissions` y `withAnyPermission` como guards estructurales.
+
+### Verificacion
+
+Comandos:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:permissions
+npm --workspace @laralis/dental run qa:check
+```
+
 ## 2026-05-03 - Gestion de invitaciones requiere permisos de equipo
 
 ### Problema

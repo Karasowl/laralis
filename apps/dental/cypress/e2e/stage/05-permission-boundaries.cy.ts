@@ -122,6 +122,8 @@ describe('Stage permission boundaries', () => {
   })
 
   it('blocks viewer patient writes at the API and still allows owner writes', () => {
+    const fakeConversationId = '00000000-0000-4000-8000-000000000005'
+
     cy.loginAsStageUser(viewerEmail, undefined, { allowSetup: true })
     selectClinicA()
 
@@ -141,6 +143,16 @@ describe('Stage permission boundaries', () => {
       expect(response.status, 'viewer cannot create patients').to.eq(403)
       expect(response.body.error).to.eq('Forbidden')
     })
+
+    expectForbiddenPost(
+      '/api/inbox/convert',
+      {
+        conversationId: fakeConversationId,
+        firstName: 'QA',
+        lastName: 'Inbox Forbidden',
+      },
+      'viewer cannot convert inbox leads into patients'
+    )
 
     cy.loginAsDoctor()
     cy.request('POST', '/api/patients', {
