@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { forbiddenIfMissingPermission } from '@/lib/permissions';
 
 /**
  * POST /api/invitations/[id]/resend
@@ -24,6 +25,8 @@ export async function POST(
   }
 
   const { clinicId, userId } = context;
+  const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'team.invite');
+  if (forbidden) return forbidden;
 
   try {
     // Get clinic and workspace
@@ -49,9 +52,9 @@ export async function POST(
       .eq('is_active', true)
       .single();
 
-    if (!membership || !['owner', 'super_admin', 'admin'].includes(membership.role)) {
+    if (!membership) {
       return NextResponse.json(
-        { error: 'Insufficient permissions to resend invitations' },
+        { error: 'Access denied' },
         { status: 403 }
       );
     }

@@ -896,6 +896,29 @@ describe('Stage permission boundaries', () => {
         'viewer cannot remove clinic members'
       )
 
+      expectForbiddenGet('/api/invitations?status=pending', 'viewer cannot list invitations')
+      expectForbiddenRequest(
+        'POST',
+        '/api/invitations',
+        'viewer cannot invite users',
+        {
+          email: `${stamp}-invite@laralis.test`,
+          role: 'viewer',
+          scope: 'clinic',
+          clinic_ids: [clinicId],
+        }
+      )
+      expectForbiddenRequest(
+        'DELETE',
+        `/api/invitations?id=${fakeId}`,
+        'viewer cannot cancel invitations'
+      )
+      expectForbiddenRequest(
+        'POST',
+        `/api/invitations/${fakeId}/resend`,
+        'viewer cannot resend invitations'
+      )
+
       expectForbiddenGet('/api/settings/booking', 'viewer cannot read booking settings')
       expectForbiddenRequest(
         'PUT',

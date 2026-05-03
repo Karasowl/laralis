@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { resolveClinicContext } from '@/lib/clinic';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { readJson } from '@/lib/validation';
+import { forbiddenIfMissingPermission } from '@/lib/permissions';
 
 /**
  * GET /api/invitations
@@ -26,6 +27,8 @@ export async function GET(request: NextRequest) {
   }
 
   const { clinicId, userId } = context;
+  const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'team.view');
+  if (forbidden) return forbidden;
 
   try {
     // Get workspace ID
@@ -57,7 +60,7 @@ export async function GET(request: NextRequest) {
       .eq('is_active', true)
       .single();
 
-    if (!membership || !['owner', 'super_admin', 'admin'].includes(membership.role)) {
+    if (!membership) {
       return NextResponse.json(
         { error: 'Access denied' },
         { status: 403 }
@@ -182,6 +185,8 @@ export async function POST(request: NextRequest) {
   }
 
   const { clinicId, userId } = context;
+  const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'team.invite');
+  if (forbidden) return forbidden;
 
   try {
     // Get workspace ID
@@ -209,9 +214,9 @@ export async function POST(request: NextRequest) {
       .eq('is_active', true)
       .single();
 
-    if (!membership || !['owner', 'super_admin', 'admin'].includes(membership.role)) {
+    if (!membership) {
       return NextResponse.json(
-        { error: 'Insufficient permissions to invite users' },
+        { error: 'Access denied' },
         { status: 403 }
       );
     }
@@ -389,6 +394,8 @@ export async function DELETE(request: NextRequest) {
   }
 
   const { clinicId, userId } = context;
+  const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'team.invite');
+  if (forbidden) return forbidden;
 
   try {
     // Get workspace ID
@@ -414,9 +421,9 @@ export async function DELETE(request: NextRequest) {
       .eq('is_active', true)
       .single();
 
-    if (!membership || !['owner', 'super_admin', 'admin'].includes(membership.role)) {
+    if (!membership) {
       return NextResponse.json(
-        { error: 'Insufficient permissions' },
+        { error: 'Access denied' },
         { status: 403 }
       );
     }

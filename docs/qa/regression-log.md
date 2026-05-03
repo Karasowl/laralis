@@ -9,6 +9,50 @@ Cada entrada debe explicar:
 - Como se verifica.
 - Que riesgo protege.
 
+## 2026-05-03 - Gestion de invitaciones requiere permisos de equipo
+
+### Problema
+
+La gestion de invitaciones dependia de checks hardcodeados de rol (`owner`, `super_admin`, `admin`) en vez de usar el sistema granular de permisos.
+
+Riesgo asociado:
+
+- Un rol custom con permiso real de equipo podia quedar bloqueado por checks antiguos.
+- Un viewer debia quedar bloqueado por backend, no solo por la UI.
+- Listar, crear, cancelar o reenviar invitaciones no estaba dentro de la prueba permanente de permisos.
+
+### Prueba permanente
+
+Archivo:
+
+```text
+apps/dental/cypress/e2e/stage/05-permission-boundaries.cy.ts
+```
+
+Casos protegidos:
+
+- `qa-viewer@laralis.test` recibe `403 Forbidden` al listar invitaciones.
+- `qa-viewer@laralis.test` recibe `403 Forbidden` al crear, cancelar o reenviar invitaciones.
+
+### Implementacion protegida
+
+Archivos:
+
+```text
+apps/dental/app/api/invitations/route.ts
+apps/dental/app/api/invitations/[id]/resend/route.ts
+```
+
+Listar invitaciones usa `team.view`. Crear, cancelar y reenviar invitaciones usan `team.invite`. Las rutas siguen comprobando membresia activa en el workspace antes de operar.
+
+### Verificacion
+
+Comando de stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:permissions
+```
+
 ## 2026-05-03 - Sesiones y consulta de Lara requieren permisos backend
 
 ### Problema
