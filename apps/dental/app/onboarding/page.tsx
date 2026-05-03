@@ -50,15 +50,32 @@ export default function OnboardingPage() {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return
 
-        // Check if user has workspace
+        // Check if user has a usable workspace. Archived/deleted workspaces
+        // should not block a fresh onboarding.
         const { data: ws } = await supabase
           .from('workspaces')
-          .select('id')
+          .select('id, status, onboarding_completed')
           .eq('owner_id', user.id)
-          .limit(1)
+          .order('created_at', { ascending: false })
+          .limit(10)
 
-        if (ws && ws.length > 0) {
-          const workspaceId = ws[0].id
+        const visibleWorkspaces = (ws || []).filter((workspace: any) => {
+          const status = workspace?.status || (workspace?.onboarding_completed ? 'active' : 'draft')
+          return !['archived', 'pending_deletion', 'deleted'].includes(status)
+        })
+
+        if (visibleWorkspaces.length > 0) {
+          const activeWorkspace = visibleWorkspaces.find((workspace: any) => {
+            const status = workspace?.status || (workspace?.onboarding_completed ? 'active' : 'draft')
+            return status === 'active'
+          })
+
+          if (activeWorkspace) {
+            router.replace('/')
+            return
+          }
+
+          const workspaceId = visibleWorkspaces[0].id
 
           // Also check if workspace has at least one clinic
           const { data: clinic } = await supabase
@@ -69,7 +86,7 @@ export default function OnboardingPage() {
 
           // Only redirect to /setup if BOTH workspace AND clinic exist
           if (clinic && clinic.length > 0) {
-            router.replace('/setup')
+            router.replace('/setup/resume')
           }
           // If workspace exists but no clinic, let onboarding continue to clinic creation step
         }

@@ -12,6 +12,14 @@ interface Workspace {
   description?: string;
   logo_url?: string;
   settings?: any;
+  status?: 'draft' | 'active' | 'archived' | 'expired' | 'pending_deletion' | 'deleted';
+  setup_started_at?: string | null;
+  setup_last_seen_at?: string | null;
+  setup_completed_at?: string | null;
+  archived_at?: string | null;
+  pending_deletion_at?: string | null;
+  deleted_at?: string | null;
+  delete_after?: string | null;
   onboarding_completed: boolean;
   onboarding_step: number;
 }
@@ -57,6 +65,25 @@ const WorkspaceContext = createContext<WorkspaceContextType>({
   refreshUser: async () => {},
   signOut: async () => {},
 });
+
+const hiddenWorkspaceStatuses = new Set(['archived', 'pending_deletion', 'deleted']);
+const resumableWorkspaceStatuses = new Set(['draft', 'expired']);
+
+const getWorkspaceStatus = (workspace: Pick<Workspace, 'status' | 'onboarding_completed'>) => {
+  return workspace.status || (workspace.onboarding_completed ? 'active' : 'draft');
+};
+
+const isActiveWorkspace = (workspace: Pick<Workspace, 'status' | 'onboarding_completed'>) => {
+  return getWorkspaceStatus(workspace) === 'active';
+};
+
+const isResumableWorkspace = (workspace: Pick<Workspace, 'status' | 'onboarding_completed'>) => {
+  return !workspace.onboarding_completed && resumableWorkspaceStatuses.has(getWorkspaceStatus(workspace));
+};
+
+const isHiddenWorkspace = (workspace: Pick<Workspace, 'status' | 'onboarding_completed'>) => {
+  return hiddenWorkspaceStatuses.has(getWorkspaceStatus(workspace));
+};
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -123,9 +150,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
       if (error) throw error;
 
-      setWorkspaces(data || []);
+      const usableWorkspaces = (data || []).filter((ws: Workspace) => !isHiddenWorkspace(ws));
+      const path = pathname || '';
+      const onSetupPath = path.startsWith('/setup');
 
-      if (!data || data.length === 0) {
+      setWorkspaces(usableWorkspaces as any);
+
+      if (usableWorkspaces.length === 0) {
         setWorkspace(null);
 
         // 🔥 AUTO-LIMPIEZA: Si no hay workspaces en BD, limpiar localStorage fantasma
@@ -162,7 +193,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         } catch {}
 
         // 🔥 VALIDACIÓN: Si el workspace preferido no existe en BD, limpiarlo
-        const matchPreferred = preferredId ? data.find(ws => ws.id === preferredId) : undefined;
+        const matchPreferred = preferredId ? usableWorkspaces.find(ws => ws.id === preferredId) : undefined;
         if (preferredId && !matchPreferred) {
           console.warn(`[workspace-context] 🧹 Workspace ID ${preferredId} no existe en BD. Auto-limpiando...`);
           try {
@@ -177,8 +208,22 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           } catch {}
         }
 
-        const currentStillValid = workspace && data.some(ws => ws.id === workspace.id);
-        const next = (matchPreferred || (currentStillValid ? workspace! : data[0]));
+        const activeWorkspaces = usableWorkspaces.filter(isActiveWorkspace);
+        const resumableWorkspaces = usableWorkspaces.filter(isResumableWorkspace);
+        const canUsePreferred =
+          matchPreferred &&
+          (isActiveWorkspace(matchPreferred) || onSetupPath || activeWorkspaces.length === 0);
+        const currentStillValid = workspace && usableWorkspaces.some(ws => ws.id === workspace.id);
+        const canKeepCurrent =
+          currentStillValid &&
+          (isActiveWorkspace(workspace) || onSetupPath || activeWorkspaces.length === 0);
+        const next = (
+          canUsePreferred
+            ? matchPreferred
+            : canKeepCurrent
+              ? workspace!
+              : activeWorkspaces[0] || (onSetupPath ? resumableWorkspaces[0] : undefined) || usableWorkspaces[0]
+        );
         if (!workspace || next.id !== workspace.id) {
           setWorkspace(next as any);
         }
@@ -190,7 +235,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
                                !pathname?.includes('/test-auth') &&
                                !pathname?.includes('/setup');
 
-      if ((!data || data.length === 0) && isProtectedRoute) {
+      if (usableWorkspaces.length === 0 && isProtectedRoute) {
         router.push('/onboarding');
         return;
       }
@@ -364,7 +409,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
   }, [loading, user, workspaces.length, pathname, router]); // Router is stable, no need to include
 
-  // PERFORMANCE: Effect 2: Handle redirect when workspace exists but onboarding incomplete
+  // PERFORMANCE: Effect 2: Handle redirect when only draft/expired setup workspaces exist
   useEffect(() => {
     if (loading) return;
     if (!user) return;
@@ -374,18 +419,33 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (workspaces.length === 0) return; // Handled by effect 1
     if (!workspace) return; // FIX: Prevent race condition during workspace reload
 
-    const completed = Boolean(workspace.onboarding_completed);
+    const hasActiveWorkspace = workspaces.some(isActiveWorkspace);
+    const hasResumableWorkspace = workspaces.some(isResumableWorkspace);
+    const completed = isActiveWorkspace(workspace);
+
+    if (!hasActiveWorkspace && hasResumableWorkspace) {
+      const allowedPrefixes = ['/setup', '/onboarding'];
+      const isAllowed = allowedPrefixes.some(prefix => path === prefix || path.startsWith(`${prefix}/`));
+      if (!isAllowed && !redirectingRef.current) {
+        redirectingRef.current = true;
+        router.replace('/setup/resume');
+        const timer = setTimeout(() => { redirectingRef.current = false; }, 1500);
+        return () => clearTimeout(timer);
+      }
+      return;
+    }
+
     if (!completed) {
       const allowedPrefixes = ['/setup', '/onboarding', '/assets', '/fixed-costs', '/time', '/supplies', '/services', '/tariffs'];
       const isAllowed = allowedPrefixes.some(prefix => path === prefix || path.startsWith(`${prefix}/`));
       if (!isAllowed && !redirectingRef.current) {
         redirectingRef.current = true;
-        router.replace('/setup');
+        router.replace('/setup/resume');
         const timer = setTimeout(() => { redirectingRef.current = false; }, 1500);
         return () => clearTimeout(timer);
       }
     }
-  }, [loading, user, workspaces.length, workspace?.id, workspace?.onboarding_completed, pathname, router]); // Only depend on specific workspace properties
+  }, [loading, user, workspaces, workspace?.id, workspace?.status, workspace?.onboarding_completed, pathname, router]); // Only depend on specific workspace properties
 
   // Guardar selección en localStorage
   useEffect(() => {

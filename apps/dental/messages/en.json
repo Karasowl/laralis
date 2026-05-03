@@ -246,6 +246,27 @@
   "select_clinic": "Select Clinic",
   "expand_sidebar": "Expand Sidebar",
   "collapse_sidebar": "Collapse Sidebar",
+  "setupResume": {
+    "title": "Pending setup",
+    "subtitle": "You have an initial setup that has not been completed yet.",
+    "emptyTitle": "No pending setup",
+    "emptyDescription": "You can start a new setup to create your workspace and clinic.",
+    "continue": "Continue setup",
+    "startOver": "Start over",
+    "delete": "Delete incomplete setup",
+    "logout": "Sign out",
+    "workspaceLabel": "Workspace",
+    "clinicLabel": "Clinic",
+    "statusLabel": "Status",
+    "updatedLabel": "Last activity",
+    "deleteAfterLabel": "Scheduled deletion",
+    "confirmArchive": "This will archive the current incomplete setup so you can start a new one. Continue?",
+    "confirmDelete": "This will permanently delete this incomplete setup if it has no patients or treatments. Continue?",
+    "resumeError": "Could not continue setup.",
+    "archiveError": "Could not archive setup.",
+    "deleteError": "Could not delete setup.",
+    "hasCriticalData": "This setup has patients or treatments; archive it instead of deleting it."
+  },
   "setupWizard": {
     "header": {
       "title": "Initial setup",

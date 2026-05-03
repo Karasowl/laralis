@@ -170,6 +170,18 @@ export async function middleware(request: NextRequest) {
   const isPublicPath = publicPaths.some(path => pathname.startsWith(path));
   const isOnboarding = pathname === '/onboarding';
   const isSetup = pathname.startsWith('/setup');
+  const workspaceLifecycleSelect = 'id, status, onboarding_completed';
+  const resolveWorkspaceDestination = (workspaces: any[] | null | undefined) => {
+    const rows = workspaces || [];
+    const visible = rows.filter((workspace) => !['archived', 'pending_deletion', 'deleted'].includes(
+      workspace?.status || (workspace?.onboarding_completed ? 'active' : 'draft')
+    ));
+    if (visible.length === 0) return '/onboarding';
+    if (visible.some((workspace) => (workspace?.status || (workspace?.onboarding_completed ? 'active' : 'draft')) === 'active')) {
+      return '/';
+    }
+    return '/setup/resume';
+  };
 
   // If no user and trying to access protected route
   if (!user && !isPublicPath) {
@@ -188,29 +200,27 @@ export async function middleware(request: NextRequest) {
     // Check if user has workspace (cached check)
     const { data: workspaces } = await supabase
       .from('workspaces')
-      .select('id')
+      .select(workspaceLifecycleSelect)
       .eq('owner_id', user.id)
-      .limit(1)
-      .maybeSingle();
+      .order('created_at', { ascending: false })
+      .limit(10);
 
-    if (!workspaces) {
-      return NextResponse.redirect(new URL('/onboarding', request.url));
-    } else {
-      return NextResponse.redirect(new URL('/', request.url));
-    }
+    return NextResponse.redirect(new URL(resolveWorkspaceDestination(workspaces), request.url));
   }
 
-  // If user already has at least one workspace and tries to access onboarding,
-  // redirect to the full initial setup page instead of the modal flow.
+  // If user already has a usable workspace and tries onboarding, send them to
+  // the correct lifecycle screen. Archived/deleted workspaces do not block a
+  // fresh onboarding.
   if (user && pathname === '/onboarding') {
-    const { data: hasWorkspace } = await supabase
+    const { data: workspaces } = await supabase
       .from('workspaces')
-      .select('id')
+      .select(workspaceLifecycleSelect)
       .eq('owner_id', user.id)
-      .limit(1)
-      .maybeSingle();
-    if (hasWorkspace) {
-      return NextResponse.redirect(new URL('/setup', request.url));
+      .order('created_at', { ascending: false })
+      .limit(10);
+    const destination = resolveWorkspaceDestination(workspaces);
+    if (destination !== '/onboarding') {
+      return NextResponse.redirect(new URL(destination, request.url));
     }
   }
 
@@ -223,13 +233,14 @@ export async function middleware(request: NextRequest) {
     if (!cookieWs) {
       const { data: workspace } = await supabase
         .from('workspaces')
-        .select('id')
+        .select(workspaceLifecycleSelect)
         .eq('owner_id', user.id)
-        .limit(1)
-        .maybeSingle();
+        .order('created_at', { ascending: false })
+        .limit(10);
 
-      if (!workspace) {
-        return NextResponse.redirect(new URL('/onboarding', request.url));
+      const destination = resolveWorkspaceDestination(workspace);
+      if (destination !== '/') {
+        return NextResponse.redirect(new URL(destination, request.url));
       }
     }
   }

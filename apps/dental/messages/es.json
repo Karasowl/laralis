@@ -246,6 +246,27 @@
   "select_clinic": "Seleccionar Clínica",
   "expand_sidebar": "Expandir Barra Lateral",
   "collapse_sidebar": "Colapsar Barra Lateral",
+  "setupResume": {
+    "title": "Configuración pendiente",
+    "subtitle": "Tienes una configuración inicial que todavía no se ha terminado.",
+    "emptyTitle": "No hay configuraciones pendientes",
+    "emptyDescription": "Puedes comenzar una configuración nueva para crear tu workspace y clínica.",
+    "continue": "Continuar configuración",
+    "startOver": "Empezar de nuevo",
+    "delete": "Eliminar configuración incompleta",
+    "logout": "Cerrar sesión",
+    "workspaceLabel": "Workspace",
+    "clinicLabel": "Clínica",
+    "statusLabel": "Estado",
+    "updatedLabel": "Última actividad",
+    "deleteAfterLabel": "Eliminación programada",
+    "confirmArchive": "Esto archivará la configuración incompleta actual para que puedas empezar una nueva. ¿Continuar?",
+    "confirmDelete": "Esto eliminará definitivamente esta configuración incompleta si no contiene pacientes ni tratamientos. ¿Continuar?",
+    "resumeError": "No se pudo continuar la configuración.",
+    "archiveError": "No se pudo archivar la configuración.",
+    "deleteError": "No se pudo eliminar la configuración.",
+    "hasCriticalData": "Esta configuración tiene pacientes o tratamientos; se debe archivar, no eliminar."
+  },
   "setupWizard": {
     "header": {
       "title": "Configuración inicial",

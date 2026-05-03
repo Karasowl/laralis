@@ -83,7 +83,18 @@ export async function PUT(
     };
     if (name !== undefined) updateData.name = name;
     if (description !== undefined) updateData.description = description;
-    if (onboarding_completed !== undefined) updateData.onboarding_completed = Boolean(onboarding_completed);
+    if (onboarding_completed !== undefined) {
+      const completed = Boolean(onboarding_completed);
+      updateData.onboarding_completed = completed;
+      updateData.status = completed ? 'active' : 'draft';
+      if (completed) {
+        updateData.setup_completed_at = updateData.updated_at;
+        updateData.setup_last_seen_at = updateData.updated_at;
+        updateData.delete_after = null;
+        updateData.archived_at = null;
+        updateData.pending_deletion_at = null;
+      }
+    }
     if (onboarding_step !== undefined) updateData.onboarding_step = Number(onboarding_step);
 
     const { data: workspace, error: updateError } = await supabaseAdmin

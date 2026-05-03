@@ -84,6 +84,7 @@ export async function POST(request: NextRequest) {
 
     // Create workspace (handle slug conflicts gracefully)
     const baseSlug = generateSlug(workspace.name);
+    const now = new Date().toISOString();
     const attemptInsert = async (slug: string) => {
       return await supabase
         .from('workspaces')
@@ -91,7 +92,12 @@ export async function POST(request: NextRequest) {
           name: workspace.name,
           slug,
           description: workspace.description,
-          owner_id: user.id
+          owner_id: user.id,
+          onboarding_completed: false,
+          onboarding_step: 3,
+          status: 'draft',
+          setup_started_at: now,
+          setup_last_seen_at: now,
         })
         .select()
         .single();
@@ -171,10 +177,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Mark onboarding as complete in user metadata
+    // Store defaults, but keep onboarding incomplete until /setup is finished.
     const { error: updateError } = await supabase.auth.updateUser({
       data: {
-        onboarding_completed: true,
+        onboarding_completed: false,
         default_workspace_id: workspaceData.id,
         default_clinic_id: clinicData.id
       }

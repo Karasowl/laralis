@@ -56,12 +56,28 @@ export async function GET(request: NextRequest) {
       if (user) {
         const { data: workspaces } = await supabase
           .from('workspaces')
-          .select('id')
+          .select('id, status, onboarding_completed')
           .eq('owner_id', user.id)
-          .limit(1);
+          .order('created_at', { ascending: false })
+          .limit(10);
 
         if (!workspaces || workspaces.length === 0) {
           return NextResponse.redirect(`${origin}/onboarding`);
+        }
+
+        const visibleWorkspaces = workspaces.filter((workspace: any) => {
+          const status = workspace?.status || (workspace?.onboarding_completed ? 'active' : 'draft');
+          return !['archived', 'pending_deletion', 'deleted'].includes(status);
+        });
+        if (visibleWorkspaces.length === 0) {
+          return NextResponse.redirect(`${origin}/onboarding`);
+        }
+        const hasActiveWorkspace = visibleWorkspaces.some((workspace: any) => {
+          const status = workspace?.status || (workspace?.onboarding_completed ? 'active' : 'draft');
+          return status === 'active';
+        });
+        if (!hasActiveWorkspace) {
+          return NextResponse.redirect(`${origin}/setup/resume`);
         }
       }
 

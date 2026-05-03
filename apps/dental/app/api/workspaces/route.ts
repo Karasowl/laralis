@@ -7,6 +7,18 @@ import { readJson, validateSchema } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic'
 
+const hiddenWorkspaceStatuses = new Set(['archived', 'pending_deletion', 'deleted']);
+
+function isVisibleWorkspace(workspace: any) {
+  const status = workspace?.status || (workspace?.onboarding_completed ? 'active' : 'draft');
+  return !hiddenWorkspaceStatuses.has(status);
+}
+
+function isActiveWorkspace(workspace: any) {
+  const status = workspace?.status || (workspace?.onboarding_completed ? 'active' : 'draft');
+  return status === 'active';
+}
+
 const workspaceCreateSchema = z.object({
   workspaceName: z.string().min(1).optional(),
   name: z.string().min(1).optional(),
@@ -74,7 +86,7 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      return NextResponse.json(workspaces || []);
+      return NextResponse.json((workspaces || []).filter(isVisibleWorkspace));
     }
 
     // Comportamiento original para obtener workspace actual
@@ -89,7 +101,7 @@ export async function GET(request: NextRequest) {
         .eq('owner_id', user.id)
         .single();
 
-      if (!error && workspace) {
+      if (!error && workspace && isVisibleWorkspace(workspace)) {
         return NextResponse.json({ workspace });
       }
     }
@@ -100,7 +112,7 @@ export async function GET(request: NextRequest) {
       .select('*')
       .eq('owner_id', user.id)
       .order('created_at', { ascending: true })
-      .limit(1);
+      .limit(20);
 
     if (error) {
       console.error('Error fetching workspaces:', error);
@@ -110,10 +122,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (workspaces && workspaces.length > 0) {
+    const visibleWorkspaces = (workspaces || []).filter(isVisibleWorkspace);
+
+    if (visibleWorkspaces.length > 0) {
+      const selectedWorkspace = visibleWorkspaces.find(isActiveWorkspace) || visibleWorkspaces[0];
       // Guardar el primer workspace en cookies
-      const response = NextResponse.json({ workspace: workspaces[0] });
-      response.cookies.set('workspaceId', workspaces[0].id, {
+      const response = NextResponse.json({ workspace: selectedWorkspace });
+      response.cookies.set('workspaceId', selectedWorkspace.id, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
@@ -182,6 +197,7 @@ export async function POST(request: NextRequest) {
     const description = body.description;
     const onboardingCompleted = body.onboarding_completed !== undefined ? body.onboarding_completed : !!clinicName;
     const onboardingStep = body.onboarding_step !== undefined ? body.onboarding_step : (clinicName ? 3 : 0);
+    const now = new Date().toISOString();
 
     console.info('Creating workspace with data:', { workspaceName, workspaceSlug, clinicName, userId: user.id });
 
@@ -202,7 +218,11 @@ export async function POST(request: NextRequest) {
         description: description || `Workspace de ${workspaceName}`,
         owner_id: user.id,
         onboarding_completed: onboardingCompleted,
-        onboarding_step: onboardingStep
+        onboarding_step: onboardingStep,
+        status: onboardingCompleted ? 'active' : 'draft',
+        setup_started_at: now,
+        setup_last_seen_at: now,
+        setup_completed_at: onboardingCompleted ? now : null
       })
       .select()
       .single();

@@ -113,12 +113,25 @@ export default function SetupPage() {
   }, [currentClinic?.id])
 
   const mountedRef = useRef(false)
+  const setupTouchRef = useRef<string | null>(null)
   useEffect(() => {
     mountedRef.current = true
     return () => {
       mountedRef.current = false
     }
   }, [])
+
+  useEffect(() => {
+    if (!workspace?.id || workspace.onboarding_completed || setupTouchRef.current === workspace.id) return
+    setupTouchRef.current = workspace.id
+    void fetch(`/api/workspaces/${workspace.id}/lifecycle`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'resume_setup' })
+    }).catch((error) => {
+      console.warn('[setup] failed to touch setup lifecycle', error)
+    })
+  }, [workspace?.id, workspace?.onboarding_completed])
 
   const refreshStatus = useCallback(async (): Promise<Set<RequirementId> | null> => {
     if (!clinicId || !mountedRef.current) return null
@@ -240,7 +253,12 @@ export default function SetupPage() {
       // Actualizar el workspace en el contexto si existe
       if (workspace) {
         try {
-          setWorkspace({ ...workspace, onboarding_completed: true })
+          setWorkspace({
+            ...workspace,
+            onboarding_completed: true,
+            status: 'active' as any,
+            setup_completed_at: new Date().toISOString()
+          })
         } catch {}
       }
 

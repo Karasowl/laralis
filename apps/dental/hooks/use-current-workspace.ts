@@ -8,6 +8,7 @@ interface Workspace {
   name: string;
   slug: string;
   description?: string;
+  status?: 'draft' | 'active' | 'archived' | 'expired' | 'pending_deletion' | 'deleted';
   onboarding_completed: boolean;
   onboarding_step?: string;
   created_at: string;
