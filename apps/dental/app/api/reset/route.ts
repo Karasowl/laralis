@@ -25,6 +25,8 @@ const resetSchema = z.object({
   ]),
 });
 
+const INITIAL_SETUP_RESET_DISABLED_MESSAGE =
+  'Initial setup cancellation no longer deletes server data. Sign out and resume setup later.';
 
 async function deleteWorkspaceData(workspaceId: string) {
   const { data: clinicRows, error: clinicQueryError } = await supabaseAdmin
@@ -67,16 +69,6 @@ async function deleteWorkspaceData(workspaceId: string) {
   if (workspaceDeleteError && workspaceDeleteError.code !== 'PGRST116') throw workspaceDeleteError;
 }
 
-async function resetUserMetadata(userId: string, metadata: Record<string, unknown>) {
-  try {
-    await supabaseAdmin.auth.admin.updateUserById(userId, {
-      user_metadata: metadata,
-    });
-  } catch (error) {
-    console.error('Failed to reset user metadata', error);
-  }
-}
-
 export async function POST(request: NextRequest) {
   try {
     const cookieStore = cookies();
@@ -115,80 +107,13 @@ export async function POST(request: NextRequest) {
     const workspaceCookie = cookieStore.get('workspaceId')?.value || null;
 
     if (resetType === 'initial_setup') {
-      const { data: ownedWorkspaces, error: ownedError } = await supabaseAdmin
-        .from('workspaces')
-        .select('id')
-        .eq('owner_id', user.id);
-      if (ownedError) throw ownedError;
-      const allowedWorkspaceIds = new Set<string>();
-      (ownedWorkspaces ?? []).forEach(ws => {
-        if (ws?.id) allowedWorkspaceIds.add(ws.id);
-      });
-
-      const { data: memberWorkspaces, error: memberError } = await supabaseAdmin
-        .from('workspace_members')
-        .select('workspace_id')
-        .eq('user_id', user.id);
-      if (memberError) throw memberError;
-      (memberWorkspaces ?? []).forEach(row => {
-        if (row?.workspace_id) allowedWorkspaceIds.add(row.workspace_id);
-      });
-
-      if (workspaceCookie && !allowedWorkspaceIds.has(workspaceCookie)) {
-        return NextResponse.json(
-          { error: 'Workspace not found for current user' },
-          { status: 403 }
-        );
-      }
-
-      const candidateIds = workspaceCookie
-        ? [workspaceCookie]
-        : Array.from(allowedWorkspaceIds);
-
-      if (candidateIds.length === 0) {
-        return NextResponse.json({ success: true, message: 'No initial setup to cancel' });
-      }
-
-      const { data: candidateWorkspaces, error: candidateError } = await supabaseAdmin
-        .from('workspaces')
-        .select('id, onboarding_completed')
-        .in('id', candidateIds);
-      if (candidateError) throw candidateError;
-
-      const completedWorkspace = (candidateWorkspaces ?? []).find(ws => ws?.onboarding_completed === true);
-      if (completedWorkspace) {
-        return NextResponse.json(
-          { error: 'Initial setup reset is only allowed for incomplete onboarding workspaces' },
-          { status: 409 }
-        );
-      }
-
-      const workspaceIds = (candidateWorkspaces ?? [])
-        .map(ws => ws?.id)
-        .filter((id): id is string => Boolean(id));
-
-      for (const wsId of workspaceIds) {
-        await deleteWorkspaceData(wsId);
-      }
-
-      if (workspaceIds.length > 0) {
-        await supabaseAdmin
-          .from('workspace_members')
-          .delete()
-          .eq('user_id', user.id)
-          .in('workspace_id', workspaceIds);
-      }
-
-      const currentMetadata = { ...(user.user_metadata || {}) } as Record<string, unknown>;
-      currentMetadata.onboarding_completed = false;
-      delete currentMetadata.default_workspace_id;
-      delete currentMetadata.default_clinic_id;
-      await resetUserMetadata(user.id, currentMetadata);
-
-      const response = NextResponse.json({ success: true, message: 'Initial setup cancelled' });
-      response.cookies.set('workspaceId', '', { path: '/', maxAge: 0 });
-      response.cookies.set('clinicId', '', { path: '/', maxAge: 0 });
-      return response;
+      return NextResponse.json(
+        {
+          error: INITIAL_SETUP_RESET_DISABLED_MESSAGE,
+          code: 'INITIAL_SETUP_RESET_DISABLED',
+        },
+        { status: 410 }
+      );
     }
 
     let activeWorkspaceId = workspaceCookie;

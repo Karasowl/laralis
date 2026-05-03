@@ -3,6 +3,23 @@
 import { useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
+const getCookieValue = (name: string) => {
+  try {
+    const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]+)`))
+    return match ? decodeURIComponent(match[1]) : null
+  } catch {
+    return null
+  }
+}
+
+const getSelectedWorkspaceId = () => {
+  try {
+    return getCookieValue('workspaceId') || localStorage.getItem('selectedWorkspaceId')
+  } catch {
+    return getCookieValue('workspaceId')
+  }
+}
+
 const clearClientState = (userId?: string | null) => {
   try {
     const removable: string[] = []
@@ -28,6 +45,35 @@ const clearClientState = (userId?: string | null) => {
   }
 }
 
+const hasCompletedWorkspace = async (supabase: ReturnType<typeof createClient>, userId: string | null) => {
+  if (!userId) return false
+
+  const selectedWorkspaceId = getSelectedWorkspaceId()
+
+  if (selectedWorkspaceId) {
+    const { data: selectedWorkspace } = await supabase
+      .from('workspaces')
+      .select('id, onboarding_completed')
+      .eq('id', selectedWorkspaceId)
+      .maybeSingle()
+
+    if (selectedWorkspace?.onboarding_completed === true) {
+      return true
+    }
+
+    return false
+  }
+
+  const { data: completedWorkspaces } = await supabase
+    .from('workspaces')
+    .select('id')
+    .eq('owner_id', userId)
+    .eq('onboarding_completed', true)
+    .limit(1)
+
+  return Boolean(completedWorkspaces?.length)
+}
+
 export default function CancelSetupPage() {
   useEffect(() => {
     let aborted = false
@@ -35,7 +81,6 @@ export default function CancelSetupPage() {
 
     const run = async () => {
       let currentUserId: string | null = null
-      let blockedForCompletedWorkspace = false
 
       try {
         const { data: { user } } = await supabase.auth.getUser()
@@ -45,46 +90,30 @@ export default function CancelSetupPage() {
       }
 
       try {
-        const response = await fetch('/api/reset', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resetType: 'initial_setup' })
-        })
-
-        if (!response.ok) {
-          if (response.status === 403 || response.status === 409) {
-            blockedForCompletedWorkspace = true
-            if (!aborted) {
-              window.location.replace('/')
-            }
-            return
+        if (await hasCompletedWorkspace(supabase, currentUserId)) {
+          if (!aborted) {
+            window.location.replace('/')
           }
-
-          try {
-            const payload = await response.json()
-            console.error('Failed to reset initial setup', payload)
-          } catch {
-            console.error('Failed to reset initial setup', response.statusText)
-          }
-        }
-      } catch (error) {
-        console.error('Failed to reset initial setup', error)
-      } finally {
-        if (blockedForCompletedWorkspace) {
           return
         }
-
-        // Always clear client state after attempting the reset so the next session starts clean
-        clearClientState(currentUserId)
-
-        try {
-          await supabase.auth.signOut()
-        } catch (signOutError) {
-          console.error('Failed to sign out after cancellation', signOutError)
+      } catch (error) {
+        console.error('Failed to verify setup cancellation safety', error)
+        if (!aborted) {
+          window.location.replace('/')
         }
+        return
+      }
 
+      clearClientState(currentUserId)
+
+      try {
+        await supabase.auth.signOut()
+      } catch (signOutError) {
+        console.error('Failed to sign out after cancellation', signOutError)
+      } finally {
         if (!aborted) {
           window.location.replace('/auth/login')
+          return
         }
       }
     }
