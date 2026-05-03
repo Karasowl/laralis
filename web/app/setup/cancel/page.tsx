@@ -35,6 +35,7 @@ export default function CancelSetupPage() {
 
     const run = async () => {
       let currentUserId: string | null = null
+      let blockedForCompletedWorkspace = false
 
       try {
         const { data: { user } } = await supabase.auth.getUser()
@@ -51,6 +52,14 @@ export default function CancelSetupPage() {
         })
 
         if (!response.ok) {
+          if (response.status === 403 || response.status === 409) {
+            blockedForCompletedWorkspace = true
+            if (!aborted) {
+              window.location.replace('/')
+            }
+            return
+          }
+
           try {
             const payload = await response.json()
             console.error('Failed to reset initial setup', payload)
@@ -61,6 +70,10 @@ export default function CancelSetupPage() {
       } catch (error) {
         console.error('Failed to reset initial setup', error)
       } finally {
+        if (blockedForCompletedWorkspace) {
+          return
+        }
+
         // Always clear client state after attempting the reset so the next session starts clean
         clearClientState(currentUserId)
 
