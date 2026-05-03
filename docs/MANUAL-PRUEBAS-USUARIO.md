@@ -45,6 +45,8 @@ La primera vez pide email/password de stage y los guarda en `apps/dental/cypress
 
 Guia completa: [Cypress Stage Testing](./STAGE-CYPRESS-TESTING.md)
 
+Para no depender de memoria de chat, la estrategia de deteccion sistematica de bugs vive en [Laralis Stage QA Harness](./qa/README.md). Ese documento define que se debe probar, con que dataset, contra que resultados esperados y como convertir cada bug en regresion automatizada.
+
 ---
 
 ## 1. Autenticación y Onboarding

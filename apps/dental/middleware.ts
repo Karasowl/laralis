@@ -182,6 +182,51 @@ export async function middleware(request: NextRequest) {
     }
     return '/setup/resume';
   };
+  const getAccessibleWorkspaces = async (userId: string) => {
+    const workspaceMap = new Map<string, any>();
+
+    const { data: ownedWorkspaces } = await supabase
+      .from('workspaces')
+      .select(workspaceLifecycleSelect)
+      .eq('owner_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    for (const workspace of ownedWorkspaces || []) {
+      workspaceMap.set(workspace.id, workspace);
+    }
+
+    const membershipWorkspaceIds = new Set<string>();
+    for (const table of ['workspace_users', 'workspace_members']) {
+      const { data: memberships, error: membershipError } = await supabase
+        .from(table)
+        .select('workspace_id')
+        .eq('user_id', userId)
+        .eq('is_active', true);
+
+      if (membershipError) continue;
+
+      for (const membership of memberships || []) {
+        if (membership.workspace_id) membershipWorkspaceIds.add(membership.workspace_id);
+      }
+    }
+
+    const missingIds = Array.from(membershipWorkspaceIds).filter((id) => !workspaceMap.has(id));
+    if (missingIds.length > 0) {
+      const { data: memberWorkspaces } = await supabase
+        .from('workspaces')
+        .select(workspaceLifecycleSelect)
+        .in('id', missingIds)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      for (const workspace of memberWorkspaces || []) {
+        workspaceMap.set(workspace.id, workspace);
+      }
+    }
+
+    return Array.from(workspaceMap.values());
+  };
 
   // If no user and trying to access protected route
   if (!user && !isPublicPath) {
@@ -198,12 +243,7 @@ export async function middleware(request: NextRequest) {
       !pathname.includes('/verify-email') &&
       !pathname.startsWith('/book')) {
     // Check if user has workspace (cached check)
-    const { data: workspaces } = await supabase
-      .from('workspaces')
-      .select(workspaceLifecycleSelect)
-      .eq('owner_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(10);
+    const workspaces = await getAccessibleWorkspaces(user.id);
 
     return NextResponse.redirect(new URL(resolveWorkspaceDestination(workspaces), request.url));
   }
@@ -212,12 +252,7 @@ export async function middleware(request: NextRequest) {
   // the correct lifecycle screen. Archived/deleted workspaces do not block a
   // fresh onboarding.
   if (user && pathname === '/onboarding') {
-    const { data: workspaces } = await supabase
-      .from('workspaces')
-      .select(workspaceLifecycleSelect)
-      .eq('owner_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(10);
+    const workspaces = await getAccessibleWorkspaces(user.id);
     const destination = resolveWorkspaceDestination(workspaces);
     if (destination !== '/onboarding') {
       return NextResponse.redirect(new URL(destination, request.url));
@@ -231,12 +266,7 @@ export async function middleware(request: NextRequest) {
 
     // Only check database if no workspace cookie exists
     if (!cookieWs) {
-      const { data: workspace } = await supabase
-        .from('workspaces')
-        .select(workspaceLifecycleSelect)
-        .eq('owner_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(10);
+      const workspace = await getAccessibleWorkspaces(user.id);
 
       const destination = resolveWorkspaceDestination(workspace);
       if (destination !== '/') {

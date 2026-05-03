@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "dataset": "Laralis Dental QA Dataset",
+  "period": {
+    "from": "2026-05-01",
+    "to": "2026-05-31"
+  },
+  "patients": {
+    "total": 30,
+    "bySource": {
+      "Meta Mayo": 22,
+      "Referidos": 7,
+      "Organico": 1
+    }
+  },
+  "treatments": {
+    "total": 32,
+    "byStatus": {
+      "completed_paid": 29,
+      "partial": 1,
+      "pending": 1,
+      "cancelled": 1
+    }
+  },
+  "time": {
+    "workingDays": 26,
+    "productiveMinutesPerDay": 360,
+    "monthlyProductiveMinutes": 9360
+  },
+  "fixedCosts": {
+    "monthlyTotalCents": 4680000,
+    "costPerMinuteCents": 500
+  },
+  "assets": {
+    "monthlyDepreciationCents": 166667
+  },
+  "services": {
+    "resina": {
+      "priceCents": 250000,
+      "variableCostCents": 13000,
+      "allocatedFixedCostCents": 30000,
+      "netPerTreatmentCents": 207000
+    },
+    "limpieza": {
+      "priceCents": 150000,
+      "variableCostCents": 2500,
+      "allocatedFixedCostCents": 22500,
+      "netPerTreatmentCents": 125000
+    },
+    "endodoncia": {
+      "priceCents": 650000,
+      "variableCostCents": 33000,
+      "allocatedFixedCostCents": 60000,
+      "netPerTreatmentCents": 557000
+    }
+  },
+  "marketing": {
+    "metaMayo": {
+      "patients": 22,
+      "spendCents": 660000,
+      "revenueCents": 6300000,
+      "cpaCents": 30000,
+      "roas": 9.5455,
+      "roi": 8.5455,
+      "roiPercent": 854.55
+    },
+    "referidos": {
+      "patients": 7,
+      "revenueCents": 1350000
+    }
+  },
+  "financial": {
+    "completedRevenueCents": 7650000,
+    "partialCashCollectedCents": 125000,
+    "cashCollectedCents": 7775000,
+    "completedVariableCostCents": 331000,
+    "grossProfitCents": 7319000,
+    "grossMarginPercent": 95.6732,
+    "allocatedFixedCostCents": 900000,
+    "serviceNetProfitCents": 6419000,
+    "monthlyFixedCostCents": 4680000,
+    "marketingSpendCents": 660000,
+    "operatingProfitCents": 1979000,
+    "operatingMarginPercent": 25.8693
+  },
+  "breakEven": {
+    "averageContributionMarginCents": 252379,
+    "fixedOnlyTreatments": 19,
+    "fixedPlusMarketingTreatments": 22
+  },
+  "visual": {
+    "requiredViewports": [
+      "mobile",
+      "tablet",
+      "desktop"
+    ],
+    "requiredThemes": [
+      "light",
+      "dark"
+    ],
+    "requiredLocales": [
+      "es",
+      "en"
+    ]
+  },
+  "tolerances": {
+    "currencyCents": 1,
+    "percent": 0.01,
+    "chartPixels": 5
+  }
+}

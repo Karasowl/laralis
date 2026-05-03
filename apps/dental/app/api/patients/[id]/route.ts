@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { z } from 'zod';
 import { readJson } from '@/lib/validation';
+import { cookies } from 'next/headers';
+import { resolveClinicContext } from '@/lib/clinic';
+import { forbiddenIfMissingPermission } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic'
 
@@ -30,10 +33,20 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    const cookieStore = cookies();
+    const clinicContext = await resolveClinicContext({ cookieStore });
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
+    }
+    const { clinicId, userId } = clinicContext;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'patients.view');
+    if (forbidden) return forbidden;
+
     const { data, error } = await supabaseAdmin
       .from('patients')
       .select('*')
       .eq('id', params.id)
+      .eq('clinic_id', clinicId)
       .single();
 
     if (error) {
@@ -69,7 +82,15 @@ export async function PUT(
     if ('error' in bodyResult) {
       return bodyResult.error;
     }
-    const body = bodyResult.data;
+    const body = bodyResult.data as Record<string, any>;
+    const cookieStore = cookies();
+    const clinicContext = await resolveClinicContext({ requestedClinicId: body?.clinic_id, cookieStore });
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
+    }
+    const { clinicId, userId } = clinicContext;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'patients.edit');
+    if (forbidden) return forbidden;
 
     // Clean empty strings from body - similar to POST
     const cleanedBody = {
@@ -114,6 +135,7 @@ export async function PUT(
         updated_at: new Date().toISOString(),
       })
       .eq('id', params.id)
+      .eq('clinic_id', clinicId)
       .select()
       .single();
 
@@ -193,20 +215,49 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    const cookieStore = cookies();
+    const clinicContext = await resolveClinicContext({ cookieStore });
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
+    }
+    const { clinicId, userId } = clinicContext;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'patients.delete');
+    if (forbidden) return forbidden;
+
     try {
       const { data: treatmentUsage, error: treatmentError } = await supabaseAdmin
         .from('treatments')
-        .select(
-          'id, treatment_date, services:services!treatments_service_id_fkey(name)'
-        )
+        .select('id, treatment_date, service_id')
+        .eq('clinic_id', clinicId)
         .eq('patient_id', params.id)
         .limit(5)
 
       if (treatmentError) {
         console.error('[patients DELETE] Unable to check treatment usage:', treatmentError)
       } else if (treatmentUsage && treatmentUsage.length > 0) {
+        const serviceIds = Array.from(new Set(
+          treatmentUsage.map((row: any) => row.service_id).filter(Boolean)
+        ))
+        const serviceNamesById = new Map<string, string>()
+
+        if (serviceIds.length > 0) {
+          const { data: services, error: serviceError } = await supabaseAdmin
+            .from('services')
+            .select('id, name')
+            .eq('clinic_id', clinicId)
+            .in('id', serviceIds)
+
+          if (serviceError) {
+            console.error('[patients DELETE] Unable to check treatment services:', serviceError)
+          } else {
+            for (const service of services || []) {
+              if (service.name) serviceNamesById.set(service.id, service.name)
+            }
+          }
+        }
+
         const serviceNames = treatmentUsage
-          .map((row: any) => row?.services?.name)
+          .map((row: any) => serviceNamesById.get(row.service_id))
           .filter(Boolean) as string[]
         const listed = serviceNames.slice(0, 3).join(', ')
         const remaining = Math.max(0, serviceNames.length - 3)
@@ -227,7 +278,8 @@ export async function DELETE(
     const { error } = await supabaseAdmin
       .from('patients')
       .delete()
-      .eq('id', params.id);
+      .eq('id', params.id)
+      .eq('clinic_id', clinicId);
 
     if (error) {
       console.error('Error deleting patient:', error);

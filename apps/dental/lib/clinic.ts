@@ -58,7 +58,97 @@ async function getFirstClinicIdForUser(userId: string): Promise<string | null> {
   return clinics[0].id;
 }
 
-function isUuid(value: string | null | undefined): value is string {
+async function getFirstAccessibleClinicIdForUser(userId: string): Promise<string | null> {
+
+  const workspaceIds = new Set<string>();
+
+  const { data: ownedWorkspaces, error: ownedError } = await supabaseAdmin
+
+    .from('workspaces')
+
+    .select('id')
+
+    .eq('owner_id', userId);
+
+
+
+  if (!ownedError) {
+
+    for (const workspace of ownedWorkspaces || []) {
+
+      workspaceIds.add(workspace.id);
+
+    }
+
+  }
+
+
+
+  for (const table of ['workspace_users', 'workspace_members']) {
+
+    const { data: memberships, error } = await supabaseAdmin
+
+      .from(table)
+
+      .select('workspace_id')
+
+      .eq('user_id', userId)
+
+      .eq('is_active', true);
+
+
+
+    if (error) {
+
+      console.warn(`[clinic] Failed fetching ${table} memberships`, error.message);
+
+      continue;
+
+    }
+
+
+
+    for (const membership of memberships || []) {
+
+      if (membership.workspace_id) {
+
+        workspaceIds.add(membership.workspace_id);
+
+      }
+
+    }
+
+  }
+
+
+
+  if (workspaceIds.size === 0) return getFirstClinicIdForUser(userId);
+
+
+
+  const { data: clinics, error } = await supabaseAdmin
+
+    .from('clinics')
+
+    .select('id, workspace_id')
+
+    .in('workspace_id', Array.from(workspaceIds))
+
+    .order('created_at', { ascending: true })
+
+    .limit(1);
+
+
+
+  if (error || !clinics || clinics.length === 0) return null;
+
+  return clinics[0].id;
+
+}
+
+
+
+function isUuid(value: string | null | undefined): value is string {
   return typeof value === 'string' && UUID_REGEX.test(value);
 }
 
@@ -112,7 +202,7 @@ export async function resolveClinicContext({
   }
 
   if (candidateClinicIds.length === 0) {
-    const fallbackClinicId = await getFirstClinicIdForUser(user.id);
+    const fallbackClinicId = await getFirstAccessibleClinicIdForUser(user.id);
     if (fallbackClinicId && !candidateClinicIds.includes(fallbackClinicId)) {
       candidateClinicIds.push(fallbackClinicId);
     }

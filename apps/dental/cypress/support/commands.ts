@@ -10,11 +10,16 @@ function requiredEnv(name: string) {
   return value
 }
 
+function envOrDefault(name: string, fallback: string) {
+  const value = Cypress.env(name)
+  return typeof value === 'string' && value.trim().length > 0 ? value : fallback
+}
+
 function stageCredentials() {
   if (isStageRun()) {
     return {
-      email: requiredEnv('STAGE_TEST_EMAIL'),
-      password: requiredEnv('STAGE_TEST_PASSWORD'),
+      email: envOrDefault('STAGE_TEST_EMAIL', 'qa-owner@laralis.test'),
+      password: envOrDefault('STAGE_TEST_PASSWORD', 'LaralisQA!2026'),
     }
   }
 
@@ -47,6 +52,33 @@ Cypress.Commands.add('loginAsDoctor', () => {
   )
 })
 
+Cypress.Commands.add('loginAsStageUser', (email: string, password?: string, options?: { allowSetup?: boolean }) => {
+  const resolvedPassword = password || envOrDefault('STAGE_TEST_PASSWORD', 'LaralisQA!2026')
+
+  cy.session(
+    ['stage-user', Cypress.config('baseUrl'), email],
+    () => {
+      cy.visit('/auth/login')
+      cy.get('input[type="email"]').should('be.visible').clear().type(email)
+      cy.get('input[type="password"]').should('be.visible').clear().type(resolvedPassword, { log: false })
+      cy.get('button[type="submit"]').click()
+      cy.location('pathname', { timeout: 30000 }).should('not.include', '/auth/login')
+      if (!options?.allowSetup) {
+        cy.assertNotInSetupFlow()
+      }
+    },
+    {
+      validate() {
+        cy.visit('/')
+        cy.location('pathname', { timeout: 30000 }).should('not.match', /\/auth\/login/)
+        if (!options?.allowSetup) {
+          cy.assertNotInSetupFlow()
+        }
+      },
+    }
+  )
+})
+
 Cypress.Commands.add('assertNotInSetupFlow', () => {
   cy.location('pathname', { timeout: 30000 }).should((pathname) => {
     expect(pathname, 'active users must not be sent to onboarding').not.to.match(
@@ -60,6 +92,14 @@ Cypress.Commands.add('assertAppShell', () => {
   cy.contains(/Dashboard|Panel|Pacientes|Patients|Tratamientos|Treatments/i, { timeout: 30000 })
     .should('be.visible')
   cy.contains(/PoDent|Lara/i, { timeout: 30000 }).should('exist')
+})
+
+Cypress.Commands.add('assertNoHorizontalScroll', () => {
+  cy.document().then((doc) => {
+    const element = doc.documentElement
+    const overflow = element.scrollWidth - element.clientWidth
+    expect(overflow, 'unexpected horizontal overflow').to.be.lessThan(2)
+  })
 })
 
 Cypress.Commands.add('switchLanguage', (targetLocale: 'en' | 'es') => {

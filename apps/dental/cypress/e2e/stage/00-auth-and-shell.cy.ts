@@ -5,8 +5,7 @@ describe('Stage auth and active workspace shell', () => {
   })
 
   it('keeps the stage account on register with a clear existing-account error', () => {
-    const email = Cypress.env('STAGE_TEST_EMAIL')
-    if (!email) throw new Error('Missing STAGE_TEST_EMAIL for stage existing-account registration check')
+    const email = Cypress.env('STAGE_TEST_EMAIL') || 'qa-owner@laralis.test'
 
     cy.visit('/auth/register')
     cy.get('input').eq(0).clear().type('Stage')

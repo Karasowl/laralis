@@ -1,0 +1,354 @@
+[
+  {
+    "id": "qa-001-smoke-login-active-shell",
+    "priority": "P0",
+    "domain": "smoke",
+    "capability": "Login con cuenta existente y entrada al shell activo sin onboarding/setup",
+    "layers": ["cypress"],
+    "status": "partial"
+  },
+  {
+    "id": "qa-002-smoke-core-navigation",
+    "priority": "P0",
+    "domain": "smoke",
+    "capability": "Abrir dashboard, pacientes, tratamientos, marketing y reportes sin errores",
+    "layers": ["cypress"],
+    "status": "partial"
+  },
+  {
+    "id": "qa-003-auth-register-existing-account",
+    "priority": "P0",
+    "domain": "auth",
+    "capability": "Registro con email existente muestra error claro y no envia a verify-email",
+    "layers": ["cypress", "api"],
+    "status": "partial"
+  },
+  {
+    "id": "qa-004-full-lifecycle-user",
+    "priority": "P0",
+    "domain": "lifecycle",
+    "capability": "Crear usuario unico, confirmar en stage, hacer onboarding, usar app y limpiar cuenta",
+    "layers": ["cypress", "supabase-task"],
+    "status": "planned"
+  },
+  {
+    "id": "qa-005-onboarding-workspace-clinic",
+    "priority": "P0",
+    "domain": "onboarding",
+    "capability": "Crear workspace y clinica desde onboarding y no volver a setup al cambiar idioma",
+    "layers": ["cypress", "api"],
+    "status": "planned"
+  },
+  {
+    "id": "qa-006-onboarding-cancel-safe",
+    "priority": "P0",
+    "domain": "onboarding",
+    "capability": "Cancelar setup no borra datos de una clinica activa ni deja al usuario sin workspace",
+    "layers": ["cypress", "api"],
+    "status": "planned"
+  },
+  {
+    "id": "qa-007-multi-clinic-create-second",
+    "priority": "P0",
+    "domain": "multi-clinic",
+    "capability": "Crear segunda clinica dentro del mismo workspace",
+    "layers": ["cypress", "api"],
+    "status": "planned"
+  },
+  {
+    "id": "qa-008-multi-clinic-data-isolation",
+    "priority": "P0",
+    "domain": "multi-clinic",
+    "capability": "Pacientes, tratamientos, dashboards, marketing y Lara respetan clinica activa",
+    "layers": ["cypress", "api", "database"],
+    "status": "partial"
+  },
+  {
+    "id": "qa-009-team-add-admin",
+    "priority": "P0",
+    "domain": "permissions",
+    "capability": "Agregar administradores o miembros dentro de una clinica",
+    "layers": ["cypress", "api"],
+    "status": "planned"
+  },
+  {
+    "id": "qa-010-role-permission-matrix",
+    "priority": "P0",
+    "domain": "permissions",
+    "capability": "Owner, admin, doctor, assistant, receptionist y viewer tienen permisos correctos",
+    "layers": ["api", "cypress", "database"],
+    "status": "partial"
+  },
+  {
+    "id": "qa-011-backend-permission-enforcement",
+    "priority": "P0",
+    "domain": "permissions",
+    "capability": "El backend bloquea acciones prohibidas aunque la UI no las muestre",
+    "layers": ["api"],
+    "status": "partial"
+  },
+  {
+    "id": "qa-012-patients-crud",
+    "priority": "P0",
+    "domain": "crud",
+    "capability": "Pacientes: crear, editar, buscar, filtrar y borrar o limpiar",
+    "layers": ["cypress", "api"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-013-patient-treatment-history",
+    "priority": "P0",
+    "domain": "patients",
+    "capability": "Ficha de paciente muestra correctamente tratamientos asociados",
+    "layers": ["cypress", "api"],
+    "status": "partial"
+  },
+  {
+    "id": "qa-014-supplies-crud",
+    "priority": "P0",
+    "domain": "crud",
+    "capability": "Insumos: crear, editar, buscar y limpiar",
+    "layers": ["cypress", "api"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-015-supply-affects-service-cost",
+    "priority": "P0",
+    "domain": "business-calculations",
+    "capability": "Un insumo nuevo afecta correctamente el costo variable de un servicio",
+    "layers": ["vitest", "cypress", "api"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-016-services-crud-and-margin",
+    "priority": "P0",
+    "domain": "business-calculations",
+    "capability": "Servicios: crear, editar, asociar insumos y validar margen de beneficio",
+    "layers": ["vitest", "cypress", "api"],
+    "status": "partial"
+  },
+  {
+    "id": "qa-017-treatments-crud-status-payments",
+    "priority": "P0",
+    "domain": "crud",
+    "capability": "Tratamientos: crear, pagar, parcial, pendiente, cancelar y limpiar",
+    "layers": ["cypress", "api"],
+    "status": "partial"
+  },
+  {
+    "id": "qa-018-expenses-crud-and-budget-links",
+    "priority": "P0",
+    "domain": "expenses",
+    "capability": "Gastos se relacionan correctamente con costos fijos o variables planificados",
+    "layers": ["cypress", "api", "vitest"],
+    "status": "planned"
+  },
+  {
+    "id": "qa-019-fixed-costs-crud",
+    "priority": "P0",
+    "domain": "business-calculations",
+    "capability": "Costos fijos: crear, editar y verificar efecto en costo por minuto",
+    "layers": ["vitest", "cypress", "api"],
+    "status": "planned"
+  },
+  {
+    "id": "qa-020-depreciation",
+    "priority": "P0",
+    "domain": "business-calculations",
+    "capability": "Depreciacion se activa, calcula y aparece donde corresponde",
+    "layers": ["vitest", "cypress", "api"],
+    "status": "planned"
+  },
+  {
+    "id": "qa-021-time-settings-simulations",
+    "priority": "P0",
+    "domain": "business-calculations",
+    "capability": "Configuracion de tiempo alimenta simulaciones de beneficio, costo fijo y variable",
+    "layers": ["vitest", "cypress", "api"],
+    "status": "planned"
+  },
+  {
+    "id": "qa-022-date-filters-coherence",
+    "priority": "P0",
+    "domain": "date-filters",
+    "capability": "Filtros de fecha cambian coherentemente tablas, tarjetas, dashboards y reportes",
+    "layers": ["vitest", "cypress", "api"],
+    "status": "planned"
+  },
+  {
+    "id": "qa-023-date-only-timezone-regression",
+    "priority": "P0",
+    "domain": "date-filters",
+    "capability": "Fechas YYYY-MM-DD se tratan como fechas civiles y no se mueven por timezone",
+    "layers": ["vitest"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-024-marketing-dataset-meta-mayo",
+    "priority": "P0",
+    "domain": "marketing",
+    "capability": "Dataset con 22 pacientes de Meta Mayo y 7 referidos aparece correctamente",
+    "layers": ["cypress", "api", "database"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-025-marketing-roi-cpa",
+    "priority": "P0",
+    "domain": "marketing",
+    "capability": "Marketing calcula ROI, CPA, pacientes por fuente e ingresos por campana",
+    "layers": ["vitest", "cypress", "api"],
+    "status": "partial"
+  },
+  {
+    "id": "qa-026-dashboard-business-oracles",
+    "priority": "P0",
+    "domain": "dashboards",
+    "capability": "Dashboard muestra margen bruto, neto, utilidad, costos e ingresos esperados",
+    "layers": ["cypress", "api", "vitest"],
+    "status": "partial"
+  },
+  {
+    "id": "qa-027-reports-business-oracles",
+    "priority": "P0",
+    "domain": "reports",
+    "capability": "Reportes coinciden con oraculos del dataset QA por periodo y modulo",
+    "layers": ["cypress", "api"],
+    "status": "planned"
+  },
+  {
+    "id": "qa-028-chart-rendering",
+    "priority": "P0",
+    "domain": "visual",
+    "capability": "Graficas se pintan con barras, lineas, segmentos y tooltips correctos",
+    "layers": ["cypress", "visual"],
+    "status": "planned"
+  },
+  {
+    "id": "qa-029-visual-responsive-desktop-tablet-mobile",
+    "priority": "P0",
+    "domain": "visual",
+    "capability": "Pantallas criticas se ven en desktop, tablet y mobile sin scroll horizontal",
+    "layers": ["cypress", "visual"],
+    "status": "partial"
+  },
+  {
+    "id": "qa-030-dark-mode",
+    "priority": "P1",
+    "domain": "visual",
+    "capability": "Modo oscuro conserva contraste, layout, graficas y formularios",
+    "layers": ["cypress", "visual"],
+    "status": "planned"
+  },
+  {
+    "id": "qa-031-i18n-es-en-complete",
+    "priority": "P0",
+    "domain": "i18n",
+    "capability": "Espanol e ingles tienen todas las claves y no rompen layouts",
+    "layers": ["inventory", "cypress", "visual"],
+    "status": "partial"
+  },
+  {
+    "id": "qa-032-language-switch-regression",
+    "priority": "P0",
+    "domain": "navigation",
+    "capability": "Cambiar idioma no manda a onboarding/setup ni pierde clinica activa",
+    "layers": ["cypress"],
+    "status": "partial"
+  },
+  {
+    "id": "qa-033-booking-public-flow",
+    "priority": "P0",
+    "domain": "booking",
+    "capability": "Paciente genera cita publica con disponibilidad correcta",
+    "layers": ["cypress", "api"],
+    "status": "planned"
+  },
+  {
+    "id": "qa-034-booking-notifications",
+    "priority": "P0",
+    "domain": "notifications",
+    "capability": "Crear cita dispara email, SMS o WhatsApp esperado con providers mockeados",
+    "layers": ["api", "provider-mock"],
+    "status": "planned"
+  },
+  {
+    "id": "qa-035-cron-reminders",
+    "priority": "P0",
+    "domain": "cron",
+    "capability": "Cron de recordatorios procesa citas esperadas y respeta CRON_SECRET",
+    "layers": ["api", "provider-mock"],
+    "status": "planned"
+  },
+  {
+    "id": "qa-036-cron-recurring-expenses",
+    "priority": "P1",
+    "domain": "cron",
+    "capability": "Cron de gastos recurrentes crea solo los gastos esperados",
+    "layers": ["api", "database"],
+    "status": "planned"
+  },
+  {
+    "id": "qa-037-cron-complete-appointments",
+    "priority": "P1",
+    "domain": "cron",
+    "capability": "Cron de citas completadas cambia estados correctos sin tocar futuras",
+    "layers": ["api", "database"],
+    "status": "planned"
+  },
+  {
+    "id": "qa-038-lara-opens-and-responds",
+    "priority": "P0",
+    "domain": "lara",
+    "capability": "Lara abre, recibe pregunta y devuelve respuesta deterministica en stage",
+    "layers": ["cypress", "provider-mock"],
+    "status": "planned"
+  },
+  {
+    "id": "qa-039-lara-suggested-actions-confirm",
+    "priority": "P0",
+    "domain": "lara",
+    "capability": "Lara sugiere acciones, usuario confirma y la accion cambia la base de datos",
+    "layers": ["cypress", "api", "database", "provider-mock"],
+    "status": "planned"
+  },
+  {
+    "id": "qa-040-lara-permission-boundaries",
+    "priority": "P0",
+    "domain": "lara",
+    "capability": "Lara no ejecuta acciones fuera del permiso del usuario",
+    "layers": ["api", "cypress", "provider-mock"],
+    "status": "planned"
+  },
+  {
+    "id": "qa-041-audio-input",
+    "priority": "P1",
+    "domain": "audio",
+    "capability": "Entrada de audio simula grabacion/carga y produce transcripcion esperada",
+    "layers": ["cypress", "provider-mock"],
+    "status": "planned"
+  },
+  {
+    "id": "qa-042-audio-output",
+    "priority": "P1",
+    "domain": "audio",
+    "capability": "Salida de audio genera/reproduce respuesta o llama proveedor correcto",
+    "layers": ["cypress", "provider-mock"],
+    "status": "planned"
+  },
+  {
+    "id": "qa-043-browser-navigation-session",
+    "priority": "P1",
+    "domain": "navigation",
+    "capability": "Refrescar, atras/adelante y sesion expirada conservan comportamiento coherente",
+    "layers": ["cypress"],
+    "status": "planned"
+  },
+  {
+    "id": "qa-044-cleanup-delete-account",
+    "priority": "P0",
+    "domain": "lifecycle",
+    "capability": "El full lifecycle limpia datos creados o elimina la cuenta QA",
+    "layers": ["cypress", "api", "supabase-task"],
+    "status": "planned"
+  }
+]

@@ -70,6 +70,29 @@ function getDayName(dayNumber: number): keyof DayPattern {
   return days[dayNumber]
 }
 
+function isUtcDateOnly(date: Date): boolean {
+  return (
+    date.getUTCHours() === 0 &&
+    date.getUTCMinutes() === 0 &&
+    date.getUTCSeconds() === 0 &&
+    date.getUTCMilliseconds() === 0
+  )
+}
+
+function toCivilDateStart(date: Date): Date {
+  if (isUtcDateOnly(date)) {
+    return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
+  }
+
+  const localDate = new Date(date)
+  localDate.setHours(0, 0, 0, 0)
+  return localDate
+}
+
+function getCivilDayOfWeek(date: Date): number {
+  return toCivilDateStart(date).getDay()
+}
+
 /**
  * Creates a boolean pattern from frequency pattern (threshold = 0.5)
  */
@@ -92,7 +115,7 @@ export function isWorkingDay(
   date: Date,
   pattern: WorkingDaysConfig['manual']
 ): boolean {
-  const dayOfWeek = date.getDay()
+  const dayOfWeek = getCivilDayOfWeek(date)
   const dayName = getDayName(dayOfWeek)
   return pattern[dayName]
 }
@@ -157,11 +180,8 @@ export function calculateWorkingDaysInRange(
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  const start = new Date(fromDate)
-  start.setHours(0, 0, 0, 0)
-
-  const end = new Date(toDate)
-  end.setHours(0, 0, 0, 0)
+  const start = toCivilDateStart(fromDate)
+  const end = toCivilDateStart(toDate)
 
   let totalDays = 0
   let workingDays = 0
@@ -221,7 +241,8 @@ export interface TreatmentRecord {
 
 export function detectWorkingDayPattern(
   treatments: TreatmentRecord[],
-  lookbackDays: number = 60
+  lookbackDays: number = 60,
+  referenceDate: Date = new Date()
 ): WorkingDaysConfig['detected'] | null {
   const minSampleSize = 5
 
@@ -230,11 +251,12 @@ export function detectWorkingDayPattern(
   }
 
   // Filter treatments to last N days
-  const cutoffDate = new Date()
+  const cutoffDate = new Date(referenceDate)
   cutoffDate.setDate(cutoffDate.getDate() - lookbackDays)
+  cutoffDate.setHours(0, 0, 0, 0)
 
   const recentTreatments = treatments.filter(t => {
-    const treatmentDate = new Date(t.treatment_date)
+    const treatmentDate = toCivilDateStart(new Date(t.treatment_date))
     return treatmentDate >= cutoffDate
   })
 
@@ -266,11 +288,12 @@ export function detectWorkingDayPattern(
 
   // Count opportunities for each day
   const startDate = new Date(cutoffDate)
-  const endDate = new Date()
+  const endDate = new Date(referenceDate)
+  endDate.setHours(0, 0, 0, 0)
   let currentDate = new Date(startDate)
 
   while (currentDate <= endDate) {
-    const dayName = getDayName(currentDate.getDay())
+    const dayName = getDayName(getCivilDayOfWeek(currentDate))
     dayOpportunities[dayName]++
     currentDate.setDate(currentDate.getDate() + 1)
   }
@@ -278,7 +301,7 @@ export function detectWorkingDayPattern(
   // Count actual treatment days
   recentTreatments.forEach(t => {
     const date = new Date(t.treatment_date)
-    const dayName = getDayName(date.getDay())
+    const dayName = getDayName(getCivilDayOfWeek(date))
     dayCounts[dayName]++
   })
 

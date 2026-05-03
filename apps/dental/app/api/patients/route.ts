@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { withRouteContext } from '@/lib/api/route-handler';
 import { createRouteLogger } from '@/lib/api/logger';
 import { readJsonBody } from '@/lib/api/validation';
+import { forbiddenIfMissingPermission } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic'
 
@@ -64,7 +65,10 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
       }
 
-      const { clinicId } = clinicContext;
+      const { clinicId, userId } = clinicContext;
+      const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'patients.view');
+      if (forbidden) return forbidden;
+
       const search = searchParams.get('search');
 
       let query = supabaseAdmin
@@ -127,7 +131,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
       }
 
-      const { clinicId } = clinicContext;
+      const { clinicId, userId } = clinicContext;
+      const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'patients.create');
+      if (forbidden) return forbidden;
 
       const cleanedBody = {
         first_name: body.first_name,

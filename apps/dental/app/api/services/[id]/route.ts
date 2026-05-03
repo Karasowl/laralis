@@ -357,9 +357,7 @@ export async function DELETE(
     try {
       const { data: treatmentUsage, error: treatmentError } = await supabaseAdmin
         .from('treatments')
-        .select(
-          'id, treatment_date, patients:patients!treatments_patient_id_fkey (first_name, last_name)'
-        )
+        .select('id, patient_id')
         .eq('clinic_id', clinicId)
         .eq('service_id', params.id)
         .limit(5)
@@ -367,15 +365,32 @@ export async function DELETE(
       if (treatmentError) {
         console.error('[services DELETE] treatment usage lookup failed:', treatmentError)
       } else if (treatmentUsage && treatmentUsage.length > 0) {
+        const patientIds = Array.from(new Set(
+          treatmentUsage.map((row: any) => row.patient_id).filter(Boolean)
+        ))
+        const patientNamesById = new Map<string, string>()
+
+        if (patientIds.length > 0) {
+          const { data: patients, error: patientError } = await supabaseAdmin
+            .from('patients')
+            .select('id, first_name, last_name')
+            .eq('clinic_id', clinicId)
+            .in('id', patientIds)
+
+          if (patientError) {
+            console.error('[services DELETE] patient usage lookup failed:', patientError)
+          } else {
+            for (const patient of patients || []) {
+              const first = patient.first_name?.trim() || ''
+              const last = patient.last_name?.trim() || ''
+              const full = `${first} ${last}`.trim()
+              if (full) patientNamesById.set(patient.id, full)
+            }
+          }
+        }
+
         const patientNames = treatmentUsage
-          .map((row: any) => {
-            const patient = row?.patients
-            if (!patient) return null
-            const first = patient.first_name?.trim() || ''
-            const last = patient.last_name?.trim() || ''
-            const full = `${first} ${last}`.trim()
-            return full || null
-          })
+          .map((row: any) => patientNamesById.get(row.patient_id))
           .filter(Boolean) as string[]
         const listed = patientNames.slice(0, 3).join(', ')
         const remaining = Math.max(0, patientNames.length - 3)

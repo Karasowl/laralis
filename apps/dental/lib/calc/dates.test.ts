@@ -15,6 +15,8 @@ import {
 } from './dates'
 
 describe('dates.ts - Working Days Calculations', () => {
+  const referenceDate = new Date(2025, 10, 1)
+
   describe('isWorkingDay', () => {
     const mondayToSaturday: WorkingDaysConfig['manual'] = {
       monday: true,
@@ -29,6 +31,14 @@ describe('dates.ts - Working Days Calculations', () => {
     it('should identify Monday as working day', () => {
       const monday = new Date('2025-10-20') // Monday
       expect(isWorkingDay(monday, mondayToSaturday)).toBe(true)
+    })
+
+    it('should treat date-only strings as civil dates across timezones', () => {
+      const dateOnlyMonday = new Date('2025-10-20') // Monday as YYYY-MM-DD
+      const localMonday = new Date(2025, 9, 20) // Monday as local constructor
+
+      expect(isWorkingDay(dateOnlyMonday, mondayToSaturday)).toBe(true)
+      expect(isWorkingDay(localMonday, mondayToSaturday)).toBe(true)
     })
 
     it('should identify Sunday as non-working day', () => {
@@ -236,7 +246,7 @@ describe('dates.ts - Working Days Calculations', () => {
     it('should detect Mon-Fri pattern', () => {
       // Generate 30 treatments on weekdays only
       const treatments: TreatmentRecord[] = []
-      const startDate = new Date('2025-09-01')
+      const startDate = new Date(2025, 8, 1)
 
       for (let i = 0; i < 60; i++) {
         const date = new Date(startDate)
@@ -251,7 +261,7 @@ describe('dates.ts - Working Days Calculations', () => {
         }
       }
 
-      const result = detectWorkingDayPattern(treatments, 60)
+      const result = detectWorkingDayPattern(treatments, 90, referenceDate)
 
       expect(result).not.toBeNull()
       expect(result!.sampleSize).toBeGreaterThan(5)
@@ -262,7 +272,7 @@ describe('dates.ts - Working Days Calculations', () => {
 
     it('should calculate confidence score', () => {
       const treatments: TreatmentRecord[] = []
-      const startDate = new Date('2025-09-01')
+      const startDate = new Date(2025, 8, 1)
 
       // Generate clear pattern: only Mondays
       for (let i = 0; i < 60; i++) {
@@ -276,7 +286,7 @@ describe('dates.ts - Working Days Calculations', () => {
         }
       }
 
-      const result = detectWorkingDayPattern(treatments, 60)
+      const result = detectWorkingDayPattern(treatments, 90, referenceDate)
 
       expect(result).not.toBeNull()
       expect(result!.confidence).toBeGreaterThan(0)

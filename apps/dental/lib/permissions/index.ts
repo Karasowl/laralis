@@ -55,3 +55,8 @@ export {
   getDifferentPermissions,
   mergePermissions,
 } from './role-templates';
+
+export {
+  userHasPermission,
+  forbiddenIfMissingPermission,
+} from './check';

@@ -18,6 +18,47 @@ const workspaceQuerySchema = z.object({
   workspaceId: z.string().uuid().optional(),
 })
 
+async function getWorkspaceMembershipIds(userId: string): Promise<string[]> {
+  const ids = new Set<string>()
+
+  for (const table of ['workspace_users', 'workspace_members']) {
+    try {
+      const { data, error } = await supabaseAdmin
+        .from(table)
+        .select('workspace_id')
+        .eq('user_id', userId)
+        .eq('is_active', true)
+
+      if (error) {
+        console.warn(`[clinics] Unable to fetch ${table} memberships:`, error.message)
+        continue
+      }
+
+      for (const row of data || []) {
+        if (row.workspace_id) ids.add(row.workspace_id)
+      }
+    } catch (error) {
+      console.warn(`[clinics] Unexpected ${table} membership lookup error:`, error)
+    }
+  }
+
+  return Array.from(ids)
+}
+
+async function userCanAccessWorkspace(userId: string, workspaceId: string): Promise<boolean> {
+  const { data: ownedWorkspace } = await supabaseAdmin
+    .from('workspaces')
+    .select('id')
+    .eq('id', workspaceId)
+    .eq('owner_id', userId)
+    .maybeSingle()
+
+  if (ownedWorkspace) return true
+
+  const membershipIds = await getWorkspaceMembershipIds(userId)
+  return membershipIds.includes(workspaceId)
+}
+
 export async function GET(request: Request) {
   try {
     const cookieStore = cookies()
@@ -58,18 +99,13 @@ export async function GET(request: Request) {
     // Obtener workspaces válidos
     let workspaceIds: string[] = []
     if (workspaceId) {
-      const { data: ws, error: wsErr } = await supabaseAdmin
-        .from('workspaces')
-        .select('id')
-        .eq('id', workspaceId)
-        .eq('owner_id', user.id)
-        .single()
-      if (wsErr || !ws) {
+      const canAccessWorkspace = await userCanAccessWorkspace(user.id, workspaceId)
+      if (!canAccessWorkspace) {
         return NextResponse.json<ApiResponse<Clinic[]>>({
           error: 'Workspace not found or unauthorized'
         }, { status: 404 })
       }
-      workspaceIds = [ws.id]
+      workspaceIds = [workspaceId]
     } else {
       const { data: workspaces, error: wsError } = await supabaseAdmin
         .from('workspaces')
@@ -82,10 +118,13 @@ export async function GET(request: Request) {
           message: wsError.message
         }, { status: 500 })
       }
-      if (!workspaces || workspaces.length === 0) {
+      const ownedWorkspaceIds = (workspaces || []).map(w => w.id)
+      const memberWorkspaceIds = await getWorkspaceMembershipIds(user.id)
+      workspaceIds = Array.from(new Set([...ownedWorkspaceIds, ...memberWorkspaceIds]))
+
+      if (workspaceIds.length === 0) {
         return NextResponse.json<ApiResponse<Clinic[]>>({ data: [] })
       }
-      workspaceIds = workspaces.map(w => w.id)
     }
 
     // Obtener solo las clínicas de los workspaces válidos
