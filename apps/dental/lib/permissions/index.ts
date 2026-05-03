@@ -59,4 +59,5 @@ export {
 export {
   userHasPermission,
   forbiddenIfMissingPermission,
+  forbiddenIfMissingPermissions,
 } from './check';

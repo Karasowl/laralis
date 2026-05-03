@@ -13,6 +13,7 @@ import type { ActionParams } from '@/lib/ai/types'
 import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
 import { assertClinicAccess } from '@/lib/auth/verify-clinic-access'
+import { forbiddenIfMissingPermissions } from '@/lib/permissions'
 
 const analyzeRetentionSchema = z.object({
   period_days: z.coerce.number().int().positive().optional(),
@@ -45,6 +46,13 @@ export async function POST(request: NextRequest) {
     const { period_days, cohort_type, clinic_id } = parsed.data    // Verify user has access to the clinic (uses user_has_clinic_access RPC).
     const accessDenied = await assertClinicAccess(user.id, clinic_id, supabase)
     if (accessDenied) return accessDenied
+
+    const forbidden = await forbiddenIfMissingPermissions(user.id, clinic_id, [
+      'lara.use_query_mode',
+      'patients.view',
+    ])
+    if (forbidden) return forbidden
+
     // 4. Build action parameters
     const params: ActionParams['analyze_patient_retention'] = {
       period_days,

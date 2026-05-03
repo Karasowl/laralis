@@ -176,7 +176,10 @@ function analyzeApiSurface() {
   const rows = routeFiles.map(file => {
     const text = readText(file)
     const withPermission = text.includes('withPermission(')
-    const manualPermission = text.includes('forbiddenIfMissingPermission(') || text.includes('userHasPermission(')
+    const manualPermission =
+      text.includes('forbiddenIfMissingPermission(') ||
+      text.includes('forbiddenIfMissingPermissions(') ||
+      text.includes('userHasPermission(')
     return {
       route: rel(file),
       withPermission,

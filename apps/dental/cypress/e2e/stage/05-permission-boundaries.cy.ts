@@ -9,16 +9,17 @@ describe('Stage permission boundaries', () => {
   }
 
   function selectClinicA() {
-    cy.readFile('../../docs/qa/dataset.json').then((dataset) => {
+    return cy.readFile('../../docs/qa/dataset.json').then((dataset) => {
       const clinicAName = dataset.clinics.find((clinic: any) => clinic.key === 'clinicA')?.name
 
-      cy.request('/api/clinics').then((clinicsResponse) => {
+      return cy.request('/api/clinics').then((clinicsResponse) => {
         expect(clinicsResponse.status).to.eq(200)
         const clinicA = (clinicsResponse.body.data || []).find((clinic: any) => clinic.name === clinicAName)
         expect(clinicA, 'current user can access QA clinic A').to.exist
 
-        cy.request('POST', '/api/clinics', { clinicId: clinicA.id }).then((selectResponse) => {
+        return cy.request('POST', '/api/clinics', { clinicId: clinicA.id }).then((selectResponse) => {
           expect(selectResponse.status).to.eq(200)
+          return clinicA.id
         })
       })
     })
@@ -27,6 +28,18 @@ describe('Stage permission boundaries', () => {
   function expectForbiddenGet(url: string, label: string) {
     cy.request({
       url,
+      failOnStatusCode: false,
+    }).then((response) => {
+      expect(response.status, label).to.eq(403)
+      expect(response.body.error).to.eq('Forbidden')
+    })
+  }
+
+  function expectForbiddenPost(url: string, body: Record<string, any>, label: string) {
+    cy.request({
+      method: 'POST',
+      url,
+      body,
       failOnStatusCode: false,
     }).then((response) => {
       expect(response.status, label).to.eq(403)
@@ -77,6 +90,10 @@ describe('Stage permission boundaries', () => {
       expect(response.body.permissions['campaigns.create']).to.eq(false)
       expect(response.body.permissions['campaigns.edit']).to.eq(false)
       expect(response.body.permissions['campaigns.delete']).to.eq(false)
+      expect(response.body.permissions['financial_reports.view']).to.eq(false)
+      expect(response.body.permissions['settings.edit']).to.eq(false)
+      expect(response.body.permissions['lara.use_query_mode']).to.eq(false)
+      expect(response.body.permissions['lara.execute_actions']).to.eq(false)
     })
   })
 
@@ -490,5 +507,106 @@ describe('Stage permission boundaries', () => {
       '/api/analytics/refunds?from=2026-05-01&to=2026-05-31',
       'viewer cannot read refund analytics'
     )
+  })
+
+  it('blocks viewer Lara action endpoints at the API', () => {
+    const fakeServiceId = '00000000-0000-4000-8000-000000000001'
+    const fakeCategoryId = '00000000-0000-4000-8000-000000000002'
+
+    cy.loginAsStageUser(viewerEmail, undefined, { allowSetup: true })
+    selectClinicA().then((clinicId) => {
+      expectForbiddenPost(
+        '/api/actions/analyze-patient-retention',
+        { clinic_id: clinicId, period_days: 90 },
+        'viewer cannot run Lara patient retention queries'
+      )
+      expectForbiddenPost(
+        '/api/actions/compare-periods',
+        {
+          clinic_id: clinicId,
+          period1_start: '2026-05-01',
+          period1_end: '2026-05-31',
+          period2_start: '2026-04-01',
+          period2_end: '2026-04-30',
+        },
+        'viewer cannot run Lara financial period comparisons'
+      )
+      expectForbiddenPost(
+        '/api/actions/forecast-revenue',
+        { clinic_id: clinicId, days: 30 },
+        'viewer cannot run Lara revenue forecasts'
+      )
+      expectForbiddenPost(
+        '/api/actions/identify-underperforming-services',
+        { clinic_id: clinicId, min_margin_pct: 30 },
+        'viewer cannot run Lara margin analysis'
+      )
+      expectForbiddenPost(
+        '/api/actions/optimize-inventory',
+        { clinic_id: clinicId, days_ahead: 30 },
+        'viewer cannot run Lara inventory optimization'
+      )
+      expectForbiddenPost(
+        '/api/actions/simulate-price-change',
+        {
+          clinic_id: clinicId,
+          service_id: fakeServiceId,
+          change_type: 'percentage',
+          change_value: 10,
+        },
+        'viewer cannot run Lara price simulations'
+      )
+      expectForbiddenPost(
+        '/api/actions/adjust-service-margin',
+        {
+          clinic_id: clinicId,
+          service_id: fakeServiceId,
+          target_margin_pct: 40,
+          dry_run: true,
+        },
+        'viewer cannot run Lara service margin adjustments'
+      )
+      expectForbiddenPost(
+        '/api/actions/bulk-update-prices',
+        {
+          clinic_id: clinicId,
+          change_type: 'percentage',
+          change_value: 10,
+          dry_run: true,
+        },
+        'viewer cannot run Lara bulk price updates'
+      )
+      expectForbiddenPost(
+        '/api/actions/update-service-price',
+        {
+          clinic_id: clinicId,
+          service_id: fakeServiceId,
+          new_price_cents: 100000,
+          dry_run: true,
+        },
+        'viewer cannot run Lara service price updates'
+      )
+      expectForbiddenPost(
+        '/api/actions/create-expense',
+        {
+          clinic_id: clinicId,
+          category_id: fakeCategoryId,
+          amount_cents: 10000,
+          description: `QA forbidden ${stamp}`,
+          expense_date: '2026-05-27',
+          dry_run: true,
+        },
+        'viewer cannot run Lara expense creation'
+      )
+      expectForbiddenPost(
+        '/api/actions/update-time-settings',
+        {
+          clinic_id: clinicId,
+          work_days: 20,
+          dry_run: true,
+        },
+        'viewer cannot run Lara time settings updates'
+      )
+    })
   })
 })

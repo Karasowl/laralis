@@ -13,6 +13,7 @@ import type { ActionParams } from '@/lib/ai/types'
 import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
 import { assertClinicAccess } from '@/lib/auth/verify-clinic-access'
+import { forbiddenIfMissingPermissions } from '@/lib/permissions'
 
 const forecastRevenueSchema = z.object({
   days: z.coerce.number().int().positive().optional(),
@@ -46,6 +47,13 @@ export async function POST(request: NextRequest) {
     const { days, include_treatments, include_trends, clinic_id } = parsed.data    // Verify user has access to the clinic (uses user_has_clinic_access RPC).
     const accessDenied = await assertClinicAccess(user.id, clinic_id, supabase)
     if (accessDenied) return accessDenied
+
+    const forbidden = await forbiddenIfMissingPermissions(user.id, clinic_id, [
+      'lara.use_query_mode',
+      'financial_reports.view',
+    ])
+    if (forbidden) return forbidden
+
     // 4. Build action parameters
     const params: ActionParams['forecast_revenue'] = {
       days,

@@ -13,6 +13,7 @@ import type { ActionParams } from '@/lib/ai/types'
 import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
 import { assertClinicAccess } from '@/lib/auth/verify-clinic-access'
+import { forbiddenIfMissingPermissions } from '@/lib/permissions'
 
 const updateTimeSettingsSchema = z.object({
   work_days: z.coerce.number().int().positive().optional(),
@@ -56,6 +57,13 @@ export async function POST(request: NextRequest) {
     const dryRun = dry_run ?? false    // Verify user has access to the clinic (uses user_has_clinic_access RPC).
     const accessDenied = await assertClinicAccess(user.id, clinic_id, supabase)
     if (accessDenied) return accessDenied
+
+    const forbidden = await forbiddenIfMissingPermissions(user.id, clinic_id, [
+      'lara.execute_actions',
+      'settings.edit',
+    ])
+    if (forbidden) return forbidden
+
     // 5. Build action parameters
     const params: ActionParams['update_time_settings'] = {
       work_days,

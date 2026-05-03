@@ -168,6 +168,60 @@ Comando de stage:
 npm --workspace @laralis/dental run test:e2e:stage:permissions
 ```
 
+## 2026-05-03 - Acciones de Lara no deben saltarse permisos de modulo
+
+### Problema
+
+Las rutas `/api/actions/*` verificaban autenticacion y acceso a la clinica, pero no verificaban permisos granulares antes de ejecutar acciones con `supabaseAdmin`.
+
+Riesgo asociado:
+
+- Un usuario con acceso a la clinica podia intentar acciones de Lara que leen retencion, forecast, margenes, inventario o simulaciones financieras.
+- Acciones con efecto real podian cambiar precios, crear gastos o actualizar configuracion de tiempo si el usuario lograba llamar la API directamente.
+- El permiso de Lara (`use_query_mode` / `execute_actions`) no estaba acoplado al permiso del modulo afectado.
+
+### Prueba permanente
+
+Archivo:
+
+```text
+apps/dental/cypress/e2e/stage/05-permission-boundaries.cy.ts
+```
+
+Casos protegidos:
+
+- `qa-viewer@laralis.test` recibe `403 Forbidden` al ejecutar acciones de consulta de Lara: retencion, comparacion de periodos, forecast, analisis de margen, optimizacion de inventario y simulacion de precio.
+- `qa-viewer@laralis.test` recibe `403 Forbidden` al ejecutar acciones mutables de Lara: ajustar margen, actualizar precios masivos, cambiar precio de servicio, crear gasto y actualizar settings de tiempo.
+
+### Implementacion protegida
+
+Archivos:
+
+```text
+apps/dental/app/api/actions/adjust-service-margin/route.ts
+apps/dental/app/api/actions/analyze-patient-retention/route.ts
+apps/dental/app/api/actions/bulk-update-prices/route.ts
+apps/dental/app/api/actions/compare-periods/route.ts
+apps/dental/app/api/actions/create-expense/route.ts
+apps/dental/app/api/actions/forecast-revenue/route.ts
+apps/dental/app/api/actions/identify-underperforming-services/route.ts
+apps/dental/app/api/actions/optimize-inventory/route.ts
+apps/dental/app/api/actions/simulate-price-change/route.ts
+apps/dental/app/api/actions/update-service-price/route.ts
+apps/dental/app/api/actions/update-time-settings/route.ts
+apps/dental/lib/permissions/check.ts
+```
+
+Las acciones de consulta exigen `lara.use_query_mode` mas el permiso del dominio. Las acciones mutables exigen `lara.execute_actions` mas el permiso de escritura correspondiente.
+
+### Verificacion
+
+Comando de stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:permissions
+```
+
 ## 2026-05-03 - Analytics y reportes sensibles deben respetar permisos
 
 ### Problema

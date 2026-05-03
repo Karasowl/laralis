@@ -41,3 +41,30 @@ export async function forbiddenIfMissingPermission(
     { status: 403 }
   )
 }
+
+export async function forbiddenIfMissingPermissions(
+  userId: string,
+  clinicId: string,
+  permissions: Permission[]
+): Promise<NextResponse<any> | null> {
+  const results = await Promise.all(
+    permissions.map(async (permission) => ({
+      permission,
+      allowed: await userHasPermission(userId, clinicId, permission),
+    }))
+  )
+
+  const missing = results
+    .filter((result) => !result.allowed)
+    .map((result) => result.permission)
+
+  if (missing.length === 0) return null
+
+  return NextResponse.json(
+    {
+      error: 'Forbidden',
+      message: `Missing permissions: ${missing.join(', ')}`,
+    },
+    { status: 403 }
+  )
+}

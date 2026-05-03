@@ -13,6 +13,7 @@ import type { ActionParams } from '@/lib/ai/types'
 import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
 import { assertClinicAccess } from '@/lib/auth/verify-clinic-access'
+import { forbiddenIfMissingPermissions } from '@/lib/permissions'
 
 const simulatePriceChangeSchema = z.object({
   service_id: z.string().uuid().optional(),
@@ -46,6 +47,13 @@ export async function POST(request: NextRequest) {
     const { service_id, change_type, change_value, clinic_id } = parsed.data    // Verify user has access to the clinic (uses user_has_clinic_access RPC).
     const accessDenied = await assertClinicAccess(user.id, clinic_id, supabase)
     if (accessDenied) return accessDenied
+
+    const forbidden = await forbiddenIfMissingPermissions(user.id, clinic_id, [
+      'lara.use_query_mode',
+      'financial_reports.view',
+    ])
+    if (forbidden) return forbidden
+
     // 5. Build action parameters
     const params: ActionParams['simulate_price_change'] = {
       service_id: service_id || undefined,

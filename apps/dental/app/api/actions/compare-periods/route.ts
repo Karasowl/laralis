@@ -13,6 +13,7 @@ import type { ActionParams } from '@/lib/ai/types'
 import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
 import { assertClinicAccess } from '@/lib/auth/verify-clinic-access'
+import { forbiddenIfMissingPermissions } from '@/lib/permissions'
 
 const comparePeriodsSchema = z.object({
   period1_start: z.string().min(1),
@@ -48,6 +49,13 @@ export async function POST(request: NextRequest) {
     const { period1_start, period1_end, period2_start, period2_end, metrics, clinic_id } = parsed.data    // Verify user has access to the clinic (uses user_has_clinic_access RPC).
     const accessDenied = await assertClinicAccess(user.id, clinic_id, supabase)
     if (accessDenied) return accessDenied
+
+    const forbidden = await forbiddenIfMissingPermissions(user.id, clinic_id, [
+      'lara.use_query_mode',
+      'financial_reports.view',
+    ])
+    if (forbidden) return forbidden
+
     // 5. Build action parameters
     const params: ActionParams['compare_periods'] = {
       period1_start,

@@ -14,6 +14,7 @@ import type { ActionParams } from '@/lib/ai/types'
 import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
 import { assertClinicAccess } from '@/lib/auth/verify-clinic-access'
+import { forbiddenIfMissingPermissions } from '@/lib/permissions'
 
 const bulkUpdatePricesSchema = z.object({
   change_type: z.enum(['percentage', 'fixed']),
@@ -50,6 +51,13 @@ export async function POST(request: NextRequest) {
     const dryRun = dry_run ?? false    // Verify user has access to the clinic (uses user_has_clinic_access RPC).
     const accessDenied = await assertClinicAccess(user.id, clinic_id, supabase)
     if (accessDenied) return accessDenied
+
+    const forbidden = await forbiddenIfMissingPermissions(user.id, clinic_id, [
+      'lara.execute_actions',
+      'services.set_prices',
+    ])
+    if (forbidden) return forbidden
+
     // 5. Build action parameters
     const params: ActionParams['bulk_update_prices'] = {
       change_type,

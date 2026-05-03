@@ -1,6 +1,6 @@
 # QA Inventory Report
 
-Generated: 2026-05-03T19:30:01.085Z
+Generated: 2026-05-03T19:45:52.906Z
 
 Status: fail
 Failing checks: 3
@@ -143,19 +143,8 @@ ui files: 435; files with data-testid: 1; data-testid occurrences: 4
 
 Status: warn
 
-api routes: 161; permission guard: 48 (withPermission: 29, manual: 19); using supabaseAdmin: 129; admin without permission/cron guard: 77
+api routes: 161; permission guard: 59 (withPermission: 29, manual: 30); using supabaseAdmin: 129; admin without permission/cron guard: 66
 
-- app/api/actions/adjust-service-margin/route.ts
-- app/api/actions/analyze-patient-retention/route.ts
-- app/api/actions/bulk-update-prices/route.ts
-- app/api/actions/compare-periods/route.ts
-- app/api/actions/create-expense/route.ts
-- app/api/actions/forecast-revenue/route.ts
-- app/api/actions/identify-underperforming-services/route.ts
-- app/api/actions/optimize-inventory/route.ts
-- app/api/actions/simulate-price-change/route.ts
-- app/api/actions/update-service-price/route.ts
-- app/api/actions/update-time-settings/route.ts
 - app/api/ai/feedback/route.ts
 - app/api/ai/sessions/route.ts
 - app/api/ai/sessions/[id]/messages/route.ts
@@ -205,6 +194,17 @@ api routes: 161; permission guard: 48 (withPermission: 29, manual: 19); using su
 - app/api/settings/notifications/test/route.ts
 - app/api/settings/time/route.ts
 - app/api/setup/status/route.ts
+- app/api/snapshots/discover/route.ts
+- app/api/snapshots/route.ts
+- app/api/snapshots/[snapshotId]/restore/route.ts
+- app/api/snapshots/[snapshotId]/route.ts
+- app/api/tariffs/route.ts
+- app/api/team/clinic-members/route.ts
+- app/api/team/clinic-members/[id]/route.ts
+- app/api/team/workspace-members/route.ts
+- app/api/team/workspace-members/[id]/route.ts
+- app/api/time/cost-per-minute/route.ts
+- app/api/treatments/check-conflicts/route.ts
 
 ## Cron guard inventory
 
