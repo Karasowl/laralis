@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { withPermission } from '@/lib/middleware/with-permission'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,16 +14,12 @@ interface MarketingROIData {
   avgRevenuePerPatientCents: number
 }
 
-export async function GET(request: Request) {
+export const GET = withPermission('campaigns.view', async (request: NextRequest, context) => {
   try {
     const supabase = await createClient()
-    const { searchParams } = new URL(request.url)
-    const clinicId = searchParams.get('clinicId')
+    const searchParams = request.nextUrl.searchParams
+    const clinicId = context.clinicId
     const months = parseInt(searchParams.get('months') || '6')
-
-    if (!clinicId) {
-      return NextResponse.json({ error: 'clinicId is required' }, { status: 400 })
-    }
 
     // Calculate date range
     const endDate = new Date()
@@ -178,4 +175,4 @@ export async function GET(request: Request) {
       { status: 500 }
     )
   }
-}
+})

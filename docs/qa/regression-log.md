@@ -168,6 +168,55 @@ Comando de stage:
 npm --workspace @laralis/dental run test:e2e:stage:permissions
 ```
 
+## 2026-05-03 - Analytics y reportes sensibles deben respetar permisos
+
+### Problema
+
+Varias rutas de analytics usaban `supabaseAdmin` despues de resolver la clinica activa, pero no exigian permisos granulares antes de consultar datos de marketing o financieros.
+
+Riesgo asociado:
+
+- Un usuario viewer podia leer CAC, ROI, predicciones de ingresos o refunds por API aunque la UI no le mostrara esos reportes.
+- Los endpoints exponian informacion sensible de marketing y finanzas solo con sesion valida y contexto de clinica.
+- La cobertura de permisos se concentraba en escrituras CRUD y dejaba fuera lecturas analiticas.
+
+### Prueba permanente
+
+Archivo:
+
+```text
+apps/dental/cypress/e2e/stage/05-permission-boundaries.cy.ts
+```
+
+Casos protegidos:
+
+- `qa-viewer@laralis.test` recibe `403 Forbidden` en CAC trend, channel ROI, marketing metrics, campaign ROI y legacy marketing ROI.
+- `qa-viewer@laralis.test` recibe `403 Forbidden` en predicciones de ingresos y analytics de refunds.
+
+### Implementacion protegida
+
+Archivos:
+
+```text
+apps/dental/app/api/analytics/cac-trend/route.ts
+apps/dental/app/api/analytics/channel-roi/route.ts
+apps/dental/app/api/analytics/marketing-metrics/route.ts
+apps/dental/app/api/analytics/predictions/route.ts
+apps/dental/app/api/analytics/refunds/route.ts
+apps/dental/app/api/marketing/campaigns/roi/route.ts
+apps/dental/app/api/marketing/roi/route.ts
+```
+
+Las rutas de marketing usan `campaigns.view`. Las rutas de predicciones y refunds usan `financial_reports.view`.
+
+### Verificacion
+
+Comando de stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:permissions
+```
+
 ## 2026-05-03 - Permisos backend en catalogo clinico y tratamientos
 
 ### Problema

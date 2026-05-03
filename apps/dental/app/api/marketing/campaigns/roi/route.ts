@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
+import { forbiddenIfMissingPermission } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,7 +40,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { clinicId } = clinicContext;
+    const { clinicId, userId } = clinicContext;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'campaigns.view');
+    if (forbidden) return forbidden;
 
     // Opciones de filtrado
     const includeArchived = searchParams.get('includeArchived') === 'true';

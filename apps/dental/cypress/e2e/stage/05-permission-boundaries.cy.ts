@@ -24,6 +24,16 @@ describe('Stage permission boundaries', () => {
     })
   }
 
+  function expectForbiddenGet(url: string, label: string) {
+    cy.request({
+      url,
+      failOnStatusCode: false,
+    }).then((response) => {
+      expect(response.status, label).to.eq(403)
+      expect(response.body.error).to.eq('Forbidden')
+    })
+  }
+
   afterEach(() => {
     if (!ownerCreatedPatientId) return
 
@@ -444,5 +454,41 @@ describe('Stage permission boundaries', () => {
         expect(response.body.error).to.eq('Forbidden')
       })
     })
+  })
+
+  it('blocks viewer analytics and reporting endpoints at the API', () => {
+    cy.loginAsStageUser(viewerEmail, undefined, { allowSetup: true })
+    selectClinicA()
+
+    const marketingRange = 'startDate=2026-05-01&endDate=2026-05-31'
+
+    expectForbiddenGet(
+      `/api/analytics/cac-trend?${marketingRange}`,
+      'viewer cannot read CAC trend analytics'
+    )
+    expectForbiddenGet(
+      `/api/analytics/channel-roi?${marketingRange}`,
+      'viewer cannot read channel ROI analytics'
+    )
+    expectForbiddenGet(
+      `/api/analytics/marketing-metrics?${marketingRange}`,
+      'viewer cannot read marketing metrics analytics'
+    )
+    expectForbiddenGet(
+      `/api/marketing/campaigns/roi?${marketingRange}`,
+      'viewer cannot read campaign ROI analytics'
+    )
+    expectForbiddenGet(
+      '/api/marketing/roi?months=6',
+      'viewer cannot read legacy marketing ROI analytics'
+    )
+    expectForbiddenGet(
+      '/api/analytics/predictions',
+      'viewer cannot read revenue predictions'
+    )
+    expectForbiddenGet(
+      '/api/analytics/refunds?from=2026-05-01&to=2026-05-31',
+      'viewer cannot read refund analytics'
+    )
   })
 })

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { resolveClinicContext } from '@/lib/clinic'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { forbiddenIfMissingPermission } from '@/lib/permissions'
 import {
   getFirstTreatmentDateByPatient,
   patientsAcquiredInRange,
@@ -47,7 +48,9 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const { clinicId } = ctx
+    const { clinicId, userId } = ctx
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'campaigns.view')
+    if (forbidden) return forbidden
 
     // Parse date range - supports explicit dates or period lookback
     const startDateParam = searchParams.get('startDate')

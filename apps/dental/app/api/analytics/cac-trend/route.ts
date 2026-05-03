@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { resolveClinicContext } from '@/lib/clinic'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { forbiddenIfMissingPermission } from '@/lib/permissions'
 import { calculateCAC } from '@/lib/calc/marketing'
 import { buildBuckets, chooseGranularity, findBucketKey } from '@/lib/calc/buckets'
 import { getFirstTreatmentDateByPatient } from '@/lib/calc/patient-acquisition'
@@ -38,7 +39,10 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const { clinicId } = ctx
+    const { clinicId, userId } = ctx
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'campaigns.view')
+    if (forbidden) return forbidden
+
     const startDateParam = searchParams.get('startDate')
     const endDateParam = searchParams.get('endDate')
     const months = parseInt(searchParams.get('months') || '12', 10)

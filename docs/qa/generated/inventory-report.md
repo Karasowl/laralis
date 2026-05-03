@@ -1,6 +1,6 @@
 # QA Inventory Report
 
-Generated: 2026-05-03T19:19:40.623Z
+Generated: 2026-05-03T19:30:01.085Z
 
 Status: fail
 Failing checks: 3
@@ -143,7 +143,7 @@ ui files: 435; files with data-testid: 1; data-testid occurrences: 4
 
 Status: warn
 
-api routes: 161; permission guard: 41 (withPermission: 28, manual: 13); using supabaseAdmin: 129; admin without permission/cron guard: 83
+api routes: 161; permission guard: 48 (withPermission: 29, manual: 19); using supabaseAdmin: 129; admin without permission/cron guard: 77
 
 - app/api/actions/adjust-service-margin/route.ts
 - app/api/actions/analyze-patient-retention/route.ts
@@ -160,11 +160,6 @@ api routes: 161; permission guard: 41 (withPermission: 28, manual: 13); using su
 - app/api/ai/sessions/route.ts
 - app/api/ai/sessions/[id]/messages/route.ts
 - app/api/ai/sessions/[id]/route.ts
-- app/api/analytics/cac-trend/route.ts
-- app/api/analytics/channel-roi/route.ts
-- app/api/analytics/marketing-metrics/route.ts
-- app/api/analytics/predictions/route.ts
-- app/api/analytics/refunds/route.ts
 - app/api/auth/delete-account/route.ts
 - app/api/auth/delete-account/send-code/route.ts
 - app/api/categories/route.ts
@@ -187,7 +182,6 @@ api routes: 161; permission guard: 41 (withPermission: 28, manual: 13); using su
 - app/api/invitations/reject/[token]/route.ts
 - app/api/invitations/route.ts
 - app/api/invitations/[id]/resend/route.ts
-- app/api/marketing/campaigns/roi/route.ts
 - app/api/medications/route.ts
 - app/api/notifications/push/subscribe/route.ts
 - app/api/notifications/push/track-click/route.ts
@@ -205,6 +199,12 @@ api routes: 161; permission guard: 41 (withPermission: 28, manual: 13); using su
 - app/api/reset/route.ts
 - app/api/services/[id]/cost/route.ts
 - app/api/services/[id]/supplies/route.ts
+- app/api/services/[id]/supplies/[rowId]/route.ts
+- app/api/settings/booking/route.ts
+- app/api/settings/notifications/route.ts
+- app/api/settings/notifications/test/route.ts
+- app/api/settings/time/route.ts
+- app/api/setup/status/route.ts
 
 ## Cron guard inventory
 
