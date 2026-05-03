@@ -60,7 +60,7 @@ export default function PatientsPage() {
   const tEntities = useTranslations('entities')
   const tFilters = useTranslations('filters')
   const todayIso = getLocalDateISO()
-  const { currentClinic, clinics, loading: workspaceLoading } = useWorkspace()
+  const { currentClinic, loading: workspaceLoading, refreshClinics } = useWorkspace()
   const {
     patients,
     patientSources,
@@ -583,13 +583,11 @@ export default function PatientsPage() {
 
   // Handlers for SimpleCrudPage
   const openCreate = () => {
-    if (workspaceLoading || (!currentClinic?.id && clinics.length > 0)) {
+    if (workspaceLoading || !currentClinic?.id) {
       setPendingCreateOpen(true)
-      return
-    }
-    if (!currentClinic?.id) {
-      // Si no hay clínica, ir a la configuración para crear una
-      try { window.location.assign('/settings/workspaces') } catch {}
+      if (!workspaceLoading) {
+        refreshClinics().catch(() => {})
+      }
       return
     }
     form.reset(initialValues); setCreateOpen(true)
