@@ -33,6 +33,20 @@ Este documento lista TODAS las pruebas que debes realizar como usuario para veri
 
 ---
 
+## 0. Pruebas Automatizadas en Stage
+
+Para abrir Cypress contra el ambiente de stage sin escribir comandos, usa el lanzador de doble clic:
+
+```text
+Abrir Cypress Stage.bat
+```
+
+La primera vez pide email/password de stage y los guarda en `apps/dental/cypress.env.json`, que esta ignorado por Git.
+
+Guia completa: [Cypress Stage Testing](./STAGE-CYPRESS-TESTING.md)
+
+---
+
 ## 1. Autenticación y Onboarding
 
 ### 1.1 Registro de Usuario Nuevo
