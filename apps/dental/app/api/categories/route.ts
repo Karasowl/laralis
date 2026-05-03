@@ -3,6 +3,7 @@ import { supabaseAdmin, isUsingServiceRole } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { createClient } from '@/lib/supabase/server';
+import { forbiddenIfMissingPermission, type Permission } from '@/lib/permissions';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
 
@@ -44,6 +45,26 @@ function buildCodeFromName(rawName: string): string {
     .replace(/^_+|_+$/g, '');
 }
 
+function categoryPermission(type: string | null, mode: 'read' | 'write'): Permission {
+  switch (type) {
+    case 'services':
+    case 'service':
+      return mode === 'read' ? 'services.view' : 'services.edit';
+    case 'supplies':
+    case 'supply':
+      return mode === 'read' ? 'supplies.view' : 'supplies.edit';
+    case 'expenses':
+    case 'expense':
+    case 'fixed_cost':
+      return mode === 'read' ? 'expenses.view' : 'expenses.edit';
+    case 'assets':
+    case 'asset':
+      return mode === 'read' ? 'assets.view' : 'assets.edit';
+    default:
+      return mode === 'read' ? 'settings.view' : 'settings.edit';
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = cookies();
@@ -58,7 +79,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
 
-    const { clinicId } = clinicContext;
+    const { clinicId, userId } = clinicContext;
 
     const supabase = createClient();
     const db = isUsingServiceRole ? supabaseAdmin : supabase;
@@ -67,6 +88,13 @@ export async function GET(request: NextRequest) {
     const entityType = searchParams.get('entity_type');
     const active = searchParams.get('active');
     const withType = searchParams.get('withType') === 'true';
+
+    const forbidden = await forbiddenIfMissingPermission(
+      userId,
+      clinicId,
+      categoryPermission(typeCode || entityType, 'read')
+    );
+    if (forbidden) return forbidden;
 
     let query = db
       .from(withType ? 'v_categories_with_type' : 'categories')
@@ -140,12 +168,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
 
-    const { clinicId } = clinicContext;
+    const { clinicId, userId } = clinicContext;
 
     const supabase = createClient();
     const db = isUsingServiceRole ? supabaseAdmin : supabase;
 
     const typeCode = searchParams.get('type');
+    const forbidden = await forbiddenIfMissingPermission(
+      userId,
+      clinicId,
+      categoryPermission(typeCode, 'write')
+    );
+    if (forbidden) return forbidden;
 
     if (typeCode) {
       const parsed = validateSchema(categoryCreateSchema, body, 'Invalid payload');

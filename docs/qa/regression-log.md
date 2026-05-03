@@ -9,6 +9,73 @@ Cada entrada debe explicar:
 - Como se verifica.
 - Que riesgo protege.
 
+## 2026-05-03 - Catalogos clinicos y recetas requieren permisos backend
+
+### Problema
+
+Despues de proteger superficies principales, seguian quedando endpoints auxiliares con `supabaseAdmin` sin guard granular explicito:
+
+- Categorias.
+- Fuentes de pacientes.
+- Medicamentos.
+- Recetas y PDFs de recetas.
+- Tarifas y costos por minuto.
+- Costo de servicio y recetas de insumos por servicio.
+- Chequeo de conflictos de citas.
+- Refunds de tratamientos.
+
+Riesgo asociado:
+
+- Un rol de solo lectura podia intentar escribir catalogos por API aunque la UI ocultara botones.
+- Costos, margenes y tarifas podian quedar expuestos fuera de permisos financieros.
+- Recetas, PDFs y refunds podian consultarse o ejecutarse sin pasar por permisos de recetas o cobro.
+
+### Prueba permanente
+
+Archivo:
+
+```text
+apps/dental/cypress/e2e/stage/05-permission-boundaries.cy.ts
+```
+
+Casos protegidos:
+
+- `qa-viewer@laralis.test` recibe `403 Forbidden` en categorias de costos y escritura de categorias de servicios.
+- `POST /api/patient-sources` exige permiso de crear pacientes.
+- `GET /api/medications` y `GET /api/prescriptions` respetan `prescriptions.view`; `POST /api/medications` y `POST/PUT/DELETE /api/prescriptions` quedan bloqueados para viewer.
+- `GET /api/prescriptions/:id/pdf` exige `prescriptions.print`.
+- `GET/POST /api/tariffs`, `GET /api/services/:id/cost` y `GET /api/time/cost-per-minute` exigen permisos financieros o de pricing.
+- Mutaciones de `service_supplies`, chequeo de conflictos y refunds devuelven `403` para viewer.
+
+### Implementacion protegida
+
+Archivos:
+
+```text
+apps/dental/app/api/categories/route.ts
+apps/dental/app/api/categories/[id]/route.ts
+apps/dental/app/api/patient-sources/route.ts
+apps/dental/app/api/medications/route.ts
+apps/dental/app/api/prescriptions/route.ts
+apps/dental/app/api/prescriptions/[id]/route.ts
+apps/dental/app/api/prescriptions/[id]/pdf/route.ts
+apps/dental/app/api/tariffs/route.ts
+apps/dental/app/api/services/[id]/cost/route.ts
+apps/dental/app/api/services/[id]/supplies/route.ts
+apps/dental/app/api/services/[id]/supplies/[rowId]/route.ts
+apps/dental/app/api/time/cost-per-minute/route.ts
+apps/dental/app/api/treatments/check-conflicts/route.ts
+apps/dental/app/api/treatments/[id]/refund/route.ts
+```
+
+### Verificacion
+
+Comando de stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:permissions
+```
+
 ## 2026-05-03 - Fechas `YYYY-MM-DD` y zonas horarias
 
 ### Problema

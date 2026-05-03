@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { resolveClinicContext } from '@/lib/clinic'
+import { forbiddenIfMissingPermission } from '@/lib/permissions'
 import { z } from 'zod'
 import { readJson } from '@/lib/validation'
 
@@ -62,7 +63,9 @@ export async function GET(
       )
     }
 
-    const { clinicId } = clinicContext
+    const { clinicId, userId } = clinicContext
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'prescriptions.view')
+    if (forbidden) return forbidden
 
     const { data, error } = await supabaseAdmin
       .from('prescriptions')
@@ -120,7 +123,9 @@ export async function PUT(
       )
     }
 
-    const { clinicId } = clinicContext
+    const { clinicId, userId } = clinicContext
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'prescriptions.edit')
+    if (forbidden) return forbidden
 
     // Verify prescription belongs to clinic
     const { data: existing, error: existingError } = await supabaseAdmin
@@ -238,7 +243,9 @@ export async function DELETE(
       )
     }
 
-    const { clinicId } = clinicContext
+    const { clinicId, userId } = clinicContext
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'prescriptions.delete')
+    if (forbidden) return forbidden
 
     // Soft delete by setting status to cancelled
     const { error } = await supabaseAdmin

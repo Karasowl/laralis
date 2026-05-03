@@ -3,6 +3,7 @@ import { supabaseAdmin, isUsingServiceRole } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { createClient } from '@/lib/supabase/server';
+import { forbiddenIfMissingPermission, type Permission } from '@/lib/permissions';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
 
@@ -23,6 +24,26 @@ function slugify(input: string) {
     .replace(/^_+|_+$/g, '');
 }
 
+function categoryWritePermission(type: string | null): Permission {
+  switch (type) {
+    case 'services':
+    case 'service':
+      return 'services.edit';
+    case 'supplies':
+    case 'supply':
+      return 'supplies.edit';
+    case 'expenses':
+    case 'expense':
+    case 'fixed_cost':
+      return 'expenses.edit';
+    case 'assets':
+    case 'asset':
+      return 'assets.edit';
+    default:
+      return 'settings.edit';
+  }
+}
+
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const cookieStore = cookies();
@@ -37,6 +58,12 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
     const { clinicId } = clinicContext;
     const typeCode = (searchParams.get('type') || 'services') as 'services' | 'supplies' | 'expenses' | 'assets';
+    const forbidden = await forbiddenIfMissingPermission(
+      user.id,
+      clinicId,
+      categoryWritePermission(typeCode)
+    );
+    if (forbidden) return forbidden;
 
     const bodyResult = await readJson(request);
     if ('error' in bodyResult) {
@@ -185,6 +212,12 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     }
     const { clinicId } = clinicContext;
     const typeCode = (searchParams.get('type') || 'services') as 'services' | 'supplies' | 'expenses' | 'assets';
+    const forbidden = await forbiddenIfMissingPermission(
+      user.id,
+      clinicId,
+      categoryWritePermission(typeCode)
+    );
+    if (forbidden) return forbidden;
 
     const db = isUsingServiceRole ? supabaseAdmin : createClient();
 

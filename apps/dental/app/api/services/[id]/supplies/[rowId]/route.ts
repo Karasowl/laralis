@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import type { ApiResponse } from '@/lib/types';
 import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
+import { forbiddenIfMissingPermission } from '@/lib/permissions';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
 
@@ -30,7 +31,9 @@ export async function DELETE(
     if ('error' in ctx) {
       return NextResponse.json({ error: ctx.error.message }, { status: ctx.error.status });
     }
-    const { clinicId } = ctx;
+    const { clinicId, userId } = ctx;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'services.edit');
+    if (forbidden) return forbidden;
 
     // Verify the recipe line exists and belongs to the service and clinic
     // Verify the recipe line exists and belongs to a service in this clinic
@@ -105,7 +108,9 @@ export async function PUT(
     if ('error' in ctx) {
       return NextResponse.json({ error: ctx.error.message }, { status: ctx.error.status });
     }
-    const { clinicId } = ctx;
+    const { clinicId, userId } = ctx;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'services.edit');
+    if (forbidden) return forbidden;
 
     // Verify the recipe line exists and belongs to the service and clinic
     const { data: recipeLine } = await supabaseAdmin

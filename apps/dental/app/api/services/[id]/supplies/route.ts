@@ -4,6 +4,7 @@ import { zServiceSupply } from '@/lib/zod';
 import type { ServiceSupply, Supply, ApiResponse } from '@/lib/types';
 import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
+import { forbiddenIfMissingPermission } from '@/lib/permissions';
 import { readJson } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic'
@@ -25,7 +26,9 @@ export async function GET(
     if ('error' in clinicContext) {
       return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
-    const { clinicId } = clinicContext;
+    const { clinicId, userId } = clinicContext;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'services.view');
+    if (forbidden) return forbidden;
 
     // Get service supplies with supply details (join)
     // Note: service_supplies doesn't have clinic_id, the service itself has it
@@ -96,7 +99,9 @@ export async function POST(
     if ('error' in clinicContext) {
       return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
-    const { clinicId } = clinicContext;
+    const { clinicId, userId } = clinicContext;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'services.edit');
+    if (forbidden) return forbidden;
 
     // Verify service exists and belongs to clinic
     const { data: service } = await supabaseAdmin
@@ -202,7 +207,9 @@ export async function DELETE(
     if ('error' in clinicContext) {
       return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
-    const { clinicId } = clinicContext;
+    const { clinicId, userId } = clinicContext;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'services.edit');
+    if (forbidden) return forbidden;
 
     const { supply_id } = body;
     

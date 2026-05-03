@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { resolveClinicContext } from '@/lib/clinic'
+import { forbiddenIfMissingPermission } from '@/lib/permissions'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,7 +13,9 @@ export async function GET(_req: NextRequest) {
 
     const ctx = await resolveClinicContext({ cookieStore })
     if ('error' in ctx) return NextResponse.json({ error: ctx.error.message }, { status: ctx.error.status })
-    const { clinicId } = ctx
+    const { clinicId, userId } = ctx
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'break_even.view')
+    if (forbidden) return forbidden
 
     // Time settings
     const { data: time, error: timeErr } = await supabaseAdmin

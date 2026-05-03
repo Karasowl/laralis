@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { cookies } from 'next/headers'
 import { resolveClinicContext } from '@/lib/clinic'
+import { forbiddenIfMissingPermission } from '@/lib/permissions'
 import { checkConflicts, Appointment } from '@/lib/calendar/conflict-detection'
 import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
@@ -41,7 +42,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { clinicId } = clinicContext
+    const { clinicId, userId } = clinicContext
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'treatments.create')
+    if (forbidden) return forbidden
 
     const { date, time, duration_minutes, exclude_id } = body
 

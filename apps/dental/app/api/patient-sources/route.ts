@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
+import { forbiddenIfMissingPermission } from '@/lib/permissions';
 import { z } from 'zod';
 import { readJson } from '@/lib/validation';
 
@@ -24,7 +25,10 @@ export async function GET(request: NextRequest) {
     if ('error' in clinicContext) {
       return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
-    const { clinicId } = clinicContext;
+    const { clinicId, userId } = clinicContext;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'patients.view');
+    if (forbidden) return forbidden;
+
     const activeOnly = searchParams.get('active') === 'true';
 
     if (!clinicId) {
@@ -77,7 +81,9 @@ export async function POST(request: NextRequest) {
     if ('error' in clinicContext) {
       return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
-    const { clinicId } = clinicContext;
+    const { clinicId, userId } = clinicContext;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'patients.create');
+    if (forbidden) return forbidden;
 
     if (!clinicId) {
       return NextResponse.json(

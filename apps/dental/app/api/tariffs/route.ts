@@ -8,6 +8,7 @@ export const dynamic = 'force-dynamic'
 
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { resolveClinicContext } from '@/lib/clinic'
+import { forbiddenIfMissingPermission } from '@/lib/permissions'
 import { calcularPrecioConDescuento } from '@/lib/calc/tarifa'
 
 const tariffItemSchema = z.object({
@@ -158,6 +159,12 @@ export async function POST(request: NextRequest) {
     if ('error' in clinicContext) {
       return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status })
     }
+    const forbidden = await forbiddenIfMissingPermission(
+      clinicContext.userId,
+      clinicContext.clinicId,
+      'services.set_prices'
+    )
+    if (forbidden) return forbidden
 
     const today = new Date().toISOString().split('T')[0]
     const rows: any[] = []
@@ -274,6 +281,12 @@ export async function GET(request: NextRequest) {
     if ('error' in clinicContext) {
       return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status })
     }
+    const forbidden = await forbiddenIfMissingPermission(
+      clinicContext.userId,
+      clinicContext.clinicId,
+      'financial_reports.view'
+    )
+    if (forbidden) return forbidden
 
     const { data, error } = await supabaseAdmin
       .from('tariffs')

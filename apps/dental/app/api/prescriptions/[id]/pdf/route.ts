@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { resolveClinicContext } from '@/lib/clinic'
+import { forbiddenIfMissingPermission } from '@/lib/permissions'
 import { generatePrescriptionPDF } from '@/lib/pdf/prescription-pdf'
 
 export const dynamic = 'force-dynamic'
@@ -35,7 +36,9 @@ export async function GET(
       )
     }
 
-    const { clinicId } = clinicContext
+    const { clinicId, userId } = clinicContext
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'prescriptions.print')
+    if (forbidden) return forbidden
 
     // Fetch prescription with all related data
     const { data: prescription, error: prescriptionError } = await supabaseAdmin

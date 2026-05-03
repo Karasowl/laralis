@@ -634,6 +634,174 @@ describe('Stage permission boundaries', () => {
     })
   })
 
+  it('blocks viewer clinical catalogs, prescriptions, pricing, and treatment adjunct endpoints at the API', () => {
+    const fakeId = '00000000-0000-4000-8000-000000000004'
+
+    cy.loginAsStageUser(viewerEmail, undefined, { allowSetup: true })
+    selectClinicA().then((clinicId) => {
+      expectForbiddenGet(
+        '/api/categories?type=expenses',
+        'viewer cannot read expense categories'
+      )
+      expectForbiddenRequest(
+        'POST',
+        '/api/categories?type=services',
+        'viewer cannot create service categories',
+        { name: `QA Category ${stamp}` }
+      )
+      expectForbiddenRequest(
+        'PUT',
+        `/api/categories/${fakeId}?type=services`,
+        'viewer cannot edit service categories',
+        { name: `QA Category ${stamp}` }
+      )
+      expectForbiddenRequest(
+        'DELETE',
+        `/api/categories/${fakeId}?type=services`,
+        'viewer cannot delete service categories'
+      )
+
+      expectForbiddenRequest(
+        'POST',
+        '/api/patient-sources',
+        'viewer cannot create patient sources',
+        {
+          clinic_id: clinicId,
+          name: `QA Source ${stamp}`,
+        }
+      )
+
+      cy.request('/api/medications').then((response) => {
+        expect(response.status, 'viewer can read medication catalog').to.eq(200)
+      })
+      expectForbiddenRequest(
+        'POST',
+        '/api/medications',
+        'viewer cannot create medications',
+        {
+          clinic_id: clinicId,
+          name: `QA Medication ${stamp}`,
+        }
+      )
+
+      cy.request('/api/prescriptions').then((response) => {
+        expect(response.status, 'viewer can read prescriptions').to.eq(200)
+      })
+      expectForbiddenRequest(
+        'POST',
+        '/api/prescriptions',
+        'viewer cannot create prescriptions',
+        {
+          clinic_id: clinicId,
+          patient_id: fakeId,
+          prescription_date: '2026-05-28',
+          prescriber_name: 'QA Doctor',
+          items: [
+            {
+              medication_name: 'QA Medication',
+              dosage: '1 tableta',
+              frequency: 'Cada 8 horas',
+            },
+          ],
+        }
+      )
+      expectForbiddenRequest(
+        'PUT',
+        `/api/prescriptions/${fakeId}`,
+        'viewer cannot edit prescriptions',
+        {
+          clinic_id: clinicId,
+          status: 'active',
+        }
+      )
+      expectForbiddenRequest(
+        'DELETE',
+        `/api/prescriptions/${fakeId}?clinicId=${clinicId}`,
+        'viewer cannot cancel prescriptions'
+      )
+      expectForbiddenGet(
+        `/api/prescriptions/${fakeId}/pdf?clinicId=${clinicId}`,
+        'viewer cannot print prescription PDFs'
+      )
+
+      expectForbiddenGet('/api/tariffs', 'viewer cannot read tariff costs')
+      expectForbiddenRequest(
+        'POST',
+        '/api/tariffs',
+        'viewer cannot set tariffs',
+        {
+          tariffs: [
+            {
+              clinic_id: clinicId,
+              service_id: fakeId,
+              margin_percentage: 30,
+              final_price_cents: 100000,
+            },
+          ],
+        }
+      )
+      expectForbiddenGet(
+        `/api/services/${fakeId}/cost`,
+        'viewer cannot read service cost breakdowns'
+      )
+      expectForbiddenRequest(
+        'POST',
+        `/api/services/${fakeId}/supplies`,
+        'viewer cannot edit service recipes',
+        {
+          supply_id: fakeId,
+          qty: 1,
+        }
+      )
+      expectForbiddenRequest(
+        'DELETE',
+        `/api/services/${fakeId}/supplies`,
+        'viewer cannot remove supplies from service recipes',
+        {
+          supply_id: fakeId,
+        }
+      )
+      expectForbiddenRequest(
+        'PUT',
+        `/api/services/${fakeId}/supplies/${fakeId}`,
+        'viewer cannot edit service recipe lines',
+        {
+          qty: 1,
+        }
+      )
+      expectForbiddenRequest(
+        'DELETE',
+        `/api/services/${fakeId}/supplies/${fakeId}`,
+        'viewer cannot delete service recipe lines'
+      )
+
+      expectForbiddenGet(
+        '/api/time/cost-per-minute',
+        'viewer cannot read cost per minute'
+      )
+      expectForbiddenRequest(
+        'POST',
+        '/api/treatments/check-conflicts',
+        'viewer cannot check treatment scheduling conflicts for new appointments',
+        {
+          clinic_id: clinicId,
+          date: '2026-05-28',
+          time: '10:00',
+          duration_minutes: 30,
+        }
+      )
+      expectForbiddenRequest(
+        'PATCH',
+        `/api/treatments/${fakeId}/refund`,
+        'viewer cannot refund treatments',
+        {
+          clinic_id: clinicId,
+          refund_reason: `QA forbidden ${stamp}`,
+        }
+      )
+    })
+  })
+
   it('blocks viewer administrative settings, team, snapshots, and reset endpoints at the API', () => {
     const fakeId = '00000000-0000-4000-8000-000000000003'
 

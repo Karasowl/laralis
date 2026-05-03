@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
+import { forbiddenIfMissingPermission } from '@/lib/permissions';
 import { deleteTreatmentFromCalendar } from '@/lib/google-calendar';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
@@ -50,7 +51,10 @@ export async function PATCH(
       return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
     }
 
-    const { clinicId } = clinicContext;
+    const { clinicId, userId } = clinicContext;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'treatments.mark_paid');
+    if (forbidden) return forbidden;
+
     const { refund_reason } = body;
 
     // First, fetch the treatment to verify it exists and check its current state

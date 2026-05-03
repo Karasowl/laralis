@@ -1,6 +1,6 @@
 # QA Inventory Report
 
-Generated: 2026-05-03T20:03:45.162Z
+Generated: 2026-05-03T20:20:31.157Z
 
 Status: fail
 Failing checks: 3
@@ -143,7 +143,7 @@ ui files: 435; files with data-testid: 1; data-testid occurrences: 4
 
 Status: warn
 
-api routes: 161; permission guard: 71 (withPermission: 29, manual: 42); using supabaseAdmin: 129; admin without permission/cron guard: 54
+api routes: 161; permission guard: 85 (withPermission: 29, manual: 56); using supabaseAdmin: 129; admin without permission/cron guard: 40
 
 - app/api/ai/feedback/route.ts
 - app/api/ai/sessions/route.ts
@@ -151,8 +151,6 @@ api routes: 161; permission guard: 71 (withPermission: 29, manual: 42); using su
 - app/api/ai/sessions/[id]/route.ts
 - app/api/auth/delete-account/route.ts
 - app/api/auth/delete-account/send-code/route.ts
-- app/api/categories/route.ts
-- app/api/categories/[id]/route.ts
 - app/api/clinic/[clinicId]/export/route.ts
 - app/api/clinics/discount/route.ts
 - app/api/clinics/route.ts
@@ -171,29 +169,17 @@ api routes: 161; permission guard: 71 (withPermission: 29, manual: 42); using su
 - app/api/invitations/reject/[token]/route.ts
 - app/api/invitations/route.ts
 - app/api/invitations/[id]/resend/route.ts
-- app/api/medications/route.ts
 - app/api/notifications/push/subscribe/route.ts
 - app/api/notifications/push/track-click/route.ts
 - app/api/notifications/push/unsubscribe/route.ts
 - app/api/notifications/send-confirmation/route.ts
-- app/api/patient-sources/route.ts
 - app/api/permissions/check/route.ts
 - app/api/permissions/my/route.ts
-- app/api/prescriptions/route.ts
-- app/api/prescriptions/[id]/pdf/route.ts
-- app/api/prescriptions/[id]/route.ts
 - app/api/public/availability/route.ts
 - app/api/public/book/route.ts
 - app/api/public/clinic/[slug]/route.ts
-- app/api/services/[id]/cost/route.ts
-- app/api/services/[id]/supplies/route.ts
-- app/api/services/[id]/supplies/[rowId]/route.ts
 - app/api/settings/notifications/test/route.ts
 - app/api/setup/status/route.ts
-- app/api/tariffs/route.ts
-- app/api/time/cost-per-minute/route.ts
-- app/api/treatments/check-conflicts/route.ts
-- app/api/treatments/[id]/refund/route.ts
 - app/api/whatsapp/webhook/route.ts
 - app/api/workspaces/route.ts
 - app/api/workspaces/[id]/clinics/route.ts

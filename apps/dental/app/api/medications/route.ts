@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { resolveClinicContext } from '@/lib/clinic'
+import { forbiddenIfMissingPermission } from '@/lib/permissions'
 import { z } from 'zod'
 import { readJson } from '@/lib/validation'
 
@@ -49,7 +50,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       )
     }
 
-    const { clinicId } = clinicContext
+    const { clinicId, userId } = clinicContext
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'prescriptions.view')
+    if (forbidden) return forbidden
 
     // Get query params
     const category = searchParams.get('category')
@@ -114,7 +117,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       )
     }
 
-    const { clinicId } = clinicContext
+    const { clinicId, userId } = clinicContext
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'prescriptions.create')
+    if (forbidden) return forbidden
 
     // Validate input
     const validation = medicationSchema.safeParse(body)
