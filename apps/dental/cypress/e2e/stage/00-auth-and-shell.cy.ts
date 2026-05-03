@@ -4,9 +4,9 @@ describe('Stage auth and active workspace shell', () => {
     cy.location('pathname', { timeout: 30000 }).should('include', '/auth/login')
   })
 
-  it('keeps existing accounts on register with a clear error', () => {
-    const email = Cypress.env('STAGE_TEST_EMAIL') || Cypress.env('TEST_EMAIL')
-    if (!email) throw new Error('Missing STAGE_TEST_EMAIL for existing-account registration check')
+  it('keeps the stage account on register with a clear existing-account error', () => {
+    const email = Cypress.env('STAGE_TEST_EMAIL')
+    if (!email) throw new Error('Missing STAGE_TEST_EMAIL for stage existing-account registration check')
 
     cy.visit('/auth/register')
     cy.get('input').eq(0).clear().type('Stage')
@@ -58,4 +58,3 @@ describe('Stage auth and active workspace shell', () => {
     }).its('status').should('eq', 401)
   })
 })
-

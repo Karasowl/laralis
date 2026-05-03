@@ -43,8 +43,8 @@ Ese script:
 
 1. Lee `apps/dental/cypress.env.json`.
 2. Usa `STAGE_TEST_EMAIL` y `STAGE_TEST_PASSWORD`.
-3. Si faltan, intenta reutilizar `TEST_EMAIL` y `TEST_PASSWORD`.
-4. Si siguen faltando, los pide por consola y los guarda en el JSON local.
+3. Si faltan, los pide por consola y los guarda en el JSON local.
+4. No reutiliza `TEST_EMAIL` ni `TEST_PASSWORD`, porque esas claves pueden apuntar a otra cuenta.
 5. Exporta las variables para Cypress.
 6. Ejecuta:
 
@@ -111,4 +111,4 @@ https://laralis-monorepo-preview.vercel.app
 
 3. Si Cypress abre pero no autentica, vuelve a ejecutar `Abrir Cypress Stage.bat` y revisa las credenciales guardadas.
 4. Si la app carga pero no aparecen datos, revisa que Vercel stage tenga las variables de Supabase staging y que no este apuntando a produccion.
-
+5. Si por error Cypress intento entrar con `TEST_EMAIL`, borra o completa las claves `STAGE_TEST_EMAIL` y `STAGE_TEST_PASSWORD` en `apps/dental/cypress.env.json`, cierra Cypress y vuelve a abrir `Abrir Cypress Stage.bat`.

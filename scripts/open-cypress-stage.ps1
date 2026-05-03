@@ -45,18 +45,13 @@ if (Test-Path $envFile) {
 $email = $values['STAGE_TEST_EMAIL']
 $password = $values['STAGE_TEST_PASSWORD']
 
-if (Test-IsPlaceholder $email -and -not (Test-IsPlaceholder $values['TEST_EMAIL'])) {
-  $email = $values['TEST_EMAIL']
-}
-
-if (Test-IsPlaceholder $password -and -not (Test-IsPlaceholder $values['TEST_PASSWORD'])) {
-  $password = $values['TEST_PASSWORD']
-}
-
 if ((Test-IsPlaceholder $email) -or (Test-IsPlaceholder $password)) {
   Write-Host ""
-  Write-Host "Primera configuracion de Cypress Stage" -ForegroundColor Cyan
+  Write-Host "Configuracion de Cypress Stage" -ForegroundColor Cyan
   Write-Host "Esto se guarda en apps/dental/cypress.env.json, que esta ignorado por Git." -ForegroundColor DarkGray
+  if ((-not (Test-IsPlaceholder $values['TEST_EMAIL'])) -or (-not (Test-IsPlaceholder $values['TEST_PASSWORD']))) {
+    Write-Host "Importante: stage no reutiliza TEST_EMAIL/TEST_PASSWORD porque pueden apuntar a otra cuenta." -ForegroundColor Yellow
+  }
   Write-Host ""
 
   if (Test-IsPlaceholder $email) {
@@ -86,6 +81,8 @@ if ((Test-IsPlaceholder $email) -or (Test-IsPlaceholder $password)) {
 
 $env:CYPRESS_STAGE_TEST_EMAIL = [string] $email
 $env:CYPRESS_STAGE_TEST_PASSWORD = [string] $password
+$env:CYPRESS_TEST_EMAIL = ''
+$env:CYPRESS_TEST_PASSWORD = ''
 
 Write-Host ""
 Write-Host "Abriendo Cypress contra stage..." -ForegroundColor Cyan
@@ -93,4 +90,3 @@ Write-Host "Target: https://laralis-monorepo-preview.vercel.app" -ForegroundColo
 Write-Host ""
 
 npm --workspace @laralis/dental run test:e2e:stage:open
-
