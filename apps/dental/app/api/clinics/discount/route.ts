@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { resolveClinicContext } from '@/lib/clinic'
 import { readJson } from '@/lib/validation'
+import { forbiddenIfMissingPermission } from '@/lib/permissions'
 
 export const dynamic = 'force-dynamic'
 
@@ -37,6 +38,13 @@ export async function GET(request: NextRequest) {
     if ('error' in clinicContext) {
       return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status })
     }
+
+    const forbidden = await forbiddenIfMissingPermission(
+      clinicContext.userId,
+      clinicContext.clinicId,
+      'services.view'
+    )
+    if (forbidden) return forbidden
 
     const { data: clinic, error } = await supabaseAdmin
       .from('clinics')
@@ -86,6 +94,13 @@ export async function PUT(request: NextRequest) {
     if ('error' in clinicContext) {
       return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status })
     }
+
+    const forbidden = await forbiddenIfMissingPermission(
+      clinicContext.userId,
+      clinicContext.clinicId,
+      'settings.edit'
+    )
+    if (forbidden) return forbidden
 
     const discountConfig = parsed.data
 

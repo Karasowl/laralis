@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { countWorkspaceCriticalRows, deleteWorkspaceTree } from '@/lib/workspace-lifecycle'
 import { readJson, validateSchema } from '@/lib/validation'
+import { forbiddenIfMissingWorkspacePermission } from '@/lib/workspace-access'
 
 export const dynamic = 'force-dynamic'
 
@@ -55,12 +56,14 @@ export async function POST(
       .from('workspaces')
       .select('id, name, owner_id, onboarding_completed, status')
       .eq('id', params.id)
-      .eq('owner_id', user.id)
       .single()
 
     if (workspaceError || !workspace) {
       return NextResponse.json({ error: 'Workspace not found or unauthorized' }, { status: 404 })
     }
+
+    const forbidden = await forbiddenIfMissingWorkspacePermission(user.id, params.id, 'settings.edit')
+    if (forbidden) return forbidden
 
     const now = new Date().toISOString()
 
@@ -78,7 +81,6 @@ export async function POST(
           updated_at: now,
         })
         .eq('id', workspace.id)
-        .eq('owner_id', user.id)
         .select()
         .single()
 
@@ -132,7 +134,6 @@ export async function POST(
           updated_at: now,
         })
         .eq('id', workspace.id)
-        .eq('owner_id', user.id)
         .select()
         .single()
 

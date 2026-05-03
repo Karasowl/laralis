@@ -4,6 +4,10 @@ import { cookies } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
+import {
+  forbiddenIfMissingWorkspacePermission,
+  userCanAccessWorkspace,
+} from '@/lib/workspace-access'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,15 +43,8 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Verify workspace belongs to current user
-    const { data: ws, error: wsErr } = await supabaseAdmin
-      .from('workspaces')
-      .select('id')
-      .eq('id', params.id)
-      .eq('owner_id', user.id)
-      .single()
-
-    if (wsErr || !ws) {
+    const canAccessWorkspace = await userCanAccessWorkspace(user.id, params.id)
+    if (!canAccessWorkspace) {
       return NextResponse.json({ error: 'Workspace not found or unauthorized' }, { status: 404 })
     }
 
@@ -91,17 +88,13 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Verify workspace belongs to current user
-    const { data: ws, error: wsErr } = await supabaseAdmin
-      .from('workspaces')
-      .select('id')
-      .eq('id', params.id)
-      .eq('owner_id', user.id)
-      .single()
-
-    if (wsErr || !ws) {
+    const canAccessWorkspace = await userCanAccessWorkspace(user.id, params.id)
+    if (!canAccessWorkspace) {
       return NextResponse.json({ error: 'Workspace not found or unauthorized' }, { status: 404 })
     }
+
+    const forbidden = await forbiddenIfMissingWorkspacePermission(user.id, params.id, 'settings.edit')
+    if (forbidden) return forbidden
 
     const bodyResult = await readJson(request)
     if ('error' in bodyResult) {

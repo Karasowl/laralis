@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
+import { forbiddenIfMissingPermission } from '@/lib/permissions'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,25 +21,15 @@ const updateClinicSchema = z.object({
   message: 'At least one field must be provided',
 })
 
-async function ensureClinicOwnership(userId: string, clinicId: string) {
-  // Load clinic to get workspace_id
+async function ensureClinicExists(clinicId: string) {
   const { data: clinic, error: clinicErr } = await supabaseAdmin
     .from('clinics')
     .select('id, workspace_id')
     .eq('id', clinicId)
     .single()
-  if (clinicErr || !clinic) return { ok: false, status: 404 as const }
+  if (clinicErr || !clinic) return null
 
-  // Verify workspace belongs to user
-  const { data: ws, error: wsErr } = await supabaseAdmin
-    .from('workspaces')
-    .select('id')
-    .eq('id', clinic.workspace_id)
-    .eq('owner_id', userId)
-    .single()
-  if (wsErr || !ws) return { ok: false, status: 403 as const }
-
-  return { ok: true as const }
+  return clinic
 }
 
 export async function PUT(
@@ -63,10 +54,12 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const guard = await ensureClinicOwnership(user.id, params.id)
-    if (!guard.ok) {
-      return NextResponse.json({ error: guard.status === 404 ? 'Clinic not found' : 'Forbidden' }, { status: guard.status })
+    if (!(await ensureClinicExists(params.id))) {
+      return NextResponse.json({ error: 'Clinic not found' }, { status: 404 })
     }
+
+    const forbidden = await forbiddenIfMissingPermission(user.id, params.id, 'settings.edit')
+    if (forbidden) return forbidden
 
     const bodyResult = await readJson(request)
     if ('error' in bodyResult) {
@@ -126,21 +119,15 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const guard = await ensureClinicOwnership(user.id, params.id)
-    if (!guard.ok) {
-      return NextResponse.json({ error: guard.status === 404 ? 'Clinic not found' : 'Forbidden' }, { status: guard.status })
-    }
-
-    // Get the clinic to find its workspace
-    const { data: clinic, error: clinicErr } = await supabaseAdmin
-      .from('clinics')
-      .select('id, workspace_id')
-      .eq('id', params.id)
-      .single()
-
-    if (clinicErr || !clinic) {
+    const existingClinic = await ensureClinicExists(params.id)
+    if (!existingClinic) {
       return NextResponse.json({ error: 'Clinic not found' }, { status: 404 })
     }
+
+    const forbidden = await forbiddenIfMissingPermission(user.id, params.id, 'settings.edit')
+    if (forbidden) return forbidden
+
+    const clinic = existingClinic
 
     // Count how many clinics are in this workspace
     const { count: clinicsInWorkspace, error: countErr } = await supabaseAdmin

@@ -182,6 +182,7 @@ function analyzeApiSurface() {
     const manualPermission =
       text.includes('forbiddenIfMissingPermission(') ||
       text.includes('forbiddenIfMissingPermissions(') ||
+      text.includes('forbiddenIfMissingWorkspacePermission(') ||
       text.includes('userHasPermission(')
     return {
       route: rel(file),

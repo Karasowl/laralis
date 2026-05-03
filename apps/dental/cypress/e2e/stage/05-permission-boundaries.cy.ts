@@ -1002,4 +1002,98 @@ describe('Stage permission boundaries', () => {
       )
     })
   })
+
+  it('blocks viewer workspace and clinic administration while preserving context reads', () => {
+    cy.loginAsStageUser(viewerEmail, undefined, { allowSetup: true })
+
+    cy.readFile('../../docs/qa/dataset.json').then((dataset) => {
+      const clinicAName = dataset.clinics.find((clinic: any) => clinic.key === 'clinicA')?.name
+
+      cy.request('/api/clinics').then((clinicsResponse) => {
+        expect(clinicsResponse.status, 'viewer can resolve accessible clinics').to.eq(200)
+        const clinicA = (clinicsResponse.body.data || []).find((clinic: any) => clinic.name === clinicAName)
+        expect(clinicA, 'viewer has clinic A context').to.exist
+
+        cy.request('POST', '/api/clinics', { clinicId: clinicA.id }).then((selectResponse) => {
+          expect(selectResponse.status, 'viewer can select an accessible clinic').to.eq(200)
+        })
+
+        cy.request('/api/workspaces?list=true').then((workspacesResponse) => {
+          expect(workspacesResponse.status, 'viewer can list accessible workspaces for context').to.eq(200)
+          const workspaces = rowsFromBody(workspacesResponse.body)
+          expect(
+            workspaces.some((workspace: any) => workspace.id === clinicA.workspace_id),
+            'workspace list includes clinic A workspace'
+          ).to.eq(true)
+        })
+
+        cy.request(`/api/workspaces/${clinicA.workspace_id}/clinics`).then((workspaceClinicsResponse) => {
+          expect(workspaceClinicsResponse.status, 'viewer can list clinics for an accessible workspace').to.eq(200)
+          const workspaceClinics = rowsFromBody(workspaceClinicsResponse.body)
+          expect(
+            workspaceClinics.some((clinic: any) => clinic.id === clinicA.id),
+            'workspace clinics include clinic A'
+          ).to.eq(true)
+        })
+
+        expectForbiddenRequest(
+          'POST',
+          '/api/workspaces',
+          'viewer cannot create additional workspaces',
+          {
+            workspaceName: `QA Viewer Workspace ${stamp}`,
+            workspaceSlug: `qa-viewer-${stamp}`,
+          }
+        )
+        expectForbiddenRequest(
+          'PUT',
+          `/api/workspaces/${clinicA.workspace_id}`,
+          'viewer cannot edit workspace settings',
+          { name: `QA Viewer Workspace ${stamp}` }
+        )
+        expectForbiddenRequest(
+          'DELETE',
+          `/api/workspaces/${clinicA.workspace_id}`,
+          'viewer cannot delete workspaces'
+        )
+        expectForbiddenRequest(
+          'POST',
+          `/api/workspaces/${clinicA.workspace_id}/clinics`,
+          'viewer cannot create clinics in a workspace',
+          {
+            name: `QA Viewer Clinic ${stamp}`,
+            currency: 'MXN',
+            locale: 'es-MX',
+          }
+        )
+        expectForbiddenRequest(
+          'POST',
+          `/api/workspaces/${clinicA.workspace_id}/lifecycle`,
+          'viewer cannot run workspace lifecycle actions',
+          { action: 'archive' }
+        )
+        expectForbiddenRequest(
+          'PUT',
+          `/api/clinics/${clinicA.id}`,
+          'viewer cannot edit clinic settings',
+          { name: clinicA.name }
+        )
+        expectForbiddenRequest(
+          'DELETE',
+          `/api/clinics/${clinicA.id}`,
+          'viewer cannot delete clinics'
+        )
+        expectForbiddenRequest(
+          'PUT',
+          '/api/clinics/discount',
+          'viewer cannot edit global clinic discount',
+          {
+            enabled: false,
+            type: 'percentage',
+            value: 0,
+          }
+        )
+      })
+    })
+  })
 })

@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createServerClient } from '@supabase/ssr'
 import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
+import { getAccessibleWorkspaceIds, userCanAccessWorkspace } from '@/lib/workspace-access'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,47 +18,6 @@ const selectClinicSchema = z.object({
 const workspaceQuerySchema = z.object({
   workspaceId: z.string().uuid().optional(),
 })
-
-async function getWorkspaceMembershipIds(userId: string): Promise<string[]> {
-  const ids = new Set<string>()
-
-  for (const table of ['workspace_users', 'workspace_members']) {
-    try {
-      const { data, error } = await supabaseAdmin
-        .from(table)
-        .select('workspace_id')
-        .eq('user_id', userId)
-        .eq('is_active', true)
-
-      if (error) {
-        console.warn(`[clinics] Unable to fetch ${table} memberships:`, error.message)
-        continue
-      }
-
-      for (const row of data || []) {
-        if (row.workspace_id) ids.add(row.workspace_id)
-      }
-    } catch (error) {
-      console.warn(`[clinics] Unexpected ${table} membership lookup error:`, error)
-    }
-  }
-
-  return Array.from(ids)
-}
-
-async function userCanAccessWorkspace(userId: string, workspaceId: string): Promise<boolean> {
-  const { data: ownedWorkspace } = await supabaseAdmin
-    .from('workspaces')
-    .select('id')
-    .eq('id', workspaceId)
-    .eq('owner_id', userId)
-    .maybeSingle()
-
-  if (ownedWorkspace) return true
-
-  const membershipIds = await getWorkspaceMembershipIds(userId)
-  return membershipIds.includes(workspaceId)
-}
 
 export async function GET(request: Request) {
   try {
@@ -107,20 +67,7 @@ export async function GET(request: Request) {
       }
       workspaceIds = [workspaceId]
     } else {
-      const { data: workspaces, error: wsError } = await supabaseAdmin
-        .from('workspaces')
-        .select('id')
-        .eq('owner_id', user.id)
-      if (wsError) {
-        console.error('Error fetching workspaces:', wsError)
-        return NextResponse.json<ApiResponse<Clinic[]>>({
-          error: 'Failed to fetch workspaces',
-          message: wsError.message
-        }, { status: 500 })
-      }
-      const ownedWorkspaceIds = (workspaces || []).map(w => w.id)
-      const memberWorkspaceIds = await getWorkspaceMembershipIds(user.id)
-      workspaceIds = Array.from(new Set([...ownedWorkspaceIds, ...memberWorkspaceIds]))
+      workspaceIds = await getAccessibleWorkspaceIds(user.id)
 
       if (workspaceIds.length === 0) {
         return NextResponse.json<ApiResponse<Clinic[]>>({ data: [] })

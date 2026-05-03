@@ -4,6 +4,11 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
+import {
+  forbiddenIfMissingWorkspacePermission,
+  getAccessibleWorkspaceIds,
+  userCanAccessWorkspace,
+} from '@/lib/workspace-access';
 
 export const dynamic = 'force-dynamic'
 
@@ -70,12 +75,18 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const accessibleWorkspaceIds = await getAccessibleWorkspaceIds(user.id);
+
     // Si se solicita listar todos los workspaces
     if (listAll) {
+      if (accessibleWorkspaceIds.length === 0) {
+        return NextResponse.json([]);
+      }
+
       const { data: workspaces, error } = await supabaseAdmin
         .from('workspaces')
         .select('*')
-        .eq('owner_id', user.id)
+        .in('id', accessibleWorkspaceIds)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -93,24 +104,29 @@ export async function GET(request: NextRequest) {
     const workspaceId = cookieStore.get('workspaceId')?.value;
 
     if (workspaceId) {
-      // Verificar que el workspace existe y pertenece al usuario
+      const canAccessWorkspace = await userCanAccessWorkspace(user.id, workspaceId);
+
+      // Verificar que el workspace existe y pertenece al usuario o membresia activa
       const { data: workspace, error } = await supabaseAdmin
         .from('workspaces')
         .select('*')
         .eq('id', workspaceId)
-        .eq('owner_id', user.id)
         .single();
 
-      if (!error && workspace && isVisibleWorkspace(workspace)) {
+      if (canAccessWorkspace && !error && workspace && isVisibleWorkspace(workspace)) {
         return NextResponse.json({ workspace });
       }
     }
 
     // Buscar workspaces del usuario
+    if (accessibleWorkspaceIds.length === 0) {
+      return NextResponse.json({ workspace: null });
+    }
+
     const { data: workspaces, error } = await supabaseAdmin
       .from('workspaces')
       .select('*')
-      .eq('owner_id', user.id)
+      .in('id', accessibleWorkspaceIds)
       .order('created_at', { ascending: true })
       .limit(20);
 
@@ -188,6 +204,37 @@ export async function POST(request: NextRequest) {
       return parsed.error;
     }
     const body = parsed.data;
+
+    const accessibleWorkspaceIds = await getAccessibleWorkspaceIds(user.id);
+    if (accessibleWorkspaceIds.length > 0) {
+      const { data: existingWorkspaces, error: existingWorkspacesError } = await supabaseAdmin
+        .from('workspaces')
+        .select('id, status, onboarding_completed')
+        .in('id', accessibleWorkspaceIds)
+
+      if (existingWorkspacesError) {
+        return NextResponse.json(
+          { error: 'Failed to validate existing workspaces', details: existingWorkspacesError.message },
+          { status: 500 }
+        );
+      }
+
+      const visibleWorkspaces = (existingWorkspaces || []).filter(isVisibleWorkspace);
+      const currentWorkspaceId = cookieStore.get('workspaceId')?.value;
+      const permissionWorkspace =
+        visibleWorkspaces.find(workspace => workspace.id === currentWorkspaceId) ||
+        visibleWorkspaces.find(isActiveWorkspace) ||
+        visibleWorkspaces[0];
+
+      if (permissionWorkspace) {
+        const forbidden = await forbiddenIfMissingWorkspacePermission(
+          user.id,
+          permissionWorkspace.id,
+          'settings.edit'
+        );
+        if (forbidden) return forbidden;
+      }
+    }
     
     // Support both formats: onboarding (with clinic) and regular creation (without clinic)
     const workspaceName = body.workspaceName || body.name;

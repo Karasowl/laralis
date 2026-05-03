@@ -4,6 +4,7 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
+import { forbiddenIfMissingWorkspacePermission } from '@/lib/workspace-access';
 
 export const dynamic = 'force-dynamic'
 
@@ -62,12 +63,11 @@ export async function PUT(
     }
     const { name, description, onboarding_completed, onboarding_step } = parsed.data;
 
-    // Verificar que el workspace pertenece al usuario
+    // Verificar que el workspace existe y que el usuario puede editar settings
     const { data: existingWorkspace, error: fetchError } = await supabaseAdmin
       .from('workspaces')
-      .select('id')
+      .select('id, owner_id')
       .eq('id', params.id)
-      .eq('owner_id', user.id)
       .single();
 
     if (fetchError || !existingWorkspace) {
@@ -76,6 +76,9 @@ export async function PUT(
         { status: 404 }
       );
     }
+
+    const forbidden = await forbiddenIfMissingWorkspacePermission(user.id, params.id, 'settings.edit');
+    if (forbidden) return forbidden;
 
     // Actualizar el workspace
     const updateData: any = {
@@ -158,12 +161,11 @@ export async function DELETE(
       );
     }
 
-    // Verificar que el workspace pertenece al usuario
+    // Verificar que el workspace existe. El borrado destructivo queda limitado al owner.
     const { data: existingWorkspace, error: fetchError } = await supabaseAdmin
       .from('workspaces')
-      .select('id')
+      .select('id, owner_id')
       .eq('id', params.id)
-      .eq('owner_id', user.id)
       .single();
 
     if (fetchError || !existingWorkspace) {
@@ -171,6 +173,10 @@ export async function DELETE(
         { error: 'Workspace not found or unauthorized' },
         { status: 404 }
       );
+    }
+
+    if (existingWorkspace.owner_id !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Check if there are other workspaces with clinics for this user

@@ -55,6 +55,59 @@ npm --workspace @laralis/dental run test:e2e:stage:permissions
 npm --workspace @laralis/dental run qa:check
 ```
 
+## 2026-05-03 - Administracion de workspace y clinica no debe quedar abierta a viewers
+
+### Problema
+
+Las rutas de workspace/clinica mezclaban dos responsabilidades distintas:
+
+- Resolver contexto de workspace/clinica para que un miembro pueda entrar a la app.
+- Mutar administracion sensible como crear clinicas, editar clinicas, borrar clinicas, cambiar descuentos o ejecutar acciones de lifecycle.
+
+Riesgo asociado:
+
+- Un viewer necesitaba poder listar/seleccionar su clinica para no caer en onboarding.
+- Ese mismo viewer no debe poder crear workspaces, crear clinicas, editar/borrar clinicas ni tocar lifecycle por API.
+- Las rutas de workspace usaban principalmente `owner_id`, lo que no modelaba bien miembros con permisos granulares.
+
+### Prueba permanente
+
+Archivo:
+
+```text
+apps/dental/cypress/e2e/stage/05-permission-boundaries.cy.ts
+```
+
+Casos protegidos:
+
+- `qa-viewer@laralis.test` puede resolver clinicas accesibles, seleccionar la clinica QA y listar workspaces/clinicas de contexto.
+- `qa-viewer@laralis.test` recibe `403 Forbidden` al crear workspaces, editar/borrar workspace, crear clinicas, ejecutar lifecycle, editar/borrar clinicas o cambiar descuento global.
+
+### Implementacion protegida
+
+Archivos:
+
+```text
+apps/dental/lib/workspace-access.ts
+apps/dental/app/api/workspaces/route.ts
+apps/dental/app/api/workspaces/[id]/route.ts
+apps/dental/app/api/workspaces/[id]/clinics/route.ts
+apps/dental/app/api/workspaces/[id]/lifecycle/route.ts
+apps/dental/app/api/clinics/route.ts
+apps/dental/app/api/clinics/[id]/route.ts
+apps/dental/app/api/clinics/discount/route.ts
+```
+
+`workspace-access` centraliza workspaces accesibles por ownership o membresia. Las rutas de contexto siguen permitiendo lectura/seleccion a miembros validos. Las mutaciones administrativas exigen owner o permiso `settings.edit` aplicado a una clinica activa del workspace.
+
+### Verificacion
+
+Comando de stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:permissions
+```
+
 ## 2026-05-03 - Gestion de invitaciones requiere permisos de equipo
 
 ### Problema
