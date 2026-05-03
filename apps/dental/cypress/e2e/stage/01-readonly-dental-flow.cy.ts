@@ -13,11 +13,19 @@ describe('Stage read-only dental workflow from demo video', () => {
     cy.contains(/No hay datos disponibles|No data available/i).should('not.exist')
 
     cy.get('main').contains('button', /Agregar paciente|Add Patient/i).click()
-    cy.contains(/Crear Paciente|Create Patient|Nuevo paciente|New Patient/i, { timeout: 30000 })
-      .should('be.visible')
-    cy.contains(/Origen|Source|Campaña|Campaign|Referencia|Referral/i, { timeout: 30000 })
-      .should('be.visible')
-    cy.contains('button', /Cancelar|Cancel/i).click()
+
+    cy.get('[role="dialog"]', { timeout: 30000 }).within(() => {
+      cy.contains(/Crear Paciente|Create Patient|Nuevo paciente|New Patient/i)
+        .should('be.visible')
+      cy.contains(/Información de Origen|Acquisition Information/i, { timeout: 30000 })
+        .scrollIntoView()
+        .should('be.visible')
+      cy.contains(/Campañas Publicitarias|Advertising Campaigns/i).should('be.visible')
+      cy.contains(/Referencias|Referrals/i).should('be.visible')
+      cy.contains(/Directo|Direct/i).should('be.visible')
+      cy.contains('button', /Cancelar|Cancel/i).click()
+    })
+
     cy.location('pathname').should('include', '/patients')
   })
 
