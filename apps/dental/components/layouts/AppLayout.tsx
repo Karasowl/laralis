@@ -39,7 +39,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   const router = useRouter()
   const { workspace, currentClinic, user, signOut } = useWorkspace()
   const { canAny, loading: permissionsLoading } = usePermissions()
-  const onboardingCompleted = Boolean(workspace?.onboarding_completed)
+  const onboardingCompleted = workspace?.onboarding_completed !== false
   const { theme, setTheme } = useTheme()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)

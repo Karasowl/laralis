@@ -10,7 +10,6 @@ import {
   Megaphone,
   MessageCircle,
   Wrench,
-  XCircle,
   BarChart3,
   Clock,
   ClipboardList,
@@ -167,11 +166,6 @@ export function getNavigationSections(t: any, options: NavigationOptions = {}): 
           href: '/setup',
           label: t('navigation.setup'),
           icon: Wrench
-        },
-        {
-          href: '/setup/cancel',
-          label: t('navigation.cancel_setup'),
-          icon: XCircle
         }
       ]
     };
