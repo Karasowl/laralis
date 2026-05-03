@@ -114,6 +114,16 @@ Cobertura actual:
 - Todavia falta convertir esa clasificacion en pruebas funcionales completas de booking publico, push notifications y self-service de cuenta.
 - Brecha abierta: el viewer puede autenticarse y operar permisos por API, pero el flujo visual estricto todavia puede caer en onboarding. El spec usa `allowSetup` para aislar la prueba de permisos backend hasta que el middleware/UI de miembros quede resuelto.
 
+## Gates de inventario
+
+Cobertura actual:
+
+- `npm --workspace @laralis/dental run qa:inventory` queda verde con 0 fallos estructurales.
+- Los scripts `test:e2e:*` ya no apuntan a specs inexistentes; los aliases historicos ejecutan specs stage existentes.
+- La paridad i18n queda en `missing en: 0` y `missing es: 0`.
+- El inventario exige hooks UI estables en pantallas P0: login, booking publico, pacientes, insumos, servicios, tratamientos, marketing, notificaciones y shell principal.
+- Todavia falta revisar calidad de traduccion completa en ingles, porque habia deuda previa con algunas cadenas inglesas heredadas en espanol.
+
 ## Capacidades que no pueden quedar fuera
 
 - Crear otra clinica.

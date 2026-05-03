@@ -393,7 +393,7 @@ export default function ServicesPage() {
 
   return (
     <AppLayout>
-      <div className="container mx-auto p-6 max-w-7xl space-y-6">
+      <div className="container mx-auto p-6 max-w-7xl space-y-6" data-testid="services-page">
         <PageHeader
           title={t('title')}
           subtitle={t('subtitle')}

@@ -239,7 +239,7 @@ export default function PublicBookingPage() {
   // Render loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-sky-50 to-white flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-b from-sky-50 to-white flex items-center justify-center" data-testid="public-booking-loading">
         <Loader2 className="h-8 w-8 animate-spin text-sky-600" />
       </div>
     )
@@ -248,7 +248,7 @@ export default function PublicBookingPage() {
   // Render error state
   if (error || !clinic) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-sky-50 to-white flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-b from-sky-50 to-white flex items-center justify-center p-4" data-testid="public-booking-error">
         <Card className="max-w-md w-full">
           <CardContent className="pt-6 text-center">
             <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
@@ -269,7 +269,7 @@ export default function PublicBookingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-sky-50 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-sky-50 to-white" data-testid="public-booking-page">
       {/* Header */}
       <header className="bg-white border-b sticky top-0 z-10">
         <div className="max-w-2xl mx-auto px-4 py-4">

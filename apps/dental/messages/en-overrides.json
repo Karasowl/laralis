@@ -36,7 +36,8 @@
     "start": "Start",
     "view": "View",
     "edit": "Editar",
-    "delete": "Eliminar"
+    "delete": "Eliminar",
+    "call": "Call"
   },
   "onboarding": {
     "justInTime": {
@@ -146,6 +147,9 @@
       "completed": "Completado",
       "pending": "Pendiente",
       "cancelled": "Cancelado"
+    },
+    "refund": {
+      "badge": "Refunded"
     }
   },
   "settings": {
@@ -193,6 +197,32 @@
       "slugHelp": "Lowercase, letters and dashes only",
       "slugInvalid": "Invalid slug",
       "validationError": "Please fix the errors and try again"
+    },
+    "notifications": {
+      "confirmation": "Confirmation",
+      "confirmationEnabled": "Appointment confirmation",
+      "confirmationEnabledDescription": "Send a confirmation email when an appointment is scheduled",
+      "emailEnabled": "Email notifications",
+      "emailEnabledDescription": "Turn all email notifications on or off",
+      "failed": "Failed",
+      "history": "Notification history",
+      "historyDescription": "Recent emails sent to patients",
+      "hours": "hours",
+      "noHistory": "No notifications sent",
+      "pending": "Pending",
+      "reminder": "Reminder",
+      "reminderEnabled": "Appointment reminder",
+      "reminderEnabledDescription": "Send a reminder before the appointment",
+      "reminderHoursBefore": "Hours in advance",
+      "reminderHoursBeforeDescription": "How many hours before the appointment to send the reminder",
+      "replyToEmail": "Reply-to email",
+      "replyToEmailPlaceholder": "e.g. appointments@clinic.com",
+      "saveError": "Error saving notification settings",
+      "saveSuccess": "Notification settings saved",
+      "senderName": "Sender name",
+      "senderNamePlaceholder": "e.g. Garcia Dental Clinic",
+      "sent": "Sent",
+      "subtitle": "Configure email reminders and confirmations"
     }
   },
   "assets": {
@@ -240,7 +270,13 @@
       "other": "Other"
     },
     "summary": {
-      "concepts": "Concepts"
+      "concepts": "Concepts",
+      "includingDepreciation": "Includes asset depreciation",
+      "manualCosts": "Manual Fixed Costs"
+    },
+    "breakdownSections": {
+      "automatic": "Automatic Costs",
+      "manual": "Manual Fixed Costs"
     }
   },
   "tariffs": {
@@ -843,7 +879,11 @@
     "databaseReady": "Lista",
     "calculationEngine": "Motor de Cálculo",
     "calculationActive": "Activo",
-    "initialState": "Inicial"
+    "initialState": "Inicial",
+    "metrics": {
+      "attended": "Seen",
+      "attendedPatients": "Patients seen"
+    }
   },
   "dashboard": {
     "patientsThisMonth": "Pacientes Este Mes",
@@ -900,7 +940,21 @@
     "currentStatus": "Estado actual",
     "supplies": "Insumos",
     "services": "Servicios",
-    "latestTreatments": "Últimos tratamientos y citas"
+    "latestTreatments": "Últimos tratamientos y citas",
+    "depreciation": "Depreciation",
+    "ebitda": "EBITDA",
+    "ebitda_description": "Operating cash flow",
+    "expense_breakdown": "Expense breakdown",
+    "fixed_costs": "Fixed Costs",
+    "gross_margin": "Gross Margin",
+    "gross_profit": "Gross Profit",
+    "healthy": "Healthy",
+    "net_profit": "Net Profit",
+    "operating_margin": "Operating Margin",
+    "operating_profit": "Operating Profit",
+    "real_margin": "Real Margin",
+    "real_profit": "Real Profit",
+    "variable_costs": "Variable Costs"
   },
   "patients": {
     "acquisition": {
@@ -942,7 +996,53 @@
     },
     "reset": {
       "title": "Reiniciar Datos",
-      "description": "Borra todos los datos y comienza de nuevo"
+      "description": "Borra todos los datos y comienza de nuevo",
+      "all_data": "All Data",
+      "all_data_desc": "Delete ALL business data (patients, treatments, expenses, supplies, services, assets)",
+      "assets": "Assets",
+      "assets_desc": "Delete all equipment and assets",
+      "checklist": {
+        "assets": "Assets",
+        "custom_categories": "Custom Categories",
+        "fixed_costs": "Fixed Costs",
+        "services": "Services",
+        "supplies": "Supplies",
+        "time_config": "Time Configuration"
+      },
+      "clean_data": "Clean Data",
+      "clean_data_description": "Select the data you want to delete. Be careful, this action cannot be undone.",
+      "clean_selected": "Clean Selected",
+      "cleaning": "Cleaning...",
+      "completed": "Completed",
+      "confirm_delete_all": "Type 'DELETE ALL' to confirm deletion of all data:",
+      "confirm_message": "Are you sure you want to delete the selected data? This action cannot be undone.",
+      "confirm_required": "Please type 'DELETE ALL' to confirm",
+      "delete_all_confirmation_text": "DELETE ALL",
+      "delete_all_placeholder": "Type DELETE ALL",
+      "error": "Error cleaning data",
+      "expenses": "Expenses",
+      "expenses_desc": "Delete all expense records",
+      "has_data_warning": "You have existing data. Be careful when running reset operations.",
+      "no_clinic": "Select or create a clinic first",
+      "options_selected": "options selected",
+      "partial_success": "Some operations completed with errors",
+      "partial_success_detail": "{success} successful, {errors} with errors",
+      "patients": "Patients",
+      "patients_desc": "Delete all patient records and their treatments",
+      "select_options": "Please select at least one option",
+      "services": "Services",
+      "services_desc": "Delete all services and their recipes",
+      "status_description": "Current status of your business data",
+      "status_title": "Data Status",
+      "subtitle": "Clean or reset your business data",
+      "success": "Data cleaned successfully",
+      "supplies": "Supplies",
+      "supplies_desc": "Delete all supplies and service recipes",
+      "treatments": "Treatments",
+      "treatments_desc": "Delete all treatment records",
+      "unknown_error": "Unknown error",
+      "warning": "Warning",
+      "warning_description": "This action cannot be undone. All selected data will be permanently deleted."
     },
     "backup": {
       "title": "Respaldo y Restauración",
@@ -967,7 +1067,11 @@
       "archive": "Archivar",
       "unarchive": "Desarchivar",
       "archived": "Archivada",
-      "live": "Vigente"
+      "live": "Vigente",
+      "no_campaigns_found": "No campaigns found",
+      "no_platforms_found": "No platforms found",
+      "search_campaign": "Search campaign...",
+      "search_platform": "Search platform..."
     },
     "fixedCostsDesc": "Gastos mensuales recurrentes",
     "timeDesc": "Días laborales y horas efectivas",
@@ -1012,7 +1116,54 @@
     "accountDeleted": "Cuenta eliminada exitosamente",
     "deleteError": "Error al eliminar cuenta",
     "enterEmail": "Por favor ingresa tu email",
-    "fillAllFields": "Por favor completa todos los campos"
+    "fillAllFields": "Por favor completa todos los campos",
+    "data": {
+      "description": "Export, import, or back up your clinic information",
+      "title": "Data and maintenance"
+    },
+    "dataManagement": {
+      "backup": {
+        "button": "Create backup",
+        "description": "Create a local backup before importing data to prevent loss.",
+        "error": "We could not create the backup.",
+        "success": "Backup ready. Keep the downloaded file somewhere safe.",
+        "title": "Backups"
+      },
+      "export": {
+        "button": "Download export",
+        "description": "Download a JSON file with your workspace, clinics, patients, treatments, services, and financial records.",
+        "error": "We could not generate the export. Try again.",
+        "success": "Export generated successfully.",
+        "title": "Export data"
+      },
+      "import": {
+        "button": "Import data",
+        "confirmDescription": "Current clinic records will be deleted and replaced with the file data.",
+        "confirmTitle": "Replace current data?",
+        "description": "Upload a Laralis export file. This will replace the current clinic records. We recommend creating a backup first.",
+        "error": "Import failed. No changes were made.",
+        "noFile": "Select a .json file exported from Laralis.",
+        "processing": "Importing data...",
+        "selectFile": "Choose file",
+        "success": "Data imported successfully.",
+        "title": "Import data"
+      },
+      "messages": {
+        "clinicMismatch": "The export belongs to another clinic or workspace.",
+        "invalidFormat": "Unsupported file. Upload a JSON export generated by Laralis.",
+        "sizeExceeded": "The file is too large. The maximum allowed size is {limit} MB."
+      },
+      "subtitle": "Manage exports, imports, and local backups for your clinic.",
+      "title": "Data and maintenance"
+    },
+    "exportImport": {
+      "description": "Full backup and restore for your workspace data",
+      "title": "Export and Import"
+    },
+    "snapshots": {
+      "description": "Create and restore clinic backup snapshots",
+      "title": "Snapshots"
+    }
   },
   "settings_duplicate3": {
     "clinics": {
@@ -1142,5 +1293,17 @@
       "import": "Importar Datos",
       "export": "Exportar Datos"
     }
+  },
+  "dashboardComponents": {
+    "marketingROI": {
+      "help": {
+        "example": "Example: with $1,000 invested and $3,500 in revenue = 250% ROI",
+        "interpretation": "A 250% ROI means that for every dollar invested you earn $2.50 extra",
+        "tip": "Categorize your expenses as Marketing or Advertising to include them in the analysis"
+      }
+    }
+  },
+  "services": {
+    "please_import_supplies": "Import supplies to create services"
   }
 }

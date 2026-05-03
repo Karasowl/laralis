@@ -299,6 +299,7 @@ export default function SuppliesPage() {
   return (
     <>
     <SimpleCrudPage
+      testId="supplies-page"
       title={t('supplies.title')}
       subtitle={t('supplies.subtitle')}
       entityName={t('supplies.entity')}

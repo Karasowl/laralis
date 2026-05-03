@@ -158,6 +158,58 @@ npm --workspace @laralis/dental run qa:check
 npm --workspace @laralis/dental run test:e2e:stage:permissions
 ```
 
+## 2026-05-03 - Inventario QA sin fallos estructurales
+
+### Problema
+
+`qa:inventory` seguia fallando por tres causas que no eran bugs aislados, sino deuda del propio sistema de QA:
+
+- 129 claves existentes en espanol no tenian equivalente efectivo en ingles.
+- Los scripts historicos `test:e2e:*` apuntaban a specs Cypress que ya no existian.
+- La metrica de hooks UI media todos los archivos visuales y no garantizaba hooks estables en las pantallas P0.
+
+Riesgo asociado:
+
+- Cambiar idioma podia ocultar errores de claves faltantes.
+- Un agente o desarrollador podia ejecutar un comando Cypress documentado y recibir un fallo falso por archivo inexistente.
+- Cypress seguia dependiendo demasiado de texto visible, que cambia con idioma o copy.
+
+### Prueba permanente
+
+Archivo:
+
+```text
+apps/dental/scripts/qa-inventory.mjs
+```
+
+Casos protegidos:
+
+- El inventario falla si falta una clave en ingles o espanol.
+- El inventario falla si un script Cypress declarado apunta a un spec inexistente.
+- El inventario falla si faltan hooks P0 como `login-form-fields`, `patients-page`, `treatments-page`, `marketing-page`, `public-booking-page` o `app-main-content`.
+
+### Implementacion protegida
+
+Archivos:
+
+```text
+apps/dental/messages/en-overrides.json
+apps/dental/package.json
+apps/dental/components/layouts/AppLayout.tsx
+apps/dental/components/ui/crud-page-layout.tsx
+apps/dental/scripts/qa-inventory.mjs
+```
+
+Se agregaron traducciones inglesas faltantes, se redirigieron los aliases Cypress a specs stage existentes y se agregaron hooks UI estables en pantallas criticas.
+
+### Verificacion
+
+Comando:
+
+```bash
+npm --workspace @laralis/dental run qa:check
+```
+
 ## 2026-05-03 - Export/import de workspace requiere permisos granulares
 
 ### Problema

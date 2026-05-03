@@ -12,7 +12,7 @@ export default function MarketingPage() {
 
   return (
     <AppLayout>
-      <div className="p-4 lg:p-8 max-w-[1600px] mx-auto space-y-6">
+      <div className="p-4 lg:p-8 max-w-[1600px] mx-auto space-y-6" data-testid="marketing-page">
         <PageHeader title={t('title')} subtitle={t('subtitle')} />
         <Suspense fallback={<Skeleton className="h-64 w-full" />}>
           <MarketingSettingsClient />

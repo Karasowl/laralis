@@ -614,6 +614,7 @@ export default function PatientsPage() {
 
   return (
     <SimpleCrudPage
+      testId="patients-page"
       title={t('title')}
       subtitle={t('subtitle')}
       entityName={tEntities('patient')}

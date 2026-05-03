@@ -70,7 +70,7 @@ export default function LoginPage() {
         }}
         error={error}
       >
-        <div className="space-y-3 sm:space-y-4">
+        <div className="space-y-3 sm:space-y-4" data-testid="login-form-fields">
           <div className="space-y-1">
             <label className="text-xs sm:text-sm font-medium text-foreground">
               {t('email')}

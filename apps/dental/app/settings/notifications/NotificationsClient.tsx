@@ -257,7 +257,7 @@ export function NotificationsClient() {
   };
 
   return (
-    <div className="relative space-y-6">
+    <div className="relative space-y-6" data-testid="notifications-settings-form">
       {/* Master Toggle */}
       <Card>
         <CardHeader>

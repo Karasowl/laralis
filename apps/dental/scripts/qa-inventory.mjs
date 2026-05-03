@@ -154,19 +154,39 @@ function analyzeTestHooks() {
     ...walk(path.join(cwd, 'app'), file => /\.(ts|tsx)$/.test(file)),
     ...walk(path.join(cwd, 'components'), file => /\.(ts|tsx)$/.test(file))
   ]
+  const requiredHooks = [
+    ['app/auth/login/page.tsx', 'login-form-fields'],
+    ['app/book/[slug]/page.tsx', 'public-booking-page'],
+    ['app/marketing/page.tsx', 'marketing-page'],
+    ['app/patients/page.tsx', 'patients-page'],
+    ['app/services/page.tsx', 'services-page'],
+    ['app/settings/notifications/page.tsx', 'notifications-settings-page'],
+    ['app/settings/notifications/NotificationsClient.tsx', 'notifications-settings-form'],
+    ['app/supplies/page.tsx', 'supplies-page'],
+    ['app/treatments/page.tsx', 'treatments-page'],
+    ['components/layouts/AppLayout.tsx', 'app-shell'],
+    ['components/layouts/AppLayout.tsx', 'app-main-content'],
+    ['components/ui/crud-page-layout.tsx', 'crud-search'],
+    ['components/ui/crud-page-layout.tsx', 'crud-table-card']
+  ]
 
   const filesWithTestId = uiFiles.filter(file => readText(file).includes('data-testid'))
   const testIdCount = filesWithTestId.reduce((count, file) => {
     const matches = readText(file).match(/data-testid/g)
     return count + (matches ? matches.length : 0)
   }, 0)
-
-  const ratio = uiFiles.length ? filesWithTestId.length / uiFiles.length : 0
+  const missingRequired = requiredHooks.filter(([file, hook]) => {
+    const fullPath = path.join(cwd, file)
+    return !fs.existsSync(fullPath) || !readText(fullPath).includes(hook)
+  })
 
   return {
-    status: ratio < 0.1 ? 'fail' : 'warn',
-    summary: `ui files: ${uiFiles.length}; files with data-testid: ${filesWithTestId.length}; data-testid occurrences: ${testIdCount}`,
-    details: filesWithTestId.slice(0, 40).map(file => rel(file))
+    status: missingRequired.length ? 'fail' : 'pass',
+    summary: `ui files: ${uiFiles.length}; files with data-testid: ${filesWithTestId.length}; data-testid occurrences: ${testIdCount}; required hooks: ${requiredHooks.length}; missing required hooks: ${missingRequired.length}`,
+    details: [
+      ...missingRequired.map(([file, hook]) => `missing required hook: ${file} -> ${hook}`),
+      ...filesWithTestId.slice(0, 40).map(file => `has hooks: ${rel(file)}`)
+    ]
   }
 }
 

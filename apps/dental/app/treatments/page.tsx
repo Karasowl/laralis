@@ -788,7 +788,7 @@ export default function TreatmentsPage() {
 
   return (
     <AppLayout>
-      <div className="container mx-auto p-4 sm:p-6 max-w-7xl space-y-6">
+      <div className="container mx-auto p-4 sm:p-6 max-w-7xl space-y-6" data-testid="treatments-page">
         <PageHeader
           title={t('treatments.title')}
           subtitle={t('treatments.subtitle')}

@@ -12,7 +12,7 @@ export default function NotificationsPage() {
 
   return (
     <AppLayout>
-      <div className="p-4 lg:p-8 max-w-[1200px] mx-auto space-y-6">
+      <div className="p-4 lg:p-8 max-w-[1200px] mx-auto space-y-6" data-testid="notifications-settings-page">
         <PageHeader title={t('title')} subtitle={t('description')} backHref="/settings" />
 
         <Suspense

@@ -1,9 +1,9 @@
 # QA Inventory Report
 
-Generated: 2026-05-03T23:05:18.865Z
+Generated: 2026-05-03T23:27:30.493Z
 
-Status: fail
-Failing checks: 3
+Status: pass
+Failing checks: 0
 Warning checks: 0
 
 ## QA docs
@@ -64,18 +64,18 @@ seed script: present; assert script: present; env example: present; package scri
 
 ## Cypress spec inventory
 
-Status: fail
+Status: pass
 
-declared spec scripts: 14; existing e2e specs: 6; missing declared specs: 8
+declared spec scripts: 14; existing e2e specs: 6; missing declared specs: 0
 
-- missing: test:e2e:multitenancy -> cypress/e2e/multi-tenancy.cy.ts
-- missing: test:e2e:auth -> cypress/e2e/01-auth.cy.ts
-- missing: test:e2e:patients -> cypress/e2e/02-patients.cy.ts
-- missing: test:e2e:supplies -> cypress/e2e/03-supplies.cy.ts
-- missing: test:e2e:services -> cypress/e2e/04-services.cy.ts
-- missing: test:e2e:treatments -> cypress/e2e/05-treatments.cy.ts
-- missing: test:e2e:settings -> cypress/e2e/06-fixed-costs-settings.cy.ts
-- missing: test:e2e:marketing -> cypress/e2e/07-marketing.cy.ts
+- ok: test:e2e:multitenancy -> cypress/e2e/stage/04-multiclinic-isolation.cy.ts
+- ok: test:e2e:auth -> cypress/e2e/stage/00-auth-and-shell.cy.ts
+- ok: test:e2e:patients -> cypress/e2e/stage/01-readonly-dental-flow.cy.ts
+- ok: test:e2e:supplies -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
+- ok: test:e2e:services -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
+- ok: test:e2e:treatments -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
+- ok: test:e2e:settings -> cypress/e2e/stage/05-permission-boundaries.cy.ts
+- ok: test:e2e:marketing -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
 - ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.ts (6 specs)
 - ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.ts (6 specs)
 - ok: test:e2e:stage:business -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
@@ -85,59 +85,26 @@ declared spec scripts: 14; existing e2e specs: 6; missing declared specs: 8
 
 ## i18n parity
 
-Status: fail
+Status: pass
 
-en keys: 4814; es effective keys: 4943; missing en: 129; missing es: 0
-
-- missing en: actions.call
-- missing en: dashboard.depreciation
-- missing en: dashboard.ebitda
-- missing en: dashboard.ebitda_description
-- missing en: dashboard.expense_breakdown
-- missing en: dashboard.fixed_costs
-- missing en: dashboard.gross_margin
-- missing en: dashboard.gross_profit
-- missing en: dashboard.healthy
-- missing en: dashboard.net_profit
-- missing en: dashboard.operating_margin
-- missing en: dashboard.operating_profit
-- missing en: dashboard.real_margin
-- missing en: dashboard.real_profit
-- missing en: dashboard.variable_costs
-- missing en: dashboardComponents.marketingROI.help.example
-- missing en: dashboardComponents.marketingROI.help.interpretation
-- missing en: dashboardComponents.marketingROI.help.tip
-- missing en: fixedCosts.breakdownSections.automatic
-- missing en: fixedCosts.breakdownSections.manual
-- missing en: fixedCosts.summary.includingDepreciation
-- missing en: fixedCosts.summary.manualCosts
-- missing en: home.metrics.attended
-- missing en: home.metrics.attendedPatients
-- missing en: services.please_import_supplies
-- missing en: settings.notifications.confirmation
-- missing en: settings.notifications.confirmationEnabled
-- missing en: settings.notifications.confirmationEnabledDescription
-- missing en: settings.notifications.emailEnabled
-- missing en: settings.notifications.emailEnabledDescription
-- missing en: settings.notifications.failed
-- missing en: settings.notifications.history
-- missing en: settings.notifications.historyDescription
-- missing en: settings.notifications.hours
-- missing en: settings.notifications.noHistory
-- missing en: settings.notifications.pending
-- missing en: settings.notifications.reminder
-- missing en: settings.notifications.reminderEnabled
-- missing en: settings.notifications.reminderEnabledDescription
-- missing en: settings.notifications.reminderHoursBefore
-- missing en: ...89 more
+en keys: 4943; es effective keys: 4943; missing en: 0; missing es: 0
 
 ## UI test hooks
 
-Status: fail
+Status: pass
 
-ui files: 435; files with data-testid: 1; data-testid occurrences: 4
+ui files: 435; files with data-testid: 10; data-testid occurrences: 19; required hooks: 13; missing required hooks: 0
 
-- components/layouts/ContextIndicator.tsx
+- has hooks: app/auth/login/page.tsx
+- has hooks: app/book/[slug]/page.tsx
+- has hooks: app/marketing/page.tsx
+- has hooks: app/services/page.tsx
+- has hooks: app/settings/notifications/NotificationsClient.tsx
+- has hooks: app/settings/notifications/page.tsx
+- has hooks: app/treatments/page.tsx
+- has hooks: components/layouts/AppLayout.tsx
+- has hooks: components/layouts/ContextIndicator.tsx
+- has hooks: components/ui/crud-page-layout.tsx
 
 ## API permission surface
 

@@ -93,7 +93,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden">
+    <div className="min-h-screen bg-background overflow-x-hidden" data-testid="app-shell">
       {/* Mobile Header */}
       <MobileHeader
         isOpen={mobileSidebarOpen}
@@ -164,7 +164,10 @@ export function AppLayout({ children }: AppLayoutProps) {
         sidebarCollapsed ? "lg:ml-20" : "lg:ml-64"
       )}>
         {/* Desktop Header Bar */}
-        <header className="hidden lg:flex h-16 bg-card/50 backdrop-blur-xl border-b items-center justify-between px-6">
+        <header
+          className="hidden lg:flex h-16 bg-card/50 backdrop-blur-xl border-b items-center justify-between px-6"
+          data-testid="app-desktop-header"
+        >
           <div className="flex items-center gap-4">
             <ContextIndicator />
           </div>
@@ -190,7 +193,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         </header>
 
       {/* Page Content */}
-      <main className="min-h-[calc(100vh-4rem)] overflow-x-hidden">
+      <main className="min-h-[calc(100vh-4rem)] overflow-x-hidden" data-testid="app-main-content">
         {children}
       </main>
     </div>

@@ -59,6 +59,7 @@ interface CrudPageLayoutProps<T extends { id: string; name?: string }> {
   // Styling
   className?: string;
   containerClassName?: string;
+  testId?: string;
 }
 
 export function CrudPageLayout<T extends { id: string; name?: string }>({
@@ -89,6 +90,7 @@ export function CrudPageLayout<T extends { id: string; name?: string }>({
   children,
   className,
   containerClassName,
+  testId,
 }: CrudPageLayoutProps<T>) {
   const t = useT();
   // Build columns, auto-adding an actions column when handlers are provided.
@@ -131,7 +133,10 @@ export function CrudPageLayout<T extends { id: string; name?: string }>({
 
   return (
     <AppLayout>
-      <div className={cn('p-4 lg:p-8 max-w-[1600px] mx-auto space-y-6', containerClassName)}>
+      <div
+        className={cn('p-4 lg:p-8 max-w-[1600px] mx-auto space-y-6', containerClassName)}
+        data-testid={testId}
+      >
         <PageHeader title={title} subtitle={subtitle} />
         
         {/* Summary Cards */}
@@ -141,7 +146,7 @@ export function CrudPageLayout<T extends { id: string; name?: string }>({
         {(searchable || onAdd) && (
           <div className="flex flex-col sm:flex-row gap-4 items-end">
             {searchable && onSearchChange && (
-              <div className="flex-1 relative">
+              <div className="flex-1 relative" data-testid="crud-search">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder={searchPlaceholder}
@@ -165,7 +170,7 @@ export function CrudPageLayout<T extends { id: string; name?: string }>({
         {beforeTable}
 
         {/* Data Table */}
-        <Card className={className}>
+        <Card className={className} data-testid="crud-table-card">
           <div className="p-6">
             {loading ? (
               <div className="flex items-center justify-center py-8">
@@ -242,6 +247,7 @@ interface SimpleCrudPageProps<T extends { id: string; name?: string }> {
   searchable?: boolean;
   beforeTable?: React.ReactNode;
   children?: React.ReactNode;
+  testId?: string;
 }
 
 export function SimpleCrudPage<T extends { id: string; name?: string }>({
@@ -255,6 +261,7 @@ export function SimpleCrudPage<T extends { id: string; name?: string }>({
   searchable = true,
   beforeTable,
   children,
+  testId,
 }: SimpleCrudPageProps<T>) {
   // Localized common strings
   // We avoid hardcoded English in composed labels
@@ -288,6 +295,7 @@ export function SimpleCrudPage<T extends { id: string; name?: string }>({
       deletingItem={data.deletingItem}
       onDeleteConfirm={data.onDeleteConfirm}
       beforeTable={beforeTable}
+      testId={testId}
     >
       {children}
     </CrudPageLayout>
