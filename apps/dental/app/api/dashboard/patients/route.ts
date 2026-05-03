@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { cookies } from 'next/headers'
 import { resolveClinicContext } from '@/lib/clinic'
+import { forbiddenIfMissingPermission } from '@/lib/permissions'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,7 +13,10 @@ export async function GET(request: NextRequest) {
     const sp = request.nextUrl.searchParams
     const ctx = await resolveClinicContext({ requestedClinicId: sp.get('clinicId'), cookieStore })
     if ('error' in ctx) return NextResponse.json({ error: ctx.error.message }, { status: ctx.error.status })
-    const { clinicId } = ctx
+    const { clinicId, userId } = ctx
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'patients.view')
+    if (forbidden) return forbidden
+
     const rawPeriod = sp.get('period') || 'month'
     // Support both naming conventions: date_from/date_to and startDate/endDate
     const dateFrom = sp.get('date_from') || sp.get('startDate')

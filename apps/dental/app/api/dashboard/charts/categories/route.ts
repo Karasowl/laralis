@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { cookies } from 'next/headers'
 import { resolveClinicContext } from '@/lib/clinic'
+import { forbiddenIfMissingPermission } from '@/lib/permissions'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,7 +13,10 @@ export async function GET(request: NextRequest) {
     const sp = request.nextUrl.searchParams
     const ctx = await resolveClinicContext({ requestedClinicId: sp.get('clinicId'), cookieStore })
     if ('error' in ctx) return NextResponse.json({ error: ctx.error.message }, { status: ctx.error.status })
-    const { clinicId } = ctx
+    const { clinicId, userId } = ctx
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'financial_reports.view')
+    if (forbidden) return forbidden
+
     const period = sp.get('period') || 'month'
     const dateFrom = sp.get('date_from')
     const dateTo = sp.get('date_to')

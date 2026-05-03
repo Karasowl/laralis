@@ -9,6 +9,59 @@ Cada entrada debe explicar:
 - Como se verifica.
 - Que riesgo protege.
 
+## 2026-05-03 - Dashboards financieros y export clinico requieren permisos backend
+
+### Problema
+
+Los endpoints de dashboard resolvian la clinica activa, pero varias lecturas usaban `supabaseAdmin` sin permisos granulares antes de calcular revenue, expenses, actividad mixta o charts financieros.
+
+La exportacion completa de clinica tambien verificaba acceso a la clinica, pero no exigia permiso explicito de export.
+
+Riesgo asociado:
+
+- Un viewer podia consultar metricas financieras o actividad con montos por API.
+- Una cuenta con acceso basico a la clinica podia intentar exportar snapshot/full data sin permiso `export_import.export`.
+- Las pruebas de permisos cubrian analytics/reportes, pero dejaban fuera dashboards operativos.
+
+### Prueba permanente
+
+Archivo:
+
+```text
+apps/dental/cypress/e2e/stage/05-permission-boundaries.cy.ts
+```
+
+Casos protegidos:
+
+- `qa-viewer@laralis.test` conserva lectura de dashboards clinicos basicos: pacientes y tratamientos.
+- `qa-viewer@laralis.test` recibe `403 Forbidden` en revenue, expenses, actividades mixtas, chart de revenue y chart de categorias.
+- `qa-viewer@laralis.test` recibe `403 Forbidden` en `GET /api/clinic/:clinicId/export?type=snapshot`.
+
+### Implementacion protegida
+
+Archivos:
+
+```text
+apps/dental/app/api/dashboard/patients/route.ts
+apps/dental/app/api/dashboard/treatments/route.ts
+apps/dental/app/api/dashboard/revenue/route.ts
+apps/dental/app/api/dashboard/expenses/route.ts
+apps/dental/app/api/dashboard/activities/route.ts
+apps/dental/app/api/dashboard/charts/revenue/route.ts
+apps/dental/app/api/dashboard/charts/categories/route.ts
+apps/dental/app/api/clinic/[clinicId]/export/route.ts
+```
+
+Dashboards clinicos usan `patients.view` o `treatments.view`. Dashboards financieros y actividad mixta usan `financial_reports.view`. Export clinico usa `export_import.export`.
+
+### Verificacion
+
+Comando de stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:permissions
+```
+
 ## 2026-05-03 - Catalogos clinicos y recetas requieren permisos backend
 
 ### Problema

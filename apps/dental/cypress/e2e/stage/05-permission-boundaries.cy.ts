@@ -533,6 +533,28 @@ describe('Stage permission boundaries', () => {
     )
   })
 
+  it('blocks viewer financial dashboards and clinic export while preserving clinical dashboard reads', () => {
+    cy.loginAsStageUser(viewerEmail, undefined, { allowSetup: true })
+    selectClinicA().then((clinicId) => {
+      cy.request('/api/dashboard/patients').then((response) => {
+        expect(response.status, 'viewer can read patient dashboard metrics').to.eq(200)
+      })
+      cy.request('/api/dashboard/treatments').then((response) => {
+        expect(response.status, 'viewer can read treatment dashboard metrics').to.eq(200)
+      })
+
+      expectForbiddenGet('/api/dashboard/revenue', 'viewer cannot read revenue dashboard metrics')
+      expectForbiddenGet('/api/dashboard/expenses', 'viewer cannot read expenses dashboard metrics')
+      expectForbiddenGet('/api/dashboard/activities', 'viewer cannot read mixed financial activity feed')
+      expectForbiddenGet('/api/dashboard/charts/revenue', 'viewer cannot read revenue chart data')
+      expectForbiddenGet('/api/dashboard/charts/categories', 'viewer cannot read revenue by category chart data')
+      expectForbiddenGet(
+        `/api/clinic/${clinicId}/export?type=snapshot`,
+        'viewer cannot export clinic data'
+      )
+    })
+  })
+
   it('blocks viewer Lara action endpoints at the API', () => {
     const fakeServiceId = '00000000-0000-4000-8000-000000000001'
     const fakeCategoryId = '00000000-0000-4000-8000-000000000002'

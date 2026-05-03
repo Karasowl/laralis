@@ -17,6 +17,7 @@ import { cookies } from 'next/headers'
 import { ClinicSnapshotService } from '@/lib/ai/ClinicSnapshotService'
 import { resolveClinicContext } from '@/lib/clinic'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { forbiddenIfMissingPermission } from '@/lib/permissions'
 
 // Types for export
 interface ExportMetadata {
@@ -99,6 +100,13 @@ export async function GET(
         { status: 403 }
       )
     }
+
+    const forbidden = await forbiddenIfMissingPermission(
+      clinicContext.userId,
+      clinicContext.clinicId,
+      'export_import.export'
+    )
+    if (forbidden) return forbidden
 
     // Get clinic name (using supabaseAdmin after auth verification)
     const { data: clinic } = await supabaseAdmin

@@ -5,6 +5,7 @@ import { resolveClinicContext } from '@/lib/clinic'
 import { startOfWeek, format, addDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { parseLocalDate } from '@/lib/date-utils'
+import { forbiddenIfMissingPermission } from '@/lib/permissions'
 
 export const dynamic = 'force-dynamic'
 
@@ -69,7 +70,9 @@ export async function GET(request: NextRequest) {
         { status: ctx.error.status }
       )
     }
-    const { clinicId } = ctx
+    const { clinicId, userId } = ctx
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'financial_reports.view')
+    if (forbidden) return forbidden
 
     const period = sp.get('period') || 'month'
     const granularity = sp.get('granularity') || 'month' // day, week, biweek, month
