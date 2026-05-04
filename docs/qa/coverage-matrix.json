@@ -205,7 +205,7 @@
     "domain": "dashboards",
     "capability": "Dashboard muestra margen bruto, neto, utilidad, costos e ingresos esperados",
     "layers": ["cypress", "api", "vitest"],
-    "status": "partial"
+    "status": "covered"
   },
   {
     "id": "qa-027-reports-business-oracles",
