@@ -43,6 +43,7 @@
     "test:e2e:stage:onboarding": "cross-env CYPRESS_BASE_URL=https://laralis-monorepo-preview.vercel.app CYPRESS_VIDEO=false cypress run --spec \"cypress/e2e/stage/07-onboarding-setup-lifecycle.cy.ts\"",
     "test:e2e:stage:team": "cross-env CYPRESS_BASE_URL=https://laralis-monorepo-preview.vercel.app CYPRESS_VIDEO=false cypress run --spec \"cypress/e2e/stage/08-team-admin-invitation.cy.ts\"",
     "test:e2e:stage:patient-history": "cross-env CYPRESS_BASE_URL=https://laralis-monorepo-preview.vercel.app CYPRESS_VIDEO=false cypress run --spec \"cypress/e2e/stage/09-patient-treatment-history.cy.ts\"",
+    "test:e2e:stage:fixed-costs": "cross-env CYPRESS_BASE_URL=https://laralis-monorepo-preview.vercel.app CYPRESS_VIDEO=false cypress run --spec \"cypress/e2e/stage/10-fixed-costs-cost-per-minute.cy.ts\"",
     "test:all": "node test-runner.js all",
     "test:quick": "npm run test:unit && npm run test:integration",
     "test:full": "npm run test:unit && npm run test:integration && npm run test:api && npm run test:e2e",

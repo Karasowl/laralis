@@ -83,6 +83,11 @@ Los tests deben validar oraculos:
 - Utilidad esperada.
 - Resultados esperados por filtro de fecha.
 
+Cobertura actual:
+
+- `apps/dental/cypress/e2e/stage/10-fixed-costs-cost-per-minute.cy.ts` crea un costo fijo QA, verifica que aparece en `/fixed-costs`, confirma que `GET /api/time/cost-per-minute` aumenta `monthly_fixed_cents` y recalcula `per_minute_cents`, edita el monto, vuelve a medir y luego borra el costo para confirmar que el calculo regresa al baseline.
+- `apps/dental/cypress/e2e/stage/02-qa-business-oracles.cy.ts` y `tests/qa/qa-oracles.test.ts` sostienen los oraculos agregados de marketing, ingresos, costos variables, costos fijos asignados, margen bruto y utilidad operativa.
+
 ## Onboarding y setup
 
 Cobertura actual:

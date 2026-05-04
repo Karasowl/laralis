@@ -9,6 +9,42 @@ Cada entrada debe explicar:
 - Como se verifica.
 - Que riesgo protege.
 
+## 2026-05-03 - Costos fijos deben afectar el costo por minuto
+
+### Problema
+
+Los tests de calculo verificaban formulas puras, pero no el contrato completo entre CRUD de costos fijos, pantalla de costos y endpoint real de costo por minuto.
+
+Riesgo asociado:
+
+- Un costo fijo podia crearse visualmente pero no alimentar el calculo operativo.
+- Editar un costo fijo podia dejar el costo por minuto con datos stale.
+- Borrar un costo fijo podia no restaurar el baseline de calculo.
+
+### Prueba permanente
+
+Archivo:
+
+```text
+apps/dental/cypress/e2e/stage/10-fixed-costs-cost-per-minute.cy.ts
+```
+
+Caso protegido:
+
+- Lee el baseline de `GET /api/time/cost-per-minute`.
+- Crea un costo fijo QA por API y verifica que aparece en `/fixed-costs`.
+- Verifica que `monthly_fixed_cents` aumenta por el monto creado y que `per_minute_cents` coincide con `monthly_fixed_cents / effective_minutes_per_month`.
+- Edita el costo fijo, vuelve a verificar el calculo y luego lo elimina.
+- Confirma que el costo mensual y costo por minuto regresan al baseline.
+
+### Verificacion
+
+Comando de stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:fixed-costs
+```
+
 ## 2026-05-03 - Ficha de paciente debe mostrar sus tratamientos reales
 
 ### Problema

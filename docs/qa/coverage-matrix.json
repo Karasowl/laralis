@@ -149,7 +149,7 @@
     "domain": "business-calculations",
     "capability": "Costos fijos: crear, editar y verificar efecto en costo por minuto",
     "layers": ["vitest", "cypress", "api"],
-    "status": "planned"
+    "status": "covered"
   },
   {
     "id": "qa-020-depreciation",

@@ -67,9 +67,9 @@ export const PUT = withPermission(
 
       const bodyResult = await readJson(request);
       if ('error' in bodyResult) {
-        return bodyResult.error;
+        return bodyResult.error as NextResponse<ApiResponse<FixedCost>>;
       }
-      const body = bodyResult.data;
+      const body = bodyResult.data as Record<string, unknown>;
       const { clinicId } = context;
 
       const validationResult = zFixedCost.safeParse({ ...body, clinic_id: clinicId });

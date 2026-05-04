@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ChangeEvent } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
@@ -232,7 +232,7 @@ export default function FixedCostsPage() {
         label: getCategoryDisplayName(categoryValue, t),
         total: categoryTotal,
         percentage,
-        type: 'manual'
+        type: 'manual' as const
       }
     }).filter(item => item.total > 0)
 
@@ -470,12 +470,14 @@ function FixedCostForm({ form, frequencyOptions, t }: FixedCostFormProps) {
   const amountValue = form.watch('amount_pesos') ?? 0
   const frequencyValue = form.watch('frequency') ?? 'monthly'
 
-  const handleAmountChange = (raw: string | number) => {
-    if (raw === '') {
+  const handleAmountChange = (raw: string | number | ChangeEvent<HTMLInputElement>) => {
+    const value = typeof raw === 'object' && 'target' in raw ? raw.target.value : raw
+
+    if (value === '') {
       form.setValue('amount_pesos', 0, { shouldDirty: true, shouldValidate: true })
       return
     }
-    const n = typeof raw === 'number' ? raw : Number(raw)
+    const n = typeof value === 'number' ? value : Number(value)
     form.setValue('amount_pesos', Number.isFinite(n) ? n : 0, { shouldDirty: true, shouldValidate: true })
   }
 
@@ -500,9 +502,9 @@ function FixedCostForm({ form, frequencyOptions, t }: FixedCostFormProps) {
         <InputField
           label={t('fixedCosts.concept')}
           value={form.watch('concept')}
-          onChange={(e) => {
+          onChange={(e: string | number | ChangeEvent<HTMLInputElement>) => {
             const val = typeof e === 'object' && 'target' in e ? e.target.value : e
-            form.setValue('concept', val)
+            form.setValue('concept', String(val))
           }}
           placeholder={t('fixedCosts.conceptPlaceholder')}
           error={form.formState.errors.concept?.message}

@@ -1,6 +1,6 @@
 # QA Inventory Report
 
-Generated: 2026-05-04T01:50:28.911Z
+Generated: 2026-05-04T01:59:26.725Z
 
 Status: pass
 Failing checks: 0
@@ -27,7 +27,7 @@ Status: pass
 
 capabilities: 44; domains: 22; required missing domains: 0
 
-- status counts: partial=13, planned=19, covered=12
+- status counts: partial=13, planned=18, covered=13
 - priority counts: P0=38, P1=6
 
 ## QA dataset
@@ -66,7 +66,7 @@ seed script: present; assert script: present; env example: present; package scri
 
 Status: pass
 
-declared spec scripts: 18; existing e2e specs: 10; missing declared specs: 0
+declared spec scripts: 19; existing e2e specs: 11; missing declared specs: 0
 
 - ok: test:e2e:multitenancy -> cypress/e2e/stage/04-multiclinic-isolation.cy.ts
 - ok: test:e2e:auth -> cypress/e2e/stage/00-auth-and-shell.cy.ts
@@ -76,8 +76,8 @@ declared spec scripts: 18; existing e2e specs: 10; missing declared specs: 0
 - ok: test:e2e:treatments -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
 - ok: test:e2e:settings -> cypress/e2e/stage/05-permission-boundaries.cy.ts
 - ok: test:e2e:marketing -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
-- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.ts (10 specs)
-- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.ts (10 specs)
+- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.ts (11 specs)
+- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.ts (11 specs)
 - ok: test:e2e:stage:business -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
 - ok: test:e2e:stage:crud -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
 - ok: test:e2e:stage:multiclinic -> cypress/e2e/stage/04-multiclinic-isolation.cy.ts
@@ -86,6 +86,7 @@ declared spec scripts: 18; existing e2e specs: 10; missing declared specs: 0
 - ok: test:e2e:stage:onboarding -> cypress/e2e/stage/07-onboarding-setup-lifecycle.cy.ts
 - ok: test:e2e:stage:team -> cypress/e2e/stage/08-team-admin-invitation.cy.ts
 - ok: test:e2e:stage:patient-history -> cypress/e2e/stage/09-patient-treatment-history.cy.ts
+- ok: test:e2e:stage:fixed-costs -> cypress/e2e/stage/10-fixed-costs-cost-per-minute.cy.ts
 
 ## i18n parity
 
