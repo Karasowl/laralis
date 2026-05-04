@@ -1,6 +1,6 @@
 # QA Inventory Report
 
-Generated: 2026-05-04T09:39:40.436Z
+Generated: 2026-05-04T16:15:03.668Z
 
 Status: pass
 Failing checks: 0
@@ -76,8 +76,8 @@ declared spec scripts: 32; existing e2e specs: 24; missing declared specs: 0
 - ok: test:e2e:treatments -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
 - ok: test:e2e:settings -> cypress/e2e/stage/05-permission-boundaries.cy.ts
 - ok: test:e2e:marketing -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
-- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.ts (24 specs)
-- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.ts (24 specs)
+- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.{js,ts} (24 specs)
+- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.{js,ts} (24 specs)
 - ok: test:e2e:stage:business -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
 - ok: test:e2e:stage:crud -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
 - ok: test:e2e:stage:multiclinic -> cypress/e2e/stage/04-multiclinic-isolation.cy.ts
@@ -99,7 +99,7 @@ declared spec scripts: 32; existing e2e specs: 24; missing declared specs: 0
 - ok: test:e2e:stage:roles -> cypress/e2e/stage/20-role-matrix-and-clinic-access.cy.ts
 - ok: test:e2e:stage:lara-isolation -> cypress/e2e/stage/21-lara-dashboard-multiclinic-isolation.cy.ts
 - ok: test:e2e:stage:navigation -> cypress/e2e/stage/22-navigation-session-regression.cy.ts
-- ok: test:e2e:stage:chart-tooltips -> cypress/e2e/stage/23-chart-tooltips-dark-mode.cy.ts
+- ok: test:e2e:stage:chart-tooltips -> cypress/e2e/stage/23-chart-tooltips-dark-mode.cy.js
 
 ## i18n parity
 
