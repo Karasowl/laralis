@@ -228,10 +228,6 @@ describe('Stage Lara and dashboard multi-clinic isolation', () => {
           metaPatients: oracles.marketing.metaMayo.patients,
         })
 
-        cy.visit('/')
-        cy.assertAppShell()
-        cy.assertNoHorizontalScroll()
-
         selectClinic(clinicB.id)
         assertDashboardIsolation(oracles, {
           revenueCents: 0,
@@ -242,6 +238,11 @@ describe('Stage Lara and dashboard multi-clinic isolation', () => {
           campaigns: 0,
         })
 
+        cy.visit('/')
+        cy.assertAppShell()
+        cy.assertNoHorizontalScroll()
+
+        selectClinic(clinicA.id)
         cy.visit('/')
         cy.assertAppShell()
         cy.assertNoHorizontalScroll()
