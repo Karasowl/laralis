@@ -181,6 +181,23 @@ Brechas abiertas:
 - Falta probar la mutacion real de `cleanup-draft-workspaces` con workspaces draft/expired sembrados y oraculos de archive/delete.
 - Falta probar push notifications por separado de email/SMS/WhatsApp.
 
+## Lara, acciones y audio
+
+Cobertura actual:
+
+- `apps/dental/cypress/e2e/stage/18-lara-ai-actions.cy.ts` usa `x-laralis-qa-ai: mock` limitado al Supabase stage `kafbqdliromcveojtdar`, asi Lara responde sin llamar proveedores externos de LLM/STT/TTS.
+- El mock de `/api/ai/query` sigue pasando por autenticacion, seleccion de clinica y permiso `lara.use_query_mode`; despues devuelve SSE deterministico con respuesta, metadata y accion sugerida `update_time_settings`.
+- El spec abre Lara desde el FAB real, entra a modo Consultas, envia una pregunta por UI, recibe la sugerencia, confirma la accion y verifica en `/api/settings/time` que la configuracion se persistio en la base de datos.
+- El mismo spec prueba que `qa-viewer@laralis.test` recibe `403 Forbidden` tanto en la consulta mockeada de Lara como en la accion mutable `update-time-settings`.
+- Los mocks de `/api/ai/transcribe` y `/api/ai/synthesize` verifican entrada y salida de audio sin tocar Deepgram, Kimi ni proveedor TTS real.
+- `FloatingAssistant`, `QueryAssistant` y `ActionConfirmCard` tienen hooks `data-testid` para que la suite no dependa de texto traducido al probar Lara.
+
+Brechas abiertas:
+
+- Falta una prueba visual de reproduccion real del boton de audio con `Audio` mockeado en navegador.
+- Falta cubrir Entry Mode completo: dictar datos, previsualizar entidad, confirmar y verificar registro creado.
+- Falta probar multi-clinica en Lara: preguntar en clinica B y confirmar que no responde con datos de clinica A.
+
 ## Gates de inventario
 
 Cobertura actual:

@@ -555,7 +555,10 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
   }
 
   return (
-    <div className="fixed inset-0 z-[100] bg-background sm:bg-black/50 sm:backdrop-blur-sm flex items-end sm:items-center justify-center">
+    <div
+      className="fixed inset-0 z-[100] bg-background sm:bg-black/50 sm:backdrop-blur-sm flex items-end sm:items-center justify-center"
+      data-testid="lara-query-assistant"
+    >
       <div className="relative w-full h-full sm:h-[90vh] sm:max-w-5xl bg-background sm:border sm:rounded-2xl shadow-2xl flex overflow-hidden animate-in fade-in-0 slide-in-from-bottom-4 duration-200">
         {/* Chat History Sidebar (Mobile Overlay) */}
         {showHistory && (
@@ -850,11 +853,13 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
                 }
                 disabled={isProcessing || !tokenUsage.canSendMessage}
                 className="flex-1 px-4 py-2 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+                data-testid="lara-query-input"
               />
               <button
                 onClick={() => handleQuery(textInput)}
                 disabled={!textInput.trim() || isProcessing || !tokenUsage.canSendMessage}
                 className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                data-testid="lara-query-submit"
               >
                 <Send className="h-5 w-5" />
               </button>

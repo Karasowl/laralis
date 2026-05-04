@@ -12,10 +12,28 @@ import { hasAIConfig, validateAIConfig } from '@/lib/ai/config'
 export const runtime = 'nodejs'
 export const maxDuration = 30 // 30 seconds max for transcription
 
+const QA_STAGE_SUPABASE_REF = 'kafbqdliromcveojtdar'
+
+function isQaAiMockRequested(request: NextRequest) {
+  return request.headers.get('x-laralis-qa-ai') === 'mock'
+}
+
+function isQaStage() {
+  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL?.includes(QA_STAGE_SUPABASE_REF))
+}
+
 export async function POST(request: NextRequest) {
   try {
+    const qaMockRequested = isQaAiMockRequested(request)
+    if (qaMockRequested && !isQaStage()) {
+      return NextResponse.json(
+        { error: 'QA AI mock is only available on stage' },
+        { status: 403 }
+      )
+    }
+
     // Check if AI is configured
-    if (!hasAIConfig()) {
+    if (!qaMockRequested && !hasAIConfig()) {
       return NextResponse.json(
         { error: 'AI service is not configured' },
         { status: 503 }
@@ -23,14 +41,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate configuration before using
-    try {
-      validateAIConfig()
-    } catch (error) {
-      console.error('[API /ai/transcribe] Configuration error:', error)
-      return NextResponse.json(
-        { error: 'AI service configuration is invalid' },
-        { status: 503 }
-      )
+    if (!qaMockRequested) {
+      try {
+        validateAIConfig()
+      } catch (error) {
+        console.error('[API /ai/transcribe] Configuration error:', error)
+        return NextResponse.json(
+          { error: 'AI service configuration is invalid' },
+          { status: 503 }
+        )
+      }
     }
     // Get audio from form data
     const formData = await request.formData()
@@ -39,6 +59,13 @@ export async function POST(request: NextRequest) {
 
     if (!audioFile) {
       return NextResponse.json({ error: 'No audio file provided' }, { status: 400 })
+    }
+
+    if (qaMockRequested) {
+      return NextResponse.json({
+        transcript: 'Lara QA transcribio audio de prueba',
+        provider: 'qa-mock',
+      })
     }
 
     // Convert File to Blob

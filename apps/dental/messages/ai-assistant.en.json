@@ -155,7 +155,13 @@
     },
     "messages": {
       "greeting": "Hello! I'm Lara, your AI assistant. How can I help you today?",
-      "queryError": "Sorry, there was an error processing your query. Please try again."
+      "queryError": "Sorry, there was an error processing your query. Please try again.",
+      "actionExecutedSuccess": "Action executed successfully"
+    },
+    "audio": {
+      "generating": "Generating...",
+      "stop": "Stop",
+      "listen": "Listen"
     },
     "feedback": {
       "helpful": "Was this response helpful?",
@@ -168,14 +174,26 @@
     },
     "actions": {
       "suggested": "Suggested action",
+      "suggestion": "Suggested action",
+      "reasoning": "Reasoning",
+      "expectedImpact": "Expected impact",
       "execute": "Execute action",
       "executing": "Executing...",
       "executed": "Action executed",
+      "success": "Action executed successfully",
       "failed": "Error executing",
+      "error": "Error executing action",
       "preview": "Preview changes",
       "confirm": "Confirm",
+      "reject": "Reject",
       "cancel": "Cancel",
-      "dryRun": "Simulate first"
+      "retry": "Retry",
+      "dryRun": "Simulate first",
+      "confidence": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High"
+      }
     }
   }
 }

@@ -155,7 +155,13 @@
     },
     "messages": {
       "greeting": "¡Hola! Soy Lara, tu asistente de IA. ¿En qué puedo ayudarte hoy?",
-      "queryError": "Lo siento, hubo un error al procesar tu consulta. Por favor, inténtalo de nuevo."
+      "queryError": "Lo siento, hubo un error al procesar tu consulta. Por favor, inténtalo de nuevo.",
+      "actionExecutedSuccess": "Acción ejecutada con éxito"
+    },
+    "audio": {
+      "generating": "Generando...",
+      "stop": "Detener",
+      "listen": "Escuchar"
     },
     "feedback": {
       "helpful": "¿Fue útil esta respuesta?",
@@ -168,14 +174,26 @@
     },
     "actions": {
       "suggested": "Acción sugerida",
+      "suggestion": "Acción sugerida",
+      "reasoning": "Razonamiento",
+      "expectedImpact": "Impacto esperado",
       "execute": "Ejecutar acción",
       "executing": "Ejecutando...",
       "executed": "Acción ejecutada",
+      "success": "Acción ejecutada con éxito",
       "failed": "Error al ejecutar",
+      "error": "Error al ejecutar acción",
       "preview": "Vista previa de cambios",
       "confirm": "Confirmar",
+      "reject": "Rechazar",
       "cancel": "Cancelar",
-      "dryRun": "Simular primero"
+      "retry": "Reintentar",
+      "dryRun": "Simular primero",
+      "confidence": {
+        "low": "Baja",
+        "medium": "Media",
+        "high": "Alta"
+      }
     }
   }
 }

@@ -88,7 +88,10 @@ export function ActionConfirmCard({
     .join(' ')
 
   return (
-    <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20">
+    <Card
+      className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20"
+      data-testid="lara-action-card"
+    >
       <div className="p-6">
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
@@ -152,7 +155,10 @@ export function ActionConfirmCard({
         )}
 
         {status === 'success' && result && (
-          <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 mb-4">
+          <div
+            className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 mb-4"
+            data-testid="lara-action-success"
+          >
             <div className="flex items-center gap-2 mb-2">
               <CheckCircle className="h-4 w-4" />
               <span className="text-sm font-semibold">{t('success')}</span>
@@ -168,7 +174,10 @@ export function ActionConfirmCard({
         )}
 
         {status === 'error' && (
-          <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 mb-4">
+          <div
+            className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 mb-4"
+            data-testid="lara-action-error"
+          >
             <div className="flex items-center gap-2 mb-1">
               <XCircle className="h-4 w-4" />
               <span className="text-sm font-semibold">{t('error')}</span>
@@ -180,11 +189,11 @@ export function ActionConfirmCard({
         {/* Actions */}
         {status === 'pending' && (
           <div className="flex items-center gap-3">
-            <Button onClick={handleConfirm} className="flex-1">
+            <Button onClick={handleConfirm} className="flex-1" data-testid="lara-action-confirm">
               <CheckCircle className="h-4 w-4 mr-2" />
               {t('confirm')}
             </Button>
-            <Button onClick={handleReject} variant="outline" className="flex-1">
+            <Button onClick={handleReject} variant="outline" className="flex-1" data-testid="lara-action-reject">
               <XCircle className="h-4 w-4 mr-2" />
               {t('reject')}
             </Button>

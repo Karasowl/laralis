@@ -9,6 +9,57 @@ Cada entrada debe explicar:
 - Como se verifica.
 - Que riesgo protege.
 
+## 2026-05-04 - Lara debe responder, sugerir acciones y probar audio sin proveedores reales
+
+### Problema
+
+Lara tenia permisos backend cubiertos en rutas base y acciones, pero faltaba una prueba de producto: abrir el bot desde la UI, hacer una pregunta, recibir una accion sugerida, confirmarla y verificar que la base de datos cambio. Tambien faltaba una forma deterministica de probar STT/TTS sin depender de proveedores externos, cuotas o red.
+
+Riesgo asociado:
+
+- Cypress podia saber que los endpoints bloqueaban viewers, pero no que el flujo visible de Lara funcionaba para el owner.
+- Una accion sugerida podia renderizarse rota, usar traducciones faltantes o no ejecutar el endpoint correcto.
+- Confirmar una accion podia aparentar exito sin persistir el cambio real.
+- Audio input/output podia quedar sin cobertura porque llamar proveedores reales es caro, lento y variable.
+
+### Prueba permanente
+
+Archivo:
+
+```text
+apps/dental/cypress/e2e/stage/18-lara-ai-actions.cy.ts
+```
+
+Casos protegidos:
+
+- `/api/ai/query` acepta `x-laralis-qa-ai: mock` solo en Supabase stage `kafbqdliromcveojtdar`, pasa por autenticacion/permisos y devuelve SSE con respuesta, metadata y accion `update_time_settings`.
+- La UI abre Lara desde el FAB, entra a modo Consultas, envia una pregunta, muestra la sugerencia, confirma la accion y luego `GET /api/settings/time` refleja `work_days=25`, `hours_per_day=7` y `real_pct=82`.
+- `qa-viewer@laralis.test` recibe `403 Forbidden` en la consulta mockeada y en la accion mutable.
+- `/api/ai/transcribe` y `/api/ai/synthesize` tienen mocks stage-only para verificar transcripcion y audio sin llamar STT/TTS reales.
+
+### Implementacion protegida
+
+Archivos:
+
+```text
+apps/dental/app/api/ai/query/route.ts
+apps/dental/app/api/ai/transcribe/route.ts
+apps/dental/app/api/ai/synthesize/route.ts
+apps/dental/components/ai-assistant/FloatingAssistant.tsx
+apps/dental/components/ai-assistant/QueryMode/QueryAssistant.tsx
+apps/dental/components/ui/action-confirm-card.tsx
+apps/dental/messages/ai-assistant.es.json
+apps/dental/messages/ai-assistant.en.json
+```
+
+### Verificacion
+
+Comando de stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:lara
+```
+
 ## 2026-05-04 - Layout, graficas, tema e idioma deben tener guardrail visual en stage
 
 ### Problema

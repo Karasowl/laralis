@@ -301,7 +301,7 @@
     "domain": "lara",
     "capability": "Lara abre, recibe pregunta y devuelve respuesta deterministica en stage",
     "layers": ["cypress", "provider-mock"],
-    "status": "planned"
+    "status": "covered"
   },
   {
     "id": "qa-039-lara-suggested-actions-confirm",
@@ -309,7 +309,7 @@
     "domain": "lara",
     "capability": "Lara sugiere acciones, usuario confirma y la accion cambia la base de datos",
     "layers": ["cypress", "api", "database", "provider-mock"],
-    "status": "planned"
+    "status": "covered"
   },
   {
     "id": "qa-040-lara-permission-boundaries",
@@ -317,7 +317,7 @@
     "domain": "lara",
     "capability": "Lara no ejecuta acciones fuera del permiso del usuario",
     "layers": ["api", "cypress", "provider-mock"],
-    "status": "planned"
+    "status": "covered"
   },
   {
     "id": "qa-041-audio-input",
@@ -325,7 +325,7 @@
     "domain": "audio",
     "capability": "Entrada de audio simula grabacion/carga y produce transcripcion esperada",
     "layers": ["cypress", "provider-mock"],
-    "status": "planned"
+    "status": "covered"
   },
   {
     "id": "qa-042-audio-output",
@@ -333,7 +333,7 @@
     "domain": "audio",
     "capability": "Salida de audio genera/reproduce respuesta o llama proveedor correcto",
     "layers": ["cypress", "provider-mock"],
-    "status": "planned"
+    "status": "covered"
   },
   {
     "id": "qa-043-browser-navigation-session",

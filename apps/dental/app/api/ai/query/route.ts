@@ -13,7 +13,7 @@ import { createClient } from '@/lib/supabase/server'
 import { resolveClinicContext } from '@/lib/clinic'
 import { cookies } from 'next/headers'
 import { aiService } from '@/lib/ai'
-import type { QueryContext, ConversationContextData } from '@/lib/ai'
+import type { QueryContext, QueryResult, ConversationContextData } from '@/lib/ai'
 import { hasAIConfig, validateAIConfig } from '@/lib/ai/config'
 import { ConversationContextManager } from '@/lib/ai/context'
 import { z } from 'zod'
@@ -38,10 +38,108 @@ const queryRequestSchema = z.object({
   model: z.enum(['kimi-k2-thinking', 'moonshot-v1-32k']).optional(),
 })
 
+const QA_STAGE_SUPABASE_REF = 'kafbqdliromcveojtdar'
+
+function isQaAiMockRequested(request: NextRequest) {
+  return request.headers.get('x-laralis-qa-ai') === 'mock'
+}
+
+function isQaStage() {
+  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL?.includes(QA_STAGE_SUPABASE_REF))
+}
+
+function stageOnlyMockForbidden() {
+  return new Response(
+    JSON.stringify({ error: 'QA AI mock is only available on stage' }),
+    { status: 403, headers: { 'Content-Type': 'application/json' } }
+  )
+}
+
+function createQaQueryResult(query: string): QueryResult {
+  return {
+    answer:
+      `Lara QA respondio de forma deterministica para: "${query}". ` +
+      'La clinica mantiene contexto activo y puede proponer una accion verificable.',
+    thinking:
+      'QA mock: no se llamo a ningun proveedor externo. Se genero una accion controlada para Cypress.',
+    data: {
+      source: 'qa-mock',
+      checked: ['active_clinic', 'permissions', 'suggested_action'],
+    },
+    suggestedAction: {
+      action: 'update_time_settings',
+      params: {
+        work_days: 25,
+        hours_per_day: 7,
+        real_productivity_pct: 82,
+      },
+      reasoning:
+        'Ajustar la configuracion de tiempo permite verificar que Lara confirma acciones y persiste cambios reales en stage.',
+      expected_impact: [
+        {
+          metric: 'Effective minutes/month',
+          current_value: 8000,
+          new_value: 8610,
+          change_pct: 7.6,
+        },
+      ],
+      confidence: 'high',
+    },
+  }
+}
+
+function streamQueryResult(result: QueryResult, userId: string, clinicId: string) {
+  const encoder = new TextEncoder()
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      const answer = result.answer || ''
+      const chunkSize = 10
+
+      for (let i = 0; i < answer.length; i += chunkSize) {
+        const chunk = answer.slice(i, i + chunkSize)
+        controller.enqueue(
+          encoder.encode(`data: ${JSON.stringify({ type: 'content', data: chunk })}\n\n`)
+        )
+        await new Promise(resolve => setTimeout(resolve, 10))
+      }
+
+      const metadata = {
+        thinking: result.thinking,
+        data: result.data,
+        suggestedAction: result.suggestedAction,
+        userId,
+        clinicId,
+        timestamp: new Date().toISOString(),
+      }
+      controller.enqueue(
+        encoder.encode(`data: ${JSON.stringify({ type: 'metadata', data: metadata })}\n\n`)
+      )
+
+      controller.enqueue(encoder.encode('data: [DONE]\n\n'))
+      controller.close()
+    }
+  })
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    },
+  })
+}
+
 export async function POST(request: NextRequest) {
   try {
+    const qaMockRequested = isQaAiMockRequested(request)
+    if (qaMockRequested && !isQaStage()) {
+      return stageOnlyMockForbidden()
+    }
+
     // Check if AI is configured
-    if (!hasAIConfig()) {
+    if (!qaMockRequested && !hasAIConfig()) {
       return new Response(
         JSON.stringify({ error: 'AI service is not configured' }),
         { status: 503, headers: { 'Content-Type': 'application/json' } }
@@ -49,14 +147,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate configuration before using
-    try {
-      validateAIConfig()
-    } catch (error) {
-      console.error('[API /ai/query] Configuration error:', error)
-      return new Response(
-        JSON.stringify({ error: 'AI service configuration is invalid' }),
-        { status: 503, headers: { 'Content-Type': 'application/json' } }
-      )
+    if (!qaMockRequested) {
+      try {
+        validateAIConfig()
+      } catch (error) {
+        console.error('[API /ai/query] Configuration error:', error)
+        return new Response(
+          JSON.stringify({ error: 'AI service configuration is invalid' }),
+          { status: 503, headers: { 'Content-Type': 'application/json' } }
+        )
+      }
     }
 
     const bodyResult = await readJson(request)
@@ -89,6 +189,10 @@ export async function POST(request: NextRequest) {
 
     // Create Supabase client with auth
     const supabase = await createClient()
+
+    if (qaMockRequested) {
+      return streamQueryResult(createQaQueryResult(query), userId, clinicId)
+    }
 
     // Build conversation context from history using ConversationContextManager
     let conversationContextData: ConversationContextData | undefined
@@ -149,52 +253,7 @@ export async function POST(request: NextRequest) {
     // Get full response from AI (includes function calling for actions)
     const result = await aiService.queryDatabase(query, context)
 
-    // Create synthetic stream from result
-    const encoder = new TextEncoder()
-    const stream = new ReadableStream({
-      async start(controller) {
-        // Stream the answer in chunks (simulate streaming for UX)
-        const answer = result.answer || ''
-        const chunkSize = 10 // Characters per chunk
-
-        for (let i = 0; i < answer.length; i += chunkSize) {
-          const chunk = answer.slice(i, i + chunkSize)
-          controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify({ type: 'content', data: chunk })}\n\n`)
-          )
-          // Small delay to simulate streaming (improves perceived responsiveness)
-          await new Promise(resolve => setTimeout(resolve, 10))
-        }
-
-        // Send metadata at the end
-        const metadata = {
-          thinking: result.thinking,
-          data: result.data,
-          suggestedAction: result.suggestedAction,
-          userId,
-          clinicId,
-          timestamp: new Date().toISOString(),
-        }
-        controller.enqueue(
-          encoder.encode(`data: ${JSON.stringify({ type: 'metadata', data: metadata })}\n\n`)
-        )
-
-        // Send DONE signal
-        controller.enqueue(encoder.encode('data: [DONE]\n\n'))
-        controller.close()
-      }
-    })
-
-    const transformedStream = stream
-
-    return new Response(transformedStream, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache, no-transform',
-        Connection: 'keep-alive',
-        'X-Accel-Buffering': 'no', // Disable nginx buffering
-      },
-    })
+    return streamQueryResult(result, userId, clinicId)
   } catch (error) {
     console.error('[API /ai/query] Error:', error)
 

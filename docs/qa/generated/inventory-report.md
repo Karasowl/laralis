@@ -1,6 +1,6 @@
 # QA Inventory Report
 
-Generated: 2026-05-04T06:19:51.076Z
+Generated: 2026-05-04T06:48:34.138Z
 
 Status: pass
 Failing checks: 0
@@ -27,7 +27,7 @@ Status: pass
 
 capabilities: 44; domains: 22; required missing domains: 0
 
-- status counts: partial=12, covered=24, planned=8
+- status counts: partial=12, covered=29, planned=3
 - priority counts: P0=38, P1=6
 
 ## QA dataset
@@ -66,7 +66,7 @@ seed script: present; assert script: present; env example: present; package scri
 
 Status: pass
 
-declared spec scripts: 26; existing e2e specs: 18; missing declared specs: 0
+declared spec scripts: 27; existing e2e specs: 19; missing declared specs: 0
 
 - ok: test:e2e:multitenancy -> cypress/e2e/stage/04-multiclinic-isolation.cy.ts
 - ok: test:e2e:auth -> cypress/e2e/stage/00-auth-and-shell.cy.ts
@@ -76,8 +76,8 @@ declared spec scripts: 26; existing e2e specs: 18; missing declared specs: 0
 - ok: test:e2e:treatments -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
 - ok: test:e2e:settings -> cypress/e2e/stage/05-permission-boundaries.cy.ts
 - ok: test:e2e:marketing -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
-- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.ts (18 specs)
-- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.ts (18 specs)
+- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.ts (19 specs)
+- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.ts (19 specs)
 - ok: test:e2e:stage:business -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
 - ok: test:e2e:stage:crud -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
 - ok: test:e2e:stage:multiclinic -> cypress/e2e/stage/04-multiclinic-isolation.cy.ts
@@ -94,6 +94,7 @@ declared spec scripts: 26; existing e2e specs: 18; missing declared specs: 0
 - ok: test:e2e:stage:visual-responsive -> cypress/e2e/stage/15-visual-responsive-coverage.cy.ts
 - ok: test:e2e:stage:full-lifecycle -> cypress/e2e/stage/16-full-lifecycle-user.cy.ts
 - ok: test:e2e:stage:crons -> cypress/e2e/stage/17-cron-jobs.cy.ts
+- ok: test:e2e:stage:lara -> cypress/e2e/stage/18-lara-ai-actions.cy.ts
 
 ## i18n parity
 
@@ -105,7 +106,7 @@ en keys: 4943; es effective keys: 4943; missing en: 0; missing es: 0
 
 Status: pass
 
-ui files: 435; files with data-testid: 16; data-testid occurrences: 42; required hooks: 16; missing required hooks: 0
+ui files: 435; files with data-testid: 19; data-testid occurrences: 53; required hooks: 16; missing required hooks: 0
 
 - has hooks: app/auth/login/page.tsx
 - has hooks: app/book/[slug]/confirmation/page.tsx
@@ -119,9 +120,12 @@ ui files: 435; files with data-testid: 16; data-testid occurrences: 42; required
 - has hooks: app/setup/page.tsx
 - has hooks: app/setup/resume/page.tsx
 - has hooks: app/treatments/page.tsx
+- has hooks: components/ai-assistant/FloatingAssistant.tsx
+- has hooks: components/ai-assistant/QueryMode/QueryAssistant.tsx
 - has hooks: components/layouts/AppLayout.tsx
 - has hooks: components/layouts/ContextIndicator.tsx
 - has hooks: components/onboarding/OnboardingModal.tsx
+- has hooks: components/ui/action-confirm-card.tsx
 - has hooks: components/ui/crud-page-layout.tsx
 
 ## API permission surface

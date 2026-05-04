@@ -49,6 +49,7 @@ export function FloatingAssistant() {
               onClick={() => handleOpenMode('entry')}
               className="flex items-center gap-3 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-3 rounded-full shadow-lg transition-all hover:scale-105"
               aria-label={t('fab.entry')}
+              data-testid="lara-entry-mode"
             >
               <FileEdit className="h-5 w-5" />
               <span className="font-medium">{t('fab.entry')}</span>
@@ -59,6 +60,7 @@ export function FloatingAssistant() {
               onClick={() => handleOpenMode('query')}
               className="flex items-center gap-3 bg-secondary hover:bg-secondary/90 text-secondary-foreground px-4 py-3 rounded-full shadow-lg transition-all hover:scale-105"
               aria-label={t('fab.query')}
+              data-testid="lara-query-mode"
             >
               <MessageSquare className="h-5 w-5" />
               <span className="font-medium">{t('fab.query')}</span>
@@ -74,6 +76,7 @@ export function FloatingAssistant() {
               : 'bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90'
             }`}
           aria-label={t('fab.tooltip')}
+          data-testid="lara-fab"
         >
           {isExpanded ? (
             <X className="h-6 w-6 text-white" />
