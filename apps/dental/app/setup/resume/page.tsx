@@ -146,7 +146,7 @@ export default function ResumeSetupPage() {
                       <div>
                         <CardTitle className="text-xl">{workspace.name || t('workspaceLabel')}</CardTitle>
                         <CardDescription>
-                          {t('updatedLabel')}: {formatDate(lastSeen)}
+                          {t('updatedLabel')}: <span data-testid="setup-resume-updated-at">{formatDate(lastSeen)}</span>
                         </CardDescription>
                       </div>
                       <Badge variant={status === 'expired' ? 'secondary' : 'outline'}>
@@ -157,11 +157,13 @@ export default function ResumeSetupPage() {
                   <CardContent className="text-sm text-muted-foreground">
                     <div className="grid gap-2 sm:grid-cols-2">
                       <div>
-                        <span className="font-medium text-foreground">{t('workspaceLabel')}:</span> {workspace.id}
+                        <span className="font-medium text-foreground">{t('workspaceLabel')}:</span>{' '}
+                        <span data-testid="setup-resume-workspace-id">{workspace.id}</span>
                       </div>
                       {workspace.delete_after && (
                         <div>
-                          <span className="font-medium text-foreground">{t('deleteAfterLabel')}:</span> {formatDate(workspace.delete_after)}
+                          <span className="font-medium text-foreground">{t('deleteAfterLabel')}:</span>{' '}
+                          <span data-testid="setup-resume-delete-after">{formatDate(workspace.delete_after)}</span>
                         </div>
                       )}
                     </div>

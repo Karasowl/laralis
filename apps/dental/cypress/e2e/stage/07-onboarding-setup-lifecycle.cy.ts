@@ -55,6 +55,38 @@ function createDraftWorkspace(input: DraftWorkspaceInput): Cypress.Chainable<Wor
     })
 }
 
+function maskSetupResumeDynamicFields() {
+  cy.document().then((doc) => {
+    const style = doc.createElement('style')
+    style.setAttribute('data-testid', 'qa-visual-mask')
+    style.textContent = `
+      [data-testid="setup-resume-updated-at"],
+      [data-testid="setup-resume-workspace-id"],
+      [data-testid="setup-resume-delete-after"] {
+        color: transparent !important;
+        text-shadow: none !important;
+      }
+    `
+    doc.head.appendChild(style)
+  })
+}
+
+function compareVisualSnapshot(screenshotName: string, baselineName = screenshotName) {
+  cy.task('compareSnapshot', {
+    screenshotName,
+    specName: '07-onboarding-setup-lifecycle.cy.ts',
+    baselineName,
+    maxDiffRatio: 0.04,
+    threshold: 0.12,
+  }).then((result: any) => {
+    if (!result.passed) {
+      throw new Error(result.error || `${baselineName} visual snapshot failed`)
+    }
+
+    expect(result.passed, `${baselineName} visual snapshot`).to.eq(true)
+  })
+}
+
 describe('Stage onboarding and setup lifecycle', () => {
   const password = Cypress.env('QA_STAGE_DEFAULT_PASSWORD') || 'LaralisQA!2026'
   const lifecycleStamp = uniqueStamp('qa-onboarding')
@@ -274,5 +306,40 @@ describe('Stage onboarding and setup lifecycle', () => {
       expect(workspacesResponse.status).to.eq(200)
       expect(workspacesResponse.body, 'visible workspaces after archive/delete').to.deep.eq([])
     })
+  })
+
+  it('matches the setup resume multiple drafts desktop visual baseline', () => {
+    const stamp = uniqueStamp('qa-visual-resume')
+    const email = 'qa-visual-setup-resume@laralis.test'
+    const firstWorkspaceName = 'QA Resume Visual Draft A'
+    const secondWorkspaceName = 'QA Resume Visual Draft B'
+    const screenshotName = 'setup-resume-multiple-drafts-desktop-light'
+    transientEmails.push(email)
+
+    cy.task('qaDeleteUserByEmail', email)
+    cy.task('qaCreateConfirmedUser', { email, password })
+    cy.loginAsStageUser(email, password, { allowSetup: true })
+
+    createDraftWorkspace({
+      name: firstWorkspaceName,
+      slug: `${stamp}-a`,
+    })
+    createDraftWorkspace({
+      name: secondWorkspaceName,
+      slug: `${stamp}-b`,
+    })
+
+    cy.viewport(1440, 900)
+    cy.visit('/setup/resume')
+    cy.get('[data-testid="setup-resume-page"]', { timeout: 30000 }).should('be.visible')
+    cy.contains('[data-testid="setup-resume-workspace-card"]', firstWorkspaceName).should('be.visible')
+    cy.contains('[data-testid="setup-resume-workspace-card"]', secondWorkspaceName).should('be.visible')
+    cy.assertNoHorizontalScroll()
+    maskSetupResumeDynamicFields()
+
+    cy.get('[data-testid="setup-resume-page"]').screenshot(screenshotName, {
+      overwrite: true,
+    })
+    compareVisualSnapshot(screenshotName)
   })
 })
