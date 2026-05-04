@@ -358,7 +358,7 @@ export async function POST(request: NextRequest) {
         workspace_id: workspace.id,
         user_id: user.id,
         role: 'owner',
-        clinic_ids: []
+        clinic_ids: clinic?.id ? [clinic.id] : []
       });
 
     if (memberError) {
