@@ -138,7 +138,27 @@ export async function POST(request: Request) {
       }, { status: 403 })
     }
 
+    const { data: selectedClinic, error: selectedClinicError } = await supabaseAdmin
+      .from('clinics')
+      .select('workspace_id')
+      .eq('id', clinicId)
+      .maybeSingle()
+
+    if (selectedClinicError || !selectedClinic?.workspace_id) {
+      return NextResponse.json<ApiResponse<null>>({
+        error: 'Failed to resolve clinic workspace',
+        message: selectedClinicError?.message
+      }, { status: 500 })
+    }
+
     setClinicIdCookie(clinicId, cookieStore)
+    cookieStore.set('workspaceId', selectedClinic.workspace_id, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 30,
+      path: '/',
+    })
 
     return NextResponse.json<ApiResponse<null>>({
       message: 'Clinic selected successfully'

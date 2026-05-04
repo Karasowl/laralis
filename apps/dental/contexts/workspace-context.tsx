@@ -142,13 +142,17 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const { data, error } = await supabase
-        .from('workspaces')
-        .select('*')
-        .eq('owner_id', user.id)
-        .order('created_at', { ascending: false});
+      const response = await fetch('/api/workspaces?list=true', {
+        credentials: 'include',
+        cache: 'no-store',
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.error || 'Failed to fetch workspaces');
+      }
+
+      const data = (await response.json()) as Workspace[];
 
       const usableWorkspaces = (data || []).filter((ws: Workspace) => !isHiddenWorkspace(ws));
       const path = pathname || '';

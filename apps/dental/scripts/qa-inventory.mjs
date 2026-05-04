@@ -158,8 +158,11 @@ function analyzeTestHooks() {
     ['app/auth/login/page.tsx', 'login-form-fields'],
     ['app/book/[slug]/page.tsx', 'public-booking-page'],
     ['app/marketing/page.tsx', 'marketing-page'],
+    ['app/onboarding/page.tsx', 'onboarding-page'],
     ['app/patients/page.tsx', 'patients-page'],
     ['app/services/page.tsx', 'services-page'],
+    ['app/setup/page.tsx', 'setup-page'],
+    ['app/setup/resume/page.tsx', 'setup-resume-page'],
     ['app/settings/notifications/page.tsx', 'notifications-settings-page'],
     ['app/settings/notifications/NotificationsClient.tsx', 'notifications-settings-form'],
     ['app/supplies/page.tsx', 'supplies-page'],
@@ -568,6 +571,10 @@ for (const [name, result] of checks) {
     }
     lines.push('')
   }
+}
+
+while (lines.at(-1) === '') {
+  lines.pop()
 }
 
 fs.mkdirSync(path.dirname(reportPath), { recursive: true })

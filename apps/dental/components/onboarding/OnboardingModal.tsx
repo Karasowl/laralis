@@ -90,6 +90,7 @@ export function OnboardingModal({
       variant="outline"
       onClick={requestCancellation}
       className="w-full sm:w-auto"
+      data-testid="onboarding-cancel"
     >
       {t('actions.logout')}
     </Button>
@@ -99,6 +100,7 @@ export function OnboardingModal({
       variant="outline"
       onClick={onPrevious}
       className="w-full sm:w-auto"
+      data-testid="onboarding-previous"
     >
       <ChevronLeft className="h-4 w-4 mr-2" />
       {t('actions.prev')}
@@ -110,6 +112,7 @@ export function OnboardingModal({
       type="button"
       onClick={onNext}
       className="w-full sm:w-auto"
+      data-testid="onboarding-next"
     >
       {t('actions.next')}
       <ChevronRight className="h-4 w-4 ml-2" />
@@ -120,6 +123,7 @@ export function OnboardingModal({
       onClick={onComplete}
       disabled={loading}
       className="w-full sm:w-auto bg-green-600 hover:bg-green-700"
+      data-testid="onboarding-complete"
     >
       {loading ? t('actions.creating') : t('actions.start')}
       <ChevronRight className="h-4 w-4 ml-2" />
@@ -134,7 +138,7 @@ export function OnboardingModal({
       description={description}
       maxWidth="lg"
     >
-      <div className="flex min-h-full flex-col gap-6 pb-4">
+      <div className="flex min-h-full flex-col gap-6 pb-4" data-testid="onboarding-modal">
         <div className="pt-2">
           <Progress value={progress} className="w-full" />
         </div>

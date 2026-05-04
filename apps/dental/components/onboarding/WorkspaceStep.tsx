@@ -1,5 +1,6 @@
 'use client'
 
+import type { ChangeEvent } from 'react'
 import { useTranslations } from 'next-intl'
 import { FormSection, FormGrid, InputField, TextareaField } from '@/components/ui/form-field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -11,6 +12,13 @@ interface WorkspaceStepProps {
   onChange: (updates: Partial<OnboardingData>) => void
 }
 
+type FieldChange = string | number | ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+
+function fieldValue(value: FieldChange) {
+  if (typeof value === 'string' || typeof value === 'number') return String(value)
+  return value.target.value
+}
+
 export function WorkspaceStep({ data, onChange }: WorkspaceStepProps) {
   const t = useTranslations('onboarding')
 
@@ -19,18 +27,20 @@ export function WorkspaceStep({ data, onChange }: WorkspaceStepProps) {
       <FormSection>
         <FormGrid columns={1}>
           <InputField
+            id="onboarding-workspace-name"
             label={t('workspaceStep.nameLabel')}
             value={data.workspaceName || ''}
-            onChange={(value) => onChange({ workspaceName: value as string })}
+            onChange={(value: FieldChange) => onChange({ workspaceName: fieldValue(value) })}
             placeholder={t('workspaceStep.namePlaceholder')}
             helperText={t('workspaceStep.nameHelp')}
             required
           />
 
           <TextareaField
+            id="onboarding-workspace-description"
             label={t('workspaceStep.descLabel')}
             value={data.workspaceType || ''}
-            onChange={(value) => onChange({ workspaceType: value as string })}
+            onChange={(value: FieldChange) => onChange({ workspaceType: fieldValue(value) })}
             placeholder={t('workspaceStep.descPlaceholder')}
             rows={3}
           />

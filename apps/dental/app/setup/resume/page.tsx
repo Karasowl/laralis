@@ -102,7 +102,7 @@ export default function ResumeSetupPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background px-4 py-8 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-background px-4 py-8 sm:px-6 lg:px-8" data-testid="setup-resume-page">
       <div className="mx-auto flex max-w-4xl flex-col gap-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>

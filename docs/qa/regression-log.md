@@ -9,6 +9,61 @@ Cada entrada debe explicar:
 - Como se verifica.
 - Que riesgo protege.
 
+## 2026-05-03 - Cancelar setup no debe sacar a una clinica activa
+
+### Problema
+
+Un usuario con una clinica activa podia terminar tocando `/setup/cancel` mientras el navegador tenia seleccionado un workspace incompleto o draft. El flujo antiguo confiaba demasiado en `workspaceId`/`selectedWorkspaceId`: si ese workspace seleccionado no estaba completado, limpiaba estado local y cerraba sesion aunque el usuario tuviera otro workspace activo con datos reales.
+
+Riesgo asociado:
+
+- La app podia aparentar que la clinica habia quedado en cero datos porque el contexto local apuntaba a un workspace incompleto.
+- Cambios de idioma o navegacion accidental hacia setup podian dejar al usuario fuera del contexto activo.
+- El bug era dificil de reproducir sin un workspace draft seleccionado artificialmente.
+
+### Prueba permanente
+
+Archivo:
+
+```text
+apps/dental/cypress/e2e/stage/07-onboarding-setup-lifecycle.cy.ts
+```
+
+Casos protegidos:
+
+- Crea un usuario confirmado en stage, hace login y ejecuta onboarding real hasta crear workspace y clinica.
+- Crea un workspace draft para el owner QA activo, fuerza cookie/localStorage hacia ese draft y visita `/setup/cancel`.
+- Verifica que `/setup/cancel` restaura el workspace activo, vuelve a `/`, mantiene el shell de la app y conserva el conteo de pacientes de la clinica activa.
+
+### Implementacion protegida
+
+Archivos:
+
+```text
+apps/dental/app/setup/cancel/page.tsx
+apps/dental/app/api/onboarding/route.ts
+apps/dental/app/api/clinics/route.ts
+apps/dental/app/api/workspaces/route.ts
+apps/dental/app/onboarding/page.tsx
+apps/dental/app/setup/page.tsx
+apps/dental/app/setup/resume/page.tsx
+apps/dental/components/onboarding/OnboardingModal.tsx
+apps/dental/components/onboarding/WorkspaceStep.tsx
+apps/dental/components/onboarding/ClinicStep.tsx
+apps/dental/contexts/workspace-context.tsx
+apps/dental/cypress.config.ts
+```
+
+`/setup/cancel` ahora busca workspaces activos accesibles con `/api/workspaces?list=true`, restaura `workspaceId`/`clinicId` hacia un workspace activo antes de redirigir y solo limpia estado/cierra sesion si no existe ningun workspace activo. `POST /api/onboarding` crea membresias owner/admin para que el workspace nuevo sea visible de forma consistente, `POST /api/clinics` sincroniza la cookie server-side de `workspaceId` cuando se selecciona una clinica, `GET /api/workspaces` deja de preferir un draft stale si existe un workspace activo accesible, y `WorkspaceContext` carga workspaces desde esa ruta server para no depender de lecturas RLS incompletas en cliente. Cypress usa tareas stage-only con `service_role` para crear y borrar usuarios QA sin depender de Gmail.
+
+### Verificacion
+
+Comando de stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:onboarding
+```
+
 ## 2026-05-03 - Inventario reconoce guards compuestos y conversion de inbox
 
 ### Problema

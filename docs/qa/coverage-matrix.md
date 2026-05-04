@@ -82,6 +82,22 @@ Los tests deben validar oraculos:
 - Utilidad esperada.
 - Resultados esperados por filtro de fecha.
 
+## Onboarding y setup
+
+Cobertura actual:
+
+- `apps/dental/cypress/e2e/stage/07-onboarding-setup-lifecycle.cy.ts` crea un usuario confirmado en stage mediante tarea Supabase `service_role`, inicia sesion por UI y ejecuta el onboarding real hasta crear workspace y clinica.
+- El spec comprueba que el usuario nuevo termina en `/setup`, que el workspace queda `draft`, que `onboarding_completed` sigue `false` y que la clinica existe dentro de ese workspace.
+- El mismo spec reproduce el riesgo que rompio produccion: usuario con clinica activa, pero con un workspace `draft` seleccionado por cookie/localStorage, entra a `/setup/cancel`.
+- `/setup/cancel` ahora restaura el workspace activo y su primera clinica antes de redirigir a `/`; no cierra sesion ni deja la app apuntando al draft si existe cualquier workspace activo accesible.
+- El spec verifica que el conteo de pacientes de la clinica activa se mantiene despues de cancelar setup con el draft seleccionado.
+- El inventario QA exige hooks estables en onboarding y setup para que el flujo no dependa de texto traducido.
+
+Brechas abiertas:
+
+- Falta convertir el setup completo en lifecycle total: crear datos minimos requeridos, finalizar setup, usar app y eliminar cuenta desde self-service.
+- Falta probar el flujo visual de `/setup/resume` con multiples drafts, archive y delete desde la pantalla.
+
 ## Multi-clinica
 
 Cobertura actual:
@@ -138,7 +154,7 @@ Cobertura actual:
 - `npm --workspace @laralis/dental run qa:inventory` queda verde con 0 fallos estructurales.
 - Los scripts `test:e2e:*` ya no apuntan a specs inexistentes; los aliases historicos ejecutan specs stage existentes.
 - La paridad i18n queda en `missing en: 0` y `missing es: 0`.
-- El inventario exige hooks UI estables en pantallas P0: login, booking publico, pacientes, insumos, servicios, tratamientos, marketing, notificaciones y shell principal.
+- El inventario exige hooks UI estables en pantallas P0: login, onboarding, setup, booking publico, pacientes, insumos, servicios, tratamientos, marketing, notificaciones y shell principal.
 - Todavia falta revisar calidad de traduccion completa en ingles, porque habia deuda previa con algunas cadenas inglesas heredadas en espanol.
 
 ## Capacidades que no pueden quedar fuera

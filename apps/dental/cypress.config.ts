@@ -1,4 +1,5 @@
 import { defineConfig } from 'cypress';
+import { createClient } from '@supabase/supabase-js';
 
 const baseUrl =
   process.env.CYPRESS_BASE_URL ||
@@ -20,6 +21,103 @@ export default defineConfig({
       if (process.env.CYPRESS_COVERAGE === 'true') {
         require('@cypress/code-coverage/task')(on, config);
       }
+
+      const stageUrl = process.env.CYPRESS_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+      const serviceRoleKey = process.env.CYPRESS_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+      const adminClient = () => {
+        if (!stageUrl.includes('kafbqdliromcveojtdar')) {
+          throw new Error('QA Supabase tasks are stage-only and require CYPRESS_SUPABASE_URL for kafbqdliromcveojtdar');
+        }
+
+        if (!serviceRoleKey) {
+          throw new Error('Missing CYPRESS_SUPABASE_SERVICE_ROLE_KEY for QA Supabase tasks');
+        }
+
+        return createClient(stageUrl, serviceRoleKey, {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false,
+          },
+        });
+      };
+
+      const findAuthUserByEmail = async (email: string) => {
+        const client = adminClient();
+        let page = 1;
+
+        while (page < 25) {
+          const { data, error } = await client.auth.admin.listUsers({ page, perPage: 1000 });
+          if (error) throw new Error(`Could not list auth users: ${error.message}`);
+
+          const user = data.users.find((row) => row.email?.toLowerCase() === email.toLowerCase());
+          if (user) return user;
+          if (data.users.length < 1000) return null;
+          page += 1;
+        }
+
+        return null;
+      };
+
+      const deleteOwnedWorkspaceTree = async (userId: string) => {
+        const client = adminClient();
+        const { data: workspaces, error } = await client
+          .from('workspaces')
+          .select('id')
+          .eq('owner_id', userId);
+
+        if (error) throw new Error(`Could not list owned workspaces: ${error.message}`);
+
+        const workspaceIds = (workspaces || []).map((workspace) => workspace.id).filter(Boolean);
+        if (workspaceIds.length === 0) return;
+
+        await client.from('workspace_users').delete().in('workspace_id', workspaceIds);
+        await client.from('workspace_members').delete().in('workspace_id', workspaceIds);
+        await client.from('clinics').delete().in('workspace_id', workspaceIds);
+        await client.from('workspaces').delete().in('id', workspaceIds);
+      };
+
+      on('task', {
+        async qaCreateConfirmedUser({ email, password }: { email: string; password: string }) {
+          const client = adminClient();
+          const existing = await findAuthUserByEmail(email);
+
+          if (existing?.id) {
+            await deleteOwnedWorkspaceTree(existing.id);
+            const { error: deleteError } = await client.auth.admin.deleteUser(existing.id);
+            if (deleteError) throw new Error(`Could not reset existing QA user: ${deleteError.message}`);
+          }
+
+          const { data, error } = await client.auth.admin.createUser({
+            email,
+            password,
+            email_confirm: true,
+            user_metadata: {
+              first_name: 'QA',
+              last_name: 'Onboarding',
+              full_name: 'QA Onboarding',
+            },
+          });
+
+          if (error || !data.user) {
+            throw new Error(`Could not create QA user: ${error?.message || 'missing user'}`);
+          }
+
+          return { id: data.user.id, email: data.user.email };
+        },
+
+        async qaDeleteUserByEmail(email: string) {
+          const client = adminClient();
+          const user = await findAuthUserByEmail(email);
+          if (!user?.id) return { deleted: false };
+
+          await deleteOwnedWorkspaceTree(user.id);
+          const { error } = await client.auth.admin.deleteUser(user.id);
+          if (error) throw new Error(`Could not delete QA user: ${error.message}`);
+
+          return { deleted: true };
+        },
+      });
       
       return config;
     },

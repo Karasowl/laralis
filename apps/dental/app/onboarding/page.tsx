@@ -75,20 +75,9 @@ export default function OnboardingPage() {
             return
           }
 
-          const workspaceId = visibleWorkspaces[0].id
-
-          // Also check if workspace has at least one clinic
-          const { data: clinic } = await supabase
-            .from('clinics')
-            .select('id')
-            .eq('workspace_id', workspaceId)
-            .limit(1)
-
-          // Only redirect to /setup if BOTH workspace AND clinic exist
-          if (clinic && clinic.length > 0) {
-            router.replace('/setup/resume')
-          }
-          // If workspace exists but no clinic, let onboarding continue to clinic creation step
+          // Draft workspaces are handled by middleware on fresh navigation.
+          // Do not redirect from this client effect because it can race with
+          // the just-created onboarding flow before router.push('/setup') runs.
         }
       } catch {}
     })()
@@ -145,7 +134,10 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50 dark:from-gray-900 dark:via-teal-900 dark:to-cyan-900 flex items-center justify-center p-4">
+    <div
+      className="min-h-screen bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50 dark:from-gray-900 dark:via-teal-900 dark:to-cyan-900 flex items-center justify-center p-4"
+      data-testid="onboarding-page"
+    >
       {/* Animated background blobs - matching login colors */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-teal-300 dark:bg-teal-700 rounded-full mix-blend-multiply dark:mix-blend-soft-light filter blur-xl opacity-70 animate-blob" />

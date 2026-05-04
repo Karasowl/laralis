@@ -37,7 +37,7 @@
     "domain": "onboarding",
     "capability": "Crear workspace y clinica desde onboarding y no volver a setup al cambiar idioma",
     "layers": ["cypress", "api"],
-    "status": "planned"
+    "status": "covered"
   },
   {
     "id": "qa-006-onboarding-cancel-safe",
@@ -45,7 +45,7 @@
     "domain": "onboarding",
     "capability": "Cancelar setup no borra datos de una clinica activa ni deja al usuario sin workspace",
     "layers": ["cypress", "api"],
-    "status": "planned"
+    "status": "covered"
   },
   {
     "id": "qa-007-multi-clinic-create-second",

@@ -141,7 +141,9 @@ export default function SetupPage() {
         { clinicId, workspaceId: workspace?.id ?? undefined, cacheKeySuffix: Date.now().toString() },
         requirementIds
       )
-      const missingSet = new Set(result?.missing || [])
+      const missingSet = new Set<RequirementId>(
+        (result?.missing || []).filter((id): id is RequirementId => requirementIds.includes(id as RequirementId))
+      )
 
       try {
         console.log('[setup] evaluateRequirements', { clinicId, missing: result?.missing, raw: result })
@@ -201,6 +203,7 @@ export default function SetupPage() {
     if (finishing || !allDone) return
 
     setFinishing(true)
+    const fallback = t('toasts.finishError')
 
     try {
       // Obtener workspace ID del contexto o de localStorage/cookies como fallback
@@ -236,8 +239,6 @@ export default function SetupPage() {
         setFinishing(false)
         return
       }
-
-      const fallback = t('toasts.finishError')
 
       const response = await fetch(`/api/workspaces/${workspaceId}`, {
         method: 'PUT',
@@ -298,7 +299,7 @@ export default function SetupPage() {
 
   return (
     <AppLayout>
-      <div className="mx-auto max-w-6xl space-y-6 p-4 pb-32 lg:p-8 lg:pb-8">
+      <div className="mx-auto max-w-6xl space-y-6 p-4 pb-32 lg:p-8 lg:pb-8" data-testid="setup-page">
         <PageHeader title={t('header.title')} subtitle={t('header.subtitle')} />
 
         <Card className="space-y-6 p-6">

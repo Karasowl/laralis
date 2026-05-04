@@ -26,7 +26,7 @@ export interface OnboardingStep {
 export function useOnboarding() {
   const t = useTranslations('onboarding')
   const router = useRouter()
-  const { user } = useWorkspace()
+  const { user, refreshWorkspaces, setWorkspace, setCurrentClinic } = useWorkspace()
   
   const [currentStep, setCurrentStep] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -183,8 +183,10 @@ export function useOnboarding() {
         // pantallas (setup) tengan contexto inmediatamente
         try {
           const js = await response.json()
-          const wsId = js?.workspace?.id
-          const clinicId = js?.clinic?.id
+          const ws = js?.workspace
+          const clinic = js?.clinic
+          const wsId = ws?.id
+          const clinicId = clinic?.id
           const maxAge = 60 * 60 * 24 * 30
           if (wsId) document.cookie = `workspaceId=${wsId}; path=/; max-age=${maxAge}`
           if (clinicId) document.cookie = `clinicId=${clinicId}; path=/; max-age=${maxAge}`
@@ -194,6 +196,17 @@ export function useOnboarding() {
             if (data.workspaceName) localStorage.setItem('selectedWorkspaceName', String(data.workspaceName))
             if (data.clinicName) localStorage.setItem('selectedClinicName', String(data.clinicName))
           } catch {}
+          if (ws?.id) {
+            setWorkspace({
+              ...ws,
+              status: ws.status || 'draft',
+              onboarding_completed: false,
+            } as any)
+          }
+          if (clinic?.id) {
+            setCurrentClinic(clinic as any)
+          }
+          await refreshWorkspaces()
         } catch {}
         setCreated(true)
         // A partir de aquí ya queremos llevar al usuario a la pantalla
@@ -218,7 +231,7 @@ export function useOnboarding() {
     if (currentStep < steps.length - 1) {
       setCurrentStep(prev => prev + 1)
     }
-  }, [currentStep, created, data, t, validateStep, validateStepAsync, steps.length])
+  }, [currentStep, created, data, t, validateStep, validateStepAsync, steps.length, refreshWorkspaces, setCurrentClinic, setWorkspace])
 
   // Go to previous step
   const previousStep = useCallback(() => {

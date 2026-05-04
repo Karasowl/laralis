@@ -114,6 +114,34 @@ export async function GET(request: NextRequest) {
         .single();
 
       if (canAccessWorkspace && !error && workspace && isVisibleWorkspace(workspace)) {
+        if (isActiveWorkspace(workspace)) {
+          return NextResponse.json({ workspace });
+        }
+
+        const { data: activeWorkspaces } = accessibleWorkspaceIds.length > 0
+          ? await supabaseAdmin
+              .from('workspaces')
+              .select('*')
+              .in('id', accessibleWorkspaceIds)
+              .eq('onboarding_completed', true)
+              .order('created_at', { ascending: true })
+              .limit(1)
+          : { data: [] as any[] };
+
+        const activeWorkspace = activeWorkspaces?.find(isActiveWorkspace) || activeWorkspaces?.[0];
+
+        if (activeWorkspace) {
+          const response = NextResponse.json({ workspace: activeWorkspace });
+          response.cookies.set('workspaceId', activeWorkspace.id, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 60 * 60 * 24 * 30,
+            path: '/',
+          });
+          return response;
+        }
+
         return NextResponse.json({ workspace });
       }
     }

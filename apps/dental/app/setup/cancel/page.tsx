@@ -45,33 +45,106 @@ const clearClientState = (userId?: string | null) => {
   }
 }
 
-const hasCompletedWorkspace = async (supabase: ReturnType<typeof createClient>, userId: string | null) => {
-  if (!userId) return false
+type CompletedWorkspaceSelection = {
+  workspaceId: string
+  workspaceName?: string | null
+  clinicId?: string | null
+  clinicName?: string | null
+}
 
+const normalizeWorkspaceStatus = (workspace: any) => {
+  return workspace?.status || (workspace?.onboarding_completed ? 'active' : 'draft')
+}
+
+const restoreCompletedWorkspaceState = async (selection: CompletedWorkspaceSelection) => {
+  const maxAge = 60 * 60 * 24 * 30
+  document.cookie = `workspaceId=${selection.workspaceId}; path=/; max-age=${maxAge}`
+  localStorage.setItem('selectedWorkspaceId', selection.workspaceId)
+  if (selection.workspaceName) localStorage.setItem('selectedWorkspaceName', selection.workspaceName)
+
+  if (selection.clinicId) {
+    document.cookie = `clinicId=${selection.clinicId}; path=/; max-age=${maxAge}`
+    localStorage.setItem('selectedClinicId', selection.clinicId)
+    if (selection.clinicName) localStorage.setItem('selectedClinicName', selection.clinicName)
+
+    try {
+      await fetch('/api/clinics', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ clinicId: selection.clinicId }),
+      })
+    } catch (error) {
+      console.error('Failed to restore server clinic/workspace cookies', error)
+    }
+  }
+}
+
+const firstClinicForWorkspace = async (workspaceId: string) => {
+  const response = await fetch(`/api/workspaces/${workspaceId}/clinics`, {
+    credentials: 'include',
+    cache: 'no-store',
+  })
+
+  if (!response.ok) return null
+
+  const payload = await response.json().catch(() => ({}))
+  const clinics = Array.isArray(payload?.data) ? payload.data : []
+  return clinics.find((clinic: any) => clinic?.is_active !== false) || clinics[0] || null
+}
+
+const resolveCompletedWorkspace = async (
+  supabase: ReturnType<typeof createClient>,
+  userId: string | null
+): Promise<CompletedWorkspaceSelection | null> => {
+  if (!userId) return null
   const selectedWorkspaceId = getSelectedWorkspaceId()
 
-  if (selectedWorkspaceId) {
-    const { data: selectedWorkspace } = await supabase
-      .from('workspaces')
-      .select('id, onboarding_completed')
-      .eq('id', selectedWorkspaceId)
-      .maybeSingle()
+  try {
+    const response = await fetch('/api/workspaces?list=true', {
+      credentials: 'include',
+      cache: 'no-store',
+    })
 
-    if (selectedWorkspace?.onboarding_completed === true) {
-      return true
+    if (response.ok) {
+      const workspaces = await response.json().catch(() => [])
+      const rows = Array.isArray(workspaces) ? workspaces : []
+      const completedRows = rows.filter((workspace: any) => normalizeWorkspaceStatus(workspace) === 'active')
+      const selectedCompleted = completedRows.find((workspace: any) => workspace.id === selectedWorkspaceId)
+      const workspace = selectedCompleted || completedRows[0]
+
+      if (workspace?.id) {
+        const clinic = await firstClinicForWorkspace(workspace.id)
+        return {
+          workspaceId: workspace.id,
+          workspaceName: workspace.name,
+          clinicId: clinic?.id ?? null,
+          clinicName: clinic?.name ?? null,
+        }
+      }
     }
-
-    return false
+  } catch (error) {
+    console.error('Failed to resolve completed workspace through API', error)
   }
 
+  // Fallback for unusual API failures: check owned active workspaces directly.
   const { data: completedWorkspaces } = await supabase
     .from('workspaces')
-    .select('id')
+    .select('id, name')
     .eq('owner_id', userId)
     .eq('onboarding_completed', true)
     .limit(1)
 
-  return Boolean(completedWorkspaces?.length)
+  const workspace = completedWorkspaces?.[0]
+  if (!workspace?.id) return null
+
+  const clinic = await firstClinicForWorkspace(workspace.id)
+  return {
+    workspaceId: workspace.id,
+    workspaceName: workspace.name,
+    clinicId: clinic?.id ?? null,
+    clinicName: clinic?.name ?? null,
+  }
 }
 
 export default function CancelSetupPage() {
@@ -90,7 +163,9 @@ export default function CancelSetupPage() {
       }
 
       try {
-        if (await hasCompletedWorkspace(supabase, currentUserId)) {
+        const completedWorkspace = await resolveCompletedWorkspace(supabase, currentUserId)
+        if (completedWorkspace) {
+          await restoreCompletedWorkspaceState(completedWorkspace)
           if (!aborted) {
             window.location.replace('/')
           }

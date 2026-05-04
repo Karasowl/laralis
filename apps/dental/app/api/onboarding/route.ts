@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic'
+
+// @qa-self-service-route Authenticated onboarding creates the caller's first
+// workspace, clinic, and owner memberships before normal permission checks exist.
 
 const onboardingSchema = z.object({
   workspace: z.object({
@@ -175,6 +179,101 @@ export async function POST(request: NextRequest) {
         },
         { status: 500 }
       );
+    }
+
+    const rollbackOnMembershipError = async (message: string, details: string) => {
+      await supabaseAdmin
+        .from('clinic_users')
+        .delete()
+        .eq('clinic_id', clinicData.id)
+
+      await supabaseAdmin
+        .from('workspace_users')
+        .delete()
+        .eq('workspace_id', workspaceData.id)
+
+      await supabaseAdmin
+        .from('workspace_members')
+        .delete()
+        .eq('workspace_id', workspaceData.id)
+
+      await supabaseAdmin
+        .from('clinics')
+        .delete()
+        .eq('id', clinicData.id)
+
+      await supabaseAdmin
+        .from('workspaces')
+        .delete()
+        .eq('id', workspaceData.id)
+
+      return NextResponse.json(
+        {
+          error: message,
+          details,
+        },
+        { status: 500 }
+      )
+    }
+
+    const workspaceUserRow = {
+      workspace_id: workspaceData.id,
+      user_id: user.id,
+      role: 'owner',
+      custom_permissions: {},
+      custom_role_id: null,
+      allowed_clinics: [clinicData.id],
+      is_active: true,
+      joined_at: now,
+    }
+
+    const { error: workspaceUserError } = await supabaseAdmin
+      .from('workspace_users')
+      .insert(workspaceUserRow)
+
+    if (workspaceUserError) {
+      console.error('[onboarding] Unable to create workspace_users owner membership:', workspaceUserError)
+      return rollbackOnMembershipError('Failed to create workspace owner membership', workspaceUserError.message)
+    }
+
+    const workspaceMemberRow = {
+      workspace_id: workspaceData.id,
+      user_id: user.id,
+      role: 'owner',
+      permissions: {},
+      allowed_clinics: [clinicData.id],
+      clinic_ids: [clinicData.id],
+      invitation_status: 'accepted',
+      accepted_at: now,
+      is_active: true,
+    }
+
+    const { error: workspaceMemberError } = await supabaseAdmin
+      .from('workspace_members')
+      .insert(workspaceMemberRow)
+
+    if (workspaceMemberError) {
+      console.warn('[onboarding] Unable to create workspace_members owner membership:', workspaceMemberError.message)
+    }
+
+    const { error: clinicUserError } = await supabaseAdmin
+      .from('clinic_users')
+      .insert({
+        clinic_id: clinicData.id,
+        user_id: user.id,
+        role: 'admin',
+        custom_permissions: {},
+        custom_role_id: null,
+        is_active: true,
+        joined_at: now,
+        can_access_all_patients: true,
+        assigned_chair: null,
+        schedule: {},
+      })
+
+    if (clinicUserError) {
+      console.error('[onboarding] Unable to create clinic_users admin membership:', clinicUserError)
+      return rollbackOnMembershipError('Failed to create clinic admin membership', clinicUserError.message)
     }
 
     // Store defaults, but keep onboarding incomplete until /setup is finished.
