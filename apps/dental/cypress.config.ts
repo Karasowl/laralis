@@ -1,5 +1,7 @@
 import { defineConfig } from 'cypress';
 import { createClient } from '@supabase/supabase-js';
+import fs from 'node:fs';
+import path from 'node:path';
 
 const baseUrl =
   process.env.CYPRESS_BASE_URL ||
@@ -212,7 +214,388 @@ export default defineConfig({
         return fallback.data;
       };
 
+      const resolveProjectPath = (relativeOrAbsolutePath: string) => {
+        if (path.isAbsolute(relativeOrAbsolutePath)) {
+          return relativeOrAbsolutePath;
+        }
+
+        return path.resolve(config.projectRoot, relativeOrAbsolutePath);
+      };
+
+      const safeSnapshotName = (name: string) => name.replace(/[\\/:*?"<>|]+/g, '-');
+
+      const findLatestScreenshot = ({
+        screenshotName,
+        specName,
+      }: {
+        screenshotName: string;
+        specName?: string;
+      }) => {
+        const screenshotsRoot = path.resolve(config.projectRoot, 'cypress', 'screenshots');
+        const targetFileName = `${screenshotName}.png`;
+        const candidates: Array<{ filePath: string; mtimeMs: number }> = [];
+
+        const walk = (directory: string) => {
+          if (!fs.existsSync(directory)) return;
+
+          for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+            const entryPath = path.join(directory, entry.name);
+            if (entry.isDirectory()) {
+              walk(entryPath);
+              continue;
+            }
+
+            if (entry.name !== targetFileName) continue;
+            if (specName && !entryPath.includes(specName)) continue;
+
+            candidates.push({
+              filePath: entryPath,
+              mtimeMs: fs.statSync(entryPath).mtimeMs,
+            });
+          }
+        };
+
+        walk(screenshotsRoot);
+        candidates.sort((left, right) => right.mtimeMs - left.mtimeMs);
+
+        return candidates[0]?.filePath || '';
+      };
+
+      const comparePngSnapshot = async ({
+        resolvedActualPath,
+        baselineName,
+        maxDiffRatio = 0.02,
+        threshold = 0.1,
+      }: {
+        resolvedActualPath: string;
+        baselineName: string;
+        maxDiffRatio?: number;
+        threshold?: number;
+      }) => {
+        if (!resolvedActualPath || !fs.existsSync(resolvedActualPath)) {
+          throw new Error(`Visual snapshot actual file not found for "${baselineName}"`);
+        }
+
+        const normalizedBaselineName = safeSnapshotName(baselineName);
+        const baselinePath = path.resolve(
+          config.projectRoot,
+          'cypress',
+          'visual-baselines',
+          `${normalizedBaselineName}.png`
+        );
+        const diffPath = path.resolve(
+          config.projectRoot,
+          'cypress',
+          'visual-diffs',
+          `${normalizedBaselineName}.diff.png`
+        );
+        const shouldUpdate = process.env.CYPRESS_UPDATE_SNAPSHOTS === 'true';
+        const baselineExists = fs.existsSync(baselinePath);
+
+        fs.mkdirSync(path.dirname(baselinePath), { recursive: true });
+
+        if (shouldUpdate || !baselineExists) {
+          if (!shouldUpdate) {
+            throw new Error(
+              `Missing visual baseline ${baselinePath}. Re-run with CYPRESS_UPDATE_SNAPSHOTS=true to create it.`
+            );
+          }
+
+          fs.copyFileSync(resolvedActualPath, baselinePath);
+          return {
+            passed: true,
+            created: !baselineExists,
+            updated: true,
+            diffPixels: 0,
+            totalPixels: 0,
+            ratio: 0,
+            baselinePath,
+            actualPath: resolvedActualPath,
+            diffPath: null,
+          };
+        }
+
+        const [{ PNG }, pixelmatchModule] = await Promise.all([import('pngjs'), import('pixelmatch')]);
+        const actual = PNG.sync.read(fs.readFileSync(resolvedActualPath));
+        const baseline = PNG.sync.read(fs.readFileSync(baselinePath));
+
+        if (actual.width !== baseline.width || actual.height !== baseline.height) {
+          throw new Error(
+            `Visual snapshot dimensions changed for "${baselineName}": actual ${actual.width}x${actual.height}, baseline ${baseline.width}x${baseline.height}`
+          );
+        }
+
+        const diff = new PNG({ width: baseline.width, height: baseline.height });
+        const diffPixels = pixelmatchModule.default(
+          actual.data,
+          baseline.data,
+          diff.data,
+          baseline.width,
+          baseline.height,
+          { threshold }
+        );
+        const totalPixels = baseline.width * baseline.height;
+        const ratio = totalPixels === 0 ? 0 : diffPixels / totalPixels;
+
+        fs.mkdirSync(path.dirname(diffPath), { recursive: true });
+        if (diffPixels > 0) {
+          fs.writeFileSync(diffPath, PNG.sync.write(diff));
+        } else if (fs.existsSync(diffPath)) {
+          fs.rmSync(diffPath);
+        }
+
+        if (ratio > maxDiffRatio) {
+          throw new Error(
+            `Visual snapshot "${baselineName}" changed by ${(ratio * 100).toFixed(2)}%, above ${(maxDiffRatio * 100).toFixed(2)}%. Diff: ${diffPath}`
+          );
+        }
+
+        return {
+          passed: true,
+          created: false,
+          updated: false,
+          diffPixels,
+          totalPixels,
+          ratio,
+          baselinePath,
+          actualPath: resolvedActualPath,
+          diffPath: diffPixels > 0 ? diffPath : null,
+        };
+      };
+
+      const chromeExecutablePath = () => {
+        const candidates = [
+          process.env.CHROME_PATH || '',
+          'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+          'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+        ].filter(Boolean);
+
+        const executablePath = candidates.find((candidate) => fs.existsSync(candidate));
+        if (!executablePath) {
+          throw new Error('Could not find Chrome. Set CHROME_PATH to run visual regression snapshots.');
+        }
+
+        return executablePath;
+      };
+
+      const stageTestCredentials = () => ({
+        email: envValue('CYPRESS_STAGE_TEST_EMAIL', 'STAGE_TEST_EMAIL') || 'qa-owner@laralis.test',
+        password: envValue('CYPRESS_STAGE_TEST_PASSWORD', 'STAGE_TEST_PASSWORD') || 'LaralisQA!2026',
+      });
+
       on('task', {
+        async captureStageVisualSnapshot({
+          routePath,
+          theme = 'light',
+          viewport = { width: 1440, height: 900 },
+          tabPattern,
+          waitForSelectors = [],
+          waitForText,
+          baselineName,
+          maxDiffRatio = 0.02,
+          threshold = 0.1,
+        }: {
+          routePath: string;
+          theme?: 'dark' | 'light';
+          viewport?: { width: number; height: number };
+          tabPattern?: string;
+          waitForSelectors?: string[];
+          waitForText?: string;
+          baselineName: string;
+          maxDiffRatio?: number;
+          threshold?: number;
+        }) {
+          try {
+          if (!baseUrl.includes('laralis-monorepo-preview')) {
+            throw new Error('Visual regression snapshots are stage-only and require CYPRESS_BASE_URL for preview.');
+          }
+
+          const dataset = JSON.parse(
+            fs.readFileSync(path.resolve(config.projectRoot, '../../docs/qa/dataset.json'), 'utf8')
+          );
+          const clinicName = dataset.clinics.find((clinic: { key: string }) => clinic.key === 'clinicA')?.name;
+          if (!clinicName) throw new Error('Could not resolve QA clinicA from docs/qa/dataset.json');
+
+          const { chromium } = await import('playwright-core');
+          const browser = await chromium.launch({
+            executablePath: chromeExecutablePath(),
+            headless: true,
+            args: ['--disable-dev-shm-usage', '--disable-gpu'],
+          });
+
+          const { email, password } = stageTestCredentials();
+          const actualPath = path.resolve(
+            config.projectRoot,
+            'cypress',
+            'visual-actual',
+            `${safeSnapshotName(baselineName)}.png`
+          );
+
+          try {
+            fs.mkdirSync(path.dirname(actualPath), { recursive: true });
+
+            const context = await browser.newContext({
+              viewport,
+              deviceScaleFactor: 1,
+              reducedMotion: 'reduce',
+            });
+            await context.addInitScript((selectedTheme) => {
+              window.localStorage.setItem('laralis-theme', selectedTheme as string);
+            }, theme);
+
+            const page = await context.newPage();
+            page.setDefaultTimeout(30_000);
+
+            let loggedIn = false;
+            for (let attempt = 0; attempt < 3 && !loggedIn; attempt += 1) {
+              await page.goto(`${baseUrl}/auth/login`, { waitUntil: 'networkidle' });
+              await page.locator('input[type="email"]').waitFor({ state: 'visible' });
+              await page.waitForTimeout(750 + attempt * 500);
+              await page.locator('input[type="email"]').fill(email);
+              await page.locator('input[type="password"]').fill(password);
+              await page.locator('button[type="submit"]').click();
+
+              loggedIn = await page
+                .waitForURL((url) => !url.pathname.includes('/auth/login'), { timeout: 15_000 })
+                .then(() => true)
+                .catch(() => false);
+            }
+
+            if (!loggedIn) {
+              throw new Error(`Could not log in visual regression user ${email}`);
+            }
+
+            await page.evaluate((resolvedClinicName) => {
+              return fetch('/api/clinics')
+                .then((clinicsResponse) => clinicsResponse.json())
+                .then((clinicsJson) => {
+                  const clinic = (clinicsJson.data || []).find((item: { name: string }) => item.name === resolvedClinicName);
+                  if (!clinic?.id) throw new Error(`QA clinic not found: ${resolvedClinicName}`);
+
+                  return fetch('/api/clinics', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({ clinicId: clinic.id }),
+                  });
+                });
+            }, clinicName);
+
+            await page.goto(new URL(routePath, baseUrl).toString(), { waitUntil: 'domcontentloaded' });
+            await page.waitForLoadState('networkidle').catch(() => undefined);
+            await page.waitForFunction(
+              (selectedTheme) => document.documentElement.classList.contains('dark') === (selectedTheme === 'dark'),
+              theme,
+              { timeout: 30_000 }
+            );
+
+            if (tabPattern) {
+              await page.getByRole('tab', { name: new RegExp(tabPattern, 'i') }).click();
+              await page.waitForLoadState('networkidle').catch(() => undefined);
+            }
+
+            for (const selector of waitForSelectors) {
+              await page.locator(selector).first().waitFor({ state: 'visible' });
+            }
+
+            if (waitForText) {
+              await page.waitForFunction(
+                (pattern) => new RegExp(pattern as string, 'i').test(document.body.innerText),
+                waitForText,
+                { timeout: 30_000 }
+              );
+            }
+
+            await page.addStyleTag({
+              content: `
+                *, *::before, *::after {
+                  animation-duration: 0s !important;
+                  animation-delay: 0s !important;
+                  transition-duration: 0s !important;
+                  transition-delay: 0s !important;
+                  caret-color: transparent !important;
+                  scroll-behavior: auto !important;
+                }
+
+                [data-testid="lara-fab"],
+                [data-testid="lara-entry-mode"],
+                [data-testid="lara-query-mode"],
+                [data-testid="lara-action-card"],
+                iframe[src*="tawk"],
+                [id*="tawk"],
+                [class*="tawk"] {
+                  visibility: hidden !important;
+                }
+              `,
+            });
+
+            const bodyText = await page.locator('body').innerText();
+            if (/Application error|Unhandled Runtime Error|Hydration failed|This page could not be found|404:|500:/i.test(bodyText)) {
+              throw new Error(`Fatal UI text found in ${baselineName}`);
+            }
+
+            const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+            if (overflow >= 2) {
+              throw new Error(`Unexpected horizontal overflow in ${baselineName}: ${overflow}px`);
+            }
+
+            const target = page.locator('[data-testid="app-main-content"], main').first();
+            const box = await target.boundingBox();
+            if (!box || box.width < 280 || box.height < 220) {
+              throw new Error(`Main content is not large enough for ${baselineName}`);
+            }
+
+            await target.screenshot({
+              path: actualPath,
+              animations: 'disabled',
+            });
+          } finally {
+            await browser.close();
+          }
+
+          return comparePngSnapshot({
+            resolvedActualPath: actualPath,
+            baselineName,
+            maxDiffRatio,
+            threshold,
+          });
+          } catch (error) {
+            return {
+              passed: false,
+              error: error instanceof Error ? error.message : String(error),
+              stack: error instanceof Error ? error.stack : null,
+            };
+          }
+        },
+
+        async compareSnapshot({
+          actualPath,
+          screenshotName,
+          specName,
+          baselineName,
+          maxDiffRatio = 0.02,
+          threshold = 0.1,
+        }: {
+          actualPath?: string;
+          screenshotName?: string;
+          specName?: string;
+          baselineName: string;
+          maxDiffRatio?: number;
+          threshold?: number;
+        }) {
+          const resolvedActualPath = actualPath
+            ? resolveProjectPath(actualPath)
+            : screenshotName
+              ? findLatestScreenshot({ screenshotName, specName })
+              : '';
+
+          return comparePngSnapshot({
+            resolvedActualPath,
+            baselineName,
+            maxDiffRatio,
+            threshold,
+          });
+        },
+
         async qaCreateConfirmedUser({ email, password }: { email: string; password: string }) {
           const client = adminClient();
           const existing = await findAuthUserByEmail(email);

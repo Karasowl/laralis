@@ -355,6 +355,24 @@ Correr solo graficas, tooltips y modo claro/oscuro contra stage:
 npm --workspace @laralis/dental run test:e2e:stage:chart-tooltips
 ```
 
+Correr solo regresion visual con baselines PNG contra stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:visual-regression
+```
+
+Actualizar o crear baselines visuales despues de un cambio esperado de UI:
+
+```powershell
+$env:CYPRESS_UPDATE_SNAPSHOTS="true"
+npm --workspace @laralis/dental run test:e2e:stage:visual-regression
+Remove-Item Env:CYPRESS_UPDATE_SNAPSHOTS
+```
+
+Los baselines viven en `apps/dental/cypress/visual-baselines/`. Los diffs de fallos se escriben en `apps/dental/cypress/visual-diffs/` y no deben tratarse como fuente canonica.
+
+La captura visual usa `playwright-core` desde una tarea de Cypress para abrir Chrome, seleccionar la clinica QA y capturar el contenido principal. Si Chrome no esta en la ruta estandar de Windows, define `CHROME_PATH` antes de correr el comando.
+
 Correr solo Lara, acciones confirmables y audio mockeado contra stage:
 
 ```bash

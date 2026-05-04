@@ -36,6 +36,8 @@ apps/*/.nyc_output
 apps/*/cypress/screenshots/
 apps/*/cypress/videos/
 apps/*/cypress/downloads/
+apps/*/cypress/visual-actual/
+apps/*/cypress/visual-diffs/
 
 # Turbo
 .turbo

@@ -225,10 +225,11 @@ Cobertura actual:
 - Booking publico queda cubierto visualmente en desktop y mobile sin depender del shell autenticado.
 - `apps/dental/cypress/e2e/stage/22-navigation-session-regression.cy.ts` cubre reload, atras/adelante, cambio ES/EN, persistencia de clinica activa vacia y sesion expirada: las rutas protegidas deben ir a login, no a onboarding/setup.
 - `apps/dental/cypress/e2e/stage/23-chart-tooltips-dark-mode.cy.js` valida que la grafica de ingresos/gastos en tema claro y las graficas de ROI por canal/CAC en tema oscuro tienen primitivas Recharts con dimensiones reales, que sus tooltips aparecen al interactuar y que Marketing mantiene visible la campana QA "Meta Mayo".
+- `apps/dental/cypress/e2e/stage/24-visual-regression-baselines.cy.js` agrega comparacion de screenshots con baseline PNG y tolerancia visual para dashboard overview desktop claro, dashboard marketing desktop oscuro y pacientes mobile oscuro.
 
 Brechas abiertas:
 
-- Las graficas ya tienen presencia visual, dimensiones y tooltips cubiertos; todavia falta comparar screenshots con tolerancia visual automatica.
+- Ya existe un primer comparador visual automatico con `pixelmatch`/`pngjs`; todavia falta ampliar baselines a reportes, ficha de paciente con tratamientos, formularios criticos, booking completo, Lara abierta, audio y traducciones con textos largos.
 - La paridad de claves i18n esta cubierta por inventario; falta auditoria de calidad de traduccion y longitudes extremas en todas las pantallas.
 
 ## Capacidades que no pueden quedar fuera
