@@ -9,6 +9,54 @@ Cada entrada debe explicar:
 - Como se verifica.
 - Que riesgo protege.
 
+## 2026-05-03 - Invitacion de admin debe crear permisos reales
+
+### Problema
+
+La cobertura anterior verificaba muchos bloqueos para `viewer`, pero no demostraba el flujo positivo de equipo: que un owner pueda invitar a una persona nueva, que esa persona acepte la invitacion y que luego tenga permisos reales dentro de la clinica correcta.
+
+Riesgo asociado:
+
+- La UI/API podia bloquear viewers correctamente y aun asi fallar al agregar administradores.
+- Una invitacion podia quedar creada pero sin membresia efectiva en `workspace_users` o `clinic_users`.
+- El admin podia aparecer en listas pero no poder operar datos reales de la clinica.
+
+### Prueba permanente
+
+Archivo:
+
+```text
+apps/dental/cypress/e2e/stage/08-team-admin-invitation.cy.ts
+```
+
+Caso protegido:
+
+- Crea un usuario confirmado unico en stage.
+- El owner QA invita ese email como `admin` con acceso a la clinica A.
+- Cypress recupera el token solo mediante tarea stage-only con `service_role` y verifica el lookup publico de la invitacion.
+- El usuario invitado inicia sesion, acepta la invitacion, selecciona la clinica A, ve permisos `team.view`, `team.invite` y `patients.create`, aparece en miembros de workspace y clinica, y crea un paciente real.
+- El spec limpia paciente, membresias, invitaciones y usuario QA al terminar.
+
+### Implementacion protegida
+
+Archivos:
+
+```text
+apps/dental/app/api/team/workspace-members/route.ts
+apps/dental/app/api/invitations/accept/[token]/route.ts
+apps/dental/cypress.config.ts
+```
+
+Las tareas Cypress stage-only ahora pueden recuperar tokens de invitacion y limpiar membresias/invitaciones de usuarios QA, ademas de borrar usuarios confirmados.
+
+### Verificacion
+
+Comando de stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:team
+```
+
 ## 2026-05-03 - Una clinica creada debe quedar seleccionable y aislada
 
 ### Problema

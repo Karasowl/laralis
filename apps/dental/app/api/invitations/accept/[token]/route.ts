@@ -17,7 +17,8 @@ export async function GET(
   const { token } = await params;
 
   try {
-    // Get invitation with workspace and clinic info
+    // Get the invitation first. The inviter FK points to auth.users, so joining
+    // user_profiles in this query makes valid invitations look missing.
     const { data: invitation, error } = await supabaseAdmin
       .from('invitations')
       .select(`
@@ -31,23 +32,16 @@ export async function GET(
         expires_at,
         accepted_at,
         rejected_at,
-        workspace:workspaces (
-          id,
-          name
-        ),
-        clinic:clinics (
-          id,
-          name
-        ),
-        inviter:user_profiles!invitations_invited_by_fkey (
-          full_name,
-          email
-        )
+        invited_by
       `)
       .eq('token', token)
       .single();
 
     if (error || !invitation) {
+      if (error) {
+        console.error('[invitations] Invitation lookup failed:', error);
+      }
+
       return NextResponse.json(
         { error: 'Invitation not found' },
         { status: 404 }
@@ -77,6 +71,27 @@ export async function GET(
       );
     }
 
+    const [{ data: workspace }, { data: clinic }, { data: inviterProfile }] =
+      await Promise.all([
+        supabaseAdmin
+          .from('workspaces')
+          .select('id, name')
+          .eq('id', invitation.workspace_id)
+          .maybeSingle(),
+        invitation.clinic_id
+          ? supabaseAdmin
+              .from('clinics')
+              .select('id, name')
+              .eq('id', invitation.clinic_id)
+              .maybeSingle()
+          : Promise.resolve({ data: null }),
+        supabaseAdmin
+          .from('user_profiles')
+          .select('full_name, email')
+          .eq('id', invitation.invited_by)
+          .maybeSingle(),
+      ]);
+
     return NextResponse.json({
       invitation: {
         id: invitation.id,
@@ -84,9 +99,9 @@ export async function GET(
         role: invitation.role,
         message: invitation.message,
         expires_at: invitation.expires_at,
-        workspace: invitation.workspace,
-        clinic: invitation.clinic,
-        inviter: invitation.inviter,
+        workspace,
+        clinic,
+        inviter: inviterProfile,
       },
     });
   } catch (error) {

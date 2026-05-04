@@ -77,6 +77,20 @@ export default defineConfig({
         await client.from('workspaces').delete().in('id', workspaceIds);
       };
 
+      const deleteUserMembershipsAndInvitations = async (email: string, userId?: string) => {
+        const client = adminClient();
+
+        await client.from('invitations').delete().eq('email', email);
+
+        if (!userId) return;
+
+        await client.from('clinic_users').delete().eq('user_id', userId);
+        await client.from('workspace_users').delete().eq('user_id', userId);
+        await client.from('workspace_members').delete().eq('user_id', userId);
+        await client.from('user_profiles').delete().eq('id', userId);
+        await client.from('profiles').delete().eq('id', userId);
+      };
+
       on('task', {
         async qaCreateConfirmedUser({ email, password }: { email: string; password: string }) {
           const client = adminClient();
@@ -84,6 +98,7 @@ export default defineConfig({
 
           if (existing?.id) {
             await deleteOwnedWorkspaceTree(existing.id);
+            await deleteUserMembershipsAndInvitations(email, existing.id);
             const { error: deleteError } = await client.auth.admin.deleteUser(existing.id);
             if (deleteError) throw new Error(`Could not reset existing QA user: ${deleteError.message}`);
           }
@@ -109,13 +124,33 @@ export default defineConfig({
         async qaDeleteUserByEmail(email: string) {
           const client = adminClient();
           const user = await findAuthUserByEmail(email);
-          if (!user?.id) return { deleted: false };
+          if (!user?.id) {
+            await deleteUserMembershipsAndInvitations(email);
+            return { deleted: false };
+          }
 
           await deleteOwnedWorkspaceTree(user.id);
+          await deleteUserMembershipsAndInvitations(email, user.id);
           const { error } = await client.auth.admin.deleteUser(user.id);
           if (error) throw new Error(`Could not delete QA user: ${error.message}`);
 
           return { deleted: true };
+        },
+
+        async qaGetLatestInvitationToken(email: string) {
+          const client = adminClient();
+          const { data, error } = await client
+            .from('invitations')
+            .select('id, email, role, token, clinic_ids, expires_at, accepted_at')
+            .eq('email', email)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (error) throw new Error(`Could not fetch QA invitation: ${error.message}`);
+          if (!data?.token) throw new Error(`No QA invitation token found for ${email}`);
+
+          return data;
         },
       });
       

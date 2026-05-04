@@ -112,6 +112,7 @@ Cobertura actual:
 
 Cobertura actual:
 
+- `apps/dental/cypress/e2e/stage/08-team-admin-invitation.cy.ts` cubre el flujo positivo de equipo: owner invita a un admin unico, el usuario acepta la invitacion, aparece como admin de workspace/clinica y puede crear un paciente real en la clinica QA.
 - `apps/dental/cypress/e2e/stage/05-permission-boundaries.cy.ts` inicia sesion como `qa-viewer@laralis.test` y verifica que sus permisos de pacientes, servicios, insumos y tratamientos son solo lectura, y que marketing/pagos no son accesibles para ese rol.
 - El mismo spec comprueba que el backend bloquea con `403` escrituras de viewer en `POST /api/patients`, `POST/PUT/DELETE /api/supplies`, `POST/PUT/DELETE /api/services`, `POST/PUT/DELETE /api/treatments`, endpoints de plataformas/campanas de marketing y `POST /api/treatments/:id/payment`.
 - El spec tambien bloquea lecturas sensibles de analytics/reportes para viewer: CAC trend, channel ROI, marketing metrics, campaign ROI, legacy marketing ROI, predicciones de ingresos y refunds.
