@@ -42,7 +42,10 @@ export function RevenueChart({
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-background/95 dark:bg-background/95 backdrop-blur-xl p-3 border border-border rounded-lg shadow-lg">
+        <div
+          data-testid="revenue-chart-tooltip"
+          className="bg-background/95 dark:bg-background/95 backdrop-blur-xl p-3 border border-border rounded-lg shadow-lg"
+        >
           <p className="font-medium text-foreground">{label}</p>
           {payload.map((entry: any, index: number) => (
             <p key={index} className="text-sm" style={{ color: entry.color }}>
@@ -56,7 +59,7 @@ export function RevenueChart({
   }
 
   return (
-    <Card className="transition-all duration-200 hover:shadow-lg">
+    <Card data-testid="revenue-chart-card" className="transition-all duration-200 hover:shadow-lg">
       <CardHeader className="pb-2 sm:pb-4">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-4">
           <div className="min-w-0">
@@ -83,7 +86,7 @@ export function RevenueChart({
           )}
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent data-testid="revenue-chart">
         <ResponsiveContainer width="100%" height={200} className="sm:!h-[260px] lg:!h-[300px]">
           <AreaChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
             <defs>

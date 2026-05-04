@@ -224,10 +224,11 @@ Cobertura actual:
 - El spec cambia tema claro/oscuro en dashboard y pacientes, cambia ES/EN en el shell activo, y confirma que el cambio de idioma no vuelve a exponer cancelacion/setup.
 - Booking publico queda cubierto visualmente en desktop y mobile sin depender del shell autenticado.
 - `apps/dental/cypress/e2e/stage/22-navigation-session-regression.cy.ts` cubre reload, atras/adelante, cambio ES/EN, persistencia de clinica activa vacia y sesion expirada: las rutas protegidas deben ir a login, no a onboarding/setup.
+- `apps/dental/cypress/e2e/stage/23-chart-tooltips-dark-mode.cy.ts` valida que las graficas de ingresos/gastos, ROI por canal y CAC tienen primitivas Recharts con dimensiones reales, que sus tooltips aparecen al interactuar y que el mismo flujo pasa en tema claro y oscuro con la campana QA "Meta Mayo".
 
 Brechas abiertas:
 
-- Las graficas ya tienen presencia visual y dimensiones, pero todavia falta validar tooltips y comparar screenshots con tolerancia visual.
+- Las graficas ya tienen presencia visual, dimensiones y tooltips cubiertos; todavia falta comparar screenshots con tolerancia visual automatica.
 - La paridad de claves i18n esta cubierta por inventario; falta auditoria de calidad de traduccion y longitudes extremas en todas las pantallas.
 
 ## Capacidades que no pueden quedar fuera

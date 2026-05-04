@@ -82,7 +82,7 @@ export function ChannelROIChart({ data, loading, isEmpty }: ChannelROIChartProps
   const worstChannel = sortedData[sortedData.length - 1]
 
   return (
-    <Card>
+    <Card data-testid="channel-roi-chart-card">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Megaphone className="h-5 w-5" />
@@ -92,7 +92,7 @@ export function ChannelROIChart({ data, loading, isEmpty }: ChannelROIChartProps
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Chart */}
-        <div className="h-64 md:h-72 lg:h-80">
+        <div data-testid="channel-roi-chart" className="h-64 md:h-72 lg:h-80">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={sortedData}
@@ -124,7 +124,7 @@ export function ChannelROIChart({ data, loading, isEmpty }: ChannelROIChartProps
                   if (active && payload && payload.length) {
                     const channel = payload[0].payload
                     return (
-                      <div className="bg-card p-3 border border-border rounded-lg shadow-lg">
+                      <div data-testid="channel-roi-tooltip" className="bg-card p-3 border border-border rounded-lg shadow-lg">
                         <p className="font-medium text-foreground mb-2">{label}</p>
                         <div className="space-y-1">
                           <p className="text-sm font-medium">ROI: {payload[0].value.toFixed(0)}%</p>

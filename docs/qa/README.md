@@ -349,6 +349,12 @@ Correr solo cobertura visual/responsive contra stage:
 npm --workspace @laralis/dental run test:e2e:stage:visual-responsive
 ```
 
+Correr solo graficas, tooltips y modo claro/oscuro contra stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:chart-tooltips
+```
+
 Correr solo Lara, acciones confirmables y audio mockeado contra stage:
 
 ```bash

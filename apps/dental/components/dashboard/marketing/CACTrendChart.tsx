@@ -89,8 +89,23 @@ export function CACTrendChart({ data, targetCAC, loading }: CACTrendChartProps) 
     target: targetCAC / 100
   }))
 
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div data-testid="cac-trend-tooltip" className="bg-card p-3 border border-border rounded-lg shadow-lg">
+          <p className="font-medium text-foreground mb-1">{label}</p>
+          <p className="text-sm text-muted-foreground">
+            CAC: {formatCurrency(Math.round(Number(payload[0].value || 0) * 100))}
+          </p>
+        </div>
+      )
+    }
+
+    return null
+  }
+
   return (
-    <Card>
+    <Card data-testid="cac-trend-chart-card">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
@@ -108,7 +123,7 @@ export function CACTrendChart({ data, targetCAC, loading }: CACTrendChartProps) 
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Chart */}
-        <div className="h-64 md:h-72 lg:h-80">
+        <div data-testid="cac-trend-chart" className="h-64 md:h-72 lg:h-80">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
               <defs>
@@ -136,15 +151,7 @@ export function CACTrendChart({ data, targetCAC, loading }: CACTrendChartProps) 
                 tick={{ fill: 'hsl(var(--muted-foreground))' }}
                 tickFormatter={(value) => `$${value}`}
               />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'hsl(var(--card))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '8px'
-                }}
-                labelStyle={{ color: 'hsl(var(--foreground))' }}
-                formatter={(value: number) => [`$${value.toFixed(2)}`, 'CAC']}
-              />
+              <Tooltip content={<CustomTooltip />} />
 
               {/* Target reference line */}
               <ReferenceLine

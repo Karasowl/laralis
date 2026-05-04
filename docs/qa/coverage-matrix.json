@@ -221,7 +221,7 @@
     "domain": "visual",
     "capability": "Graficas se pintan con barras, lineas, segmentos y tooltips correctos",
     "layers": ["cypress", "visual"],
-    "status": "partial"
+    "status": "covered"
   },
   {
     "id": "qa-029-visual-responsive-desktop-tablet-mobile",
@@ -237,7 +237,7 @@
     "domain": "visual",
     "capability": "Modo oscuro conserva contraste, layout, graficas y formularios",
     "layers": ["cypress", "visual"],
-    "status": "planned"
+    "status": "partial"
   },
   {
     "id": "qa-031-i18n-es-en-complete",
