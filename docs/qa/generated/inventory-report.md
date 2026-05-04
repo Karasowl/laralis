@@ -1,6 +1,6 @@
 # QA Inventory Report
 
-Generated: 2026-05-04T02:27:18.539Z
+Generated: 2026-05-04T02:46:42.137Z
 
 Status: pass
 Failing checks: 0
@@ -27,7 +27,7 @@ Status: pass
 
 capabilities: 44; domains: 22; required missing domains: 0
 
-- status counts: partial=13, planned=17, covered=14
+- status counts: partial=13, planned=16, covered=15
 - priority counts: P0=38, P1=6
 
 ## QA dataset
@@ -66,7 +66,7 @@ seed script: present; assert script: present; env example: present; package scri
 
 Status: pass
 
-declared spec scripts: 20; existing e2e specs: 12; missing declared specs: 0
+declared spec scripts: 21; existing e2e specs: 13; missing declared specs: 0
 
 - ok: test:e2e:multitenancy -> cypress/e2e/stage/04-multiclinic-isolation.cy.ts
 - ok: test:e2e:auth -> cypress/e2e/stage/00-auth-and-shell.cy.ts
@@ -76,8 +76,8 @@ declared spec scripts: 20; existing e2e specs: 12; missing declared specs: 0
 - ok: test:e2e:treatments -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
 - ok: test:e2e:settings -> cypress/e2e/stage/05-permission-boundaries.cy.ts
 - ok: test:e2e:marketing -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
-- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.ts (12 specs)
-- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.ts (12 specs)
+- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.ts (13 specs)
+- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.ts (13 specs)
 - ok: test:e2e:stage:business -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
 - ok: test:e2e:stage:crud -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
 - ok: test:e2e:stage:multiclinic -> cypress/e2e/stage/04-multiclinic-isolation.cy.ts
@@ -88,6 +88,7 @@ declared spec scripts: 20; existing e2e specs: 12; missing declared specs: 0
 - ok: test:e2e:stage:patient-history -> cypress/e2e/stage/09-patient-treatment-history.cy.ts
 - ok: test:e2e:stage:fixed-costs -> cypress/e2e/stage/10-fixed-costs-cost-per-minute.cy.ts
 - ok: test:e2e:stage:assets -> cypress/e2e/stage/11-assets-depreciation.cy.ts
+- ok: test:e2e:stage:time -> cypress/e2e/stage/12-time-settings-simulations.cy.ts
 
 ## i18n parity
 

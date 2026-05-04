@@ -325,6 +325,12 @@ Correr solo el ciclo CRUD destructivo contra stage:
 npm --workspace @laralis/dental run test:e2e:stage:crud
 ```
 
+Correr solo tiempo, costo por minuto y simulaciones de precio contra stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:time
+```
+
 Correr solo aislamiento multi-clinica contra stage:
 
 ```bash

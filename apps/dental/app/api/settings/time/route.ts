@@ -34,6 +34,11 @@ const numberOrZero = (value: unknown): number => {
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
+const missingColumnFromSupabaseError = (error: { message?: string } | null | undefined) => {
+  const match = error?.message?.match(/Could not find the '([^']+)' column/);
+  return match?.[1] || null;
+};
+
 const normalizePayload = (body: any) => {
   const work_days = Math.round(numberOrZero(body?.work_days));
   const hours_per_day = Number(numberOrZero(body?.hours_per_day).toFixed(2));
@@ -216,7 +221,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     const dbRealPct = real_pct / 100;
 
     // Include both field name formats to support different DB schemas
-    const dbPayload = {
+    const dbPayload: Record<string, unknown> = {
       work_days: work_days,                           // Short names (current schema)
       working_days_per_month: work_days,              // Long names (migration schema)
       hours_per_day: hours_per_day,
@@ -235,25 +240,39 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
 
     let result;
 
-    if (existing) {
-      result = await supabaseAdmin
-        .from('settings_time')
-        .update({
-          ...dbPayload,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', existing.id)
-        .select()
-        .single();
-    } else {
-      result = await supabaseAdmin
+    const savePayload = async (payload: Record<string, unknown>) => {
+      if (existing) {
+        return supabaseAdmin
+          .from('settings_time')
+          .update({
+            ...payload,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existing.id)
+          .select()
+          .single();
+      }
+
+      return supabaseAdmin
         .from('settings_time')
         .insert({
           clinic_id,
-          ...dbPayload
+          ...payload
         })
         .select()
         .single();
+    };
+
+    let attemptedPayload = { ...dbPayload };
+    result = await savePayload(attemptedPayload);
+
+    for (let attempts = 0; result.error && attempts < 5; attempts += 1) {
+      const missingColumn = missingColumnFromSupabaseError(result.error);
+      if (!missingColumn || !(missingColumn in attemptedPayload)) break;
+
+      const { [missingColumn]: _removed, ...nextPayload } = attemptedPayload;
+      attemptedPayload = nextPayload;
+      result = await savePayload(attemptedPayload);
     }
 
     if (result.error) {

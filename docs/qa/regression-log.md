@@ -366,6 +366,56 @@ Comando de stage:
 npm --workspace @laralis/dental run test:e2e:stage:permissions
 ```
 
+## 2026-05-04 - Simulaciones de precio deben usar costos vivos de tiempo e insumos
+
+### Problema
+
+`simulate_price_change` leia `fixed_cost_cents` y `variable_cost_cents` directamente desde `services`. Esos campos pueden estar vacios o quedar desactualizados cuando cambian la productividad, los costos fijos, activos o los insumos asociados al servicio.
+
+Riesgo asociado:
+
+- Lara podia mostrar margen y utilidad incorrectos al sugerir o simular cambios de precio.
+- Cambiar la configuracion de tiempo podia recalcular `/api/services` pero no necesariamente la simulacion de precio.
+- Un servicio recien creado con insumos podia simular rentabilidad como si no tuviera costo.
+- Stage podia rechazar cambios de tiempo cuando el esquema no tenia columnas largas como `real_hours_percentage`.
+
+### Prueba permanente
+
+Archivo:
+
+```text
+apps/dental/cypress/e2e/stage/12-time-settings-simulations.cy.ts
+```
+
+Casos protegidos:
+
+- Configuracion de tiempo QA produce el `effective_minutes_per_month` esperado.
+- Un costo fijo QA cambia `monthly_fixed_cents` y `per_minute_cents`.
+- Un servicio con insumo calcula costo variable, costo fijo y costo total desde `/api/services` y `/api/services/:id/cost`.
+- `POST /api/actions/simulate-price-change` devuelve utilidad y margen usando costos vivos.
+- `POST /api/actions/update-time-settings` en dry-run no persiste cambios.
+- La ejecucion real de `update-time-settings` actualiza productividad y la simulacion vuelve a reflejar el nuevo costo fijo por minuto.
+
+### Implementacion protegida
+
+Archivos:
+
+```text
+apps/dental/lib/ai/actions/pricing-actions.ts
+apps/dental/app/api/settings/time/route.ts
+apps/dental/app/api/services/[id]/cost/route.ts
+```
+
+La simulacion ahora recalcula costo fijo por minuto desde `settings_time`, `fixed_costs` y `assets`, y costo variable desde `service_supplies` + `supplies`. La ruta individual de costo de servicio tambien normaliza `real_pct` como decimal o porcentaje para mantenerse alineada con el resto de endpoints. La escritura de configuracion de tiempo ahora reintenta sin columnas opcionales cuando Supabase reporta que no existen en el esquema actual.
+
+### Verificacion
+
+Comando de stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:time
+```
+
 ## 2026-05-03 - Booking publico debe reservar slots reales y mockear notificaciones
 
 ### Problema

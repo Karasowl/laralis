@@ -165,7 +165,7 @@
     "domain": "business-calculations",
     "capability": "Configuracion de tiempo alimenta simulaciones de beneficio, costo fijo y variable",
     "layers": ["vitest", "cypress", "api"],
-    "status": "planned"
+    "status": "covered"
   },
   {
     "id": "qa-022-date-filters-coherence",

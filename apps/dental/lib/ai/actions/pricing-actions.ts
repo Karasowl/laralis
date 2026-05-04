@@ -317,6 +317,108 @@ export async function executeAdjustServiceMargin(
  * Execute: Simulate price change
  * Read-only simulation of price changes and their impact on revenue
  */
+type ServiceRowWithSupplies = {
+  id: string
+  name: string
+  price_cents: number | null
+  margin_pct: number | null
+  est_minutes: number | null
+  service_supplies?: Array<{
+    qty: number | null
+    supplies: {
+      price_cents: number | null
+      portions: number | null
+    } | null
+  }> | null
+}
+
+type ServiceRowWithLiveCosts = ServiceRowWithSupplies & {
+  fixed_cost_cents: number
+  variable_cost_cents: number
+  total_cost_cents: number
+}
+
+function normalizeProductivityFactor(rawValue: unknown, fallback = 0.8) {
+  let value = Number(rawValue ?? fallback)
+  if (!Number.isFinite(value) || value < 0) value = fallback
+  if (value > 1) value = value / 100
+  return Math.min(1, Math.max(0, value))
+}
+
+async function getClinicFixedCostPerMinuteCents(
+  supabase: ActionContext['supabase'],
+  clinicId: string
+) {
+  const { data: timeSettings } = await supabase
+    .from('settings_time')
+    .select('*')
+    .eq('clinic_id', clinicId)
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const { data: fixedCosts } = await supabase
+    .from('fixed_costs')
+    .select('amount_cents')
+    .eq('clinic_id', clinicId)
+
+  const { data: assets } = await supabase
+    .from('assets')
+    .select('purchase_price_cents, depreciation_months')
+    .eq('clinic_id', clinicId)
+
+  const monthlyFixedCostsCents =
+    (fixedCosts || []).reduce((sum, cost: any) => sum + (Number(cost.amount_cents) || 0), 0) +
+    (assets || []).reduce((sum, asset: any) => {
+      const months = Number(asset.depreciation_months) || 0
+      if (months <= 0) return sum
+      return sum + Math.round((Number(asset.purchase_price_cents) || 0) / months)
+    }, 0)
+
+  if (!timeSettings) return 0
+
+  const workDays = Number(timeSettings.working_days_per_month ?? timeSettings.work_days ?? 0)
+  const hoursPerDay = Number(timeSettings.hours_per_day ?? 0)
+  const rawProductivity = timeSettings.real_hours_percentage ?? timeSettings.real_pct ?? 0.8
+  const productivityFactor = normalizeProductivityFactor(rawProductivity)
+  const effectiveMinutes = Math.round(workDays * hoursPerDay * 60 * productivityFactor)
+
+  if (effectiveMinutes <= 0 || monthlyFixedCostsCents <= 0) return 0
+  return Math.round(monthlyFixedCostsCents / effectiveMinutes)
+}
+
+function calculateServiceVariableCostCents(service: ServiceRowWithSupplies) {
+  return (service.service_supplies || []).reduce((total, item) => {
+    const price = Number(item.supplies?.price_cents) || 0
+    const portions = Number(item.supplies?.portions) || 0
+    const qty = Number(item.qty) || 0
+    if (price <= 0 || portions <= 0 || qty <= 0) return total
+    return total + Math.round((price / portions) * qty)
+  }, 0)
+}
+
+function addLiveServiceCosts(
+  services: ServiceRowWithSupplies[],
+  fixedCostPerMinuteCents: number
+): ServiceRowWithLiveCosts[] {
+  return services.map((service) => {
+    const variableCostCents = calculateServiceVariableCostCents(service)
+    const fixedCostCents = Math.round((Number(service.est_minutes) || 0) * fixedCostPerMinuteCents)
+
+    return {
+      ...service,
+      fixed_cost_cents: fixedCostCents,
+      variable_cost_cents: variableCostCents,
+      total_cost_cents: fixedCostCents + variableCostCents,
+    }
+  })
+}
+
+function missingColumnFromSupabaseError(error: { message?: string } | null | undefined) {
+  const match = error?.message?.match(/Could not find the '([^']+)' column/)
+  return match?.[1] || null
+}
+
 export async function executeSimulatePriceChange(
   params: ActionParams['simulate_price_change'],
   context: ActionContext
@@ -328,7 +430,20 @@ export async function executeSimulatePriceChange(
     // Build services query
     let servicesQuery = supabase
       .from('services')
-      .select('id, name, price_cents, fixed_cost_cents, variable_cost_cents, margin_pct')
+      .select(`
+        id,
+        name,
+        price_cents,
+        margin_pct,
+        est_minutes,
+        service_supplies!service_supplies_service_id_fkey (
+          qty,
+          supplies!service_supplies_supply_id_fkey (
+            price_cents,
+            portions
+          )
+        )
+      `)
       .eq('clinic_id', clinicId)
 
     if (service_id) {
@@ -353,6 +468,12 @@ export async function executeSimulatePriceChange(
       }
     }
 
+    const fixedCostPerMinuteCents = await getClinicFixedCostPerMinuteCents(supabase, clinicId)
+    const servicesWithLiveCosts = addLiveServiceCosts(
+      services as unknown as ServiceRowWithSupplies[],
+      fixedCostPerMinuteCents
+    )
+
     // Get historical treatment data for volume estimation (last 30 days)
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
@@ -374,7 +495,7 @@ export async function executeSimulatePriceChange(
     })
 
     // Calculate simulation results
-    const simulationResults = services.map((service) => {
+    const simulationResults = servicesWithLiveCosts.map((service) => {
       const currentPrice = service.price_cents || 0
       const treatmentCount = treatmentCounts[service.id] || 0
       const currentMonthlyRevenue = treatmentRevenue[service.id] || 0
@@ -393,13 +514,14 @@ export async function executeSimulatePriceChange(
 
       // Calculate new revenue estimate (assuming same volume)
       const newMonthlyRevenue =
-        treatmentCount > 0
+        treatmentCount > 0 && currentPrice > 0
           ? Math.round((newPrice / currentPrice) * currentMonthlyRevenue)
+          : treatmentCount > 0
+            ? newPrice * treatmentCount
           : 0
 
       // Calculate profit changes
-      const totalCost =
-        (service.fixed_cost_cents || 0) + (service.variable_cost_cents || 0)
+      const totalCost = service.total_cost_cents
       const currentProfit = currentPrice - totalCost
       const newProfit = newPrice - totalCost
 
@@ -421,6 +543,9 @@ export async function executeSimulatePriceChange(
           currentMonthlyRevenue > 0
             ? ((newMonthlyRevenue - currentMonthlyRevenue) / currentMonthlyRevenue) * 100
             : 0,
+        fixed_cost_cents: service.fixed_cost_cents,
+        variable_cost_cents: service.variable_cost_cents,
+        total_cost_cents: service.total_cost_cents,
         current_margin_pct: Math.round(currentMargin * 100) / 100,
         new_margin_pct: Math.round(newMargin * 100) / 100,
         current_profit_per_treatment_cents: currentProfit,
@@ -754,29 +879,45 @@ export async function executeUpdateTimeSettings(
     // Execute the update
     updates.updated_at = new Date().toISOString()
 
-    let result
-    if (currentSettings) {
-      // Update existing settings
-      result = await supabase
-        .from('settings_time')
-        .update(updates)
-        .eq('id', currentSettings.id)
-        .select()
-        .single()
-    } else {
-      // Create new settings
-      result = await supabase
+    const persistTimeSettings = async (payload: Record<string, any>) => {
+      if (currentSettings) {
+        return supabase
+          .from('settings_time')
+          .update(payload)
+          .eq('id', currentSettings.id)
+          .select()
+          .single()
+      }
+
+      return supabase
         .from('settings_time')
         .insert({
           clinic_id: clinicId,
+          ...payload,
+        })
+        .select()
+        .single()
+    }
+
+    let attemptedPayload = currentSettings
+      ? { ...updates }
+      : {
           work_days: work_days ?? 22,
           working_days_per_month: work_days ?? 22,
           hours_per_day: hours_per_day ?? 8,
           real_pct: (real_productivity_pct ?? 80) / 100,
           real_hours_percentage: (real_productivity_pct ?? 80) / 100,
-        })
-        .select()
-        .single()
+          ...updates,
+        }
+    let result = await persistTimeSettings(attemptedPayload)
+
+    for (let attempts = 0; result.error && attempts < 5; attempts += 1) {
+      const missingColumn = missingColumnFromSupabaseError(result.error)
+      if (!missingColumn || !(missingColumn in attemptedPayload)) break
+
+      const { [missingColumn]: _removed, ...nextPayload } = attemptedPayload
+      attemptedPayload = nextPayload
+      result = await persistTimeSettings(attemptedPayload)
     }
 
     if (result.error) {

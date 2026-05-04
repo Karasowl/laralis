@@ -81,7 +81,7 @@ export async function GET(
     // Get fixed cost per minute for this clinic
     const { data: settingsTime, error: settingsError } = await supabaseAdmin
       .from('settings_time')
-      .select('work_days, hours_per_day, real_pct')
+      .select('*')
       .eq('clinic_id', clinicId)
       .single();
 
@@ -122,11 +122,21 @@ export async function GET(
 
       if (monthlyFixedTotal > 0) {
         // Calculate minutes per month
-        const minutesPerMonth = settingsTime.work_days * settingsTime.hours_per_day * 60;
-        const effectiveMinutes = minutesPerMonth * settingsTime.real_pct;
+        const workDays = settingsTime.working_days_per_month ?? settingsTime.work_days;
+        const rawRealPct = settingsTime.real_hours_percentage ?? settingsTime.real_pct ?? 0;
+        let realPctFactor = Number(rawRealPct);
+        if (!Number.isFinite(realPctFactor) || realPctFactor < 0) {
+          realPctFactor = 0;
+        }
+        if (realPctFactor > 1) {
+          realPctFactor = realPctFactor / 100;
+        }
+        realPctFactor = Math.min(1, Math.max(0, realPctFactor));
+        const minutesPerMonth = workDays * settingsTime.hours_per_day * 60;
+        const effectiveMinutes = Math.round(minutesPerMonth * realPctFactor);
         
         // Calculate fixed cost per minute
-        const fixedCostPerMinute = monthlyFixedTotal / effectiveMinutes;
+        const fixedCostPerMinute = effectiveMinutes > 0 ? Math.round(monthlyFixedTotal / effectiveMinutes) : 0;
         
         // Calculate fixed cost for this service
         fixedCostCents = Math.round(fixedCostPerMinute * service.est_minutes);
