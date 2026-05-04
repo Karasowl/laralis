@@ -154,7 +154,9 @@ function isUuid(value: string | null | undefined): value is string {
 
 async function hasClinicAccess(
   supabase: ReturnType<typeof createClient>,
-  clinicId: string
+  clinicId: string,
+
+  userId?: string
 ): Promise<boolean> {
   if (!isUuid(clinicId)) return false;
 
@@ -164,10 +166,40 @@ async function hasClinicAccess(
 
   if (error) {
     console.error('[clinic] Failed verifying access to clinic', error.message);
-    return false;
+  } else if (data) {
+
+    return true;
   }
 
-  return Boolean(data);
+  const resolvedUserId = userId || (await supabase.auth.getUser()).data.user?.id;
+  if (!resolvedUserId) return false;
+
+  const { data: clinic, error: clinicError } = await supabaseAdmin
+    .from('clinics')
+    .select('id, workspace_id')
+    .eq('id', clinicId)
+    .maybeSingle();
+
+  if (clinicError || !clinic?.workspace_id) {
+    if (clinicError) {
+      console.error('[clinic] Failed loading clinic workspace for access fallback', clinicError.message);
+    }
+    return false;
+  }
+
+  const { data: ownedWorkspace, error: ownerError } = await supabaseAdmin
+    .from('workspaces')
+    .select('id')
+    .eq('id', clinic.workspace_id)
+    .eq('owner_id', resolvedUserId)
+    .maybeSingle();
+
+  if (ownerError) {
+    console.error('[clinic] Failed verifying workspace owner clinic access', ownerError.message);
+    return false;
+  }
+
+  return Boolean(ownedWorkspace);
 }
 
 export async function resolveClinicContext({
@@ -193,7 +225,7 @@ export async function resolveClinicContext({
     : null;
 
   if (normalizedRequested) {
-    const canAccessRequested = await hasClinicAccess(supabase, normalizedRequested);
+    const canAccessRequested = await hasClinicAccess(supabase, normalizedRequested, user.id);
     if (!canAccessRequested) {
       return { error: { status: 403, message: 'Clinic access denied' } };
     }
@@ -213,7 +245,7 @@ export async function resolveClinicContext({
   }
 
   for (const clinicId of candidateClinicIds) {
-    const canAccess = await hasClinicAccess(supabase, clinicId);
+    const canAccess = await hasClinicAccess(supabase, clinicId, user.id);
     if (canAccess) {
       if (!cookieClinicId || cookieClinicId !== clinicId) {
         setClinicIdCookie(clinicId, cookieStore);
