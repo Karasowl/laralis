@@ -1073,6 +1073,166 @@ export default defineConfig({
           };
         },
 
+        async qaBookingRequestSeed({
+          stamp,
+          clinicName,
+          serviceName,
+          patientLabel = 'Confirm',
+          offsetDays = 3,
+        }: {
+          stamp: string;
+          clinicName: string;
+          serviceName: string;
+          patientLabel?: string;
+          offsetDays?: number;
+        }) {
+          const client = adminClient();
+          const requestedDate = addDaysToCivilDate(toCivilDate(new Date()), offsetDays);
+
+          const { data: clinic, error: clinicError } = await client
+            .from('clinics')
+            .select('id, name')
+            .eq('name', clinicName)
+            .single();
+
+          if (clinicError || !clinic?.id) {
+            throw new Error(`Could not find QA clinic "${clinicName}": ${clinicError?.message || 'missing clinic'}`);
+          }
+
+          const { data: service, error: serviceError } = await client
+            .from('services')
+            .select('id, name')
+            .eq('clinic_id', clinic.id)
+            .eq('name', serviceName)
+            .single();
+
+          if (serviceError || !service?.id) {
+            throw new Error(`Could not find QA service "${serviceName}": ${serviceError?.message || 'missing service'}`);
+          }
+
+          const booking = await insertOneTolerant('public_bookings', {
+            clinic_id: clinic.id,
+            service_id: service.id,
+            patient_name: `QA Booking ${patientLabel} ${stamp}`,
+            patient_email: `${patientLabel.toLowerCase()}-${stamp}@laralis.test`,
+            patient_phone: '+15555550277',
+            patient_notes: `qa-booking-request ${stamp}`,
+            requested_date: requestedDate,
+            requested_time: patientLabel === 'Reject' ? '15:00' : '14:00',
+            status: 'pending',
+            ip_address: '127.0.0.1',
+            user_agent: 'laralis-qa',
+            referrer: 'cypress',
+            utm_source: 'qa',
+            utm_medium: 'cypress',
+            utm_campaign: 'booking-request-admin',
+          });
+
+          return {
+            stamp,
+            clinicId: clinic.id,
+            serviceId: service.id,
+            bookingId: booking.id,
+            patientEmail: booking.patient_email,
+            requestedDate,
+            requestedTime: String(booking.requested_time).slice(0, 5),
+          };
+        },
+
+        async qaBookingRequestState({
+          bookingId,
+          patientEmail,
+        }: {
+          bookingId: string;
+          patientEmail?: string;
+        }) {
+          const client = adminClient();
+          const { data: booking, error: bookingError } = await client
+            .from('public_bookings')
+            .select('*')
+            .eq('id', bookingId)
+            .single();
+          if (bookingError) throw new Error(`Could not read QA booking request: ${bookingError.message}`);
+
+          let treatment: any = null;
+          if (booking?.treatment_id) {
+            const { data, error } = await client
+              .from('treatments')
+              .select('*')
+              .eq('id', booking.treatment_id)
+              .single();
+            if (error) throw new Error(`Could not read QA treatment from booking: ${error.message}`);
+            treatment = data;
+          }
+
+          let patient: any = null;
+          if (booking?.patient_id) {
+            const { data, error } = await client
+              .from('patients')
+              .select('*')
+              .eq('id', booking.patient_id)
+              .single();
+            if (error) throw new Error(`Could not read QA patient from booking: ${error.message}`);
+            patient = data;
+          } else if (patientEmail) {
+            const { data, error } = await client
+              .from('patients')
+              .select('*')
+              .eq('email', patientEmail)
+              .maybeSingle();
+            if (error) throw new Error(`Could not read QA patient by email: ${error.message}`);
+            patient = data;
+          }
+
+          return { booking, treatment, patient };
+        },
+
+        async qaBookingRequestCleanup({ stamp }: { stamp?: string }) {
+          if (!stamp) return { cleaned: false };
+
+          const client = adminClient();
+          const { data: bookings } = await client
+            .from('public_bookings')
+            .select('id, treatment_id, patient_id, patient_email')
+            .ilike('patient_name', `%${stamp}%`);
+
+          const bookingIds = (bookings || []).map((row) => row.id).filter(Boolean);
+          const treatmentIdsFromBookings = (bookings || []).map((row) => row.treatment_id).filter(Boolean);
+          const patientIdsFromBookings = (bookings || []).map((row) => row.patient_id).filter(Boolean);
+          const patientEmails = (bookings || []).map((row) => row.patient_email).filter(Boolean);
+
+          const { data: treatments } = await client
+            .from('treatments')
+            .select('id')
+            .ilike('notes', `%${stamp}%`);
+          const treatmentIds = [
+            ...treatmentIdsFromBookings,
+            ...(treatments || []).map((row) => row.id),
+          ].filter(Boolean);
+
+          await deleteByIds('public_bookings', bookingIds);
+          await deleteByIds('treatments', Array.from(new Set(treatmentIds)));
+
+          if (patientEmails.length > 0) {
+            const { data: patients } = await client
+              .from('patients')
+              .select('id')
+              .in('email', patientEmails);
+            const patientIds = [
+              ...patientIdsFromBookings,
+              ...(patients || []).map((row) => row.id),
+            ].filter(Boolean);
+            await deleteByIds('patients', Array.from(new Set(patientIds)));
+          }
+
+          return {
+            cleaned: true,
+            bookingCount: bookingIds.length,
+            treatmentCount: treatmentIds.length,
+            patientCount: patientIdsFromBookings.length,
+          };
+        },
+
         async qaGetLatestInvitationToken(email: string) {
           const client = adminClient();
           const { data, error } = await client

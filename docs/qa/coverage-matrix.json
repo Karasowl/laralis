@@ -366,5 +366,13 @@
     "capability": "Las metricas de citas del dashboard salen de tratamientos y bookings reales, excluyen cancelados/convertidos y son deterministicas",
     "layers": ["cypress", "api", "database", "supabase-task"],
     "status": "covered"
+  },
+  {
+    "id": "qa-047-booking-request-admin-actions",
+    "priority": "P0",
+    "domain": "booking",
+    "capability": "El equipo puede listar solicitudes publicas, confirmar una cita creando paciente/tratamiento y rechazar otra sin efectos colaterales",
+    "layers": ["cypress", "api", "database", "supabase-task"],
+    "status": "covered"
   }
 ]
