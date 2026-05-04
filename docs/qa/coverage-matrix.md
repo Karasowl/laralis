@@ -229,6 +229,7 @@ Cobertura actual:
 - `apps/dental/cypress/e2e/stage/22-navigation-session-regression.cy.ts` cubre reload, atras/adelante, cambio ES/EN, persistencia de clinica activa vacia y sesion expirada: las rutas protegidas deben ir a login, no a onboarding/setup.
 - `apps/dental/cypress/e2e/stage/23-chart-tooltips-dark-mode.cy.js` valida que la grafica de ingresos/gastos en tema claro y las graficas de ROI por canal/CAC en tema oscuro tienen primitivas Recharts con dimensiones reales, que sus tooltips aparecen al interactuar y que Marketing mantiene visible la campana QA "Meta Mayo".
 - `apps/dental/cypress/e2e/stage/24-visual-regression-baselines.cy.js` agrega comparacion de screenshots con baseline PNG y tolerancia visual para dashboard overview desktop claro, dashboard marketing desktop oscuro, pacientes mobile oscuro, reportes/rentabilidad, ficha de paciente con historial de tratamientos, formulario de paciente, formulario de tratamiento, booking publico mobile, panel de Lara abierto, formulario de servicio mobile, gastos, costos fijos, activos/depreciacion, calendario de tratamientos, equipo/permisos y notificaciones mobile.
+- `apps/dental/cypress/e2e/stage/26-dashboard-appointments-real-data.cy.ts` siembra citas controladas y verifica que `/api/dashboard/appointments` usa tratamientos/bookings reales, excluye cancelados y bookings ya convertidos en tratamientos, y no devuelve numeros aleatorios.
 
 Brechas abiertas:
 
@@ -275,7 +276,7 @@ Brechas abiertas:
 
 ## Estado
 
-La lista canonica actual tiene 44 capacidades en `coverage-matrix.json`.
+La lista canonica actual tiene 46 capacidades en `coverage-matrix.json`.
 
 Estados posibles:
 

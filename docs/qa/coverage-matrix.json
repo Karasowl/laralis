@@ -358,5 +358,13 @@
     "capability": "El borrado self-service exige OTP del usuario actual, bloquea la ruta legacy y elimina workspaces/clinicas owned sin dejar huerfanos",
     "layers": ["cypress", "api", "database", "supabase-task"],
     "status": "covered"
+  },
+  {
+    "id": "qa-046-dashboard-appointments-real-data",
+    "priority": "P0",
+    "domain": "dashboard",
+    "capability": "Las metricas de citas del dashboard salen de tratamientos y bookings reales, excluyen cancelados/convertidos y son deterministicas",
+    "layers": ["cypress", "api", "database", "supabase-task"],
+    "status": "covered"
   }
 ]

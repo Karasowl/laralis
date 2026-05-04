@@ -1,6 +1,6 @@
 # QA Inventory Report
 
-Generated: 2026-05-04T20:28:41.950Z
+Generated: 2026-05-04T20:41:23.033Z
 
 Status: pass
 Failing checks: 0
@@ -25,10 +25,10 @@ required QA docs: 8; missing: 0
 
 Status: pass
 
-capabilities: 45; domains: 23; required missing domains: 0
+capabilities: 46; domains: 24; required missing domains: 0
 
-- status counts: partial=9, covered=36
-- priority counts: P0=39, P1=6
+- status counts: partial=9, covered=37
+- priority counts: P0=40, P1=6
 
 ## QA dataset
 
@@ -66,7 +66,7 @@ seed script: present; assert script: present; env example: present; package scri
 
 Status: pass
 
-declared spec scripts: 34; existing e2e specs: 26; missing declared specs: 0
+declared spec scripts: 35; existing e2e specs: 27; missing declared specs: 0
 
 - ok: test:e2e:multitenancy -> cypress/e2e/stage/04-multiclinic-isolation.cy.ts
 - ok: test:e2e:auth -> cypress/e2e/stage/00-auth-and-shell.cy.ts
@@ -76,8 +76,8 @@ declared spec scripts: 34; existing e2e specs: 26; missing declared specs: 0
 - ok: test:e2e:treatments -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
 - ok: test:e2e:settings -> cypress/e2e/stage/05-permission-boundaries.cy.ts
 - ok: test:e2e:marketing -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
-- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.{js,ts} (26 specs)
-- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.{js,ts} (26 specs)
+- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.{js,ts} (27 specs)
+- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.{js,ts} (27 specs)
 - ok: test:e2e:stage:business -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
 - ok: test:e2e:stage:crud -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
 - ok: test:e2e:stage:multiclinic -> cypress/e2e/stage/04-multiclinic-isolation.cy.ts
@@ -102,6 +102,7 @@ declared spec scripts: 34; existing e2e specs: 26; missing declared specs: 0
 - ok: test:e2e:stage:chart-tooltips -> cypress/e2e/stage/23-chart-tooltips-dark-mode.cy.js
 - ok: test:e2e:stage:visual-regression -> cypress/e2e/stage/24-visual-regression-baselines.cy.js
 - ok: test:e2e:stage:account-deletion -> cypress/e2e/stage/25-account-deletion-self-service.cy.ts
+- ok: test:e2e:stage:dashboard-appointments -> cypress/e2e/stage/26-dashboard-appointments-real-data.cy.ts
 
 ## i18n parity
 
@@ -144,7 +145,7 @@ ui files: 435; files with data-testid: 24; data-testid occurrences: 73; required
 
 Status: pass
 
-api routes: 161; permission guard: 112 (withPermission: 30, manual: 82); qa classified: 16; using supabaseAdmin: 132; admin without permission/cron guard/classification: 0
+api routes: 161; permission guard: 113 (withPermission: 30, manual: 83); qa classified: 16; using supabaseAdmin: 133; admin without permission/cron guard/classification: 0
 
 ## Cron guard inventory
 

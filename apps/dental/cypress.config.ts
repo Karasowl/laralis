@@ -109,6 +109,36 @@ export default defineConfig({
         return date.toISOString().slice(0, 10);
       };
 
+      const toCivilDate = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+
+      const parseCivilDate = (value: string) => {
+        const [year, month, day] = value.split('-').map(Number);
+        return new Date(year, month - 1, day);
+      };
+
+      const addDaysToCivilDate = (value: string, offsetDays: number) => {
+        const date = parseCivilDate(value);
+        date.setDate(date.getDate() + offsetDays);
+        return toCivilDate(date);
+      };
+
+      const currentWeekEnd = (value: string) => {
+        const date = parseCivilDate(value);
+        const day = date.getDay();
+        const mondayOffset = day === 0 ? -6 : 1 - day;
+        const monday = new Date(date);
+        monday.setDate(date.getDate() + mondayOffset);
+        monday.setHours(0, 0, 0, 0);
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+        return toCivilDate(sunday);
+      };
+
       const disabledNotificationSettings = () => ({
         email_enabled: false,
         confirmation_enabled: false,
@@ -835,6 +865,212 @@ export default defineConfig({
           if (error) throw new Error(`Could not delete QA user: ${error.message}`);
 
           return { deleted: true };
+        },
+
+        async qaDashboardAppointmentsSeed({
+          stamp,
+          clinicName,
+          serviceName,
+          asOfDate,
+        }: {
+          stamp: string;
+          clinicName: string;
+          serviceName: string;
+          asOfDate?: string;
+        }) {
+          const client = adminClient();
+          const resolvedAsOfDate = asOfDate || toCivilDate(new Date());
+          const tomorrowDate = addDaysToCivilDate(resolvedAsOfDate, 1);
+          const weekEndDate = currentWeekEnd(resolvedAsOfDate);
+          const laterThisWeekDate = addDaysToCivilDate(resolvedAsOfDate, 2) <= weekEndDate
+            ? addDaysToCivilDate(resolvedAsOfDate, 2)
+            : null;
+          const nextWeekDate = addDaysToCivilDate(weekEndDate, 1);
+
+          const { data: clinic, error: clinicError } = await client
+            .from('clinics')
+            .select('id, name')
+            .eq('name', clinicName)
+            .single();
+
+          if (clinicError || !clinic?.id) {
+            throw new Error(`Could not find QA clinic "${clinicName}": ${clinicError?.message || 'missing clinic'}`);
+          }
+
+          const { data: service, error: serviceError } = await client
+            .from('services')
+            .select('id, name, est_minutes')
+            .eq('clinic_id', clinic.id)
+            .eq('name', serviceName)
+            .single();
+
+          if (serviceError || !service?.id) {
+            throw new Error(`Could not find QA service "${serviceName}": ${serviceError?.message || 'missing service'}`);
+          }
+
+          const patient = await insertOneTolerant('patients', {
+            clinic_id: clinic.id,
+            first_name: 'QA Dashboard',
+            last_name: stamp,
+            email: `${stamp}@laralis.test`,
+            phone: '+15555550251',
+            first_visit_date: resolvedAsOfDate,
+            acquisition_date: resolvedAsOfDate,
+            notes: `qa-dashboard-appointments ${stamp}`,
+          });
+
+          const treatmentBase = {
+            clinic_id: clinic.id,
+            patient_id: patient.id,
+            service_id: service.id,
+            duration_minutes: Number(service.est_minutes || 45),
+            minutes: Number(service.est_minutes || 45),
+            fixed_cost_per_minute_cents: 100,
+            fixed_per_minute_cents: 100,
+            variable_cost_cents: 2500,
+            margin_pct: 55,
+            price_cents: 150000,
+            amount_paid_cents: 0,
+            pending_balance_cents: 150000,
+          };
+
+          const treatments = [
+            await insertOneTolerant('treatments', {
+              ...treatmentBase,
+              treatment_date: resolvedAsOfDate,
+              treatment_time: '09:00',
+              status: 'scheduled',
+              notes: `qa-dashboard-appointments today-treatment ${stamp}`,
+            }),
+            await insertOneTolerant('treatments', {
+              ...treatmentBase,
+              treatment_date: tomorrowDate,
+              treatment_time: '09:30',
+              status: 'scheduled',
+              notes: `qa-dashboard-appointments tomorrow-treatment ${stamp}`,
+            }),
+            await insertOneTolerant('treatments', {
+              ...treatmentBase,
+              treatment_date: resolvedAsOfDate,
+              treatment_time: '11:00',
+              status: 'cancelled',
+              notes: `qa-dashboard-appointments cancelled-treatment ${stamp}`,
+            }),
+            await insertOneTolerant('treatments', {
+              ...treatmentBase,
+              treatment_date: nextWeekDate,
+              treatment_time: '12:00',
+              status: 'scheduled',
+              notes: `qa-dashboard-appointments next-week-treatment ${stamp}`,
+            }),
+          ];
+
+          if (laterThisWeekDate) {
+            treatments.push(await insertOneTolerant('treatments', {
+              ...treatmentBase,
+              treatment_date: laterThisWeekDate,
+              treatment_time: '10:30',
+              status: 'in_progress',
+              notes: `qa-dashboard-appointments later-week-treatment ${stamp}`,
+            }));
+          }
+
+          const bookingBase = {
+            clinic_id: clinic.id,
+            service_id: service.id,
+            patient_id: patient.id,
+            patient_email: `${stamp}@laralis.test`,
+            patient_phone: '+15555550251',
+            patient_notes: `qa-dashboard-appointments ${stamp}`,
+            ip_address: '127.0.0.1',
+            user_agent: 'laralis-qa',
+            referrer: 'cypress',
+            utm_source: 'qa',
+            utm_medium: 'cypress',
+            utm_campaign: 'dashboard-appointments',
+          };
+
+          const bookings = [
+            await insertOneTolerant('public_bookings', {
+              ...bookingBase,
+              patient_name: `QA Dashboard Today Booking ${stamp}`,
+              requested_date: resolvedAsOfDate,
+              requested_time: '10:00',
+              status: 'pending',
+            }),
+            await insertOneTolerant('public_bookings', {
+              ...bookingBase,
+              patient_name: `QA Dashboard Tomorrow Booking ${stamp}`,
+              requested_date: tomorrowDate,
+              requested_time: '10:00',
+              status: 'confirmed',
+              treatment_id: null,
+            }),
+            await insertOneTolerant('public_bookings', {
+              ...bookingBase,
+              patient_name: `QA Dashboard Cancelled Booking ${stamp}`,
+              requested_date: resolvedAsOfDate,
+              requested_time: '13:00',
+              status: 'cancelled',
+            }),
+            await insertOneTolerant('public_bookings', {
+              ...bookingBase,
+              patient_name: `QA Dashboard Converted Booking ${stamp}`,
+              requested_date: tomorrowDate,
+              requested_time: '14:00',
+              status: 'confirmed',
+              treatment_id: treatments[1].id,
+            }),
+          ];
+
+          return {
+            stamp,
+            clinicId: clinic.id,
+            serviceId: service.id,
+            patientId: patient.id,
+            treatmentIds: treatments.map((row) => row.id),
+            bookingIds: bookings.map((row) => row.id),
+            asOfDate: resolvedAsOfDate,
+            expected: {
+              today: 2,
+              tomorrow: 2,
+              thisWeek: 2 + (tomorrowDate <= weekEndDate ? 2 : 0) + (laterThisWeekDate ? 1 : 0),
+            },
+          };
+        },
+
+        async qaDashboardAppointmentsCleanup({ stamp }: { stamp?: string }) {
+          if (!stamp) return { cleaned: false };
+
+          const client = adminClient();
+          const { data: patients } = await client
+            .from('patients')
+            .select('id')
+            .ilike('email', `%${stamp}%`);
+          const patientIds = (patients || []).map((row) => row.id).filter(Boolean);
+
+          const { data: treatments } = await client
+            .from('treatments')
+            .select('id')
+            .ilike('notes', `%${stamp}%`);
+          const treatmentIds = (treatments || []).map((row) => row.id).filter(Boolean);
+
+          const { data: bookings } = await client
+            .from('public_bookings')
+            .select('id')
+            .ilike('patient_name', `%${stamp}%`);
+          const bookingIds = (bookings || []).map((row) => row.id).filter(Boolean);
+
+          await deleteByIds('public_bookings', bookingIds);
+          await deleteByIds('treatments', treatmentIds);
+          await deleteByIds('patients', patientIds);
+
+          return {
+            cleaned: true,
+            treatmentCount: treatmentIds.length,
+            bookingCount: bookingIds.length,
+            patientCount: patientIds.length,
+          };
         },
 
         async qaGetLatestInvitationToken(email: string) {
