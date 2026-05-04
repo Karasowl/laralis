@@ -84,8 +84,8 @@
     "priority": "P0",
     "domain": "permissions",
     "capability": "El backend bloquea acciones prohibidas aunque la UI no las muestre",
-    "layers": ["api"],
-    "status": "partial"
+      "layers": ["api"],
+      "status": "covered"
   },
   {
     "id": "qa-012-patients-crud",

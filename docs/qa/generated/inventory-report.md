@@ -1,6 +1,6 @@
 # QA Inventory Report
 
-Generated: 2026-05-04T22:09:59.990Z
+Generated: 2026-05-04T22:16:17.728Z
 
 Status: pass
 Failing checks: 0
@@ -27,7 +27,7 @@ Status: pass
 
 capabilities: 48; domains: 25; required missing domains: 0
 
-- status counts: covered=42, partial=6
+- status counts: covered=43, partial=5
 - priority counts: P0=42, P1=6
 
 ## QA dataset
