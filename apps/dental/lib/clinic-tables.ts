@@ -67,6 +67,16 @@ export const CLINIC_SUMMARY_KEYS = [
   MARKETING_STATUS_KEY,
 ] as const;
 
+function isOptionalTableError(error: { code?: string; message?: string } | null | undefined) {
+  const message = error?.message || '';
+  return (
+    error?.code === 'PGRST116' ||
+    error?.code === 'PGRST205' ||
+    /Could not find the table/i.test(message) ||
+    /relation .* does not exist/i.test(message)
+  );
+}
+
 export async function fetchCampaignStatusHistory(campaignIds: string[]) {
   if (!campaignIds.length) {
     return [];
@@ -77,6 +87,10 @@ export async function fetchCampaignStatusHistory(campaignIds: string[]) {
     .in('campaign_id', campaignIds);
 
   if (error) {
+    if (isOptionalTableError(error)) {
+      return [];
+    }
+
     console.error('[clinic-data] failed fetching campaign status history', error.message);
     throw error;
   }
@@ -90,7 +104,7 @@ export async function deleteClinicData(clinicId: string) {
     .select('id')
     .eq('clinic_id', clinicId);
 
-  if (campaignError && campaignError.code !== 'PGRST116') {
+  if (campaignError && !isOptionalTableError(campaignError)) {
     throw campaignError;
   }
 
@@ -104,7 +118,7 @@ export async function deleteClinicData(clinicId: string) {
       .delete()
       .in('campaign_id', campaignIds);
 
-    if (historyError && historyError.code !== 'PGRST116') {
+    if (historyError && !isOptionalTableError(historyError)) {
       throw historyError;
     }
   }
@@ -115,7 +129,7 @@ export async function deleteClinicData(clinicId: string) {
       .delete()
       .eq(column, clinicId);
 
-    if (error && error.code !== 'PGRST116') {
+    if (error && !isOptionalTableError(error)) {
       throw error;
     }
   }
