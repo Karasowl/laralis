@@ -20,6 +20,14 @@ const createClinicSchema = z.object({
   locale: z.string().min(2).optional(),
 })
 
+const PRIVILEGED_WORKSPACE_ROLES = new Set(['owner', 'admin', 'super_admin'])
+
+function nextAllowedClinics(current: unknown, clinicId: string) {
+  if (!Array.isArray(current) || current.length === 0) return null
+  const ids = current.filter((value): value is string => typeof value === 'string')
+  return ids.includes(clinicId) ? ids : [...ids, clinicId]
+}
+
 // GET /api/workspaces/[id]/clinics - list clinics for a workspace owned by the user
 export async function GET(
   request: NextRequest,
@@ -104,7 +112,7 @@ export async function POST(
     if ('error' in parsed) {
       return parsed.error
     }
-    const { name, address, phone, email, currency, locale } = parsed.data
+    const { name, address, phone, email } = parsed.data
 
     const { data, error } = await supabaseAdmin
       .from('clinics')
@@ -114,8 +122,6 @@ export async function POST(
         address: address || null,
         phone: phone || null,
         email: email || null,
-        currency: currency || 'MXN',
-        locale: locale || 'es-MX',
         is_active: true,
       })
       .select('*')
@@ -123,6 +129,75 @@ export async function POST(
 
     if (error) {
       return NextResponse.json({ error: 'Failed to create clinic', message: error.message }, { status: 500 })
+    }
+
+    const { data: workspaceUsers, error: workspaceUsersError } = await supabaseAdmin
+      .from('workspace_users')
+      .select('id, user_id, role, allowed_clinics')
+      .eq('workspace_id', params.id)
+      .eq('is_active', true)
+
+    if (workspaceUsersError) {
+      return NextResponse.json({ error: 'Failed to resolve workspace members', message: workspaceUsersError.message }, { status: 500 })
+    }
+
+    const privilegedUsers = (workspaceUsers || []).filter((member) =>
+      PRIVILEGED_WORKSPACE_ROLES.has(String(member.role))
+    )
+
+    for (const member of privilegedUsers) {
+      const allowedClinics = nextAllowedClinics(member.allowed_clinics, data.id)
+      if (allowedClinics) {
+        const { error: updateAllowedError } = await supabaseAdmin
+          .from('workspace_users')
+          .update({ allowed_clinics: allowedClinics })
+          .eq('id', member.id)
+
+        if (updateAllowedError) {
+          return NextResponse.json({ error: 'Failed to grant new clinic access', message: updateAllowedError.message }, { status: 500 })
+        }
+      }
+
+      const { error: clinicUserError } = await supabaseAdmin
+        .from('clinic_users')
+        .insert({
+          clinic_id: data.id,
+          user_id: member.user_id,
+          role: 'admin',
+          custom_permissions: {},
+          custom_role_id: null,
+          is_active: true,
+          joined_at: new Date().toISOString(),
+          can_access_all_patients: true,
+          assigned_chair: null,
+          schedule: {},
+        })
+
+      if (clinicUserError) {
+        return NextResponse.json({ error: 'Failed to create clinic admin membership', message: clinicUserError.message }, { status: 500 })
+      }
+    }
+
+    const { data: workspaceMembers } = await supabaseAdmin
+      .from('workspace_members')
+      .select('id, role, allowed_clinics, clinic_ids')
+      .eq('workspace_id', params.id)
+      .eq('is_active', true)
+
+    for (const member of workspaceMembers || []) {
+      if (!PRIVILEGED_WORKSPACE_ROLES.has(String(member.role))) continue
+
+      const patch: Record<string, string[]> = {}
+      const allowedClinics = nextAllowedClinics(member.allowed_clinics, data.id)
+      const clinicIds = nextAllowedClinics(member.clinic_ids, data.id)
+      if (allowedClinics) patch.allowed_clinics = allowedClinics
+      if (clinicIds) patch.clinic_ids = clinicIds
+      if (Object.keys(patch).length === 0) continue
+
+      await supabaseAdmin
+        .from('workspace_members')
+        .update(patch)
+        .eq('id', member.id)
     }
 
     return NextResponse.json({ data })

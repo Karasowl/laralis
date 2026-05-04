@@ -53,7 +53,7 @@
     "domain": "multi-clinic",
     "capability": "Crear segunda clinica dentro del mismo workspace",
     "layers": ["cypress", "api"],
-    "status": "planned"
+    "status": "covered"
   },
   {
     "id": "qa-008-multi-clinic-data-isolation",

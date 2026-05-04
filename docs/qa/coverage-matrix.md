@@ -103,6 +103,7 @@ Brechas abiertas:
 Cobertura actual:
 
 - `apps/dental/cypress/e2e/stage/04-multiclinic-isolation.cy.ts` usa las dos clinicas del dataset QA.
+- El spec tambien crea una clinica nueva dentro del workspace QA, la selecciona como clinica activa, crea un paciente unico, verifica que no aparece en la clinica A y limpia paciente/clinica al terminar.
 - Cambia la clinica activa por API, verifica que la clinica A conserva pacientes, tratamientos, servicios y campana "Meta Mayo", y confirma que la clinica B no ve esos datos.
 - Tambien consulta explicitamente la clinica A mientras la B esta activa para comprobar que `clinicId` solicitado y cookie activa se resuelven de forma coherente.
 - Todavia falta crear una segunda clinica desde UI y validar aislamiento en dashboards visuales, reportes y Lara.

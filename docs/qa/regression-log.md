@@ -9,6 +9,52 @@ Cada entrada debe explicar:
 - Como se verifica.
 - Que riesgo protege.
 
+## 2026-05-03 - Una clinica creada debe quedar seleccionable y aislada
+
+### Problema
+
+Crear una clinica nueva dentro de un workspace no basta si el usuario que la crea no queda con acceso efectivo a esa clinica. En stage, los owners/admins pueden tener `allowed_clinics` con una lista cerrada de clinicas; si la clinica nueva no se agrega a esa lista y no se crea membresia en `clinic_users`, `POST /api/clinics` puede rechazar la seleccion aunque la creacion haya devuelto 200.
+
+Riesgo asociado:
+
+- El usuario crea una segunda clinica pero no puede seleccionarla.
+- Los datos creados en esa clinica quedan dificiles de administrar o limpiar.
+- El aislamiento multi-clinica queda incompleto porque no se prueba el flujo real de creacion + seleccion + datos propios.
+
+### Prueba permanente
+
+Archivo:
+
+```text
+apps/dental/cypress/e2e/stage/04-multiclinic-isolation.cy.ts
+```
+
+Caso protegido:
+
+- El owner QA crea una clinica unica dentro del workspace QA.
+- La nueva clinica aparece en `GET /api/workspaces/:id/clinics`.
+- La nueva clinica se puede seleccionar con `POST /api/clinics`.
+- Un paciente creado en la clinica nueva aparece alli, no aparece en la clinica A, y tambien puede consultarse explicitamente por `clinicId` aunque la clinica A este activa.
+- El spec limpia paciente y clinica al terminar.
+
+### Implementacion protegida
+
+Archivo:
+
+```text
+apps/dental/app/api/workspaces/[id]/clinics/route.ts
+```
+
+Al crear una clinica, la ruta ahora concede acceso a owners/admins activos del workspace: crea filas `clinic_users` admin y actualiza `allowed_clinics`/`clinic_ids` cuando esas listas son cerradas.
+
+### Verificacion
+
+Comando de stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:multiclinic
+```
+
 ## 2026-05-03 - Cancelar setup no debe sacar a una clinica activa
 
 ### Problema
