@@ -14,6 +14,39 @@ type CategoryLookup = {
   display_name: string | null
 }
 
+const missingColumnFromSupabaseError = (error: { message?: string } | null | undefined) => {
+  const match = error?.message?.match(/Could not find the '([^']+)' column/)
+  return match?.[1] || null
+}
+
+const updateSupplyInventory = async (supplyId: string, payload: Record<string, unknown>) => {
+  let attemptedPayload = { ...payload }
+  let result = await supabaseAdmin
+    .from('supplies')
+    .update(attemptedPayload)
+    .eq('id', supplyId)
+
+  for (let attempts = 0; result.error && attempts < 5; attempts += 1) {
+    const missingColumn = missingColumnFromSupabaseError(result.error)
+    if (!missingColumn || !(missingColumn in attemptedPayload)) break
+
+    const { [missingColumn]: _removed, ...nextPayload } = attemptedPayload
+    attemptedPayload = nextPayload
+    result = await supabaseAdmin
+      .from('supplies')
+      .update(attemptedPayload)
+      .eq('id', supplyId)
+  }
+
+  return result
+}
+
+const portionsPerPresentation = (supply: Record<string, unknown>) => {
+  const raw = supply.portions_per_presentation ?? supply.portions ?? 1
+  const value = Number(raw)
+  return Number.isFinite(value) && value > 0 ? value : 1
+}
+
 export const GET = withPermission('expenses.view', async (request, context) =>
   withRouteContext(request, async ({ requestId }) => {
     const logger = createRouteLogger(requestId)
@@ -242,18 +275,15 @@ export const PUT = withPermission('expenses.edit', async (request, context) =>
         if (oldSupplyId && oldQuantity > 0) {
           const { data: oldSupply } = await supabaseAdmin
             .from('supplies')
-            .select('stock_quantity, portions_per_presentation')
+            .select('*')
             .eq('id', oldSupplyId)
             .single()
 
           if (oldSupply) {
-            const oldPortions = oldQuantity * (oldSupply.portions_per_presentation || 1)
-            await supabaseAdmin
-              .from('supplies')
-              .update({
+            const oldPortions = oldQuantity * portionsPerPresentation(oldSupply)
+            await updateSupplyInventory(oldSupplyId, {
                 stock_quantity: Math.max(0, (oldSupply.stock_quantity || 0) - oldPortions)
               })
-              .eq('id', oldSupplyId)
           }
         }
 
@@ -261,22 +291,19 @@ export const PUT = withPermission('expenses.edit', async (request, context) =>
         if (newSupplyId && newQuantity > 0) {
           const { data: newSupply } = await supabaseAdmin
             .from('supplies')
-            .select('stock_quantity, portions_per_presentation')
+            .select('*')
             .eq('id', newSupplyId)
             .single()
 
           if (newSupply) {
-            const newPortions = newQuantity * (newSupply.portions_per_presentation || 1)
+            const newPortions = newQuantity * portionsPerPresentation(newSupply)
             const pricePerUnit = Math.round((updateData.amount_cents || currentExpense.amount_cents) / newQuantity)
 
-            await supabaseAdmin
-              .from('supplies')
-              .update({
+            await updateSupplyInventory(newSupplyId, {
                 stock_quantity: (newSupply.stock_quantity || 0) + newPortions,
                 last_purchase_price_cents: pricePerUnit,
                 last_purchase_date: updateData.expense_date || currentExpense.expense_date
               })
-              .eq('id', newSupplyId)
           }
         }
       }
@@ -322,18 +349,15 @@ export const DELETE = withPermission('expenses.delete', async (request, context)
     if (expense.related_supply_id && expense.quantity && expense.auto_processed) {
       const { data: supply } = await supabaseAdmin
         .from('supplies')
-        .select('stock_quantity, portions_per_presentation')
+        .select('*')
         .eq('id', expense.related_supply_id)
         .single()
 
       if (supply) {
-        const portions = expense.quantity * (supply.portions_per_presentation || 1)
-        await supabaseAdmin
-          .from('supplies')
-          .update({
+        const portions = expense.quantity * portionsPerPresentation(supply)
+        await updateSupplyInventory(expense.related_supply_id, {
             stock_quantity: Math.max(0, (supply.stock_quantity || 0) - portions)
           })
-          .eq('id', expense.related_supply_id)
       }
     }
 

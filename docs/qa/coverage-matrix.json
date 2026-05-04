@@ -141,7 +141,7 @@
     "domain": "expenses",
     "capability": "Gastos se relacionan correctamente con costos fijos o variables planificados",
     "layers": ["cypress", "api", "vitest"],
-    "status": "planned"
+    "status": "covered"
   },
   {
     "id": "qa-019-fixed-costs-crud",

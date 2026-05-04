@@ -416,6 +416,53 @@ Comando de stage:
 npm --workspace @laralis/dental run test:e2e:stage:time
 ```
 
+## 2026-05-04 - Gastos variables deben actualizar inventario y no inflar presupuesto fijo real
+
+### Problema
+
+La integracion de gastos con insumos leia `portions_per_presentation`, pero el modelo actual de insumos usa `portions`. Segun el esquema, comprar insumos desde gastos podia no actualizar el stock correctamente. Ademas faltaba una prueba que comprobara que los gastos variables no se mezclan con el real de costos fijos planificados.
+
+Riesgo asociado:
+
+- Un gasto de insumos podia quedar registrado como `auto_processed` sin reflejar el stock correcto.
+- Editar o borrar un gasto variable podia dejar inventario acumulado de mas o de menos.
+- `vs_fixed_costs.actual` podia confundirse si los gastos variables entraban en la comparacion contra costos fijos planificados.
+
+### Prueba permanente
+
+Archivo:
+
+```text
+apps/dental/cypress/e2e/stage/13-expenses-budget-links.cy.ts
+```
+
+Casos protegidos:
+
+- Un costo fijo planificado aumenta `vs_fixed_costs.planned`.
+- Un gasto fijo vinculado aumenta `vs_fixed_costs.actual`.
+- Un gasto variable vinculado a insumo aumenta el gasto total, pero no `vs_fixed_costs.actual`.
+- Crear, editar y borrar el gasto variable actualiza `stock_quantity` usando `supplies.portions`.
+- Filtros de gastos, analytics de gastos y dashboard de gastos reflejan el periodo controlado.
+
+### Implementacion protegida
+
+Archivos:
+
+```text
+apps/dental/app/api/expenses/route.ts
+apps/dental/app/api/expenses/[id]/route.ts
+```
+
+Las rutas de gastos ahora calculan porciones compradas desde `portions_per_presentation` o `portions`, y actualizan inventario con tolerancia a columnas opcionales como `last_purchase_price_cents`.
+
+### Verificacion
+
+Comando de stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:expenses
+```
+
 ## 2026-05-03 - Booking publico debe reservar slots reales y mockear notificaciones
 
 ### Problema

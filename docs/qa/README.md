@@ -331,6 +331,12 @@ Correr solo tiempo, costo por minuto y simulaciones de precio contra stage:
 npm --workspace @laralis/dental run test:e2e:stage:time
 ```
 
+Correr solo gastos, presupuesto fijo e inventario de insumos contra stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:expenses
+```
+
 Correr solo aislamiento multi-clinica contra stage:
 
 ```bash

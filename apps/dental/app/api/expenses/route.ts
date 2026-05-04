@@ -18,6 +18,39 @@ type CategoryLookup = {
   display_name: string | null
 }
 
+const missingColumnFromSupabaseError = (error: { message?: string } | null | undefined) => {
+  const match = error?.message?.match(/Could not find the '([^']+)' column/)
+  return match?.[1] || null
+}
+
+const updateSupplyInventory = async (supplyId: string, payload: Record<string, unknown>) => {
+  let attemptedPayload = { ...payload }
+  let result = await supabaseAdmin
+    .from('supplies')
+    .update(attemptedPayload)
+    .eq('id', supplyId)
+
+  for (let attempts = 0; result.error && attempts < 5; attempts += 1) {
+    const missingColumn = missingColumnFromSupabaseError(result.error)
+    if (!missingColumn || !(missingColumn in attemptedPayload)) break
+
+    const { [missingColumn]: _removed, ...nextPayload } = attemptedPayload
+    attemptedPayload = nextPayload
+    result = await supabaseAdmin
+      .from('supplies')
+      .update(attemptedPayload)
+      .eq('id', supplyId)
+  }
+
+  return result
+}
+
+const portionsPerPresentation = (supply: Record<string, unknown>) => {
+  const raw = supply.portions_per_presentation ?? supply.portions ?? 1
+  const value = Number(raw)
+  return Number.isFinite(value) && value > 0 ? value : 1
+}
+
 export const GET = withPermission('expenses.view', async (request, context) =>
   withRouteContext(request, async ({ requestId }) => {
     const logger = createRouteLogger(requestId)
@@ -295,24 +328,20 @@ export const POST = withPermission('expenses.create', async (request, context) =
       if (expenseData.related_supply_id && expenseData.quantity) {
         const { data: supply } = await supabaseAdmin
           .from('supplies')
-          .select('stock_quantity, portions_per_presentation')
+          .select('*')
           .eq('id', expenseData.related_supply_id)
           .single()
 
         if (supply) {
           // Calculate total portions from purchased quantity
-          const portionsPerPresentation = supply.portions_per_presentation || 1
-          const totalPortions = expenseData.quantity * portionsPerPresentation
+          const totalPortions = expenseData.quantity * portionsPerPresentation(supply)
         
         // Update supply inventory
-          await supabaseAdmin
-            .from('supplies')
-            .update({
+          await updateSupplyInventory(expenseData.related_supply_id, {
               stock_quantity: (supply.stock_quantity || 0) + totalPortions,
               last_purchase_price_cents: Math.round(amountCents / expenseData.quantity),
               last_purchase_date: expenseData.expense_date
             })
-            .eq('id', expenseData.related_supply_id)
 
         // Mark expense as auto-processed
           const { data: linkedExpense } = await supabaseAdmin
