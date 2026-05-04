@@ -101,7 +101,7 @@
     "domain": "patients",
     "capability": "Ficha de paciente muestra correctamente tratamientos asociados",
     "layers": ["cypress", "api"],
-    "status": "partial"
+    "status": "covered"
   },
   {
     "id": "qa-014-supplies-crud",

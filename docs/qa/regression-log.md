@@ -9,6 +9,41 @@ Cada entrada debe explicar:
 - Como se verifica.
 - Que riesgo protege.
 
+## 2026-05-03 - Ficha de paciente debe mostrar sus tratamientos reales
+
+### Problema
+
+La navegacion podia confirmar que la pantalla de pacientes cargaba, pero no que la ficha de un paciente mostrara los tratamientos asociados con numeros correctos.
+
+Riesgo asociado:
+
+- La tabla de historial podia quedar vacia aunque la API tuviera tratamientos.
+- La ficha podia mezclar tratamientos de otra clinica o de otro paciente.
+- Las tarjetas podian calcular ingresos o conteos con datos distintos a los que muestra la tabla.
+
+### Prueba permanente
+
+Archivo:
+
+```text
+apps/dental/cypress/e2e/stage/09-patient-treatment-history.cy.ts
+```
+
+Caso protegido:
+
+- Selecciona la clinica A del dataset QA.
+- Busca por API un paciente QA que tenga multiples tratamientos.
+- Verifica que `GET /api/treatments?patient_id=...` devuelve exactamente los ids esperados.
+- Abre `/patients/:id` y valida nombre, total de tratamientos, ingreso completado, servicios, importes, estados visibles y ausencia de scroll horizontal.
+
+### Verificacion
+
+Comando de stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:patient-history
+```
+
 ## 2026-05-03 - Invitacion de admin debe crear permisos reales
 
 ### Problema

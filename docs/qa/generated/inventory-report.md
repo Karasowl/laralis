@@ -1,6 +1,6 @@
 # QA Inventory Report
 
-Generated: 2026-05-04T01:41:25.693Z
+Generated: 2026-05-04T01:50:28.911Z
 
 Status: pass
 Failing checks: 0
@@ -27,7 +27,7 @@ Status: pass
 
 capabilities: 44; domains: 22; required missing domains: 0
 
-- status counts: partial=14, planned=19, covered=11
+- status counts: partial=13, planned=19, covered=12
 - priority counts: P0=38, P1=6
 
 ## QA dataset
@@ -66,7 +66,7 @@ seed script: present; assert script: present; env example: present; package scri
 
 Status: pass
 
-declared spec scripts: 17; existing e2e specs: 9; missing declared specs: 0
+declared spec scripts: 18; existing e2e specs: 10; missing declared specs: 0
 
 - ok: test:e2e:multitenancy -> cypress/e2e/stage/04-multiclinic-isolation.cy.ts
 - ok: test:e2e:auth -> cypress/e2e/stage/00-auth-and-shell.cy.ts
@@ -76,8 +76,8 @@ declared spec scripts: 17; existing e2e specs: 9; missing declared specs: 0
 - ok: test:e2e:treatments -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
 - ok: test:e2e:settings -> cypress/e2e/stage/05-permission-boundaries.cy.ts
 - ok: test:e2e:marketing -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
-- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.ts (9 specs)
-- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.ts (9 specs)
+- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.ts (10 specs)
+- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.ts (10 specs)
 - ok: test:e2e:stage:business -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
 - ok: test:e2e:stage:crud -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
 - ok: test:e2e:stage:multiclinic -> cypress/e2e/stage/04-multiclinic-isolation.cy.ts
@@ -85,6 +85,7 @@ declared spec scripts: 17; existing e2e specs: 9; missing declared specs: 0
 - ok: test:e2e:stage:booking -> cypress/e2e/stage/06-public-booking-notifications.cy.ts
 - ok: test:e2e:stage:onboarding -> cypress/e2e/stage/07-onboarding-setup-lifecycle.cy.ts
 - ok: test:e2e:stage:team -> cypress/e2e/stage/08-team-admin-invitation.cy.ts
+- ok: test:e2e:stage:patient-history -> cypress/e2e/stage/09-patient-treatment-history.cy.ts
 
 ## i18n parity
 
@@ -96,13 +97,14 @@ en keys: 4943; es effective keys: 4943; missing en: 0; missing es: 0
 
 Status: pass
 
-ui files: 435; files with data-testid: 15; data-testid occurrences: 38; required hooks: 16; missing required hooks: 0
+ui files: 435; files with data-testid: 16; data-testid occurrences: 42; required hooks: 16; missing required hooks: 0
 
 - has hooks: app/auth/login/page.tsx
 - has hooks: app/book/[slug]/confirmation/page.tsx
 - has hooks: app/book/[slug]/page.tsx
 - has hooks: app/marketing/page.tsx
 - has hooks: app/onboarding/page.tsx
+- has hooks: app/patients/[id]/page.tsx
 - has hooks: app/services/page.tsx
 - has hooks: app/settings/notifications/NotificationsClient.tsx
 - has hooks: app/settings/notifications/page.tsx

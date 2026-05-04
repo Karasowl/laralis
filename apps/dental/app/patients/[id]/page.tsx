@@ -64,19 +64,20 @@ export default function PatientDetailPage() {
 
   useEffect(() => {
     if (!currentClinic?.id || !patientId) return
+    const clinicId = currentClinic.id
 
     async function loadData() {
       setLoading(true)
       try {
         // Load patient info
-        const patientRes = await fetch(`/api/patients/${patientId}?clinicId=${currentClinic.id}`)
+        const patientRes = await fetch(`/api/patients/${patientId}?clinicId=${clinicId}`)
         if (patientRes.ok) {
           const patientData = await patientRes.json()
           setPatient(patientData.data || patientData)
         }
 
         // Load patient treatments
-        const treatmentsRes = await fetch(`/api/treatments?patient_id=${patientId}&clinicId=${currentClinic.id}`)
+        const treatmentsRes = await fetch(`/api/treatments?patient_id=${patientId}&clinicId=${clinicId}`)
         if (treatmentsRes.ok) {
           const treatmentsData = await treatmentsRes.json()
           setTreatments(treatmentsData.data || [])
@@ -187,7 +188,7 @@ export default function PatientDetailPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="space-y-6" data-testid="patient-detail-page">
         {/* Header */}
         <PageHeader
           title={`${patient.first_name} ${patient.last_name}`}
@@ -201,7 +202,7 @@ export default function PatientDetailPage() {
         />
 
         {/* Patient Info Card */}
-        <Card className="p-6">
+        <Card className="p-6" data-testid="patient-detail-info">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {patient.phone && (
               <div className="flex items-start gap-3">
@@ -259,40 +260,41 @@ export default function PatientDetailPage() {
         </Card>
 
         {/* Statistics Cards */}
-        <SummaryCards
-          cards={[
-            {
-              title: t('patients.stats.total_revenue'),
-              value: formatCurrency(totalRevenue),
-              icon: DollarSign,
-              trend: completedTreatments.length > 0 ? 'up' : undefined,
-              description: `${completedTreatments.length} ${t('patients.stats.completed_treatments')}`,
-            },
-            {
-              title: t('patients.stats.avg_treatment_price'),
-              value: formatCurrency(avgTreatmentPrice),
-              icon: TrendingUp,
-              description: t('patients.stats.per_treatment'),
-            },
-            {
-              title: t('patients.stats.total_treatments'),
-              value: String(treatments.length),
-              icon: Activity,
-              description: `${uniqueServices.size} ${t('patients.stats.different_services')}`,
-            },
-            {
-              title: t('patients.stats.completion_rate'),
-              value: treatments.length > 0
-                ? `${Math.round((completedTreatments.length / treatments.length) * 100)}%`
-                : '0%',
-              icon: CheckCircle,
-              description: `${cancelledTreatments.length} ${t('patients.stats.cancelled')}`,
-            },
-          ]}
-        />
+        <div data-testid="patient-detail-summary">
+          <SummaryCards
+            cards={[
+              {
+                label: t('patients.stats.total_revenue'),
+                value: formatCurrency(totalRevenue),
+                icon: DollarSign,
+                subtitle: `${completedTreatments.length} ${t('patients.stats.completed_treatments')}`,
+              },
+              {
+                label: t('patients.stats.avg_treatment_price'),
+                value: formatCurrency(avgTreatmentPrice),
+                icon: TrendingUp,
+                subtitle: t('patients.stats.per_treatment'),
+              },
+              {
+                label: t('patients.stats.total_treatments'),
+                value: String(treatments.length),
+                icon: Activity,
+                subtitle: `${uniqueServices.size} ${t('patients.stats.different_services')}`,
+              },
+              {
+                label: t('patients.stats.completion_rate'),
+                value: treatments.length > 0
+                  ? `${Math.round((completedTreatments.length / treatments.length) * 100)}%`
+                  : '0%',
+                icon: CheckCircle,
+                subtitle: `${cancelledTreatments.length} ${t('patients.stats.cancelled')}`,
+              },
+            ]}
+          />
+        </div>
 
         {/* Treatments Table */}
-        <Card className="p-6">
+        <Card className="p-6" data-testid="patient-treatment-history">
           <h2 className="text-lg font-semibold mb-4">{t('patients.treatment_history')}</h2>
           <DataTable
             columns={columns}
