@@ -27,10 +27,20 @@ export const maxDuration = 60; // 60 seconds max execution time
 
 import { requireCronAuth } from '@/lib/cron-auth';
 
+const STAGE_SUPABASE_REF = 'kafbqdliromcveojtdar';
+
+function isQaNotificationMockRequest(request: NextRequest): boolean {
+  return (
+    request.headers.get('x-laralis-qa-notifications') === 'mock' &&
+    (process.env.NEXT_PUBLIC_SUPABASE_URL || '').includes(STAGE_SUPABASE_REF)
+  );
+}
+
 export async function GET(request: NextRequest) {
   const denied = requireCronAuth(request);
   if (denied) return denied;
 
+  const mockNotifications = isQaNotificationMockRequest(request);
   const startTime = Date.now();
   const results = {
     processed: 0,
@@ -168,11 +178,14 @@ export async function GET(request: NextRequest) {
         };
 
         // Send reminder email
-        const emailResult = await sendReminderEmail(emailData, Math.max(1, hoursUntil));
+        const emailResult: { success: boolean; messageId?: string; error?: string } =
+          mockNotifications
+            ? { success: true, messageId: `qa-reminder-${reminder.id}` }
+            : await sendReminderEmail(emailData, Math.max(1, hoursUntil));
 
         if (emailResult.success) {
           // Log successful notification
-          await logNotification({
+          const notificationId = await logNotification({
             clinicId: reminder.clinic_id,
             treatmentId: reminder.treatment_id,
             patientId: reminder.patient_id,
@@ -185,27 +198,29 @@ export async function GET(request: NextRequest) {
           });
 
           // Send granular SMS reminders based on settings
-          await sendGranularSMSReminders({
-            clinicId: reminder.clinic_id,
-            clinicName: clinic.name,
-            clinicSettings: settings,
-            patient: {
-              id: reminder.patient_id,
-              name: `${patient.first_name} ${patient.last_name}`,
-              phone: patient.phone,
-            },
-            treatment: {
-              id: reminder.treatment_id,
-              serviceName: treatment.services.name,
-              date: treatment.treatment_date,
-              time: treatment.treatment_time || '12:00:00',
-            },
-            reminderType: reminder.reminder_type as 'reminder_24h' | 'reminder_2h',
-            reminderId: reminder.id,
-          });
+          if (!mockNotifications) {
+            await sendGranularSMSReminders({
+              clinicId: reminder.clinic_id,
+              clinicName: clinic.name,
+              clinicSettings: settings,
+              patient: {
+                id: reminder.patient_id,
+                name: `${patient.first_name} ${patient.last_name}`,
+                phone: patient.phone,
+              },
+              treatment: {
+                id: reminder.treatment_id,
+                serviceName: treatment.services.name,
+                date: treatment.treatment_date,
+                time: treatment.treatment_time || '12:00:00',
+              },
+              reminderType: reminder.reminder_type as 'reminder_24h' | 'reminder_2h',
+              reminderId: reminder.id,
+            });
+          }
 
           // Mark reminder as sent
-          await markReminderStatus(reminder.id, 'sent', null, emailResult.messageId);
+          await markReminderStatus(reminder.id, 'sent', null, notificationId);
           results.sent++;
         } else {
           // Log failed notification
@@ -266,7 +281,7 @@ async function markReminderStatus(
   reminderId: string,
   status: 'sent' | 'cancelled' | 'failed',
   errorMessage?: string | null,
-  notificationId?: string
+  notificationId?: string | null
 ): Promise<void> {
   const { error } = await supabaseAdmin
     .from('scheduled_reminders')

@@ -277,7 +277,7 @@
     "domain": "cron",
     "capability": "Cron de recordatorios procesa citas esperadas y respeta CRON_SECRET",
     "layers": ["api", "provider-mock"],
-    "status": "planned"
+    "status": "covered"
   },
   {
     "id": "qa-036-cron-recurring-expenses",
@@ -285,7 +285,7 @@
     "domain": "cron",
     "capability": "Cron de gastos recurrentes crea solo los gastos esperados",
     "layers": ["api", "database"],
-    "status": "planned"
+    "status": "covered"
   },
   {
     "id": "qa-037-cron-complete-appointments",
@@ -293,7 +293,7 @@
     "domain": "cron",
     "capability": "Cron de citas completadas cambia estados correctos sin tocar futuras",
     "layers": ["api", "database"],
-    "status": "planned"
+    "status": "covered"
   },
   {
     "id": "qa-038-lara-opens-and-responds",

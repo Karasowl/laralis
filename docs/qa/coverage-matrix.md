@@ -165,6 +165,22 @@ Brechas abiertas:
 - Falta probar gestion interna de solicitudes de booking por el equipo clinico: aceptar, rechazar, convertir en tratamiento y trazabilidad de estado.
 - Falta probar push notifications aparte de SMS/WhatsApp/email.
 
+## Cron jobs
+
+Cobertura actual:
+
+- `apps/dental/cypress/e2e/stage/17-cron-jobs.cy.ts` valida que `send-reminders`, `complete-appointments`, `recurring-expenses` y `cleanup-draft-workspaces` rechazan llamadas sin `CRON_SECRET`.
+- El spec siembra un paciente, dos tratamientos y un recordatorio vencido en Supabase stage mediante tareas `service_role`; luego ejecuta `GET /api/cron/send-reminders` con `x-laralis-qa-notifications: mock` y comprueba que el recordatorio termina `sent`, que existe un email `reminder` mockeado y que `scheduled_reminders.email_notification_id` apunta al UUID real de `email_notifications`.
+- El mismo spec activa `auto_complete_appointments` solo para la clinica QA, ejecuta `GET /api/cron/complete-appointments`, verifica que el tratamiento pasado cambia a `completed` y que el futuro queda `scheduled`.
+- Tambien crea un gasto recurrente vencido, ejecuta `GET /api/cron/recurring-expenses` y valida que se genera exactamente un gasto hijo con `parent_expense_id`, importe y descripcion esperados.
+- `GET /api/cron/cleanup-draft-workspaces?dryRun=true` queda cubierto como smoke seguro: autentica con cron, devuelve politica de expiracion y no muta datos.
+- El cron de recordatorios tiene mock de proveedor limitado al ref stage `kafbqdliromcveojtdar`, para no llamar Resend/Twilio en QA.
+
+Brechas abiertas:
+
+- Falta probar la mutacion real de `cleanup-draft-workspaces` con workspaces draft/expired sembrados y oraculos de archive/delete.
+- Falta probar push notifications por separado de email/SMS/WhatsApp.
+
 ## Gates de inventario
 
 Cobertura actual:

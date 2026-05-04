@@ -454,6 +454,49 @@ Comando de stage:
 npm --workspace @laralis/dental run test:e2e:stage:permissions
 ```
 
+## 2026-05-04 - Crons de stage deben mutar solo lo esperado
+
+### Problema
+
+Los cron jobs eran flujos silenciosos: podian cambiar recordatorios, citas vencidas, gastos recurrentes y drafts sin que Cypress los ejercitara. Al cubrir `send-reminders` aparecio ademas un bug concreto: el cron guardaba el `provider_message_id` como si fuera el UUID de `email_notifications`, lo que podia impedir que `scheduled_reminders.email_notification_id` quedara correctamente relacionado.
+
+### Prueba permanente
+
+Archivo:
+
+```text
+apps/dental/cypress/e2e/stage/17-cron-jobs.cy.ts
+```
+
+Casos protegidos:
+
+- `send-reminders`, `complete-appointments`, `recurring-expenses` y `cleanup-draft-workspaces` exigen `CRON_SECRET`.
+- Un recordatorio vencido se procesa con proveedor de email mockeado solo en stage y queda `sent`.
+- `scheduled_reminders.email_notification_id` apunta al UUID real del row de `email_notifications`.
+- Una cita pasada pasa a `completed`, pero una cita futura queda `scheduled`.
+- Un gasto recurrente vencido genera exactamente un gasto hijo con `parent_expense_id`.
+- La limpieza de drafts corre en `dryRun` autenticado y devuelve politica/resultados sin mutar datos.
+
+### Implementacion protegida
+
+Archivos:
+
+```text
+apps/dental/app/api/cron/send-reminders/route.ts
+apps/dental/cypress.config.ts
+apps/dental/cypress/e2e/stage/17-cron-jobs.cy.ts
+```
+
+El mock de proveedor queda limitado al Supabase stage `kafbqdliromcveojtdar`; fuera de ese ref, el cron conserva los proveedores reales.
+
+### Verificacion
+
+Comando de stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:crons
+```
+
 ## 2026-05-03 - Full lifecycle de usuario QA stage
 
 ### Problema
