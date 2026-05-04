@@ -35,6 +35,7 @@
     "test:e2e:stage": "cross-env CYPRESS_BASE_URL=https://laralis-monorepo-preview.vercel.app cypress run --spec \"cypress/e2e/stage/**/*.cy.{js,ts}\"",
     "test:e2e:stage:open": "cross-env CYPRESS_BASE_URL=https://laralis-monorepo-preview.vercel.app cypress open --e2e",
     "test:e2e:stage:headed": "cross-env CYPRESS_BASE_URL=https://laralis-monorepo-preview.vercel.app cypress run --headed --browser electron --spec \"cypress/e2e/stage/**/*.cy.{js,ts}\"",
+    "test:e2e:stage:core-navigation": "cross-env CYPRESS_BASE_URL=https://laralis-monorepo-preview.vercel.app CYPRESS_VIDEO=false cypress run --spec \"cypress/e2e/stage/29-core-navigation-smoke.cy.ts\"",
     "test:e2e:stage:business": "cross-env CYPRESS_BASE_URL=https://laralis-monorepo-preview.vercel.app CYPRESS_VIDEO=false cypress run --spec \"cypress/e2e/stage/02-qa-business-oracles.cy.ts\"",
     "test:e2e:stage:crud": "cross-env CYPRESS_BASE_URL=https://laralis-monorepo-preview.vercel.app CYPRESS_VIDEO=false cypress run --spec \"cypress/e2e/stage/03-crud-lifecycle.cy.ts\"",
     "test:e2e:stage:multiclinic": "cross-env CYPRESS_BASE_URL=https://laralis-monorepo-preview.vercel.app CYPRESS_VIDEO=false cypress run --spec \"cypress/e2e/stage/04-multiclinic-isolation.cy.ts\"",

@@ -44,6 +44,8 @@ Este flujo solo puede correr contra stage.
 
 Cobertura actual:
 
+- `apps/dental/cypress/e2e/stage/00-auth-and-shell.cy.ts` cubre el smoke de autenticacion: rutas protegidas redirigen a login, el usuario QA entra al shell activo sin onboarding/setup, el registro con email existente queda en `/auth/register` con error claro y el cambio ES/EN no expone cancelacion de setup.
+- `apps/dental/cypress/e2e/stage/29-core-navigation-smoke.cy.ts` abre dashboard, pacientes, tratamientos, marketing y reportes en stage, verifica shell activo, contenido principal, ausencia de error fatal y ausencia de scroll horizontal.
 - `apps/dental/cypress/e2e/stage/16-full-lifecycle-user.cy.ts` crea un usuario unico confirmado por tarea Supabase stage, inicia sesion por UI, completa onboarding real, crea workspace y clinica, siembra los requisitos minimos de setup, finaliza setup desde la UI y confirma que el workspace queda activo.
 - El mismo spec usa los modulos principales como un usuario nuevo: activo/depreciacion, costo fijo, configuracion de tiempo, insumo, servicio con receta, campana, paciente atribuido, tratamiento con pago parcial, gasto vinculado, vistas de pacientes/tratamientos/marketing/gastos y cambio ES/EN sin caer en onboarding/setup.
 - El cierre del flujo borra el arbol de cuenta QA con `qaDeleteUserByEmail` y vuelve a ejecutar la limpieza para confirmar que no queda usuario auth pendiente. La eliminacion self-service real queda como riesgo aparte porque `/api/account/delete` todavia no debe usarse como oraculo principal.

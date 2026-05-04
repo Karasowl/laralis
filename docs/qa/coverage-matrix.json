@@ -5,7 +5,7 @@
     "domain": "smoke",
     "capability": "Login con cuenta existente y entrada al shell activo sin onboarding/setup",
     "layers": ["cypress"],
-    "status": "partial"
+    "status": "covered"
   },
   {
     "id": "qa-002-smoke-core-navigation",
@@ -13,7 +13,7 @@
     "domain": "smoke",
     "capability": "Abrir dashboard, pacientes, tratamientos, marketing y reportes sin errores",
     "layers": ["cypress"],
-    "status": "partial"
+    "status": "covered"
   },
   {
     "id": "qa-003-auth-register-existing-account",
@@ -21,7 +21,7 @@
     "domain": "auth",
     "capability": "Registro con email existente muestra error claro y no envia a verify-email",
     "layers": ["cypress", "api"],
-    "status": "partial"
+    "status": "covered"
   },
   {
     "id": "qa-004-full-lifecycle-user",
