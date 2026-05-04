@@ -105,7 +105,7 @@ describe('Stage appointment conflict enforcement', () => {
           body: {
             clinic_id: clinic.id,
             date: ctx.date,
-            time: '10:00',
+            time: '13:00',
             duration_minutes: 30,
           },
         }).then((response) => {
@@ -170,7 +170,7 @@ describe('Stage appointment conflict enforcement', () => {
             patient_id: ctx.patientId,
             service_id: ctx.serviceId,
             treatment_date: ctx.date,
-            treatment_time: '10:00',
+            treatment_time: '13:00',
             minutes: 30,
             variable_cost_cents: 2500,
             margin_pct: 55,
@@ -182,7 +182,7 @@ describe('Stage appointment conflict enforcement', () => {
           expect(response.status).to.eq(200)
           expect(response.body.data.status).to.eq('scheduled')
           expect(response.body.data.treatment_date).to.eq(ctx!.date)
-          expect(String(response.body.data.treatment_time).slice(0, 5)).to.eq('10:00')
+          expect(String(response.body.data.treatment_time).slice(0, 5)).to.eq('13:00')
         })
       })
     })
