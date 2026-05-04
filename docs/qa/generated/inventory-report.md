@@ -1,6 +1,6 @@
 # QA Inventory Report
 
-Generated: 2026-05-04T23:39:20.943Z
+Generated: 2026-05-04T23:56:57.837Z
 
 Status: pass
 Failing checks: 0
@@ -25,10 +25,10 @@ required QA docs: 8; missing: 0
 
 Status: pass
 
-capabilities: 52; domains: 28; required missing domains: 0
+capabilities: 56; domains: 29; required missing domains: 0
 
-- status counts: covered=52
-- priority counts: P0=45, P1=7
+- status counts: covered=56
+- priority counts: P0=48, P1=8
 
 ## QA dataset
 
@@ -66,7 +66,7 @@ seed script: present; assert script: present; env example: present; package scri
 
 Status: pass
 
-declared spec scripts: 41; existing e2e specs: 33; missing declared specs: 0
+declared spec scripts: 42; existing e2e specs: 34; missing declared specs: 0
 
 - ok: test:e2e:multitenancy -> cypress/e2e/stage/04-multiclinic-isolation.cy.ts
 - ok: test:e2e:auth -> cypress/e2e/stage/00-auth-and-shell.cy.ts
@@ -76,8 +76,8 @@ declared spec scripts: 41; existing e2e specs: 33; missing declared specs: 0
 - ok: test:e2e:treatments -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
 - ok: test:e2e:settings -> cypress/e2e/stage/05-permission-boundaries.cy.ts
 - ok: test:e2e:marketing -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
-- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.{js,ts} (33 specs)
-- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.{js,ts} (33 specs)
+- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.{js,ts} (34 specs)
+- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.{js,ts} (34 specs)
 - ok: test:e2e:stage:core-navigation -> cypress/e2e/stage/29-core-navigation-smoke.cy.ts
 - ok: test:e2e:stage:business -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
 - ok: test:e2e:stage:crud -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
@@ -109,6 +109,7 @@ declared spec scripts: 41; existing e2e specs: 33; missing declared specs: 0
 - ok: test:e2e:stage:treatment-payments -> cypress/e2e/stage/30-treatment-status-payment-lifecycle.cy.ts
 - ok: test:e2e:stage:i18n -> cypress/e2e/stage/31-i18n-layout-language-switch.cy.ts
 - ok: test:e2e:stage:data-safety -> cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts
+- ok: test:e2e:stage:prescriptions -> cypress/e2e/stage/33-prescriptions-medications-pdf.cy.ts
 
 ## i18n parity
 

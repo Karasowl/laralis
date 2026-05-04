@@ -67,6 +67,8 @@ Cobertura actual:
 - `apps/dental/cypress/e2e/stage/30-treatment-status-payment-lifecycle.cy.ts` cubre tratamientos programados, rechazo de sobrepago, pago parcial, pago total, cancelacion y limpieza, verificando tambien el historial del paciente.
 - `apps/dental/cypress/e2e/stage/09-patient-treatment-history.cy.ts` toma un paciente QA con multiples tratamientos desde la API, verifica que `/api/treatments?patient_id=...` devuelve exactamente esos tratamientos y luego valida la ficha visual del paciente: nombre, total de tratamientos, ingreso completado, servicios, importes, estados y ausencia de scroll horizontal.
 - Los ciclos equivalentes para gastos, costos fijos, activos/depreciacion, campanas, citas, permisos, pagos de tratamientos y eliminacion de cuenta QA quedan cubiertos por specs dedicados en `cypress/e2e/stage/`.
+- `apps/dental/cypress/e2e/stage/33-prescriptions-medications-pdf.cy.ts` cubre recetas y medicamentos: protege APIs sin sesion, crea paciente/medicamento/receta con item, valida busqueda del medicamento, filtros por paciente/estado/fecha, detalle de receta, contrato PDF, actualizacion de estado, cancelacion y limpieza dura via tarea Supabase stage.
+- El mismo spec abre `/prescriptions` en desktop y mobile para detectar regresiones de shell, setup y scroll horizontal.
 
 ## Business scenarios
 

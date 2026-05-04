@@ -414,5 +414,37 @@
     "capability": "Export/import, snapshots y seguridad cargan en desktop/mobile sin setup regresivo ni scroll horizontal",
     "layers": ["cypress", "visual"],
     "status": "covered"
+  },
+  {
+    "id": "qa-053-prescriptions-medications-crud",
+    "priority": "P0",
+    "domain": "prescriptions",
+    "capability": "Crear medicamento clinico, crear receta con item, actualizar estado y limpiar datos QA",
+    "layers": ["cypress", "api", "database"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-054-prescription-pdf-contract",
+    "priority": "P0",
+    "domain": "prescriptions",
+    "capability": "Generar PDF de receta con permiso print, cabeceras correctas y contenido PDF valido",
+    "layers": ["cypress", "api"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-055-prescriptions-filters",
+    "priority": "P0",
+    "domain": "prescriptions",
+    "capability": "Filtros de recetas por paciente, estado y fecha devuelven la receta esperada",
+    "layers": ["cypress", "api"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-056-prescriptions-responsive-ui",
+    "priority": "P1",
+    "domain": "visual",
+    "capability": "Pantalla de recetas carga en desktop/mobile sin setup regresivo ni scroll horizontal",
+    "layers": ["cypress", "visual"],
+    "status": "covered"
   }
 ]

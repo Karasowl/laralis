@@ -24,9 +24,51 @@ export default defineConfig({
         require('@cypress/code-coverage/task')(on, config);
       }
 
+      let dotenvValues: Record<string, string> | null = null;
+      const loadDotenvValues = () => {
+        if (dotenvValues) return dotenvValues;
+
+        dotenvValues = {};
+        const envFiles = [
+          '.env.local',
+          '.env.production.local',
+          '.env',
+        ].map((fileName) => path.resolve(config.projectRoot, fileName));
+
+        for (const envFile of envFiles) {
+          if (!fs.existsSync(envFile)) continue;
+
+          const lines = fs.readFileSync(envFile, 'utf8').split(/\r?\n/);
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith('#')) continue;
+
+            const equalsIndex = trimmed.indexOf('=');
+            if (equalsIndex <= 0) continue;
+
+            const key = trimmed.slice(0, equalsIndex).trim();
+            let value = trimmed.slice(equalsIndex + 1).trim();
+            if (
+              (value.startsWith('"') && value.endsWith('"')) ||
+              (value.startsWith("'") && value.endsWith("'"))
+            ) {
+              value = value.slice(1, -1);
+            }
+
+            if (!(key in dotenvValues)) {
+              dotenvValues[key] = value;
+            }
+          }
+        }
+
+        return dotenvValues;
+      };
+
       const envValue = (...names: string[]) => {
+        const localEnv = loadDotenvValues();
+
         for (const name of names) {
-          const value = process.env[name] || config.env?.[name];
+          const value = process.env[name] || config.env?.[name] || localEnv[name];
           if (typeof value === 'string' && value.trim().length > 0) {
             return value.trim();
           }
@@ -848,6 +890,58 @@ export default defineConfig({
             workspaceCount: workspaceIds.length,
             clinicCount: clinics.length,
             patientCount: patients.length,
+          };
+        },
+
+        async qaPrescriptionCleanup({ stamp }: { stamp?: string }) {
+          if (!stamp) return { cleaned: false };
+
+          const client = adminClient();
+          const { data: patients } = await client
+            .from('patients')
+            .select('id')
+            .ilike('email', `%${stamp}%`);
+          const patientIds = (patients || []).map((patient) => patient.id).filter(Boolean);
+
+          const prescriptionIds = new Set<string>();
+
+          const { data: prescriptionsByNotes } = await client
+            .from('prescriptions')
+            .select('id')
+            .ilike('notes', `%${stamp}%`);
+          for (const prescription of prescriptionsByNotes || []) {
+            if (prescription.id) prescriptionIds.add(prescription.id);
+          }
+
+          if (patientIds.length > 0) {
+            const { data: prescriptionsByPatient } = await client
+              .from('prescriptions')
+              .select('id')
+              .in('patient_id', patientIds);
+            for (const prescription of prescriptionsByPatient || []) {
+              if (prescription.id) prescriptionIds.add(prescription.id);
+            }
+          }
+
+          const prescriptionIdList = Array.from(prescriptionIds);
+          if (prescriptionIdList.length > 0) {
+            await client.from('prescription_items').delete().in('prescription_id', prescriptionIdList);
+            await deleteByIds('prescriptions', prescriptionIdList);
+          }
+
+          const { data: medications } = await client
+            .from('medications')
+            .select('id')
+            .ilike('name', `%${stamp}%`);
+          const medicationIds = (medications || []).map((medication) => medication.id).filter(Boolean);
+          await deleteByIds('medications', medicationIds);
+          await deleteByIds('patients', patientIds);
+
+          return {
+            cleaned: true,
+            patientCount: patientIds.length,
+            prescriptionCount: prescriptionIdList.length,
+            medicationCount: medicationIds.length,
           };
         },
 
