@@ -125,6 +125,8 @@ describe('Stage reports, dashboard, and marketing business oracles', () => {
       const dashboardRange = `period=custom&date_from=${oracles.period.from}&date_to=${oracles.period.to}`
       const nonCancelledTreatments =
         oracles.treatments.total - oracles.treatments.byStatus.cancelled
+      const clinicallyCompletedTreatments =
+        oracles.treatments.byStatus.completed_paid + oracles.treatments.byStatus.partial
 
       cy.request(`/api/dashboard/revenue?${dashboardRange}`).then((response) => {
         expect(response.status).to.eq(200)
@@ -148,8 +150,8 @@ describe('Stage reports, dashboard, and marketing business oracles', () => {
         expect(response.body.treatments.total, 'dashboard excludes cancelled from active total').to.eq(
           nonCancelledTreatments
         )
-        expect(response.body.treatments.completed, 'dashboard completed treatments').to.eq(
-          oracles.treatments.byStatus.completed_paid
+        expect(response.body.treatments.completed, 'dashboard clinically completed treatments').to.eq(
+          clinicallyCompletedTreatments
         )
         expect(response.body.treatments.pending, 'dashboard pending treatments').to.eq(
           oracles.treatments.byStatus.pending
