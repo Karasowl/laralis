@@ -383,24 +383,116 @@ export default defineConfig({
         password: envValue('CYPRESS_STAGE_TEST_PASSWORD', 'STAGE_TEST_PASSWORD') || 'LaralisQA!2026',
       });
 
+      type VisualSnapshotAction =
+        | { type: 'clickRole'; role?: 'button' | 'tab' | 'link'; name: string }
+        | { type: 'clickSelector'; selector: string }
+        | { type: 'fillSelector'; selector: string; value: string }
+        | { type: 'waitForSelector'; selector: string }
+        | { type: 'waitForText'; text: string }
+        | { type: 'openFirstPatientWithHistory' };
+
+      const patientDetailRouteFromQaSeed = async (page: any) => {
+        const patientId = await page.evaluate(() => {
+          return fetch('/api/treatments')
+            .then((response) => response.json())
+            .then((json) => {
+              const treatments = json.data || [];
+              const grouped: Record<string, { patient: { id: string }; count: number }> = {};
+
+              for (const treatment of treatments) {
+                const patient = treatment.patient;
+                if (!patient?.id) continue;
+
+                grouped[patient.id] = grouped[patient.id] || { patient, count: 0 };
+                grouped[patient.id].count += 1;
+              }
+
+              const selected = Object.values(grouped)
+                .filter((item) => item.count >= 2)
+                .sort((left, right) => right.count - left.count)[0];
+
+              if (!selected?.patient?.id) {
+                throw new Error('No seeded QA patient with treatment history was found');
+              }
+
+              return selected.patient.id;
+            });
+        });
+
+        return `/patients/${patientId}`;
+      };
+
+      const runVisualAction = async (page: any, action: VisualSnapshotAction) => {
+        if (action.type === 'clickRole') {
+          await page.getByRole(action.role || 'button', { name: new RegExp(action.name, 'i') }).first().click();
+          await page.waitForLoadState('networkidle').catch(() => undefined);
+          return;
+        }
+
+        if (action.type === 'clickSelector') {
+          await page.locator(action.selector).first().click();
+          await page.waitForLoadState('networkidle').catch(() => undefined);
+          return;
+        }
+
+        if (action.type === 'fillSelector') {
+          await page.locator(action.selector).first().fill(action.value);
+          return;
+        }
+
+        if (action.type === 'waitForSelector') {
+          await page.locator(action.selector).first().waitFor({ state: 'visible' });
+          return;
+        }
+
+        if (action.type === 'waitForText') {
+          await page.waitForFunction(
+            (pattern) => new RegExp(pattern as string, 'i').test(document.body.innerText),
+            action.text,
+            { timeout: 30_000 }
+          );
+          return;
+        }
+
+        if (action.type === 'openFirstPatientWithHistory') {
+          const route = await patientDetailRouteFromQaSeed(page);
+          await page.goto(new URL(route, baseUrl).toString(), { waitUntil: 'domcontentloaded' });
+          await page.waitForLoadState('networkidle').catch(() => undefined);
+        }
+      };
+
       on('task', {
         async captureStageVisualSnapshot({
           routePath,
           theme = 'light',
+          locale = 'es',
+          clinicKey = 'clinicA',
           viewport = { width: 1440, height: 900 },
           tabPattern,
+          actions = [],
           waitForSelectors = [],
           waitForText,
+          snapshotSelector = '[data-testid="app-main-content"], main',
+          minWidth = 280,
+          minHeight = 220,
+          hideAssistant = true,
           baselineName,
           maxDiffRatio = 0.02,
           threshold = 0.1,
         }: {
           routePath: string;
           theme?: 'dark' | 'light';
+          locale?: 'es' | 'en';
+          clinicKey?: string;
           viewport?: { width: number; height: number };
           tabPattern?: string;
+          actions?: VisualSnapshotAction[];
           waitForSelectors?: string[];
           waitForText?: string;
+          snapshotSelector?: string;
+          minWidth?: number;
+          minHeight?: number;
+          hideAssistant?: boolean;
           baselineName: string;
           maxDiffRatio?: number;
           threshold?: number;
@@ -413,8 +505,9 @@ export default defineConfig({
           const dataset = JSON.parse(
             fs.readFileSync(path.resolve(config.projectRoot, '../../docs/qa/dataset.json'), 'utf8')
           );
-          const clinicName = dataset.clinics.find((clinic: { key: string }) => clinic.key === 'clinicA')?.name;
-          if (!clinicName) throw new Error('Could not resolve QA clinicA from docs/qa/dataset.json');
+          const clinicDefinition = dataset.clinics.find((clinic: { key: string }) => clinic.key === clinicKey);
+          const clinicName = clinicDefinition?.name;
+          if (!clinicName) throw new Error(`Could not resolve QA ${clinicKey} from docs/qa/dataset.json`);
 
           const { chromium } = await import('playwright-core');
           const browser = await chromium.launch({
@@ -439,9 +532,11 @@ export default defineConfig({
               deviceScaleFactor: 1,
               reducedMotion: 'reduce',
             });
-            await context.addInitScript((selectedTheme) => {
+            await context.addCookies([{ name: 'locale', value: locale, url: baseUrl }]);
+            await context.addInitScript(({ selectedTheme, selectedLocale }) => {
               window.localStorage.setItem('laralis-theme', selectedTheme as string);
-            }, theme);
+              window.localStorage.setItem('preferred-locale', selectedLocale as string);
+            }, { selectedTheme: theme, selectedLocale: locale });
 
             const page = await context.newPage();
             page.setDefaultTimeout(30_000);
@@ -480,7 +575,11 @@ export default defineConfig({
                 });
             }, clinicName);
 
-            await page.goto(new URL(routePath, baseUrl).toString(), { waitUntil: 'domcontentloaded' });
+            const resolvedRoutePath = routePath === '__public_booking_clinic__'
+              ? `/book/${clinicDefinition.slug}`
+              : routePath;
+
+            await page.goto(new URL(resolvedRoutePath, baseUrl).toString(), { waitUntil: 'domcontentloaded' });
             await page.waitForLoadState('networkidle').catch(() => undefined);
             await page.waitForFunction(
               (selectedTheme) => document.documentElement.classList.contains('dark') === (selectedTheme === 'dark'),
@@ -491,6 +590,10 @@ export default defineConfig({
             if (tabPattern) {
               await page.getByRole('tab', { name: new RegExp(tabPattern, 'i') }).click();
               await page.waitForLoadState('networkidle').catch(() => undefined);
+            }
+
+            for (const action of actions) {
+              await runVisualAction(page, action);
             }
 
             for (const selector of waitForSelectors) {
@@ -516,10 +619,11 @@ export default defineConfig({
                   scroll-behavior: auto !important;
                 }
 
+                ${hideAssistant ? `
                 [data-testid="lara-fab"],
                 [data-testid="lara-entry-mode"],
                 [data-testid="lara-query-mode"],
-                [data-testid="lara-action-card"],
+                [data-testid="lara-action-card"],` : ''}
                 iframe[src*="tawk"],
                 [id*="tawk"],
                 [class*="tawk"] {
@@ -538,16 +642,24 @@ export default defineConfig({
               throw new Error(`Unexpected horizontal overflow in ${baselineName}: ${overflow}px`);
             }
 
-            const target = page.locator('[data-testid="app-main-content"], main').first();
-            const box = await target.boundingBox();
-            if (!box || box.width < 280 || box.height < 220) {
-              throw new Error(`Main content is not large enough for ${baselineName}`);
-            }
+            if (snapshotSelector === 'viewport') {
+              await page.screenshot({
+                path: actualPath,
+                animations: 'disabled',
+                fullPage: false,
+              });
+            } else {
+              const target = page.locator(snapshotSelector).first();
+              const box = await target.boundingBox();
+              if (!box || box.width < minWidth || box.height < minHeight) {
+                throw new Error(`Snapshot target is not large enough for ${baselineName}`);
+              }
 
-            await target.screenshot({
-              path: actualPath,
-              animations: 'disabled',
-            });
+              await target.screenshot({
+                path: actualPath,
+                animations: 'disabled',
+              });
+            }
           } finally {
             await browser.close();
           }
