@@ -323,6 +323,9 @@ export default function PublicBookingPage() {
               {clinic.services.map(service => (
                 <Card
                   key={service.id}
+                  data-testid="public-booking-service-card"
+                  data-service-id={service.id}
+                  data-service-name={service.name}
                   className={cn(
                     'cursor-pointer transition-all hover:border-sky-300 hover:shadow-md',
                     selectedService?.id === service.id && 'border-sky-500 ring-1 ring-sky-500'
@@ -380,6 +383,7 @@ export default function PublicBookingPage() {
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <Button
+                    data-testid="public-booking-prev-month"
                     variant="ghost"
                     size="icon"
                     onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))}
@@ -391,6 +395,7 @@ export default function PublicBookingPage() {
                     {viewMonth.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })}
                   </span>
                   <Button
+                    data-testid="public-booking-next-month"
                     variant="ghost"
                     size="icon"
                     onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1))}
@@ -409,6 +414,8 @@ export default function PublicBookingPage() {
                     <div key={i} className="aspect-square">
                       {date && (
                         <button
+                          data-testid="public-booking-date"
+                          data-date={date.toISOString().split('T')[0]}
                           className={cn(
                             'w-full h-full rounded-lg text-sm font-medium transition-colors',
                             isDateSelectable(date)
@@ -452,6 +459,8 @@ export default function PublicBookingPage() {
                         .map(slot => (
                           <Button
                             key={slot.time}
+                            data-testid="public-booking-time-slot"
+                            data-time={slot.time}
                             variant={selectedTime === slot.time ? 'default' : 'outline'}
                             className={cn(
                               selectedTime === slot.time && 'bg-sky-600 hover:bg-sky-700'
@@ -511,6 +520,7 @@ export default function PublicBookingPage() {
                   <Label htmlFor="name">{t('fields.name')} *</Label>
                   <Input
                     id="name"
+                    data-testid="public-booking-name"
                     value={formData.name}
                     onChange={e => handleInfoChange('name', e.target.value)}
                     placeholder={t('placeholders.name')}
@@ -522,6 +532,7 @@ export default function PublicBookingPage() {
                   <Label htmlFor="email">{t('fields.email')}</Label>
                   <Input
                     id="email"
+                    data-testid="public-booking-email"
                     type="email"
                     value={formData.email}
                     onChange={e => handleInfoChange('email', e.target.value)}
@@ -536,6 +547,7 @@ export default function PublicBookingPage() {
                   </Label>
                   <Input
                     id="phone"
+                    data-testid="public-booking-phone"
                     type="tel"
                     value={formData.phone}
                     onChange={e => handleInfoChange('phone', e.target.value)}
@@ -551,6 +563,7 @@ export default function PublicBookingPage() {
                     </Label>
                     <Textarea
                       id="notes"
+                      data-testid="public-booking-notes"
                       value={formData.notes}
                       onChange={e => handleInfoChange('notes', e.target.value)}
                       placeholder={t('placeholders.notes')}
@@ -568,6 +581,7 @@ export default function PublicBookingPage() {
             )}
 
             <Button
+              data-testid="public-booking-submit"
               className="w-full bg-sky-600 hover:bg-sky-700"
               size="lg"
               disabled={!formData.name || (clinic.booking_config.require_phone && !formData.phone) || submitting}

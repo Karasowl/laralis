@@ -100,8 +100,11 @@ Casos adicionales:
 Debe existir un caso de booking publico que espere:
 
 - creacion de cita;
+- disponibilidad basada en horario publico de la clinica;
+- servicio publicado explicitamente en `public_booking_services`;
 - email;
-- SMS.
+- SMS;
+- WhatsApp.
 
 Los providers deben mockearse para no depender de terceros ni gastar dinero.
 

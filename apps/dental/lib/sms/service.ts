@@ -248,6 +248,7 @@ export async function sendSMS(params: SendSMSParams): Promise<SendSMSResult> {
     notificationType,
     treatmentId,
     patientId,
+    publicBookingId,
   } = params
 
   // Get config
@@ -273,6 +274,7 @@ export async function sendSMS(params: SendSMSParams): Promise<SendSMSResult> {
     clinic_id: clinicId,
     treatment_id: treatmentId || null,
     patient_id: patientId || null,
+    public_booking_id: publicBookingId || null,
     notification_type: notificationType,
     recipient_phone: formattedPhone,
     recipient_name: recipientName,

@@ -1,6 +1,6 @@
 # QA Inventory Report
 
-Generated: 2026-05-03T23:27:30.493Z
+Generated: 2026-05-04T00:31:41.032Z
 
 Status: pass
 Failing checks: 0
@@ -27,7 +27,7 @@ Status: pass
 
 capabilities: 44; domains: 22; required missing domains: 0
 
-- status counts: partial=14, planned=25, covered=5
+- status counts: partial=14, planned=23, covered=7
 - priority counts: P0=38, P1=6
 
 ## QA dataset
@@ -66,7 +66,7 @@ seed script: present; assert script: present; env example: present; package scri
 
 Status: pass
 
-declared spec scripts: 14; existing e2e specs: 6; missing declared specs: 0
+declared spec scripts: 15; existing e2e specs: 7; missing declared specs: 0
 
 - ok: test:e2e:multitenancy -> cypress/e2e/stage/04-multiclinic-isolation.cy.ts
 - ok: test:e2e:auth -> cypress/e2e/stage/00-auth-and-shell.cy.ts
@@ -76,12 +76,13 @@ declared spec scripts: 14; existing e2e specs: 6; missing declared specs: 0
 - ok: test:e2e:treatments -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
 - ok: test:e2e:settings -> cypress/e2e/stage/05-permission-boundaries.cy.ts
 - ok: test:e2e:marketing -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
-- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.ts (6 specs)
-- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.ts (6 specs)
+- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.ts (7 specs)
+- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.ts (7 specs)
 - ok: test:e2e:stage:business -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
 - ok: test:e2e:stage:crud -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
 - ok: test:e2e:stage:multiclinic -> cypress/e2e/stage/04-multiclinic-isolation.cy.ts
 - ok: test:e2e:stage:permissions -> cypress/e2e/stage/05-permission-boundaries.cy.ts
+- ok: test:e2e:stage:booking -> cypress/e2e/stage/06-public-booking-notifications.cy.ts
 
 ## i18n parity
 
@@ -93,9 +94,10 @@ en keys: 4943; es effective keys: 4943; missing en: 0; missing es: 0
 
 Status: pass
 
-ui files: 435; files with data-testid: 10; data-testid occurrences: 19; required hooks: 13; missing required hooks: 0
+ui files: 435; files with data-testid: 11; data-testid occurrences: 30; required hooks: 13; missing required hooks: 0
 
 - has hooks: app/auth/login/page.tsx
+- has hooks: app/book/[slug]/confirmation/page.tsx
 - has hooks: app/book/[slug]/page.tsx
 - has hooks: app/marketing/page.tsx
 - has hooks: app/services/page.tsx

@@ -261,7 +261,7 @@
     "domain": "booking",
     "capability": "Paciente genera cita publica con disponibilidad correcta",
     "layers": ["cypress", "api"],
-    "status": "planned"
+    "status": "covered"
   },
   {
     "id": "qa-034-booking-notifications",
@@ -269,7 +269,7 @@
     "domain": "notifications",
     "capability": "Crear cita dispara email, SMS o WhatsApp esperado con providers mockeados",
     "layers": ["api", "provider-mock"],
-    "status": "planned"
+    "status": "covered"
   },
   {
     "id": "qa-035-cron-reminders",

@@ -310,6 +310,7 @@ async function resetQaData() {
 
   await deleteBy('service_supplies', 'service_id', serviceIds)
   await deleteBy('public_bookings', 'clinic_id', clinicIds)
+  await deleteBy('public_booking_services', 'clinic_id', clinicIds)
   await deleteBy('appointments', 'clinic_id', clinicIds)
   await deleteBy('appointment_reminders', 'clinic_id', clinicIds)
   await deleteBy('notification_queue', 'clinic_id', clinicIds)
@@ -423,12 +424,61 @@ async function seedWorkspace(users) {
       require_notes: false,
       max_advance_days: 60,
       min_advance_hours: 2,
-      slot_duration_minutes: 30
+      slot_duration_minutes: 30,
+      buffer_minutes: 0,
+      working_hours: {
+        monday: { start: '09:00', end: '17:00' },
+        tuesday: { start: '09:00', end: '17:00' },
+        wednesday: { start: '09:00', end: '17:00' },
+        thursday: { start: '09:00', end: '17:00' },
+        friday: { start: '09:00', end: '17:00' },
+        saturday: { start: '09:00', end: '13:00' },
+        sunday: null
+      },
+      welcome_message: 'Agenda QA publica de Laralis',
+      confirmation_message: 'Solicitud recibida por QA'
     },
     notification_settings: {
-      email_enabled: false,
-      sms_enabled: false,
-      whatsapp_enabled: false
+      email_enabled: true,
+      confirmation_enabled: true,
+      reminder_enabled: false,
+      reminder_hours_before: 24,
+      sender_name: 'Laralis QA',
+      reply_to_email: null,
+      sms: {
+        enabled: true,
+        default_country_code: '1',
+        provider: 'twilio',
+        twilio_account_sid: 'qa-mock-only',
+        twilio_auth_token: 'qa-mock-only',
+        twilio_phone_number: '+15555550000',
+        patient: {
+          on_treatment_created: true,
+          on_treatment_updated: true,
+          reminder_24h: false,
+          reminder_2h: false
+        },
+        staff: {
+          enabled: false,
+          phone: '',
+          extra_phone: '',
+          on_treatment_created: false,
+          on_treatment_updated: false,
+          reminder_24h: false,
+          reminder_2h: false
+        }
+      },
+      whatsapp: {
+        enabled: true,
+        provider: 'twilio',
+        default_country_code: '1',
+        send_confirmations: true,
+        send_reminders: false,
+        reminder_hours_before: 24,
+        twilio_account_sid: 'qa-mock-only',
+        twilio_auth_token: 'qa-mock-only',
+        twilio_phone_number: 'whatsapp:+15555550000'
+      }
     }
   }))
 
@@ -878,12 +928,30 @@ async function seedExpenses(clinicId, fixedCosts, campaignByKey) {
 async function seedPublicBooking(clinicId, serviceByKey) {
   const caseDef = dataset.bookingCases[0]
   if (!caseDef) return
+  const service = serviceByKey.get(caseDef.serviceKey)
+
+  if (!service) {
+    warnings.push(`booking fixture skipped because service ${caseDef.serviceKey} is missing`)
+    return
+  }
+
+  await tryInsertRows(
+    'public_booking_services',
+    [{
+      clinic_id: clinicId,
+      service_id: service.id,
+      custom_duration_minutes: null,
+      display_order: 0,
+      is_active: true
+    }],
+    { optional: true }
+  )
 
   await tryInsertRows(
     'public_bookings',
     [{
       clinic_id: clinicId,
-      service_id: serviceByKey.get(caseDef.serviceKey)?.id,
+      service_id: service.id,
       patient_name: caseDef.patientName,
       patient_email: 'qa.booking@laralis.test',
       patient_phone: caseDef.patientPhone,

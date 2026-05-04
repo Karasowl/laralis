@@ -111,8 +111,25 @@ Cobertura actual:
 - El spec tambien comprueba que el owner sigue pudiendo crear y limpiar un paciente QA, para evitar que el guard rompa permisos legitimos.
 - `apps/dental/app/api/patients/*`, `apps/dental/app/api/supplies/*`, `apps/dental/app/api/services/*`, `apps/dental/app/api/treatments/*`, `apps/dental/app/api/marketing/*`, `apps/dental/app/api/prescriptions/*`, `apps/dental/app/api/categories/*`, `apps/dental/app/api/medications`, `apps/dental/app/api/patient-sources`, `apps/dental/app/api/tariffs`, `apps/dental/app/api/time/cost-per-minute`, `apps/dental/app/api/team/*`, `apps/dental/app/api/invitations`, `apps/dental/app/api/invitations/[id]/resend`, `apps/dental/app/api/settings/*`, `apps/dental/app/api/snapshots/*`, `apps/dental/app/api/reset`, `apps/dental/app/api/dashboard/*`, `apps/dental/app/api/clinic/[clinicId]/export`, `apps/dental/app/api/export/*`, `apps/dental/app/api/notifications/send-confirmation`, `apps/dental/app/api/ai/query`, `apps/dental/app/api/ai/feedback` y `apps/dental/app/api/ai/sessions/*` ya tienen guards granulares en la superficie probada de stage.
 - El inventario QA ya distingue rutas publicas/booking, tokenizadas, webhook, self-service de cuenta y rutas de contexto para no mezclarlas con fugas de permisos.
-- Todavia falta convertir esa clasificacion en pruebas funcionales completas de booking publico, push notifications y self-service de cuenta.
+- Booking publico ya tiene prueba funcional propia; todavia falta convertir la clasificacion restante en pruebas completas de push notifications y self-service de cuenta.
 - Brecha abierta: el viewer puede autenticarse y operar permisos por API, pero el flujo visual estricto todavia puede caer en onboarding. El spec usa `allowSetup` para aislar la prueba de permisos backend hasta que el middleware/UI de miembros quede resuelto.
+
+## Booking publico y notificaciones
+
+Cobertura actual:
+
+- `apps/dental/cypress/e2e/stage/06-public-booking-notifications.cy.ts` publica la clinica QA por slug, selecciona `Limpieza QA` como servicio publico y verifica `GET /api/public/clinic/:slug`.
+- El spec consulta `GET /api/public/availability`, escoge el primer slot disponible, crea una reserva con `POST /api/public/book` y comprueba que ese slot queda ocupado despues de reservar.
+- El endpoint `POST /api/public/book` ahora exige que el servicio este activo en `public_booking_services`; un servicio activo pero no publicado ya no se puede reservar por ID.
+- El mismo endpoint usa la duracion real del servicio publicado para validar disponibilidad, en vez de depender solo del slot generico de la clinica.
+- El spec usa `x-laralis-qa-notifications: mock` solo contra el ref Supabase stage `kafbqdliromcveojtdar`; asi verifica email, SMS y WhatsApp sin llamar Resend, Twilio ni 360dialog.
+- El flujo UI completo se ejecuta en desktop, tablet y mobile: servicio, fecha, hora, datos del paciente, submit, pantalla de confirmacion y sin scroll horizontal.
+- El seed QA deja `working_hours`, servicio publico y configuracion de notificaciones coherente para que futuras reconstrucciones de stage no vuelvan a dejar booking vacio.
+
+Brechas abiertas:
+
+- Falta probar gestion interna de solicitudes de booking por el equipo clinico: aceptar, rechazar, convertir en tratamiento y trazabilidad de estado.
+- Falta probar push notifications aparte de SMS/WhatsApp/email.
 
 ## Gates de inventario
 

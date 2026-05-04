@@ -108,6 +108,57 @@ Comando de stage:
 npm --workspace @laralis/dental run test:e2e:stage:permissions
 ```
 
+## 2026-05-03 - Booking publico debe reservar slots reales y mockear notificaciones
+
+### Problema
+
+La clasificacion de rutas publicas distinguia booking de fugas de permisos, pero no habia un flujo funcional que demostrara que un paciente puede generar una cita desde la pagina publica. El seed QA tambien dejaba booking incompleto: no publicaba servicios en `public_booking_services` y no incluia `working_hours`, asi que la pagina podia quedar sin servicios o sin horarios disponibles.
+
+Riesgo asociado:
+
+- La pagina publica podia cargar pero no permitir reservar.
+- Un servicio activo pero no publicado podia reservarse por ID si alguien conocia el UUID.
+- El flujo de booking no verificaba SMS/WhatsApp/email sin depender de proveedores reales.
+- Una regresion de responsive podia romper mobile/tablet sin que el smoke test autenticado lo viera.
+
+### Prueba permanente
+
+Archivo:
+
+```text
+apps/dental/cypress/e2e/stage/06-public-booking-notifications.cy.ts
+```
+
+Casos protegidos:
+
+- `GET /api/public/clinic/:slug` expone la clinica QA y solo el servicio publicado.
+- `GET /api/public/availability` devuelve slots reales para el servicio publicado.
+- `POST /api/public/book` crea una reserva pendiente y el slot queda no disponible inmediatamente.
+- El header stage-only `x-laralis-qa-notifications: mock` registra resultados mockeados de email, SMS y WhatsApp sin llamar a Resend/Twilio/360dialog.
+- El flujo UI completo reserva desde `/book/qa-dental-centro` en desktop, tablet y mobile y comprueba que no aparece scroll horizontal.
+
+### Implementacion protegida
+
+Archivos:
+
+```text
+apps/dental/app/api/public/book/route.ts
+apps/dental/app/book/[slug]/page.tsx
+apps/dental/app/book/[slug]/confirmation/page.tsx
+apps/dental/lib/sms/service.ts
+apps/dental/scripts/qa-stage-seed.mjs
+```
+
+`POST /api/public/book` ahora exige que el servicio este publicado para booking, usa la duracion del servicio para validar disponibilidad y anade SMS al flujo de solicitud recibida. El mock de notificaciones solo se activa si la app apunta al ref stage `kafbqdliromcveojtdar`.
+
+### Verificacion
+
+Comando de stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:booking
+```
+
 ## 2026-05-03 - Notificaciones sensibles y rutas publicas clasificadas
 
 ### Problema

@@ -16,7 +16,10 @@ export default function BookingConfirmationPage() {
   const bookingId = searchParams.get('id')
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white flex items-center justify-center p-4">
+    <div
+      className="min-h-screen bg-gradient-to-b from-emerald-50 to-white flex items-center justify-center p-4"
+      data-testid="public-booking-confirmation"
+    >
       <Card className="max-w-md w-full">
         <CardContent className="pt-8 pb-6 text-center">
           {/* Success Icon */}

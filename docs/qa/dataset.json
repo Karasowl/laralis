@@ -310,7 +310,7 @@
       "serviceKey": "limpieza",
       "patientName": "QA Booking SMS",
       "patientPhone": "+15555550123",
-      "expectedNotifications": ["email", "sms"]
+      "expectedNotifications": ["email", "sms", "whatsapp"]
     }
   ],
   "laraCases": [
