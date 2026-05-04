@@ -14,6 +14,71 @@ const deleteAccountSchema = z.object({
   code: z.string().min(1),
 });
 
+async function verifyAccountDeletionOtp(
+  supabase: ReturnType<typeof createServerClient>,
+  email: string,
+  code: string
+) {
+  const emailOtp = await supabase.auth.verifyOtp({
+    email,
+    token: code,
+    type: 'email'
+  });
+
+  if (!emailOtp.error && emailOtp.data?.user) {
+    return true;
+  }
+
+  const magicLinkOtp = await supabase.auth.verifyOtp({
+    email,
+    token: code,
+    type: 'magiclink'
+  });
+
+  return !magicLinkOtp.error && Boolean(magicLinkOtp.data?.user);
+}
+
+async function deleteOwnedWorkspace(workspaceId: string) {
+  const { data: clinics } = await supabaseAdmin
+    .from('clinics')
+    .select('id')
+    .eq('workspace_id', workspaceId);
+
+  for (const clinic of clinics || []) {
+    await deleteClinicData(clinic.id);
+  }
+
+  await supabaseAdmin
+    .from('clinics')
+    .delete()
+    .eq('workspace_id', workspaceId);
+
+  await supabaseAdmin
+    .from('workspace_members')
+    .delete()
+    .eq('workspace_id', workspaceId);
+
+  await supabaseAdmin
+    .from('workspace_users')
+    .delete()
+    .eq('workspace_id', workspaceId);
+
+  await supabaseAdmin
+    .from('user_workspaces')
+    .delete()
+    .eq('workspace_id', workspaceId);
+
+  await supabaseAdmin
+    .from('workspace_activity')
+    .delete()
+    .eq('workspace_id', workspaceId);
+
+  await supabaseAdmin
+    .from('workspaces')
+    .delete()
+    .eq('id', workspaceId);
+}
+
 
 export async function DELETE(request: NextRequest) {
   try {
@@ -58,14 +123,12 @@ export async function DELETE(request: NextRequest) {
     }
 
     const userId = user.id;
-
-    // Primero intentar verificar con el OTP de Supabase
-    // Esto funciona si el usuario recibiÃ³ un cÃ³digo de 6 dÃ­gitos
-    const { data: otpData, error: otpError } = await supabase.auth.verifyOtp({
-      email: email,
-      token: code,
-      type: 'email'
-    });
+    if (user.email?.toLowerCase() !== email.toLowerCase()) {
+      return NextResponse.json(
+        { error: 'Email does not match current user' },
+        { status: 403 }
+      );
+    }
 
     // SECURITY: the only acceptable proof of email ownership for account
     // deletion is a successful Supabase OTP verification (the user must
@@ -75,7 +138,7 @@ export async function DELETE(request: NextRequest) {
     // (email, code) — but that code was never sent to the user; it just
     // sat in the DB. Any leak of that table (snapshots, exports, backups)
     // turned it into a pre-shared deletion key. Removed entirely.
-    const emailVerified = !otpError && Boolean(otpData?.user);
+    const emailVerified = await verifyAccountDeletionOtp(supabase, email, code);
 
     if (!emailVerified) {
       return NextResponse.json(
@@ -84,68 +147,48 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Obtener todos los workspaces del usuario
+    const workspaceIds = new Set<string>();
+
+    const { data: ownedWorkspaces, error: ownedWorkspacesError } = await supabaseAdmin
+      .from('workspaces')
+      .select('id')
+      .eq('owner_id', userId);
+
+    if (ownedWorkspacesError) {
+      return NextResponse.json(
+        { error: 'Failed to load owned workspaces' },
+        { status: 500 }
+      );
+    }
+
+    for (const workspace of ownedWorkspaces || []) {
+      workspaceIds.add(workspace.id);
+    }
+
+    // Keep compatibility with older rows that still used user_workspaces.
     const { data: userWorkspaces, error: workspacesError } = await supabaseAdmin
       .from('user_workspaces')
       .select('workspace_id')
       .eq('user_id', userId);
 
     if (!workspacesError && userWorkspaces) {
-      // Para cada workspace donde el usuario es owner
       for (const uw of userWorkspaces) {
         const { data: workspace } = await supabaseAdmin
           .from('workspaces')
-          .select('*')
+          .select('id')
           .eq('id', uw.workspace_id)
           .eq('owner_id', userId)
           .single();
 
-        if (workspace) {
-          // Obtener todas las clÃ­nicas del workspace
-          const { data: clinics } = await supabaseAdmin
-            .from('clinics')
-            .select('id')
-            .eq('workspace_id', workspace.id);
-
-          if (clinics) {
-            for (const clinic of clinics) {
-              await deleteClinicData(clinic.id);
-            }
-
-            // Eliminar las clÃ­nicas
-            await supabaseAdmin
-              .from('clinics')
-              .delete()
-              .eq('workspace_id', workspace.id);
-          }
-
-          // Eliminar miembros del workspace
-          await supabaseAdmin
-            .from('workspace_members')
-            .delete()
-            .eq('workspace_id', workspace.id);
-
-          await supabaseAdmin
-            .from('user_workspaces')
-            .delete()
-            .eq('workspace_id', workspace.id);
-
-          // Eliminar actividad del workspace
-          await supabaseAdmin
-            .from('workspace_activity')
-            .delete()
-            .eq('workspace_id', workspace.id);
-
-          // Eliminar el workspace
-          await supabaseAdmin
-            .from('workspaces')
-            .delete()
-            .eq('id', workspace.id);
-        }
+        if (workspace?.id) workspaceIds.add(workspace.id);
       }
     }
 
-    // Eliminar el usuario de user_workspaces (si queda alguno)
+    for (const workspaceId of Array.from(workspaceIds)) {
+      await deleteOwnedWorkspace(workspaceId);
+    }
+
+    // Remove memberships where the user was not the owner.
     await supabaseAdmin
       .from('user_workspaces')
       .delete()
@@ -153,6 +196,11 @@ export async function DELETE(request: NextRequest) {
 
     await supabaseAdmin
       .from('workspace_members')
+      .delete()
+      .eq('user_id', userId);
+
+    await supabaseAdmin
+      .from('workspace_users')
       .delete()
       .eq('user_id', userId);
 

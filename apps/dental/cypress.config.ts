@@ -759,6 +759,68 @@ export default defineConfig({
           return { id: data.user.id, email: data.user.email };
         },
 
+        async qaGenerateAccountDeletionOtp(email: string) {
+          const client = adminClient();
+          const { data, error } = await client.auth.admin.generateLink({
+            type: 'magiclink',
+            email,
+          });
+
+          const otp = data?.properties?.email_otp;
+          if (error || !otp) {
+            throw new Error(`Could not generate QA account deletion OTP: ${error?.message || 'missing OTP'}`);
+          }
+
+          return { email, otp };
+        },
+
+        async qaAccountDeletionState({
+          email,
+          workspaceName,
+        }: {
+          email: string;
+          workspaceName: string;
+        }) {
+          const client = adminClient();
+          const user = await findAuthUserByEmail(email);
+
+          const { data: workspaces, error: workspaceError } = await client
+            .from('workspaces')
+            .select('id, owner_id, name')
+            .eq('name', workspaceName);
+          if (workspaceError) throw new Error(`Could not inspect QA workspaces: ${workspaceError.message}`);
+
+          const workspaceIds = (workspaces || []).map((workspace) => workspace.id).filter(Boolean);
+          let clinics: any[] = [];
+          let patients: any[] = [];
+
+          if (workspaceIds.length > 0) {
+            const { data: clinicRows, error: clinicError } = await client
+              .from('clinics')
+              .select('id, workspace_id, name')
+              .in('workspace_id', workspaceIds);
+            if (clinicError) throw new Error(`Could not inspect QA clinics: ${clinicError.message}`);
+            clinics = clinicRows || [];
+
+            const clinicIds = clinics.map((clinic) => clinic.id).filter(Boolean);
+            if (clinicIds.length > 0) {
+              const { data: patientRows, error: patientError } = await client
+                .from('patients')
+                .select('id, clinic_id, email')
+                .in('clinic_id', clinicIds);
+              if (patientError) throw new Error(`Could not inspect QA patients: ${patientError.message}`);
+              patients = patientRows || [];
+            }
+          }
+
+          return {
+            authUserExists: Boolean(user?.id),
+            workspaceCount: workspaceIds.length,
+            clinicCount: clinics.length,
+            patientCount: patients.length,
+          };
+        },
+
         async qaDeleteUserByEmail(email: string) {
           const client = adminClient();
           const user = await findAuthUserByEmail(email);

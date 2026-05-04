@@ -350,5 +350,13 @@
     "capability": "El full lifecycle limpia datos creados o elimina la cuenta QA",
     "layers": ["cypress", "api", "supabase-task"],
     "status": "covered"
+  },
+  {
+    "id": "qa-045-self-service-account-deletion",
+    "priority": "P0",
+    "domain": "account",
+    "capability": "El borrado self-service exige OTP del usuario actual, bloquea la ruta legacy y elimina workspaces/clinicas owned sin dejar huerfanos",
+    "layers": ["cypress", "api", "database", "supabase-task"],
+    "status": "covered"
   }
 ]

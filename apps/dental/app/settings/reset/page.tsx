@@ -8,12 +8,12 @@ import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { AlertTriangle, Trash2, UserX, Loader2 } from 'lucide-react'
+import { AlertTriangle, Trash2, Loader2 } from 'lucide-react'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useCurrentClinic } from '@/hooks/use-current-clinic'
-import { useWorkspace } from '@/contexts/workspace-context'
+import { DeleteAccountSection } from '@/app/settings/SettingsClient'
 import { toast } from 'sonner'
 
 export default function ResetPage() {
@@ -21,17 +21,11 @@ export default function ResetPage() {
   const tCommon = useTranslations('common')
   const router = useRouter()
   const { currentClinic } = useCurrentClinic()
-  const { user } = useWorkspace()
 
   // Delete all clinic data state
   const [deleteDataConfirm, setDeleteDataConfirm] = useState('')
   const [deletingData, setDeletingData] = useState(false)
   const [showDeleteDataDialog, setShowDeleteDataDialog] = useState(false)
-
-  // Delete account state
-  const [deleteAccountConfirm, setDeleteAccountConfirm] = useState('')
-  const [deletingAccount, setDeletingAccount] = useState(false)
-  const [showDeleteAccountDialog, setShowDeleteAccountDialog] = useState(false)
 
   const handleDeleteAllData = async () => {
     if (!currentClinic) {
@@ -62,33 +56,6 @@ export default function ResetPage() {
       toast.error(t('delete_error'))
       setDeletingData(false)
       setShowDeleteDataDialog(false)
-    }
-  }
-
-  const handleDeleteAccount = async () => {
-    setDeletingAccount(true)
-
-    try {
-      const response = await fetch('/api/account/delete', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' }
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to delete account')
-      }
-
-      toast.success(t('account_deleted_success'))
-
-      setTimeout(() => {
-        router.push('/')
-      }, 2000)
-    } catch (error) {
-      console.error('Error deleting account:', error)
-      toast.error(t('delete_error'))
-      setDeletingAccount(false)
-      setShowDeleteAccountDialog(false)
     }
   }
 
@@ -155,50 +122,7 @@ export default function ResetPage() {
           </CardContent>
         </Card>
 
-        {/* Delete Account */}
-        <Card className="border-destructive/50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-destructive">
-              <UserX className="h-5 w-5" />
-              {t('delete_account_title')}
-            </CardTitle>
-            <CardDescription>
-              {t('delete_account_description')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4">
-              <p className="text-sm font-medium text-destructive mb-2">
-                {t('account_deletion_warning')}
-              </p>
-              <ul className="text-sm text-muted-foreground space-y-1">
-                <li>• {t('account_item_all_data')}</li>
-                <li>• {t('account_item_workspaces')}</li>
-                <li>• {t('account_item_clinics')}</li>
-                <li>• {t('account_item_no_recovery')}</li>
-              </ul>
-            </div>
-
-            <Button
-              onClick={() => setShowDeleteAccountDialog(true)}
-              disabled={deletingAccount}
-              variant="destructive"
-              className="w-full"
-            >
-              {deletingAccount ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  {t('deleting')}
-                </>
-              ) : (
-                <>
-                  <UserX className="h-4 w-4 mr-2" />
-                  {t('delete_account_button')}
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
+        <DeleteAccountSection />
 
         {/* Delete All Data Confirmation Dialog */}
         <ConfirmDialog
@@ -229,34 +153,6 @@ export default function ResetPage() {
           confirmDisabled={deleteDataConfirm.toUpperCase() !== 'DELETE' || deletingData}
         />
 
-        {/* Delete Account Confirmation Dialog */}
-        <ConfirmDialog
-          open={showDeleteAccountDialog}
-          onOpenChange={setShowDeleteAccountDialog}
-          title={t('confirm_delete_account')}
-          description={
-            <div className="space-y-4">
-              <p>{t('confirm_delete_account_description')}</p>
-              <div className="space-y-2">
-                <Label htmlFor="delete-account-confirm">
-                  {t('type_delete_to_confirm')}
-                </Label>
-                <Input
-                  id="delete-account-confirm"
-                  placeholder={t('delete_placeholder')}
-                  value={deleteAccountConfirm}
-                  onChange={(e) => setDeleteAccountConfirm(e.target.value)}
-                  className="font-mono"
-                />
-              </div>
-            </div>
-          }
-          variant="destructive"
-          onConfirm={handleDeleteAccount}
-          confirmText={t('yes_delete_account')}
-          cancelText={tCommon('cancel')}
-          confirmDisabled={deleteAccountConfirm.toUpperCase() !== 'DELETE' || deletingAccount}
-        />
       </div>
     </AppLayout>
   )

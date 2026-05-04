@@ -47,6 +47,7 @@ Cobertura actual:
 - `apps/dental/cypress/e2e/stage/16-full-lifecycle-user.cy.ts` crea un usuario unico confirmado por tarea Supabase stage, inicia sesion por UI, completa onboarding real, crea workspace y clinica, siembra los requisitos minimos de setup, finaliza setup desde la UI y confirma que el workspace queda activo.
 - El mismo spec usa los modulos principales como un usuario nuevo: activo/depreciacion, costo fijo, configuracion de tiempo, insumo, servicio con receta, campana, paciente atribuido, tratamiento con pago parcial, gasto vinculado, vistas de pacientes/tratamientos/marketing/gastos y cambio ES/EN sin caer en onboarding/setup.
 - El cierre del flujo borra el arbol de cuenta QA con `qaDeleteUserByEmail` y vuelve a ejecutar la limpieza para confirmar que no queda usuario auth pendiente. La eliminacion self-service real queda como riesgo aparte porque `/api/account/delete` todavia no debe usarse como oraculo principal.
+- `apps/dental/cypress/e2e/stage/25-account-deletion-self-service.cy.ts` cubre ahora el borrado self-service real: crea un usuario descartable, crea workspace y clinica, bloquea la ruta legacy `/api/account/delete`, rechaza OTP de otro email y confirma que el OTP del usuario actual elimina auth, workspace y clinica.
 
 ### CRUD por modulo
 
@@ -114,7 +115,7 @@ Cobertura actual:
 
 Brechas abiertas:
 
-- Falta convertir la eliminacion self-service de cuenta en flujo real seguro; hoy el full lifecycle limpia por tarea stage `service_role` para no dejar datos huerfanos.
+- La eliminacion self-service segura ya tiene spec propio con OTP generado por Supabase Admin en stage. Sigue faltando una captura visual del modal completo de borrado de cuenta en mobile/desktop.
 - Falta ampliar `/setup/resume` a mobile/light; el baseline desktop dark con multiples drafts ya queda versionado.
 
 ## Multi-clinica
