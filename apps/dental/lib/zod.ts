@@ -144,6 +144,7 @@ export const zAsset = z.object({
   id: z.string().uuid().optional(),
   clinic_id: z.string().uuid(),
   name: z.string().min(1, 'Name is required'),
+  category: z.string().optional(),
   purchase_price_cents: z.number().int().nonnegative('Price must be non-negative'),
   depreciation_months: z
     .number()

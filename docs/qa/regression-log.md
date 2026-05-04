@@ -9,6 +9,44 @@ Cada entrada debe explicar:
 - Como se verifica.
 - Que riesgo protege.
 
+## 2026-05-03 - Activos deben traducir meses y alimentar depreciacion
+
+### Problema
+
+El formulario trabaja con meses de vida util, mientras la base usa `depreciation_years` y expone `depreciation_months` como columna generada. El endpoint debe traducir meses a años sin intentar insertar la columna generada, y los endpoints de negocio deben leer los meses resultantes.
+
+Riesgo asociado:
+
+- Un activo podia fallar al crearse si la API intentaba escribir una columna generada.
+- Un activo podia verse creado, pero no sumar depreciacion mensual si la traduccion meses/años quedaba rota.
+- Cambiar vida util del activo podia no recalcular punto de equilibrio.
+- Profit analysis podia omitir o distorsionar la depreciacion teorica.
+
+### Prueba permanente
+
+Archivo:
+
+```text
+apps/dental/cypress/e2e/stage/11-assets-depreciation.cy.ts
+```
+
+Caso protegido:
+
+- Lee baseline de `/api/assets/summary`, `/api/equilibrium` y `/api/analytics/profit-analysis`.
+- Crea un activo QA por API con precio y vida util conocidos.
+- Verifica que `/assets` muestra inversion y depreciacion mensual esperada.
+- Confirma que summary, punto de equilibrio y profit analysis aumentan exactamente por la depreciacion mensual.
+- Edita precio/vida util, vuelve a medir y luego elimina el activo.
+- Confirma que los calculos regresan al baseline.
+
+### Verificacion
+
+Comando de stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:assets
+```
+
 ## 2026-05-03 - Costos fijos deben afectar el costo por minuto
 
 ### Problema

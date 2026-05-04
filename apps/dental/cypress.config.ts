@@ -22,8 +22,18 @@ export default defineConfig({
         require('@cypress/code-coverage/task')(on, config);
       }
 
-      const stageUrl = process.env.CYPRESS_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-      const serviceRoleKey = process.env.CYPRESS_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+      const envValue = (...names: string[]) => {
+        for (const name of names) {
+          const value = process.env[name] || config.env?.[name];
+          if (typeof value === 'string' && value.trim().length > 0) {
+            return value.trim();
+          }
+        }
+        return '';
+      };
+
+      const stageUrl = envValue('CYPRESS_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL');
+      const serviceRoleKey = envValue('CYPRESS_SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_SERVICE_ROLE_KEY');
 
       const adminClient = () => {
         if (!stageUrl.includes('kafbqdliromcveojtdar')) {

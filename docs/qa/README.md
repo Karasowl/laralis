@@ -292,6 +292,15 @@ Chequeo local compuesto:
 npm --workspace @laralis/dental run qa:check
 ```
 
+Las specs que crean usuarios/invitaciones con `cy.task` necesitan credenciales admin del Supabase de stage. Configuralas solo localmente, por variables de entorno o en `apps/dental/cypress.env.json`:
+
+```json
+{
+  "CYPRESS_SUPABASE_URL": "https://kafbqdliromcveojtdar.supabase.co",
+  "CYPRESS_SUPABASE_SERVICE_ROLE_KEY": "stage-service-role-key"
+}
+```
+
 Abrir Cypress visual contra stage:
 
 ```bash

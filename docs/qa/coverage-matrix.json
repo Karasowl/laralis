@@ -157,7 +157,7 @@
     "domain": "business-calculations",
     "capability": "Depreciacion se activa, calcula y aparece donde corresponde",
     "layers": ["vitest", "cypress", "api"],
-    "status": "planned"
+    "status": "covered"
   },
   {
     "id": "qa-021-time-settings-simulations",

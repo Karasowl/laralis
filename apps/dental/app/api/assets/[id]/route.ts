@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { withPermission } from '@/lib/middleware/with-permission';
 import { zAsset } from '@/lib/zod';
@@ -19,9 +19,9 @@ export const PUT = withPermission(
 
       const bodyResult = await readJson(request);
       if ('error' in bodyResult) {
-        return bodyResult.error;
+        return bodyResult.error as NextResponse<ApiResponse<Asset>>;
       }
-      const body = bodyResult.data;
+      const body = bodyResult.data as Record<string, unknown>;
       const { clinicId } = context;
 
       const dataToValidate = { ...body, clinic_id: clinicId } as Record<string, unknown>;

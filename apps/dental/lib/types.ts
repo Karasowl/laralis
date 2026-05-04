@@ -119,6 +119,7 @@ export interface Asset {
   id: string;
   clinic_id: string;
   name: string;
+  category?: string;
   purchase_price_cents: number;
   depreciation_months: number;
   purchase_date?: string;
