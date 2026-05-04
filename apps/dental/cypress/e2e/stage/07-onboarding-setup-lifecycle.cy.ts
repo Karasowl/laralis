@@ -313,7 +313,7 @@ describe('Stage onboarding and setup lifecycle', () => {
     const email = 'qa-visual-setup-resume@laralis.test'
     const firstWorkspaceName = 'QA Resume Visual Draft A'
     const secondWorkspaceName = 'QA Resume Visual Draft B'
-    const screenshotName = 'setup-resume-multiple-drafts-desktop-light'
+    const screenshotName = 'setup-resume-multiple-drafts-desktop-dark'
     transientEmails.push(email)
 
     cy.task('qaDeleteUserByEmail', email)
@@ -330,7 +330,12 @@ describe('Stage onboarding and setup lifecycle', () => {
     })
 
     cy.viewport(1440, 900)
-    cy.visit('/setup/resume')
+    cy.visit('/setup/resume', {
+      onBeforeLoad(win) {
+        win.localStorage.setItem('laralis-theme', 'dark')
+        win.localStorage.setItem('preferred-locale', 'es')
+      },
+    })
     cy.get('[data-testid="setup-resume-page"]', { timeout: 30000 }).should('be.visible')
     cy.contains('[data-testid="setup-resume-workspace-card"]', firstWorkspaceName).should('be.visible')
     cy.contains('[data-testid="setup-resume-workspace-card"]', secondWorkspaceName).should('be.visible')

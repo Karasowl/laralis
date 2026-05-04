@@ -109,12 +109,13 @@ Cobertura actual:
 - `/setup/cancel` ahora restaura el workspace activo y su primera clinica antes de redirigir a `/`; no cierra sesion ni deja la app apuntando al draft si existe cualquier workspace activo accesible.
 - El spec verifica que el conteo de pacientes de la clinica activa se mantiene despues de cancelar setup con el draft seleccionado.
 - El mismo spec cubre `/setup/resume` con usuarios descartables sin workspace activo: crea drafts reales, continua uno hacia `/setup` con contexto de clinica, archiva otro desde la pantalla, elimina el ultimo y verifica que no queden drafts visibles ni scroll horizontal.
+- El mismo spec captura y compara el baseline visual `setup-resume-multiple-drafts-desktop-dark.png` con dos drafts deterministas, enmascarando solo UUIDs y timestamps para evitar falsos positivos.
 - El inventario QA exige hooks estables en onboarding y setup para que el flujo no dependa de texto traducido.
 
 Brechas abiertas:
 
 - Falta convertir la eliminacion self-service de cuenta en flujo real seguro; hoy el full lifecycle limpia por tarea stage `service_role` para no dejar datos huerfanos.
-- Falta agregar baseline PNG de `/setup/resume`; el flujo funcional con multiples drafts, archive y delete ya queda cubierto por Cypress.
+- Falta ampliar `/setup/resume` a mobile/light; el baseline desktop dark con multiples drafts ya queda versionado.
 
 ## Multi-clinica
 
@@ -230,7 +231,7 @@ Cobertura actual:
 
 Brechas abiertas:
 
-- Ya existe comparador visual automatico con `pixelmatch`/`pngjs` para varias superficies P0; todavia falta ampliar baselines a setup/resume, booking completo paso-a-paso, Entry Mode de Lara, pantalla de import/export, seguridad/MFA, snapshots/restore y traducciones con textos largos.
+- Ya existe comparador visual automatico con `pixelmatch`/`pngjs` para varias superficies P0; todavia falta ampliar baselines a booking completo paso-a-paso, Entry Mode de Lara, pantalla de import/export, seguridad/MFA, snapshots/restore, setup/resume mobile/light y traducciones con textos largos.
 - La paridad de claves i18n esta cubierta por inventario; falta auditoria de calidad de traduccion y longitudes extremas en todas las pantallas.
 
 ## Capacidades que no pueden quedar fuera
