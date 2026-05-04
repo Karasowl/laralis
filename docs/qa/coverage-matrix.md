@@ -64,6 +64,7 @@ Cobertura actual:
 
 - `apps/dental/cypress/e2e/stage/03-crud-lifecycle.cy.ts` cubre un ciclo destructivo contra stage para paciente, insumo, servicio y tratamiento.
 - El spec crea datos unicos, actualiza registros, valida busqueda/historial, verifica que un insumo afecta el costo variable de un servicio y confirma que no se pueden borrar paciente, insumo o servicio mientras tienen dependencias.
+- `apps/dental/cypress/e2e/stage/30-treatment-status-payment-lifecycle.cy.ts` cubre tratamientos programados, rechazo de sobrepago, pago parcial, pago total, cancelacion y limpieza, verificando tambien el historial del paciente.
 - `apps/dental/cypress/e2e/stage/09-patient-treatment-history.cy.ts` toma un paciente QA con multiples tratamientos desde la API, verifica que `/api/treatments?patient_id=...` devuelve exactamente esos tratamientos y luego valida la ficha visual del paciente: nombre, total de tratamientos, ingreso completado, servicios, importes, estados y ausencia de scroll horizontal.
 - Todavia faltan ciclos equivalentes para gastos, costos fijos, activos/depreciacion, campanas, citas, permisos y eliminacion completa de cuenta QA.
 

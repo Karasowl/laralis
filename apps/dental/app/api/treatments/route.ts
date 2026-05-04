@@ -225,6 +225,8 @@ export async function POST(request: NextRequest) {
     if (normalizedStatus === 'completed' && (!priceVal || priceVal <= 0)) {
       return NextResponse.json({ error: 'precondition_failed', message: 'Tariff/price is required to complete a treatment.' }, { status: 412 });
     }
+    const amountPaidVal = Number(payloadBody.amount_paid_cents ?? 0);
+    const pendingBalanceVal = payloadBody.pending_balance_cents ?? Math.max(0, (priceVal || 0) - amountPaidVal);
     const quantityRaw = payloadBody.quantity ?? payloadBody.multiplier ?? 1;
     const quantity = Number(quantityRaw);
     if (!Number.isFinite(quantity) || quantity < 1 || quantity > 100) {
@@ -245,7 +247,8 @@ export async function POST(request: NextRequest) {
       variable_cost_cents: payloadBody.variable_cost_cents ?? 0,
       margin_pct: marginVal || 60,
       price_cents: priceVal || 0,
-      amount_paid_cents: payloadBody.amount_paid_cents ?? 0, // Partial payments support
+      amount_paid_cents: amountPaidVal, // Partial payments support
+      pending_balance_cents: pendingBalanceVal,
       status: normalizedStatus,
       notes: payloadBody.notes?.trim() ? payloadBody.notes.trim() : null,
       snapshot_costs: payloadBody.snapshot_costs || {}

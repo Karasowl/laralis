@@ -125,7 +125,7 @@
     "domain": "business-calculations",
     "capability": "Servicios: crear, editar, asociar insumos y validar margen de beneficio",
     "layers": ["vitest", "cypress", "api"],
-    "status": "partial"
+    "status": "covered"
   },
   {
     "id": "qa-017-treatments-crud-status-payments",
@@ -133,7 +133,7 @@
     "domain": "crud",
     "capability": "Tratamientos: crear, pagar, parcial, pendiente, cancelar y limpiar",
     "layers": ["cypress", "api"],
-    "status": "partial"
+    "status": "covered"
   },
   {
     "id": "qa-018-expenses-crud-and-budget-links",

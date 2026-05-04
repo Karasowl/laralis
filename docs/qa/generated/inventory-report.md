@@ -1,6 +1,6 @@
 # QA Inventory Report
 
-Generated: 2026-05-04T22:16:17.728Z
+Generated: 2026-05-04T22:20:53.068Z
 
 Status: pass
 Failing checks: 0
@@ -27,7 +27,7 @@ Status: pass
 
 capabilities: 48; domains: 25; required missing domains: 0
 
-- status counts: covered=43, partial=5
+- status counts: covered=45, partial=3
 - priority counts: P0=42, P1=6
 
 ## QA dataset
@@ -66,7 +66,7 @@ seed script: present; assert script: present; env example: present; package scri
 
 Status: pass
 
-declared spec scripts: 38; existing e2e specs: 30; missing declared specs: 0
+declared spec scripts: 39; existing e2e specs: 31; missing declared specs: 0
 
 - ok: test:e2e:multitenancy -> cypress/e2e/stage/04-multiclinic-isolation.cy.ts
 - ok: test:e2e:auth -> cypress/e2e/stage/00-auth-and-shell.cy.ts
@@ -76,8 +76,8 @@ declared spec scripts: 38; existing e2e specs: 30; missing declared specs: 0
 - ok: test:e2e:treatments -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
 - ok: test:e2e:settings -> cypress/e2e/stage/05-permission-boundaries.cy.ts
 - ok: test:e2e:marketing -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
-- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.{js,ts} (30 specs)
-- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.{js,ts} (30 specs)
+- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.{js,ts} (31 specs)
+- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.{js,ts} (31 specs)
 - ok: test:e2e:stage:core-navigation -> cypress/e2e/stage/29-core-navigation-smoke.cy.ts
 - ok: test:e2e:stage:business -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
 - ok: test:e2e:stage:crud -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
@@ -106,6 +106,7 @@ declared spec scripts: 38; existing e2e specs: 30; missing declared specs: 0
 - ok: test:e2e:stage:dashboard-appointments -> cypress/e2e/stage/26-dashboard-appointments-real-data.cy.ts
 - ok: test:e2e:stage:booking-requests -> cypress/e2e/stage/27-booking-request-admin-actions.cy.ts
 - ok: test:e2e:stage:appointment-conflicts -> cypress/e2e/stage/28-appointment-conflict-enforcement.cy.ts
+- ok: test:e2e:stage:treatment-payments -> cypress/e2e/stage/30-treatment-status-payment-lifecycle.cy.ts
 
 ## i18n parity
 
