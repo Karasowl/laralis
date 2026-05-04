@@ -355,6 +355,12 @@ Correr solo Lara, acciones confirmables y audio mockeado contra stage:
 npm --workspace @laralis/dental run test:e2e:stage:lara
 ```
 
+Correr solo reportes, dashboard y marketing contra oraculos de negocio:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:reports
+```
+
 Correr solo aislamiento multi-clinica contra stage:
 
 ```bash

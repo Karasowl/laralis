@@ -138,7 +138,7 @@ export async function GET(request: NextRequest) {
 
     const { data: currentTreatments, error: currentErr } = await supabaseAdmin
       .from('treatments')
-      .select('price_cents, status, treatment_date')
+      .select('price_cents, amount_paid_cents, is_paid, status, treatment_date')
       .eq('clinic_id', clinicId)
       .eq('status', 'completed')
       .gte('treatment_date', toDateParam(ranges.current.start))
@@ -156,7 +156,7 @@ export async function GET(request: NextRequest) {
 
     const { data: previousTreatments, error: previousErr } = await supabaseAdmin
       .from('treatments')
-      .select('price_cents, status, treatment_date')
+      .select('price_cents, amount_paid_cents, is_paid, status, treatment_date')
       .eq('clinic_id', clinicId)
       .eq('status', 'completed')
       .gte('treatment_date', toDateParam(ranges.previous.start))
@@ -169,8 +169,19 @@ export async function GET(request: NextRequest) {
 
     console.info('[revenue] Found previous treatments:', previousTreatments?.length || 0)
 
-    const currentTotal = sumRevenue(currentTreatments || [])
-    const previousTotal = sumRevenue(previousTreatments || [])
+    const currentPaidTreatments = (currentTreatments || []).filter(row => {
+      const price = Number(row.price_cents || 0)
+      const paid = Number((row as any).amount_paid_cents || 0)
+      return price > 0 && ((row as any).is_paid === true || paid >= price)
+    })
+    const previousPaidTreatments = (previousTreatments || []).filter(row => {
+      const price = Number(row.price_cents || 0)
+      const paid = Number((row as any).amount_paid_cents || 0)
+      return price > 0 && ((row as any).is_paid === true || paid >= price)
+    })
+
+    const currentTotal = sumRevenue(currentPaidTreatments)
+    const previousTotal = sumRevenue(previousPaidTreatments)
 
     console.info('[revenue] Totals - Current:', currentTotal, 'Previous:', previousTotal)
 
@@ -180,8 +191,8 @@ export async function GET(request: NextRequest) {
         previous: previousTotal,
       },
       totals: {
-        current_count: currentTreatments?.length ?? 0,
-        previous_count: previousTreatments?.length ?? 0,
+        current_count: currentPaidTreatments.length,
+        previous_count: previousPaidTreatments.length,
       },
       period: ranges.label,
     })

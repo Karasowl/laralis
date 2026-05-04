@@ -76,7 +76,7 @@ export const GET = withPermission('financial_reports.view', async (request, cont
 
     const { data: treatments, error } = await supabaseAdmin
       .from('treatments')
-      .select('price_cents, treatment_date, status')
+      .select('price_cents, amount_paid_cents, is_paid, treatment_date, status')
       .eq('clinic_id', clinicId)
       .eq('status', 'completed')
       .gte('treatment_date', startISO)
@@ -88,9 +88,14 @@ export const GET = withPermission('financial_reports.view', async (request, cont
     }
 
     const completed = Array.isArray(treatments) ? treatments : []
+    const completedPaid = completed.filter((row: any) => {
+      const price = Number(row.price_cents || 0)
+      const paid = Number(row.amount_paid_cents || 0)
+      return price > 0 && (row.is_paid === true || paid >= price)
+    })
 
-    const totalCents = completed.reduce((sum, row: any) => sum + Number(row.price_cents || 0), 0)
-    const count = completed.length
+    const totalCents = completedPaid.reduce((sum, row: any) => sum + Number(row.price_cents || 0), 0)
+    const count = completedPaid.length
 
     const millisecondsPerDay = 24 * 60 * 60 * 1000
     const days = Math.max(1, Math.ceil((rangeEnd.getTime() - rangeStart.getTime() + millisecondsPerDay) / millisecondsPerDay))

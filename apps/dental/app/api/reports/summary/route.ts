@@ -72,7 +72,7 @@ export const GET = withPermission('financial_reports.view', async (request, cont
       supabaseAdmin
         .from('treatments')
         .select(
-          'id, patient_id, service_id, treatment_date, status, price_cents, variable_cost_cents, fixed_cost_per_minute_cents, margin_pct, minutes'
+          'id, patient_id, service_id, treatment_date, status, price_cents, amount_paid_cents, is_paid, variable_cost_cents, fixed_cost_per_minute_cents, margin_pct, minutes'
         )
         .eq('clinic_id', clinicId)
         .gte('treatment_date', startISO)
@@ -109,6 +109,8 @@ export const GET = withPermission('financial_reports.view', async (request, cont
         patient_id: row.patient_id,
         treatment_date: row.treatment_date,
         price_cents: Number(row.price_cents || 0),
+        amount_paid_cents: Number(row.amount_paid_cents || 0),
+        is_paid: row.is_paid === true,
         variable_cost_cents: Number(row.variable_cost_cents || 0),
         fixed_per_minute_cents: Number(row.fixed_cost_per_minute_cents ?? 0),
         minutes: Number(row.minutes ?? 0),
@@ -127,9 +129,13 @@ export const GET = withPermission('financial_reports.view', async (request, cont
     const periodTreatments = treatments
     const periodPatients = patients
 
-    const completedPeriod = periodTreatments.filter(t => t.status === 'completed')
-    const revenuePeriod = completedPeriod.reduce((sum, t) => sum + (t.price_cents || 0), 0)
-    const margins = completedPeriod.map(t => t.margin_pct || 0)
+    const completedPaidPeriod = periodTreatments.filter(t => {
+      const price = Number(t.price_cents || 0)
+      const paid = Number((t as any).amount_paid_cents || 0)
+      return t.status === 'completed' && price > 0 && ((t as any).is_paid === true || paid >= price)
+    })
+    const revenuePeriod = completedPaidPeriod.reduce((sum, t) => sum + (t.price_cents || 0), 0)
+    const margins = completedPaidPeriod.map(t => t.margin_pct || 0)
     const averageMargin = margins.length > 0
       ? margins.reduce((a, b) => a + b, 0) / margins.length
       : 0

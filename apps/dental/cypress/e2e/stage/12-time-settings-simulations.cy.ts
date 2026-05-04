@@ -62,6 +62,59 @@ function deleteIfPresent(path: string, id?: string) {
   })
 }
 
+function responseRows(body: any): any[] {
+  if (Array.isArray(body)) return body
+  if (Array.isArray(body?.data)) return body.data
+  return []
+}
+
+function includesQaTime(value: unknown) {
+  return typeof value === 'string' && value.toLowerCase().includes('qa-time-')
+}
+
+function cleanupQaTimeArtifacts() {
+  cy.request('/api/treatments').then((response) => {
+    expect(response.status).to.eq(200)
+    responseRows(response.body)
+      .filter((row) => includesQaTime(row.notes))
+      .forEach((row) => deleteIfPresent('/api/treatments', row.id))
+  })
+
+  cy.request(`/api/services?search=${encodeURIComponent('QA Servicio Tiempo')}`).then((response) => {
+    expect(response.status).to.eq(200)
+    responseRows(response.body)
+      .filter((row) => includesQaTime(row.name) || includesQaTime(row.description))
+      .forEach((row) => deleteIfPresent('/api/services', row.id))
+  })
+
+  cy.request(`/api/supplies?search=${encodeURIComponent('QA Insumo Tiempo')}`).then((response) => {
+    expect(response.status).to.eq(200)
+    responseRows(response.body)
+      .filter((row) => includesQaTime(row.name))
+      .forEach((row) => deleteIfPresent('/api/supplies', row.id))
+  })
+
+  cy.request('/api/fixed-costs?limit=200').then((response) => {
+    expect(response.status).to.eq(200)
+    responseRows(response.body)
+      .filter((row) => includesQaTime(row.concept) || includesQaTime(row.category))
+      .forEach((row) => deleteIfPresent('/api/fixed-costs', row.id))
+  })
+
+  cy.request(`/api/patients?search=${encodeURIComponent('qa-time-')}`).then((response) => {
+    expect(response.status).to.eq(200)
+    responseRows(response.body)
+      .filter(
+        (row) =>
+          includesQaTime(row.first_name) ||
+          includesQaTime(row.last_name) ||
+          includesQaTime(row.email) ||
+          includesQaTime(row.notes)
+      )
+      .forEach((row) => deleteIfPresent('/api/patients', row.id))
+  })
+}
+
 function getTimeSettings(): Cypress.Chainable<TimeSettings | null> {
   return cy.request('/api/settings/time').then((response) => {
     expect(response.status).to.eq(200)
@@ -129,6 +182,7 @@ describe('Stage time settings and pricing simulations', () => {
     selectQaClinic('clinicA').then((clinic) => {
       clinicId = clinic.id
     })
+    cleanupQaTimeArtifacts()
     getTimeSettings().then((settings) => {
       originalTimeSettings = settings
     })
@@ -143,6 +197,7 @@ describe('Stage time settings and pricing simulations', () => {
     deleteIfPresent('/api/supplies', ids.supplyId)
     deleteIfPresent('/api/fixed-costs', ids.fixedCostId)
     deleteIfPresent('/api/patients', ids.patientId)
+    cleanupQaTimeArtifacts()
 
     if (originalTimeSettings) {
       saveTimeSettings(originalTimeSettings)

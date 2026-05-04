@@ -104,6 +104,7 @@ Referidos:
 - Service net profit: 64190.
 - Costos fijos mensuales: 46800.
 - Marketing spend: 6600.
+- Gastos reales registrados en mayo: 10900.
 - Operating profit: 19790.
 - Operating margin: 25.8693%.
 

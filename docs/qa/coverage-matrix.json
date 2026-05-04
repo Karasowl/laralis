@@ -197,7 +197,7 @@
     "domain": "marketing",
     "capability": "Marketing calcula ROI, CPA, pacientes por fuente e ingresos por campana",
     "layers": ["vitest", "cypress", "api"],
-    "status": "partial"
+    "status": "covered"
   },
   {
     "id": "qa-026-dashboard-business-oracles",
@@ -213,7 +213,7 @@
     "domain": "reports",
     "capability": "Reportes coinciden con oraculos del dataset QA por periodo y modulo",
     "layers": ["cypress", "api"],
-    "status": "planned"
+    "status": "covered"
   },
   {
     "id": "qa-028-chart-rendering",

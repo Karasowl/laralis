@@ -97,6 +97,7 @@ Cobertura actual:
 - `apps/dental/cypress/e2e/stage/13-expenses-budget-links.cy.ts` crea un costo fijo planificado, un gasto fijo vinculado, un insumo y un gasto variable vinculado al inventario; verifica `GET /api/expenses/stats`, `GET /api/analytics/expenses`, `GET /api/dashboard/expenses`, filtros de gastos, variacion planificado-vs-real y que crear/editar/borrar gastos variables actualiza el stock por `portions`.
 - `apps/dental/cypress/e2e/stage/14-date-filters-coherence.cy.ts` crea datos controlados dentro y fuera de un rango, y verifica que listados, tarjetas de dashboard, graficas de revenue/servicios y reportes no mezclan fechas cuando llegan `date_from/date_to`, `start_date/end_date` o `from/to`.
 - `apps/dental/cypress/e2e/stage/02-qa-business-oracles.cy.ts` y `tests/qa/qa-oracles.test.ts` sostienen los oraculos agregados de marketing, ingresos, costos variables, costos fijos asignados, margen bruto y utilidad operativa.
+- `apps/dental/cypress/e2e/stage/19-reports-dashboard-oracles.cy.ts` compara mayo 2026 contra `docs/qa/oracles.json` en `/api/reports/revenue`, `/api/reports/summary`, tarjetas de dashboard y endpoints de marketing ROI/channel ROI; valida revenue, tratamientos, pacientes, gasto, ROAS, ROI y CPA de "Meta Mayo".
 
 ## Onboarding y setup
 
