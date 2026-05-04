@@ -245,7 +245,7 @@
     "domain": "i18n",
     "capability": "Espanol e ingles tienen todas las claves y no rompen layouts",
     "layers": ["inventory", "cypress", "visual"],
-    "status": "partial"
+    "status": "covered"
   },
   {
     "id": "qa-032-language-switch-regression",
@@ -381,6 +381,38 @@
     "domain": "calendar",
     "capability": "La agenda detecta choques con tratamientos y bookings publicos, y el backend bloquea escrituras conflictivas",
     "layers": ["cypress", "api", "database", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-049-export-import-bundle-contract",
+    "priority": "P0",
+    "domain": "data-portability",
+    "capability": "Exportar workspace QA, validar bundle e importar en dry-run sin crear datos",
+    "layers": ["cypress", "api", "database"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-050-snapshots-create-restore-cleanup",
+    "priority": "P0",
+    "domain": "snapshots",
+    "capability": "Crear snapshot, verificar metadata, restaurar en dry-run y borrar el snapshot QA",
+    "layers": ["cypress", "api", "database"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-051-security-mfa-setup-cleanup",
+    "priority": "P0",
+    "domain": "security",
+    "capability": "MFA permite iniciar setup, rechaza codigo invalido y limpia estado pendiente sin romper login",
+    "layers": ["cypress", "api"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-052-critical-settings-responsive",
+    "priority": "P1",
+    "domain": "visual",
+    "capability": "Export/import, snapshots y seguridad cargan en desktop/mobile sin setup regresivo ni scroll horizontal",
+    "layers": ["cypress", "visual"],
     "status": "covered"
   }
 ]

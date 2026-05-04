@@ -1,42 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { encryptSecret, generateTotpSetup } from '@/lib/security/totp';
+import { loadMfaPreferences, saveMfaPreferences } from '@/lib/security/mfa-preferences';
 
 export const dynamic = 'force-dynamic'
-
-
-function ensurePreferences(input: unknown): Record<string, any> {
-  if (typeof input === 'object' && input !== null) {
-    return input as Record<string, any>;
-  }
-  return {};
-}
 
 export async function POST(request: NextRequest) {
   void request;
   try {
     const supabase = createClient();
     const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession();
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
-    if (sessionError) throw sessionError;
-    if (!session?.user) {
+    if (authError) throw authError;
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .select('preferences, email')
-      .eq('id', session.user.id)
-      .single();
-
-    if (error && error.code !== 'PGRST116') {
-      throw error;
-    }
-
-    const email = data?.email || session.user.email;
+    const email = user.email;
     if (!email) {
       return NextResponse.json(
         { error: 'Email not found for user' },
@@ -44,7 +27,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const preferences = ensurePreferences(data?.preferences);
+    const preferences = await loadMfaPreferences(supabase, user.id);
     const twoFactor = preferences.two_factor;
 
     if (twoFactor?.enabled) {
@@ -65,14 +48,7 @@ export async function POST(request: NextRequest) {
       },
     };
 
-    const { error: updateError } = await supabase
-      .from('user_profiles')
-      .update({ preferences: updatedPreferences })
-      .eq('id', session.user.id);
-
-    if (updateError) {
-      throw updateError;
-    }
+    await saveMfaPreferences(supabase, user.id, updatedPreferences);
 
     return NextResponse.json({
       data: {

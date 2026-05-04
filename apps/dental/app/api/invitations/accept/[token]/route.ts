@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { getAuthUserProfileById } from '@/lib/auth-user-profiles';
 
 // QA route contract: @qa-token-route public invitation lookup plus authenticated email-matched acceptance.
 /**
@@ -71,7 +72,7 @@ export async function GET(
       );
     }
 
-    const [{ data: workspace }, { data: clinic }, { data: inviterProfile }] =
+    const [{ data: workspace }, { data: clinic }, inviterProfile] =
       await Promise.all([
         supabaseAdmin
           .from('workspaces')
@@ -85,11 +86,9 @@ export async function GET(
               .eq('id', invitation.clinic_id)
               .maybeSingle()
           : Promise.resolve({ data: null }),
-        supabaseAdmin
-          .from('user_profiles')
-          .select('full_name, email')
-          .eq('id', invitation.invited_by)
-          .maybeSingle(),
+        invitation.invited_by
+          ? getAuthUserProfileById(invitation.invited_by)
+          : Promise.resolve(null),
       ]);
 
     return NextResponse.json({

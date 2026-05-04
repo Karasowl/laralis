@@ -1,3 +1,5 @@
+export {}
+
 type QaClinic = {
   key: string
   name: string
@@ -82,7 +84,7 @@ const privateRoutes: RouteExpectation[] = [
   { path: '/patients', en: /Patients/i, es: /Pacientes/i },
   { path: '/treatments', en: /Treatments/i, es: /Tratamientos/i },
   { path: '/services', en: /Services/i, es: /Servicios/i },
-  { path: '/reports', en: /Reports|Profitability|Marketing/i, es: /Reportes|Rentabilidad|Marketing/i },
+  { path: '/reports', en: /Reports|Profitability|Marketing/i, es: /Reportes|Rentabilidad|Mercadotecnia/i },
   { path: '/settings/notifications', en: /Notifications|SMS|WhatsApp/i, es: /Notificaciones|SMS|WhatsApp/i },
 ]
 

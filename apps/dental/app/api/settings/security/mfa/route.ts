@@ -1,58 +1,28 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import {
+  loadMfaPreferences,
+  saveMfaPreferences,
+  type MfaPreferences,
+} from '@/lib/security/mfa-preferences';
 
 export const dynamic = 'force-dynamic'
-
-
-interface PreferencesTwoFactor {
-  enabled?: boolean;
-  secret?: string;
-  recoveryCodes?: string[];
-  verifiedAt?: string;
-  disabledAt?: string | null;
-}
-
-interface PreferencesPayload {
-  two_factor?: PreferencesTwoFactor;
-  two_factor_pending?: {
-    secret: string;
-    createdAt: string;
-  } | null;
-  [key: string]: unknown;
-}
-
-function ensurePreferences(input: unknown): PreferencesPayload {
-  if (typeof input === 'object' && input !== null) {
-    return input as PreferencesPayload;
-  }
-  return {};
-}
 
 export async function GET() {
   try {
     const supabase = createClient();
     const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession();
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
-    if (sessionError) throw sessionError;
+    if (authError) throw authError;
 
-    if (!session?.user) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .select('preferences')
-      .eq('id', session.user.id)
-      .single();
-
-    if (error && error.code !== 'PGRST116') {
-      throw error;
-    }
-
-    const preferences = ensurePreferences(data?.preferences);
+    const preferences = await loadMfaPreferences(supabase, user.id);
     const twoFactor = preferences.two_factor;
     const pending = preferences.two_factor_pending;
 
@@ -80,30 +50,20 @@ export async function DELETE() {
   try {
     const supabase = createClient();
     const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession();
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
-    if (sessionError) throw sessionError;
+    if (authError) throw authError;
 
-    if (!session?.user) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .select('preferences')
-      .eq('id', session.user.id)
-      .single();
-
-    if (error && error.code !== 'PGRST116') {
-      throw error;
-    }
-
-    const preferences = ensurePreferences(data?.preferences);
+    const preferences = await loadMfaPreferences(supabase, user.id);
     const current = preferences.two_factor ?? {};
 
-    const updated: PreferencesPayload = {
+    const updated: MfaPreferences = {
       ...preferences,
       two_factor: {
         ...current,
@@ -119,14 +79,7 @@ export async function DELETE() {
       updated.two_factor.verifiedAt = current.verifiedAt ?? null;
     }
 
-    const { error: updateError } = await supabase
-      .from('user_profiles')
-      .update({ preferences: updated })
-      .eq('id', session.user.id);
-
-    if (updateError) {
-      throw updateError;
-    }
+    await saveMfaPreferences(supabase, user.id, updated);
 
     return NextResponse.json({ success: true });
   } catch (error) {

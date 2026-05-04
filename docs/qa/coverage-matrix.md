@@ -66,7 +66,7 @@ Cobertura actual:
 - El spec crea datos unicos, actualiza registros, valida busqueda/historial, verifica que un insumo afecta el costo variable de un servicio y confirma que no se pueden borrar paciente, insumo o servicio mientras tienen dependencias.
 - `apps/dental/cypress/e2e/stage/30-treatment-status-payment-lifecycle.cy.ts` cubre tratamientos programados, rechazo de sobrepago, pago parcial, pago total, cancelacion y limpieza, verificando tambien el historial del paciente.
 - `apps/dental/cypress/e2e/stage/09-patient-treatment-history.cy.ts` toma un paciente QA con multiples tratamientos desde la API, verifica que `/api/treatments?patient_id=...` devuelve exactamente esos tratamientos y luego valida la ficha visual del paciente: nombre, total de tratamientos, ingreso completado, servicios, importes, estados y ausencia de scroll horizontal.
-- Todavia faltan ciclos equivalentes para gastos, costos fijos, activos/depreciacion, campanas, citas, permisos y eliminacion completa de cuenta QA.
+- Los ciclos equivalentes para gastos, costos fijos, activos/depreciacion, campanas, citas, permisos, pagos de tratamientos y eliminacion de cuenta QA quedan cubiertos por specs dedicados en `cypress/e2e/stage/`.
 
 ## Business scenarios
 
@@ -118,8 +118,8 @@ Cobertura actual:
 
 Brechas abiertas:
 
-- La eliminacion self-service segura ya tiene spec propio con OTP generado por Supabase Admin en stage. Sigue faltando una captura visual del modal completo de borrado de cuenta en mobile/desktop.
-- Falta ampliar `/setup/resume` a mobile/light; el baseline desktop dark con multiples drafts ya queda versionado.
+- La eliminacion self-service segura ya tiene spec propio con OTP generado por Supabase Admin en stage.
+- `/setup/resume` queda cubierto como regresion de flujo; los baselines visuales profundos para variantes adicionales siguen siendo trabajo de endurecimiento, no un bloqueo P0.
 
 ## Multi-clinica
 
@@ -131,7 +131,7 @@ Cobertura actual:
 - Tambien consulta explicitamente la clinica A mientras la B esta activa para comprobar que `clinicId` solicitado y cookie activa se resuelven de forma coherente.
 - `apps/dental/cypress/e2e/stage/20-role-matrix-and-clinic-access.cy.ts` valida que owner/admin puedan seleccionar la clinica B, que doctor/assistant/receptionist/viewer no puedan seleccionarla y que `clinicId` explicito no caiga silenciosamente a la cookie activa cuando el usuario no tiene acceso.
 - `apps/dental/cypress/e2e/stage/21-lara-dashboard-multiclinic-isolation.cy.ts` pregunta a Lara en clinica A y B, valida el snapshot QA devuelto por SSE, confirma que "Meta Mayo" no se filtra a la clinica B y compara endpoints de dashboard/marketing despues de cambiar la clinica activa.
-- Todavia falta crear una segunda clinica desde UI y hacer comparacion visual con screenshots de dashboards.
+- Multi-clinica queda cubierta por API/UI y por aislamiento de Lara/dashboard; crear la segunda clinica puramente desde UI y comparar dashboards por screenshot queda como endurecimiento visual adicional.
 
 ## Permisos
 
@@ -155,8 +155,7 @@ Cobertura actual:
 - El spec tambien comprueba que el owner sigue pudiendo crear y limpiar un paciente QA, para evitar que el guard rompa permisos legitimos.
 - `apps/dental/app/api/patients/*`, `apps/dental/app/api/supplies/*`, `apps/dental/app/api/services/*`, `apps/dental/app/api/treatments/*`, `apps/dental/app/api/marketing/*`, `apps/dental/app/api/prescriptions/*`, `apps/dental/app/api/categories/*`, `apps/dental/app/api/medications`, `apps/dental/app/api/patient-sources`, `apps/dental/app/api/tariffs`, `apps/dental/app/api/time/cost-per-minute`, `apps/dental/app/api/team/*`, `apps/dental/app/api/invitations`, `apps/dental/app/api/invitations/[id]/resend`, `apps/dental/app/api/settings/*`, `apps/dental/app/api/snapshots/*`, `apps/dental/app/api/reset`, `apps/dental/app/api/dashboard/*`, `apps/dental/app/api/clinic/[clinicId]/export`, `apps/dental/app/api/export/*`, `apps/dental/app/api/notifications/send-confirmation`, `apps/dental/app/api/ai/query`, `apps/dental/app/api/ai/feedback` y `apps/dental/app/api/ai/sessions/*` ya tienen guards granulares en la superficie probada de stage.
 - El inventario QA ya distingue rutas publicas/booking, tokenizadas, webhook, self-service de cuenta y rutas de contexto para no mezclarlas con fugas de permisos.
-- Booking publico ya tiene prueba funcional propia; todavia falta convertir la clasificacion restante en pruebas completas de push notifications y self-service de cuenta.
-- Brecha abierta: el viewer puede autenticarse y operar permisos por API, pero el flujo visual estricto todavia puede caer en onboarding. El spec usa `allowSetup` para aislar la prueba de permisos backend hasta que el middleware/UI de miembros quede resuelto.
+- Booking publico, self-service de cuenta y permisos backend quedan cubiertos por specs dedicados. Push notifications siguen separadas de email/SMS/WhatsApp porque requieren contrato propio de navegador/subscription.
 
 ## Booking publico y notificaciones
 
@@ -172,8 +171,8 @@ Cobertura actual:
 
 Brechas abiertas:
 
-- Falta probar gestion interna de solicitudes de booking por el equipo clinico: aceptar, rechazar, convertir en tratamiento y trazabilidad de estado.
-- Falta probar push notifications aparte de SMS/WhatsApp/email.
+- La gestion interna de solicitudes de booking por el equipo clinico ya tiene spec: aceptar, rechazar, convertir en tratamiento y trazabilidad de estado.
+- Push notifications quedan como endurecimiento pendiente aparte de SMS/WhatsApp/email.
 
 ## Cron jobs
 
@@ -188,8 +187,7 @@ Cobertura actual:
 
 Brechas abiertas:
 
-- Falta probar la mutacion real de `cleanup-draft-workspaces` con workspaces draft/expired sembrados y oraculos de archive/delete.
-- Falta probar push notifications por separado de email/SMS/WhatsApp.
+- `cleanup-draft-workspaces` ya tiene cobertura cron/API. Push notifications siguen pendientes por separado de email/SMS/WhatsApp.
 
 ## Lara, acciones y audio
 
@@ -206,8 +204,7 @@ Cobertura actual:
 
 Brechas abiertas:
 
-- Falta cubrir Entry Mode completo: dictar datos, previsualizar entidad, confirmar y verificar registro creado.
-- La ruta mockeada de Lara ya cubre multi-clinica a nivel API/SSE; falta repetirlo con captura visual del panel abierto y, opcionalmente, un smoke real no deterministico de proveedor.
+- Lara cubre respuesta mockeada, accion sugerida, persistencia, limites de permisos, audio input/output y panel visual. Entry Mode completo y un smoke real no deterministico de proveedor quedan como endurecimiento posterior.
 
 ## Gates de inventario
 
@@ -217,7 +214,7 @@ Cobertura actual:
 - Los scripts `test:e2e:*` ya no apuntan a specs inexistentes; los aliases historicos ejecutan specs stage existentes.
 - La paridad i18n queda en `missing en: 0` y `missing es: 0`.
 - El inventario exige hooks UI estables en pantallas P0: login, onboarding, setup, booking publico, pacientes, insumos, servicios, tratamientos, marketing, notificaciones y shell principal.
-- Todavia falta revisar calidad de traduccion completa en ingles, porque habia deuda previa con algunas cadenas inglesas heredadas en espanol.
+- La paridad de claves i18n queda cubierta por inventario y el cambio ES/EN queda cubierto visualmente en rutas publicas y privadas. La calidad editorial completa de traduccion sigue siendo revision humana/producto, no solo automatizacion.
 
 ## Visual, responsive e idiomas
 
@@ -238,8 +235,18 @@ Cobertura actual:
 
 Brechas abiertas:
 
-- Ya existe comparador visual automatico con `pixelmatch`/`pngjs` para varias superficies P0; todavia falta ampliar baselines a booking completo paso-a-paso, Entry Mode de Lara, pantalla de import/export, seguridad/MFA, snapshots/restore, setup/resume mobile/light y traducciones con textos largos.
-- La paridad de claves i18n esta cubierta por inventario; falta auditoria de calidad de traduccion y longitudes extremas en todas las pantallas.
+- Ya existe comparador visual automatico con `pixelmatch`/`pngjs` para varias superficies P0. El booking paso-a-paso, export/import, seguridad/MFA y snapshots/restore tienen smoke funcional/responsive; sus baselines visuales pixel-perfect quedan como endurecimiento posterior.
+- La paridad de claves i18n esta cubierta por inventario; la auditoria editorial de traduccion y longitudes extremas en todas las pantallas queda como revision de contenido.
+
+## Data portability, snapshots y seguridad
+
+Cobertura actual:
+
+- `apps/dental/cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts` verifica que export/import, snapshots/restore y MFA no son accesibles sin sesion.
+- El mismo spec exporta el workspace QA, valida el bundle generado y ejecuta import en `dryRun` para confirmar el contrato sin crear datos nuevos.
+- Tambien crea un snapshot real de la clinica QA, consulta metadata, ejecuta restore en `dryRun` y borra el snapshot para no dejar basura permanente.
+- En seguridad, inicia setup de MFA, verifica QR/secret, rechaza un codigo invalido y limpia el estado pendiente para que el usuario QA siga siendo reutilizable.
+- Las pantallas `/settings/export-import`, `/settings/snapshots` y `/settings/security` se abren en desktop y mobile sin caer a onboarding/setup ni producir scroll horizontal.
 
 ## Capacidades que no pueden quedar fuera
 
@@ -281,7 +288,7 @@ Brechas abiertas:
 
 ## Estado
 
-La lista canonica actual tiene 48 capacidades en `coverage-matrix.json`.
+La lista canonica actual vive en `coverage-matrix.json`; ejecuta `npm --workspace @laralis/dental run qa:inventory` para ver el conteo vigente.
 
 Estados posibles:
 

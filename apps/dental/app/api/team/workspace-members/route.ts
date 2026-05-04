@@ -6,13 +6,10 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import type { WorkspaceMember, WorkspaceRole } from '@/lib/permissions';
 import { forbiddenIfMissingPermission } from '@/lib/permissions';
 import { readJson } from '@/lib/validation';
-
-// Type for the user_profiles relation from Supabase query
-interface UserProfileRelation {
-  email: string | null;
-  full_name: string | null;
-  avatar_url: string | null;
-}
+import {
+  findAuthUserIdByEmail,
+  getAuthUserProfilesByIds,
+} from '@/lib/auth-user-profiles';
 
 /**
  * GET /api/team/workspace-members
@@ -102,78 +99,14 @@ export async function GET(request: NextRequest) {
     }
 
     const userIds = (members || []).map((member) => member.user_id);
-    const profilesById = new Map<string, UserProfileRelation>();
-
-    if (userIds.length > 0) {
-      const { data: profiles, error: profilesError } = await supabaseAdmin
-        .from('user_profiles')
-        .select('id, email, full_name, avatar_url')
-        .in('id', userIds);
-
-      if (profilesError) {
-        console.error('[workspace-members] Error fetching profiles:', profilesError);
-      } else {
-        (profiles || []).forEach((profile) => {
-          profilesById.set(profile.id, {
-            email: profile.email,
-            full_name: profile.full_name,
-            avatar_url: profile.avatar_url,
-          });
-        });
-      }
-    }
-
-    const membersWithMissingProfile = userIds.filter((memberId) => {
-      const profile = profilesById.get(memberId);
-      return !profile?.email;
-    });
-
-    const missingProfileIds = Array.from(new Set(membersWithMissingProfile));
-    const authFallbacks = new Map<string, UserProfileRelation>();
-
-    if (missingProfileIds.length > 0) {
-      const authResults = await Promise.all(
-        missingProfileIds.map(async (memberId) => {
-          const { data } = await supabaseAdmin.auth.admin.getUserById(memberId);
-          const user = data?.user;
-
-          if (!user) return null;
-
-          const metadata = user.user_metadata as Record<string, unknown> | undefined;
-          const fullName =
-            typeof metadata?.full_name === 'string'
-              ? metadata.full_name
-              : typeof metadata?.name === 'string'
-                ? metadata.name
-                : null;
-          const avatarUrl =
-            typeof metadata?.avatar_url === 'string' ? metadata.avatar_url : null;
-
-          return {
-            userId: memberId,
-            profile: {
-              email: user.email || null,
-              full_name: fullName,
-              avatar_url: avatarUrl,
-            },
-          };
-        })
-      );
-
-      authResults.forEach((result) => {
-        if (result?.profile) {
-          authFallbacks.set(result.userId, result.profile);
-        }
-      });
-    }
+    const profilesById = await getAuthUserProfilesByIds(userIds);
 
     // Transform to expected format
     const transformedMembers: WorkspaceMember[] = (members || []).map((m) => {
       const profile = profilesById.get(m.user_id) || null;
-      const fallbackProfile = authFallbacks.get(m.user_id) || null;
-      const email = profile?.email || fallbackProfile?.email || '';
-      const fullName = profile?.full_name ?? fallbackProfile?.full_name ?? null;
-      const avatarUrl = profile?.avatar_url ?? fallbackProfile?.avatar_url ?? null;
+      const email = profile?.email || '';
+      const fullName = profile?.full_name ?? null;
+      const avatarUrl = profile?.avatar_url ?? null;
 
       return {
         id: m.id,
@@ -281,17 +214,12 @@ export async function POST(request: NextRequest) {
     const validatedData = createInvitationSchema.parse(body);
 
     // Check if user already exists in workspace
+    const existingUserId = await findAuthUserIdByEmail(validatedData.email);
     const { data: existingMember } = await supabaseAdmin
       .from('workspace_users')
       .select('id')
       .eq('workspace_id', workspaceId)
-      .eq('user_id', (
-        await supabaseAdmin
-          .from('user_profiles')
-          .select('id')
-          .eq('email', validatedData.email)
-          .single()
-      ).data?.id || '00000000-0000-0000-0000-000000000000')
+      .eq('user_id', existingUserId || '00000000-0000-0000-0000-000000000000')
       .single();
 
     if (existingMember) {

@@ -36,31 +36,32 @@ export async function GET() {
   try {
     const supabase = createClient();
     const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession();
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
-    if (sessionError) {
-      throw sessionError;
+    if (authError) {
+      throw authError;
     }
 
-    if (!session?.user) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { data, error } = await supabase
-      .from('user_profiles')
-      .select('locale, timezone, theme, notification_settings')
-      .eq('id', session.user.id)
-      .single();
+      .from('user_settings')
+      .select('value')
+      .eq('user_id', user.id)
+      .eq('key', 'preferences')
+      .maybeSingle();
 
-    if (error && error.code !== 'PGRST116') {
+    if (error) {
       throw error;
     }
 
     const payload = {
-      ...(data ?? {}),
-    };
+      ...(typeof data?.value === 'object' && data.value !== null ? data.value : {}),
+    } as Partial<PreferencesPayload>;
 
     const locale = typeof payload.locale === 'string' ? payload.locale : 'es';
     const timezone =
@@ -72,20 +73,20 @@ export async function GET() {
         ? payload.theme
         : 'system';
     const notifications =
-      typeof payload.notification_settings === 'object' &&
-      payload.notification_settings !== null
+      typeof payload.notifications === 'object' &&
+      payload.notifications !== null
         ? {
             email:
-              typeof payload.notification_settings.email === 'boolean'
-                ? payload.notification_settings.email
+              typeof payload.notifications.email === 'boolean'
+                ? payload.notifications.email
                 : true,
             sms:
-              typeof payload.notification_settings.sms === 'boolean'
-                ? payload.notification_settings.sms
+              typeof payload.notifications.sms === 'boolean'
+                ? payload.notifications.sms
                 : false,
             push:
-              typeof payload.notification_settings.push === 'boolean'
-                ? payload.notification_settings.push
+              typeof payload.notifications.push === 'boolean'
+                ? payload.notifications.push
                 : false,
           }
         : defaultPreferences().notifications;
@@ -128,30 +129,31 @@ export async function PUT(request: NextRequest) {
 
     const supabase = createClient();
     const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession();
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
-    if (sessionError) {
-      throw sessionError;
+    if (authError) {
+      throw authError;
     }
 
-    if (!session?.user) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const payload = parseResult.data;
-    const profileUpdate = {
-      id: session.user.id,
-      locale: payload.locale,
-      timezone: payload.timezone,
-      theme: payload.theme,
-      notification_settings: payload.notifications,
-    };
 
     const { error: upsertError } = await supabase
-      .from('user_profiles')
-      .upsert(profileUpdate, { onConflict: 'id' });
+      .from('user_settings')
+      .upsert(
+        {
+          user_id: user.id,
+          key: 'preferences',
+          value: payload,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id,key' }
+      );
 
     if (upsertError) {
       throw upsertError;

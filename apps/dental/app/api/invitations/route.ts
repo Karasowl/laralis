@@ -5,6 +5,10 @@ import { resolveClinicContext } from '@/lib/clinic';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { readJson } from '@/lib/validation';
 import { forbiddenIfMissingPermission } from '@/lib/permissions';
+import {
+  findAuthUserIdByEmail,
+  getAuthUserProfileById,
+} from '@/lib/auth-user-profiles';
 
 /**
  * GET /api/invitations
@@ -67,7 +71,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Build query
+    // Build query. The inviter lives in auth.users, not in a user_profiles table.
     let query = supabaseAdmin
       .from('invitations')
       .select(`
@@ -88,12 +92,7 @@ export async function GET(request: NextRequest) {
         message,
         resent_count,
         last_resent_at,
-        created_at,
-        inviter:user_profiles!invitations_invited_by_fkey (
-          id,
-          email,
-          full_name
-        )
+        created_at
       `)
       .eq('workspace_id', workspaceId)
       .order('created_at', { ascending: false });
@@ -126,6 +125,16 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform and add status
+    const inviterIds = Array.from(
+      new Set((invitations || []).map((inv) => inv.invited_by).filter(Boolean))
+    );
+    const inviterProfiles = new Map<string, Awaited<ReturnType<typeof getAuthUserProfileById>>>();
+    await Promise.all(
+      inviterIds.map(async (inviterId) => {
+        inviterProfiles.set(inviterId, await getAuthUserProfileById(inviterId));
+      })
+    );
+
     const transformedInvitations = (invitations || []).map((inv) => {
       let status = 'pending';
       if (inv.accepted_at) {
@@ -138,6 +147,7 @@ export async function GET(request: NextRequest) {
 
       return {
         ...inv,
+        inviter: inviterProfiles.get(inv.invited_by) || null,
         status,
         // Don't expose full token in list
         token: undefined,
@@ -248,18 +258,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user is already a member
-    const { data: existingProfile } = await supabaseAdmin
-      .from('user_profiles')
-      .select('id')
-      .eq('email', validatedData.email)
-      .single();
+    const existingUserId = await findAuthUserIdByEmail(validatedData.email);
 
-    if (existingProfile) {
+    if (existingUserId) {
       const { data: existingMember } = await supabaseAdmin
         .from('workspace_users')
         .select('id')
         .eq('workspace_id', workspaceId)
-        .eq('user_id', existingProfile.id)
+        .eq('user_id', existingUserId)
         .eq('is_active', true)
         .single();
 

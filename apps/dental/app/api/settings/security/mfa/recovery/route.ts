@@ -7,6 +7,7 @@ import {
   generateRecoveryCodes,
   verifyTotpToken,
 } from '@/lib/security/totp';
+import { loadMfaPreferences, saveMfaPreferences } from '@/lib/security/mfa-preferences';
 import { readJson } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic'
@@ -14,13 +15,6 @@ export const dynamic = 'force-dynamic'
 const regenerateSchema = z.object({
   code: z.string().min(6).max(10),
 });
-
-function ensurePreferences(input: unknown): Record<string, any> {
-  if (typeof input === 'object' && input !== null) {
-    return input as Record<string, any>;
-  }
-  return {};
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,26 +34,16 @@ export async function POST(request: NextRequest) {
 
     const supabase = createClient();
     const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession();
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
-    if (sessionError) throw sessionError;
-    if (!session?.user) {
+    if (authError) throw authError;
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .select('preferences')
-      .eq('id', session.user.id)
-      .single();
-
-    if (error && error.code !== 'PGRST116') {
-      throw error;
-    }
-
-    const preferences = ensurePreferences(data?.preferences);
+    const preferences = await loadMfaPreferences(supabase, user.id);
     const current = preferences.two_factor;
 
     if (!current?.enabled || !current?.secret) {
@@ -90,14 +74,7 @@ export async function POST(request: NextRequest) {
       },
     };
 
-    const { error: updateError } = await supabase
-      .from('user_profiles')
-      .update({ preferences: updatedPreferences })
-      .eq('id', session.user.id);
-
-    if (updateError) {
-      throw updateError;
-    }
+    await saveMfaPreferences(supabase, user.id, updatedPreferences);
 
     return NextResponse.json({
       data: {
