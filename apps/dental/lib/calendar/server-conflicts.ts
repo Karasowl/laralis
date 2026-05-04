@@ -42,20 +42,21 @@ function relatedService(row: any) {
 }
 
 async function fetchTreatmentsForConflicts({ clinicId, date }: ExistingAppointmentParams) {
-  const baseQuery = () => supabaseAdmin
+  const query = (select: string) => supabaseAdmin
     .from('treatments')
+    .select(select)
     .eq('clinic_id', clinicId)
     .eq('treatment_date', date)
     .in('status', ['pending', 'scheduled', 'in_progress'])
     .not('treatment_time', 'is', null)
 
-  const primary = await baseQuery().select(treatmentSelectWithDuration)
+  const primary = await query(treatmentSelectWithDuration)
 
   if (!primary.error) return primary.data || []
 
   if (primary.error.code !== '42703') throw primary.error
 
-  const legacy = await baseQuery().select(treatmentSelectWithLegacyMinutes)
+  const legacy = await query(treatmentSelectWithLegacyMinutes)
 
   if (legacy.error) throw legacy.error
 
