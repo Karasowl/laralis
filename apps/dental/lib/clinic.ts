@@ -192,9 +192,13 @@ export async function resolveClinicContext({
     ? requestedClinicId
     : null;
 
-  if (normalizedRequested) {
-    candidateClinicIds.push(normalizedRequested);
-  }
+  if (normalizedRequested) {
+    const canAccessRequested = await hasClinicAccess(supabase, normalizedRequested);
+    if (!canAccessRequested) {
+      return { error: { status: 403, message: 'Clinic access denied' } };
+    }
+    candidateClinicIds.push(normalizedRequested);
+  }
 
   const cookieClinicId = getClinicIdFromCookies(cookieStore);
   if (isUuid(cookieClinicId) && !candidateClinicIds.includes(cookieClinicId)) {

@@ -53,6 +53,7 @@
     "test:e2e:stage:crons": "cross-env CYPRESS_BASE_URL=https://laralis-monorepo-preview.vercel.app CYPRESS_SUPABASE_URL=https://kafbqdliromcveojtdar.supabase.co CYPRESS_VIDEO=false cypress run --spec \"cypress/e2e/stage/17-cron-jobs.cy.ts\"",
     "test:e2e:stage:lara": "cross-env CYPRESS_BASE_URL=https://laralis-monorepo-preview.vercel.app CYPRESS_SUPABASE_URL=https://kafbqdliromcveojtdar.supabase.co CYPRESS_VIDEO=false cypress run --spec \"cypress/e2e/stage/18-lara-ai-actions.cy.ts\"",
     "test:e2e:stage:reports": "cross-env CYPRESS_BASE_URL=https://laralis-monorepo-preview.vercel.app CYPRESS_VIDEO=false cypress run --spec \"cypress/e2e/stage/19-reports-dashboard-oracles.cy.ts\"",
+    "test:e2e:stage:roles": "cross-env CYPRESS_BASE_URL=https://laralis-monorepo-preview.vercel.app CYPRESS_VIDEO=false cypress run --spec \"cypress/e2e/stage/20-role-matrix-and-clinic-access.cy.ts\"",
     "test:all": "node test-runner.js all",
     "test:quick": "npm run test:unit && npm run test:integration",
     "test:full": "npm run test:unit && npm run test:integration && npm run test:api && npm run test:e2e",

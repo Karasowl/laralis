@@ -123,7 +123,8 @@ Cobertura actual:
 - El spec tambien crea una clinica nueva dentro del workspace QA, la selecciona como clinica activa, crea un paciente unico, verifica que no aparece en la clinica A y limpia paciente/clinica al terminar.
 - Cambia la clinica activa por API, verifica que la clinica A conserva pacientes, tratamientos, servicios y campana "Meta Mayo", y confirma que la clinica B no ve esos datos.
 - Tambien consulta explicitamente la clinica A mientras la B esta activa para comprobar que `clinicId` solicitado y cookie activa se resuelven de forma coherente.
-- Todavia falta crear una segunda clinica desde UI y validar aislamiento en dashboards visuales, reportes y Lara.
+- `apps/dental/cypress/e2e/stage/20-role-matrix-and-clinic-access.cy.ts` valida que owner/admin puedan seleccionar la clinica B, que doctor/assistant/receptionist/viewer no puedan seleccionarla y que `clinicId` explicito no caiga silenciosamente a la cookie activa cuando el usuario no tiene acceso.
+- Todavia falta crear una segunda clinica desde UI y validar aislamiento en dashboards visuales y Lara.
 
 ## Permisos
 
@@ -131,6 +132,7 @@ Cobertura actual:
 
 - `apps/dental/cypress/e2e/stage/08-team-admin-invitation.cy.ts` cubre el flujo positivo de equipo: owner invita a un admin unico, el usuario acepta la invitacion, aparece como admin de workspace/clinica y puede crear un paciente real en la clinica QA.
 - `apps/dental/cypress/e2e/stage/05-permission-boundaries.cy.ts` inicia sesion como `qa-viewer@laralis.test` y verifica que sus permisos de pacientes, servicios, insumos y tratamientos son solo lectura, y que marketing/pagos no son accesibles para ese rol.
+- `apps/dental/cypress/e2e/stage/20-role-matrix-and-clinic-access.cy.ts` valida la matriz efectiva de owner, admin, doctor, assistant, receptionist y viewer usando `/api/permissions/my`; fija permisos criticos de clinica, pagos, marketing, equipo, finanzas, Lara e import/export.
 - El mismo spec comprueba que el backend bloquea con `403` escrituras de viewer en `POST /api/patients`, `POST/PUT/DELETE /api/supplies`, `POST/PUT/DELETE /api/services`, `POST/PUT/DELETE /api/treatments`, endpoints de plataformas/campanas de marketing y `POST /api/treatments/:id/payment`.
 - El spec tambien bloquea lecturas sensibles de analytics/reportes para viewer: CAC trend, channel ROI, marketing metrics, campaign ROI, legacy marketing ROI, predicciones de ingresos y refunds.
 - El spec tambien bloquea acciones de Lara para viewer: consultas de retencion, comparaciones financieras, forecasts, analisis de margen, optimizacion de inventario, simulaciones de precio y acciones que cambian precios, gastos o configuracion de tiempo.

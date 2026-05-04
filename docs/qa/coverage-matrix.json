@@ -61,7 +61,7 @@
     "domain": "multi-clinic",
     "capability": "Pacientes, tratamientos, dashboards, marketing y Lara respetan clinica activa",
     "layers": ["cypress", "api", "database"],
-    "status": "partial"
+    "status": "covered"
   },
   {
     "id": "qa-009-team-add-admin",
@@ -77,7 +77,7 @@
     "domain": "permissions",
     "capability": "Owner, admin, doctor, assistant, receptionist y viewer tienen permisos correctos",
     "layers": ["api", "cypress", "database"],
-    "status": "partial"
+    "status": "covered"
   },
   {
     "id": "qa-011-backend-permission-enforcement",

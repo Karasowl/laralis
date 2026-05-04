@@ -367,6 +367,12 @@ Correr solo aislamiento multi-clinica contra stage:
 npm --workspace @laralis/dental run test:e2e:stage:multiclinic
 ```
 
+Correr solo matriz de roles y acceso multi-clinica contra stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:roles
+```
+
 Correr solo fronteras de permisos contra stage:
 
 ```bash
