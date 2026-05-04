@@ -373,6 +373,12 @@ Correr solo matriz de roles y acceso multi-clinica contra stage:
 npm --workspace @laralis/dental run test:e2e:stage:roles
 ```
 
+Correr solo aislamiento multi-clinica de Lara, dashboard y marketing contra stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:lara-isolation
+```
+
 Correr solo fronteras de permisos contra stage:
 
 ```bash

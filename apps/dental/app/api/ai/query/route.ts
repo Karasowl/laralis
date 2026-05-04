@@ -19,6 +19,7 @@ import { ConversationContextManager } from '@/lib/ai/context'
 import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300 // 5 minutes for Kimi K2 Thinking
@@ -55,16 +56,69 @@ function stageOnlyMockForbidden() {
   )
 }
 
-function createQaQueryResult(query: string): QueryResult {
+type QaClinicSnapshot = {
+  patientCount: number
+  treatmentCount: number
+  campaignNames: string[]
+  hasMetaMayo: boolean
+}
+
+async function countQaClinicRows(table: 'patients' | 'treatments', clinicId: string) {
+  const { count, error } = await supabaseAdmin
+    .from(table)
+    .select('id', { count: 'exact', head: true })
+    .eq('clinic_id', clinicId)
+
+  if (error) {
+    throw new Error(`QA mock failed to count ${table}: ${error.message}`)
+  }
+
+  return count || 0
+}
+
+async function loadQaClinicSnapshot(clinicId: string): Promise<QaClinicSnapshot> {
+  const [patientCount, treatmentCount, campaignsResult] = await Promise.all([
+    countQaClinicRows('patients', clinicId),
+    countQaClinicRows('treatments', clinicId),
+    supabaseAdmin
+      .from('marketing_campaigns')
+      .select('name')
+      .eq('clinic_id', clinicId)
+      .eq('is_archived', false)
+      .order('name', { ascending: true }),
+  ])
+
+  if (campaignsResult.error) {
+    throw new Error(`QA mock failed to read campaigns: ${campaignsResult.error.message}`)
+  }
+
+  const campaignNames = (campaignsResult.data || [])
+    .map((campaign) => campaign.name)
+    .filter((name): name is string => typeof name === 'string' && name.length > 0)
+
+  return {
+    patientCount,
+    treatmentCount,
+    campaignNames,
+    hasMetaMayo: campaignNames.includes('Meta Mayo'),
+  }
+}
+
+function createQaQueryResult(query: string, snapshot: QaClinicSnapshot): QueryResult {
+  const campaigns = snapshot.campaignNames.length > 0 ? snapshot.campaignNames.join(', ') : 'none'
+
   return {
     answer:
       `Lara QA respondio de forma deterministica para: "${query}". ` +
-      'La clinica mantiene contexto activo y puede proponer una accion verificable.',
+      'La clinica mantiene contexto activo y puede proponer una accion verificable. ' +
+      `Snapshot QA: patients=${snapshot.patientCount}; treatments=${snapshot.treatmentCount}; ` +
+      `campaigns=${campaigns}; Meta Mayo=${snapshot.hasMetaMayo ? 'present' : 'absent'}.`,
     thinking:
       'QA mock: no se llamo a ningun proveedor externo. Se genero una accion controlada para Cypress.',
     data: {
       source: 'qa-mock',
       checked: ['active_clinic', 'permissions', 'suggested_action'],
+      clinicSnapshot: snapshot,
     },
     suggestedAction: {
       action: 'update_time_settings',
@@ -191,7 +245,7 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient()
 
     if (qaMockRequested) {
-      return streamQueryResult(createQaQueryResult(query), userId, clinicId)
+      return streamQueryResult(createQaQueryResult(query, await loadQaClinicSnapshot(clinicId)), userId, clinicId)
     }
 
     // Build conversation context from history using ConversationContextManager

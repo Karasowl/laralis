@@ -1,6 +1,6 @@
 # QA Inventory Report
 
-Generated: 2026-05-04T07:46:44.434Z
+Generated: 2026-05-04T08:24:36.040Z
 
 Status: pass
 Failing checks: 0
@@ -66,7 +66,7 @@ seed script: present; assert script: present; env example: present; package scri
 
 Status: pass
 
-declared spec scripts: 29; existing e2e specs: 21; missing declared specs: 0
+declared spec scripts: 30; existing e2e specs: 22; missing declared specs: 0
 
 - ok: test:e2e:multitenancy -> cypress/e2e/stage/04-multiclinic-isolation.cy.ts
 - ok: test:e2e:auth -> cypress/e2e/stage/00-auth-and-shell.cy.ts
@@ -76,8 +76,8 @@ declared spec scripts: 29; existing e2e specs: 21; missing declared specs: 0
 - ok: test:e2e:treatments -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
 - ok: test:e2e:settings -> cypress/e2e/stage/05-permission-boundaries.cy.ts
 - ok: test:e2e:marketing -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
-- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.ts (21 specs)
-- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.ts (21 specs)
+- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.ts (22 specs)
+- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.ts (22 specs)
 - ok: test:e2e:stage:business -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
 - ok: test:e2e:stage:crud -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
 - ok: test:e2e:stage:multiclinic -> cypress/e2e/stage/04-multiclinic-isolation.cy.ts
@@ -97,6 +97,7 @@ declared spec scripts: 29; existing e2e specs: 21; missing declared specs: 0
 - ok: test:e2e:stage:lara -> cypress/e2e/stage/18-lara-ai-actions.cy.ts
 - ok: test:e2e:stage:reports -> cypress/e2e/stage/19-reports-dashboard-oracles.cy.ts
 - ok: test:e2e:stage:roles -> cypress/e2e/stage/20-role-matrix-and-clinic-access.cy.ts
+- ok: test:e2e:stage:lara-isolation -> cypress/e2e/stage/21-lara-dashboard-multiclinic-isolation.cy.ts
 
 ## i18n parity
 
@@ -135,7 +136,7 @@ ui files: 435; files with data-testid: 20; data-testid occurrences: 55; required
 
 Status: pass
 
-api routes: 161; permission guard: 112 (withPermission: 30, manual: 82); qa classified: 16; using supabaseAdmin: 131; admin without permission/cron guard/classification: 0
+api routes: 161; permission guard: 112 (withPermission: 30, manual: 82); qa classified: 16; using supabaseAdmin: 132; admin without permission/cron guard/classification: 0
 
 ## Cron guard inventory
 
