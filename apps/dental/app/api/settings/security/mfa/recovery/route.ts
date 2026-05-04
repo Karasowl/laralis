@@ -38,10 +38,11 @@ export async function POST(request: NextRequest) {
       error: authError,
     } = await supabase.auth.getUser();
 
-    if (authError) throw authError;
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    if (authError) throw authError;
 
     const preferences = await loadMfaPreferences(supabase, user.id);
     const current = preferences.two_factor;

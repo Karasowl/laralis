@@ -16,11 +16,11 @@ export async function GET() {
       error: authError,
     } = await supabase.auth.getUser();
 
-    if (authError) throw authError;
-
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    if (authError) throw authError;
 
     const preferences = await loadMfaPreferences(supabase, user.id);
     const twoFactor = preferences.two_factor;
@@ -54,11 +54,11 @@ export async function DELETE() {
       error: authError,
     } = await supabase.auth.getUser();
 
-    if (authError) throw authError;
-
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    if (authError) throw authError;
 
     const preferences = await loadMfaPreferences(supabase, user.id);
     const current = preferences.two_factor ?? {};
