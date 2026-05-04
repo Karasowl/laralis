@@ -262,7 +262,7 @@ export function useDashboard(options: UseDashboardOptions = {}): DashboardState 
         { endpoint: `/api/dashboard/appointments?clinicId=${clinicId}` },
         { endpoint: `/api/dashboard/charts/revenue?clinicId=${clinicId}&period=${period}&granularity=${chartGranularity}${range}` },
         { endpoint: `/api/dashboard/charts/categories?clinicId=${clinicId}&period=${period}${range}` },
-        { endpoint: `/api/dashboard/charts/services?clinicId=${clinicId}` },
+        { endpoint: `/api/dashboard/charts/services?clinicId=${clinicId}&period=${period}${range}` },
         { endpoint: `/api/dashboard/activities?clinicId=${clinicId}&limit=10` }
       ]
 

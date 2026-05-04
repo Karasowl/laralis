@@ -1,6 +1,6 @@
 # QA Inventory Report
 
-Generated: 2026-05-04T02:54:38.932Z
+Generated: 2026-05-04T03:17:30.610Z
 
 Status: pass
 Failing checks: 0
@@ -27,7 +27,7 @@ Status: pass
 
 capabilities: 44; domains: 22; required missing domains: 0
 
-- status counts: partial=13, planned=15, covered=16
+- status counts: partial=13, planned=14, covered=17
 - priority counts: P0=38, P1=6
 
 ## QA dataset
@@ -66,7 +66,7 @@ seed script: present; assert script: present; env example: present; package scri
 
 Status: pass
 
-declared spec scripts: 22; existing e2e specs: 14; missing declared specs: 0
+declared spec scripts: 23; existing e2e specs: 15; missing declared specs: 0
 
 - ok: test:e2e:multitenancy -> cypress/e2e/stage/04-multiclinic-isolation.cy.ts
 - ok: test:e2e:auth -> cypress/e2e/stage/00-auth-and-shell.cy.ts
@@ -76,8 +76,8 @@ declared spec scripts: 22; existing e2e specs: 14; missing declared specs: 0
 - ok: test:e2e:treatments -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
 - ok: test:e2e:settings -> cypress/e2e/stage/05-permission-boundaries.cy.ts
 - ok: test:e2e:marketing -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
-- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.ts (14 specs)
-- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.ts (14 specs)
+- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.ts (15 specs)
+- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.ts (15 specs)
 - ok: test:e2e:stage:business -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
 - ok: test:e2e:stage:crud -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
 - ok: test:e2e:stage:multiclinic -> cypress/e2e/stage/04-multiclinic-isolation.cy.ts
@@ -90,6 +90,7 @@ declared spec scripts: 22; existing e2e specs: 14; missing declared specs: 0
 - ok: test:e2e:stage:assets -> cypress/e2e/stage/11-assets-depreciation.cy.ts
 - ok: test:e2e:stage:time -> cypress/e2e/stage/12-time-settings-simulations.cy.ts
 - ok: test:e2e:stage:expenses -> cypress/e2e/stage/13-expenses-budget-links.cy.ts
+- ok: test:e2e:stage:date-filters -> cypress/e2e/stage/14-date-filters-coherence.cy.ts
 
 ## i18n parity
 
@@ -124,7 +125,7 @@ ui files: 435; files with data-testid: 16; data-testid occurrences: 42; required
 
 Status: pass
 
-api routes: 161; permission guard: 111 (withPermission: 30, manual: 81); qa classified: 16; using supabaseAdmin: 130; admin without permission/cron guard/classification: 0
+api routes: 161; permission guard: 112 (withPermission: 30, manual: 82); qa classified: 16; using supabaseAdmin: 131; admin without permission/cron guard/classification: 0
 
 ## Cron guard inventory
 

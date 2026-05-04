@@ -173,7 +173,7 @@
     "domain": "date-filters",
     "capability": "Filtros de fecha cambian coherentemente tablas, tarjetas, dashboards y reportes",
     "layers": ["vitest", "cypress", "api"],
-    "status": "planned"
+    "status": "covered"
   },
   {
     "id": "qa-023-date-only-timezone-regression",

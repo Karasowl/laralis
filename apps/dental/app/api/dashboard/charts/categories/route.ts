@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     const now = new Date()
     let start: Date
     let end: Date
-    if (period === 'custom' && dateFrom && dateTo) {
+    if (dateFrom && dateTo) {
       start = new Date(dateFrom)
       end = new Date(dateTo)
       end.setHours(23, 59, 59, 999)

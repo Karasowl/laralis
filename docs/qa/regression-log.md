@@ -9,6 +9,56 @@ Cada entrada debe explicar:
 - Como se verifica.
 - Que riesgo protege.
 
+## 2026-05-04 - Filtros de fecha deben aplicarse igual en listados, tarjetas, graficas y reportes
+
+### Problema
+
+Varios endpoints del dashboard recibian `date_from/date_to`, pero algunas graficas solo respetaban esas fechas si `period=custom`. Eso dejaba abierta la regresion donde una tarjeta podia mostrar un periodo y una grafica otro. Ademas `GET /api/treatments` no aceptaba rango de fechas, lo que hacia mas dificil probar listados de tratamientos por periodo desde QA.
+
+Riesgo asociado:
+
+- Revenue, gastos y tratamientos podian verse correctos en tarjetas, pero inconsistentes en graficas.
+- Un servicio o tratamiento fuera del rango seleccionado podia aparecer en graficas de dashboard.
+- Los reportes podian no coincidir con lo que se ve en listados y cards.
+- Cypress no tenia un oraculo transversal que sembrara fechas dentro/fuera del periodo y comparara superficies.
+
+### Prueba permanente
+
+Archivo:
+
+```text
+apps/dental/cypress/e2e/stage/14-date-filters-coherence.cy.ts
+```
+
+Casos protegidos:
+
+- Crea servicio, paciente, tratamiento y gasto en julio 2026.
+- Crea servicio, paciente, tratamiento y gasto en agosto 2026.
+- Verifica que el rango de julio solo suma julio en `dashboard/revenue`, `dashboard/expenses`, `dashboard/treatments`, `dashboard/patients`, `reports/revenue`, `reports/summary`, `charts/revenue`, `charts/categories`, `charts/services`, `GET /api/treatments` y `GET /api/expenses`.
+- Verifica el rango de agosto con el mismo criterio para detectar contaminacion inversa.
+
+### Implementacion protegida
+
+Archivos:
+
+```text
+apps/dental/app/api/treatments/route.ts
+apps/dental/app/api/dashboard/charts/revenue/route.ts
+apps/dental/app/api/dashboard/charts/categories/route.ts
+apps/dental/app/api/dashboard/charts/services/route.ts
+apps/dental/hooks/use-dashboard.ts
+```
+
+Los charts ahora tratan fechas explicitas como rango dominante, aunque `period` no sea `custom`. El listado de tratamientos acepta `start_date/end_date`, `date_from/date_to` y `from/to`.
+
+### Verificacion
+
+Comando de stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:date-filters
+```
+
 ## 2026-05-03 - Activos deben traducir meses y alimentar depreciacion
 
 ### Problema

@@ -56,6 +56,8 @@ export async function GET(request: NextRequest) {
 
     const patientId = searchParams.get('patient_id') || searchParams.get('patient');
     const hasBalance = searchParams.get('has_balance') === 'true';
+    const dateFrom = searchParams.get('start_date') || searchParams.get('date_from') || searchParams.get('from');
+    const dateTo = searchParams.get('end_date') || searchParams.get('date_to') || searchParams.get('to');
 
     let query = supabaseAdmin
       .from('treatments')
@@ -69,6 +71,14 @@ export async function GET(request: NextRequest) {
 
     if (patientId) {
       query = query.eq('patient_id', patientId);
+    }
+
+    if (dateFrom) {
+      query = query.gte('treatment_date', dateFrom);
+    }
+
+    if (dateTo) {
+      query = query.lte('treatment_date', dateTo);
     }
 
     // Filter treatments with explicit pending balance (user-marked)

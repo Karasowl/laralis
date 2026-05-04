@@ -337,6 +337,12 @@ Correr solo gastos, presupuesto fijo e inventario de insumos contra stage:
 npm --workspace @laralis/dental run test:e2e:stage:expenses
 ```
 
+Correr solo coherencia de filtros de fecha contra stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:date-filters
+```
+
 Correr solo aislamiento multi-clinica contra stage:
 
 ```bash
