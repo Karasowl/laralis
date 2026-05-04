@@ -1,6 +1,6 @@
 # QA Inventory Report
 
-Generated: 2026-05-04T19:15:32.797Z
+Generated: 2026-05-04T19:34:04.350Z
 
 Status: pass
 Failing checks: 0
@@ -112,7 +112,7 @@ en keys: 4943; es effective keys: 4943; missing en: 0; missing es: 0
 
 Status: pass
 
-ui files: 435; files with data-testid: 24; data-testid occurrences: 65; required hooks: 16; missing required hooks: 0
+ui files: 435; files with data-testid: 24; data-testid occurrences: 70; required hooks: 16; missing required hooks: 0
 
 - has hooks: app/auth/login/page.tsx
 - has hooks: app/book/[slug]/confirmation/page.tsx

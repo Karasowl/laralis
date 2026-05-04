@@ -108,12 +108,13 @@ Cobertura actual:
 - El mismo spec reproduce el riesgo que rompio produccion: usuario con clinica activa, pero con un workspace `draft` seleccionado por cookie/localStorage, entra a `/setup/cancel`.
 - `/setup/cancel` ahora restaura el workspace activo y su primera clinica antes de redirigir a `/`; no cierra sesion ni deja la app apuntando al draft si existe cualquier workspace activo accesible.
 - El spec verifica que el conteo de pacientes de la clinica activa se mantiene despues de cancelar setup con el draft seleccionado.
+- El mismo spec cubre `/setup/resume` con usuarios descartables sin workspace activo: crea drafts reales, continua uno hacia `/setup` con contexto de clinica, archiva otro desde la pantalla, elimina el ultimo y verifica que no queden drafts visibles ni scroll horizontal.
 - El inventario QA exige hooks estables en onboarding y setup para que el flujo no dependa de texto traducido.
 
 Brechas abiertas:
 
 - Falta convertir la eliminacion self-service de cuenta en flujo real seguro; hoy el full lifecycle limpia por tarea stage `service_role` para no dejar datos huerfanos.
-- Falta probar el flujo visual de `/setup/resume` con multiples drafts, archive y delete desde la pantalla.
+- Falta agregar baseline PNG de `/setup/resume`; el flujo funcional con multiples drafts, archive y delete ya queda cubierto por Cypress.
 
 ## Multi-clinica
 

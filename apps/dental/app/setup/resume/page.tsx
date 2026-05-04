@@ -73,10 +73,7 @@ export default function ResumeSetupPage() {
 
       if (action === 'resume_setup') {
         router.push('/setup')
-        return
       }
-
-      router.push('/onboarding')
     } catch (error) {
       console.error('[setup/resume] lifecycle action failed', error)
       toast.error(action === 'resume_setup' ? t('resumeError') : action === 'archive' ? t('archiveError') : t('deleteError'))
@@ -116,7 +113,7 @@ export default function ResumeSetupPage() {
         </div>
 
         {resumableWorkspaces.length === 0 ? (
-          <Card>
+          <Card data-testid="setup-resume-empty-state">
             <CardHeader>
               <CardTitle className="text-xl">{t('emptyTitle')}</CardTitle>
               <CardDescription>{t('emptyDescription')}</CardDescription>
@@ -138,7 +135,12 @@ export default function ResumeSetupPage() {
               const deleteBusy = busyId === `${workspace.id}:delete_incomplete`
 
               return (
-                <Card key={workspace.id}>
+                <Card
+                  key={workspace.id}
+                  data-testid="setup-resume-workspace-card"
+                  data-workspace-id={workspace.id}
+                  data-workspace-status={status}
+                >
                   <CardHeader>
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
@@ -166,6 +168,7 @@ export default function ResumeSetupPage() {
                   </CardContent>
                   <CardFooter className="flex flex-col gap-2 sm:flex-row sm:justify-end">
                     <Button
+                      data-testid="setup-resume-continue"
                       onClick={() => runAction(workspace.id, 'resume_setup')}
                       disabled={Boolean(busyId)}
                       className="w-full sm:w-auto"
@@ -174,6 +177,7 @@ export default function ResumeSetupPage() {
                       {resumeBusy ? '...' : t('continue')}
                     </Button>
                     <Button
+                      data-testid="setup-resume-archive"
                       variant="outline"
                       onClick={() => {
                         if (window.confirm(t('confirmArchive'))) {
@@ -187,6 +191,7 @@ export default function ResumeSetupPage() {
                       {archiveBusy ? '...' : t('startOver')}
                     </Button>
                     <Button
+                      data-testid="setup-resume-delete"
                       variant="destructive"
                       onClick={() => {
                         if (window.confirm(t('confirmDelete'))) {
