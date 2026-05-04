@@ -34,6 +34,11 @@ function normaliseDateString(value: string | undefined, fallback: Date): string 
   return parsed.toISOString().split('T')[0]
 }
 
+function patientDate(row: { first_visit_date?: string | null; acquisition_date?: string | null; created_at?: string | null }) {
+  const value = row.first_visit_date || row.acquisition_date || row.created_at || ''
+  return value.slice(0, 10)
+}
+
 export const GET = withPermission('financial_reports.view', async (request, context) => {
   try {
     const searchParams = Object.fromEntries(request.nextUrl.searchParams.entries())
@@ -79,10 +84,8 @@ export const GET = withPermission('financial_reports.view', async (request, cont
         .lte('treatment_date', endISO),
       supabaseAdmin
         .from('patients')
-        .select('id, first_name, last_name, created_at')
+        .select('id, first_name, last_name, first_visit_date, acquisition_date, created_at')
         .eq('clinic_id', clinicId)
-        .gte('created_at', startISO)
-        .lte('created_at', endISO + 'T23:59:59.999Z'),
     ])
 
     if (treatmentsResult.error) {
@@ -118,12 +121,17 @@ export const GET = withPermission('financial_reports.view', async (request, cont
         status: row.status || 'pending',
       }))
 
-    const patients: PatientData[] = (patientsResult.data || []).map(row => ({
-      id: row.id,
-      first_name: row.first_name || '',
-      last_name: row.last_name || '',
-      created_at: row.created_at || new Date().toISOString(),
-    }))
+    const patients: PatientData[] = (patientsResult.data || [])
+      .filter(row => {
+        const date = patientDate(row)
+        return date >= startISO && date <= endISO
+      })
+      .map(row => ({
+        id: row.id,
+        first_name: row.first_name || '',
+        last_name: row.last_name || '',
+        created_at: patientDate(row) || new Date().toISOString(),
+      }))
 
     // Use the already-filtered data from the date range (no more hardcoded "current month")
     const periodTreatments = treatments
