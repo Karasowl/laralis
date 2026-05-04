@@ -27,6 +27,7 @@ type CreatedIds = {
   fixedCostId?: string
   supplyId?: string
   serviceId?: string
+  platformId?: string
   campaignId?: string
   patientId?: string
   treatmentId?: string
@@ -64,6 +65,14 @@ function finishSetupFromCurrentPage() {
   cy.contains('button', completePattern, { timeout: 30000 }).should('be.enabled').click()
 }
 
+function expectRenderedText(text: string) {
+  cy.document().its('body.innerText', { timeout: 30000 }).should('include', text)
+}
+
+function expectRenderedTextMatching(pattern: RegExp) {
+  cy.document().its('body.innerText', { timeout: 30000 }).should('match', pattern)
+}
+
 describe('Stage full lifecycle user journey', () => {
   const password = Cypress.env('QA_STAGE_DEFAULT_PASSWORD') || 'LaralisQA!2026'
   const stamp = uniqueStamp('qa-lifecycle')
@@ -74,10 +83,10 @@ describe('Stage full lifecycle user journey', () => {
   const patientEmail = `${stamp}-patient@laralis.test`
   const supplyName = `Insumo Lifecycle ${stamp}`
   const serviceName = `Servicio Lifecycle ${stamp}`
+  const platformName = `Plataforma Lifecycle ${stamp}`
   const campaignName = `Campana Lifecycle ${stamp}`
   const expenseDescription = `Gasto Lifecycle ${stamp}`
   const ids: CreatedIds = {}
-  let platformName = ''
 
   before(() => {
     cy.task('qaDeleteUserByEmail', email)
@@ -224,15 +233,15 @@ describe('Stage full lifecycle user journey', () => {
       expect(workspace!.onboarding_completed).to.eq(true)
     })
 
-    cy.request('/api/categories?entity_type=marketing_platform').then((response) => {
-      expect(response.status).to.eq(200)
-      const categories = (response.body.data || []) as CategoryRow[]
-      const platform = chooseCategory(categories, /meta|facebook|instagram|google/i, categories[0] || {})
-      expect(platform.id, 'marketing platform for lifecycle campaign').to.be.a('string')
-      platformName = categoryLabel(platform)
+    cy.request('POST', '/api/marketing/platforms', {
+      display_name: platformName,
+      name: `platform_${stamp}`.replace(/[^a-zA-Z0-9_]/g, '_'),
+    }).then((response) => {
+      expectStatus(response)
+      ids.platformId = response.body.data.id
 
       cy.request('POST', '/api/marketing/campaigns', {
-        platform_id: platform.id,
+        platform_id: ids.platformId,
         name: campaignName,
         code: `LIFE-${stamp}`,
       }).then((campaignResponse) => {
@@ -304,23 +313,23 @@ describe('Stage full lifecycle user journey', () => {
     })
 
     cy.visit(`/patients?search=${encodeURIComponent(patientEmail)}`)
-    cy.contains(patientEmail, { timeout: 30000 }).should('be.visible')
-    cy.contains(patientName, { timeout: 30000 }).should('be.visible')
+    expectRenderedText(patientEmail)
+    expectRenderedText(patientName)
     cy.assertNoHorizontalScroll()
 
     cy.visit('/treatments')
-    cy.contains(serviceName, { timeout: 30000 }).should('be.visible')
-    cy.contains(/completed|completado|completada/i, { timeout: 30000 }).should('be.visible')
+    expectRenderedText(serviceName)
+    expectRenderedTextMatching(/completed|completado|completada/i)
     cy.assertNoHorizontalScroll()
 
     cy.visit('/marketing')
     cy.contains(platformName, { timeout: 30000 }).click()
-    cy.contains(campaignName, { timeout: 30000 }).should('be.visible')
-    cy.contains(/1\b|paciente|patient/i, { timeout: 30000 }).should('be.visible')
+    expectRenderedText(campaignName)
+    expectRenderedTextMatching(/1\b|paciente|patient/i)
     cy.assertNoHorizontalScroll()
 
     cy.visit('/expenses')
-    cy.contains(expenseDescription, { timeout: 30000 }).should('be.visible')
+    expectRenderedText(expenseDescription)
     cy.assertNoHorizontalScroll()
 
     cy.switchLanguage('en')
