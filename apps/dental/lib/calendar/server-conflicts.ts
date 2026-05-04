@@ -14,6 +14,24 @@ type ExistingAppointmentParams = {
   date: string
 }
 
+const treatmentSelectWithDuration = `
+  id,
+  treatment_date,
+  treatment_time,
+  duration_minutes,
+  patient:patients (first_name, last_name),
+  service:services (name)
+`
+
+const treatmentSelectWithLegacyMinutes = `
+  id,
+  treatment_date,
+  treatment_time,
+  minutes,
+  patient:patients (first_name, last_name),
+  service:services (name)
+`
+
 function normalizeTime(value: unknown) {
   return typeof value === 'string' ? value.slice(0, 5) : null
 }
@@ -23,26 +41,32 @@ function relatedService(row: any) {
   return row?.service
 }
 
-export async function fetchExistingScheduleAppointments({
-  clinicId,
-  date,
-}: ExistingAppointmentParams): Promise<Appointment[]> {
-  const { data: treatments, error: treatmentError } = await supabaseAdmin
+async function fetchTreatmentsForConflicts({ clinicId, date }: ExistingAppointmentParams) {
+  const baseQuery = () => supabaseAdmin
     .from('treatments')
-    .select(`
-      id,
-      treatment_date,
-      treatment_time,
-      duration_minutes,
-      patient:patients (first_name, last_name),
-      service:services (name)
-    `)
     .eq('clinic_id', clinicId)
     .eq('treatment_date', date)
     .in('status', ['pending', 'scheduled', 'in_progress'])
     .not('treatment_time', 'is', null)
 
-  if (treatmentError) throw treatmentError
+  const primary = await baseQuery().select(treatmentSelectWithDuration)
+
+  if (!primary.error) return primary.data || []
+
+  if (primary.error.code !== '42703') throw primary.error
+
+  const legacy = await baseQuery().select(treatmentSelectWithLegacyMinutes)
+
+  if (legacy.error) throw legacy.error
+
+  return legacy.data || []
+}
+
+export async function fetchExistingScheduleAppointments({
+  clinicId,
+  date,
+}: ExistingAppointmentParams): Promise<Appointment[]> {
+  const treatments = await fetchTreatmentsForConflicts({ clinicId, date })
 
   const { data: bookings, error: bookingError } = await supabaseAdmin
     .from('public_bookings')
@@ -64,7 +88,7 @@ export async function fetchExistingScheduleAppointments({
     id: t.id,
     treatment_date: t.treatment_date,
     treatment_time: normalizeTime(t.treatment_time),
-    duration_minutes: Number(t.duration_minutes || 30),
+    duration_minutes: Number(t.duration_minutes || t.minutes || 30),
     patient_name: t.patient
       ? `${t.patient.first_name || ''} ${t.patient.last_name || ''}`.trim()
       : undefined,
