@@ -194,12 +194,12 @@ Cobertura actual:
 - El spec abre Lara desde el FAB real, entra a modo Consultas, envia una pregunta por UI, recibe la sugerencia, confirma la accion y verifica en `/api/settings/time` que la configuracion se persistio en la base de datos.
 - El mismo spec prueba que `qa-viewer@laralis.test` recibe `403 Forbidden` tanto en la consulta mockeada de Lara como en la accion mutable `update-time-settings`.
 - Los mocks de `/api/ai/transcribe` y `/api/ai/synthesize` verifican entrada y salida de audio sin tocar Deepgram, Kimi ni proveedor TTS real.
+- El mismo spec abre Lara desde la UI, genera una respuesta deterministica, pulsa el boton de escuchar y verifica con `Audio` mockeado en navegador que `/api/ai/synthesize` responde y que `audio.play()` se ejecuta.
 - `FloatingAssistant`, `QueryAssistant` y `ActionConfirmCard` tienen hooks `data-testid` para que la suite no dependa de texto traducido al probar Lara.
 - `apps/dental/cypress/e2e/stage/21-lara-dashboard-multiclinic-isolation.cy.ts` prueba Lara con clinica A y clinica B: el mock sigue pasando por permisos reales, pero ahora lee un snapshot de pacientes, tratamientos y campanas de la clinica resuelta para detectar fugas de contexto multi-clinica.
 
 Brechas abiertas:
 
-- Falta una prueba visual de reproduccion real del boton de audio con `Audio` mockeado en navegador.
 - Falta cubrir Entry Mode completo: dictar datos, previsualizar entidad, confirmar y verificar registro creado.
 - La ruta mockeada de Lara ya cubre multi-clinica a nivel API/SSE; falta repetirlo con captura visual del panel abierto y, opcionalmente, un smoke real no deterministico de proveedor.
 
@@ -225,11 +225,11 @@ Cobertura actual:
 - Booking publico queda cubierto visualmente en desktop y mobile sin depender del shell autenticado.
 - `apps/dental/cypress/e2e/stage/22-navigation-session-regression.cy.ts` cubre reload, atras/adelante, cambio ES/EN, persistencia de clinica activa vacia y sesion expirada: las rutas protegidas deben ir a login, no a onboarding/setup.
 - `apps/dental/cypress/e2e/stage/23-chart-tooltips-dark-mode.cy.js` valida que la grafica de ingresos/gastos en tema claro y las graficas de ROI por canal/CAC en tema oscuro tienen primitivas Recharts con dimensiones reales, que sus tooltips aparecen al interactuar y que Marketing mantiene visible la campana QA "Meta Mayo".
-- `apps/dental/cypress/e2e/stage/24-visual-regression-baselines.cy.js` agrega comparacion de screenshots con baseline PNG y tolerancia visual para dashboard overview desktop claro, dashboard marketing desktop oscuro, pacientes mobile oscuro, reportes/rentabilidad, ficha de paciente con historial de tratamientos, formulario de paciente, formulario de tratamiento, booking publico mobile, panel de Lara abierto y formulario de servicio mobile.
+- `apps/dental/cypress/e2e/stage/24-visual-regression-baselines.cy.js` agrega comparacion de screenshots con baseline PNG y tolerancia visual para dashboard overview desktop claro, dashboard marketing desktop oscuro, pacientes mobile oscuro, reportes/rentabilidad, ficha de paciente con historial de tratamientos, formulario de paciente, formulario de tratamiento, booking publico mobile, panel de Lara abierto, formulario de servicio mobile, gastos, costos fijos, activos/depreciacion, calendario de tratamientos, equipo/permisos y notificaciones mobile.
 
 Brechas abiertas:
 
-- Ya existe comparador visual automatico con `pixelmatch`/`pngjs` para varias superficies P0; todavia falta ampliar baselines a gastos, costos fijos, activos/depreciacion, calendario de tratamientos, equipo/permisos, notificaciones, setup/resume, booking completo paso-a-paso, audio y traducciones con textos largos.
+- Ya existe comparador visual automatico con `pixelmatch`/`pngjs` para varias superficies P0; todavia falta ampliar baselines a setup/resume, booking completo paso-a-paso, Entry Mode de Lara, pantalla de import/export, seguridad/MFA, snapshots/restore y traducciones con textos largos.
 - La paridad de claves i18n esta cubierta por inventario; falta auditoria de calidad de traduccion y longitudes extremas en todas las pantallas.
 
 ## Capacidades que no pueden quedar fuera

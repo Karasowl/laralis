@@ -261,4 +261,76 @@ describe('Stage Lara AI assistant actions and audio', () => {
       expect(response.body.transcript).to.eq('Lara QA transcribio audio de prueba')
     })
   })
+
+  it('plays Lara response audio from the UI with browser audio mocked', () => {
+    cy.loginAsDoctor()
+    selectQaClinic('clinicA')
+
+    cy.intercept('POST', '/api/ai/query', (req) => {
+      req.headers['x-laralis-qa-ai'] = 'mock'
+    }).as('laraQuery')
+
+    cy.intercept('POST', '/api/ai/synthesize', {
+      statusCode: 200,
+      headers: {
+        'content-type': 'audio/mpeg',
+      },
+      body: 'qa-audio-bytes',
+    }).as('laraTts')
+
+    cy.visit('/', {
+      onBeforeLoad(win) {
+        const events: string[] = []
+        ;(win as any).__laraAudioEvents = events
+        win.URL.createObjectURL = () => 'blob:laralis-qa-audio'
+        win.URL.revokeObjectURL = () => undefined
+
+        class QaAudio {
+          onended: null | (() => void) = null
+          onerror: null | (() => void) = null
+          src: string
+
+          constructor(src: string) {
+            this.src = src
+            events.push(`create:${src}`)
+          }
+
+          play() {
+            events.push('play')
+            setTimeout(() => {
+              this.onended?.()
+            }, 0)
+            return Promise.resolve()
+          }
+
+          pause() {
+            events.push('pause')
+          }
+        }
+
+        ;(win as any).Audio = QaAudio
+      },
+    })
+
+    cy.assertAppShell()
+    cy.get('[data-testid="lara-fab"]', { timeout: 30000 }).should('be.visible').click()
+    cy.get('[data-testid="lara-query-mode"]', { timeout: 30000 }).should('be.visible').click()
+    cy.get('[data-testid="lara-query-assistant"]', { timeout: 30000 }).should('be.visible')
+    cy.get('[data-testid="lara-new-conversation"]').click()
+    cy.get('[data-testid="lara-query-input"]').should('be.enabled').clear().type('QA: quiero escuchar esta respuesta')
+    cy.get('[data-testid="lara-query-submit"]').should('be.enabled').click()
+
+    cy.wait('@laraQuery', { timeout: 45000 })
+    cy.contains('Lara QA respondio de forma deterministica', { timeout: 45000 }).should('be.visible')
+    cy.get('[data-testid="lara-audio-play"], button[title="Escuchar"], button[title="Listen"]', { timeout: 30000 })
+      .last()
+      .should('be.visible')
+      .click()
+    cy.wait('@laraTts', { timeout: 30000 }).its('response.statusCode').should('eq', 200)
+
+    cy.window().its('__laraAudioEvents').should((events) => {
+      expect(events).to.include('create:blob:laralis-qa-audio')
+      expect(events).to.include('play')
+    })
+  })
 })

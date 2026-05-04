@@ -180,4 +180,81 @@ describe('Stage visual regression baselines', () => {
       threshold: 0.12,
     })
   })
+
+  it('matches the desktop expenses dark baseline', () => {
+    captureStageVisualSnapshot({
+      routePath: '/expenses',
+      theme: 'dark',
+      viewport: { width: 1440, height: 1000 },
+      waitForText: 'Gastos|Expenses|Presupuesto|Budget',
+      baselineName: 'expenses-desktop-dark',
+      maxDiffRatio: 0.04,
+      threshold: 0.12,
+    })
+  })
+
+  it('matches the desktop fixed costs light baseline', () => {
+    captureStageVisualSnapshot({
+      routePath: '/fixed-costs',
+      theme: 'light',
+      viewport: { width: 1440, height: 900 },
+      waitForText: 'Costos fijos|Fixed costs|Depreciaci.n|Depreciation',
+      baselineName: 'fixed-costs-desktop-light',
+      maxDiffRatio: 0.04,
+      threshold: 0.12,
+    })
+  })
+
+  it('matches the mobile assets depreciation dark baseline', () => {
+    captureStageVisualSnapshot({
+      routePath: '/assets',
+      theme: 'dark',
+      viewport: { width: 390, height: 844 },
+      waitForText: 'Activos|Assets|Depreciaci.n|Depreciation',
+      baselineName: 'assets-depreciation-mobile-dark',
+      maxDiffRatio: 0.04,
+      threshold: 0.12,
+    })
+  })
+
+  it('matches the desktop treatments calendar baseline', () => {
+    captureStageVisualSnapshot({
+      routePath: '/treatments/calendar',
+      theme: 'light',
+      viewport: { width: 1440, height: 1000 },
+      waitForText: 'Calendario|Calendar|Tratamientos|Treatments',
+      snapshotSelector: 'viewport',
+      baselineName: 'treatments-calendar-desktop-light',
+      maxDiffRatio: 0.04,
+      threshold: 0.12,
+    })
+  })
+
+  it('matches the desktop team permissions dark baseline', () => {
+    captureStageVisualSnapshot({
+      routePath: '/settings/team',
+      theme: 'dark',
+      viewport: { width: 1440, height: 1000 },
+      waitForText: 'Equipo|Team|Miembros|Members|Permisos|Permissions',
+      baselineName: 'team-permissions-desktop-dark',
+      maxDiffRatio: 0.04,
+      threshold: 0.12,
+    })
+  })
+
+  it('matches the mobile notifications settings baseline', () => {
+    captureStageVisualSnapshot({
+      routePath: '/settings/notifications',
+      theme: 'light',
+      viewport: { width: 390, height: 844 },
+      waitForSelectors: ['[data-testid="notifications-settings-form"]'],
+      waitForText: 'Notificaciones|Notifications|SMS|WhatsApp',
+      snapshotSelector: '[data-testid="notifications-settings-page"]',
+      minWidth: 340,
+      minHeight: 520,
+      baselineName: 'notifications-settings-mobile-light',
+      maxDiffRatio: 0.04,
+      threshold: 0.12,
+    })
+  })
 })

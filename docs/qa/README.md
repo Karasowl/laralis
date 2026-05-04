@@ -373,7 +373,7 @@ Los baselines viven en `apps/dental/cypress/visual-baselines/`. Los diffs de fal
 
 La captura visual usa `playwright-core` desde una tarea de Cypress para abrir Chrome, seleccionar la clinica QA y capturar contenido principal, modales, paneles flotantes o rutas publicas. Si Chrome no esta en la ruta estandar de Windows, define `CHROME_PATH` antes de correr el comando.
 
-La suite actual compara 10 baselines PNG: dashboard overview, dashboard marketing, pacientes mobile, reportes/rentabilidad, ficha de paciente con historial, formulario de paciente, formulario de tratamiento, booking publico mobile, panel de Lara abierto y formulario de servicio mobile.
+La suite actual compara 16 baselines PNG: dashboard overview, dashboard marketing, pacientes mobile, reportes/rentabilidad, ficha de paciente con historial, formulario de paciente, formulario de tratamiento, booking publico mobile, panel de Lara abierto, formulario de servicio mobile, gastos, costos fijos, activos/depreciacion, calendario de tratamientos, equipo/permisos y notificaciones mobile.
 
 Correr solo Lara, acciones confirmables y audio mockeado contra stage:
 

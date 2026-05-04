@@ -95,6 +95,7 @@ export function AudioPlayer({ text, autoPlay = false, onError }: AudioPlayerProp
       disabled={isLoading}
       className="inline-flex items-center gap-1 text-xs text-purple-600 dark:text-purple-400 hover:underline disabled:opacity-50"
       title={isPlaying ? t('stop') : t('listen')}
+      data-testid="lara-audio-play"
     >
       {isLoading ? (
         <>

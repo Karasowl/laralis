@@ -467,6 +467,7 @@ export default defineConfig({
           theme = 'light',
           locale = 'es',
           clinicKey = 'clinicA',
+          frozenNow = '2026-05-04T18:00:00.000Z',
           viewport = { width: 1440, height: 900 },
           tabPattern,
           actions = [],
@@ -484,6 +485,7 @@ export default defineConfig({
           theme?: 'dark' | 'light';
           locale?: 'es' | 'en';
           clinicKey?: string;
+          frozenNow?: string;
           viewport?: { width: number; height: number };
           tabPattern?: string;
           actions?: VisualSnapshotAction[];
@@ -537,6 +539,26 @@ export default defineConfig({
               window.localStorage.setItem('laralis-theme', selectedTheme as string);
               window.localStorage.setItem('preferred-locale', selectedLocale as string);
             }, { selectedTheme: theme, selectedLocale: locale });
+            await context.addInitScript((nowIso) => {
+              const RealDate = Date;
+              const fixedTime = RealDate.parse(nowIso as string);
+
+              function FixedDate(this: any, ...args: any[]) {
+                if (!(this instanceof FixedDate)) {
+                  return new RealDate(fixedTime).toString();
+                }
+
+                const dateArgs = args.length === 0 ? [fixedTime] : args;
+                return Reflect.construct(RealDate, dateArgs, FixedDate);
+              }
+
+              Object.setPrototypeOf(FixedDate, RealDate);
+              FixedDate.prototype = RealDate.prototype;
+              (FixedDate as any).now = () => fixedTime;
+              (FixedDate as any).parse = RealDate.parse;
+              (FixedDate as any).UTC = RealDate.UTC;
+              window.Date = FixedDate as unknown as DateConstructor;
+            }, frozenNow);
 
             const page = await context.newPage();
             page.setDefaultTimeout(30_000);
