@@ -343,6 +343,12 @@ Correr solo coherencia de filtros de fecha contra stage:
 npm --workspace @laralis/dental run test:e2e:stage:date-filters
 ```
 
+Correr solo cobertura visual/responsive contra stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:visual-responsive
+```
+
 Correr solo aislamiento multi-clinica contra stage:
 
 ```bash

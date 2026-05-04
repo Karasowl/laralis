@@ -221,7 +221,7 @@
     "domain": "visual",
     "capability": "Graficas se pintan con barras, lineas, segmentos y tooltips correctos",
     "layers": ["cypress", "visual"],
-    "status": "planned"
+    "status": "partial"
   },
   {
     "id": "qa-029-visual-responsive-desktop-tablet-mobile",
@@ -229,7 +229,7 @@
     "domain": "visual",
     "capability": "Pantallas criticas se ven en desktop, tablet y mobile sin scroll horizontal",
     "layers": ["cypress", "visual"],
-    "status": "partial"
+    "status": "covered"
   },
   {
     "id": "qa-030-dark-mode",
@@ -253,7 +253,7 @@
     "domain": "navigation",
     "capability": "Cambiar idioma no manda a onboarding/setup ni pierde clinica activa",
     "layers": ["cypress"],
-    "status": "partial"
+    "status": "covered"
   },
   {
     "id": "qa-033-booking-public-flow",

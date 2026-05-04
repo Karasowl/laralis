@@ -9,6 +9,44 @@ Cada entrada debe explicar:
 - Como se verifica.
 - Que riesgo protege.
 
+## 2026-05-04 - Layout, graficas, tema e idioma deben tener guardrail visual en stage
+
+### Problema
+
+La suite QA tenia pruebas de datos y CRUD, pero la cobertura visual seguia dispersa. Eso dejaba abierto el riesgo de que una pantalla cargara con datos correctos, pero estuviera inutilizable por scroll horizontal, contenido principal vacio, tabs de dashboard sin graficas visibles, tema claro/oscuro roto o cambio de idioma regresando al flujo de setup.
+
+Riesgo asociado:
+
+- Mobile o tablet podian romper el layout sin que una prueba API lo detectara.
+- Cypress podia confirmar que una ruta respondia, pero no que hubiera contenido visible.
+- Las graficas podian desaparecer visualmente aunque los endpoints siguieran respondiendo.
+- El cambio ES/EN podia reabrir la regresion de onboarding/setup.
+
+### Prueba permanente
+
+Archivo:
+
+```text
+apps/dental/cypress/e2e/stage/15-visual-responsive-coverage.cy.ts
+```
+
+Casos protegidos:
+
+- Desktop abre dashboard, pacientes, tratamientos, servicios, insumos, gastos, costos fijos, activos, tiempo, marketing, equipo, notificaciones y booking settings.
+- Tablet/mobile abren las pantallas con mas riesgo de layout.
+- Cada ruta confirma shell activo, ausencia de errores fatales visibles, contenido principal con dimensiones reales y ausencia de scroll horizontal.
+- Dashboard overview y dashboard Marketing renderizan graficas Recharts con dimensiones y primitivas visibles.
+- Tema claro/oscuro e idioma ES/EN no rompen shell ni exponen cancelacion de setup.
+- Booking publico funciona visualmente en desktop y mobile sin sesion autenticada.
+
+### Verificacion
+
+Comando de stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:visual-responsive
+```
+
 ## 2026-05-04 - Filtros de fecha deben aplicarse igual en listados, tarjetas, graficas y reportes
 
 ### Problema

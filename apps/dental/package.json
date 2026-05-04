@@ -48,6 +48,7 @@
     "test:e2e:stage:time": "cross-env CYPRESS_BASE_URL=https://laralis-monorepo-preview.vercel.app CYPRESS_VIDEO=false cypress run --spec \"cypress/e2e/stage/12-time-settings-simulations.cy.ts\"",
     "test:e2e:stage:expenses": "cross-env CYPRESS_BASE_URL=https://laralis-monorepo-preview.vercel.app CYPRESS_VIDEO=false cypress run --spec \"cypress/e2e/stage/13-expenses-budget-links.cy.ts\"",
     "test:e2e:stage:date-filters": "cross-env CYPRESS_BASE_URL=https://laralis-monorepo-preview.vercel.app CYPRESS_VIDEO=false cypress run --spec \"cypress/e2e/stage/14-date-filters-coherence.cy.ts\"",
+    "test:e2e:stage:visual-responsive": "cross-env CYPRESS_BASE_URL=https://laralis-monorepo-preview.vercel.app CYPRESS_VIDEO=false cypress run --quiet --config numTestsKeptInMemory=0,screenshotOnRunFailure=false --spec \"cypress/e2e/stage/15-visual-responsive-coverage.cy.ts\"",
     "test:all": "node test-runner.js all",
     "test:quick": "npm run test:unit && npm run test:integration",
     "test:full": "npm run test:unit && npm run test:integration && npm run test:api && npm run test:e2e",

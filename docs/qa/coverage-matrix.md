@@ -169,6 +169,22 @@ Cobertura actual:
 - El inventario exige hooks UI estables en pantallas P0: login, onboarding, setup, booking publico, pacientes, insumos, servicios, tratamientos, marketing, notificaciones y shell principal.
 - Todavia falta revisar calidad de traduccion completa en ingles, porque habia deuda previa con algunas cadenas inglesas heredadas en espanol.
 
+## Visual, responsive e idiomas
+
+Cobertura actual:
+
+- `apps/dental/cypress/e2e/stage/15-visual-responsive-coverage.cy.ts` abre modulos criticos en desktop: dashboard, pacientes, tratamientos, servicios, insumos, gastos, costos fijos, activos, tiempo, marketing, equipo, notificaciones y booking settings.
+- El mismo spec prueba las pantallas de mayor riesgo en tablet y mobile: dashboard, pacientes, tratamientos, servicios, gastos, marketing y equipo.
+- En cada ruta verifica que el usuario activo no cae en `/auth`, `/onboarding` ni `/setup`, que no hay texto visible de error fatal, que el contenido principal existe con dimensiones reales y que no aparece scroll horizontal.
+- El spec tambien valida que las graficas del dashboard y del tab Marketing tienen wrappers/primitivas Recharts visibles con dimensiones reales.
+- El spec cambia tema claro/oscuro en dashboard y pacientes, cambia ES/EN en el shell activo, y confirma que el cambio de idioma no vuelve a exponer cancelacion/setup.
+- Booking publico queda cubierto visualmente en desktop y mobile sin depender del shell autenticado.
+
+Brechas abiertas:
+
+- Las graficas ya tienen presencia visual y dimensiones, pero todavia falta validar tooltips y comparar screenshots con tolerancia visual.
+- La paridad de claves i18n esta cubierta por inventario; falta auditoria de calidad de traduccion y longitudes extremas en todas las pantallas.
+
 ## Capacidades que no pueden quedar fuera
 
 - Crear otra clinica.
