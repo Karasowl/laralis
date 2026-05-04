@@ -1233,6 +1233,156 @@ export default defineConfig({
           };
         },
 
+        async qaScheduleConflictSeed({
+          stamp,
+          clinicName,
+          serviceName,
+        }: {
+          stamp: string;
+          clinicName: string;
+          serviceName: string;
+        }) {
+          const client = adminClient();
+          const date = addDaysToCivilDate(toCivilDate(new Date()), 7);
+
+          const { data: clinic, error: clinicError } = await client
+            .from('clinics')
+            .select('id, name')
+            .eq('name', clinicName)
+            .single();
+
+          if (clinicError || !clinic?.id) {
+            throw new Error(`Could not find QA clinic "${clinicName}": ${clinicError?.message || 'missing clinic'}`);
+          }
+
+          const { data: service, error: serviceError } = await client
+            .from('services')
+            .select('id, name, est_minutes, price_cents, variable_cost_cents, margin_pct')
+            .eq('clinic_id', clinic.id)
+            .eq('name', serviceName)
+            .single();
+
+          if (serviceError || !service?.id) {
+            throw new Error(`Could not find QA service "${serviceName}": ${serviceError?.message || 'missing service'}`);
+          }
+
+          const patient = await insertOneTolerant('patients', {
+            clinic_id: clinic.id,
+            first_name: 'QA Conflict',
+            last_name: stamp,
+            email: `${stamp}@laralis.test`,
+            phone: '+15555550310',
+            first_visit_date: date,
+            acquisition_date: date,
+            notes: `qa-schedule-conflict ${stamp}`,
+          });
+
+          const treatment = await insertOneTolerant('treatments', {
+            clinic_id: clinic.id,
+            patient_id: patient.id,
+            service_id: service.id,
+            treatment_date: date,
+            treatment_time: '09:00',
+            duration_minutes: 60,
+            minutes: 60,
+            fixed_cost_per_minute_cents: 100,
+            fixed_per_minute_cents: 100,
+            variable_cost_cents: Number(service.variable_cost_cents || 0),
+            margin_pct: Number(service.margin_pct || 60),
+            price_cents: Number(service.price_cents || 150000),
+            amount_paid_cents: 0,
+            pending_balance_cents: Number(service.price_cents || 150000),
+            status: 'scheduled',
+            notes: `qa-schedule-conflict existing-treatment ${stamp}`,
+          });
+
+          const booking = await insertOneTolerant('public_bookings', {
+            clinic_id: clinic.id,
+            service_id: service.id,
+            patient_id: null,
+            patient_name: `QA Conflict Booking ${stamp}`,
+            patient_email: `booking-${stamp}@laralis.test`,
+            patient_phone: '+15555550311',
+            patient_notes: `qa-schedule-conflict ${stamp}`,
+            requested_date: date,
+            requested_time: '11:00',
+            status: 'pending',
+            ip_address: '127.0.0.1',
+            user_agent: 'laralis-qa',
+            referrer: 'cypress',
+            utm_source: 'qa',
+            utm_medium: 'cypress',
+            utm_campaign: 'schedule-conflict',
+          });
+
+          const conflictingBooking = await insertOneTolerant('public_bookings', {
+            clinic_id: clinic.id,
+            service_id: service.id,
+            patient_id: null,
+            patient_name: `QA Conflict Confirm Booking ${stamp}`,
+            patient_email: `confirm-booking-${stamp}@laralis.test`,
+            patient_phone: '+15555550312',
+            patient_notes: `qa-schedule-conflict ${stamp}`,
+            requested_date: date,
+            requested_time: '09:30',
+            status: 'pending',
+            ip_address: '127.0.0.1',
+            user_agent: 'laralis-qa',
+            referrer: 'cypress',
+            utm_source: 'qa',
+            utm_medium: 'cypress',
+            utm_campaign: 'schedule-conflict',
+          });
+
+          return {
+            stamp,
+            clinicId: clinic.id,
+            serviceId: service.id,
+            patientId: patient.id,
+            treatmentId: treatment.id,
+            bookingId: booking.id,
+            conflictingBookingId: conflictingBooking.id,
+            conflictingBookingEmail: conflictingBooking.patient_email,
+            publicBookingAppointmentId: `public_booking:${booking.id}`,
+            conflictingPublicBookingAppointmentId: `public_booking:${conflictingBooking.id}`,
+            date,
+          };
+        },
+
+        async qaScheduleConflictCleanup({ stamp }: { stamp?: string }) {
+          if (!stamp) return { cleaned: false };
+
+          const client = adminClient();
+          const { data: bookings } = await client
+            .from('public_bookings')
+            .select('id')
+            .ilike('patient_name', `%${stamp}%`);
+          const bookingIds = (bookings || []).map((row) => row.id).filter(Boolean);
+
+          const { data: treatments } = await client
+            .from('treatments')
+            .select('id')
+            .ilike('notes', `%${stamp}%`);
+          const treatmentIds = (treatments || []).map((row) => row.id).filter(Boolean);
+
+          const { data: patients } = await client
+            .from('patients')
+            .select('id')
+            .ilike('email', `%${stamp}%`);
+          const patientIds = (patients || []).map((row) => row.id).filter(Boolean);
+
+          await deleteByIds('public_bookings', bookingIds);
+          await deleteByIds('treatments', treatmentIds);
+          await deleteByIds('patients', patientIds);
+
+          return {
+            cleaned: true,
+            bookingCount: bookingIds.length,
+            treatmentCount: treatmentIds.length,
+            patientCount: patientIds.length,
+          };
+        },
+
         async qaGetLatestInvitationToken(email: string) {
           const client = adminClient();
           const { data, error } = await client

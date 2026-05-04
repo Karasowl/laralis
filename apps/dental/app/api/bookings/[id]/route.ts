@@ -5,6 +5,7 @@ import { resolveClinicContext } from '@/lib/clinic'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { readJson } from '@/lib/validation'
+import { checkScheduleConflicts } from '@/lib/calendar/server-conflicts'
 
 export const dynamic = 'force-dynamic'
 
@@ -118,9 +119,28 @@ async function confirmBooking(params: {
     return NextResponse.json({ error: 'Booking service was not found' }, { status: 404 })
   }
 
-  const patientId = await resolveBookingPatient(booking, clinicId)
   const durationMinutes = Number(service.est_minutes || 30)
   const priceCents = Number(service.price_cents || 0)
+  const conflictResult = await checkScheduleConflicts({
+    clinicId,
+    date: booking.requested_date,
+    time: normalizeTime(booking.requested_time) || '12:00',
+    durationMinutes,
+    excludeId: `public_booking:${booking.id}`,
+  })
+
+  if (conflictResult.hasConflict) {
+    return NextResponse.json(
+      {
+        error: 'appointment_conflict',
+        message: 'This booking request conflicts with an existing appointment or booking request.',
+        conflicts: conflictResult.conflicts,
+      },
+      { status: 409 }
+    )
+  }
+
+  const patientId = await resolveBookingPatient(booking, clinicId)
 
   const treatment = await insertOneTolerant('treatments', {
     clinic_id: clinicId,

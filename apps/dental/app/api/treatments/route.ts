@@ -16,6 +16,7 @@ import {
 } from '@/lib/sms/service';
 import { readJson } from '@/lib/validation';
 import { forbiddenIfMissingPermission } from '@/lib/permissions';
+import { checkScheduleConflicts } from '@/lib/calendar/server-conflicts';
 
 export const dynamic = 'force-dynamic'
 
@@ -249,6 +250,40 @@ export async function POST(request: NextRequest) {
       notes: payloadBody.notes?.trim() ? payloadBody.notes.trim() : null,
       snapshot_costs: payloadBody.snapshot_costs || {}
     } as const;
+
+    if (
+      treatmentData.treatment_time &&
+      ['scheduled', 'in_progress'].includes(normalizedStatus)
+    ) {
+      if (treatmentCount > 1) {
+        return NextResponse.json(
+          {
+            error: 'appointment_conflict',
+            message: 'Multiple scheduled appointments cannot share the same time slot.',
+            conflicts: [],
+          },
+          { status: 409 }
+        );
+      }
+
+      const conflictResult = await checkScheduleConflicts({
+        clinicId,
+        date: treatmentData.treatment_date,
+        time: treatmentData.treatment_time,
+        durationMinutes: treatmentData.duration_minutes,
+      });
+
+      if (conflictResult.hasConflict) {
+        return NextResponse.json(
+          {
+            error: 'appointment_conflict',
+            message: 'The selected appointment time conflicts with an existing appointment or public booking request.',
+            conflicts: conflictResult.conflicts,
+          },
+          { status: 409 }
+        );
+      }
+    }
 
     // Dynamic insert tolerant to schema variations:
     // - Start with new columns; if error says a column doesn't exist, remove it and retry.

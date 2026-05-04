@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { cookies } from 'next/headers'
 import { resolveClinicContext } from '@/lib/clinic'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
-import { checkConflicts, Appointment } from '@/lib/calendar/conflict-detection'
+import { checkScheduleConflicts } from '@/lib/calendar/server-conflicts'
 import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
 
@@ -50,47 +49,13 @@ export async function POST(request: NextRequest) {
 
     const duration = duration_minutes || 30
 
-    // Fetch existing appointments for the same date
-    const { data: treatments, error } = await supabaseAdmin
-      .from('treatments')
-      .select(`
-        id,
-        treatment_date,
-        treatment_time,
-        duration_minutes,
-        patient:patients (first_name, last_name),
-        service:services (name)
-      `)
-      .eq('clinic_id', clinicId)
-      .eq('treatment_date', date)
-      .in('status', ['pending', 'scheduled', 'in_progress'])
-
-    if (error) {
-      console.error('Error fetching treatments for conflict check:', error)
-      return NextResponse.json(
-        { error: 'Failed to check conflicts' },
-        { status: 500 }
-      )
-    }
-
-    // Transform to Appointment format
-    const appointments: Appointment[] = (treatments || []).map((t: any) => ({
-      id: t.id,
-      treatment_date: t.treatment_date,
-      treatment_time: t.treatment_time,
-      duration_minutes: t.duration_minutes || 30,
-      patient_name: t.patient
-        ? `${t.patient.first_name} ${t.patient.last_name}`
-        : undefined,
-      service_name: t.service?.name,
-    }))
-
-    // Check for conflicts
-    const result = checkConflicts(
-      { date, time, duration_minutes: duration },
-      appointments,
-      exclude_id
-    )
+    const result = await checkScheduleConflicts({
+      clinicId,
+      date,
+      time,
+      durationMinutes: duration,
+      excludeId: exclude_id,
+    })
 
     return NextResponse.json({
       hasConflict: result.hasConflict,

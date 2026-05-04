@@ -374,5 +374,13 @@
     "capability": "El equipo puede listar solicitudes publicas, confirmar una cita creando paciente/tratamiento y rechazar otra sin efectos colaterales",
     "layers": ["cypress", "api", "database", "supabase-task"],
     "status": "covered"
+  },
+  {
+    "id": "qa-048-appointment-conflict-enforcement",
+    "priority": "P0",
+    "domain": "calendar",
+    "capability": "La agenda detecta choques con tratamientos y bookings publicos, y el backend bloquea escrituras conflictivas",
+    "layers": ["cypress", "api", "database", "supabase-task"],
+    "status": "covered"
   }
 ]

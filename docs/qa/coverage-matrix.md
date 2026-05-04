@@ -231,6 +231,7 @@ Cobertura actual:
 - `apps/dental/cypress/e2e/stage/24-visual-regression-baselines.cy.js` agrega comparacion de screenshots con baseline PNG y tolerancia visual para dashboard overview desktop claro, dashboard marketing desktop oscuro, pacientes mobile oscuro, reportes/rentabilidad, ficha de paciente con historial de tratamientos, formulario de paciente, formulario de tratamiento, booking publico mobile, panel de Lara abierto, formulario de servicio mobile, gastos, costos fijos, activos/depreciacion, calendario de tratamientos, equipo/permisos y notificaciones mobile.
 - `apps/dental/cypress/e2e/stage/26-dashboard-appointments-real-data.cy.ts` siembra citas controladas y verifica que `/api/dashboard/appointments` usa tratamientos/bookings reales, excluye cancelados y bookings ya convertidos en tratamientos, y no devuelve numeros aleatorios.
 - `apps/dental/cypress/e2e/stage/27-booking-request-admin-actions.cy.ts` cubre gestion interna de solicitudes publicas: listar pendientes, confirmar creando paciente/tratamiento, rechazar con motivo y bloquear cambios invalidos posteriores.
+- `apps/dental/cypress/e2e/stage/28-appointment-conflict-enforcement.cy.ts` cubre conflictos de agenda contra tratamientos y solicitudes publicas, bloqueo backend de tratamientos conflictivos y bloqueo al confirmar bookings cuyo horario ya fue ocupado.
 
 Brechas abiertas:
 
@@ -277,7 +278,7 @@ Brechas abiertas:
 
 ## Estado
 
-La lista canonica actual tiene 47 capacidades en `coverage-matrix.json`.
+La lista canonica actual tiene 48 capacidades en `coverage-matrix.json`.
 
 Estados posibles:
 
