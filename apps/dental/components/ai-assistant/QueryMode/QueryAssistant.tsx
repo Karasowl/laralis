@@ -18,10 +18,12 @@ import { ActionConfirmCard } from '@/components/ui/action-confirm-card'
 import { useCurrentClinic } from '@/hooks/use-current-clinic'
 import { calculateConversationTokens, getTokenUsageStatus } from '@/lib/ai/token-counter'
 import ChatHistoryList from './ChatHistoryList'
+import type { Clinic } from '@/lib/types'
 import type { ActionSuggestion, ActionResult } from '@/lib/ai/types'
 
 interface QueryAssistantProps {
   onClose: () => void
+  currentClinic?: Clinic | null
   sessionId?: string | null
   onSessionCreated?: (sessionId: string) => void
 }
@@ -35,11 +37,12 @@ interface QueryMessage {
   suggestedAction?: ActionSuggestion
 }
 
-export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAssistantProps) {
+export function QueryAssistant({ onClose, currentClinic: providedClinic, sessionId, onSessionCreated }: QueryAssistantProps) {
   const t = useTranslations('aiAssistant.query')
   const tMessages = useTranslations('aiAssistant.messages')
   const tCommon = useTranslations('common')
-  const { currentClinic } = useCurrentClinic()
+  const { currentClinic: detectedClinic } = useCurrentClinic()
+  const currentClinic = providedClinic || detectedClinic
 
   const [conversation, setConversation] = useState<QueryMessage[]>([])
   const [textInput, setTextInput] = useState('')
@@ -660,6 +663,7 @@ export function QueryAssistant({ onClose, sessionId, onSessionCreated }: QueryAs
                 onClick={handleNewConversation}
                 className="p-2 hover:bg-background/50 rounded-lg transition-colors"
                 aria-label={t('newConversation')}
+                data-testid="lara-new-conversation"
               >
                 <RotateCcw className="h-5 w-5" />
               </button>

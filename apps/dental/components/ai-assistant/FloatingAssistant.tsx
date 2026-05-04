@@ -93,6 +93,7 @@ export function FloatingAssistant() {
       {activeMode === 'query' && (
         <QueryAssistant
           onClose={handleCloseMode}
+          currentClinic={currentClinic}
           sessionId={sessionId}
           onSessionCreated={setSessionId}
         />

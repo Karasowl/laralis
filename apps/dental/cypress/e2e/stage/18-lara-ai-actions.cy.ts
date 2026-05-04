@@ -81,23 +81,28 @@ function parseSse(body: unknown) {
 
 describe('Stage Lara AI assistant actions and audio', () => {
   const viewerEmail = 'qa-viewer@laralis.test'
+  const baselineTimeSettings: TimeSettings = {
+    work_days: 26,
+    hours_per_day: 8,
+    real_pct: 75,
+    monthly_goal_cents: null,
+  }
   let clinicId = ''
   let originalTimeSettings: TimeSettings | null = null
 
   afterEach(() => {
-    if (!clinicId || !originalTimeSettings) {
-      clinicId = ''
-      originalTimeSettings = null
-      return
-    }
-
-    cy.loginAsDoctor()
-    selectQaClinic('clinicA').then((clinic) => {
-      saveTimeSettings(clinic.id, originalTimeSettings!)
-    })
+    const restoreClinicId = clinicId
+    const settingsToRestore = originalTimeSettings
 
     clinicId = ''
     originalTimeSettings = null
+
+    if (!restoreClinicId || !settingsToRestore) return
+
+    cy.loginAsDoctor()
+    selectQaClinic('clinicA').then((clinic) => {
+      saveTimeSettings(clinic.id, settingsToRestore)
+    })
   })
 
   it('streams a deterministic Lara answer with a suggested action in stage', () => {
@@ -137,7 +142,10 @@ describe('Stage Lara AI assistant actions and audio', () => {
       clinicId = clinic.id
     })
     getTimeSettings().then((settings) => {
-      originalTimeSettings = settings
+      originalTimeSettings = settings || { ...baselineTimeSettings }
+      if (!settings) {
+        return saveTimeSettings(clinicId, baselineTimeSettings)
+      }
     })
 
     cy.intercept('POST', '/api/ai/query', (req) => {
@@ -150,8 +158,9 @@ describe('Stage Lara AI assistant actions and audio', () => {
     cy.get('[data-testid="lara-fab"]', { timeout: 30000 }).should('be.visible').click()
     cy.get('[data-testid="lara-query-mode"]', { timeout: 30000 }).should('be.visible').click()
     cy.get('[data-testid="lara-query-assistant"]', { timeout: 30000 }).should('be.visible')
-    cy.get('[data-testid="lara-query-input"]').clear().type('QA: ajusta mi tiempo operativo')
-    cy.get('[data-testid="lara-query-submit"]').click()
+    cy.get('[data-testid="lara-new-conversation"]').click()
+    cy.get('[data-testid="lara-query-input"]').should('be.enabled').clear().type('QA: ajusta mi tiempo operativo')
+    cy.get('[data-testid="lara-query-submit"]').should('be.enabled').click()
 
     cy.wait('@laraQuery', { timeout: 45000 })
     cy.contains('Lara QA respondio de forma deterministica', { timeout: 45000 }).should('be.visible')
