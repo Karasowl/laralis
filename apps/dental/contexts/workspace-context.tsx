@@ -291,10 +291,25 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         needsNewClinic = true;
       }
 
-      // Seleccionar primera clínica si es necesario
+      let preferredClinicId: string | null = null;
+      try {
+        const cookieMatch = typeof document !== 'undefined'
+          ? document.cookie.match(/(?:^|; )clinicId=([^;]+)/)
+          : null;
+        preferredClinicId = cookieMatch ? decodeURIComponent(cookieMatch[1]) : null;
+        if (!preferredClinicId && typeof localStorage !== 'undefined') {
+          preferredClinicId = localStorage.getItem('selectedClinicId');
+        }
+      } catch {}
+
+      // Seleccionar la clínica preferida si es necesario
       if (needsNewClinic && data && data.length > 0) {
-        console.log(`[workspace-context] 📍 Seleccionando primera clínica del workspace: ${data[0].name}`);
-        setCurrentClinic(data[0]);
+        const preferredClinic = preferredClinicId
+          ? data.find((clinic) => clinic.id === preferredClinicId)
+          : undefined;
+        const nextClinic = preferredClinic || data[0];
+        console.log(`[workspace-context] 📍 Seleccionando clínica del workspace: ${nextClinic.name}`);
+        setCurrentClinic(nextClinic);
       }
     } catch (err: any) {
       setError(err.message);

@@ -341,7 +341,7 @@
     "domain": "navigation",
     "capability": "Refrescar, atras/adelante y sesion expirada conservan comportamiento coherente",
     "layers": ["cypress"],
-    "status": "planned"
+    "status": "covered"
   },
   {
     "id": "qa-044-cleanup-delete-account",

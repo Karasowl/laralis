@@ -223,6 +223,7 @@ Cobertura actual:
 - El spec tambien valida que las graficas del dashboard y del tab Marketing tienen wrappers/primitivas Recharts visibles con dimensiones reales.
 - El spec cambia tema claro/oscuro en dashboard y pacientes, cambia ES/EN en el shell activo, y confirma que el cambio de idioma no vuelve a exponer cancelacion/setup.
 - Booking publico queda cubierto visualmente en desktop y mobile sin depender del shell autenticado.
+- `apps/dental/cypress/e2e/stage/22-navigation-session-regression.cy.ts` cubre reload, atras/adelante, cambio ES/EN, persistencia de clinica activa vacia y sesion expirada: las rutas protegidas deben ir a login, no a onboarding/setup.
 
 Brechas abiertas:
 

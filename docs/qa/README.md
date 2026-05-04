@@ -379,6 +379,12 @@ Correr solo aislamiento multi-clinica de Lara, dashboard y marketing contra stag
 npm --workspace @laralis/dental run test:e2e:stage:lara-isolation
 ```
 
+Correr solo regresiones de navegacion, historial y sesion expirada contra stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:navigation
+```
+
 Correr solo fronteras de permisos contra stage:
 
 ```bash

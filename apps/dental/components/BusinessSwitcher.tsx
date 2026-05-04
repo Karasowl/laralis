@@ -56,6 +56,10 @@ export function BusinessSwitcher() {
       )
 
       if (result.success) {
+        try {
+          localStorage.setItem('selectedClinicId', clinicId)
+          document.cookie = `clinicId=${clinicId}; path=/; max-age=31536000`
+        } catch {}
         setSelectedClinicId(clinicId)
         router.refresh()
       }

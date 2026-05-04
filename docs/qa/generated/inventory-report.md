@@ -1,6 +1,6 @@
 # QA Inventory Report
 
-Generated: 2026-05-04T08:24:36.040Z
+Generated: 2026-05-04T08:39:56.628Z
 
 Status: pass
 Failing checks: 0
@@ -27,7 +27,7 @@ Status: pass
 
 capabilities: 44; domains: 22; required missing domains: 0
 
-- status counts: partial=9, covered=33, planned=2
+- status counts: partial=9, covered=34, planned=1
 - priority counts: P0=38, P1=6
 
 ## QA dataset
@@ -66,7 +66,7 @@ seed script: present; assert script: present; env example: present; package scri
 
 Status: pass
 
-declared spec scripts: 30; existing e2e specs: 22; missing declared specs: 0
+declared spec scripts: 31; existing e2e specs: 23; missing declared specs: 0
 
 - ok: test:e2e:multitenancy -> cypress/e2e/stage/04-multiclinic-isolation.cy.ts
 - ok: test:e2e:auth -> cypress/e2e/stage/00-auth-and-shell.cy.ts
@@ -76,8 +76,8 @@ declared spec scripts: 30; existing e2e specs: 22; missing declared specs: 0
 - ok: test:e2e:treatments -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
 - ok: test:e2e:settings -> cypress/e2e/stage/05-permission-boundaries.cy.ts
 - ok: test:e2e:marketing -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
-- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.ts (22 specs)
-- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.ts (22 specs)
+- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.ts (23 specs)
+- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.ts (23 specs)
 - ok: test:e2e:stage:business -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
 - ok: test:e2e:stage:crud -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
 - ok: test:e2e:stage:multiclinic -> cypress/e2e/stage/04-multiclinic-isolation.cy.ts
@@ -98,6 +98,7 @@ declared spec scripts: 30; existing e2e specs: 22; missing declared specs: 0
 - ok: test:e2e:stage:reports -> cypress/e2e/stage/19-reports-dashboard-oracles.cy.ts
 - ok: test:e2e:stage:roles -> cypress/e2e/stage/20-role-matrix-and-clinic-access.cy.ts
 - ok: test:e2e:stage:lara-isolation -> cypress/e2e/stage/21-lara-dashboard-multiclinic-isolation.cy.ts
+- ok: test:e2e:stage:navigation -> cypress/e2e/stage/22-navigation-session-regression.cy.ts
 
 ## i18n parity
 
