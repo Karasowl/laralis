@@ -237,7 +237,7 @@
     "domain": "visual",
     "capability": "Modo oscuro conserva contraste, layout, graficas y formularios",
     "layers": ["cypress", "visual"],
-    "status": "partial"
+    "status": "covered"
   },
   {
     "id": "qa-031-i18n-es-en-complete",

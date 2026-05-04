@@ -21,6 +21,35 @@ function deleteIfPresent(path: string, id?: string) {
   })
 }
 
+function cleanupPaymentArtifactsBySearch(search = 'qa-treatment-status') {
+  cy.request({
+    method: 'GET',
+    url: `/api/patients?search=${encodeURIComponent(search)}`,
+    failOnStatusCode: false,
+  }).then((patientsResponse) => {
+    expect([200, 401, 403], `payment cleanup search ${search}`).to.include(patientsResponse.status)
+    if (patientsResponse.status !== 200) return
+
+    const patients = patientsResponse.body.data || []
+    for (const patient of patients) {
+      cy.request({
+        method: 'GET',
+        url: `/api/treatments?patient_id=${patient.id}`,
+        failOnStatusCode: false,
+      }).then((treatmentsResponse) => {
+        expect([200, 404], `payment cleanup treatments ${patient.id}`).to.include(treatmentsResponse.status)
+        const treatments = treatmentsResponse.status === 200 ? treatmentsResponse.body.data || [] : []
+
+        for (const treatment of treatments) {
+          deleteIfPresent('/api/treatments', treatment.id)
+        }
+
+        deleteIfPresent('/api/patients', patient.id)
+      })
+    }
+  })
+}
+
 function selectQaClinicAndService(): Cypress.Chainable<{ clinic: Clinic; serviceId: string }> {
   return cy.readFile('../../docs/qa/dataset.json').then((dataset) => {
     const clinicA = dataset.clinics.find((clinic: any) => clinic.key === 'clinicA')
@@ -60,6 +89,7 @@ describe('Stage treatment status and payment lifecycle', () => {
     deleteIfPresent('/api/treatments', ids.partialTreatmentId)
     deleteIfPresent('/api/treatments', ids.cancelledTreatmentId)
     deleteIfPresent('/api/patients', ids.patientId)
+    cleanupPaymentArtifactsBySearch(stamp || 'qa-treatment-status')
 
     ids.partialTreatmentId = undefined
     ids.cancelledTreatmentId = undefined
@@ -71,6 +101,8 @@ describe('Stage treatment status and payment lifecycle', () => {
     stamp = `qa-treatment-status-${Date.now()}-${Cypress._.random(1000, 9999)}`
 
     selectQaClinicAndService().then(({ serviceId }) => {
+      cleanupPaymentArtifactsBySearch()
+
       cy.request('POST', '/api/patients', {
         first_name: `QA Payment ${stamp}`,
         last_name: 'Paciente',

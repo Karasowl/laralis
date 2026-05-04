@@ -19,7 +19,9 @@ export default getRequestConfig(async () => {
   const cookieStore = cookies();
   const locale = cookieStore.get('locale')?.value || 'en';
 
-  const base = (locale === 'es' ? esMessages : enMessages) as Record<string, any>;
+  const deepClone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
+
+  const base = deepClone((locale === 'es' ? esMessages : enMessages) as Record<string, any>);
 
   // Lightweight deep merge helper
   const deepMerge = (target: any, source: any) => {
@@ -38,10 +40,10 @@ export default getRequestConfig(async () => {
   let messages = base;
   if (locale === 'es') {
     // Fallback to English for any missing keys, then apply ES overrides
-    const merged = deepMerge({ ...enMessages }, base);
-    messages = deepMerge(merged, esOverrides);
+    const merged = deepMerge(deepClone(enMessages), base);
+    messages = deepMerge(merged, deepClone(esOverrides));
   } else if (locale === 'en') {
-    messages = deepMerge({ ...base }, enOverrides);
+    messages = deepMerge(base, deepClone(enOverrides));
   }
 
   // Merge section-specific bundles
@@ -51,7 +53,7 @@ export default getRequestConfig(async () => {
 
   for (const section of sectionBundles) {
     if (section && typeof section === 'object') {
-      messages = deepMerge(messages, section);
+      messages = deepMerge(messages, deepClone(section));
     }
   }
 

@@ -36,7 +36,7 @@ describe('Stage visual regression baselines', () => {
         '[data-testid="channel-roi-chart"] .recharts-wrapper',
         '[data-testid="cac-trend-chart"] .recharts-wrapper',
       ],
-      waitForText: 'Meta Mayo',
+      waitForText: 'Inversi.n Total|Total Investment|Ingresos Generados|Generated Revenue',
       baselineName: 'dashboard-marketing-desktop-dark',
       maxDiffRatio: 0.03,
       threshold: 0.12,
