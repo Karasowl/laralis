@@ -42,6 +42,12 @@ Este replica el flujo historico que el usuario usaba con Cypress:
 
 Este flujo solo puede correr contra stage.
 
+Cobertura actual:
+
+- `apps/dental/cypress/e2e/stage/16-full-lifecycle-user.cy.ts` crea un usuario unico confirmado por tarea Supabase stage, inicia sesion por UI, completa onboarding real, crea workspace y clinica, siembra los requisitos minimos de setup, finaliza setup desde la UI y confirma que el workspace queda activo.
+- El mismo spec usa los modulos principales como un usuario nuevo: activo/depreciacion, costo fijo, configuracion de tiempo, insumo, servicio con receta, campana, paciente atribuido, tratamiento con pago parcial, gasto vinculado, vistas de pacientes/tratamientos/marketing/gastos y cambio ES/EN sin caer en onboarding/setup.
+- El cierre del flujo borra el arbol de cuenta QA con `qaDeleteUserByEmail` y vuelve a ejecutar la limpieza para confirmar que no queda usuario auth pendiente. La eliminacion self-service real queda como riesgo aparte porque `/api/account/delete` todavia no debe usarse como oraculo principal.
+
 ### CRUD por modulo
 
 - Pacientes: crear, editar, buscar, filtrar y borrar.
@@ -105,7 +111,7 @@ Cobertura actual:
 
 Brechas abiertas:
 
-- Falta convertir el setup completo en lifecycle total: crear datos minimos requeridos, finalizar setup, usar app y eliminar cuenta desde self-service.
+- Falta convertir la eliminacion self-service de cuenta en flujo real seguro; hoy el full lifecycle limpia por tarea stage `service_role` para no dejar datos huerfanos.
 - Falta probar el flujo visual de `/setup/resume` con multiples drafts, archive y delete desde la pantalla.
 
 ## Multi-clinica

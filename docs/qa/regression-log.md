@@ -454,6 +454,67 @@ Comando de stage:
 npm --workspace @laralis/dental run test:e2e:stage:permissions
 ```
 
+## 2026-05-03 - Full lifecycle de usuario QA stage
+
+### Problema
+
+El sistema tenia pruebas por piezas, pero no existia una prueba que replicara el flujo historico completo que el usuario espera de Cypress:
+
+- crear usuario nuevo,
+- confirmar la cuenta sin depender de Gmail,
+- hacer login,
+- completar onboarding,
+- terminar setup,
+- crear datos reales de negocio,
+- verificar pantallas principales,
+- cambiar idioma,
+- y limpiar todo lo creado.
+
+Riesgo asociado:
+
+- Un flujo podia pasar en smoke tests aunque un usuario nuevo quedara atrapado en `/setup`.
+- Setup podia marcar requisitos en backend pero no permitir finalizar desde la UI.
+- Los datos creados por QA podian quedar huerfanos si la limpieza no era parte del flujo.
+
+### Prueba permanente
+
+Archivo:
+
+```text
+apps/dental/cypress/e2e/stage/16-full-lifecycle-user.cy.ts
+```
+
+Casos protegidos:
+
+- Crea un usuario unico confirmado con `qaCreateConfirmedUser`.
+- Ejecuta login y onboarding reales.
+- Verifica workspace `draft` antes de setup.
+- Crea activo, costo fijo, configuracion de tiempo, insumo y servicio con receta para completar los requisitos de setup.
+- Protege que `/api/setup/status` cuente recetas de servicio usando los servicios de la clinica, no una columna inexistente o vacia en `service_supplies`.
+- Finaliza setup desde la UI y confirma workspace `active`.
+- Crea campana, paciente atribuido, tratamiento con pago parcial y gasto vinculado.
+- Verifica pacientes, tratamientos, marketing y gastos desde la UI.
+- Cambia ES/EN sin regresar a onboarding/setup.
+- Ejecuta `qaDeleteUserByEmail` y confirma que una segunda limpieza no encuentra usuario pendiente.
+
+### Implementacion protegida
+
+Archivo:
+
+```text
+apps/dental/app/api/setup/status/route.ts
+```
+
+La cuenta `servicesWithRecipeCount` ahora resuelve primero los servicios de la clinica activa y despues cuenta las filas `service_supplies` asociadas a esos `service_id`.
+
+### Verificacion
+
+Comando de stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:full-lifecycle
+```
+
 ## 2026-05-04 - Simulaciones de precio deben usar costos vivos de tiempo e insumos
 
 ### Problema

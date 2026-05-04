@@ -29,7 +29,7 @@
     "domain": "lifecycle",
     "capability": "Crear usuario unico, confirmar en stage, hacer onboarding, usar app y limpiar cuenta",
     "layers": ["cypress", "supabase-task"],
-    "status": "planned"
+    "status": "covered"
   },
   {
     "id": "qa-005-onboarding-workspace-clinic",
@@ -349,6 +349,6 @@
     "domain": "lifecycle",
     "capability": "El full lifecycle limpia datos creados o elimina la cuenta QA",
     "layers": ["cypress", "api", "supabase-task"],
-    "status": "planned"
+    "status": "covered"
   }
 ]

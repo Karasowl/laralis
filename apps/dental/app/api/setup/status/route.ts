@@ -33,11 +33,20 @@ export async function GET(_request: NextRequest) {
       .select('id', { count: 'exact', head: true })
       .eq('clinic_id', clinicId)
 
-    // Any service with recipe
-    const { count: recipeCount } = await supabaseAdmin
-      .from('service_supplies')
-      .select('id', { count: 'exact', head: true })
+    // Any service with recipe. service_supplies rows are attached to services,
+    // while the clinic ownership lives on services.
+    const { data: serviceRows } = await supabaseAdmin
+      .from('services')
+      .select('id')
       .eq('clinic_id', clinicId)
+
+    const serviceIds = (serviceRows || []).map((service) => service.id).filter(Boolean)
+    const { count: recipeCount } = serviceIds.length > 0
+      ? await supabaseAdmin
+          .from('service_supplies')
+          .select('service_id', { count: 'exact', head: true })
+          .in('service_id', serviceIds)
+      : { count: 0 }
 
     // Presence of fixed costs and assets
     const { count: fixedCount } = await supabaseAdmin
