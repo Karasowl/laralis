@@ -30,7 +30,7 @@ function selectQaClinicA(): Cypress.Chainable<QaClinic> {
 
 function assertNoVisibleI18nKeys() {
   cy.document().then((doc) => {
-    const text = doc.body.innerText
+    const text = getVisibleText(doc)
     const leakedKeys = text.match(
       /\b(?:actions|auth|booking|common|dashboard|form|marketing|navigation|patients|reports|settings|treatments)\.[a-zA-Z0-9_.-]+\b/g
     ) || []
@@ -42,12 +42,36 @@ function assertNoVisibleI18nKeys() {
   })
 }
 
+function getVisibleText(doc: Document) {
+  const chunks: string[] = []
+
+  for (const element of Array.from(doc.body.querySelectorAll<HTMLElement>('body, body *'))) {
+    const style = doc.defaultView?.getComputedStyle(element)
+    const rect = element.getBoundingClientRect()
+
+    if (!style || style.display === 'none' || style.visibility === 'hidden' || rect.width === 0 || rect.height === 0) {
+      continue
+    }
+
+    const text = element.innerText || element.textContent || ''
+    if (text.trim()) chunks.push(text)
+  }
+
+  return chunks.join('\n')
+}
+
+function assertVisibleText(pattern: RegExp) {
+  cy.document().then((doc) => {
+    expect(getVisibleText(doc), `visible text ${pattern}`).to.match(pattern)
+  })
+}
+
 function assertTranslatedRoute(expectation: RouteExpectation, locale: 'en' | 'es') {
   const expectedText = locale === 'en' ? expectation.en : expectation.es
 
   cy.switchLanguage(locale)
   cy.get('html', { timeout: 30000 }).should('have.attr', 'lang', locale)
-  cy.contains(expectedText, { timeout: 30000 }).should('be.visible')
+  assertVisibleText(expectedText)
   cy.assertNotInSetupFlow()
   cy.assertNoHorizontalScroll()
   assertNoVisibleI18nKeys()
