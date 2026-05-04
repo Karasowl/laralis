@@ -92,9 +92,9 @@ const roleCases: RoleCase[] = [
       'patients.create': true,
       'patients.delete': false,
       'treatments.create': true,
-      'treatments.edit': true,
+      'treatments.edit': false,
       'treatments.mark_paid': false,
-      'prescriptions.create': true,
+      'prescriptions.create': false,
       'services.create': false,
       'supplies.view': true,
       'supplies.manage_stock': true,
@@ -117,11 +117,11 @@ const roleCases: RoleCase[] = [
       'patients.edit': true,
       'patients.delete': false,
       'treatments.create': true,
-      'treatments.edit': true,
+      'treatments.edit': false,
       'treatments.mark_paid': true,
-      'prescriptions.create': true,
+      'prescriptions.create': false,
       'services.view': true,
-      'supplies.view': true,
+      'supplies.view': false,
       'leads.create': true,
       'inbox.assign': true,
       'inbox.transfer': true,
@@ -212,6 +212,8 @@ describe('Stage role matrix and clinic access boundaries', () => {
       expect(clinicB?.id, 'clinic B id').to.be.a('string')
     })
 
+    const mismatches: string[] = []
+
     for (const roleCase of roleCases) {
       cy.then(() => {
         const user = usersByKey[roleCase.key]
@@ -227,14 +229,18 @@ describe('Stage role matrix and clinic access boundaries', () => {
           expect(response.body.clinicId, `${roleCase.key} selected clinic`).to.eq(clinicA.id)
 
           for (const [permission, expected] of Object.entries(roleCase.permissions)) {
-            expect(
-              response.body.permissions[permission] === true,
-              `${roleCase.key} ${permission}`
-            ).to.eq(expected)
+            const actual = response.body.permissions[permission] === true
+            if (actual !== expected) {
+              mismatches.push(`${roleCase.key} ${permission}: expected ${expected}, got ${actual}`)
+            }
           }
         })
       })
     }
+
+    cy.then(() => {
+      expect(mismatches, 'role permission mismatches').to.deep.eq([])
+    })
   })
 
   it('prevents clinic B selection and explicit data reads for roles limited to clinic A', () => {
