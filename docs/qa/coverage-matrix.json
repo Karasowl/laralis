@@ -590,5 +590,13 @@
     "capability": "Stage debe tener tablas push_subscriptions y push_notifications aplicadas antes de tratar push como cubierto",
     "layers": ["cypress", "database", "supabase-task"],
     "status": "covered"
+  },
+  {
+    "id": "qa-071-push-provider-contracts",
+    "priority": "P1",
+    "domain": "notifications",
+    "capability": "Sender Web Push arma VAPID/payload, marca sent/failed y desactiva suscripciones expiradas sin llamar proveedor real",
+    "layers": ["vitest", "provider-contract"],
+    "status": "covered"
   }
 ]

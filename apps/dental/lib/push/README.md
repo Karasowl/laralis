@@ -26,6 +26,13 @@ Sistema completo de notificaciones push del navegador usando Web Push API y Serv
 │  ├─ push_subscriptions                      │
 │  └─ push_notifications (delivery log)       │
 └─────────────────────────────────────────────┘
+               │
+┌──────────────▼──────────────────────────────┐
+│  Server Sender                              │
+│  ├─ lib/push/service.ts                     │
+│  ├─ web-push + VAPID keys                   │
+│  └─ Expired subscription cleanup            │
+└─────────────────────────────────────────────┘
 ```
 
 ## Estado Actual
@@ -64,35 +71,34 @@ Sistema completo de notificaciones push del navegador usando Web Push API y Serv
 - **Traducciones** (EN + ES)
   - Todas las claves en `messages/en.json` y `messages/es.json`
 
-- **Service Stub** (`lib/push/service.ts`)
+- **Server Delivery Service** (`lib/push/service.ts`)
   - `PushNotificationService` con métodos:
     - `sendNotification()`: Envío genérico
+    - `sendNotificationToClinic()`: Envío a suscripciones activas de una clínica
     - `sendAppointmentReminder()`: Recordatorios de citas
     - `sendTreatmentCreated()`: Notificación de tratamiento
     - `sendLowStockAlert()`: Alertas de inventario
-  - **NOTA**: Solo logguea a DB, no envía push real (requiere web-push)
+  - Usa `web-push` con VAPID.
+  - Crea registro `pending`, marca `sent` o `failed` y desactiva suscripciones expiradas con 404/410.
+  - Las pruebas de proveedor usan adaptador mockeado; no prueban entrega real contra Google/Apple/browser push.
 
-### ⏳ Pendiente (Requiere aprobación)
+### ⏳ Pendiente
 
-- **Instalación de web-push library**
-  ```bash
-  npm install web-push
-  ```
-
-- **Generación de VAPID keys**
+- **Generación/rotación de VAPID keys cuando haga falta**
   ```bash
   npx web-push generate-vapid-keys
   ```
 
-- **Configuración en .env.local**
+- **Configuración en .env.local / Vercel**
   ```env
   NEXT_PUBLIC_VAPID_PUBLIC_KEY=BCf...xyz
   VAPID_PRIVATE_KEY=abc...123
+  VAPID_SUBJECT=mailto:ops@example.com
   ```
 
-- **Implementación real de envío** en `lib/push/service.ts`
-  - Descomentar código de web-push
-  - Manejar errores 410/404 (subscriptions expiradas)
+- **Integración de producto**
+  - Conectar recordatorios cron, creación de tratamiento y alertas de inventario al sender.
+  - Añadir un smoke opcional con proveedor real, ejecutado solo con flag explícito porque depende de navegador/proveedor externo.
 
 ## Uso
 
@@ -161,7 +167,7 @@ self.addEventListener('notificationclick', (event) => {
 5. Verificar en DevTools > Application > Storage > IndexedDB que hay suscripción
 6. Verificar en Supabase que existe registro en `push_subscriptions`
 
-### Test de Envío (cuando web-push esté instalado)
+### Test de Envío
 
 ```typescript
 // En algún endpoint o script
@@ -179,6 +185,14 @@ await pushNotificationService.sendNotification({
 })
 ```
 
+### Provider-contract test
+
+```bash
+npm --workspace @laralis/dental run qa:provider-contracts
+```
+
+Ese test valida VAPID, payload de service worker, estados `sent/failed`, y limpieza de suscripciones expiradas sin hacer llamadas reales a proveedores externos.
+
 ## Troubleshooting
 
 ### "Service Worker not found"
@@ -190,9 +204,10 @@ await pushNotificationService.sendNotification({
 → Verificar permisos del navegador
 
 ### "Notification not delivered"
-→ Verificar que web-push está instalado
 → Verificar VAPID_PRIVATE_KEY en .env.local
+→ Verificar NEXT_PUBLIC_VAPID_PUBLIC_KEY/VAPID_PUBLIC_KEY
 → Check logs en `push_notifications` table
+→ Si el proveedor devuelve 404/410, la suscripción se desactiva automáticamente
 
 ### "RLS policy violation"
 → Verificar que usuario tiene membresía en la clínica
@@ -208,11 +223,13 @@ await pushNotificationService.sendNotification({
 - [x] UI integration
 - [x] Translations
 
-### Phase 2: Delivery (⏳ Pending approval)
-- [ ] Install web-push
-- [ ] Generate VAPID keys
-- [ ] Implement actual push delivery
-- [ ] Error handling for expired subscriptions
+### Phase 2: Delivery (✅ CONTRACT COVERED)
+- [x] Install web-push
+- [x] Configure VAPID support
+- [x] Implement server-side push delivery
+- [x] Error handling for expired subscriptions
+- [x] Provider-contract tests with mocked adapter
+- [ ] Optional live-provider smoke gated by explicit env flags
 
 ### Phase 3: Integration (Future)
 - [ ] Auto-send appointment reminders (cron job)
@@ -236,4 +253,4 @@ await pushNotificationService.sendNotification({
 
 **Autor**: Claude Code
 **Fecha**: 2025-12-14
-**Status**: Phase 1 Complete, Phase 2 Pending Approval
+**Status**: Phase 1 Complete, Phase 2 Contract Covered

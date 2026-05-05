@@ -12,7 +12,7 @@ docs/qa/coverage-matrix.json
 
 Esta matriz responde: "hay una prueba para esta capacidad".
 
-No responde por si sola: "el producto esta completo". Para eso se mantiene la tabla [Product Readiness vs QA Coverage](./product-readiness.md), que separa `real`, `provider-mock`, `contract-only` y `not-covered`.
+No responde por si sola: "el producto esta completo". Para eso se mantiene la tabla [Product Readiness vs QA Coverage](./product-readiness.md), que separa `real`, `provider-mock`, `provider-contract`, `contract-only` y `not-covered`.
 
 Regla: una capacidad con proveedor mockeado puede estar cubierta como flujo QA, pero no debe contarse como validacion completa del proveedor real.
 
@@ -163,7 +163,7 @@ Cobertura actual:
 - El spec tambien comprueba que el owner sigue pudiendo crear y limpiar un paciente QA, para evitar que el guard rompa permisos legitimos.
 - `apps/dental/app/api/patients/*`, `apps/dental/app/api/supplies/*`, `apps/dental/app/api/services/*`, `apps/dental/app/api/treatments/*`, `apps/dental/app/api/marketing/*`, `apps/dental/app/api/prescriptions/*`, `apps/dental/app/api/categories/*`, `apps/dental/app/api/medications`, `apps/dental/app/api/patient-sources`, `apps/dental/app/api/tariffs`, `apps/dental/app/api/time/cost-per-minute`, `apps/dental/app/api/team/*`, `apps/dental/app/api/invitations`, `apps/dental/app/api/invitations/[id]/resend`, `apps/dental/app/api/settings/*`, `apps/dental/app/api/snapshots/*`, `apps/dental/app/api/reset`, `apps/dental/app/api/dashboard/*`, `apps/dental/app/api/clinic/[clinicId]/export`, `apps/dental/app/api/export/*`, `apps/dental/app/api/notifications/send-confirmation`, `apps/dental/app/api/ai/query`, `apps/dental/app/api/ai/feedback` y `apps/dental/app/api/ai/sessions/*` ya tienen guards granulares en la superficie probada de stage.
 - El inventario QA ya distingue rutas publicas/booking, tokenizadas, webhook, self-service de cuenta y rutas de contexto para no mezclarlas con fugas de permisos.
-- Booking publico, self-service de cuenta, permisos backend y push notifications quedan cubiertos por specs dedicados; push sigue separado de email/SMS/WhatsApp porque requiere contrato propio de navegador/subscription.
+- Booking publico, self-service de cuenta, permisos backend y push notifications quedan cubiertos por specs dedicados; push sigue separado de email/SMS/WhatsApp porque requiere contrato propio de navegador/subscription y sender Web Push.
 
 ## Inbox y WhatsApp
 
@@ -210,12 +210,13 @@ Cobertura actual:
 - `apps/dental/tests/qa/notification-provider-contracts.test.ts` valida contratos de proveedor sin red real: payloads HTTP de Twilio/360dialog, auth headers, formateo de telefonos, parsing de callbacks de estado, errores de proveedor, switches de email/SMS y plantillas WhatsApp.
 - `apps/dental/cypress/e2e/stage/37-push-notifications.cy.ts` cubre push aparte: APIs protegidas de subscribe/unsubscribe, validacion de track-click, ciclo create/update/deactivate en `push_subscriptions`, `push_notifications.status=clicked`, y estados UI con PushManager mockeado.
 - El spec de push reproduce el bug de producto `Notification.permission=granted` sin suscripcion existente; la UI debe mostrar boton de activar y decodificar `NEXT_PUBLIC_VAPID_PUBLIC_KEY` a un `applicationServerKey` no vacio antes de llamar `pushManager.subscribe`.
+- `apps/dental/tests/qa/notification-provider-contracts.test.ts` tambien cubre Web Push como provider-contract: VAPID, payload para `/public/sw.js`, estado `sent`, fallo por VAPID ausente y desactivacion de suscripciones expiradas por 404/410.
 
 Brechas abiertas:
 
 - La gestion interna de solicitudes de booking por el equipo clinico ya tiene spec: aceptar, rechazar, convertir en tratamiento y trazabilidad de estado.
 - Entrega real de Resend/Twilio/WhatsApp, rutas app-level de callback de entrega y reintentos reales siguen fuera del QA default.
-- Entrega real de Web Push, evento `push` real del service worker, comportamiento mobile real y sender backend `web-push` siguen fuera del QA default; por ahora push queda cubierto como contrato API/browser mockeado.
+- Entrega real de Web Push, evento `push` real del service worker, comportamiento mobile real, reintentos/backoff de proveedor y wiring automatico desde cron/tratamientos/inventario siguen fuera del QA default; por ahora push queda cubierto como contrato API/browser mockeado y provider-contract server-side.
 
 ## Cron jobs
 
@@ -230,7 +231,7 @@ Cobertura actual:
 
 Brechas abiertas:
 
-- `cleanup-draft-workspaces` ya tiene cobertura cron/API. Push notifications tienen cobertura API/browser mockeada; entrega real del proveedor push sigue pendiente por separado de email/SMS/WhatsApp.
+- `cleanup-draft-workspaces` ya tiene cobertura cron/API. Push notifications tienen cobertura API/browser mockeada y provider-contract server-side; entrega real del proveedor push y wiring desde cron siguen pendientes por separado de email/SMS/WhatsApp.
 
 ## Lara, acciones y audio
 
@@ -332,6 +333,7 @@ Cobertura actual:
 - `cypress`: flujo de usuario real.
 - `visual`: graficas, responsive, modo oscuro, idiomas.
 - `provider-mock`: email, SMS, WhatsApp, IA, STT y TTS sin depender de proveedores reales.
+- `provider-contract`: payloads, auth, callbacks, errores y estados de proveedores sin red real.
 - `database`: aislamiento de datos y efectos persistidos.
 
 ## Estado

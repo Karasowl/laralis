@@ -1,6 +1,7 @@
+import webpush from 'web-push'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
-interface PushNotificationPayload {
+export interface PushNotificationPayload {
   title: string
   body: string
   icon?: string
@@ -11,168 +12,286 @@ interface PushNotificationPayload {
   image?: string
 }
 
-interface SendNotificationOptions {
+export interface SendNotificationOptions {
   userId: string
   clinicId: string
   notificationType: string
   payload: PushNotificationPayload
 }
 
-/**
- * Push Notification Service
- *
- * NOTE: This service currently only logs notifications to the database.
- * Actual push delivery requires the 'web-push' library which needs approval.
- *
- * To enable actual push delivery:
- * 1. Install web-push: npm install web-push
- * 2. Generate VAPID keys: npx web-push generate-vapid-keys
- * 3. Set VAPID keys in .env.local
- * 4. Implement sendPushToSubscription() using web-push library
- */
-export class PushNotificationService {
-  /**
-   * Send a push notification to a user
-   *
-   * Current behavior: Logs to database only
-   * Future: Will actually send via web-push library
-   */
-  async sendNotification({
-    userId,
-    clinicId,
-    notificationType,
-    payload
-  }: SendNotificationOptions): Promise<void> {
-    try {
-      // Get active subscriptions for user
-      const { data: subscriptions, error: fetchError } = await supabaseAdmin
-        .from('push_subscriptions')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('is_active', true)
+export interface SendClinicNotificationOptions {
+  clinicId: string
+  notificationType: string
+  payload: PushNotificationPayload
+}
 
-      if (fetchError) {
-        console.error('[PushService] Failed to fetch subscriptions:', fetchError)
-        return
-      }
+export interface PushSubscriptionRow {
+  id: string
+  clinic_id: string
+  user_id: string
+  endpoint: string
+  keys_p256dh: string
+  keys_auth: string
+}
 
-      if (!subscriptions || subscriptions.length === 0) {
-        console.log('[PushService] No active subscriptions for user:', userId)
-        return
-      }
+export interface PushNotificationStore {
+  listActiveSubscriptionsForUser(userId: string, clinicId: string): Promise<PushSubscriptionRow[]>
+  listActiveSubscriptionsForClinic(clinicId: string): Promise<PushSubscriptionRow[]>
+  createNotificationLog(input: {
+    clinicId: string
+    subscriptionId: string
+    notificationType: string
+    payload: PushNotificationPayload
+  }): Promise<string>
+  markNotificationSent(notificationId: string): Promise<void>
+  markNotificationFailed(notificationId: string, errorMessage: string): Promise<void>
+  deactivateSubscription(subscriptionId: string): Promise<void>
+}
 
-      // Send to each subscription
-      for (const subscription of subscriptions) {
-        await this.sendToSubscription(subscription, clinicId, notificationType, payload)
+export interface WebPushAdapter {
+  setVapidDetails(subject: string, publicKey: string, privateKey: string): void
+  sendNotification(
+    subscription: {
+      endpoint: string
+      keys: {
+        p256dh: string
+        auth: string
       }
-    } catch (err) {
-      console.error('[PushService] Send notification error:', err)
+    },
+    payload?: string | Buffer | null,
+    options?: {
+      TTL?: number
+      urgency?: 'very-low' | 'low' | 'normal' | 'high'
+      topic?: string
     }
+  ): Promise<unknown>
+}
+
+export interface PushSendResult {
+  subscriptionId: string
+  notificationId: string | null
+  status: 'sent' | 'failed' | 'skipped'
+  error?: string
+  deactivated?: boolean
+}
+
+export interface PushSendSummary {
+  attempted: number
+  sent: number
+  failed: number
+  skipped: number
+  results: PushSendResult[]
+}
+
+export interface VapidConfig {
+  publicKey: string | null
+  privateKey: string | null
+  subject: string
+  configured: boolean
+}
+
+export function normalizeVapidSubject(rawSubject?: string | null): string {
+  const subject = rawSubject?.trim()
+
+  if (!subject) {
+    return 'mailto:admin@laralis.com'
   }
 
-  /**
-   * Send notification to a single subscription
-   */
-  private async sendToSubscription(
-    subscription: any,
-    clinicId: string,
-    notificationType: string,
+  if (subject.startsWith('mailto:') || subject.startsWith('https://') || subject.startsWith('http://')) {
+    return subject
+  }
+
+  if (subject.includes('@')) {
+    return `mailto:${subject}`
+  }
+
+  return 'mailto:admin@laralis.com'
+}
+
+export function getVapidConfig(env: NodeJS.ProcessEnv = process.env): VapidConfig {
+  const publicKey = env.VAPID_PUBLIC_KEY || env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || null
+  const privateKey = env.VAPID_PRIVATE_KEY || null
+  const subject = normalizeVapidSubject(env.VAPID_SUBJECT || env.EMAIL_FROM)
+
+  return {
+    publicKey,
+    privateKey,
+    subject,
+    configured: Boolean(publicKey && privateKey),
+  }
+}
+
+export function isPushDeliveryConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
+  return getVapidConfig(env).configured
+}
+
+export function buildWebPushSubscription(subscription: PushSubscriptionRow) {
+  return {
+    endpoint: subscription.endpoint,
+    keys: {
+      p256dh: subscription.keys_p256dh,
+      auth: subscription.keys_auth,
+    },
+  }
+}
+
+export function buildWebPushPayload(payload: PushNotificationPayload, notificationId: string): string {
+  return JSON.stringify({
+    ...payload,
+    notificationId,
+  })
+}
+
+export function classifyWebPushError(error: unknown): {
+  message: string
+  statusCode?: number
+  expired: boolean
+} {
+  const maybeError = error as { message?: string; statusCode?: number; body?: unknown }
+  const statusCode = maybeError?.statusCode
+  const message =
+    maybeError?.message ||
+    (typeof maybeError?.body === 'string' ? maybeError.body : null) ||
+    'Unknown push delivery error'
+
+  return {
+    message,
+    statusCode,
+    expired: statusCode === 404 || statusCode === 410,
+  }
+}
+
+export class SupabasePushNotificationStore implements PushNotificationStore {
+  async listActiveSubscriptionsForUser(userId: string, clinicId: string): Promise<PushSubscriptionRow[]> {
+    const { data, error } = await supabaseAdmin
+      .from('push_subscriptions')
+      .select('id, clinic_id, user_id, endpoint, keys_p256dh, keys_auth')
+      .eq('user_id', userId)
+      .eq('clinic_id', clinicId)
+      .eq('is_active', true)
+
+    if (error) {
+      throw new Error(`Failed to fetch push subscriptions: ${error.message}`)
+    }
+
+    return (data || []) as PushSubscriptionRow[]
+  }
+
+  async listActiveSubscriptionsForClinic(clinicId: string): Promise<PushSubscriptionRow[]> {
+    const { data, error } = await supabaseAdmin
+      .from('push_subscriptions')
+      .select('id, clinic_id, user_id, endpoint, keys_p256dh, keys_auth')
+      .eq('clinic_id', clinicId)
+      .eq('is_active', true)
+
+    if (error) {
+      throw new Error(`Failed to fetch clinic push subscriptions: ${error.message}`)
+    }
+
+    return (data || []) as PushSubscriptionRow[]
+  }
+
+  async createNotificationLog(input: {
+    clinicId: string
+    subscriptionId: string
+    notificationType: string
     payload: PushNotificationPayload
-  ): Promise<void> {
-    // Create notification log entry
-    const { data: notification, error: insertError } = await supabaseAdmin
+  }): Promise<string> {
+    const { data, error } = await supabaseAdmin
       .from('push_notifications')
       .insert({
-        clinic_id: clinicId,
-        subscription_id: subscription.id,
-        notification_type: notificationType,
-        title: payload.title,
-        body: payload.body,
-        icon_url: payload.icon,
-        action_url: payload.url,
-        status: 'pending'
+        clinic_id: input.clinicId,
+        subscription_id: input.subscriptionId,
+        notification_type: input.notificationType,
+        title: input.payload.title,
+        body: input.payload.body,
+        icon_url: input.payload.icon || null,
+        action_url: input.payload.url || null,
+        status: 'pending',
       })
       .select('id')
       .single()
 
-    if (insertError) {
-      console.error('[PushService] Failed to create notification log:', insertError)
-      return
+    if (error) {
+      throw new Error(`Failed to create push notification log: ${error.message}`)
     }
 
-    // TODO: Implement actual push delivery with web-push library
-    // For now, just log the notification
-    console.log('[PushService] Notification logged (not sent):', {
-      notificationId: notification.id,
-      endpoint: subscription.endpoint,
-      title: payload.title,
-      body: payload.body
-    })
-
-    // When web-push is installed, replace the above with:
-    /*
-    try {
-      const pushSubscription = {
-        endpoint: subscription.endpoint,
-        keys: {
-          p256dh: subscription.keys_p256dh,
-          auth: subscription.keys_auth
-        }
-      }
-
-      const webPushPayload = JSON.stringify({
-        ...payload,
-        notificationId: notification.id
-      })
-
-      await webpush.sendNotification(
-        pushSubscription,
-        webPushPayload,
-        {
-          vapidDetails: {
-            subject: 'mailto:admin@laralis.com',
-            publicKey: process.env.VAPID_PUBLIC_KEY,
-            privateKey: process.env.VAPID_PRIVATE_KEY
-          }
-        }
-      )
-
-      // Update status to sent
-      await supabaseAdmin
-        .from('push_notifications')
-        .update({
-          status: 'sent',
-          sent_at: new Date().toISOString()
-        })
-        .eq('id', notification.id)
-
-      console.log('[PushService] Push sent successfully:', notification.id)
-    } catch (err) {
-      console.error('[PushService] Failed to send push:', err)
-
-      // Update status to failed
-      await supabaseAdmin
-        .from('push_notifications')
-        .update({
-          status: 'failed',
-          error_message: err instanceof Error ? err.message : 'Unknown error'
-        })
-        .eq('id', notification.id)
-
-      // If subscription is expired/invalid, deactivate it
-      if (err.statusCode === 410 || err.statusCode === 404) {
-        await supabaseAdmin
-          .from('push_subscriptions')
-          .update({ is_active: false })
-          .eq('id', subscription.id)
-      }
+    if (!data?.id) {
+      throw new Error('Failed to create push notification log: missing id')
     }
-    */
+
+    return data.id
   }
 
-  /**
-   * Send appointment reminder notification
-   */
+  async markNotificationSent(notificationId: string): Promise<void> {
+    const { error } = await supabaseAdmin
+      .from('push_notifications')
+      .update({
+        status: 'sent',
+        sent_at: new Date().toISOString(),
+        error_message: null,
+      })
+      .eq('id', notificationId)
+
+    if (error) {
+      throw new Error(`Failed to mark push notification sent: ${error.message}`)
+    }
+  }
+
+  async markNotificationFailed(notificationId: string, errorMessage: string): Promise<void> {
+    const { error } = await supabaseAdmin
+      .from('push_notifications')
+      .update({
+        status: 'failed',
+        error_message: errorMessage,
+      })
+      .eq('id', notificationId)
+
+    if (error) {
+      throw new Error(`Failed to mark push notification failed: ${error.message}`)
+    }
+  }
+
+  async deactivateSubscription(subscriptionId: string): Promise<void> {
+    const { error } = await supabaseAdmin
+      .from('push_subscriptions')
+      .update({ is_active: false })
+      .eq('id', subscriptionId)
+
+    if (error) {
+      throw new Error(`Failed to deactivate push subscription: ${error.message}`)
+    }
+  }
+}
+
+export class PushNotificationService {
+  constructor(
+    private readonly adapter: WebPushAdapter = webpush,
+    private readonly store: PushNotificationStore = new SupabasePushNotificationStore()
+  ) {}
+
+  async sendNotification(options: SendNotificationOptions): Promise<PushSendSummary> {
+    try {
+      const subscriptions = await this.store.listActiveSubscriptionsForUser(options.userId, options.clinicId)
+      return this.sendToSubscriptions(subscriptions, options.clinicId, options.notificationType, options.payload)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown push subscription lookup error'
+      console.error('[PushService] Failed to prepare notification:', error)
+      return this.emptyFailure(message)
+    }
+  }
+
+  async sendNotificationToClinic(options: SendClinicNotificationOptions): Promise<PushSendSummary> {
+    try {
+      const subscriptions = await this.store.listActiveSubscriptionsForClinic(options.clinicId)
+      return this.sendToSubscriptions(subscriptions, options.clinicId, options.notificationType, options.payload)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown clinic push subscription lookup error'
+      console.error('[PushService] Failed to prepare clinic notification:', error)
+      return this.emptyFailure(message)
+    }
+  }
+
   async sendAppointmentReminder(
     userId: string,
     clinicId: string,
@@ -181,8 +300,8 @@ export class PushNotificationService {
       serviceName: string
       dateTime: string
     }
-  ): Promise<void> {
-    await this.sendNotification({
+  ): Promise<PushSendSummary> {
+    return this.sendNotification({
       userId,
       clinicId,
       notificationType: 'appointment_reminder',
@@ -192,14 +311,11 @@ export class PushNotificationService {
         icon: '/icons/icon-192x192.png',
         url: '/appointments',
         tag: 'appointment-reminder',
-        requireInteraction: true
-      }
+        requireInteraction: true,
+      },
     })
   }
 
-  /**
-   * Send treatment created notification
-   */
   async sendTreatmentCreated(
     userId: string,
     clinicId: string,
@@ -207,8 +323,8 @@ export class PushNotificationService {
       patientName: string
       serviceName: string
     }
-  ): Promise<void> {
-    await this.sendNotification({
+  ): Promise<PushSendSummary> {
+    return this.sendNotification({
       userId,
       clinicId,
       notificationType: 'treatment_created',
@@ -217,21 +333,18 @@ export class PushNotificationService {
         body: `Tratamiento creado: ${treatmentDetails.serviceName} para ${treatmentDetails.patientName}`,
         icon: '/icons/icon-192x192.png',
         url: '/treatments',
-        tag: 'treatment-created'
-      }
+        tag: 'treatment-created',
+      },
     })
   }
 
-  /**
-   * Send low stock alert
-   */
   async sendLowStockAlert(
     userId: string,
     clinicId: string,
     supplyName: string,
     currentStock: number
-  ): Promise<void> {
-    await this.sendNotification({
+  ): Promise<PushSendSummary> {
+    return this.sendNotification({
       userId,
       clinicId,
       notificationType: 'low_stock_alert',
@@ -241,11 +354,117 @@ export class PushNotificationService {
         icon: '/icons/icon-192x192.png',
         url: '/supplies',
         tag: 'low-stock',
-        requireInteraction: true
-      }
+        requireInteraction: true,
+      },
     })
+  }
+
+  private async sendToSubscriptions(
+    subscriptions: PushSubscriptionRow[],
+    clinicId: string,
+    notificationType: string,
+    payload: PushNotificationPayload
+  ): Promise<PushSendSummary> {
+    const results: PushSendResult[] = []
+
+    for (const subscription of subscriptions) {
+      results.push(await this.sendToSubscription(subscription, clinicId, notificationType, payload))
+    }
+
+    return {
+      attempted: results.length,
+      sent: results.filter((result) => result.status === 'sent').length,
+      failed: results.filter((result) => result.status === 'failed').length,
+      skipped: results.filter((result) => result.status === 'skipped').length,
+      results,
+    }
+  }
+
+  private async sendToSubscription(
+    subscription: PushSubscriptionRow,
+    clinicId: string,
+    notificationType: string,
+    payload: PushNotificationPayload
+  ): Promise<PushSendResult> {
+    let notificationId: string | null = null
+
+    try {
+      notificationId = await this.store.createNotificationLog({
+        clinicId,
+        subscriptionId: subscription.id,
+        notificationType,
+        payload,
+      })
+
+      const vapidConfig = getVapidConfig()
+      if (!vapidConfig.configured || !vapidConfig.publicKey || !vapidConfig.privateKey) {
+        const error = 'Web Push VAPID keys are not configured'
+        await this.store.markNotificationFailed(notificationId, error)
+        return {
+          subscriptionId: subscription.id,
+          notificationId,
+          status: 'failed',
+          error,
+        }
+      }
+
+      this.adapter.setVapidDetails(vapidConfig.subject, vapidConfig.publicKey, vapidConfig.privateKey)
+
+      await this.adapter.sendNotification(
+        buildWebPushSubscription(subscription),
+        buildWebPushPayload(payload, notificationId),
+        {
+          TTL: 60 * 60,
+          urgency: payload.requireInteraction ? 'high' : 'normal',
+          topic: payload.tag,
+        }
+      )
+
+      await this.store.markNotificationSent(notificationId)
+
+      return {
+        subscriptionId: subscription.id,
+        notificationId,
+        status: 'sent',
+      }
+    } catch (error) {
+      const classified = classifyWebPushError(error)
+      console.error('[PushService] Failed to send push notification:', error)
+
+      if (notificationId) {
+        await this.store.markNotificationFailed(notificationId, classified.message)
+      }
+
+      if (classified.expired) {
+        await this.store.deactivateSubscription(subscription.id)
+      }
+
+      return {
+        subscriptionId: subscription.id,
+        notificationId,
+        status: 'failed',
+        error: classified.message,
+        deactivated: classified.expired,
+      }
+    }
+  }
+
+  private emptyFailure(error: string): PushSendSummary {
+    return {
+      attempted: 0,
+      sent: 0,
+      failed: 1,
+      skipped: 0,
+      results: [
+        {
+          subscriptionId: 'lookup',
+          notificationId: null,
+          status: 'failed',
+          error,
+        },
+      ],
+    }
   }
 }
 
-// Export singleton instance
 export const pushNotificationService = new PushNotificationService()

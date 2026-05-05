@@ -5,6 +5,18 @@ import { TwilioWhatsAppProvider } from '@/lib/whatsapp/providers/twilio'
 import { Dialog360WhatsAppProvider } from '@/lib/whatsapp/providers/dialog360'
 import { interpolateTemplate } from '@/lib/whatsapp/service'
 import type { WhatsAppConfig } from '@/lib/whatsapp/types'
+import {
+  buildWebPushPayload,
+  buildWebPushSubscription,
+  classifyWebPushError,
+  getVapidConfig,
+  isPushDeliveryConfigured,
+  normalizeVapidSubject,
+  PushNotificationService,
+  type PushNotificationStore,
+  type PushSubscriptionRow,
+  type WebPushAdapter,
+} from '@/lib/push/service'
 
 const twilioConfig: WhatsAppConfig = {
   enabled: true,
@@ -28,6 +40,57 @@ const dialog360Config: WhatsAppConfig = {
   dialog360_api_key: 'd360-qa-key',
 }
 
+const pushSubscription: PushSubscriptionRow = {
+  id: 'push-subscription-1',
+  clinic_id: 'clinic-qa',
+  user_id: 'user-qa',
+  endpoint: 'https://push.service.test/subscription-1',
+  keys_p256dh: 'p256dh-qa-key',
+  keys_auth: 'auth-qa-key',
+}
+
+function createPushStoreMock(subscriptions: PushSubscriptionRow[] = [pushSubscription]) {
+  const listActiveSubscriptionsForUser = vi.fn().mockResolvedValue(subscriptions)
+  const listActiveSubscriptionsForClinic = vi.fn().mockResolvedValue(subscriptions)
+  const createNotificationLog = vi.fn().mockResolvedValue('push-notification-1')
+  const markNotificationSent = vi.fn().mockResolvedValue(undefined)
+  const markNotificationFailed = vi.fn().mockResolvedValue(undefined)
+  const deactivateSubscription = vi.fn().mockResolvedValue(undefined)
+  const store: PushNotificationStore = {
+    listActiveSubscriptionsForUser,
+    listActiveSubscriptionsForClinic,
+    createNotificationLog,
+    markNotificationSent,
+    markNotificationFailed,
+    deactivateSubscription,
+  }
+
+  return {
+    store,
+    listActiveSubscriptionsForUser,
+    listActiveSubscriptionsForClinic,
+    createNotificationLog,
+    markNotificationSent,
+    markNotificationFailed,
+    deactivateSubscription,
+  }
+}
+
+function createWebPushAdapterMock() {
+  const setVapidDetails = vi.fn()
+  const sendNotification = vi.fn().mockResolvedValue({ ok: true })
+  const adapter: WebPushAdapter = {
+    setVapidDetails,
+    sendNotification,
+  }
+
+  return {
+    adapter,
+    setVapidDetails,
+    sendNotification,
+  }
+}
+
 function mockJsonFetch(body: unknown, status = 200) {
   const fetchMock = vi.fn().mockResolvedValue(
     new Response(JSON.stringify(body), {
@@ -47,7 +110,212 @@ describe('Notification provider contracts', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
     vi.restoreAllMocks()
+  })
+
+  it('keeps Web Push VAPID configuration explicit and server-only', () => {
+    expect(
+      getVapidConfig({
+        NEXT_PUBLIC_VAPID_PUBLIC_KEY: 'public-from-client-env',
+        VAPID_PRIVATE_KEY: 'private-server-key',
+        EMAIL_FROM: 'ops@laralis.test',
+      } as unknown as NodeJS.ProcessEnv)
+    ).toEqual({
+      publicKey: 'public-from-client-env',
+      privateKey: 'private-server-key',
+      subject: 'mailto:ops@laralis.test',
+      configured: true,
+    })
+
+    expect(
+      isPushDeliveryConfigured({
+        VAPID_PUBLIC_KEY: 'public-key-only',
+      } as unknown as NodeJS.ProcessEnv)
+    ).toBe(false)
+    expect(normalizeVapidSubject('https://laralis.test/push')).toBe('https://laralis.test/push')
+    expect(normalizeVapidSubject('invalid-subject')).toBe('mailto:admin@laralis.com')
+  })
+
+  it('builds the Web Push subscription and service-worker payload contract', () => {
+    const payload = buildWebPushPayload(
+      {
+        title: 'Cita confirmada',
+        body: 'Paciente QA a las 9:00 AM',
+        icon: '/icons/icon-192x192.png',
+        url: '/treatments/calendar',
+        tag: 'appointment-reminder',
+        requireInteraction: true,
+        actions: [{ action: 'open', title: 'Abrir' }],
+      },
+      'push-notification-1'
+    )
+
+    expect(buildWebPushSubscription(pushSubscription)).toEqual({
+      endpoint: 'https://push.service.test/subscription-1',
+      keys: {
+        p256dh: 'p256dh-qa-key',
+        auth: 'auth-qa-key',
+      },
+    })
+
+    expect(JSON.parse(payload)).toEqual({
+      title: 'Cita confirmada',
+      body: 'Paciente QA a las 9:00 AM',
+      icon: '/icons/icon-192x192.png',
+      url: '/treatments/calendar',
+      tag: 'appointment-reminder',
+      requireInteraction: true,
+      actions: [{ action: 'open', title: 'Abrir' }],
+      notificationId: 'push-notification-1',
+    })
+  })
+
+  it('sends Web Push notifications and marks the delivery log as sent', async () => {
+    vi.stubEnv('VAPID_PUBLIC_KEY', 'server-public-key')
+    vi.stubEnv('NEXT_PUBLIC_VAPID_PUBLIC_KEY', '')
+    vi.stubEnv('VAPID_PRIVATE_KEY', 'server-private-key')
+    vi.stubEnv('VAPID_SUBJECT', 'push@laralis.test')
+    const storeMock = createPushStoreMock()
+    const adapterMock = createWebPushAdapterMock()
+    const service = new PushNotificationService(adapterMock.adapter, storeMock.store)
+
+    const result = await service.sendNotification({
+      userId: 'user-qa',
+      clinicId: 'clinic-qa',
+      notificationType: 'appointment_reminder',
+      payload: {
+        title: 'Recordatorio de Cita',
+        body: 'Paciente QA - Limpieza QA a las 9:00 AM',
+        url: '/appointments',
+        tag: 'appointment-reminder',
+        requireInteraction: true,
+      },
+    })
+
+    expect(storeMock.listActiveSubscriptionsForUser).toHaveBeenCalledWith('user-qa', 'clinic-qa')
+    expect(storeMock.createNotificationLog).toHaveBeenCalledWith({
+      clinicId: 'clinic-qa',
+      subscriptionId: 'push-subscription-1',
+      notificationType: 'appointment_reminder',
+      payload: {
+        title: 'Recordatorio de Cita',
+        body: 'Paciente QA - Limpieza QA a las 9:00 AM',
+        url: '/appointments',
+        tag: 'appointment-reminder',
+        requireInteraction: true,
+      },
+    })
+    expect(adapterMock.setVapidDetails).toHaveBeenCalledWith(
+      'mailto:push@laralis.test',
+      'server-public-key',
+      'server-private-key'
+    )
+
+    const [subscription, payload, options] = adapterMock.sendNotification.mock.calls[0]
+    expect(subscription).toEqual(buildWebPushSubscription(pushSubscription))
+    expect(JSON.parse(String(payload))).toMatchObject({
+      title: 'Recordatorio de Cita',
+      notificationId: 'push-notification-1',
+    })
+    expect(options).toEqual({
+      TTL: 3600,
+      urgency: 'high',
+      topic: 'appointment-reminder',
+    })
+    expect(storeMock.markNotificationSent).toHaveBeenCalledWith('push-notification-1')
+    expect(result).toMatchObject({
+      attempted: 1,
+      sent: 1,
+      failed: 0,
+      skipped: 0,
+    })
+  })
+
+  it('marks Web Push delivery as failed when VAPID keys are missing', async () => {
+    vi.stubEnv('VAPID_PUBLIC_KEY', '')
+    vi.stubEnv('NEXT_PUBLIC_VAPID_PUBLIC_KEY', '')
+    vi.stubEnv('VAPID_PRIVATE_KEY', '')
+    const storeMock = createPushStoreMock()
+    const adapterMock = createWebPushAdapterMock()
+    const service = new PushNotificationService(adapterMock.adapter, storeMock.store)
+
+    const result = await service.sendTreatmentCreated('user-qa', 'clinic-qa', {
+      patientName: 'Paciente QA',
+      serviceName: 'Limpieza QA',
+    })
+
+    expect(adapterMock.sendNotification).not.toHaveBeenCalled()
+    expect(storeMock.markNotificationFailed).toHaveBeenCalledWith(
+      'push-notification-1',
+      'Web Push VAPID keys are not configured'
+    )
+    expect(result).toMatchObject({
+      attempted: 1,
+      sent: 0,
+      failed: 1,
+    })
+  })
+
+  it('deactivates expired Web Push subscriptions after provider 404 or 410 responses', async () => {
+    vi.stubEnv('VAPID_PUBLIC_KEY', 'server-public-key')
+    vi.stubEnv('VAPID_PRIVATE_KEY', 'server-private-key')
+    const storeMock = createPushStoreMock()
+    const adapterMock = createWebPushAdapterMock()
+    adapterMock.sendNotification.mockRejectedValue(
+      Object.assign(new Error('Push subscription is gone'), {
+        statusCode: 410,
+      })
+    )
+    const service = new PushNotificationService(adapterMock.adapter, storeMock.store)
+
+    const result = await service.sendLowStockAlert('user-qa', 'clinic-qa', 'Anestesia QA', 2)
+
+    expect(classifyWebPushError({ statusCode: 404, body: 'Not found' })).toEqual({
+      message: 'Not found',
+      statusCode: 404,
+      expired: true,
+    })
+    expect(storeMock.markNotificationFailed).toHaveBeenCalledWith(
+      'push-notification-1',
+      'Push subscription is gone'
+    )
+    expect(storeMock.deactivateSubscription).toHaveBeenCalledWith('push-subscription-1')
+    expect(result.results[0]).toMatchObject({
+      subscriptionId: 'push-subscription-1',
+      notificationId: 'push-notification-1',
+      status: 'failed',
+      error: 'Push subscription is gone',
+      deactivated: true,
+    })
+  })
+
+  it('does not create push logs or call providers when a user has no active subscriptions', async () => {
+    vi.stubEnv('VAPID_PUBLIC_KEY', 'server-public-key')
+    vi.stubEnv('VAPID_PRIVATE_KEY', 'server-private-key')
+    const storeMock = createPushStoreMock([])
+    const adapterMock = createWebPushAdapterMock()
+    const service = new PushNotificationService(adapterMock.adapter, storeMock.store)
+
+    const result = await service.sendNotification({
+      userId: 'user-qa',
+      clinicId: 'clinic-qa',
+      notificationType: 'test',
+      payload: {
+        title: 'Sin suscripciones',
+        body: 'No debe llamar proveedor',
+      },
+    })
+
+    expect(storeMock.createNotificationLog).not.toHaveBeenCalled()
+    expect(adapterMock.sendNotification).not.toHaveBeenCalled()
+    expect(result).toEqual({
+      attempted: 0,
+      sent: 0,
+      failed: 0,
+      skipped: 0,
+      results: [],
+    })
   })
 
   it('keeps email notification gates explicit and disabled by default', () => {
