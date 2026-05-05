@@ -147,7 +147,6 @@ describe('Stage WhatsApp inbound webhook coverage', () => {
         From: `whatsapp:${phone}`,
         To: 'whatsapp:+15559990004',
         Body: `Mensaje firmado por contrato Twilio ${stamp}`,
-        ProfileName: `QA Signed ${stamp}`,
         MessageSid: twilioSid(stamp, 'signed'),
       }).then(expectWebhookOk)
 
@@ -155,6 +154,8 @@ describe('Stage WhatsApp inbound webhook coverage', () => {
         expect(state.leads, 'signed request created one lead').to.have.length(1)
         expect(state.conversations, 'signed request created one conversation').to.have.length(1)
         expect(state.messages, 'signed request created one inbound message').to.have.length(1)
+        expect(state.lead.full_name).to.eq(null)
+        expect(state.conversation.conversation_state).to.eq('collecting_name')
         expect(state.messages[0].content).to.eq(`Mensaje firmado por contrato Twilio ${stamp}`)
       })
     })
