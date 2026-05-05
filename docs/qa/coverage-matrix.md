@@ -179,6 +179,21 @@ Brechas abiertas:
 
 - El webhook inbound de WhatsApp y la verificacion de firma quedan para un spec separado, porque necesitan contrato de payload de Twilio/360dialog.
 
+## Webhook inbound de WhatsApp
+
+Cobertura actual:
+
+- `apps/dental/cypress/e2e/stage/35-whatsapp-webhook-inbound.cy.ts` rechaza requests sin firma ni header QA en el runtime production preview, antes de confiar en campos del form.
+- El spec usa `x-laralis-qa-webhook: mock` limitado al Supabase stage `kafbqdliromcveojtdar` para ejecutar fixtures de Twilio sin llamar proveedor externo.
+- El flujo de captura de datos crea lead, conversacion y mensajes inbound; luego avanza `collecting_name -> collecting_email -> chatting` y verifica que lead/conversacion quedan actualizados.
+- El spec cubre palabras de handoff como "humano", moviendo la conversacion a `pending` para atencion humana.
+- El spec cubre atribucion Click-to-WhatsApp desde campos `Referral*` de Twilio hacia `leads` y metadata del mensaje.
+- El endpoint ahora ignora reintentos del proveedor con el mismo `MessageSid`, evitando duplicar mensajes inbound o reejecutar efectos de estado.
+
+Brechas abiertas:
+
+- El flujo positivo usa fixture QA y no prueba entrega real de proveedor. 360dialog raw payload y smoke real de proveedor siguen fuera del default QA.
+
 ## Booking publico y notificaciones
 
 Cobertura actual:

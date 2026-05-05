@@ -54,6 +54,23 @@ const HANDOFF_KEYWORDS = [
   'llamada',
 ]
 
+const STAGE_SUPABASE_REF = 'kafbqdliromcveojtdar'
+
+function isQaWebhookMockRequest(request: NextRequest): boolean {
+  return (
+    request.headers.get('x-laralis-qa-webhook') === 'mock' &&
+    process.env.NEXT_PUBLIC_SUPABASE_URL?.includes(STAGE_SUPABASE_REF)
+  )
+}
+
+function qaWhatsAppSendResult(messageIdPrefix: string) {
+  return {
+    success: true,
+    messageId: `${messageIdPrefix}-${Date.now()}`,
+    status: 'sent',
+  }
+}
+
 function normalizeContactAddress(value: string): string {
   if (!value) return value
   return value.startsWith('whatsapp:') ? value : `whatsapp:${value}`
@@ -66,6 +83,21 @@ function stripWhatsAppPrefix(value: string): string {
 function shouldHandoff(text: string): boolean {
   const lower = text.toLowerCase()
   return HANDOFF_KEYWORDS.some((keyword) => lower.includes(keyword))
+}
+
+async function sendWebhookWhatsAppMessage(
+  request: NextRequest,
+  params: {
+    clinicId: string
+    recipientPhone: string
+    content: string
+  }
+) {
+  if (isQaWebhookMockRequest(request)) {
+    return qaWhatsAppSendResult('qa-whatsapp-webhook')
+  }
+
+  return sendWhatsAppMessage(params)
 }
 
 interface CtwaReferral {
@@ -138,7 +170,8 @@ export async function POST(request: NextRequest) {
     const signature = request.headers.get('x-twilio-signature')
 
     // Allow opting out only in dev. In production the signature is required.
-    const sigOk = verifyTwilioSignature(signature, fullUrl, formParams, authToken)
+    const qaMock = isQaWebhookMockRequest(request)
+    const sigOk = qaMock || verifyTwilioSignature(signature, fullUrl, formParams, authToken)
     if (!sigOk && process.env.NODE_ENV === 'production') {
       console.warn('[whatsapp/webhook] Rejecting unsigned request from', request.headers.get('x-forwarded-for'))
       return NextResponse.json({ error: 'Invalid signature' }, { status: 403 })
@@ -152,6 +185,18 @@ export async function POST(request: NextRequest) {
 
     if (!fromRaw || !body) {
       return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
+    }
+
+    if (messageSid) {
+      const { data: existingMessages } = await supabaseAdmin
+        .from('inbox_messages')
+        .select('id')
+        .eq('channel_message_id', messageSid)
+        .limit(1)
+
+      if (existingMessages && existingMessages.length > 0) {
+        return new NextResponse('', { status: 200 })
+      }
     }
 
     const contactAddress = normalizeContactAddress(fromRaw)
@@ -333,7 +378,7 @@ export async function POST(request: NextRequest) {
         .update({ status: 'pending' })
         .eq('id', conversation.id)
 
-      await sendWhatsAppMessage({
+      await sendWebhookWhatsAppMessage(request, {
         clinicId,
         recipientPhone: normalizedPhone,
         content: 'Gracias. Un agente te contactara en breve.',
@@ -344,7 +389,7 @@ export async function POST(request: NextRequest) {
 
     if (conversation.conversation_state === 'collecting_name') {
       if (createdConversation) {
-        await sendWhatsAppMessage({
+        await sendWebhookWhatsAppMessage(request, {
           clinicId,
           recipientPhone: normalizedPhone,
           content: 'Hola. Para ayudarte mejor, cual es tu nombre?',
@@ -362,7 +407,7 @@ export async function POST(request: NextRequest) {
         .update({ conversation_state: 'collecting_email', contact_name: body })
         .eq('id', conversation.id)
 
-      await sendWhatsAppMessage({
+      await sendWebhookWhatsAppMessage(request, {
         clinicId,
         recipientPhone: normalizedPhone,
         content: 'Gracias. Cual es tu correo?',
@@ -382,7 +427,7 @@ export async function POST(request: NextRequest) {
         .update({ conversation_state: 'chatting' })
         .eq('id', conversation.id)
 
-      await sendWhatsAppMessage({
+      await sendWebhookWhatsAppMessage(request, {
         clinicId,
         recipientPhone: normalizedPhone,
         content: 'Listo, gracias. En que te puedo ayudar?',
@@ -392,7 +437,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!hasAIConfig()) {
-      await sendWhatsAppMessage({
+      await sendWebhookWhatsAppMessage(request, {
         clinicId,
         recipientPhone: normalizedPhone,
         content: 'Gracias. Un agente te respondera pronto.',
@@ -404,7 +449,7 @@ export async function POST(request: NextRequest) {
       validateAIConfig()
     } catch (error) {
       console.error('[whatsapp webhook] AI config error:', error)
-      await sendWhatsAppMessage({
+      await sendWebhookWhatsAppMessage(request, {
         clinicId,
         recipientPhone: normalizedPhone,
         content: 'Gracias. Un agente te respondera pronto.',
@@ -448,7 +493,7 @@ export async function POST(request: NextRequest) {
 
     const reply = await aiService.chat(aiMessages)
 
-    const sendResult = await sendWhatsAppMessage({
+    const sendResult = await sendWebhookWhatsAppMessage(request, {
       clinicId,
       recipientPhone: normalizedPhone,
       content: reply,

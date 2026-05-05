@@ -334,6 +334,7 @@ function analyzeCoverageMatrix() {
     'navigation',
     'booking',
     'notifications',
+    'webhook',
     'cron',
     'lara',
     'audio'

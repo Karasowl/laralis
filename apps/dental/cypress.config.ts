@@ -1157,6 +1157,142 @@ export default defineConfig({
           };
         },
 
+        async qaWhatsAppWebhookContext({
+          clinicName,
+        }: {
+          clinicName: string;
+        }) {
+          const client = adminClient();
+
+          const { data: clinic, error: clinicError } = await client
+            .from('clinics')
+            .select('id, name')
+            .eq('name', clinicName)
+            .single();
+
+          if (clinicError || !clinic?.id) {
+            throw new Error(`Could not find QA clinic "${clinicName}": ${clinicError?.message || 'missing clinic'}`);
+          }
+
+          const { data: campaign } = await client
+            .from('marketing_campaigns')
+            .select('id, name')
+            .eq('clinic_id', clinic.id)
+            .eq('name', 'Meta Mayo')
+            .maybeSingle();
+
+          return {
+            clinicId: clinic.id,
+            clinicName: clinic.name,
+            campaignId: campaign?.id || null,
+            campaignName: campaign?.name || null,
+          };
+        },
+
+        async qaWhatsAppWebhookState({
+          clinicId,
+          phone,
+        }: {
+          clinicId: string;
+          phone: string;
+        }) {
+          const client = adminClient();
+          const normalizedPhone = String(phone || '').replace(/^whatsapp:/i, '');
+          const contactAddress = `whatsapp:${normalizedPhone}`;
+
+          const { data: leads, error: leadError } = await client
+            .from('leads')
+            .select('*')
+            .eq('clinic_id', clinicId)
+            .eq('phone', normalizedPhone)
+            .order('created_at', { ascending: false });
+          if (leadError) throw new Error(`Could not read webhook QA leads: ${leadError.message}`);
+
+          const { data: conversations, error: conversationError } = await client
+            .from('inbox_conversations')
+            .select('*')
+            .eq('clinic_id', clinicId)
+            .eq('contact_address', contactAddress)
+            .order('created_at', { ascending: false });
+          if (conversationError) throw new Error(`Could not read webhook QA conversations: ${conversationError.message}`);
+
+          const conversationIds = (conversations || []).map((row) => row.id).filter(Boolean);
+          let messages: any[] = [];
+          if (conversationIds.length > 0) {
+            const { data, error } = await client
+              .from('inbox_messages')
+              .select('*')
+              .in('conversation_id', conversationIds)
+              .order('created_at', { ascending: true });
+            if (error) throw new Error(`Could not read webhook QA messages: ${error.message}`);
+            messages = data || [];
+          }
+
+          return {
+            lead: leads?.[0] || null,
+            leads: leads || [],
+            conversation: conversations?.[0] || null,
+            conversations: conversations || [],
+            messages,
+          };
+        },
+
+        async qaWhatsAppWebhookCleanup({ stamp }: { stamp?: string }) {
+          if (!stamp) return { cleaned: false };
+
+          const client = adminClient();
+          const conversationIds = new Set<string>();
+          const leadIds = new Set<string>();
+
+          const { data: messages } = await client
+            .from('inbox_messages')
+            .select('conversation_id')
+            .ilike('content', `%${stamp}%`);
+          for (const message of messages || []) {
+            if (message.conversation_id) conversationIds.add(message.conversation_id);
+          }
+
+          const { data: conversations } = await client
+            .from('inbox_conversations')
+            .select('id, lead_id')
+            .or(`last_message_preview.ilike.%${stamp}%,contact_name.ilike.%${stamp}%`);
+          for (const conversation of conversations || []) {
+            if (conversation.id) conversationIds.add(conversation.id);
+            if (conversation.lead_id) leadIds.add(conversation.lead_id);
+          }
+
+          if (conversationIds.size > 0) {
+            const { data: linkedConversations } = await client
+              .from('inbox_conversations')
+              .select('lead_id')
+              .in('id', Array.from(conversationIds));
+            for (const conversation of linkedConversations || []) {
+              if (conversation.lead_id) leadIds.add(conversation.lead_id);
+            }
+          }
+
+          const { data: leads } = await client
+            .from('leads')
+            .select('id')
+            .or(`full_name.ilike.%${stamp}%,email.ilike.%${stamp}%,notes.ilike.%${stamp}%,ad_id.ilike.%${stamp}%,ctwa_clid.ilike.%${stamp}%`);
+          for (const lead of leads || []) {
+            if (lead.id) leadIds.add(lead.id);
+          }
+
+          const conversationIdList = Array.from(conversationIds);
+          if (conversationIdList.length > 0) {
+            await client.from('inbox_messages').delete().in('conversation_id', conversationIdList);
+            await deleteByIds('inbox_conversations', conversationIdList);
+          }
+          await deleteByIds('leads', Array.from(leadIds));
+
+          return {
+            cleaned: true,
+            conversationCount: conversationIds.size,
+            leadCount: leadIds.size,
+          };
+        },
+
         async qaDeleteUserByEmail(email: string) {
           const client = adminClient();
           const user = await findAuthUserByEmail(email);

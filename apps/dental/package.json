@@ -68,6 +68,7 @@
     "test:e2e:stage:data-safety": "cross-env CYPRESS_BASE_URL=https://laralis-monorepo-preview.vercel.app CYPRESS_VIDEO=false cypress run --spec \"cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts\"",
     "test:e2e:stage:prescriptions": "cross-env CYPRESS_BASE_URL=https://laralis-monorepo-preview.vercel.app CYPRESS_SUPABASE_URL=https://kafbqdliromcveojtdar.supabase.co CYPRESS_VIDEO=false cypress run --spec \"cypress/e2e/stage/33-prescriptions-medications-pdf.cy.ts\"",
     "test:e2e:stage:inbox": "cross-env CYPRESS_BASE_URL=https://laralis-monorepo-preview.vercel.app CYPRESS_SUPABASE_URL=https://kafbqdliromcveojtdar.supabase.co CYPRESS_VIDEO=false cypress run --spec \"cypress/e2e/stage/34-inbox-whatsapp-lifecycle.cy.ts\"",
+    "test:e2e:stage:whatsapp-webhook": "cross-env CYPRESS_BASE_URL=https://laralis-monorepo-preview.vercel.app CYPRESS_SUPABASE_URL=https://kafbqdliromcveojtdar.supabase.co CYPRESS_VIDEO=false cypress run --spec \"cypress/e2e/stage/35-whatsapp-webhook-inbound.cy.ts\"",
     "test:all": "node test-runner.js all",
     "test:quick": "npm run test:unit && npm run test:integration",
     "test:full": "npm run test:unit && npm run test:integration && npm run test:api && npm run test:e2e",

@@ -470,5 +470,45 @@
     "capability": "Bandeja de entrada renderiza conversaciones y mensajes en desktop/mobile sin setup regresivo ni scroll horizontal",
     "layers": ["cypress", "visual"],
     "status": "covered"
+  },
+  {
+    "id": "qa-060-whatsapp-webhook-signature-guard",
+    "priority": "P0",
+    "domain": "webhook",
+    "capability": "Webhook inbound de WhatsApp rechaza requests unsigned en runtime production preview",
+    "layers": ["cypress", "api"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-061-whatsapp-webhook-lead-state-machine",
+    "priority": "P0",
+    "domain": "webhook",
+    "capability": "Webhook inbound crea lead/conversacion/mensaje y avanza collecting_name -> collecting_email -> chatting",
+    "layers": ["cypress", "api", "database", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-062-whatsapp-webhook-handoff-keyword",
+    "priority": "P0",
+    "domain": "webhook",
+    "capability": "Webhook inbound mueve la conversacion a pending cuando el paciente pide humano o agente",
+    "layers": ["cypress", "api", "database", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-063-whatsapp-webhook-ctwa-attribution",
+    "priority": "P0",
+    "domain": "webhook",
+    "capability": "Webhook inbound persiste atribucion Click-to-WhatsApp desde Referral* de Twilio",
+    "layers": ["cypress", "api", "database", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-064-whatsapp-webhook-provider-retry-idempotency",
+    "priority": "P0",
+    "domain": "webhook",
+    "capability": "Webhook inbound ignora reintentos del proveedor con el mismo MessageSid para no duplicar mensajes",
+    "layers": ["cypress", "api", "database", "supabase-task"],
+    "status": "covered"
   }
 ]
