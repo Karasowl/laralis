@@ -280,6 +280,14 @@
     "status": "covered"
   },
   {
+    "id": "qa-069-notification-provider-contracts",
+    "priority": "P0",
+    "domain": "notifications",
+    "capability": "Contratos de Twilio/360dialog validan payloads, auth headers, callbacks de estado y errores sin red real",
+    "layers": ["vitest", "provider-contract"],
+    "status": "covered"
+  },
+  {
     "id": "qa-035-cron-reminders",
     "priority": "P0",
     "domain": "cron",

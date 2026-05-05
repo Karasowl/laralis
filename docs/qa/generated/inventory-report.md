@@ -1,6 +1,6 @@
 # QA Inventory Report
 
-Generated: 2026-05-05T17:22:02.645Z
+Generated: 2026-05-05T17:37:39.424Z
 
 Status: warn
 Failing checks: 0
@@ -27,10 +27,10 @@ required QA docs: 10; missing: 0
 
 Status: pass
 
-capabilities: 68; domains: 32; required missing domains: 0
+capabilities: 69; domains: 32; required missing domains: 0
 
-- status counts: covered=67, partial=1
-- priority counts: P0=59, P1=9
+- status counts: covered=68, partial=1
+- priority counts: P0=60, P1=9
 
 ## Product readiness truth table
 
