@@ -55,6 +55,41 @@ function postWebhook(
   })
 }
 
+function signedWebhookUrl(context: WebhookContext, campaignId?: string | null) {
+  const campaignQuery = campaignId ? `&campaignId=${encodeURIComponent(campaignId)}` : ''
+  return `/api/whatsapp/webhook?clinicId=${encodeURIComponent(context.clinicId)}${campaignQuery}`
+}
+
+function postSignedWebhook(
+  context: WebhookContext,
+  body: Record<string, string>,
+  options: {
+    campaignId?: string | null
+    failOnStatusCode?: boolean
+  } = {}
+) {
+  const relativeUrl = signedWebhookUrl(context, options.campaignId)
+  const baseUrl = String(Cypress.config('baseUrl') || '').replace(/\/$/, '')
+  const absoluteUrl = `${baseUrl}${relativeUrl}`
+
+  return cy
+    .task('qaTwilioWebhookSignature', {
+      url: absoluteUrl,
+      params: body,
+    })
+    .then((signature) => cy.request({
+      method: 'POST',
+      url: relativeUrl,
+      form: true,
+      body,
+      headers: {
+        'x-twilio-signature': String(signature),
+        'x-laralis-qa-whatsapp-send': 'mock',
+      },
+      failOnStatusCode: options.failOnStatusCode,
+    }))
+}
+
 function readWebhookState(context: WebhookContext, phone: string): Cypress.Chainable<any> {
   return cy.task('qaWhatsAppWebhookState', {
     clinicId: context.clinicId,
@@ -98,6 +133,29 @@ describe('Stage WhatsApp inbound webhook coverage', () => {
       ).then((response) => {
         expect(response.status).to.eq(403)
         expect(response.body.error).to.match(/invalid signature/i)
+      })
+    })
+  })
+
+  it('accepts a valid Twilio-signed provider request without the signature bypass', () => {
+    const stamp = `qa-webhook-signed-${Date.now()}-${Cypress._.random(1000, 9999)}`
+    const phone = phoneFromStamp(stamp, 'signed')
+    cleanupStamps.push(stamp)
+
+    getWebhookContext().then((context) => {
+      postSignedWebhook(context, {
+        From: `whatsapp:${phone}`,
+        To: 'whatsapp:+15559990004',
+        Body: `Mensaje firmado por contrato Twilio ${stamp}`,
+        ProfileName: `QA Signed ${stamp}`,
+        MessageSid: twilioSid(stamp, 'signed'),
+      }).then(expectWebhookOk)
+
+      readWebhookState(context, phone).then((state) => {
+        expect(state.leads, 'signed request created one lead').to.have.length(1)
+        expect(state.conversations, 'signed request created one conversation').to.have.length(1)
+        expect(state.messages, 'signed request created one inbound message').to.have.length(1)
+        expect(state.messages[0].content).to.eq(`Mensaje firmado por contrato Twilio ${stamp}`)
       })
     })
   })

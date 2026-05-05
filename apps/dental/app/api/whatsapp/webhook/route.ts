@@ -56,11 +56,19 @@ const HANDOFF_KEYWORDS = [
 
 const STAGE_SUPABASE_REF = 'kafbqdliromcveojtdar'
 
-function isQaWebhookMockRequest(request: NextRequest): boolean {
+function isStageQaHeader(request: NextRequest, header: string, value: string): boolean {
   return (
-    request.headers.get('x-laralis-qa-webhook') === 'mock' &&
+    request.headers.get(header) === value &&
     process.env.NEXT_PUBLIC_SUPABASE_URL?.includes(STAGE_SUPABASE_REF)
   )
+}
+
+function isQaWebhookMockRequest(request: NextRequest): boolean {
+  return isStageQaHeader(request, 'x-laralis-qa-webhook', 'mock')
+}
+
+function isQaWebhookSendMockRequest(request: NextRequest): boolean {
+  return isStageQaHeader(request, 'x-laralis-qa-whatsapp-send', 'mock')
 }
 
 function qaWhatsAppSendResult(messageIdPrefix: string) {
@@ -93,7 +101,7 @@ async function sendWebhookWhatsAppMessage(
     content: string
   }
 ) {
-  if (isQaWebhookMockRequest(request)) {
+  if (isQaWebhookMockRequest(request) || isQaWebhookSendMockRequest(request)) {
     return qaWhatsAppSendResult('qa-whatsapp-webhook')
   }
 

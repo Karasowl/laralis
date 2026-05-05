@@ -480,6 +480,14 @@
     "status": "covered"
   },
   {
+    "id": "qa-065-whatsapp-webhook-twilio-signed-contract",
+    "priority": "P0",
+    "domain": "webhook",
+    "capability": "Webhook inbound de WhatsApp acepta form Twilio firmado sin bypass de firma QA",
+    "layers": ["cypress", "api", "provider-contract", "database", "supabase-task"],
+    "status": "covered"
+  },
+  {
     "id": "qa-061-whatsapp-webhook-lead-state-machine",
     "priority": "P0",
     "domain": "webhook",

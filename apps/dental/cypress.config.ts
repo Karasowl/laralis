@@ -1,5 +1,6 @@
 import { defineConfig } from 'cypress';
 import { createClient } from '@supabase/supabase-js';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -78,6 +79,22 @@ export default defineConfig({
 
       const stageUrl = envValue('CYPRESS_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL');
       const serviceRoleKey = envValue('CYPRESS_SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_SERVICE_ROLE_KEY');
+
+      const twilioWebhookSignature = (url: string, params: Record<string, string>) => {
+        const authToken = envValue('CYPRESS_TWILIO_AUTH_TOKEN', 'TWILIO_AUTH_TOKEN');
+        if (!authToken) {
+          throw new Error('Missing TWILIO_AUTH_TOKEN for signed Twilio webhook QA contract');
+        }
+
+        const data = Object.keys(params)
+          .sort()
+          .reduce((acc, key) => acc + key + params[key], url);
+
+        return crypto
+          .createHmac('sha1', authToken)
+          .update(Buffer.from(data, 'utf-8'))
+          .digest('base64');
+      };
 
       const adminClient = () => {
         if (!stageUrl.includes('kafbqdliromcveojtdar')) {
@@ -1187,6 +1204,16 @@ export default defineConfig({
             campaignId: campaign?.id || null,
             campaignName: campaign?.name || null,
           };
+        },
+
+        qaTwilioWebhookSignature({
+          url,
+          params,
+        }: {
+          url: string;
+          params: Record<string, string>;
+        }) {
+          return twilioWebhookSignature(url, params);
         },
 
         async qaWhatsAppWebhookState({

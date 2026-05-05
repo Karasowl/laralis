@@ -26,6 +26,7 @@ docs/qa/product-readiness.json
 ### coverageMode
 
 - `real`: prueba el comportamiento real contra stage.
+- `provider-contract`: prueba el contrato de proveedor con payload/firma realista, pero no llama al proveedor externo en vivo.
 - `provider-mock`: prueba el flujo de app y base de datos, pero simula el proveedor externo.
 - `contract-only`: valida contratos, guards, render o estructura, pero no prueba experiencia completa.
 - `not-covered`: existe riesgo conocido sin cobertura automatizada suficiente.

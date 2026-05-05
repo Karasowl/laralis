@@ -395,7 +395,7 @@ function analyzeProductReadiness() {
     }
   }
   const validImplementationStatuses = new Set(['real', 'partial', 'unknown', 'missing'])
-  const validCoverageModes = new Set(['real', 'provider-mock', 'contract-only', 'not-covered'])
+  const validCoverageModes = new Set(['real', 'provider-contract', 'provider-mock', 'contract-only', 'not-covered'])
   const invalid = rows.filter(row => (
     !row.area ||
     !row.risk ||
