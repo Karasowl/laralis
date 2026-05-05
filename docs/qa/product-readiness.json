@@ -14,6 +14,7 @@
       "Conversation state changes persist in Supabase stage",
       "Outbound reply stores an agent message",
       "Lead conversion links lead, conversation, and patient idempotently",
+      "Inbox UI buttons execute assign, bot handoff/resume, transfer, mocked reply, lead conversion, and close while database state is verified after each action",
       "Inbox page renders the seeded conversation on desktop and mobile"
     ],
     "notProven": [

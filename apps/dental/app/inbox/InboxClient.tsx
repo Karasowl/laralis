@@ -454,7 +454,7 @@ export default function InboxClient() {
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
+    <div className="grid gap-4 lg:grid-cols-[320px_1fr]" data-testid="inbox-page">
       <Card className="flex flex-col min-h-[520px] h-[72vh] overflow-hidden">
         <div className="p-4 border-b border-border/50">
           <div className="relative">
@@ -492,6 +492,8 @@ export default function InboxClient() {
                   <button
                     key={conversation.id}
                     type="button"
+                    data-testid="inbox-conversation-row"
+                    data-conversation-id={conversation.id}
                     onClick={() => handleSelectConversation(conversation)}
                     className={cn(
                       'w-full text-left px-4 py-3 transition-colors hover:bg-muted/50',
@@ -549,7 +551,7 @@ export default function InboxClient() {
               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div className="space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-base font-semibold">
+                    <h2 className="text-base font-semibold" data-testid="inbox-conversation-title">
                       {getConversationTitle(selectedConversation)}
                     </h2>
                     <Badge
@@ -590,6 +592,7 @@ export default function InboxClient() {
                   <Button
                     size="sm"
                     variant="outline"
+                    data-testid="inbox-action-assign"
                     onClick={() => handleConversationAction('assign')}
                     disabled={selectedConversation.status === 'closed' || actionLoading === 'assign'}
                   >
@@ -601,6 +604,7 @@ export default function InboxClient() {
                   <Button
                     size="sm"
                     variant="outline"
+                    data-testid="inbox-action-toggle-bot"
                     onClick={() => handleConversationAction('toggle-bot')}
                     disabled={selectedConversation.status === 'closed' || actionLoading === 'toggle-bot'}
                   >
@@ -612,6 +616,7 @@ export default function InboxClient() {
                   <Button
                     size="sm"
                     variant="outline"
+                    data-testid="inbox-action-transfer"
                     onClick={() => handleConversationAction('transfer')}
                     disabled={selectedConversation.status === 'closed' || actionLoading === 'transfer'}
                   >
@@ -622,6 +627,7 @@ export default function InboxClient() {
                     <Button
                       size="sm"
                       variant="default"
+                      data-testid="inbox-action-convert"
                       onClick={() => setConvertOpen(true)}
                       disabled={selectedConversation.status === 'closed'}
                     >
@@ -632,6 +638,7 @@ export default function InboxClient() {
                   <Button
                     size="sm"
                     variant="destructive"
+                    data-testid="inbox-action-close"
                     onClick={() => handleConversationAction('close')}
                     disabled={selectedConversation.status === 'closed' || actionLoading === 'close'}
                   >
@@ -691,6 +698,7 @@ export default function InboxClient() {
             <div className="border-t border-border/50 p-4">
               <div className="flex flex-col gap-3">
                 <Textarea
+                  data-testid="inbox-reply-textarea"
                   value={draft}
                   onChange={(event) => setDraft(event.target.value)}
                   placeholder={t('composer.placeholder')}
@@ -711,6 +719,7 @@ export default function InboxClient() {
                   </span>
                   <Button
                     size="sm"
+                    data-testid="inbox-reply-submit"
                     onClick={handleSendMessage}
                     disabled={sending || !draft.trim() || selectedConversation.status === 'closed'}
                   >

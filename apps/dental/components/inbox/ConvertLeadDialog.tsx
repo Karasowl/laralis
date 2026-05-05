@@ -93,7 +93,7 @@ export function ConvertLeadDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[480px]">
+      <DialogContent className="sm:max-w-[480px]" data-testid="inbox-convert-dialog">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="h-4 w-4" />
@@ -108,6 +108,7 @@ export function ConvertLeadDialog({
               <Label htmlFor="convert-first-name">{t('firstName')}</Label>
               <Input
                 id="convert-first-name"
+                data-testid="inbox-convert-first-name"
                 value={firstName}
                 onChange={(event) => setFirstName(event.target.value)}
                 autoFocus
@@ -117,6 +118,7 @@ export function ConvertLeadDialog({
               <Label htmlFor="convert-last-name">{t('lastName')}</Label>
               <Input
                 id="convert-last-name"
+                data-testid="inbox-convert-last-name"
                 value={lastName}
                 onChange={(event) => setLastName(event.target.value)}
               />
@@ -126,6 +128,7 @@ export function ConvertLeadDialog({
             <Label htmlFor="convert-phone">{t('phone')}</Label>
             <Input
               id="convert-phone"
+              data-testid="inbox-convert-phone"
               value={phone}
               onChange={(event) => setPhone(event.target.value)}
               placeholder="+5215555555555"
@@ -136,6 +139,7 @@ export function ConvertLeadDialog({
             <Input
               id="convert-email"
               type="email"
+              data-testid="inbox-convert-email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
             />
@@ -144,6 +148,7 @@ export function ConvertLeadDialog({
             <Label htmlFor="convert-notes">{t('notes')}</Label>
             <Textarea
               id="convert-notes"
+              data-testid="inbox-convert-notes"
               rows={3}
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
@@ -153,10 +158,19 @@ export function ConvertLeadDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+          <Button
+            variant="outline"
+            data-testid="inbox-convert-cancel"
+            onClick={() => onOpenChange(false)}
+            disabled={submitting}
+          >
             {tCommon('cancel')}
           </Button>
-          <Button onClick={handleSubmit} disabled={submitting || !firstName.trim()}>
+          <Button
+            data-testid="inbox-convert-submit"
+            onClick={handleSubmit}
+            disabled={submitting || !firstName.trim()}
+          >
             {submitting ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (

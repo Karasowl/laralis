@@ -246,6 +246,102 @@ describe('Stage inbox and WhatsApp lifecycle coverage', () => {
     })
   })
 
+  it('executes inbox operator actions from the UI and persists each confirmed change', () => {
+    const stamp = `qa-inbox-ui-actions-${Date.now()}-${Cypress._.random(1000, 9999)}`
+    cleanupStamps.push(stamp)
+    const replyContent = `Respuesta QA desde UI Inbox ${stamp}`
+    const convertedEmail = `${stamp}.ui-patient@laralis.test`
+
+    cy.loginAsDoctor()
+    selectQaClinicA()
+    seedInboxConversation(stamp).then((seed) => {
+      cy.intercept('POST', '/api/inbox/assign').as('uiInboxAssign')
+      cy.intercept('POST', '/api/inbox/toggle-bot').as('uiInboxToggleBot')
+      cy.intercept('POST', '/api/inbox/transfer').as('uiInboxTransfer')
+      cy.intercept('POST', '/api/inbox/convert').as('uiInboxConvert')
+      cy.intercept('POST', '/api/inbox/close').as('uiInboxClose')
+      cy.intercept('POST', '/api/inbox/reply', (request) => {
+        request.headers['x-laralis-qa-notifications'] = 'mock'
+      }).as('uiInboxReply')
+
+      cy.visit('/inbox')
+      cy.get('[data-testid="inbox-page"]', { timeout: 30000 }).should('be.visible')
+      cy.get(`[data-conversation-id="${seed.conversationId}"]`, { timeout: 30000 }).click()
+      cy.get('[data-testid="inbox-conversation-title"]', { timeout: 30000 })
+        .should('contain.text', seed.contactName)
+
+      cy.get('[data-testid="inbox-action-assign"]').should('be.enabled').click()
+      cy.wait('@uiInboxAssign', { timeout: 30000 })
+        .its('response.statusCode')
+        .should('eq', 200)
+      readInboxState(seed.conversationId).then((state) => {
+        expect(state.conversation.status).to.eq('in_progress')
+        expect(state.conversation.assigned_user_id).to.be.a('string')
+        expect(state.conversation.unread_count).to.eq(0)
+      })
+
+      cy.get('[data-testid="inbox-action-toggle-bot"]').should('be.enabled').click()
+      cy.wait('@uiInboxToggleBot', { timeout: 30000 })
+        .its('response.statusCode')
+        .should('eq', 200)
+      readInboxState(seed.conversationId).then((state) => {
+        expect(state.conversation.status).to.eq('bot')
+      })
+
+      cy.get('[data-testid="inbox-action-transfer"]').should('be.enabled').click()
+      cy.wait('@uiInboxTransfer', { timeout: 30000 })
+        .its('response.statusCode')
+        .should('eq', 200)
+      readInboxState(seed.conversationId).then((state) => {
+        expect(state.conversation.status).to.eq('pending')
+        expect(state.conversation.assigned_user_id).to.eq(null)
+      })
+
+      cy.get('[data-testid="inbox-reply-textarea"]').should('be.enabled').clear().type(replyContent)
+      cy.get('[data-testid="inbox-reply-submit"]').should('be.enabled').click()
+      cy.wait('@uiInboxReply', { timeout: 30000 }).then((interception) => {
+        expect(interception.response?.statusCode).to.eq(200)
+        expect(interception.response?.body?.sendResult?.success).to.eq(true)
+      })
+      cy.contains(replyContent, { timeout: 30000 }).should('be.visible')
+      readInboxState(seed.conversationId).then((state) => {
+        expect(state.conversation.status).to.eq('in_progress')
+        expect(state.conversation.assigned_user_id).to.be.a('string')
+        const outbound = state.messages.find((message: any) => message.content === replyContent)
+        expect(outbound, 'outbound UI reply').to.exist
+        expect(outbound.direction).to.eq('outbound')
+        expect(outbound.channel_message_id).to.match(/^qa-inbox-reply-/)
+      })
+
+      cy.get('[data-testid="inbox-action-convert"]').should('be.enabled').click()
+      cy.get('[data-testid="inbox-convert-dialog"]', { timeout: 30000 }).should('be.visible')
+      cy.get('[data-testid="inbox-convert-first-name"]').clear().type('UI')
+      cy.get('[data-testid="inbox-convert-last-name"]').clear().type(`Inbox ${stamp}`)
+      cy.get('[data-testid="inbox-convert-email"]').clear().type(convertedEmail)
+      cy.get('[data-testid="inbox-convert-notes"]').clear().type(`Converted from Inbox UI QA ${stamp}`)
+      cy.get('[data-testid="inbox-convert-submit"]').should('be.enabled').click()
+      cy.wait('@uiInboxConvert', { timeout: 30000 })
+        .its('response.statusCode')
+        .should('eq', 200)
+      readInboxState(seed.conversationId).then((state) => {
+        expect(state.lead.status).to.eq('converted')
+        expect(state.patient.email).to.eq(convertedEmail)
+        expect(state.conversation.patient_id).to.eq(state.patient.id)
+      })
+
+      cy.get('[data-testid="inbox-action-close"]').should('be.enabled').click()
+      cy.wait('@uiInboxClose', { timeout: 30000 })
+        .its('response.statusCode')
+        .should('eq', 200)
+      readInboxState(seed.conversationId).then((state) => {
+        expect(state.conversation.status).to.eq('closed')
+        expect(state.conversation.ended_at).to.be.a('string')
+      })
+      cy.get('[data-testid="inbox-reply-textarea"]').should('be.disabled')
+      cy.get('[data-testid="inbox-reply-submit"]').should('be.disabled')
+    })
+  })
+
   it('renders the inbox conversation on desktop and mobile without setup regressions or overflow', () => {
     const stamp = `qa-inbox-ui-${Date.now()}-${Cypress._.random(1000, 9999)}`
     cleanupStamps.push(stamp)

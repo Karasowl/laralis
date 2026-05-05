@@ -606,5 +606,13 @@
     "capability": "Reserva publica notifica al equipo por push mockeado y persiste push_notifications con booking id accionable",
     "layers": ["cypress", "api", "database", "provider-mock", "supabase-task"],
     "status": "covered"
+  },
+  {
+    "id": "qa-073-inbox-ui-action-lifecycle",
+    "priority": "P0",
+    "domain": "inbox",
+    "capability": "UI de Inbox ejecuta asignar, tomar/reanudar bot, transferir, responder, convertir lead a paciente y cerrar conversacion persistiendo cada cambio en Supabase stage",
+    "layers": ["cypress", "ui", "api", "database", "provider-mock", "supabase-task"],
+    "status": "covered"
   }
 ]

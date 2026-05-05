@@ -1,6 +1,6 @@
 # QA Inventory Report
 
-Generated: 2026-05-05T20:27:37.686Z
+Generated: 2026-05-05T21:39:32.728Z
 
 Status: warn
 Failing checks: 0
@@ -27,10 +27,10 @@ required QA docs: 10; missing: 0
 
 Status: pass
 
-capabilities: 76; domains: 32; required missing domains: 0
+capabilities: 77; domains: 32; required missing domains: 0
 
-- status counts: covered=75, partial=1
-- priority counts: P0=61, P1=15
+- status counts: covered=76, partial=1
+- priority counts: P0=62, P1=15
 
 ## Product readiness truth table
 
@@ -140,11 +140,12 @@ en keys: 4948; es effective keys: 4948; missing en: 0; missing es: 0
 
 Status: pass
 
-ui files: 437; files with data-testid: 24; data-testid occurrences: 78; required hooks: 16; missing required hooks: 0
+ui files: 437; files with data-testid: 26; data-testid occurrences: 96; required hooks: 16; missing required hooks: 0
 
 - has hooks: app/auth/login/page.tsx
 - has hooks: app/book/[slug]/confirmation/page.tsx
 - has hooks: app/book/[slug]/page.tsx
+- has hooks: app/inbox/InboxClient.tsx
 - has hooks: app/marketing/page.tsx
 - has hooks: app/onboarding/page.tsx
 - has hooks: app/patients/[id]/page.tsx
@@ -161,6 +162,7 @@ ui files: 437; files with data-testid: 24; data-testid occurrences: 78; required
 - has hooks: components/dashboard/marketing/CACTrendChart.tsx
 - has hooks: components/dashboard/marketing/ChannelROIChart.tsx
 - has hooks: components/dashboard/RevenueChart.tsx
+- has hooks: components/inbox/ConvertLeadDialog.tsx
 - has hooks: components/layouts/AppLayout.tsx
 - has hooks: components/layouts/ContextIndicator.tsx
 - has hooks: components/onboarding/OnboardingModal.tsx
