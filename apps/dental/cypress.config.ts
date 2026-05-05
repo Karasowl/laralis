@@ -1071,6 +1071,39 @@ export default defineConfig({
           };
         },
 
+        async qaPushCleanupByEndpointPrefix({ prefix }: { prefix: string }) {
+          if (!prefix?.startsWith('https://push.qa.laralis.test/')) {
+            throw new Error('Refusing to clean push subscriptions outside the QA endpoint namespace');
+          }
+
+          const client = adminClient();
+          const { data: subscriptions, error } = await (client as any)
+            .from('push_subscriptions')
+            .select('id')
+            .ilike('endpoint', `${prefix}%`);
+
+          if (error) {
+            throw new Error(`Could not list QA push subscriptions for prefix cleanup: ${error.message}`);
+          }
+
+          const subscriptionIds = (subscriptions || []).map((row: { id: string }) => row.id).filter(Boolean);
+          if (subscriptionIds.length > 0) {
+            await (client as any)
+              .from('push_notifications')
+              .delete()
+              .in('subscription_id', subscriptionIds);
+            await (client as any)
+              .from('push_subscriptions')
+              .delete()
+              .in('id', subscriptionIds);
+          }
+
+          return {
+            cleaned: true,
+            subscriptionCount: subscriptionIds.length,
+          };
+        },
+
         async qaCreateConfirmedUser({ email, password }: { email: string; password: string }) {
           const client = adminClient();
           const existing = await findAuthUserByEmail(email);

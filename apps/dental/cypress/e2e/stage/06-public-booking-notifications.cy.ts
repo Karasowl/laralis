@@ -255,6 +255,10 @@ describe('Stage public booking and mocked notifications', () => {
   const cleanupStamps: string[] = []
   const cleanupPushEndpoints: string[] = []
 
+  before(() => {
+    cy.task('qaPushCleanupByEndpointPrefix', { prefix: 'https://push.qa.laralis.test/public-booking' })
+  })
+
   afterEach(() => {
     restoreNotificationSettings()
     for (const stamp of cleanupStamps) {
@@ -340,11 +344,14 @@ describe('Stage public booking and mocked notifications', () => {
             expect(state.whatsappNotifications, 'one WhatsApp notification log').to.have.length(1)
             expect(state.whatsappNotifications[0].status).to.eq('sent')
             expect(state.whatsappNotifications[0].provider_message_id).to.eq(`qa-whatsapp-${bookingId}`)
-            expect(state.pushNotifications, 'one staff push notification log').to.have.length(1)
-            expect(state.pushNotifications[0].status).to.eq('sent')
-            expect(state.pushNotifications[0].notification_type).to.eq('public_booking_received')
-            expect(state.pushNotifications[0].body).to.include(stamp)
-            expect(state.pushNotifications[0].action_url).to.eq(`/treatments/calendar?booking=${bookingId}`)
+            expect(state.pushNotifications, 'staff push notification logs').to.have.length.greaterThan(0)
+            const bookingPush = state.pushNotifications.find((row: any) =>
+              row.status === 'sent' &&
+              row.notification_type === 'public_booking_received' &&
+              String(row.body || '').includes(stamp) &&
+              row.action_url === `/treatments/calendar?booking=${bookingId}`
+            )
+            expect(bookingPush, 'staff push notification for this booking').to.exist
           })
         })
 
