@@ -41,8 +41,11 @@ const queryRequestSchema = z.object({
 
 const QA_STAGE_SUPABASE_REF = 'kafbqdliromcveojtdar'
 
-function isQaAiMockRequested(request: NextRequest) {
-  return request.headers.get('x-laralis-qa-ai') === 'mock'
+type QaAiMode = 'mock' | 'fail' | null
+
+function qaAiMode(request: NextRequest): QaAiMode {
+  const mode = request.headers.get('x-laralis-qa-ai')
+  return mode === 'mock' || mode === 'fail' ? mode : null
 }
 
 function isQaStage() {
@@ -51,7 +54,7 @@ function isQaStage() {
 
 function stageOnlyMockForbidden() {
   return new Response(
-    JSON.stringify({ error: 'QA AI mock is only available on stage' }),
+    JSON.stringify({ error: 'QA AI mode is only available on stage' }),
     { status: 403, headers: { 'Content-Type': 'application/json' } }
   )
 }
@@ -187,13 +190,15 @@ function streamQueryResult(result: QueryResult, userId: string, clinicId: string
 
 export async function POST(request: NextRequest) {
   try {
-    const qaMockRequested = isQaAiMockRequested(request)
-    if (qaMockRequested && !isQaStage()) {
+    const qaMode = qaAiMode(request)
+    const qaMockRequested = qaMode === 'mock'
+    const qaFailureRequested = qaMode === 'fail'
+    if (qaMode && !isQaStage()) {
       return stageOnlyMockForbidden()
     }
 
     // Check if AI is configured
-    if (!qaMockRequested && !hasAIConfig()) {
+    if (!qaMode && !hasAIConfig()) {
       return new Response(
         JSON.stringify({ error: 'AI service is not configured' }),
         { status: 503, headers: { 'Content-Type': 'application/json' } }
@@ -201,7 +206,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate configuration before using
-    if (!qaMockRequested) {
+    if (!qaMode) {
       try {
         validateAIConfig()
       } catch (error) {
@@ -243,6 +248,17 @@ export async function POST(request: NextRequest) {
 
     // Create Supabase client with auth
     const supabase = await createClient()
+
+    if (qaFailureRequested) {
+      return new Response(
+        JSON.stringify({
+          error: 'qa_ai_failure',
+          message: 'QA forced Lara query failure',
+          retryable: true,
+        }),
+        { status: 503, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
 
     if (qaMockRequested) {
       return streamQueryResult(createQaQueryResult(query, await loadQaClinicSnapshot(clinicId)), userId, clinicId)

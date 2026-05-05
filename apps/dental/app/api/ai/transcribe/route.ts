@@ -14,8 +14,11 @@ export const maxDuration = 30 // 30 seconds max for transcription
 
 const QA_STAGE_SUPABASE_REF = 'kafbqdliromcveojtdar'
 
-function isQaAiMockRequested(request: NextRequest) {
-  return request.headers.get('x-laralis-qa-ai') === 'mock'
+type QaAiMode = 'mock' | 'fail' | null
+
+function qaAiMode(request: NextRequest): QaAiMode {
+  const mode = request.headers.get('x-laralis-qa-ai')
+  return mode === 'mock' || mode === 'fail' ? mode : null
 }
 
 function isQaStage() {
@@ -24,16 +27,18 @@ function isQaStage() {
 
 export async function POST(request: NextRequest) {
   try {
-    const qaMockRequested = isQaAiMockRequested(request)
-    if (qaMockRequested && !isQaStage()) {
+    const qaMode = qaAiMode(request)
+    const qaMockRequested = qaMode === 'mock'
+    const qaFailureRequested = qaMode === 'fail'
+    if (qaMode && !isQaStage()) {
       return NextResponse.json(
-        { error: 'QA AI mock is only available on stage' },
+        { error: 'QA AI mode is only available on stage' },
         { status: 403 }
       )
     }
 
     // Check if AI is configured
-    if (!qaMockRequested && !hasAIConfig()) {
+    if (!qaMode && !hasAIConfig()) {
       return NextResponse.json(
         { error: 'AI service is not configured' },
         { status: 503 }
@@ -41,7 +46,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate configuration before using
-    if (!qaMockRequested) {
+    if (!qaMode) {
       try {
         validateAIConfig()
       } catch (error) {
@@ -59,6 +64,17 @@ export async function POST(request: NextRequest) {
 
     if (!audioFile) {
       return NextResponse.json({ error: 'No audio file provided' }, { status: 400 })
+    }
+
+    if (qaFailureRequested) {
+      return NextResponse.json(
+        {
+          error: 'qa_stt_failure',
+          message: 'QA forced Lara transcription failure',
+          retryable: true,
+        },
+        { status: 503 }
+      )
     }
 
     if (qaMockRequested) {

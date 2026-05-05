@@ -344,6 +344,14 @@
     "status": "covered"
   },
   {
+    "id": "qa-067-lara-provider-failure-contracts",
+    "priority": "P0",
+    "domain": "lara",
+    "capability": "Lara expone fallos controlados de LLM, STT y TTS como errores retryable",
+    "layers": ["cypress", "api", "provider-mock"],
+    "status": "covered"
+  },
+  {
     "id": "qa-043-browser-navigation-session",
     "priority": "P1",
     "domain": "navigation",

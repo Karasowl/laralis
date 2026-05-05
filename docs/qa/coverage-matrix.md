@@ -238,13 +238,14 @@ Cobertura actual:
 - El spec abre Lara desde el FAB real, entra a modo Consultas, envia una pregunta por UI, recibe la sugerencia, confirma la accion y verifica en `/api/settings/time` que la configuracion se persistio en la base de datos.
 - El mismo spec prueba que `qa-viewer@laralis.test` recibe `403 Forbidden` tanto en la consulta mockeada de Lara como en la accion mutable `update-time-settings`.
 - Los mocks de `/api/ai/transcribe` y `/api/ai/synthesize` verifican entrada y salida de audio sin tocar Deepgram, Kimi ni proveedor TTS real.
+- El modo stage-only `x-laralis-qa-ai: fail` fuerza errores controlados de LLM, STT y TTS; el spec verifica `503`, `retryable: true` y codigos de error diferenciados.
 - El mismo spec abre Lara desde la UI, genera una respuesta deterministica, pulsa el boton de escuchar y verifica con `Audio` mockeado en navegador que `/api/ai/synthesize` responde y que `audio.play()` se ejecuta.
 - `FloatingAssistant`, `QueryAssistant` y `ActionConfirmCard` tienen hooks `data-testid` para que la suite no dependa de texto traducido al probar Lara.
 - `apps/dental/cypress/e2e/stage/21-lara-dashboard-multiclinic-isolation.cy.ts` prueba Lara con clinica A y clinica B: el mock sigue pasando por permisos reales, pero ahora lee un snapshot de pacientes, tratamientos y campanas de la clinica resuelta para detectar fugas de contexto multi-clinica.
 
 Brechas abiertas:
 
-- Lara cubre respuesta mockeada, accion sugerida, persistencia, limites de permisos, audio input/output y panel visual. Entry Mode completo y un smoke real no deterministico de proveedor quedan como endurecimiento posterior.
+- Lara cubre respuesta mockeada, accion sugerida, persistencia, limites de permisos, audio input/output, fallos controlados de proveedor y panel visual. Entry Mode completo, calidad de memoria larga y un smoke real no deterministico de proveedor quedan como endurecimiento posterior.
 
 ## Gates de inventario
 

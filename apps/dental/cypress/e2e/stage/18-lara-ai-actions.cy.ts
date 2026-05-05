@@ -262,6 +262,70 @@ describe('Stage Lara AI assistant actions and audio', () => {
     })
   })
 
+  it('surfaces deterministic provider failures for Lara query, STT, and TTS', () => {
+    cy.loginAsDoctor()
+    selectQaClinic('clinicA').then((clinic) => {
+      cy.request({
+        method: 'POST',
+        url: '/api/ai/query',
+        headers: {
+          'x-laralis-qa-ai': 'fail',
+        },
+        body: {
+          clinicId: clinic.id,
+          query: 'QA: fuerza un fallo del proveedor de IA',
+          locale: 'es',
+        },
+        failOnStatusCode: false,
+      }).then((response) => {
+        expect(response.status).to.eq(503)
+        expect(response.body.error).to.eq('qa_ai_failure')
+        expect(response.body.retryable).to.eq(true)
+      })
+    })
+
+    cy.request({
+      method: 'POST',
+      url: '/api/ai/synthesize',
+      headers: {
+        'x-laralis-qa-ai': 'fail',
+      },
+      body: {
+        text: 'QA: fuerza un fallo TTS',
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      expect(response.status).to.eq(503)
+      expect(response.body.error).to.eq('qa_tts_failure')
+      expect(response.body.retryable).to.eq(true)
+    })
+
+    cy.visit('/')
+    cy.window().then((win) => {
+      const formData = new win.FormData()
+      formData.append('audio', new win.Blob(['qa-audio-failure'], { type: 'audio/webm' }), 'qa-failure.webm')
+      formData.append('language', 'es')
+
+      return win
+        .fetch('/api/ai/transcribe', {
+          method: 'POST',
+          headers: {
+            'x-laralis-qa-ai': 'fail',
+          },
+          body: formData,
+          credentials: 'same-origin',
+        })
+        .then(async (response) => ({
+          status: response.status,
+          body: await response.json(),
+        }))
+    }).then((response) => {
+      expect(response.status).to.eq(503)
+      expect(response.body.error).to.eq('qa_stt_failure')
+      expect(response.body.retryable).to.eq(true)
+    })
+  })
+
   it('plays Lara response audio from the UI with browser audio mocked', () => {
     cy.loginAsDoctor()
     selectQaClinic('clinicA')
