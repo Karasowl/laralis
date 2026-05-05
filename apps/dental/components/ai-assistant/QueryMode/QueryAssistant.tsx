@@ -31,10 +31,42 @@ interface QueryAssistantProps {
 interface QueryMessage {
   role: 'user' | 'assistant'
   text: string
+  clientId?: string
   thinking?: string
   data?: any
   responseTimeMs?: number
   suggestedAction?: ActionSuggestion
+}
+
+function createClientMessageId(prefix: string) {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return `${prefix}-${crypto.randomUUID()}`
+  }
+
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
+function updateAssistantMessage(
+  messages: QueryMessage[],
+  clientId: string,
+  patch: Partial<QueryMessage>
+) {
+  const existingIndex = messages.findIndex((message) => message?.clientId === clientId)
+  if (existingIndex >= 0) {
+    return messages.map((message, index) =>
+      index === existingIndex ? { ...message, ...patch, role: 'assistant' } : message
+    )
+  }
+
+  return [
+    ...messages.filter(Boolean),
+    {
+      role: 'assistant' as const,
+      text: '',
+      clientId,
+      ...patch,
+    },
+  ]
 }
 
 export function QueryAssistant({ onClose, currentClinic: providedClinic, sessionId, onSessionCreated }: QueryAssistantProps) {
@@ -274,30 +306,39 @@ export function QueryAssistant({ onClose, currentClinic: providedClinic, session
     setError(null)
     setUserHasScrolledUp(false) // Force scroll to bottom on new message
 
-    // Add user message
-    setConversation((prev) => [...prev, { role: 'user', text: query }])
-    saveMessageToDB('user', query)
-    setTextInput('')
+    const userMessage: QueryMessage = {
+      role: 'user',
+      text: query,
+      clientId: createClientMessageId('user'),
+    }
+    const assistantMessageId = createClientMessageId('assistant')
 
-    // Add empty assistant message that we'll update with streaming
-    const assistantMessageIndex = conversation.length + 1
+    // Add the user message and the assistant placeholder in one state update so
+    // async session/history reloads cannot leave sparse array holes.
     setConversation((prev) => [
-      ...prev,
+      ...prev.filter(Boolean),
+      userMessage,
       {
         role: 'assistant',
         text: '',
+        clientId: assistantMessageId,
       },
     ])
+    saveMessageToDB('user', query)
+    setTextInput('')
 
     // Track response time
     const startTime = Date.now()
 
     try {
       // Build conversation history from last 10 messages (excluding current query)
-      const conversationHistory = conversation.slice(-10).map(msg => ({
-        role: msg.role,
-        content: msg.text
-      }))
+      const conversationHistory = conversation
+        .filter((msg): msg is QueryMessage => Boolean(msg) && typeof msg.text === 'string')
+        .slice(-10)
+        .map(msg => ({
+          role: msg.role,
+          content: msg.text
+        }))
 
       const response = await fetch('/api/ai/query', {
         method: 'POST',
@@ -324,8 +365,8 @@ export function QueryAssistant({ onClose, currentClinic: providedClinic, session
           setError(t('queryError'))
         }
 
-        // Remove empty assistant message
-        setConversation((prev) => prev.slice(0, -1))
+        // Remove the pending assistant placeholder only.
+        setConversation((prev) => prev.filter((message) => message?.clientId !== assistantMessageId))
         setIsProcessing(false)
         return
       }
@@ -357,15 +398,12 @@ export function QueryAssistant({ onClose, currentClinic: providedClinic, session
               // Calculate response time when done
               const responseTimeMs = Date.now() - startTime
               setConversation((prev) => {
-                const updated = [...prev]
-                updated[assistantMessageIndex] = {
-                  ...updated[assistantMessageIndex],
+                return updateAssistantMessage(prev, assistantMessageId, {
                   responseTimeMs,
                   thinking: metadata?.thinking,
                   data: metadata?.data,
                   suggestedAction: metadata?.suggestedAction,
-                }
-                return updated
+                })
               })
 
               // Save assistant message to DB
@@ -386,12 +424,9 @@ export function QueryAssistant({ onClose, currentClinic: providedClinic, session
                 // Append content chunk
                 accumulatedText += parsed.data
                 setConversation((prev) => {
-                  const updated = [...prev]
-                  updated[assistantMessageIndex] = {
-                    role: 'assistant',
+                  return updateAssistantMessage(prev, assistantMessageId, {
                     text: accumulatedText,
-                  }
-                  return updated
+                  })
                 })
               } else if (parsed.type === 'metadata') {
                 metadata = parsed.data
@@ -406,12 +441,9 @@ export function QueryAssistant({ onClose, currentClinic: providedClinic, session
       console.error('[QueryAssistant] Error:', err)
       setError(t('queryError'))
       setConversation((prev) => {
-        const updated = [...prev]
-        updated[assistantMessageIndex] = {
-          role: 'assistant',
+        return updateAssistantMessage(prev, assistantMessageId, {
           text: tMessages('queryError'),
-        }
-        return updated
+        })
       })
     } finally {
       setIsProcessing(false)

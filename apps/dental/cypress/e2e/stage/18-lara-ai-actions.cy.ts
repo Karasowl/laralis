@@ -388,6 +388,7 @@ describe('Stage Lara AI assistant actions and audio', () => {
     cy.contains('Lara QA respondio de forma deterministica', { timeout: 45000 }).should('be.visible')
     cy.get('[data-testid="lara-audio-play"], button[title="Escuchar"], button[title="Listen"]', { timeout: 30000 })
       .last()
+      .scrollIntoView()
       .should('be.visible')
       .click()
     cy.wait('@laraTts', { timeout: 30000 }).its('response.statusCode').should('eq', 200)

@@ -58,6 +58,8 @@ export function calculateConversationTokens(
 
   // Add all messages
   for (const msg of messages) {
+    if (!msg || typeof msg.text !== 'string') continue
+
     // Add role overhead (~4 tokens per message for formatting)
     total += 4
     // Add message content
