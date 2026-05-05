@@ -7,6 +7,7 @@ type CronSeedContext = {
   futureTreatmentId: string
   reminderId: string
   recurringExpenseId: string
+  pushEndpoint: string
   previousClinic: {
     auto_complete_appointments?: boolean | null
     notification_settings?: unknown
@@ -87,17 +88,19 @@ describe('Stage cron jobs', () => {
     expectUnauthorized('/api/cron/cleanup-draft-workspaces?dryRun=true')
   })
 
-  it('processes due appointment reminders with mocked email and records the notification id', () => {
+  it('processes due appointment reminders with mocked email and push, then records notification ids', () => {
     cronRequest('/api/cron/send-reminders').then((response) => {
       expect(response.status).to.eq(200)
       expect(response.body.processed).to.be.greaterThan(0)
       expect(response.body.sent).to.be.greaterThan(0)
       expect(response.body.failed).to.eq(0)
+      expect(response.body.push.sent).to.be.greaterThan(0)
     })
 
     cy.task('qaCronState', ctx).then((state: any) => {
       const reminder = state.reminder
       const email = state.emails.find((row: any) => row.provider_message_id === `qa-reminder-${ctx.reminderId}`)
+      const push = state.pushNotifications.find((row: any) => row.notification_type === 'appointment_reminder')
 
       expect(reminder.status).to.eq('sent')
       expect(reminder.processed_at).to.be.a('string').and.not.be.empty
@@ -105,6 +108,9 @@ describe('Stage cron jobs', () => {
       expect(email.status).to.eq('sent')
       expect(email.notification_type).to.eq('reminder')
       expect(reminder.email_notification_id).to.eq(email.id)
+      expect(push, 'mocked appointment reminder push log').to.exist
+      expect(push.status).to.eq('sent')
+      expect(push.body).to.include(ctx.stamp)
     })
   })
 

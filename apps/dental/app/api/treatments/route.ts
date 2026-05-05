@@ -17,6 +17,7 @@ import {
 import { readJson } from '@/lib/validation';
 import { forbiddenIfMissingPermission } from '@/lib/permissions';
 import { checkScheduleConflicts } from '@/lib/calendar/server-conflicts';
+import { getPushNotificationServiceForRequest } from '@/lib/notifications/qa';
 
 export const dynamic = 'force-dynamic'
 
@@ -559,6 +560,49 @@ export async function POST(request: NextRequest) {
       console.warn('[treatments POST] Failed to send SMS notifications:', e);
     }
 
+    // Send staff/browser push notification (non-blocking, best-effort)
+    let pushSent = false;
+    let pushSummary: { attempted: number; sent: number; failed: number; skipped: number } | undefined;
+    try {
+      if (shouldDispatchCreationSideEffects && created) {
+        const { data: patient } = await supabaseAdmin
+          .from('patients')
+          .select('first_name, last_name')
+          .eq('id', created.patient_id)
+          .single();
+
+        const { data: service } = await supabaseAdmin
+          .from('services')
+          .select('name')
+          .eq('id', created.service_id)
+          .single();
+
+        const patientName = patient ? `${patient.first_name} ${patient.last_name}` : 'Paciente';
+        const serviceName = service?.name || 'Tratamiento';
+        const summary = await getPushNotificationServiceForRequest(request).sendNotificationToClinic({
+          clinicId,
+          notificationType: 'treatment_created',
+          payload: {
+            title: 'Nuevo tratamiento',
+            body: `${serviceName} para ${patientName}`,
+            icon: '/icons/icon-192x192.png',
+            url: '/treatments',
+            tag: `treatment-created-${created.id}`,
+          },
+        });
+
+        pushSent = summary.sent > 0;
+        pushSummary = {
+          attempted: summary.attempted,
+          sent: summary.sent,
+          failed: summary.failed,
+          skipped: summary.skipped,
+        };
+      }
+    } catch (e) {
+      console.warn('[treatments POST] Failed to send push notifications:', e);
+    }
+
     const createdCount = createdRows.length;
     return NextResponse.json({
       data: createdCount === 1 ? created : createdRows,
@@ -567,6 +611,8 @@ export async function POST(request: NextRequest) {
       calendarSync: calendarSync || undefined,
       emailSent,
       smsSent,
+      pushSent,
+      pushSummary,
     });
   } catch (error) {
     console.error('Unexpected error in POST /api/treatments:', error);

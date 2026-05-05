@@ -955,6 +955,46 @@ export default defineConfig({
           return { notification: data };
         },
 
+        async qaPushNotificationsForEndpoint({
+          endpoint,
+          notificationType,
+        }: {
+          endpoint: string;
+          notificationType?: string;
+        }) {
+          const client = adminClient();
+          const { data: subscriptions, error: subscriptionError } = await (client as any)
+            .from('push_subscriptions')
+            .select('id, clinic_id')
+            .eq('endpoint', endpoint);
+
+          if (subscriptionError) {
+            throw new Error(`Could not list push subscriptions for endpoint ${endpoint}: ${subscriptionError.message}`);
+          }
+
+          const subscriptionIds = (subscriptions || []).map((row: { id: string }) => row.id).filter(Boolean);
+          if (subscriptionIds.length === 0) {
+            return { notifications: [] };
+          }
+
+          let query = (client as any)
+            .from('push_notifications')
+            .select('*')
+            .in('subscription_id', subscriptionIds)
+            .order('created_at', { ascending: false });
+
+          if (notificationType) {
+            query = query.eq('notification_type', notificationType);
+          }
+
+          const { data, error } = await query;
+          if (error) {
+            throw new Error(`Could not read push notifications for endpoint ${endpoint}: ${error.message}`);
+          }
+
+          return { notifications: data || [] };
+        },
+
         async qaPushNotificationSeed({
           endpoint,
           title = 'Laralis QA Push',
@@ -2205,6 +2245,30 @@ export default defineConfig({
             status: 'pending',
           });
 
+          const stageUser = await findAuthUserByEmail(stageTestCredentials().email);
+          if (!stageUser?.id) {
+            throw new Error(`Could not find QA stage user ${stageTestCredentials().email} for cron push subscription`);
+          }
+
+          const pushEndpoint = `https://push.qa.laralis.test/${stamp}-cron-reminder`;
+          const { error: pushSubscriptionError } = await (client as any)
+            .from('push_subscriptions')
+            .upsert({
+              clinic_id: clinic.id,
+              user_id: stageUser.id,
+              endpoint: pushEndpoint,
+              expiration_time: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+              keys_p256dh: `qa-cron-p256dh-${stamp}`,
+              keys_auth: `qa-cron-auth-${stamp}`,
+              user_agent: 'Laralis QA Cron',
+              device_name: 'QA Cron',
+              is_active: true,
+            }, { onConflict: 'user_id,endpoint' });
+
+          if (pushSubscriptionError) {
+            throw new Error(`Could not seed cron push subscription: ${pushSubscriptionError.message}`);
+          }
+
           const category = await findExpenseCategory();
           const recurringExpense = await insertOneTolerant('expenses', {
             clinic_id: clinic.id,
@@ -2243,6 +2307,7 @@ export default defineConfig({
             futureTreatmentId: futureTreatment.id,
             reminderId: reminder.id,
             recurringExpenseId: recurringExpense.id,
+            pushEndpoint,
             previousClinic: {
               auto_complete_appointments: clinic.auto_complete_appointments,
               notification_settings: clinic.notification_settings,
@@ -2256,12 +2321,14 @@ export default defineConfig({
           futureTreatmentId,
           reminderId,
           recurringExpenseId,
+          pushEndpoint,
         }: {
           patientId: string;
           pastTreatmentId: string;
           futureTreatmentId: string;
           reminderId: string;
           recurringExpenseId: string;
+          pushEndpoint?: string;
         }) {
           const client = adminClient();
 
@@ -2298,12 +2365,33 @@ export default defineConfig({
             .single();
           if (recurringError) throw new Error(`Could not read recurring expense template: ${recurringError.message}`);
 
+          let pushNotifications: any[] = [];
+          if (pushEndpoint) {
+            const { data: subscriptions, error: subscriptionError } = await (client as any)
+              .from('push_subscriptions')
+              .select('id')
+              .eq('endpoint', pushEndpoint);
+            if (subscriptionError) throw new Error(`Could not read cron push subscriptions: ${subscriptionError.message}`);
+
+            const subscriptionIds = (subscriptions || []).map((row: { id: string }) => row.id).filter(Boolean);
+            if (subscriptionIds.length > 0) {
+              const { data: pushRows, error: pushError } = await (client as any)
+                .from('push_notifications')
+                .select('*')
+                .in('subscription_id', subscriptionIds)
+                .order('created_at', { ascending: false });
+              if (pushError) throw new Error(`Could not read cron push notifications: ${pushError.message}`);
+              pushNotifications = pushRows || [];
+            }
+          }
+
           return {
             reminder,
             emails: emails || [],
             treatments: treatments || [],
             generatedExpenses: generatedExpenses || [],
             recurringExpense,
+            pushNotifications,
           };
         },
 
@@ -2336,6 +2424,15 @@ export default defineConfig({
             }
             await client.from('email_notifications').delete().ilike('recipient_email', `%${stamp}%`);
             await client.from('expenses').delete().ilike('description', `%${stamp}%`);
+            const { data: pushSubscriptions } = await (client as any)
+              .from('push_subscriptions')
+              .select('id')
+              .ilike('endpoint', `%${stamp}%`);
+            const pushSubscriptionIds = (pushSubscriptions || []).map((row: { id: string }) => row.id).filter(Boolean);
+            if (pushSubscriptionIds.length > 0) {
+              await (client as any).from('push_notifications').delete().in('subscription_id', pushSubscriptionIds);
+              await (client as any).from('push_subscriptions').delete().in('id', pushSubscriptionIds);
+            }
             await deleteByIds('treatments', treatmentIds);
             await deleteByIds('patients', patientIds);
           }

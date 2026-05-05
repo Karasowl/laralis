@@ -6,6 +6,13 @@ type QaClinic = {
   name: string
 }
 
+type QaService = {
+  id: string
+  name: string
+  est_minutes?: number
+  variable_cost_cents?: number
+}
+
 type PushMockPermission = 'default' | 'denied' | 'granted'
 
 type PushMockOptions = {
@@ -38,6 +45,20 @@ function selectQaClinicA(): Cypress.Chainable<QaClinic> {
         expect(selectResponse.status).to.eq(200)
         return { ...clinic, id: stageClinic.id }
       })
+    })
+  })
+}
+
+function findQaService(serviceKey = 'limpieza'): Cypress.Chainable<QaService> {
+  return cy.readFile('../../docs/qa/dataset.json').then((dataset) => {
+    const service = dataset.services.find((row: any) => row.key === serviceKey)
+    expect(service, `QA service ${serviceKey}`).to.exist
+
+    return cy.request('/api/services').then((servicesResponse) => {
+      expect(servicesResponse.status).to.eq(200)
+      const stageService = (servicesResponse.body || []).find((row: QaService) => row.name === service.name)
+      expect(stageService, `${service.name} service in stage`).to.exist
+      return stageService
     })
   })
 }
@@ -152,8 +173,38 @@ function visitNotificationsWithPush(options: PushMockOptions) {
 
 describe('Stage push notification contracts', () => {
   const cleanupEndpoints: string[] = []
+  const cleanupSupplyIds: string[] = []
+  const cleanupTreatmentIds: string[] = []
+  const cleanupPatientIds: string[] = []
 
   afterEach(() => {
+    for (const treatmentId of cleanupTreatmentIds) {
+      cy.request({
+        method: 'DELETE',
+        url: `/api/treatments/${treatmentId}`,
+        failOnStatusCode: false,
+      })
+    }
+    cleanupTreatmentIds.length = 0
+
+    for (const patientId of cleanupPatientIds) {
+      cy.request({
+        method: 'DELETE',
+        url: `/api/patients/${patientId}`,
+        failOnStatusCode: false,
+      })
+    }
+    cleanupPatientIds.length = 0
+
+    for (const supplyId of cleanupSupplyIds) {
+      cy.request({
+        method: 'DELETE',
+        url: `/api/supplies/${supplyId}`,
+        failOnStatusCode: false,
+      })
+    }
+    cleanupSupplyIds.length = 0
+
     for (const endpoint of cleanupEndpoints) {
       cy.task('qaPushCleanup', { endpoint }).then((result: any) => {
         expect(result.cleaned, `push cleanup ${endpoint}`).to.eq(true)
@@ -369,5 +420,135 @@ describe('Stage push notification contracts', () => {
       expect(state.unsubscribeCalls).to.eq(1)
     })
     cy.get('[data-testid="push-notifications-enable"]', { timeout: 30000 }).should('be.visible')
+  })
+
+  it('records a low stock push log from the real supplies API event', () => {
+    const endpoint = uniqueEndpoint('low-stock-event')
+    const supplyName = `QA Push Low Stock ${Date.now()}-${Cypress._.random(1000, 9999)}`
+    cleanupEndpoints.push(endpoint)
+
+    cy.loginAsDoctor()
+    selectQaClinicA().then((clinic) => {
+      cy.request({
+        method: 'POST',
+        url: '/api/notifications/push/subscribe',
+        headers: {
+          'user-agent': 'Mozilla/5.0 Chrome Laralis QA',
+        },
+        body: subscriptionBody(endpoint, 'low-stock'),
+      }).then((response) => {
+        expect(response.status).to.eq(200)
+      })
+
+      cy.request({
+        method: 'POST',
+        url: '/api/supplies',
+        headers: {
+          'x-laralis-qa-notifications': 'mock',
+        },
+        body: {
+          clinic_id: clinic.id,
+          name: supplyName,
+          category: 'QA',
+          presentation: 'Unidad',
+          price_cents: 5000,
+          portions: 10,
+          stock_quantity: 1,
+          min_stock_alert: 2,
+        },
+      }).then((response) => {
+        expect(response.status).to.eq(201)
+        expect(response.body.data.name).to.eq(supplyName)
+        cleanupSupplyIds.push(response.body.data.id)
+        cy.task('qaPushNotificationsForEndpoint', {
+          endpoint,
+          notificationType: 'low_stock_alert',
+        }).then((state: any) => {
+          expect(state.notifications, 'low stock push logs').to.have.length(1)
+          const notification = state.notifications[0]
+          expect(notification.status).to.eq('sent')
+          expect(notification.title).to.match(/inventario bajo/i)
+          expect(notification.body).to.include(supplyName)
+          expect(notification.action_url).to.eq('/supplies')
+        })
+      })
+    })
+  })
+
+  it('records a treatment-created push log from the real treatments API event', () => {
+    const endpoint = uniqueEndpoint('treatment-created-event')
+    const stamp = `qa-push-treatment-${Date.now()}-${Cypress._.random(1000, 9999)}`
+    cleanupEndpoints.push(endpoint)
+
+    cy.loginAsDoctor()
+    selectQaClinicA().then((clinic) => {
+      cy.request({
+        method: 'POST',
+        url: '/api/notifications/push/subscribe',
+        headers: {
+          'user-agent': 'Mozilla/5.0 Chrome Laralis QA',
+        },
+        body: subscriptionBody(endpoint, 'treatment-created'),
+      }).then((response) => {
+        expect(response.status).to.eq(200)
+      })
+
+      findQaService().then((service) => {
+        cy.request({
+          method: 'POST',
+          url: '/api/patients',
+          body: {
+            clinic_id: clinic.id,
+            first_name: 'QA Push',
+            last_name: stamp,
+            email: `${stamp}@laralis.test`,
+            first_visit_date: '2026-05-04',
+            acquisition_date: '2026-05-04',
+            notes: stamp,
+          },
+        }).then((patientResponse) => {
+          expect(patientResponse.status).to.eq(200)
+          const patient = patientResponse.body.data
+          cleanupPatientIds.push(patient.id)
+
+          cy.request({
+            method: 'POST',
+            url: '/api/treatments',
+            headers: {
+              'x-laralis-qa-notifications': 'mock',
+            },
+            body: {
+              clinic_id: clinic.id,
+              patient_id: patient.id,
+              service_id: service.id,
+              treatment_date: '2026-05-04',
+              duration_minutes: service.est_minutes || 45,
+              price_cents: 150000,
+              amount_paid_cents: 150000,
+              pending_balance_cents: 0,
+              variable_cost_cents: service.variable_cost_cents || 2500,
+              margin_pct: 55,
+              status: 'completed',
+              notes: stamp,
+            },
+          }).then((treatmentResponse) => {
+            expect(treatmentResponse.status).to.eq(200)
+            expect(treatmentResponse.body.pushSummary.sent).to.be.greaterThan(0)
+            cleanupTreatmentIds.push(treatmentResponse.body.data.id)
+            cy.task('qaPushNotificationsForEndpoint', {
+              endpoint,
+              notificationType: 'treatment_created',
+            }).then((state: any) => {
+              expect(state.notifications, 'treatment-created push logs').to.have.length(1)
+              const notification = state.notifications[0]
+              expect(notification.status).to.eq('sent')
+              expect(notification.title).to.match(/nuevo tratamiento/i)
+              expect(notification.body).to.include(stamp)
+              expect(notification.action_url).to.eq('/treatments')
+            })
+          })
+        })
+      })
+    })
   })
 })

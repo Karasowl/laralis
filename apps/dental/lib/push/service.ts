@@ -90,6 +90,11 @@ export interface VapidConfig {
   configured: boolean
 }
 
+export interface PushNotificationServiceOptions {
+  env?: NodeJS.ProcessEnv
+  requireVapidConfig?: boolean
+}
+
 export function normalizeVapidSubject(rawSubject?: string | null): string {
   const subject = rawSubject?.trim()
 
@@ -267,7 +272,8 @@ export class SupabasePushNotificationStore implements PushNotificationStore {
 export class PushNotificationService {
   constructor(
     private readonly adapter: WebPushAdapter = webpush,
-    private readonly store: PushNotificationStore = new SupabasePushNotificationStore()
+    private readonly store: PushNotificationStore = new SupabasePushNotificationStore(),
+    private readonly options: PushNotificationServiceOptions = {}
   ) {}
 
   async sendNotification(options: SendNotificationOptions): Promise<PushSendSummary> {
@@ -396,8 +402,9 @@ export class PushNotificationService {
         payload,
       })
 
-      const vapidConfig = getVapidConfig()
-      if (!vapidConfig.configured || !vapidConfig.publicKey || !vapidConfig.privateKey) {
+      const vapidConfig = getVapidConfig(this.options.env)
+      const requiresVapidConfig = this.options.requireVapidConfig !== false
+      if (requiresVapidConfig && (!vapidConfig.configured || !vapidConfig.publicKey || !vapidConfig.privateKey)) {
         const error = 'Web Push VAPID keys are not configured'
         await this.store.markNotificationFailed(notificationId, error)
         return {
@@ -408,7 +415,9 @@ export class PushNotificationService {
         }
       }
 
-      this.adapter.setVapidDetails(vapidConfig.subject, vapidConfig.publicKey, vapidConfig.privateKey)
+      if (vapidConfig.configured && vapidConfig.publicKey && vapidConfig.privateKey) {
+        this.adapter.setVapidDetails(vapidConfig.subject, vapidConfig.publicKey, vapidConfig.privateKey)
+      }
 
       await this.adapter.sendNotification(
         buildWebPushSubscription(subscription),
@@ -468,3 +477,18 @@ export class PushNotificationService {
 }
 
 export const pushNotificationService = new PushNotificationService()
+
+export const mockWebPushAdapter: WebPushAdapter = {
+  setVapidDetails() {
+    // QA mock: no provider credentials are required.
+  },
+  async sendNotification() {
+    return { mocked: true }
+  },
+}
+
+export function createMockPushNotificationService(
+  store: PushNotificationStore = new SupabasePushNotificationStore()
+): PushNotificationService {
+  return new PushNotificationService(mockWebPushAdapter, store, { requireVapidConfig: false })
+}

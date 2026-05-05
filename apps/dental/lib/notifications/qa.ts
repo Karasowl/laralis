@@ -1,0 +1,21 @@
+import { NextRequest } from 'next/server'
+import {
+  createMockPushNotificationService,
+  pushNotificationService,
+  type PushNotificationService,
+} from '@/lib/push/service'
+
+const STAGE_SUPABASE_REF = 'kafbqdliromcveojtdar'
+
+export function isQaNotificationMockRequest(request: NextRequest): boolean {
+  return (
+    request.headers.get('x-laralis-qa-notifications') === 'mock' &&
+    (process.env.NEXT_PUBLIC_SUPABASE_URL || '').includes(STAGE_SUPABASE_REF)
+  )
+}
+
+export function getPushNotificationServiceForRequest(request: NextRequest): PushNotificationService {
+  return isQaNotificationMockRequest(request)
+    ? createMockPushNotificationService()
+    : pushNotificationService
+}

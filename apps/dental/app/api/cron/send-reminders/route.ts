@@ -21,20 +21,15 @@ import {
   sendSMS,
   formatPhoneNumber,
 } from '@/lib/sms/service';
+import {
+  getPushNotificationServiceForRequest,
+  isQaNotificationMockRequest,
+} from '@/lib/notifications/qa';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds max execution time
 
 import { requireCronAuth } from '@/lib/cron-auth';
-
-const STAGE_SUPABASE_REF = 'kafbqdliromcveojtdar';
-
-function isQaNotificationMockRequest(request: NextRequest): boolean {
-  return (
-    request.headers.get('x-laralis-qa-notifications') === 'mock' &&
-    (process.env.NEXT_PUBLIC_SUPABASE_URL || '').includes(STAGE_SUPABASE_REF)
-  );
-}
 
 export async function GET(request: NextRequest) {
   const denied = requireCronAuth(request);
@@ -47,6 +42,12 @@ export async function GET(request: NextRequest) {
     sent: 0,
     failed: 0,
     skipped: 0,
+    push: {
+      attempted: 0,
+      sent: 0,
+      failed: 0,
+      skipped: 0,
+    },
     errors: [] as string[],
   };
 
@@ -217,6 +218,28 @@ export async function GET(request: NextRequest) {
               reminderType: reminder.reminder_type as 'reminder_24h' | 'reminder_2h',
               reminderId: reminder.id,
             });
+          }
+
+          try {
+            const pushSummary = await getPushNotificationServiceForRequest(request).sendNotificationToClinic({
+              clinicId: reminder.clinic_id,
+              notificationType: 'appointment_reminder',
+              payload: {
+                title: 'Recordatorio de cita',
+                body: `${patient.first_name} ${patient.last_name} - ${treatment.services.name} el ${treatment.treatment_date}${treatment.treatment_time ? ` a las ${treatment.treatment_time}` : ''}`,
+                icon: '/icons/icon-192x192.png',
+                url: '/appointments',
+                tag: `appointment-reminder-${reminder.id}`,
+                requireInteraction: true,
+              },
+            });
+            results.push.attempted += pushSummary.attempted;
+            results.push.sent += pushSummary.sent;
+            results.push.failed += pushSummary.failed;
+            results.push.skipped += pushSummary.skipped;
+          } catch (pushError) {
+            console.warn(`[cron/send-reminders] Push reminder failed for ${reminder.id}:`, pushError);
+            results.push.failed++;
           }
 
           // Mark reminder as sent

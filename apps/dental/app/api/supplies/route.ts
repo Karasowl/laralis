@@ -6,6 +6,7 @@ import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { readJson } from '@/lib/validation';
 import { forbiddenIfMissingPermission } from '@/lib/permissions';
+import { sendLowStockAlertPush } from '@/lib/notifications/product-push';
 
 export const dynamic = 'force-dynamic'
 
@@ -183,6 +184,12 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       ...data,
       cost_per_portion_cents: Math.round(data.price_cents / data.portions)
     };
+
+    try {
+      await sendLowStockAlertPush(request, clinicId, supplyWithCostPerPortion);
+    } catch (pushError) {
+      console.warn('[supplies POST] Failed to send low stock push notification:', pushError);
+    }
 
     return NextResponse.json({ 
       data: supplyWithCostPerPortion,
