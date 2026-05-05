@@ -5,6 +5,7 @@ import { isConfirmationEnabled, sendBookingConfirmation } from '@/lib/email/serv
 import { sendBookingReceivedSMS } from '@/lib/sms'
 import { sendBookingReceivedWhatsApp } from '@/lib/whatsapp'
 import { readJson } from '@/lib/validation'
+import { getPushNotificationServiceForRequest } from '@/lib/notifications/qa'
 
 // QA route contract: @qa-public-route public booking request intake.
 export const dynamic = 'force-dynamic'
@@ -35,7 +36,7 @@ interface BookingConfig {
   slot_duration_minutes: number
 }
 
-type NotificationChannel = 'email' | 'sms' | 'whatsapp'
+type NotificationChannel = 'email' | 'sms' | 'whatsapp' | 'push'
 type QaNotificationMode = 'mock' | 'fail' | null
 
 interface NotificationResult {
@@ -524,6 +525,40 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         })
         // Don't fail the booking if WhatsApp fails
       }
+    }
+
+    try {
+      const pushSummary = await getPushNotificationServiceForRequest(request).sendNotificationToClinic({
+        clinicId: data.clinic_id,
+        notificationType: 'public_booking_received',
+        payload: {
+          title: 'Nueva solicitud de cita',
+          body: `${data.patient_name} solicito ${service.name} para ${data.requested_date} ${data.requested_time}`,
+          icon: '/icons/icon-192x192.png',
+          url: `/treatments/calendar?booking=${booking.id}`,
+          tag: `public-booking-${booking.id}`,
+          requireInteraction: true,
+        },
+      })
+
+      notificationResults.push({
+        channel: 'push',
+        attempted: pushSummary.attempted > 0,
+        mocked: Boolean(qaNotifications),
+        success: pushSummary.failed === 0,
+        error: pushSummary.failed > 0
+          ? pushSummary.results.find((result) => result.error)?.error || 'Push notification failed'
+          : undefined,
+      })
+    } catch (pushError) {
+      console.error('Failed to send push notification:', pushError)
+      notificationResults.push({
+        channel: 'push',
+        attempted: true,
+        mocked: Boolean(qaNotifications),
+        success: false,
+        error: pushError instanceof Error ? pushError.message : 'Unknown push error',
+      })
     }
 
     return NextResponse.json({

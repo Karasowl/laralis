@@ -26,6 +26,21 @@ function normalizeTime(value: string) {
   return value.slice(0, 5)
 }
 
+function uniquePushEndpoint(label: string) {
+  return `https://push.qa.laralis.test/${label}-${Date.now()}-${Cypress._.random(1000, 9999)}`
+}
+
+function pushSubscriptionBody(endpoint: string, suffix = 'booking') {
+  return {
+    endpoint,
+    expirationTime: Date.now() + 7 * 24 * 60 * 60 * 1000,
+    keys: {
+      p256dh: `qa-booking-p256dh-${suffix}`,
+      auth: `qa-booking-auth-${suffix}`,
+    },
+  }
+}
+
 function candidateDates() {
   const today = new Date()
   const dates: string[] = []
@@ -238,6 +253,7 @@ function monthDiff(from: Date, to: Date) {
 
 describe('Stage public booking and mocked notifications', () => {
   const cleanupStamps: string[] = []
+  const cleanupPushEndpoints: string[] = []
 
   afterEach(() => {
     restoreNotificationSettings()
@@ -245,10 +261,28 @@ describe('Stage public booking and mocked notifications', () => {
       cy.task('qaBookingRequestCleanup', { stamp })
     }
     cleanupStamps.length = 0
+    for (const endpoint of cleanupPushEndpoints) {
+      cy.task('qaPushCleanup', { endpoint })
+    }
+    cleanupPushEndpoints.length = 0
   })
 
   it('publishes the QA booking page, reserves a real slot, and mocks email/SMS/WhatsApp', () => {
     configurePublicBooking().then((ctx) => {
+      const pushEndpoint = uniquePushEndpoint('public-booking')
+      cleanupPushEndpoints.push(pushEndpoint)
+
+      cy.request({
+        method: 'POST',
+        url: '/api/notifications/push/subscribe',
+        headers: {
+          'user-agent': 'Mozilla/5.0 Chrome Laralis QA',
+        },
+        body: pushSubscriptionBody(pushEndpoint),
+      }).then((pushResponse) => {
+        expect(pushResponse.status).to.eq(200)
+      })
+
       cy.request(`/api/public/clinic/${ctx.clinicSlug}`).then((clinicResponse) => {
         expect(clinicResponse.status).to.eq(200)
         expect(clinicResponse.body.data.name).to.eq(ctx.clinicName)
@@ -287,6 +321,12 @@ describe('Stage public booking and mocked notifications', () => {
           expect(normalizeTime(bookResponse.body.data.requested_time)).to.eq(normalizeTime(slot.time))
           expect(bookResponse.body.data.service_name).to.eq(ctx.serviceName)
           expectMockedChannels(bookResponse.body.data.notification_results || [])
+          const pushResult = (bookResponse.body.data.notification_results || [])
+            .find((row: any) => row.channel === 'push')
+          expect(pushResult, 'push result').to.exist
+          expect(pushResult.attempted, 'push attempted').to.eq(true)
+          expect(pushResult.mocked, 'push mocked').to.eq(true)
+          expect(pushResult.success, 'push success').to.eq(true)
           bookingId = bookResponse.body.data.id
         })
 
@@ -300,6 +340,11 @@ describe('Stage public booking and mocked notifications', () => {
             expect(state.whatsappNotifications, 'one WhatsApp notification log').to.have.length(1)
             expect(state.whatsappNotifications[0].status).to.eq('sent')
             expect(state.whatsappNotifications[0].provider_message_id).to.eq(`qa-whatsapp-${bookingId}`)
+            expect(state.pushNotifications, 'one staff push notification log').to.have.length(1)
+            expect(state.pushNotifications[0].status).to.eq('sent')
+            expect(state.pushNotifications[0].notification_type).to.eq('public_booking_received')
+            expect(state.pushNotifications[0].body).to.include(stamp)
+            expect(state.pushNotifications[0].action_url).to.eq(`/treatments/calendar?booking=${bookingId}`)
           })
         })
 

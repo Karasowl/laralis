@@ -14,8 +14,16 @@ export function isQaNotificationMockRequest(request: NextRequest): boolean {
   )
 }
 
+export function isQaNotificationControlledRequest(request: NextRequest): boolean {
+  const mode = request.headers.get('x-laralis-qa-notifications')
+  return (
+    (mode === 'mock' || mode === 'fail') &&
+    (process.env.NEXT_PUBLIC_SUPABASE_URL || '').includes(STAGE_SUPABASE_REF)
+  )
+}
+
 export function getPushNotificationServiceForRequest(request: NextRequest): PushNotificationService {
-  return isQaNotificationMockRequest(request)
+  return isQaNotificationControlledRequest(request)
     ? createMockPushNotificationService()
     : pushNotificationService
 }

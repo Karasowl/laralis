@@ -1931,10 +1931,20 @@ export default defineConfig({
             .order('created_at', { ascending: false });
           if (whatsappError) throw new Error(`Could not read QA public booking WhatsApp notifications: ${whatsappError.message}`);
 
+          const { data: pushNotifications, error: pushError } = await (client as any)
+            .from('push_notifications')
+            .select('*')
+            .eq('clinic_id', booking.clinic_id)
+            .eq('notification_type', 'public_booking_received')
+            .eq('action_url', `/treatments/calendar?booking=${bookingId}`)
+            .order('created_at', { ascending: false });
+          if (pushError) throw new Error(`Could not read QA public booking push notifications: ${pushError.message}`);
+
           return {
             booking,
             smsNotifications: smsNotifications || [],
             whatsappNotifications: whatsappNotifications || [],
+            pushNotifications: pushNotifications || [],
           };
         },
 

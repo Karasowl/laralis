@@ -1,6 +1,6 @@
 # QA Inventory Report
 
-Generated: 2026-05-05T19:11:24.207Z
+Generated: 2026-05-05T20:14:25.856Z
 
 Status: warn
 Failing checks: 0
@@ -27,10 +27,10 @@ required QA docs: 10; missing: 0
 
 Status: pass
 
-capabilities: 75; domains: 32; required missing domains: 0
+capabilities: 76; domains: 32; required missing domains: 0
 
-- status counts: covered=74, partial=1
-- priority counts: P0=60, P1=15
+- status counts: covered=75, partial=1
+- priority counts: P0=61, P1=15
 
 ## Product readiness truth table
 
@@ -41,7 +41,7 @@ areas: 6; implementation: partial=6; coverage: provider-mock=3, provider-contrac
 - open: inbox-whatsapp-actions [P0] implementation=partial, coverage=provider-mock; not proven=2
 - open: booking-notifications [P0] implementation=partial, coverage=provider-mock; not proven=4
 - open: lara-ai-actions-audio [P0] implementation=partial, coverage=provider-mock; not proven=6
-- open: push-notifications [P1] implementation=partial, coverage=provider-contract; not proven=6
+- open: push-notifications [P1] implementation=partial, coverage=provider-contract; not proven=5
 - open: whatsapp-inbound-webhook [P0] implementation=partial, coverage=provider-contract; not proven=5
 - open: visual-regression [P1] implementation=partial, coverage=contract-only; not proven=4
 

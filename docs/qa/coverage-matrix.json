@@ -598,5 +598,13 @@
     "capability": "Sender Web Push arma VAPID/payload, marca sent/failed y desactiva suscripciones expiradas sin llamar proveedor real",
     "layers": ["vitest", "provider-contract"],
     "status": "covered"
+  },
+  {
+    "id": "qa-072-booking-staff-push-notification",
+    "priority": "P0",
+    "domain": "notifications",
+    "capability": "Reserva publica notifica al equipo por push mockeado y persiste push_notifications con booking id accionable",
+    "layers": ["cypress", "api", "database", "provider-mock", "supabase-task"],
+    "status": "covered"
   }
 ]

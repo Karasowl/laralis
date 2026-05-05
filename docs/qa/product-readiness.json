@@ -37,6 +37,7 @@
     "proven": [
       "Public booking creates records and reserves availability",
       "Stage mock records email/SMS/WhatsApp intent without external calls",
+      "Stage mock records staff push intent for a public booking in push_notifications with an actionable booking URL",
       "Reminder cron mutates scheduled reminders and notification records",
       "Forced provider failures keep the booking pending, mark email as unsent, and log failed SMS/WhatsApp notification rows",
       "Twilio/360dialog provider contracts validate outbound payloads, auth headers, status callback parsing, and provider error handling without live calls"
@@ -104,6 +105,7 @@
       "The stage VAPID public key is decoded into a non-empty applicationServerKey during mocked browser subscription",
       "Stage schema exposes push_subscriptions and push_notifications",
       "Server-side Web Push sender builds VAPID/payload contracts and persists delivery status as sent or failed",
+      "Cron reminders, treatment creation, inventory low-stock alerts, and public bookings are wired to the push sender in stage-mocked product-event tests",
       "Expired provider responses 404/410 mark delivery failed and deactivate the push subscription",
       "Missing VAPID config fails deterministically without calling the provider"
     ],
@@ -112,10 +114,9 @@
       "Real service worker push event emitted by a provider",
       "Real mobile browser behavior",
       "Retry/backoff scheduling for transient push provider errors",
-      "Cron/treatment/inventory product events wired to push sender",
       "Production VAPID delivery"
     ],
-    "nextTest": "Wire cron/treatment/inventory events to the push sender and add one optional real-browser/provider smoke gated by explicit env flags."
+    "nextTest": "Add one optional real-browser/provider smoke gated by explicit env flags, then decide whether push needs retry/backoff or only stale-subscription cleanup."
   },
   {
     "area": "whatsapp-inbound-webhook",
