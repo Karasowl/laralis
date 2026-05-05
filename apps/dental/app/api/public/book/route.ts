@@ -81,7 +81,7 @@ async function recordMockSmsNotification(params: {
   error?: string
 }): Promise<NotificationResult> {
   const success = params.success ?? true
-  const { error } = await supabaseAdmin.from('sms_notifications').insert({
+  const { error: insertError } = await supabaseAdmin.from('sms_notifications').insert({
     clinic_id: params.clinicId,
     treatment_id: null,
     patient_id: null,
@@ -92,7 +92,7 @@ async function recordMockSmsNotification(params: {
     message_content: params.message,
     status: success ? 'sent' : 'failed',
     sent_at: success ? new Date().toISOString() : null,
-    error_message: params.error || error?.message || null,
+    error_message: params.error || null,
     provider: 'twilio',
     provider_message_id: success ? `qa-sms-${params.bookingId}` : null,
     cost_cents: 0
@@ -102,8 +102,8 @@ async function recordMockSmsNotification(params: {
     channel: 'sms',
     attempted: true,
     mocked: true,
-    success: success && !error,
-    error: error?.message || params.error
+    success: success && !insertError,
+    error: insertError?.message || params.error
   }
 }
 
@@ -117,7 +117,7 @@ async function recordMockWhatsAppNotification(params: {
   error?: string
 }): Promise<NotificationResult> {
   const success = params.success ?? true
-  const { error } = await supabaseAdmin.from('whatsapp_notifications').insert({
+  const { error: insertError } = await supabaseAdmin.from('whatsapp_notifications').insert({
     clinic_id: params.clinicId,
     treatment_id: null,
     patient_id: null,
@@ -129,7 +129,7 @@ async function recordMockWhatsAppNotification(params: {
     template_id: null,
     status: success ? 'sent' : 'failed',
     sent_at: success ? new Date().toISOString() : null,
-    error_message: params.error || error?.message || null,
+    error_message: params.error || null,
     provider: 'twilio',
     provider_message_id: success ? `qa-whatsapp-${params.bookingId}` : null,
     cost_cents: 0
@@ -139,8 +139,8 @@ async function recordMockWhatsAppNotification(params: {
     channel: 'whatsapp',
     attempted: true,
     mocked: true,
-    success: success && !error,
-    error: error?.message || params.error
+    success: success && !insertError,
+    error: insertError?.message || params.error
   }
 }
 

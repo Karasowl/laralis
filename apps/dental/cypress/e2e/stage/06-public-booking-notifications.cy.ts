@@ -222,7 +222,10 @@ function expectMockedChannels(results: any[], expectedSuccess = true) {
     expect(byChannel[channel], `${channel} result`).to.exist
     expect(byChannel[channel].attempted, `${channel} attempted`).to.eq(true)
     expect(byChannel[channel].mocked, `${channel} mocked`).to.eq(true)
-    expect(byChannel[channel].success, `${channel} success`).to.eq(expectedSuccess)
+    expect(
+      byChannel[channel].success,
+      `${channel} success${byChannel[channel].error ? ` (${byChannel[channel].error})` : ''}`
+    ).to.eq(expectedSuccess)
     if (!expectedSuccess) {
       expect(byChannel[channel].error, `${channel} error`).to.match(/QA forced/i)
     }
