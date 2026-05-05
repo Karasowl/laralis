@@ -159,6 +159,20 @@ Cobertura actual:
 - El inventario QA ya distingue rutas publicas/booking, tokenizadas, webhook, self-service de cuenta y rutas de contexto para no mezclarlas con fugas de permisos.
 - Booking publico, self-service de cuenta y permisos backend quedan cubiertos por specs dedicados. Push notifications siguen separadas de email/SMS/WhatsApp porque requieren contrato propio de navegador/subscription.
 
+## Inbox y WhatsApp
+
+Cobertura actual:
+
+- `apps/dental/cypress/e2e/stage/34-inbox-whatsapp-lifecycle.cy.ts` protege las acciones de inbox sin sesion: marcar leida, asignar, alternar bot, transferir, cerrar, responder y convertir.
+- El spec siembra una conversacion WhatsApp real en Supabase stage con lead, mensaje inbound, campana QA y conversacion en estado `bot`; luego valida por API que marcar como leida, asignar, retomar bot, transferir y cerrar cambian la base de datos como se espera.
+- `POST /api/inbox/reply` acepta `x-laralis-qa-notifications: mock` solo cuando `NEXT_PUBLIC_SUPABASE_URL` apunta al ref stage `kafbqdliromcveojtdar`; asi se prueba respuesta outbound sin llamar proveedor externo de WhatsApp.
+- El spec convierte el lead en paciente, comprueba que `leads.converted_patient_id`, `inbox_conversations.patient_id` y el paciente creado quedan enlazados, y que un segundo intento devuelve `alreadyLinked` sin duplicar paciente.
+- La pagina `/inbox` se abre en desktop y mobile con datos reales de la conversacion seed, verifica mensaje visible, evita setup/onboarding accidental y detecta scroll horizontal.
+
+Brechas abiertas:
+
+- El webhook inbound de WhatsApp y la verificacion de firma quedan para un spec separado, porque necesitan contrato de payload de Twilio/360dialog.
+
 ## Booking publico y notificaciones
 
 Cobertura actual:

@@ -446,5 +446,29 @@
     "capability": "Pantalla de recetas carga en desktop/mobile sin setup regresivo ni scroll horizontal",
     "layers": ["cypress", "visual"],
     "status": "covered"
+  },
+  {
+    "id": "qa-057-inbox-whatsapp-conversation-lifecycle",
+    "priority": "P0",
+    "domain": "inbox",
+    "capability": "Conversacion WhatsApp: marcar leida, asignar, alternar bot, transferir, responder con proveedor mockeado y cerrar",
+    "layers": ["cypress", "api", "database", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-058-inbox-lead-conversion-idempotency",
+    "priority": "P0",
+    "domain": "inbox",
+    "capability": "Convertir un lead de inbox en paciente, vincular conversacion/lead/paciente y evitar duplicados al reintentar",
+    "layers": ["cypress", "api", "database", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-059-inbox-responsive-ui",
+    "priority": "P1",
+    "domain": "visual",
+    "capability": "Bandeja de entrada renderiza conversaciones y mensajes en desktop/mobile sin setup regresivo ni scroll horizontal",
+    "layers": ["cypress", "visual"],
+    "status": "covered"
   }
 ]

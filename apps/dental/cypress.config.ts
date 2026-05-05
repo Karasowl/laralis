@@ -945,6 +945,218 @@ export default defineConfig({
           };
         },
 
+        async qaInboxSeed({
+          stamp,
+          clinicName,
+        }: {
+          stamp: string;
+          clinicName: string;
+        }) {
+          const client = adminClient();
+
+          const { data: clinic, error: clinicError } = await client
+            .from('clinics')
+            .select('id, name')
+            .eq('name', clinicName)
+            .single();
+
+          if (clinicError || !clinic?.id) {
+            throw new Error(`Could not find QA clinic "${clinicName}": ${clinicError?.message || 'missing clinic'}`);
+          }
+
+          const { data: campaign } = await client
+            .from('marketing_campaigns')
+            .select('id, name')
+            .eq('clinic_id', clinic.id)
+            .eq('name', 'Meta Mayo')
+            .maybeSingle();
+
+          const numericTail = stamp.replace(/\D/g, '').slice(-7).padStart(7, '0');
+          const phone = `+1555${numericTail}`;
+          const contactAddress = `whatsapp:${phone}`;
+          const contactName = `QA Inbox ${stamp}`;
+          const nowIso = new Date().toISOString();
+
+          const lead = await insertOneTolerant('leads', {
+            clinic_id: clinic.id,
+            campaign_id: campaign?.id || null,
+            full_name: contactName,
+            email: `${stamp}@laralis.test`,
+            phone,
+            channel: 'whatsapp',
+            status: 'new',
+            notes: `qa-inbox ${stamp}`,
+            metadata: {
+              qa: true,
+              stamp,
+              source: 'cypress',
+            },
+          });
+
+          const conversation = await insertOneTolerant('inbox_conversations', {
+            clinic_id: clinic.id,
+            campaign_id: campaign?.id || null,
+            lead_id: lead.id,
+            channel: 'whatsapp',
+            contact_address: contactAddress,
+            contact_name: contactName,
+            status: 'bot',
+            conversation_state: 'chatting',
+            last_message_at: nowIso,
+            last_message_preview: `qa-inbox seeded ${stamp}`,
+            unread_count: 1,
+            metadata: {
+              qa: true,
+              stamp,
+            },
+          });
+
+          const inboundMessage = await insertOneTolerant('inbox_messages', {
+            conversation_id: conversation.id,
+            role: 'user',
+            content: `Hola, quiero una cita desde WhatsApp QA ${stamp}`,
+            direction: 'inbound',
+            message_type: 'text',
+            channel_message_id: `qa-inbound-${stamp}`,
+            metadata: {
+              qa: true,
+              stamp,
+            },
+          });
+
+          return {
+            stamp,
+            clinicId: clinic.id,
+            campaignId: campaign?.id || null,
+            leadId: lead.id,
+            conversationId: conversation.id,
+            inboundMessageId: inboundMessage.id,
+            contactName,
+            phone,
+            contactAddress,
+          };
+        },
+
+        async qaInboxState({ conversationId }: { conversationId: string }) {
+          const client = adminClient();
+
+          const { data: conversation, error: conversationError } = await client
+            .from('inbox_conversations')
+            .select('*')
+            .eq('id', conversationId)
+            .single();
+          if (conversationError || !conversation) {
+            throw new Error(`Could not read QA inbox conversation: ${conversationError?.message || 'missing conversation'}`);
+          }
+
+          const { data: messages, error: messagesError } = await client
+            .from('inbox_messages')
+            .select('*')
+            .eq('conversation_id', conversationId)
+            .order('created_at', { ascending: true });
+          if (messagesError) throw new Error(`Could not read QA inbox messages: ${messagesError.message}`);
+
+          let lead: any = null;
+          if (conversation.lead_id) {
+            const { data, error } = await client
+              .from('leads')
+              .select('*')
+              .eq('id', conversation.lead_id)
+              .maybeSingle();
+            if (error) throw new Error(`Could not read QA inbox lead: ${error.message}`);
+            lead = data;
+          }
+
+          let patient: any = null;
+          if (conversation.patient_id) {
+            const { data, error } = await client
+              .from('patients')
+              .select('*')
+              .eq('id', conversation.patient_id)
+              .maybeSingle();
+            if (error) throw new Error(`Could not read QA inbox patient: ${error.message}`);
+            patient = data;
+          }
+
+          return {
+            conversation,
+            lead,
+            patient,
+            messages: messages || [],
+          };
+        },
+
+        async qaInboxCleanup({ stamp }: { stamp?: string }) {
+          if (!stamp) return { cleaned: false };
+
+          const client = adminClient();
+          const conversationIds = new Set<string>();
+          const leadIds = new Set<string>();
+          const patientIds = new Set<string>();
+
+          const { data: messages } = await client
+            .from('inbox_messages')
+            .select('conversation_id')
+            .ilike('content', `%${stamp}%`);
+          for (const message of messages || []) {
+            if (message.conversation_id) conversationIds.add(message.conversation_id);
+          }
+
+          const { data: conversations } = await client
+            .from('inbox_conversations')
+            .select('id, lead_id, patient_id')
+            .or(`last_message_preview.ilike.%${stamp}%,contact_name.ilike.%${stamp}%,contact_address.ilike.%${stamp}%`);
+          for (const conversation of conversations || []) {
+            if (conversation.id) conversationIds.add(conversation.id);
+            if (conversation.lead_id) leadIds.add(conversation.lead_id);
+            if (conversation.patient_id) patientIds.add(conversation.patient_id);
+          }
+
+          if (conversationIds.size > 0) {
+            const { data: linkedConversations } = await client
+              .from('inbox_conversations')
+              .select('id, lead_id, patient_id')
+              .in('id', Array.from(conversationIds));
+            for (const conversation of linkedConversations || []) {
+              if (conversation.lead_id) leadIds.add(conversation.lead_id);
+              if (conversation.patient_id) patientIds.add(conversation.patient_id);
+            }
+          }
+
+          const { data: leads } = await client
+            .from('leads')
+            .select('id, converted_patient_id')
+            .or(`full_name.ilike.%${stamp}%,email.ilike.%${stamp}%,notes.ilike.%${stamp}%`);
+          for (const lead of leads || []) {
+            if (lead.id) leadIds.add(lead.id);
+            if (lead.converted_patient_id) patientIds.add(lead.converted_patient_id);
+          }
+
+          const { data: patients } = await client
+            .from('patients')
+            .select('id')
+            .or(`email.ilike.%${stamp}%,last_name.ilike.%${stamp}%,notes.ilike.%${stamp}%`);
+          for (const patient of patients || []) {
+            if (patient.id) patientIds.add(patient.id);
+          }
+
+          const conversationIdList = Array.from(conversationIds);
+          if (conversationIdList.length > 0) {
+            await client.from('inbox_messages').delete().in('conversation_id', conversationIdList);
+            await deleteByIds('inbox_conversations', conversationIdList);
+          }
+
+          await deleteByIds('leads', Array.from(leadIds));
+          await deleteByIds('patients', Array.from(patientIds));
+
+          return {
+            cleaned: true,
+            conversationCount: conversationIdList.length,
+            leadCount: leadIds.size,
+            patientCount: patientIds.size,
+          };
+        },
+
         async qaDeleteUserByEmail(email: string) {
           const client = adminClient();
           const user = await findAuthUserByEmail(email);

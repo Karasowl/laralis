@@ -10,6 +10,15 @@ const schema = z.object({
   content: z.string().min(1),
 })
 
+const STAGE_SUPABASE_REF = 'kafbqdliromcveojtdar'
+
+function isQaWhatsAppMockRequest(request: Request) {
+  return (
+    request.headers.get('x-laralis-qa-notifications') === 'mock' &&
+    process.env.NEXT_PUBLIC_SUPABASE_URL?.includes(STAGE_SUPABASE_REF)
+  )
+}
+
 export const POST = withPermission('inbox.reply', async (request, context) => {
   const bodyResult = await readJson(request)
   if ('error' in bodyResult) {
@@ -45,11 +54,17 @@ export const POST = withPermission('inbox.reply', async (request, context) => {
     return NextResponse.json({ error: 'Unsupported channel' }, { status: 400 })
   }
 
-  const sendResult = await sendWhatsAppMessage({
-    clinicId,
-    recipientPhone: conversation.contact_address,
-    content,
-  })
+  const sendResult = isQaWhatsAppMockRequest(request)
+    ? {
+        success: true,
+        messageId: `qa-inbox-reply-${conversationId}-${Date.now()}`,
+        status: 'sent',
+      }
+    : await sendWhatsAppMessage({
+        clinicId,
+        recipientPhone: conversation.contact_address,
+        content,
+      })
 
   const { data: message, error: messageError } = await supabaseAdmin
     .from('inbox_messages')
