@@ -138,3 +138,5 @@ COMMENT ON COLUMN public.action_logs.executed_at IS 'Timestamp when the action w
 GRANT SELECT ON public.action_logs TO authenticated;
 GRANT INSERT ON public.action_logs TO authenticated;
 GRANT ALL ON public.action_logs TO service_role;
+
+NOTIFY pgrst, 'reload schema';

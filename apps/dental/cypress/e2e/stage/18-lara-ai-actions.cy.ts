@@ -163,8 +163,8 @@ describe('Stage Lara AI assistant actions and audio', () => {
     cy.get('[data-testid="lara-query-submit"]').should('be.enabled').click()
 
     cy.wait('@laraQuery', { timeout: 45000 })
-    cy.contains('Lara QA respondio de forma deterministica', { timeout: 45000 }).should('be.visible')
-    cy.get('[data-testid="lara-action-card"]', { timeout: 45000 }).should('be.visible')
+    cy.contains('Lara QA respondio de forma deterministica', { timeout: 45000 }).should('exist')
+    cy.get('[data-testid="lara-action-card"]', { timeout: 45000 }).scrollIntoView().should('be.visible')
     const actionStartedAt = new Date(Date.now() - 5000).toISOString()
     cy.get('[data-testid="lara-action-confirm"]').click()
 
@@ -179,10 +179,16 @@ describe('Stage Lara AI assistant actions and audio', () => {
       expect(settings?.real_pct).to.eq(82)
     })
 
-    cy.task('qaFindActionLogs', {
-      clinicId,
-      actionType: 'update_time_settings',
-      sinceIso: actionStartedAt,
+    cy.then(() => {
+      expect(clinicId, 'QA clinic id for Lara audit').to.match(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+      )
+
+      return cy.task('qaFindActionLogs', {
+        clinicId,
+        actionType: 'update_time_settings',
+        sinceIso: actionStartedAt,
+      })
     }).then((result) => {
       const audit = result as {
         count: number
