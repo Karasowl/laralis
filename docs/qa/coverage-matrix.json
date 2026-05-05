@@ -272,6 +272,14 @@
     "status": "covered"
   },
   {
+    "id": "qa-066-booking-notification-provider-failures",
+    "priority": "P0",
+    "domain": "notifications",
+    "capability": "Fallo mockeado de email/SMS/WhatsApp no rompe la reserva y registra estados fallidos",
+    "layers": ["cypress", "api", "database", "provider-mock", "supabase-task"],
+    "status": "covered"
+  },
+  {
     "id": "qa-035-cron-reminders",
     "priority": "P0",
     "domain": "cron",

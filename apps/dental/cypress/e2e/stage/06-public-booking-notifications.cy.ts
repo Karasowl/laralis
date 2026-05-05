@@ -215,14 +215,17 @@ function findAvailableSlot(ctx: BookingContext): Cypress.Chainable<BookingSlot> 
   }) as Cypress.Chainable<BookingSlot>
 }
 
-function expectMockedChannels(results: any[]) {
+function expectMockedChannels(results: any[], expectedSuccess = true) {
   const byChannel = Object.fromEntries(results.map((row) => [row.channel, row]))
 
   for (const channel of ['email', 'sms', 'whatsapp']) {
     expect(byChannel[channel], `${channel} result`).to.exist
     expect(byChannel[channel].attempted, `${channel} attempted`).to.eq(true)
     expect(byChannel[channel].mocked, `${channel} mocked`).to.eq(true)
-    expect(byChannel[channel].success, `${channel} success`).to.eq(true)
+    expect(byChannel[channel].success, `${channel} success`).to.eq(expectedSuccess)
+    if (!expectedSuccess) {
+      expect(byChannel[channel].error, `${channel} error`).to.match(/QA forced/i)
+    }
   }
 }
 
@@ -231,8 +234,14 @@ function monthDiff(from: Date, to: Date) {
 }
 
 describe('Stage public booking and mocked notifications', () => {
+  const cleanupStamps: string[] = []
+
   afterEach(() => {
     restoreNotificationSettings()
+    for (const stamp of cleanupStamps) {
+      cy.task('qaBookingRequestCleanup', { stamp })
+    }
+    cleanupStamps.length = 0
   })
 
   it('publishes the QA booking page, reserves a real slot, and mocks email/SMS/WhatsApp', () => {
@@ -246,6 +255,8 @@ describe('Stage public booking and mocked notifications', () => {
 
       findAvailableSlot(ctx).then((slot) => {
         const stamp = `qa-booking-${Date.now()}-${Cypress._.random(1000, 9999)}`
+        cleanupStamps.push(stamp)
+        let bookingId = ''
 
         cy.request({
           method: 'POST',
@@ -259,7 +270,7 @@ describe('Stage public booking and mocked notifications', () => {
             patient_name: `QA Booking ${stamp}`,
             patient_email: `${stamp}@laralis.test`,
             patient_phone: '+15555550123',
-            patient_notes: 'Created by public booking QA spec',
+            patient_notes: `Created by public booking QA spec ${stamp}`,
             requested_date: slot.date,
             requested_time: slot.time,
             utm_source: 'qa',
@@ -273,6 +284,20 @@ describe('Stage public booking and mocked notifications', () => {
           expect(normalizeTime(bookResponse.body.data.requested_time)).to.eq(normalizeTime(slot.time))
           expect(bookResponse.body.data.service_name).to.eq(ctx.serviceName)
           expectMockedChannels(bookResponse.body.data.notification_results || [])
+          bookingId = bookResponse.body.data.id
+        })
+
+        cy.then(() => {
+          expect(bookingId, 'created public booking id').to.be.a('string').and.not.be.empty
+          cy.task('qaPublicBookingNotificationState', { bookingId }).then((state: any) => {
+            expect(state.booking.confirmation_email_sent).to.eq(true)
+            expect(state.smsNotifications, 'one SMS notification log').to.have.length(1)
+            expect(state.smsNotifications[0].status).to.eq('sent')
+            expect(state.smsNotifications[0].provider_message_id).to.eq(`qa-sms-${bookingId}`)
+            expect(state.whatsappNotifications, 'one WhatsApp notification log').to.have.length(1)
+            expect(state.whatsappNotifications[0].status).to.eq('sent')
+            expect(state.whatsappNotifications[0].provider_message_id).to.eq(`qa-whatsapp-${bookingId}`)
+          })
         })
 
         cy.request(`/api/public/availability?clinic_id=${ctx.clinicId}&date=${slot.date}&service_id=${ctx.serviceId}`)
@@ -283,6 +308,56 @@ describe('Stage public booking and mocked notifications', () => {
             expect(reservedSlot, 'reserved slot still listed').to.exist
             expect(reservedSlot.available, 'reserved slot should no longer be available').to.eq(false)
           })
+      })
+    })
+  })
+
+  it('keeps the booking when mocked providers fail and records failed notification state', () => {
+    configurePublicBooking().then((ctx) => {
+      findAvailableSlot(ctx).then((slot) => {
+        const stamp = `qa-booking-fail-${Date.now()}-${Cypress._.random(1000, 9999)}`
+        cleanupStamps.push(stamp)
+        let bookingId = ''
+
+        cy.request({
+          method: 'POST',
+          url: '/api/public/book',
+          headers: {
+            'x-laralis-qa-notifications': 'fail',
+          },
+          body: {
+            clinic_id: ctx.clinicId,
+            service_id: ctx.serviceId,
+            patient_name: `QA Booking Failure ${stamp}`,
+            patient_email: `${stamp}@laralis.test`,
+            patient_phone: '+15555550124',
+            patient_notes: `Created by public booking provider failure QA spec ${stamp}`,
+            requested_date: slot.date,
+            requested_time: slot.time,
+            utm_source: 'qa',
+            utm_medium: 'cypress',
+            utm_campaign: 'notification-failure',
+          },
+        }).then((bookResponse) => {
+          expect(bookResponse.status).to.eq(201)
+          expect(bookResponse.body.data.status).to.eq('pending')
+          expectMockedChannels(bookResponse.body.data.notification_results || [], false)
+          bookingId = bookResponse.body.data.id
+        })
+
+        cy.then(() => {
+          expect(bookingId, 'created public booking id').to.be.a('string').and.not.be.empty
+          cy.task('qaPublicBookingNotificationState', { bookingId }).then((state: any) => {
+            expect(state.booking.status).to.eq('pending')
+            expect(state.booking.confirmation_email_sent).to.not.eq(true)
+            expect(state.smsNotifications, 'one failed SMS notification log').to.have.length(1)
+            expect(state.smsNotifications[0].status).to.eq('failed')
+            expect(state.smsNotifications[0].error_message).to.match(/QA forced SMS failure/i)
+            expect(state.whatsappNotifications, 'one failed WhatsApp notification log').to.have.length(1)
+            expect(state.whatsappNotifications[0].status).to.eq('failed')
+            expect(state.whatsappNotifications[0].error_message).to.match(/QA forced WhatsApp failure/i)
+          })
+        })
       })
     })
   })
@@ -300,6 +375,7 @@ describe('Stage public booking and mocked notifications', () => {
       configurePublicBooking().then((ctx) => {
         findAvailableSlot(ctx).then((slot) => {
           const stamp = `qa-ui-booking-${viewport.label}-${Date.now()}-${Cypress._.random(1000, 9999)}`
+          cleanupStamps.push(stamp)
           const targetDate = new Date(`${slot.date}T12:00:00`)
           const todayMonth = new Date()
           const diff = monthDiff(new Date(todayMonth.getFullYear(), todayMonth.getMonth(), 1), new Date(targetDate.getFullYear(), targetDate.getMonth(), 1))
@@ -320,10 +396,10 @@ describe('Stage public booking and mocked notifications', () => {
           cy.get(`[data-testid="public-booking-date"][data-date="${slot.date}"]`, { timeout: 30000 }).click()
           cy.get(`[data-testid="public-booking-time-slot"][data-time="${slot.time}"]`, { timeout: 30000 }).click()
 
-          cy.get('[data-testid="public-booking-name"]').clear().type(`QA UI Booking ${viewport.label}`)
+          cy.get('[data-testid="public-booking-name"]').clear().type(`QA UI Booking ${viewport.label} ${stamp}`)
           cy.get('[data-testid="public-booking-email"]').clear().type(`${stamp}@laralis.test`)
           cy.get('[data-testid="public-booking-phone"]').clear().type('+15555550123')
-          cy.get('[data-testid="public-booking-notes"]').clear().type('Created by public booking UI QA spec')
+          cy.get('[data-testid="public-booking-notes"]').clear().type(`Created by public booking UI QA spec ${stamp}`)
           cy.get('[data-testid="public-booking-submit"]').click()
 
           cy.wait(`@publicBook${viewport.label}`, { timeout: 30000 }).then((interception) => {

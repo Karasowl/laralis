@@ -36,13 +36,14 @@
     "proven": [
       "Public booking creates records and reserves availability",
       "Stage mock records email/SMS/WhatsApp intent without external calls",
-      "Reminder cron mutates scheduled reminders and notification records"
+      "Reminder cron mutates scheduled reminders and notification records",
+      "Forced provider failures keep the booking pending, mark email as unsent, and log failed SMS/WhatsApp notification rows"
     ],
     "notProven": [
       "Real Resend delivery",
       "Real Twilio SMS delivery",
       "Real WhatsApp provider delivery",
-      "Bounce, failed delivery, retry, and provider status handling"
+      "Bounce, delivery webhook, retry, and provider status reconciliation"
     ],
     "nextTest": "Add provider-contract tests around notification adapter responses, plus optional real-provider smoke gated by explicit env flags."
   },

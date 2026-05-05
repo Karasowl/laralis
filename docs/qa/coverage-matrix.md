@@ -204,12 +204,14 @@ Cobertura actual:
 - El endpoint `POST /api/public/book` ahora exige que el servicio este activo en `public_booking_services`; un servicio activo pero no publicado ya no se puede reservar por ID.
 - El mismo endpoint usa la duracion real del servicio publicado para validar disponibilidad, en vez de depender solo del slot generico de la clinica.
 - El spec usa `x-laralis-qa-notifications: mock` solo contra el ref Supabase stage `kafbqdliromcveojtdar`; asi verifica email, SMS y WhatsApp sin llamar Resend, Twilio ni 360dialog.
+- El mismo spec usa `x-laralis-qa-notifications: fail` para simular fallos de proveedor: la reserva queda creada en `pending`, `confirmation_email_sent` no se marca y SMS/WhatsApp se registran como `failed`.
 - El flujo UI completo se ejecuta en desktop, tablet y mobile: servicio, fecha, hora, datos del paciente, submit, pantalla de confirmacion y sin scroll horizontal.
 - El seed QA deja `working_hours`, servicio publico y configuracion de notificaciones coherente para que futuras reconstrucciones de stage no vuelvan a dejar booking vacio.
 
 Brechas abiertas:
 
 - La gestion interna de solicitudes de booking por el equipo clinico ya tiene spec: aceptar, rechazar, convertir en tratamiento y trazabilidad de estado.
+- Entrega real de Resend/Twilio/WhatsApp, webhooks de entrega y reintentos reales siguen fuera del QA default.
 - Push notifications quedan como endurecimiento pendiente aparte de SMS/WhatsApp/email.
 
 ## Cron jobs

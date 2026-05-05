@@ -1656,6 +1656,36 @@ export default defineConfig({
           return { booking, treatment, patient };
         },
 
+        async qaPublicBookingNotificationState({ bookingId }: { bookingId: string }) {
+          const client = adminClient();
+          const { data: booking, error: bookingError } = await client
+            .from('public_bookings')
+            .select('*')
+            .eq('id', bookingId)
+            .single();
+          if (bookingError) throw new Error(`Could not read QA public booking notification state: ${bookingError.message}`);
+
+          const { data: smsNotifications, error: smsError } = await client
+            .from('sms_notifications')
+            .select('*')
+            .eq('public_booking_id', bookingId)
+            .order('created_at', { ascending: false });
+          if (smsError) throw new Error(`Could not read QA public booking SMS notifications: ${smsError.message}`);
+
+          const { data: whatsappNotifications, error: whatsappError } = await client
+            .from('whatsapp_notifications')
+            .select('*')
+            .eq('public_booking_id', bookingId)
+            .order('created_at', { ascending: false });
+          if (whatsappError) throw new Error(`Could not read QA public booking WhatsApp notifications: ${whatsappError.message}`);
+
+          return {
+            booking,
+            smsNotifications: smsNotifications || [],
+            whatsappNotifications: whatsappNotifications || [],
+          };
+        },
+
         async qaBookingRequestCleanup({ stamp }: { stamp?: string }) {
           if (!stamp) return { cleaned: false };
 
@@ -1663,7 +1693,7 @@ export default defineConfig({
           const { data: bookings } = await client
             .from('public_bookings')
             .select('id, treatment_id, patient_id, patient_email')
-            .ilike('patient_name', `%${stamp}%`);
+            .or(`patient_name.ilike.%${stamp}%,patient_email.ilike.%${stamp}%,patient_notes.ilike.%${stamp}%`);
 
           const bookingIds = (bookings || []).map((row) => row.id).filter(Boolean);
           const treatmentIdsFromBookings = (bookings || []).map((row) => row.treatment_id).filter(Boolean);
@@ -1678,6 +1708,11 @@ export default defineConfig({
             ...treatmentIdsFromBookings,
             ...(treatments || []).map((row) => row.id),
           ].filter(Boolean);
+
+          if (bookingIds.length > 0) {
+            await client.from('sms_notifications').delete().in('public_booking_id', bookingIds);
+            await client.from('whatsapp_notifications').delete().in('public_booking_id', bookingIds);
+          }
 
           await deleteByIds('public_bookings', bookingIds);
           await deleteByIds('treatments', Array.from(new Set(treatmentIds)));

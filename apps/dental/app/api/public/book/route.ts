@@ -36,6 +36,7 @@ interface BookingConfig {
 }
 
 type NotificationChannel = 'email' | 'sms' | 'whatsapp'
+type QaNotificationMode = 'mock' | 'fail' | null
 
 interface NotificationResult {
   channel: NotificationChannel
@@ -45,11 +46,11 @@ interface NotificationResult {
   error?: string
 }
 
-function isQaNotificationMockRequest(request: NextRequest): boolean {
-  return (
-    request.headers.get('x-laralis-qa-notifications') === 'mock' &&
-    (process.env.NEXT_PUBLIC_SUPABASE_URL || '').includes(STAGE_SUPABASE_REF)
-  )
+function qaNotificationMode(request: NextRequest): QaNotificationMode {
+  const mode = request.headers.get('x-laralis-qa-notifications')
+  const isStage = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').includes(STAGE_SUPABASE_REF)
+  if (!isStage) return null
+  return mode === 'mock' || mode === 'fail' ? mode : null
 }
 
 function isSmsBookingEnabled(notificationSettings: Record<string, any> | null): boolean {
@@ -76,7 +77,10 @@ async function recordMockSmsNotification(params: {
   patientName: string
   patientPhone: string
   message: string
+  success?: boolean
+  error?: string
 }): Promise<NotificationResult> {
+  const success = params.success ?? true
   const { error } = await supabaseAdmin.from('sms_notifications').insert({
     clinic_id: params.clinicId,
     treatment_id: null,
@@ -86,11 +90,11 @@ async function recordMockSmsNotification(params: {
     recipient_phone: params.patientPhone,
     recipient_name: params.patientName,
     message_content: params.message,
-    status: 'sent',
-    sent_at: new Date().toISOString(),
-    error_message: null,
+    status: success ? 'sent' : 'failed',
+    sent_at: success ? new Date().toISOString() : null,
+    error_message: params.error || error?.message || null,
     provider: 'twilio',
-    provider_message_id: `qa-sms-${params.bookingId}`,
+    provider_message_id: success ? `qa-sms-${params.bookingId}` : null,
     cost_cents: 0
   })
 
@@ -98,8 +102,8 @@ async function recordMockSmsNotification(params: {
     channel: 'sms',
     attempted: true,
     mocked: true,
-    success: !error,
-    error: error?.message
+    success: success && !error,
+    error: error?.message || params.error
   }
 }
 
@@ -109,7 +113,10 @@ async function recordMockWhatsAppNotification(params: {
   patientName: string
   patientPhone: string
   message: string
+  success?: boolean
+  error?: string
 }): Promise<NotificationResult> {
+  const success = params.success ?? true
   const { error } = await supabaseAdmin.from('whatsapp_notifications').insert({
     clinic_id: params.clinicId,
     treatment_id: null,
@@ -120,11 +127,11 @@ async function recordMockWhatsAppNotification(params: {
     recipient_name: params.patientName,
     message_content: params.message,
     template_id: null,
-    status: 'sent',
-    sent_at: new Date().toISOString(),
-    error_message: null,
+    status: success ? 'sent' : 'failed',
+    sent_at: success ? new Date().toISOString() : null,
+    error_message: params.error || error?.message || null,
     provider: 'twilio',
-    provider_message_id: `qa-whatsapp-${params.bookingId}`,
+    provider_message_id: success ? `qa-whatsapp-${params.bookingId}` : null,
     cost_cents: 0
   })
 
@@ -132,8 +139,8 @@ async function recordMockWhatsAppNotification(params: {
     channel: 'whatsapp',
     attempted: true,
     mocked: true,
-    success: !error,
-    error: error?.message
+    success: success && !error,
+    error: error?.message || params.error
   }
 }
 
@@ -163,7 +170,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const data = validation.data
-    const mockNotifications = isQaNotificationMockRequest(request)
+    const qaNotifications = qaNotificationMode(request)
+    const mockNotifications = qaNotifications === 'mock'
+    const forceFailedNotifications = qaNotifications === 'fail'
 
     // Get clinic config
     const { data: clinic, error: clinicError } = await supabaseAdmin
@@ -370,7 +379,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Send confirmation email if email provided and enabled
     if (data.patient_email && isConfirmationEnabled(notificationSettings)) {
       try {
-        if (!mockNotifications) {
+        if (forceFailedNotifications) {
+          notificationResults.push({
+            channel: 'email',
+            attempted: true,
+            mocked: true,
+            success: false,
+            error: 'QA forced email failure'
+          })
+        } else if (!mockNotifications) {
           const result = await sendBookingConfirmation({
             clinicId: data.clinic_id,
             clinicName: clinic.name,
@@ -398,11 +415,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           })
         }
 
-        // Update booking to mark email sent
-        await supabaseAdmin
-          .from('public_bookings')
-          .update({ confirmation_email_sent: true })
-          .eq('id', booking.id)
+        if (!forceFailedNotifications) {
+          await supabaseAdmin
+            .from('public_bookings')
+            .update({ confirmation_email_sent: true })
+            .eq('id', booking.id)
+        }
       } catch (emailError) {
         console.error('Failed to send confirmation email:', emailError)
         notificationResults.push({
@@ -419,13 +437,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Send SMS notification if phone provided and enabled
     if (data.patient_phone && isSmsBookingEnabled(notificationSettings)) {
       try {
-        if (mockNotifications) {
+        if (mockNotifications || forceFailedNotifications) {
           notificationResults.push(await recordMockSmsNotification({
             clinicId: data.clinic_id,
             bookingId: booking.id,
             patientName: data.patient_name,
             patientPhone: data.patient_phone,
-            message
+            message,
+            success: !forceFailedNotifications,
+            error: forceFailedNotifications ? 'QA forced SMS failure' : undefined
           }))
         } else {
           const result = await sendBookingReceivedSMS({
@@ -463,13 +483,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Send WhatsApp notification if phone provided and enabled
     if (data.patient_phone && isWhatsAppBookingEnabled(notificationSettings)) {
       try {
-        if (mockNotifications) {
+        if (mockNotifications || forceFailedNotifications) {
           notificationResults.push(await recordMockWhatsAppNotification({
             clinicId: data.clinic_id,
             bookingId: booking.id,
             patientName: data.patient_name,
             patientPhone: data.patient_phone,
-            message
+            message,
+            success: !forceFailedNotifications,
+            error: forceFailedNotifications ? 'QA forced WhatsApp failure' : undefined
           }))
         } else {
           const result = await sendBookingReceivedWhatsApp({
