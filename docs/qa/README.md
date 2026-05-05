@@ -6,6 +6,8 @@ Si un agente futuro pierde el contexto del chat, debe empezar aqui antes de toca
 
 La matriz canonica de capacidades vive en [QA Coverage Matrix](./coverage-matrix.md). Su version legible por maquina vive en `docs/qa/coverage-matrix.json` y debe ser revisada por `qa:inventory`.
 
+La tabla de verdad sobre producto real, mocks y brechas vive en [Product Readiness vs QA Coverage](./product-readiness.md). Su version legible por maquina vive en `docs/qa/product-readiness.json`. Esta tabla evita contar una prueba con mock como si fuera producto completo.
+
 El dataset canonico vive en [QA Dataset](./dataset.md). Los resultados esperados viven en [QA Oracles](./oracles.md).
 
 ## Objetivo
@@ -13,6 +15,18 @@ El dataset canonico vive en [QA Dataset](./dataset.md). Los resultados esperados
 El objetivo no es arreglar bugs aislados. El objetivo es construir un sistema que detecte sistematicamente bugs presentes y futuros.
 
 Cada bug importante debe terminar convertido en una prueba permanente. Si un flujo se rompe una vez, el sistema de QA debe poder detectar esa misma clase de rotura antes de que llegue a produccion.
+
+## Regla anti-falsa-cobertura
+
+No todo test verde significa producto completo.
+
+- Si el flujo usa proveedor externo mockeado, se documenta como `coverageMode: provider-mock`.
+- Si solo valida contrato, render, permisos o estructura, se documenta como `coverageMode: contract-only`.
+- Si el codigo existe pero falta terminar producto, se documenta como `implementationStatus: partial`.
+- Si no hay codigo estable suficiente, se documenta como `unknown`, `missing` o `not-covered`.
+- No se debe crear una implementacion pobre solo para que Cypress pase. Primero se registra la brecha, luego se implementa producto real cuando toque.
+
+`qa:inventory` debe mostrar estas brechas como warnings para que no dependan de este chat ni de memoria humana.
 
 ## Ambiente de trabajo
 

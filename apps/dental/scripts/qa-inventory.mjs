@@ -279,6 +279,8 @@ function analyzeQaDocs() {
     path.join(repoRoot, 'docs', 'qa', 'README.md'),
     path.join(repoRoot, 'docs', 'qa', 'coverage-matrix.md'),
     path.join(repoRoot, 'docs', 'qa', 'coverage-matrix.json'),
+    path.join(repoRoot, 'docs', 'qa', 'product-readiness.md'),
+    path.join(repoRoot, 'docs', 'qa', 'product-readiness.json'),
     path.join(repoRoot, 'docs', 'qa', 'dataset.md'),
     path.join(repoRoot, 'docs', 'qa', 'dataset.json'),
     path.join(repoRoot, 'docs', 'qa', 'oracles.md'),
@@ -369,6 +371,66 @@ function analyzeCoverageMatrix() {
     status: fail ? 'fail' : 'pass',
     summary: `capabilities: ${capabilities.length}; domains: ${domains.size}; required missing domains: ${missingDomains.length}`,
     details
+  }
+}
+
+function analyzeProductReadiness() {
+  const readinessPath = path.join(repoRoot, 'docs', 'qa', 'product-readiness.json')
+
+  if (!fs.existsSync(readinessPath)) {
+    return {
+      status: 'fail',
+      summary: 'No existe docs/qa/product-readiness.json.',
+      details: []
+    }
+  }
+
+  const rows = loadJSON(readinessPath)
+  if (!Array.isArray(rows)) {
+    return {
+      status: 'fail',
+      summary: 'docs/qa/product-readiness.json debe ser un array.',
+      details: []
+    }
+  }
+  const validImplementationStatuses = new Set(['real', 'partial', 'unknown', 'missing'])
+  const validCoverageModes = new Set(['real', 'provider-mock', 'contract-only', 'not-covered'])
+  const invalid = rows.filter(row => (
+    !row.area ||
+    !row.risk ||
+    !validImplementationStatuses.has(row.implementationStatus) ||
+    !validCoverageModes.has(row.coverageMode) ||
+    !Array.isArray(row.evidence) ||
+    !Array.isArray(row.proven) ||
+    !Array.isArray(row.notProven) ||
+    !row.nextTest
+  ))
+
+  const implementationCounts = rows.reduce((acc, row) => {
+    acc[row.implementationStatus] = (acc[row.implementationStatus] || 0) + 1
+    return acc
+  }, {})
+  const coverageCounts = rows.reduce((acc, row) => {
+    acc[row.coverageMode] = (acc[row.coverageMode] || 0) + 1
+    return acc
+  }, {})
+
+  const openRiskRows = rows.filter(row => (
+    row.implementationStatus !== 'real' ||
+    row.coverageMode !== 'real' ||
+    row.notProven.length > 0
+  ))
+  const openP0Rows = openRiskRows.filter(row => row.risk === 'P0')
+
+  const fail = !Array.isArray(rows) || rows.length === 0 || invalid.length > 0
+
+  return {
+    status: fail ? 'fail' : openP0Rows.length ? 'warn' : 'pass',
+    summary: `areas: ${rows.length}; implementation: ${Object.entries(implementationCounts).map(([key, value]) => `${key}=${value}`).join(', ')}; coverage: ${Object.entries(coverageCounts).map(([key, value]) => `${key}=${value}`).join(', ')}; open P0 risks: ${openP0Rows.length}`,
+    details: [
+      ...invalid.map(row => `invalid readiness row: ${row.area || '(missing area)'}`),
+      ...openRiskRows.map(row => `open: ${row.area} [${row.risk}] implementation=${row.implementationStatus}, coverage=${row.coverageMode}; not proven=${row.notProven.length}`)
+    ]
   }
 }
 
@@ -534,6 +596,7 @@ function analyzeQaSeed() {
 const checks = [
   ['QA docs', analyzeQaDocs()],
   ['QA coverage matrix', analyzeCoverageMatrix()],
+  ['Product readiness truth table', analyzeProductReadiness()],
   ['QA dataset', analyzeQaDataset()],
   ['QA oracles', analyzeQaOracles()],
   ['QA stage seed', analyzeQaSeed()],

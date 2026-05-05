@@ -1,20 +1,22 @@
 # QA Inventory Report
 
-Generated: 2026-05-05T00:41:14.061Z
+Generated: 2026-05-05T15:42:29.635Z
 
-Status: pass
+Status: warn
 Failing checks: 0
-Warning checks: 0
+Warning checks: 1
 
 ## QA docs
 
 Status: pass
 
-required QA docs: 8; missing: 0
+required QA docs: 10; missing: 0
 
 - ok: docs/qa/README.md
 - ok: docs/qa/coverage-matrix.md
 - ok: docs/qa/coverage-matrix.json
+- ok: docs/qa/product-readiness.md
+- ok: docs/qa/product-readiness.json
 - ok: docs/qa/dataset.md
 - ok: docs/qa/dataset.json
 - ok: docs/qa/oracles.md
@@ -29,6 +31,19 @@ capabilities: 59; domains: 30; required missing domains: 0
 
 - status counts: covered=59
 - priority counts: P0=50, P1=9
+
+## Product readiness truth table
+
+Status: warn
+
+areas: 6; implementation: partial=5, unknown=1; coverage: provider-mock=3, not-covered=2, contract-only=1; open P0 risks: 4
+
+- open: inbox-whatsapp-actions [P0] implementation=partial, coverage=provider-mock; not proven=3
+- open: booking-notifications [P0] implementation=partial, coverage=provider-mock; not proven=4
+- open: lara-ai-actions-audio [P0] implementation=partial, coverage=provider-mock; not proven=5
+- open: push-notifications [P1] implementation=unknown, coverage=not-covered; not proven=5
+- open: whatsapp-inbound-webhook [P0] implementation=partial, coverage=not-covered; not proven=6
+- open: visual-regression [P1] implementation=partial, coverage=contract-only; not proven=4
 
 ## QA dataset
 

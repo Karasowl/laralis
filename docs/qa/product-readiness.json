@@ -1,0 +1,139 @@
+[
+  {
+    "area": "inbox-whatsapp-actions",
+    "risk": "P0",
+    "implementationStatus": "partial",
+    "coverageMode": "provider-mock",
+    "evidence": [
+      "apps/dental/app/inbox/InboxClient.tsx",
+      "apps/dental/app/api/inbox/*/route.ts",
+      "apps/dental/cypress/e2e/stage/34-inbox-whatsapp-lifecycle.cy.ts"
+    ],
+    "proven": [
+      "Auth and permissions protect inbox actions",
+      "Conversation state changes persist in Supabase stage",
+      "Outbound reply stores an agent message",
+      "Lead conversion links lead, conversation, and patient idempotently",
+      "Inbox page renders the seeded conversation on desktop and mobile"
+    ],
+    "notProven": [
+      "Real Twilio or 360dialog delivery",
+      "Provider callback status reconciliation",
+      "Inbound webhook payload and signature verification"
+    ],
+    "nextTest": "Add a webhook fixture suite for Twilio/360dialog payloads and keep one optional real-provider smoke outside the default stage run."
+  },
+  {
+    "area": "booking-notifications",
+    "risk": "P0",
+    "implementationStatus": "partial",
+    "coverageMode": "provider-mock",
+    "evidence": [
+      "apps/dental/app/api/public/book/route.ts",
+      "apps/dental/app/api/cron/send-reminders/route.ts",
+      "apps/dental/cypress/e2e/stage/06-public-booking-notifications.cy.ts",
+      "apps/dental/cypress/e2e/stage/17-cron-jobs.cy.ts"
+    ],
+    "proven": [
+      "Public booking creates records and reserves availability",
+      "Stage mock records email/SMS/WhatsApp intent without external calls",
+      "Reminder cron mutates scheduled reminders and notification records"
+    ],
+    "notProven": [
+      "Real Resend delivery",
+      "Real Twilio SMS delivery",
+      "Real WhatsApp provider delivery",
+      "Bounce, failed delivery, retry, and provider status handling"
+    ],
+    "nextTest": "Add provider-contract tests around notification adapter responses, plus optional real-provider smoke gated by explicit env flags."
+  },
+  {
+    "area": "lara-ai-actions-audio",
+    "risk": "P0",
+    "implementationStatus": "partial",
+    "coverageMode": "provider-mock",
+    "evidence": [
+      "apps/dental/app/api/ai/query/route.ts",
+      "apps/dental/app/api/ai/transcribe/route.ts",
+      "apps/dental/app/api/ai/synthesize/route.ts",
+      "apps/dental/cypress/e2e/stage/18-lara-ai-actions.cy.ts"
+    ],
+    "proven": [
+      "Lara opens from the UI",
+      "Mocked query produces a deterministic action suggestion",
+      "Confirmed action persists a database change",
+      "Viewer permissions block mutable AI actions",
+      "Mocked STT/TTS contracts and browser audio playback are exercised"
+    ],
+    "notProven": [
+      "Real LLM quality",
+      "Real STT provider transcription quality",
+      "Real TTS provider audio quality",
+      "Long conversation memory quality",
+      "Failure modes from provider latency, rate limits, or malformed responses"
+    ],
+    "nextTest": "Keep deterministic mocks in default QA and add a non-blocking provider smoke suite with strict cost and timeout limits."
+  },
+  {
+    "area": "push-notifications",
+    "risk": "P1",
+    "implementationStatus": "unknown",
+    "coverageMode": "not-covered",
+    "evidence": [
+      "apps/dental/app/api/notifications/push/subscribe/route.ts",
+      "apps/dental/app/api/notifications/push/unsubscribe/route.ts",
+      "apps/dental/app/api/notifications/push/track-click/route.ts"
+    ],
+    "proven": [],
+    "notProven": [
+      "Browser subscription lifecycle",
+      "VAPID configuration in stage",
+      "Permission denied/default/granted states",
+      "Push delivery and click tracking",
+      "Mobile browser behavior"
+    ],
+    "nextTest": "Audit push implementation first, then add browser-level subscription tests with mocked PushManager and API contract checks."
+  },
+  {
+    "area": "whatsapp-inbound-webhook",
+    "risk": "P0",
+    "implementationStatus": "partial",
+    "coverageMode": "not-covered",
+    "evidence": [
+      "apps/dental/app/api/whatsapp/webhook/route.ts",
+      "supabase/migrations/74_inbox_conversations.sql"
+    ],
+    "proven": [],
+    "notProven": [
+      "Twilio signature verification regression",
+      "Inbound message creates or updates lead",
+      "Inbound message creates or updates inbox conversation",
+      "Bot handoff keywords",
+      "Name/email collection state machine",
+      "Duplicate inbound provider message handling"
+    ],
+    "nextTest": "Add signed and unsigned webhook fixtures with stage-safe provider mocks and database assertions."
+  },
+  {
+    "area": "visual-regression",
+    "risk": "P1",
+    "implementationStatus": "partial",
+    "coverageMode": "contract-only",
+    "evidence": [
+      "apps/dental/cypress/e2e/stage/15-visual-responsive-coverage.cy.ts",
+      "apps/dental/cypress/e2e/stage/24-visual-regression-baselines.cy.js"
+    ],
+    "proven": [
+      "Critical pages render without fatal errors",
+      "Selected baselines compare screenshots with tolerance",
+      "Desktop and mobile no-horizontal-overflow checks exist"
+    ],
+    "notProven": [
+      "Every chart is semantically correct",
+      "Every viewport/tablet breakpoint is covered",
+      "Every modal/dropdown state is captured",
+      "Every language and theme combination has visual baselines"
+    ],
+    "nextTest": "Add targeted baselines only after each module has stable product behavior and selectors."
+  }
+]

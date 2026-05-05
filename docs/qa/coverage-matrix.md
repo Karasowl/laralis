@@ -10,6 +10,12 @@ La fuente legible por maquina vive en:
 docs/qa/coverage-matrix.json
 ```
 
+Esta matriz responde: "hay una prueba para esta capacidad".
+
+No responde por si sola: "el producto esta completo". Para eso se mantiene la tabla [Product Readiness vs QA Coverage](./product-readiness.md), que separa `real`, `provider-mock`, `contract-only` y `not-covered`.
+
+Regla: una capacidad con proveedor mockeado puede estar cubierta como flujo QA, pero no debe contarse como validacion completa del proveedor real.
+
 ## Flujos base
 
 ### Smoke tests rapidos
