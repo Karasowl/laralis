@@ -117,7 +117,6 @@ export function NotificationsClient() {
   // Push notifications hook
   const {
     isSupported: pushSupported,
-    isPermissionGranted: pushPermissionGranted,
     isSubscribed: pushSubscribed,
     isLoading: pushLoading,
     error: pushError,
@@ -259,7 +258,7 @@ export function NotificationsClient() {
   return (
     <div className="relative space-y-6" data-testid="notifications-settings-form">
       {/* Master Toggle */}
-      <Card>
+      <Card data-testid="push-notifications-card">
         <CardHeader>
           <div className="flex items-center gap-3">
             <div className="rounded-lg bg-primary/10 p-2">
@@ -429,13 +428,16 @@ export function NotificationsClient() {
         </CardHeader>
         <CardContent className="space-y-4">
           {!pushSupported && (
-            <div className="rounded-lg bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-400">
+            <div
+              data-testid="push-notifications-unsupported"
+              className="rounded-lg bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-400"
+            >
               {t('push_not_supported')}
             </div>
           )}
 
-          {pushSupported && !pushPermissionGranted && !pushSubscribed && (
-            <div className="rounded-lg border p-4">
+          {pushSupported && !pushSubscribed && (
+            <div data-testid="push-notifications-enable" className="rounded-lg border p-4">
               <p className="mb-4 text-sm text-muted-foreground">
                 {t('push_permission_description')}
               </p>
@@ -464,7 +466,10 @@ export function NotificationsClient() {
           )}
 
           {pushSupported && pushSubscribed && (
-            <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4">
+            <div
+              data-testid="push-notifications-enabled"
+              className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4"
+            >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <p className="font-medium text-emerald-700 dark:text-emerald-400">
@@ -475,6 +480,7 @@ export function NotificationsClient() {
                   </p>
                 </div>
                 <Button
+                  data-testid="push-notifications-disable"
                   variant="outline"
                   size="sm"
                   onClick={async () => {

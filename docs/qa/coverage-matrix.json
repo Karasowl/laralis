@@ -550,5 +550,45 @@
     "capability": "Webhook inbound ignora reintentos del proveedor con el mismo MessageSid para no duplicar mensajes",
     "layers": ["cypress", "api", "database", "supabase-task"],
     "status": "covered"
+  },
+  {
+    "id": "qa-066-push-api-auth-validation",
+    "priority": "P1",
+    "domain": "notifications",
+    "capability": "Push subscribe/unsubscribe exigen sesion activa y track-click valida UUID antes de mutar estado",
+    "layers": ["cypress", "api"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-067-push-subscription-db-lifecycle",
+    "priority": "P1",
+    "domain": "notifications",
+    "capability": "API de push crea, actualiza y desactiva suscripciones contra Supabase stage con clinic_id y user_id reales",
+    "layers": ["cypress", "api", "database", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-068-push-click-tracking",
+    "priority": "P1",
+    "domain": "notifications",
+    "capability": "Click tracking de notificacion push cambia status a clicked y persiste clicked_at",
+    "layers": ["cypress", "api", "database", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-069-push-browser-permission-states",
+    "priority": "P1",
+    "domain": "notifications",
+    "capability": "UI de notificaciones cubre permiso granted sin suscripcion, denegado/default y suscripcion existente con PushManager mockeado",
+    "layers": ["cypress", "browser-mock"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-070-push-schema-contract",
+    "priority": "P1",
+    "domain": "schema",
+    "capability": "Stage debe tener tablas push_subscriptions y push_notifications aplicadas antes de tratar push como cubierto",
+    "layers": ["cypress", "database", "supabase-task"],
+    "status": "covered"
   }
 ]

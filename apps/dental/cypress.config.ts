@@ -143,7 +143,7 @@ export default defineConfig({
         select?: string;
         migrationHint?: string;
       }) => {
-        const allowedTables = new Set(['action_logs']);
+        const allowedTables = new Set(['action_logs', 'push_subscriptions', 'push_notifications']);
         if (!allowedTables.has(table)) {
           throw new Error(`Stage schema contract cannot inspect unexpected table: ${table}`);
         }
@@ -920,6 +920,114 @@ export default defineConfig({
           return {
             count: data?.length || 0,
             logs: data || [],
+          };
+        },
+
+        async qaPushSubscriptionState({ endpoint }: { endpoint: string }) {
+          const client = adminClient();
+          const { data, error } = await (client as any)
+            .from('push_subscriptions')
+            .select('*')
+            .eq('endpoint', endpoint)
+            .order('updated_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (error) {
+            throw new Error(`Could not read push subscription ${endpoint}: ${error.message}`);
+          }
+
+          return { subscription: data || null };
+        },
+
+        async qaPushNotificationState({ notificationId }: { notificationId: string }) {
+          const client = adminClient();
+          const { data, error } = await (client as any)
+            .from('push_notifications')
+            .select('*')
+            .eq('id', notificationId)
+            .single();
+
+          if (error) {
+            throw new Error(`Could not read push notification ${notificationId}: ${error.message}`);
+          }
+
+          return { notification: data };
+        },
+
+        async qaPushNotificationSeed({
+          endpoint,
+          title = 'Laralis QA Push',
+          body = 'QA push notification contract',
+          actionUrl = '/settings/notifications',
+        }: {
+          endpoint: string;
+          title?: string;
+          body?: string;
+          actionUrl?: string;
+        }) {
+          const client = adminClient();
+          const { data: subscription, error: subscriptionError } = await (client as any)
+            .from('push_subscriptions')
+            .select('id, clinic_id')
+            .eq('endpoint', endpoint)
+            .order('updated_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (subscriptionError || !subscription?.id) {
+            throw new Error(`Could not find push subscription for QA notification seed: ${subscriptionError?.message || endpoint}`);
+          }
+
+          const { data, error } = await (client as any)
+            .from('push_notifications')
+            .insert({
+              clinic_id: subscription.clinic_id,
+              subscription_id: subscription.id,
+              notification_type: 'qa_push',
+              title,
+              body,
+              action_url: actionUrl,
+              status: 'sent',
+              sent_at: new Date().toISOString(),
+            })
+            .select('*')
+            .single();
+
+          if (error || !data?.id) {
+            throw new Error(`Could not seed QA push notification: ${error?.message || 'missing row'}`);
+          }
+
+          return { notification: data };
+        },
+
+        async qaPushCleanup({ endpoint }: { endpoint: string }) {
+          const client = adminClient();
+          const { data: subscriptions, error } = await (client as any)
+            .from('push_subscriptions')
+            .select('id')
+            .eq('endpoint', endpoint);
+
+          if (error) {
+            throw new Error(`Could not list push subscriptions for cleanup: ${error.message}`);
+          }
+
+          const subscriptionIds = (subscriptions || []).map((row: { id: string }) => row.id).filter(Boolean);
+          if (subscriptionIds.length > 0) {
+            await (client as any)
+              .from('push_notifications')
+              .delete()
+              .in('subscription_id', subscriptionIds);
+          }
+
+          await (client as any)
+            .from('push_subscriptions')
+            .delete()
+            .eq('endpoint', endpoint);
+
+          return {
+            cleaned: true,
+            subscriptionCount: subscriptionIds.length,
           };
         },
 

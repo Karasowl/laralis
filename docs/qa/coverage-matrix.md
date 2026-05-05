@@ -163,7 +163,7 @@ Cobertura actual:
 - El spec tambien comprueba que el owner sigue pudiendo crear y limpiar un paciente QA, para evitar que el guard rompa permisos legitimos.
 - `apps/dental/app/api/patients/*`, `apps/dental/app/api/supplies/*`, `apps/dental/app/api/services/*`, `apps/dental/app/api/treatments/*`, `apps/dental/app/api/marketing/*`, `apps/dental/app/api/prescriptions/*`, `apps/dental/app/api/categories/*`, `apps/dental/app/api/medications`, `apps/dental/app/api/patient-sources`, `apps/dental/app/api/tariffs`, `apps/dental/app/api/time/cost-per-minute`, `apps/dental/app/api/team/*`, `apps/dental/app/api/invitations`, `apps/dental/app/api/invitations/[id]/resend`, `apps/dental/app/api/settings/*`, `apps/dental/app/api/snapshots/*`, `apps/dental/app/api/reset`, `apps/dental/app/api/dashboard/*`, `apps/dental/app/api/clinic/[clinicId]/export`, `apps/dental/app/api/export/*`, `apps/dental/app/api/notifications/send-confirmation`, `apps/dental/app/api/ai/query`, `apps/dental/app/api/ai/feedback` y `apps/dental/app/api/ai/sessions/*` ya tienen guards granulares en la superficie probada de stage.
 - El inventario QA ya distingue rutas publicas/booking, tokenizadas, webhook, self-service de cuenta y rutas de contexto para no mezclarlas con fugas de permisos.
-- Booking publico, self-service de cuenta y permisos backend quedan cubiertos por specs dedicados. Push notifications siguen separadas de email/SMS/WhatsApp porque requieren contrato propio de navegador/subscription.
+- Booking publico, self-service de cuenta, permisos backend y push notifications quedan cubiertos por specs dedicados; push sigue separado de email/SMS/WhatsApp porque requiere contrato propio de navegador/subscription.
 
 ## Inbox y WhatsApp
 
@@ -208,12 +208,14 @@ Cobertura actual:
 - El flujo UI completo se ejecuta en desktop, tablet y mobile: servicio, fecha, hora, datos del paciente, submit, pantalla de confirmacion y sin scroll horizontal.
 - El seed QA deja `working_hours`, servicio publico y configuracion de notificaciones coherente para que futuras reconstrucciones de stage no vuelvan a dejar booking vacio.
 - `apps/dental/tests/qa/notification-provider-contracts.test.ts` valida contratos de proveedor sin red real: payloads HTTP de Twilio/360dialog, auth headers, formateo de telefonos, parsing de callbacks de estado, errores de proveedor, switches de email/SMS y plantillas WhatsApp.
+- `apps/dental/cypress/e2e/stage/37-push-notifications.cy.ts` cubre push aparte: APIs protegidas de subscribe/unsubscribe, validacion de track-click, ciclo create/update/deactivate en `push_subscriptions`, `push_notifications.status=clicked`, y estados UI con PushManager mockeado.
+- El spec de push reproduce el bug de producto `Notification.permission=granted` sin suscripcion existente; la UI debe mostrar boton de activar y decodificar `NEXT_PUBLIC_VAPID_PUBLIC_KEY` a un `applicationServerKey` no vacio antes de llamar `pushManager.subscribe`.
 
 Brechas abiertas:
 
 - La gestion interna de solicitudes de booking por el equipo clinico ya tiene spec: aceptar, rechazar, convertir en tratamiento y trazabilidad de estado.
 - Entrega real de Resend/Twilio/WhatsApp, rutas app-level de callback de entrega y reintentos reales siguen fuera del QA default.
-- Push notifications quedan como endurecimiento pendiente aparte de SMS/WhatsApp/email.
+- Entrega real de Web Push, evento `push` real del service worker, comportamiento mobile real y sender backend `web-push` siguen fuera del QA default; por ahora push queda cubierto como contrato API/browser mockeado.
 
 ## Cron jobs
 
@@ -228,7 +230,7 @@ Cobertura actual:
 
 Brechas abiertas:
 
-- `cleanup-draft-workspaces` ya tiene cobertura cron/API. Push notifications siguen pendientes por separado de email/SMS/WhatsApp.
+- `cleanup-draft-workspaces` ya tiene cobertura cron/API. Push notifications tienen cobertura API/browser mockeada; entrega real del proveedor push sigue pendiente por separado de email/SMS/WhatsApp.
 
 ## Lara, acciones y audio
 

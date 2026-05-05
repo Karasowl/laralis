@@ -83,22 +83,33 @@
   {
     "area": "push-notifications",
     "risk": "P1",
-    "implementationStatus": "unknown",
-    "coverageMode": "not-covered",
+    "implementationStatus": "partial",
+    "coverageMode": "contract-only",
     "evidence": [
       "apps/dental/app/api/notifications/push/subscribe/route.ts",
       "apps/dental/app/api/notifications/push/unsubscribe/route.ts",
-      "apps/dental/app/api/notifications/push/track-click/route.ts"
+      "apps/dental/app/api/notifications/push/track-click/route.ts",
+      "apps/dental/hooks/use-push-notifications.ts",
+      "apps/dental/app/settings/notifications/NotificationsClient.tsx",
+      "apps/dental/cypress/e2e/stage/37-push-notifications.cy.ts",
+      "supabase/migrations/65_push_notifications.sql"
     ],
-    "proven": [],
+    "proven": [
+      "Subscribe and unsubscribe APIs require an authenticated active clinic context",
+      "Stage API creates, updates, and deactivates push_subscriptions rows with real clinic/user scope",
+      "Push click tracking updates push_notifications status to clicked and persists clicked_at",
+      "Settings UI handles granted-without-subscription, denied/default, and existing subscription browser states with mocked PushManager",
+      "The stage VAPID public key is decoded into a non-empty applicationServerKey during mocked browser subscription",
+      "Stage schema exposes push_subscriptions and push_notifications"
+    ],
     "notProven": [
-      "Browser subscription lifecycle",
-      "VAPID configuration in stage",
-      "Permission denied/default/granted states",
-      "Push delivery and click tracking",
-      "Mobile browser behavior"
+      "Real browser push-service delivery",
+      "Real service worker push event emitted by a provider",
+      "Real mobile browser behavior",
+      "Server-side web-push sending pipeline and provider retry handling",
+      "Production VAPID delivery"
     ],
-    "nextTest": "Audit push implementation first, then add browser-level subscription tests with mocked PushManager and API contract checks."
+    "nextTest": "Add a server-side web-push sender with provider-contract tests and one optional real-browser/provider smoke gated by explicit env flags."
   },
   {
     "area": "whatsapp-inbound-webhook",

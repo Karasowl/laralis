@@ -1,6 +1,6 @@
 # QA Inventory Report
 
-Generated: 2026-05-05T17:37:39.424Z
+Generated: 2026-05-05T17:58:10.191Z
 
 Status: warn
 Failing checks: 0
@@ -27,21 +27,21 @@ required QA docs: 10; missing: 0
 
 Status: pass
 
-capabilities: 69; domains: 32; required missing domains: 0
+capabilities: 74; domains: 32; required missing domains: 0
 
-- status counts: covered=68, partial=1
-- priority counts: P0=60, P1=9
+- status counts: covered=73, partial=1
+- priority counts: P0=60, P1=14
 
 ## Product readiness truth table
 
 Status: warn
 
-areas: 6; implementation: partial=5, unknown=1; coverage: provider-mock=3, not-covered=1, provider-contract=1, contract-only=1; open P0 risks: 4
+areas: 6; implementation: partial=6; coverage: provider-mock=3, contract-only=2, provider-contract=1; open P0 risks: 4
 
 - open: inbox-whatsapp-actions [P0] implementation=partial, coverage=provider-mock; not proven=2
 - open: booking-notifications [P0] implementation=partial, coverage=provider-mock; not proven=4
 - open: lara-ai-actions-audio [P0] implementation=partial, coverage=provider-mock; not proven=6
-- open: push-notifications [P1] implementation=unknown, coverage=not-covered; not proven=5
+- open: push-notifications [P1] implementation=partial, coverage=contract-only; not proven=5
 - open: whatsapp-inbound-webhook [P0] implementation=partial, coverage=provider-contract; not proven=5
 - open: visual-regression [P1] implementation=partial, coverage=contract-only; not proven=4
 
@@ -81,7 +81,7 @@ seed script: present; assert script: present; env example: present; package scri
 
 Status: pass
 
-declared spec scripts: 45; existing e2e specs: 37; missing declared specs: 0
+declared spec scripts: 46; existing e2e specs: 38; missing declared specs: 0
 
 - ok: test:e2e:multitenancy -> cypress/e2e/stage/04-multiclinic-isolation.cy.ts
 - ok: test:e2e:auth -> cypress/e2e/stage/00-auth-and-shell.cy.ts
@@ -91,8 +91,8 @@ declared spec scripts: 45; existing e2e specs: 37; missing declared specs: 0
 - ok: test:e2e:treatments -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
 - ok: test:e2e:settings -> cypress/e2e/stage/05-permission-boundaries.cy.ts
 - ok: test:e2e:marketing -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
-- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.{js,ts} (37 specs)
-- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.{js,ts} (37 specs)
+- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.{js,ts} (38 specs)
+- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.{js,ts} (38 specs)
 - ok: test:e2e:stage:core-navigation -> cypress/e2e/stage/29-core-navigation-smoke.cy.ts
 - ok: test:e2e:stage:business -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
 - ok: test:e2e:stage:crud -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
@@ -128,6 +128,7 @@ declared spec scripts: 45; existing e2e specs: 37; missing declared specs: 0
 - ok: test:e2e:stage:inbox -> cypress/e2e/stage/34-inbox-whatsapp-lifecycle.cy.ts
 - ok: test:e2e:stage:whatsapp-webhook -> cypress/e2e/stage/35-whatsapp-webhook-inbound.cy.ts
 - ok: test:e2e:stage:schema -> cypress/e2e/stage/36-stage-schema-contracts.cy.ts
+- ok: test:e2e:stage:push -> cypress/e2e/stage/37-push-notifications.cy.ts
 
 ## i18n parity
 
@@ -139,7 +140,7 @@ en keys: 4948; es effective keys: 4948; missing en: 0; missing es: 0
 
 Status: pass
 
-ui files: 437; files with data-testid: 24; data-testid occurrences: 73; required hooks: 16; missing required hooks: 0
+ui files: 437; files with data-testid: 24; data-testid occurrences: 78; required hooks: 16; missing required hooks: 0
 
 - has hooks: app/auth/login/page.tsx
 - has hooks: app/book/[slug]/confirmation/page.tsx
