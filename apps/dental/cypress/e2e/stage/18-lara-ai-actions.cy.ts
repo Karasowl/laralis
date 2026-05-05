@@ -165,6 +165,7 @@ describe('Stage Lara AI assistant actions and audio', () => {
     cy.wait('@laraQuery', { timeout: 45000 })
     cy.contains('Lara QA respondio de forma deterministica', { timeout: 45000 }).should('be.visible')
     cy.get('[data-testid="lara-action-card"]', { timeout: 45000 }).should('be.visible')
+    const actionStartedAt = new Date(Date.now() - 5000).toISOString()
     cy.get('[data-testid="lara-action-confirm"]').click()
 
     cy.wait('@updateTimeSettings', { timeout: 45000 }).then((interception) => {
@@ -176,6 +177,22 @@ describe('Stage Lara AI assistant actions and audio', () => {
       expect(settings?.work_days).to.eq(25)
       expect(settings?.hours_per_day).to.eq(7)
       expect(settings?.real_pct).to.eq(82)
+    })
+
+    cy.task('qaFindActionLogs', {
+      clinicId,
+      actionType: 'update_time_settings',
+      sinceIso: actionStartedAt,
+    }).then((result) => {
+      const audit = result as {
+        count: number
+        logs: Array<{ success: boolean; dry_run: boolean; error_code: string | null }>
+      }
+
+      expect(audit.count, 'Lara action audit rows').to.be.greaterThan(0)
+      expect(audit.logs[0].success).to.eq(true)
+      expect(audit.logs[0].dry_run).to.eq(false)
+      expect(audit.logs[0].error_code).to.eq(null)
     })
   })
 

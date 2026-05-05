@@ -56,7 +56,9 @@
       "apps/dental/app/api/ai/query/route.ts",
       "apps/dental/app/api/ai/transcribe/route.ts",
       "apps/dental/app/api/ai/synthesize/route.ts",
-      "apps/dental/cypress/e2e/stage/18-lara-ai-actions.cy.ts"
+      "apps/dental/cypress/e2e/stage/18-lara-ai-actions.cy.ts",
+      "apps/dental/cypress/e2e/stage/36-stage-schema-contracts.cy.ts",
+      "supabase/migrations/73_ensure_action_logs_table.sql"
     ],
     "proven": [
       "Lara opens from the UI",
@@ -71,9 +73,10 @@
       "Real STT provider transcription quality",
       "Real TTS provider audio quality",
       "Long conversation memory quality",
-      "Exact live-provider latency, rate-limit, malformed-response, and cost behavior"
+      "Exact live-provider latency, rate-limit, malformed-response, and cost behavior",
+      "Stage/prod action_logs audit table is applied and Lara action audit rows persist"
     ],
-    "nextTest": "Keep deterministic mocks in default QA and add a non-blocking provider smoke suite with strict cost and timeout limits."
+    "nextTest": "Apply the action_logs migration to stage, make the schema gate green, then assert that confirmed Lara actions create audit rows before treating Lara persistence as complete."
   },
   {
     "area": "push-notifications",

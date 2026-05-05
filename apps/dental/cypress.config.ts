@@ -31,6 +31,7 @@ export default defineConfig({
 
         dotenvValues = {};
         const envFiles = [
+          '.env.qa.local',
           '.env.local',
           '.env.production.local',
           '.env',
@@ -77,8 +78,21 @@ export default defineConfig({
         return '';
       };
 
+      const decodeJwtPayload = (token: string) => {
+        const payload = token.split('.')[1];
+        if (!payload) return null;
+
+        try {
+          const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+          return JSON.parse(Buffer.from(normalized, 'base64').toString('utf8'));
+        } catch {
+          return null;
+        }
+      };
+
       const stageUrl = envValue('CYPRESS_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL');
       const serviceRoleKey = envValue('CYPRESS_SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_SERVICE_ROLE_KEY');
+      const stageProjectRef = stageUrl.match(/^https:\/\/([^.]+)\.supabase\.co/i)?.[1] || '';
 
       const twilioWebhookSignature = (url: string, params: Record<string, string>) => {
         const authToken = envValue('CYPRESS_TWILIO_AUTH_TOKEN', 'TWILIO_AUTH_TOKEN');
@@ -105,12 +119,53 @@ export default defineConfig({
           throw new Error('Missing CYPRESS_SUPABASE_SERVICE_ROLE_KEY for QA Supabase tasks');
         }
 
+        const keyProjectRef = decodeJwtPayload(serviceRoleKey)?.ref;
+        if (keyProjectRef && stageProjectRef && keyProjectRef !== stageProjectRef) {
+          throw new Error(
+            `Refusing stage QA task because the service role key belongs to ${keyProjectRef}, not ${stageProjectRef}. Put the stage key in apps/dental/.env.qa.local as CYPRESS_SUPABASE_SERVICE_ROLE_KEY.`
+          );
+        }
+
         return createClient(stageUrl, serviceRoleKey, {
           auth: {
             autoRefreshToken: false,
             persistSession: false,
           },
         });
+      };
+
+      const assertStageTableReadable = async ({
+        table,
+        select = 'id',
+        migrationHint,
+      }: {
+        table: string;
+        select?: string;
+        migrationHint?: string;
+      }) => {
+        const allowedTables = new Set(['action_logs']);
+        if (!allowedTables.has(table)) {
+          throw new Error(`Stage schema contract cannot inspect unexpected table: ${table}`);
+        }
+
+        const client = adminClient();
+        const { error } = await (client as any)
+          .from(table)
+          .select(select)
+          .limit(1);
+
+        if (error) {
+          const hint = migrationHint ? ` ${migrationHint}` : '';
+          const errorCode = error.code || error.name || 'UNKNOWN';
+          const errorMessage = [error.message, error.details, error.hint].filter(Boolean).join(' ');
+          const serializedError = JSON.stringify(error);
+          const diagnostic = [errorCode, errorMessage].filter(Boolean).join(' ');
+          throw new Error(
+            `Stage schema contract failed for public.${table}: ${diagnostic || serializedError}.${hint}`
+          );
+        }
+
+        return { table, readable: true };
       };
 
       const findAuthUserByEmail = async (email: string) => {
@@ -817,6 +872,55 @@ export default defineConfig({
             maxDiffRatio,
             threshold,
           });
+        },
+
+        async qaAssertStageTable({
+          table,
+          select = 'id',
+          migrationHint,
+        }: {
+          table: string;
+          select?: string;
+          migrationHint?: string;
+        }) {
+          return assertStageTableReadable({ table, select, migrationHint });
+        },
+
+        async qaFindActionLogs({
+          clinicId,
+          actionType,
+          sinceIso,
+          limit = 5,
+        }: {
+          clinicId: string;
+          actionType: string;
+          sinceIso?: string;
+          limit?: number;
+        }) {
+          const client = adminClient();
+          let query = (client as any)
+            .from('action_logs')
+            .select('id, clinic_id, user_id, action_type, success, dry_run, error_code, executed_at')
+            .eq('clinic_id', clinicId)
+            .eq('action_type', actionType)
+            .order('executed_at', { ascending: false })
+            .limit(limit);
+
+          if (sinceIso) {
+            query = query.gte('executed_at', sinceIso);
+          }
+
+          const { data, error } = await query;
+          if (error) {
+            const errorCode = error.code || error.name || 'UNKNOWN';
+            const errorMessage = [error.message, error.details, error.hint].filter(Boolean).join(' ');
+            throw new Error(`Could not read action_logs audit rows: ${[errorCode, errorMessage].filter(Boolean).join(' ')}`);
+          }
+
+          return {
+            count: data?.length || 0,
+            logs: data || [],
+          };
         },
 
         async qaCreateConfirmedUser({ email, password }: { email: string; password: string }) {

@@ -352,6 +352,14 @@
     "status": "covered"
   },
   {
+    "id": "qa-068-stage-action-logs-schema-contract",
+    "priority": "P0",
+    "domain": "schema",
+    "capability": "Stage exige public.action_logs para auditoria real de acciones confirmadas por Lara",
+    "layers": ["cypress", "database", "supabase-task", "migration"],
+    "status": "partial"
+  },
+  {
     "id": "qa-043-browser-navigation-session",
     "priority": "P1",
     "domain": "navigation",

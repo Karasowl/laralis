@@ -505,6 +505,55 @@ Comando de stage:
 npm --workspace @laralis/dental run test:e2e:stage:permissions
 ```
 
+## 2026-05-05 - Lara actions must not silently lose audit logs
+
+### Problema
+
+La suite de Lara probaba que una accion sugerida podia cambiar la configuracion de tiempo, pero los logs de Vercel mostraron que el backend no pudo escribir auditoria porque Supabase stage no tenia `public.action_logs`.
+
+Riesgo asociado:
+
+- El usuario ve que la accion funciono, pero el sistema pierde trazabilidad.
+- QA puede marcar Lara como cubierta aunque una tabla critica del esquema no exista.
+- Nuevos stages o restores pueden quedar con drift de migraciones y no detectarlo hasta produccion.
+
+### Prueba permanente
+
+Archivo:
+
+```text
+apps/dental/cypress/e2e/stage/18-lara-ai-actions.cy.ts
+apps/dental/cypress/e2e/stage/36-stage-schema-contracts.cy.ts
+```
+
+Casos protegidos:
+
+- `public.action_logs` debe existir y ser consultable con `service_role` en Supabase stage.
+- Si falta la tabla, el test falla con una pista directa hacia la migracion de correccion.
+- El flujo de Lara que confirma `update_time_settings` debe encontrar una fila reciente en `action_logs`; no basta con que el endpoint devuelva `200`.
+
+### Implementacion protegida
+
+Archivos:
+
+```text
+apps/dental/cypress.config.ts
+apps/dental/cypress/e2e/stage/18-lara-ai-actions.cy.ts
+apps/dental/cypress/e2e/stage/36-stage-schema-contracts.cy.ts
+supabase/migrations/73_ensure_action_logs_table.sql
+```
+
+La migracion `73_ensure_action_logs_table.sql` crea la tabla de forma idempotente, repara FKs, indices, grants y politicas RLS usando `clinic_users`/`workspace_users`, no `clinic_memberships`.
+
+### Verificacion
+
+Comando de stage:
+
+```bash
+npm --workspace @laralis/dental run test:e2e:stage:lara
+npm --workspace @laralis/dental run test:e2e:stage:schema
+```
+
 ## 2026-05-04 - Crons de stage deben mutar solo lo esperado
 
 ### Problema
