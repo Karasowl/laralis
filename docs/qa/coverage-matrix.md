@@ -240,7 +240,9 @@ Cobertura actual:
 - `apps/dental/cypress/e2e/stage/18-lara-ai-actions.cy.ts` usa `x-laralis-qa-ai: mock` limitado al Supabase stage `kafbqdliromcveojtdar`, asi Lara responde sin llamar proveedores externos de LLM/STT/TTS.
 - El mock de `/api/ai/query` sigue pasando por autenticacion, seleccion de clinica y permiso `lara.use_query_mode`; despues devuelve SSE deterministico con respuesta, metadata y accion sugerida `update_time_settings`.
 - El spec abre Lara desde el FAB real, entra a modo Consultas, envia una pregunta por UI, recibe la sugerencia, confirma la accion y verifica en `/api/settings/time` que la configuracion se persistio en la base de datos.
-- Ese mismo flujo ahora consulta `action_logs` con `service_role` de stage y falla si la accion confirmada no deja auditoria real; mientras la tabla falte en stage, esta parte debe estar roja.
+- Ese mismo flujo ahora consulta `action_logs` con `service_role` de stage y falla si la accion confirmada no deja auditoria real.
+- El mismo spec verifica que `/api/ai/query` procesa `conversationHistory` en modo QA y expone en metadata la entidad en foco, periodo, topic y acciones pendientes sin llamar al proveedor LLM real.
+- `apps/dental/tests/qa/lara-conversation-context.test.ts` fija el contrato puro de memoria conversacional: foco de servicio, referencias por pronombre, periodo, topic, acciones sugeridas y acciones ejecutadas.
 - El mismo spec prueba que `qa-viewer@laralis.test` recibe `403 Forbidden` tanto en la consulta mockeada de Lara como en la accion mutable `update-time-settings`.
 - Los mocks de `/api/ai/transcribe` y `/api/ai/synthesize` verifican entrada y salida de audio sin tocar Deepgram, Kimi ni proveedor TTS real.
 - El modo stage-only `x-laralis-qa-ai: fail` fuerza errores controlados de LLM, STT y TTS; el spec verifica `503`, `retryable: true` y codigos de error diferenciados.
@@ -251,7 +253,7 @@ Cobertura actual:
 
 Brechas abiertas:
 
-- Lara cubre respuesta mockeada, accion sugerida, persistencia funcional, limites de permisos, audio input/output, fallos controlados de proveedor y panel visual. La auditoria en `action_logs` queda como brecha real hasta aplicar `supabase/migrations/73_ensure_action_logs_table.sql` en stage y dejar verdes `test:e2e:stage:schema` y `test:e2e:stage:lara` con `CYPRESS_SUPABASE_SERVICE_ROLE_KEY` de stage. Entry Mode completo, calidad de memoria larga y un smoke real no deterministico de proveedor quedan como endurecimiento posterior.
+- Lara cubre respuesta mockeada, accion sugerida, persistencia funcional, auditoria en `action_logs`, contrato de memoria conversacional por request, limites de permisos, audio input/output, fallos controlados de proveedor y panel visual. Entry Mode completo, memoria larga persistida entre sesiones y un smoke real no deterministico de proveedor quedan como endurecimiento posterior.
 
 ## Gates de inventario
 
@@ -309,6 +311,7 @@ Cobertura actual:
 - Probar acciones sugeridas por Lara.
 - Confirmar una accion sugerida y verificar que sucede en base de datos.
 - Confirmar que una accion de Lara deja auditoria en `action_logs`.
+- Probar que Lara mantiene contexto conversacional minimo: entidad en foco, pronombres, periodo, topic y acciones pendientes.
 - Probar que Lara respeta permisos.
 - Probar entrada de audio.
 - Probar salida/reproduccion de audio.

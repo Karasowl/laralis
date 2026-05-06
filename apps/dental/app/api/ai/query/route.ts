@@ -107,7 +107,11 @@ async function loadQaClinicSnapshot(clinicId: string): Promise<QaClinicSnapshot>
   }
 }
 
-function createQaQueryResult(query: string, snapshot: QaClinicSnapshot): QueryResult {
+function createQaQueryResult(
+  query: string,
+  snapshot: QaClinicSnapshot,
+  conversationContext?: ConversationContextData
+): QueryResult {
   const campaigns = snapshot.campaignNames.length > 0 ? snapshot.campaignNames.join(', ') : 'none'
 
   return {
@@ -120,8 +124,9 @@ function createQaQueryResult(query: string, snapshot: QaClinicSnapshot): QueryRe
       'QA mock: no se llamo a ningun proveedor externo. Se genero una accion controlada para Cypress.',
     data: {
       source: 'qa-mock',
-      checked: ['active_clinic', 'permissions', 'suggested_action'],
+      checked: ['active_clinic', 'permissions', 'suggested_action', 'conversation_context'],
       clinicSnapshot: snapshot,
+      conversationContext: conversationContext || null,
     },
     suggestedAction: {
       action: 'update_time_settings',
@@ -188,6 +193,60 @@ function streamQueryResult(result: QueryResult, userId: string, clinicId: string
   })
 }
 
+function buildConversationContextData({
+  clinicId,
+  query,
+  conversationHistory,
+}: {
+  clinicId: string
+  query: string
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
+}): ConversationContextData | undefined {
+  if (!conversationHistory || conversationHistory.length === 0) {
+    return undefined
+  }
+
+  const contextManager = new ConversationContextManager(
+    `query-${Date.now()}`,
+    clinicId
+  )
+
+  conversationHistory.forEach((msg, index) => {
+    if (msg.role === 'user') {
+      contextManager.processUserMessage(msg.content, index)
+    } else {
+      contextManager.processAssistantMessage(msg.content, index)
+    }
+  })
+
+  contextManager.processUserMessage(query, conversationHistory.length)
+
+  const ctx = contextManager.getContext()
+  if (!ctx.focus.primaryEntity && !ctx.focus.timePeriod && !ctx.focus.currentTopic) {
+    return undefined
+  }
+
+  return {
+    primaryEntity: ctx.focus.primaryEntity ? {
+      type: ctx.focus.primaryEntity.type,
+      name: ctx.focus.primaryEntity.name,
+      id: ctx.focus.primaryEntity.id,
+    } : undefined,
+    secondaryEntities: ctx.focus.secondaryEntities.map(e => ({
+      type: e.type,
+      name: e.name,
+    })),
+    timePeriod: ctx.focus.timePeriod ? {
+      label: ctx.focus.timePeriod.label,
+      startDate: ctx.focus.timePeriod.startDate,
+      endDate: ctx.focus.timePeriod.endDate,
+    } : undefined,
+    currentTopic: ctx.focus.currentTopic,
+    pendingActions: ctx.actions.filter(a => a.status === 'suggested').map(a => a.type),
+    summary: ctx.summary,
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const qaMode = qaAiMode(request)
@@ -249,6 +308,12 @@ export async function POST(request: NextRequest) {
     // Create Supabase client with auth
     const supabase = await createClient()
 
+    const conversationContextData = buildConversationContextData({
+      clinicId,
+      query,
+      conversationHistory,
+    })
+
     if (qaFailureRequested) {
       return new Response(
         JSON.stringify({
@@ -261,52 +326,11 @@ export async function POST(request: NextRequest) {
     }
 
     if (qaMockRequested) {
-      return streamQueryResult(createQaQueryResult(query, await loadQaClinicSnapshot(clinicId)), userId, clinicId)
-    }
-
-    // Build conversation context from history using ConversationContextManager
-    let conversationContextData: ConversationContextData | undefined
-    if (conversationHistory && conversationHistory.length > 0) {
-      const contextManager = new ConversationContextManager(
-        `query-${Date.now()}`, // Session ID
+      return streamQueryResult(
+        createQaQueryResult(query, await loadQaClinicSnapshot(clinicId), conversationContextData),
+        userId,
         clinicId
       )
-
-      // Process each message in history to build context
-      conversationHistory.forEach((msg, index) => {
-        if (msg.role === 'user') {
-          contextManager.processUserMessage(msg.content, index)
-        } else {
-          contextManager.processAssistantMessage(msg.content, index)
-        }
-      })
-
-      // Also process the current query
-      contextManager.processUserMessage(query, conversationHistory.length)
-
-      // Get the built context
-      const ctx = contextManager.getContext()
-      if (ctx.focus.primaryEntity || ctx.focus.timePeriod || ctx.focus.currentTopic) {
-        conversationContextData = {
-          primaryEntity: ctx.focus.primaryEntity ? {
-            type: ctx.focus.primaryEntity.type,
-            name: ctx.focus.primaryEntity.name,
-            id: ctx.focus.primaryEntity.id,
-          } : undefined,
-          secondaryEntities: ctx.focus.secondaryEntities.map(e => ({
-            type: e.type,
-            name: e.name,
-          })),
-          timePeriod: ctx.focus.timePeriod ? {
-            label: ctx.focus.timePeriod.label,
-            startDate: ctx.focus.timePeriod.startDate,
-            endDate: ctx.focus.timePeriod.endDate,
-          } : undefined,
-          currentTopic: ctx.focus.currentTopic,
-          pendingActions: ctx.actions.filter(a => a.status === 'suggested').map(a => a.type),
-          summary: ctx.summary,
-        }
-      }
     }
 
     // Build context for AI

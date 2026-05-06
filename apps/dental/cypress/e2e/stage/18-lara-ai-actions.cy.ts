@@ -136,6 +136,48 @@ describe('Stage Lara AI assistant actions and audio', () => {
     })
   })
 
+  it('threads conversation context through the stage query pipeline', () => {
+    cy.loginAsDoctor()
+    selectQaClinic('clinicA').then((clinic) => {
+      cy.request({
+        method: 'POST',
+        url: '/api/ai/query',
+        headers: {
+          'x-laralis-qa-ai': 'mock',
+        },
+        body: {
+          clinicId: clinic.id,
+          query: 'Y su margen?',
+          locale: 'es',
+          conversationHistory: [
+            {
+              role: 'user',
+              content: 'Analiza el servicio "Limpieza QA" este mes',
+            },
+            {
+              role: 'assistant',
+              content: 'Limpieza QA mantiene buen margen este mes.',
+            },
+          ],
+        },
+      }).then((response) => {
+        expect(response.status).to.eq(200)
+
+        const { metadata } = parseSse(response.body)
+        const conversationContext = metadata.data.conversationContext
+
+        expect(metadata.data.checked).to.include('conversation_context')
+        expect(conversationContext.primaryEntity).to.deep.eq({
+          type: 'service',
+          name: 'Limpieza QA',
+        })
+        expect(conversationContext.timePeriod.label).to.eq('este mes')
+        expect(conversationContext.currentTopic).to.eq('profitability')
+        expect(conversationContext.pendingActions).to.deep.eq([])
+      })
+    })
+  })
+
   it('opens Lara, confirms a suggested action, and persists the database effect', () => {
     cy.loginAsDoctor()
     selectQaClinic('clinicA').then((clinic) => {

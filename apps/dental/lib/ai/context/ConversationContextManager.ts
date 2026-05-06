@@ -150,7 +150,7 @@ export class ConversationContextManager {
     // Check for entity patterns
     for (const [type, patterns] of Object.entries(ENTITY_PATTERNS)) {
       for (const pattern of patterns) {
-        const matches = message.matchAll(new RegExp(pattern))
+        const matches = Array.from(message.matchAll(new RegExp(pattern)))
         for (const match of matches) {
           const name = match[1] || match[0]
           // Avoid duplicates
@@ -166,7 +166,7 @@ export class ConversationContextManager {
 
     // Check for references/pronouns
     for (const pattern of REFERENCE_PATTERNS) {
-      const matches = message.matchAll(new RegExp(pattern))
+      const matches = Array.from(message.matchAll(new RegExp(pattern)))
       for (const match of matches) {
         const text = match[0]
         // Try to resolve to current focus entity
@@ -180,10 +180,11 @@ export class ConversationContextManager {
 
     // Check for time periods
     for (const { pattern, type } of TIME_PATTERNS) {
-      if (pattern.test(message)) {
+      const match = new RegExp(pattern).exec(message)
+      if (match) {
         const { startDate, endDate } = this.calculateDateRange(type)
         result.timePeriods.push({
-          text: message.match(pattern)?.[0] || '',
+          text: match[0],
           type,
           startDate,
           endDate,

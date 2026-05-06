@@ -646,5 +646,13 @@
     "capability": "Settings expone diagnostico de readiness para numero, credenciales, seguridad de webhook y configuracion externa pendiente",
     "layers": ["cypress", "ui", "api", "provider-config"],
     "status": "covered"
+  },
+  {
+    "id": "qa-078-lara-conversation-context",
+    "priority": "P0",
+    "domain": "lara",
+    "capability": "Memoria conversacional de Lara mantiene entidad en foco, referencias por pronombre, periodo, topic y acciones pendientes",
+    "layers": ["vitest", "cypress", "api", "provider-mock"],
+    "status": "covered"
   }
 ]

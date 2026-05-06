@@ -60,6 +60,8 @@
       "apps/dental/app/api/ai/query/route.ts",
       "apps/dental/app/api/ai/transcribe/route.ts",
       "apps/dental/app/api/ai/synthesize/route.ts",
+      "apps/dental/lib/ai/context/ConversationContextManager.ts",
+      "apps/dental/tests/qa/lara-conversation-context.test.ts",
       "apps/dental/cypress/e2e/stage/18-lara-ai-actions.cy.ts",
       "apps/dental/cypress/e2e/stage/36-stage-schema-contracts.cy.ts",
       "supabase/migrations/73_ensure_action_logs_table.sql"
@@ -67,6 +69,7 @@
     "proven": [
       "Lara opens from the UI",
       "Mocked query produces a deterministic action suggestion",
+      "Conversation context tracks focus entity, pronoun references, current topic, time period, pending actions, and API metadata in stage mock mode",
       "Confirmed action persists a database change",
       "Confirmed Lara action creates an action_logs audit row in Supabase stage",
       "Viewer permissions block mutable AI actions",
@@ -78,10 +81,10 @@
       "Real LLM quality",
       "Real STT provider transcription quality",
       "Real TTS provider audio quality",
-      "Long conversation memory quality",
+      "Long cross-session conversation memory quality with live LLM behavior",
       "Exact live-provider latency, rate-limit, malformed-response, and cost behavior"
     ],
-    "nextTest": "Add optional live-provider smoke for LLM/STT/TTS behind explicit env flags, then add conversation-memory quality assertions once Lara has a stable memory contract."
+    "nextTest": "Add optional live-provider smoke for LLM/STT/TTS behind explicit env flags, then add cross-session memory quality assertions if Lara persists conversations beyond request history."
   },
   {
     "area": "push-notifications",
