@@ -150,6 +150,29 @@
     "nextTest": "Add optional real Twilio and 360dialog provider smokes gated by explicit env flags."
   },
   {
+    "area": "whatsapp-provider-settings",
+    "risk": "P0",
+    "implementationStatus": "partial",
+    "coverageMode": "provider-mock",
+    "evidence": [
+      "apps/dental/app/settings/notifications/NotificationsClient.tsx",
+      "apps/dental/app/api/settings/notifications/test-whatsapp/route.ts",
+      "apps/dental/cypress/e2e/stage/38-whatsapp-settings-provider.cy.ts"
+    ],
+    "proven": [
+      "Settings UI exposes a WhatsApp provider test action tied to the saved clinic configuration",
+      "The test endpoint requires authenticated settings.edit access and an active clinic context",
+      "Stage mock success writes a sent whatsapp_notifications row with provider/status metadata",
+      "Stage mock failure returns a deterministic error and writes a failed whatsapp_notifications row"
+    ],
+    "notProven": [
+      "Real Twilio outbound delivery from the settings test",
+      "Real 360dialog outbound delivery from the settings test",
+      "Provider-specific dashboard setup, verified sender approval, and production webhook registration"
+    ],
+    "nextTest": "Gate one explicit real-provider smoke behind env flags once Twilio/360dialog credentials and sender approval exist."
+  },
+  {
     "area": "visual-regression",
     "risk": "P1",
     "implementationStatus": "partial",

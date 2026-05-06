@@ -630,5 +630,13 @@
     "capability": "Callbacks de estado del proveedor actualizan whatsapp_notifications e inbox_messages por provider_message_id/channel_message_id",
     "layers": ["cypress", "api", "provider-contract", "database", "supabase-task"],
     "status": "covered"
+  },
+  {
+    "id": "qa-076-whatsapp-settings-provider-test",
+    "priority": "P0",
+    "domain": "notifications",
+    "capability": "Settings permite probar la configuracion WhatsApp guardada y registra exito/fallo del proveedor en whatsapp_notifications",
+    "layers": ["cypress", "ui", "api", "database", "provider-mock", "supabase-task"],
+    "status": "covered"
   }
 ]

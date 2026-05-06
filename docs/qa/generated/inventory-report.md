@@ -1,6 +1,6 @@
 # QA Inventory Report
 
-Generated: 2026-05-06T15:56:54.059Z
+Generated: 2026-05-06T16:18:59.573Z
 
 Status: warn
 Failing checks: 0
@@ -27,22 +27,23 @@ required QA docs: 10; missing: 0
 
 Status: pass
 
-capabilities: 79; domains: 32; required missing domains: 0
+capabilities: 80; domains: 32; required missing domains: 0
 
-- status counts: covered=78, partial=1
-- priority counts: P0=64, P1=15
+- status counts: covered=79, partial=1
+- priority counts: P0=65, P1=15
 
 ## Product readiness truth table
 
 Status: warn
 
-areas: 6; implementation: partial=6; coverage: provider-mock=3, provider-contract=2, contract-only=1; open P0 risks: 4
+areas: 7; implementation: partial=7; coverage: provider-mock=4, provider-contract=2, contract-only=1; open P0 risks: 5
 
 - open: inbox-whatsapp-actions [P0] implementation=partial, coverage=provider-mock; not proven=1
 - open: booking-notifications [P0] implementation=partial, coverage=provider-mock; not proven=4
 - open: lara-ai-actions-audio [P0] implementation=partial, coverage=provider-mock; not proven=6
 - open: push-notifications [P1] implementation=partial, coverage=provider-contract; not proven=5
 - open: whatsapp-inbound-webhook [P0] implementation=partial, coverage=provider-contract; not proven=5
+- open: whatsapp-provider-settings [P0] implementation=partial, coverage=provider-mock; not proven=3
 - open: visual-regression [P1] implementation=partial, coverage=contract-only; not proven=4
 
 ## QA dataset
@@ -81,7 +82,7 @@ seed script: present; assert script: present; env example: present; package scri
 
 Status: pass
 
-declared spec scripts: 46; existing e2e specs: 38; missing declared specs: 0
+declared spec scripts: 47; existing e2e specs: 39; missing declared specs: 0
 
 - ok: test:e2e:multitenancy -> cypress/e2e/stage/04-multiclinic-isolation.cy.ts
 - ok: test:e2e:auth -> cypress/e2e/stage/00-auth-and-shell.cy.ts
@@ -91,8 +92,8 @@ declared spec scripts: 46; existing e2e specs: 38; missing declared specs: 0
 - ok: test:e2e:treatments -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
 - ok: test:e2e:settings -> cypress/e2e/stage/05-permission-boundaries.cy.ts
 - ok: test:e2e:marketing -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
-- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.{js,ts} (38 specs)
-- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.{js,ts} (38 specs)
+- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.{js,ts} (39 specs)
+- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.{js,ts} (39 specs)
 - ok: test:e2e:stage:core-navigation -> cypress/e2e/stage/29-core-navigation-smoke.cy.ts
 - ok: test:e2e:stage:business -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
 - ok: test:e2e:stage:crud -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
@@ -129,18 +130,19 @@ declared spec scripts: 46; existing e2e specs: 38; missing declared specs: 0
 - ok: test:e2e:stage:whatsapp-webhook -> cypress/e2e/stage/35-whatsapp-webhook-inbound.cy.ts
 - ok: test:e2e:stage:schema -> cypress/e2e/stage/36-stage-schema-contracts.cy.ts
 - ok: test:e2e:stage:push -> cypress/e2e/stage/37-push-notifications.cy.ts
+- ok: test:e2e:stage:whatsapp-settings -> cypress/e2e/stage/38-whatsapp-settings-provider.cy.ts
 
 ## i18n parity
 
 Status: pass
 
-en keys: 4948; es effective keys: 4948; missing en: 0; missing es: 0
+en keys: 4955; es effective keys: 4955; missing en: 0; missing es: 0
 
 ## UI test hooks
 
 Status: pass
 
-ui files: 437; files with data-testid: 26; data-testid occurrences: 96; required hooks: 16; missing required hooks: 0
+ui files: 438; files with data-testid: 26; data-testid occurrences: 99; required hooks: 16; missing required hooks: 0
 
 - has hooks: app/auth/login/page.tsx
 - has hooks: app/book/[slug]/confirmation/page.tsx
@@ -173,7 +175,7 @@ ui files: 437; files with data-testid: 26; data-testid occurrences: 96; required
 
 Status: pass
 
-api routes: 163; permission guard: 115 (withPermission: 30, manual: 85); qa classified: 16; using supabaseAdmin: 134; admin without permission/cron guard/classification: 0
+api routes: 164; permission guard: 116 (withPermission: 30, manual: 86); qa classified: 16; using supabaseAdmin: 135; admin without permission/cron guard/classification: 0
 
 ## Cron guard inventory
 

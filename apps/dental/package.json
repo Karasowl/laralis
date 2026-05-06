@@ -71,6 +71,7 @@
     "test:e2e:stage:whatsapp-webhook": "cross-env CYPRESS_BASE_URL=https://laralis-monorepo-preview.vercel.app CYPRESS_SUPABASE_URL=https://kafbqdliromcveojtdar.supabase.co CYPRESS_VIDEO=false cypress run --spec \"cypress/e2e/stage/35-whatsapp-webhook-inbound.cy.ts\"",
     "test:e2e:stage:schema": "cross-env CYPRESS_BASE_URL=https://laralis-monorepo-preview.vercel.app CYPRESS_SUPABASE_URL=https://kafbqdliromcveojtdar.supabase.co CYPRESS_VIDEO=false cypress run --spec \"cypress/e2e/stage/36-stage-schema-contracts.cy.ts\"",
     "test:e2e:stage:push": "cross-env CYPRESS_BASE_URL=https://laralis-monorepo-preview.vercel.app CYPRESS_SUPABASE_URL=https://kafbqdliromcveojtdar.supabase.co CYPRESS_VIDEO=false cypress run --spec \"cypress/e2e/stage/37-push-notifications.cy.ts\"",
+    "test:e2e:stage:whatsapp-settings": "cross-env CYPRESS_BASE_URL=https://laralis-monorepo-preview.vercel.app CYPRESS_SUPABASE_URL=https://kafbqdliromcveojtdar.supabase.co CYPRESS_VIDEO=false cypress run --spec \"cypress/e2e/stage/38-whatsapp-settings-provider.cy.ts\"",
     "test:all": "node test-runner.js all",
     "test:quick": "npm run test:unit && npm run test:integration",
     "test:full": "npm run test:unit && npm run test:integration && npm run test:api && npm run test:e2e",

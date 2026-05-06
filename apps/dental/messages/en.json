@@ -2057,6 +2057,13 @@
       "testEmailDescription": "Send a test email to your account",
       "testEmailSent": "Test email sent",
       "testEmailError": "Failed to send test email",
+      "testWhatsapp": "Send test WhatsApp",
+      "testWhatsappDescription": "Send a real message using the saved configuration",
+      "testWhatsappSaveFirst": "Save changes before testing the provider",
+      "testWhatsappPhone": "Test phone number",
+      "testWhatsappPhonePlaceholder": "+15550000000",
+      "testWhatsappSent": "Test WhatsApp sent",
+      "testWhatsappError": "Failed to send test WhatsApp",
       "whatsapp": {
         "title": "WhatsApp",
         "description": "Send WhatsApp notifications to your patients",

@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Mail, Bell, Clock, RefreshCcw, BellRing } from 'lucide-react';
+import { Loader2, Mail, Bell, Clock, RefreshCcw, BellRing, MessageSquare } from 'lucide-react';
 import { WhatsAppSettingsCard, type WhatsAppSettings } from './WhatsAppSettingsCard';
 import { SMSSettingsCard, type SMSConfig, DEFAULT_SMS_CONFIG } from './SMSSettingsCard';
 import { usePushNotifications } from '@/hooks/use-push-notifications';
@@ -24,6 +24,10 @@ interface NotificationSettings {
   whatsapp?: WhatsAppSettings;
   sms?: SMSConfig;
 }
+
+type IncomingWhatsAppSettings = Omit<Partial<WhatsAppSettings>, 'provider'> & {
+  provider?: WhatsAppSettings['provider'] | 'dialog360';
+};
 
 const DEFAULT_WHATSAPP: WhatsAppSettings = {
   enabled: false,
@@ -113,6 +117,8 @@ export function NotificationsClient() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testingEmail, setTestingEmail] = useState(false);
+  const [testingWhatsapp, setTestingWhatsapp] = useState(false);
+  const [testWhatsappPhone, setTestWhatsappPhone] = useState('');
 
   // Push notifications hook
   const {
@@ -125,6 +131,8 @@ export function NotificationsClient() {
   } = usePushNotifications();
 
   const hasChanges = useMemo(() => !shallowEqual(state, initialState), [state, initialState]);
+  const whatsappSettings = state.whatsapp || DEFAULT_WHATSAPP;
+  const canTestWhatsapp = Boolean(whatsappSettings.enabled) && !hasChanges && !saving && !loading;
 
   useEffect(() => {
     let mounted = true;
@@ -142,9 +150,15 @@ export function NotificationsClient() {
 
         if (!mounted) return;
 
-        const normalizedWhatsapp = settings?.whatsapp?.provider === 'dialog360'
-          ? { ...settings.whatsapp, provider: '360dialog' }
-          : settings?.whatsapp;
+        const incomingWhatsapp = settings?.whatsapp as IncomingWhatsAppSettings | undefined;
+        const normalizedWhatsapp: Partial<WhatsAppSettings> | undefined = incomingWhatsapp
+          ? {
+              ...incomingWhatsapp,
+              provider: incomingWhatsapp.provider === 'dialog360'
+                ? '360dialog'
+                : incomingWhatsapp.provider,
+            }
+          : undefined;
 
         const normalized: NotificationSettings = {
           email_enabled: settings?.email_enabled ?? true,
@@ -156,7 +170,7 @@ export function NotificationsClient() {
           whatsapp: {
             ...DEFAULT_WHATSAPP,
             ...(normalizedWhatsapp || {}),
-          },
+          } as WhatsAppSettings,
           sms: {
             ...DEFAULT_SMS_CONFIG,
             ...(settings?.sms || {}),
@@ -252,6 +266,30 @@ export function NotificationsClient() {
       });
     } finally {
       setTestingEmail(false);
+    }
+  };
+
+  const handleTestWhatsapp = async () => {
+    setTestingWhatsapp(true);
+    try {
+      const response = await fetch('/api/settings/notifications/test-whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: testWhatsappPhone || undefined }),
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error || 'Failed to send WhatsApp test');
+      }
+      toast({ title: t('testWhatsappSent') });
+    } catch (error) {
+      console.error('[NotificationsClient] Failed to send WhatsApp test', error);
+      toast({
+        title: t('testWhatsappError'),
+        variant: 'destructive',
+      });
+    } finally {
+      setTestingWhatsapp(false);
     }
   };
 
@@ -403,9 +441,49 @@ export function NotificationsClient() {
 
       {/* WhatsApp Configuration */}
       <WhatsAppSettingsCard
-        settings={state.whatsapp || DEFAULT_WHATSAPP}
+        settings={whatsappSettings}
         onChange={(whatsapp) => setState((prev) => ({ ...prev, whatsapp }))}
       />
+
+      <Card
+        data-testid="test-whatsapp-card"
+        className={!whatsappSettings.enabled ? 'opacity-50 pointer-events-none' : ''}
+      >
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg bg-green-500/10 p-2">
+              <MessageSquare className="h-5 w-5 text-green-500" />
+            </div>
+            <div>
+              <CardTitle>{t('testWhatsapp')}</CardTitle>
+              <CardDescription>
+                {hasChanges ? t('testWhatsappSaveFirst') : t('testWhatsappDescription')}
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+          <div className="space-y-2">
+            <Label htmlFor="test-whatsapp-phone">{t('testWhatsappPhone')}</Label>
+            <Input
+              id="test-whatsapp-phone"
+              data-testid="test-whatsapp-phone"
+              value={testWhatsappPhone}
+              onChange={(event) => setTestWhatsappPhone(event.target.value)}
+              placeholder={t('testWhatsappPhonePlaceholder')}
+            />
+          </div>
+          <Button
+            data-testid="send-test-whatsapp"
+            type="button"
+            onClick={handleTestWhatsapp}
+            disabled={testingWhatsapp || !canTestWhatsapp}
+          >
+            {testingWhatsapp && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {t('testWhatsapp')}
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* SMS Configuration */}
       <SMSSettingsCard

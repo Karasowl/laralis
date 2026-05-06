@@ -591,7 +591,7 @@ export default defineConfig({
 
         if (action.type === 'waitForText') {
           await page.waitForFunction(
-            (pattern) => new RegExp(pattern as string, 'i').test(document.body.innerText),
+            (pattern: string) => new RegExp(pattern, 'i').test(document.body.innerText),
             action.text,
             { timeout: 30_000 }
           );
@@ -1668,6 +1668,33 @@ export default defineConfig({
             notification: notifications?.[0] || null,
             notifications: notifications || [],
           };
+        },
+
+        async qaWhatsAppNotificationCleanup({
+          providerMessageId,
+          providerMessageIds,
+        }: {
+          providerMessageId?: string;
+          providerMessageIds?: string[];
+        }) {
+          const ids = [
+            ...(providerMessageIds || []),
+            ...(providerMessageId ? [providerMessageId] : []),
+          ].filter(Boolean);
+
+          if (ids.length === 0) return { cleaned: false, count: 0 };
+
+          const client = adminClient();
+          const { error } = await client
+            .from('whatsapp_notifications')
+            .delete()
+            .in('provider_message_id', ids);
+
+          if (error) {
+            throw new Error(`Could not clean WhatsApp notification rows: ${error.message}`);
+          }
+
+          return { cleaned: true, count: ids.length };
         },
 
         async qaWhatsAppWebhookCleanup({ stamp }: { stamp?: string }) {
