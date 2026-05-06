@@ -1,6 +1,6 @@
 # QA Inventory Report
 
-Generated: 2026-05-06T16:40:24.894Z
+Generated: 2026-05-06T18:45:22.719Z
 
 Status: warn
 Failing checks: 0
@@ -40,7 +40,7 @@ areas: 7; implementation: partial=7; coverage: provider-mock=4, provider-contrac
 
 - open: inbox-whatsapp-actions [P0] implementation=partial, coverage=provider-mock; not proven=1
 - open: booking-notifications [P0] implementation=partial, coverage=provider-mock; not proven=4
-- open: lara-ai-actions-audio [P0] implementation=partial, coverage=provider-mock; not proven=6
+- open: lara-ai-actions-audio [P0] implementation=partial, coverage=provider-mock; not proven=5
 - open: push-notifications [P1] implementation=partial, coverage=provider-contract; not proven=5
 - open: whatsapp-inbound-webhook [P0] implementation=partial, coverage=provider-contract; not proven=5
 - open: whatsapp-provider-settings [P0] implementation=partial, coverage=provider-mock; not proven=3

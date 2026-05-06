@@ -68,19 +68,20 @@
       "Lara opens from the UI",
       "Mocked query produces a deterministic action suggestion",
       "Confirmed action persists a database change",
+      "Confirmed Lara action creates an action_logs audit row in Supabase stage",
       "Viewer permissions block mutable AI actions",
       "Mocked STT/TTS contracts and browser audio playback are exercised",
-      "Forced LLM/STT/TTS provider failures return deterministic retryable errors instead of silent UI or timeout behavior"
+      "Forced LLM/STT/TTS provider failures return deterministic retryable errors instead of silent UI or timeout behavior",
+      "Stage schema exposes action_logs for Lara action audit trails"
     ],
     "notProven": [
       "Real LLM quality",
       "Real STT provider transcription quality",
       "Real TTS provider audio quality",
       "Long conversation memory quality",
-      "Exact live-provider latency, rate-limit, malformed-response, and cost behavior",
-      "Stage/prod action_logs audit table is applied and Lara action audit rows persist"
+      "Exact live-provider latency, rate-limit, malformed-response, and cost behavior"
     ],
-    "nextTest": "Apply the action_logs migration to stage, make the schema gate green, then assert that confirmed Lara actions create audit rows before treating Lara persistence as complete."
+    "nextTest": "Add optional live-provider smoke for LLM/STT/TTS behind explicit env flags, then add conversation-memory quality assertions once Lara has a stable memory contract."
   },
   {
     "area": "push-notifications",
