@@ -100,8 +100,28 @@ describe('Stage WhatsApp settings provider test', () => {
 
     cy.visit('/settings/notifications')
     cy.location('pathname', { timeout: 30000 }).should('eq', '/settings/notifications')
+    cy.get('[data-testid="whatsapp-readiness-card"]', { timeout: 30000 }).should('be.visible')
+    cy.get('[data-testid="whatsapp-readiness-check-external_provider_setup"]')
+      .should('be.visible')
+      .and('contain.text', /Manual/i)
+    cy.get('[data-testid="whatsapp-webhook-url"]')
+      .should('be.visible')
+      .invoke('val')
+      .should('include', '/api/whatsapp/webhook?clinicId=')
     cy.get('[data-testid="test-whatsapp-card"]', { timeout: 30000 }).should('be.visible')
     cy.get('[data-testid="test-whatsapp-phone"]').clear().type(phone)
+
+    cy.request('/api/settings/notifications/whatsapp-readiness').then((readinessResponse) => {
+      expect(readinessResponse.status).to.eq(200)
+      expect(readinessResponse.body.provider).to.eq('360dialog')
+      expect(readinessResponse.body.externalVerificationRequired).to.eq(true)
+      expect(readinessResponse.body.webhookUrl).to.include('/api/whatsapp/webhook?clinicId=')
+      const checks = readinessResponse.body.checks || []
+      const credentials = checks.find((check: any) => check.id === 'provider_credentials')
+      const externalProvider = checks.find((check: any) => check.id === 'external_provider_setup')
+      expect(credentials.status).to.eq('pass')
+      expect(externalProvider.status).to.eq('manual')
+    })
 
     cy.intercept('POST', '/api/settings/notifications/test-whatsapp', (request) => {
       expect(request.body.phone).to.eq(phone)

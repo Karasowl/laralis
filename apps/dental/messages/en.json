@@ -2064,6 +2064,25 @@
       "testWhatsappPhonePlaceholder": "+15550000000",
       "testWhatsappSent": "Test WhatsApp sent",
       "testWhatsappError": "Failed to send test WhatsApp",
+      "whatsappReadiness": "Real WhatsApp status",
+      "whatsappReadinessDescription": "Check whether Laralis has the minimum setup needed to attempt real delivery",
+      "refreshReadiness": "Check status",
+      "whatsappReady": "Minimum configuration ready",
+      "whatsappNotReady": "Missing setup",
+      "whatsappExternalRequired": "External provider required",
+      "whatsappWebhookUrl": "Webhook URL",
+      "readinessStatuses": {
+        "pass": "Ready",
+        "fail": "Missing",
+        "manual": "Manual"
+      },
+      "readinessChecks": {
+        "enabled": "WhatsApp enabled",
+        "provider_credentials": "Provider credentials",
+        "sender_number": "Approved number or channel",
+        "webhook_security": "Webhook security",
+        "external_provider_setup": "External provider setup"
+      },
       "whatsapp": {
         "title": "WhatsApp",
         "description": "Send WhatsApp notifications to your patients",

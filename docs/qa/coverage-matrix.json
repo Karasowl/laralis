@@ -638,5 +638,13 @@
     "capability": "Settings permite probar la configuracion WhatsApp guardada y registra exito/fallo del proveedor en whatsapp_notifications",
     "layers": ["cypress", "ui", "api", "database", "provider-mock", "supabase-task"],
     "status": "covered"
+  },
+  {
+    "id": "qa-077-whatsapp-provider-readiness",
+    "priority": "P0",
+    "domain": "notifications",
+    "capability": "Settings expone diagnostico de readiness para numero, credenciales, seguridad de webhook y configuracion externa pendiente",
+    "layers": ["cypress", "ui", "api", "provider-config"],
+    "status": "covered"
   }
 ]

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,18 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Mail, Bell, Clock, RefreshCcw, BellRing, MessageSquare } from 'lucide-react';
+import {
+  AlertTriangle,
+  Bell,
+  BellRing,
+  CheckCircle2,
+  Clock,
+  Loader2,
+  Mail,
+  MessageSquare,
+  RefreshCcw,
+  XCircle,
+} from 'lucide-react';
 import { WhatsAppSettingsCard, type WhatsAppSettings } from './WhatsAppSettingsCard';
 import { SMSSettingsCard, type SMSConfig, DEFAULT_SMS_CONFIG } from './SMSSettingsCard';
 import { usePushNotifications } from '@/hooks/use-push-notifications';
@@ -23,6 +34,28 @@ interface NotificationSettings {
   reply_to_email: string | null;
   whatsapp?: WhatsAppSettings;
   sms?: SMSConfig;
+}
+
+type ReadinessStatus = 'pass' | 'fail' | 'manual';
+
+interface WhatsAppReadinessCheck {
+  id:
+    | 'enabled'
+    | 'provider_credentials'
+    | 'sender_number'
+    | 'webhook_security'
+    | 'external_provider_setup';
+  status: ReadinessStatus;
+  required: boolean;
+  message?: string;
+}
+
+interface WhatsAppReadiness {
+  ready: boolean;
+  externalVerificationRequired: boolean;
+  provider: WhatsAppSettings['provider'];
+  webhookUrl: string;
+  checks: WhatsAppReadinessCheck[];
 }
 
 type IncomingWhatsAppSettings = Omit<Partial<WhatsAppSettings>, 'provider'> & {
@@ -119,6 +152,8 @@ export function NotificationsClient() {
   const [testingEmail, setTestingEmail] = useState(false);
   const [testingWhatsapp, setTestingWhatsapp] = useState(false);
   const [testWhatsappPhone, setTestWhatsappPhone] = useState('');
+  const [whatsappReadiness, setWhatsappReadiness] = useState<WhatsAppReadiness | null>(null);
+  const [loadingWhatsappReadiness, setLoadingWhatsappReadiness] = useState(false);
 
   // Push notifications hook
   const {
@@ -133,6 +168,23 @@ export function NotificationsClient() {
   const hasChanges = useMemo(() => !shallowEqual(state, initialState), [state, initialState]);
   const whatsappSettings = state.whatsapp || DEFAULT_WHATSAPP;
   const canTestWhatsapp = Boolean(whatsappSettings.enabled) && !hasChanges && !saving && !loading;
+
+  const loadWhatsAppReadiness = useCallback(async () => {
+    try {
+      setLoadingWhatsappReadiness(true);
+      const response = await fetch('/api/settings/notifications/whatsapp-readiness');
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+      const json = await response.json();
+      setWhatsappReadiness(json as WhatsAppReadiness);
+    } catch (error) {
+      console.error('[NotificationsClient] Failed to load WhatsApp readiness', error);
+      setWhatsappReadiness(null);
+    } finally {
+      setLoadingWhatsappReadiness(false);
+    }
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -187,6 +239,7 @@ export function NotificationsClient() {
 
         setState(normalized);
         setInitialState(normalized);
+        void loadWhatsAppReadiness();
       } catch (error) {
         console.error('[NotificationsClient] Failed to load settings', error);
         toast({
@@ -205,7 +258,7 @@ export function NotificationsClient() {
     return () => {
       mounted = false;
     };
-  }, [t, toast]);
+  }, [loadWhatsAppReadiness, t, toast]);
 
   const handleChange = <K extends keyof NotificationSettings>(
     key: K,
@@ -229,6 +282,7 @@ export function NotificationsClient() {
       }
 
       setInitialState(state);
+      void loadWhatsAppReadiness();
       toast({
         title: t('saved_success'),
       });
@@ -267,6 +321,18 @@ export function NotificationsClient() {
     } finally {
       setTestingEmail(false);
     }
+  };
+
+  const readinessIcon = (status: ReadinessStatus) => {
+    if (status === 'pass') return <CheckCircle2 className="h-4 w-4 text-emerald-600" />;
+    if (status === 'fail') return <XCircle className="h-4 w-4 text-destructive" />;
+    return <AlertTriangle className="h-4 w-4 text-amber-600" />;
+  };
+
+  const readinessStatusClass = (status: ReadinessStatus) => {
+    if (status === 'pass') return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400';
+    if (status === 'fail') return 'bg-destructive/10 text-destructive';
+    return 'bg-amber-500/10 text-amber-700 dark:text-amber-400';
   };
 
   const handleTestWhatsapp = async () => {
@@ -444,6 +510,88 @@ export function NotificationsClient() {
         settings={whatsappSettings}
         onChange={(whatsapp) => setState((prev) => ({ ...prev, whatsapp }))}
       />
+
+      <Card data-testid="whatsapp-readiness-card">
+        <CardHeader>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-green-500/10 p-2">
+                <MessageSquare className="h-5 w-5 text-green-500" />
+              </div>
+              <div>
+                <CardTitle>{t('whatsappReadiness')}</CardTitle>
+                <CardDescription>{t('whatsappReadinessDescription')}</CardDescription>
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={loadWhatsAppReadiness}
+              disabled={loadingWhatsappReadiness}
+            >
+              {loadingWhatsappReadiness && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t('refreshReadiness')}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              data-testid="whatsapp-readiness-summary"
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                whatsappReadiness?.ready
+                  ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                  : 'bg-destructive/10 text-destructive'
+              }`}
+            >
+              {whatsappReadiness?.ready ? t('whatsappReady') : t('whatsappNotReady')}
+            </span>
+            {whatsappReadiness?.externalVerificationRequired && (
+              <span className="rounded-full bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-700 dark:text-amber-400">
+                {t('whatsappExternalRequired')}
+              </span>
+            )}
+          </div>
+
+          {whatsappReadiness?.webhookUrl && (
+            <div className="space-y-2">
+              <Label htmlFor="whatsapp-webhook-url">{t('whatsappWebhookUrl')}</Label>
+              <Input
+                id="whatsapp-webhook-url"
+                data-testid="whatsapp-webhook-url"
+                value={whatsappReadiness.webhookUrl}
+                readOnly
+              />
+            </div>
+          )}
+
+          <div className="space-y-2">
+            {(whatsappReadiness?.checks || []).map((check) => (
+              <div
+                key={check.id}
+                data-testid={`whatsapp-readiness-check-${check.id}`}
+                className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="flex items-start gap-3">
+                  {readinessIcon(check.status)}
+                  <div>
+                    <p className="text-sm font-medium">{t(`readinessChecks.${check.id}`)}</p>
+                    {check.message && (
+                      <p className="mt-1 text-xs text-muted-foreground">{check.message}</p>
+                    )}
+                  </div>
+                </div>
+                <span
+                  className={`w-fit rounded-full px-2.5 py-1 text-xs font-medium ${readinessStatusClass(check.status)}`}
+                >
+                  {t(`readinessStatuses.${check.status}`)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       <Card
         data-testid="test-whatsapp-card"

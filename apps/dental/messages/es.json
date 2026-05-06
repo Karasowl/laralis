@@ -1972,6 +1972,25 @@
       "testWhatsappPhonePlaceholder": "+525500000000",
       "testWhatsappSent": "WhatsApp de prueba enviado",
       "testWhatsappError": "Error al enviar WhatsApp de prueba",
+      "whatsappReadiness": "Estado de WhatsApp real",
+      "whatsappReadinessDescription": "Revisa si Laralis tiene lo necesario para intentar envíos reales",
+      "refreshReadiness": "Revisar estado",
+      "whatsappReady": "Configuración mínima lista",
+      "whatsappNotReady": "Faltan datos",
+      "whatsappExternalRequired": "Requiere proveedor externo",
+      "whatsappWebhookUrl": "URL de webhook",
+      "readinessStatuses": {
+        "pass": "Listo",
+        "fail": "Falta",
+        "manual": "Manual"
+      },
+      "readinessChecks": {
+        "enabled": "WhatsApp activado",
+        "provider_credentials": "Credenciales del proveedor",
+        "sender_number": "Número o canal aprobado",
+        "webhook_security": "Seguridad del webhook",
+        "external_provider_setup": "Configuración externa del proveedor"
+      },
       "hours": "horas",
       "history": "Historial de notificaciones",
       "historyDescription": "Últimos emails enviados a pacientes",

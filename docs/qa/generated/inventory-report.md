@@ -1,6 +1,6 @@
 # QA Inventory Report
 
-Generated: 2026-05-06T16:18:59.573Z
+Generated: 2026-05-06T16:40:24.894Z
 
 Status: warn
 Failing checks: 0
@@ -27,10 +27,10 @@ required QA docs: 10; missing: 0
 
 Status: pass
 
-capabilities: 80; domains: 32; required missing domains: 0
+capabilities: 81; domains: 32; required missing domains: 0
 
-- status counts: covered=79, partial=1
-- priority counts: P0=65, P1=15
+- status counts: covered=80, partial=1
+- priority counts: P0=66, P1=15
 
 ## Product readiness truth table
 
@@ -136,13 +136,13 @@ declared spec scripts: 47; existing e2e specs: 39; missing declared specs: 0
 
 Status: pass
 
-en keys: 4955; es effective keys: 4955; missing en: 0; missing es: 0
+en keys: 4970; es effective keys: 4970; missing en: 0; missing es: 0
 
 ## UI test hooks
 
 Status: pass
 
-ui files: 438; files with data-testid: 26; data-testid occurrences: 99; required hooks: 16; missing required hooks: 0
+ui files: 439; files with data-testid: 26; data-testid occurrences: 103; required hooks: 16; missing required hooks: 0
 
 - has hooks: app/auth/login/page.tsx
 - has hooks: app/book/[slug]/confirmation/page.tsx
@@ -175,7 +175,7 @@ ui files: 438; files with data-testid: 26; data-testid occurrences: 99; required
 
 Status: pass
 
-api routes: 164; permission guard: 116 (withPermission: 30, manual: 86); qa classified: 16; using supabaseAdmin: 135; admin without permission/cron guard/classification: 0
+api routes: 165; permission guard: 117 (withPermission: 30, manual: 87); qa classified: 16; using supabaseAdmin: 135; admin without permission/cron guard/classification: 0
 
 ## Cron guard inventory
 

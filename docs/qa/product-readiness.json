@@ -157,13 +157,16 @@
     "evidence": [
       "apps/dental/app/settings/notifications/NotificationsClient.tsx",
       "apps/dental/app/api/settings/notifications/test-whatsapp/route.ts",
+      "apps/dental/app/api/settings/notifications/whatsapp-readiness/route.ts",
       "apps/dental/cypress/e2e/stage/38-whatsapp-settings-provider.cy.ts"
     ],
     "proven": [
       "Settings UI exposes a WhatsApp provider test action tied to the saved clinic configuration",
       "The test endpoint requires authenticated settings.edit access and an active clinic context",
       "Stage mock success writes a sent whatsapp_notifications row with provider/status metadata",
-      "Stage mock failure returns a deterministic error and writes a failed whatsapp_notifications row"
+      "Stage mock failure returns a deterministic error and writes a failed whatsapp_notifications row",
+      "Settings UI and API expose readiness checks for enabled status, provider credentials, sender/channel, webhook security, and external provider setup",
+      "Readiness explicitly marks external WhatsApp Business/provider approval as manual instead of claiming that mock delivery proves production readiness"
     ],
     "notProven": [
       "Real Twilio outbound delivery from the settings test",
