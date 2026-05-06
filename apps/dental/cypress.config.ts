@@ -1549,6 +1549,127 @@ export default defineConfig({
           };
         },
 
+        async qaWhatsAppStatusSeed({
+          clinicId,
+          stamp,
+          phone,
+          providerMessageId,
+          provider = '360dialog',
+        }: {
+          clinicId: string;
+          stamp: string;
+          phone: string;
+          providerMessageId: string;
+          provider?: string;
+        }) {
+          const client = adminClient();
+          const normalizedPhone = String(phone || '').replace(/^whatsapp:/i, '');
+          const contactAddress = `whatsapp:${normalizedPhone}`;
+          const now = new Date().toISOString();
+
+          const { data: conversation, error: conversationError } = await client
+            .from('inbox_conversations')
+            .insert({
+              clinic_id: clinicId,
+              channel: 'whatsapp',
+              contact_address: contactAddress,
+              contact_name: `QA Status ${stamp}`,
+              status: 'in_progress',
+              conversation_state: 'chatting',
+              last_message_at: now,
+              last_message_preview: `QA outbound status seed ${stamp}`,
+              metadata: { qa: true, stamp },
+            })
+            .select('id')
+            .single();
+
+          if (conversationError || !conversation?.id) {
+            throw new Error(`Could not seed WhatsApp status conversation: ${conversationError?.message || 'missing row'}`);
+          }
+
+          const { data: inboxMessage, error: messageError } = await client
+            .from('inbox_messages')
+            .insert({
+              conversation_id: conversation.id,
+              role: 'agent',
+              content: `QA outbound status seed ${stamp}`,
+              direction: 'outbound',
+              message_type: 'text',
+              channel_message_id: providerMessageId,
+              metadata: {
+                qa: true,
+                stamp,
+                provider,
+                provider_status: 'sent',
+              },
+            })
+            .select('id')
+            .single();
+
+          if (messageError || !inboxMessage?.id) {
+            throw new Error(`Could not seed WhatsApp status inbox message: ${messageError?.message || 'missing row'}`);
+          }
+
+          const { data: notification, error: notificationError } = await client
+            .from('whatsapp_notifications')
+            .insert({
+              clinic_id: clinicId,
+              notification_type: 'custom',
+              recipient_phone: normalizedPhone,
+              recipient_name: `QA Status ${stamp}`,
+              message_content: `QA outbound status seed ${stamp}`,
+              status: 'sent',
+              sent_at: now,
+              provider,
+              provider_message_id: providerMessageId,
+              provider_status: 'sent',
+              cost_cents: 0,
+              metadata: { qa: true, stamp },
+            })
+            .select('id')
+            .single();
+
+          if (notificationError || !notification?.id) {
+            throw new Error(`Could not seed WhatsApp notification status row: ${notificationError?.message || 'missing row'}`);
+          }
+
+          return {
+            conversationId: conversation.id,
+            inboxMessageId: inboxMessage.id,
+            notificationId: notification.id,
+            providerMessageId,
+          };
+        },
+
+        async qaWhatsAppStatusState({
+          providerMessageId,
+        }: {
+          providerMessageId: string;
+        }) {
+          const client = adminClient();
+
+          const { data: messages, error: messageError } = await client
+            .from('inbox_messages')
+            .select('*')
+            .eq('channel_message_id', providerMessageId)
+            .order('created_at', { ascending: false });
+          if (messageError) throw new Error(`Could not read WhatsApp status inbox message: ${messageError.message}`);
+
+          const { data: notifications, error: notificationError } = await client
+            .from('whatsapp_notifications')
+            .select('*')
+            .eq('provider_message_id', providerMessageId)
+            .order('created_at', { ascending: false });
+          if (notificationError) throw new Error(`Could not read WhatsApp status notification row: ${notificationError.message}`);
+
+          return {
+            inboxMessage: messages?.[0] || null,
+            inboxMessages: messages || [],
+            notification: notifications?.[0] || null,
+            notifications: notifications || [],
+          };
+        },
+
         async qaWhatsAppWebhookCleanup({ stamp }: { stamp?: string }) {
           if (!stamp) return { cleaned: false };
 
@@ -1596,6 +1717,10 @@ export default defineConfig({
             await client.from('inbox_messages').delete().in('conversation_id', conversationIdList);
             await deleteByIds('inbox_conversations', conversationIdList);
           }
+          await client
+            .from('whatsapp_notifications')
+            .delete()
+            .or(`provider_message_id.ilike.%${stamp}%,recipient_name.ilike.%${stamp}%,message_content.ilike.%${stamp}%`);
           await deleteByIds('leads', Array.from(leadIds));
 
           return {

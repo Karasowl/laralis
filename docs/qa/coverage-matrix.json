@@ -614,5 +614,21 @@
     "capability": "UI de Inbox ejecuta asignar, tomar/reanudar bot, transferir, responder, convertir lead a paciente y cerrar conversacion persistiendo cada cambio en Supabase stage",
     "layers": ["cypress", "ui", "api", "database", "provider-mock", "supabase-task"],
     "status": "covered"
+  },
+  {
+    "id": "qa-074-whatsapp-webhook-360dialog-cloud-api",
+    "priority": "P0",
+    "domain": "webhook",
+    "capability": "Webhook inbound de WhatsApp acepta payload JSON Cloud API/360dialog, crea lead/conversacion/mensaje y persiste CTWA referral",
+    "layers": ["cypress", "api", "provider-contract", "database", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-075-whatsapp-provider-status-reconciliation",
+    "priority": "P0",
+    "domain": "webhook",
+    "capability": "Callbacks de estado del proveedor actualizan whatsapp_notifications e inbox_messages por provider_message_id/channel_message_id",
+    "layers": ["cypress", "api", "provider-contract", "database", "supabase-task"],
+    "status": "covered"
   }
 ]

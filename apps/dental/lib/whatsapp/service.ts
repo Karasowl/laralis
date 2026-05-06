@@ -13,6 +13,7 @@ import type {
   SendMessageParams,
   SendMessageResult,
   NotificationType,
+  MessageStatus,
 } from './types'
 
 // Default config for new clinics
@@ -451,35 +452,118 @@ export async function sendBookingReceivedWhatsApp(params: {
 }
 
 /**
- * Update notification status from webhook
+ * Update notification and inbox delivery status from provider webhooks.
+ *
+ * Template/booking notifications are tracked in whatsapp_notifications.
+ * Human or bot inbox replies are tracked in inbox_messages, so callbacks must
+ * reconcile both tables by the provider message id.
  */
-export async function updateNotificationStatus(
-  providerMessageId: string,
-  status: string,
-  timestamp?: string,
+export async function updateWhatsAppDeliveryStatus(params: {
+  providerMessageId: string
+  status: MessageStatus
+  timestamp?: string
   errorMessage?: string
-): Promise<void> {
+  provider?: string
+}): Promise<{
+  notificationCount: number
+  inboxMessageCount: number
+}> {
+  const { providerMessageId, status, timestamp, errorMessage, provider } = params
+  const statusAt = timestamp || new Date().toISOString()
   const updateData: Record<string, unknown> = {
     status,
+    provider_status: status,
     updated_at: new Date().toISOString(),
   }
 
-  if (status === 'delivered' && timestamp) {
-    updateData.delivered_at = timestamp
+  if (status === 'sent') {
+    updateData.sent_at = statusAt
   }
-  if (status === 'read' && timestamp) {
-    updateData.read_at = timestamp
+  if (status === 'delivered') {
+    updateData.delivered_at = statusAt
+  }
+  if (status === 'read') {
+    updateData.read_at = statusAt
   }
   if (errorMessage) {
     updateData.error_message = errorMessage
   }
 
-  const { error } = await supabaseAdmin
+  const { data: notifications, error } = await supabaseAdmin
     .from('whatsapp_notifications')
     .update(updateData)
     .eq('provider_message_id', providerMessageId)
+    .select('id')
 
   if (error) {
     console.error('[whatsapp] Failed to update status:', error)
   }
+
+  const { data: inboxMessages, error: inboxReadError } = await supabaseAdmin
+    .from('inbox_messages')
+    .select('id, metadata')
+    .eq('channel_message_id', providerMessageId)
+
+  if (inboxReadError) {
+    console.error('[whatsapp] Failed to read inbox delivery status rows:', inboxReadError)
+  }
+
+  let inboxMessageCount = 0
+  for (const row of inboxMessages || []) {
+    const metadata =
+      row.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata)
+        ? row.metadata as Record<string, unknown>
+        : {}
+
+    const nextMetadata: Record<string, unknown> = {
+      ...metadata,
+      provider_status: status,
+      provider_status_at: statusAt,
+      ...(provider ? { provider } : {}),
+      ...(errorMessage ? { provider_error: errorMessage } : {}),
+    }
+
+    if (status === 'sent') {
+      nextMetadata.provider_sent_at = statusAt
+    }
+    if (status === 'delivered') {
+      nextMetadata.provider_delivered_at = statusAt
+    }
+    if (status === 'read') {
+      nextMetadata.provider_read_at = statusAt
+    }
+
+    const { error: inboxUpdateError } = await supabaseAdmin
+      .from('inbox_messages')
+      .update({ metadata: nextMetadata })
+      .eq('id', row.id)
+
+    if (inboxUpdateError) {
+      console.error('[whatsapp] Failed to update inbox delivery status:', inboxUpdateError)
+    } else {
+      inboxMessageCount += 1
+    }
+  }
+
+  return {
+    notificationCount: notifications?.length || 0,
+    inboxMessageCount,
+  }
+}
+
+/**
+ * Backwards-compatible wrapper for existing callers.
+ */
+export async function updateNotificationStatus(
+  providerMessageId: string,
+  status: MessageStatus,
+  timestamp?: string,
+  errorMessage?: string
+): Promise<void> {
+  await updateWhatsAppDeliveryStatus({
+    providerMessageId,
+    status,
+    timestamp,
+    errorMessage,
+  })
 }

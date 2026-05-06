@@ -55,6 +55,28 @@ function postWebhook(
   })
 }
 
+function postDialog360Webhook(
+  context: WebhookContext,
+  body: Record<string, any>,
+  options: {
+    campaignId?: string | null
+    failOnStatusCode?: boolean
+  } = {}
+) {
+  const campaignQuery = options.campaignId ? `&campaignId=${encodeURIComponent(options.campaignId)}` : ''
+
+  return cy.request({
+    method: 'POST',
+    url: `/api/whatsapp/webhook?clinicId=${encodeURIComponent(context.clinicId)}${campaignQuery}`,
+    body,
+    headers: {
+      ...qaWebhookHeaders,
+      'content-type': 'application/json',
+    },
+    failOnStatusCode: options.failOnStatusCode,
+  })
+}
+
 function signedWebhookUrl(context: WebhookContext, campaignId?: string | null) {
   const campaignQuery = campaignId ? `&campaignId=${encodeURIComponent(campaignId)}` : ''
   return `/api/whatsapp/webhook?clinicId=${encodeURIComponent(context.clinicId)}${campaignQuery}`
@@ -288,6 +310,133 @@ describe('Stage WhatsApp inbound webhook coverage', () => {
         expect(state.lead.ad_source_type).to.eq('ad')
         expect(state.lead.ad_source_url).to.eq(`https://example.test/${stamp}`)
         expect(state.messages[0].metadata.ctwa_referral.ctwa_clid).to.eq(`ctwa-${stamp}`)
+      })
+    })
+  })
+
+  it('persists 360dialog Cloud API text payloads and CTWA attribution', () => {
+    const stamp = `qa-webhook-360-${Date.now()}-${Cypress._.random(1000, 9999)}`
+    const phone = phoneFromStamp(stamp, 'dialog')
+    const waId = phone.replace(/\D/g, '')
+    cleanupStamps.push(stamp)
+
+    getWebhookContext().then((context) => {
+      expect(context.campaignId, 'QA Meta Mayo campaign').to.be.a('string')
+
+      postDialog360Webhook(
+        context,
+        {
+          object: 'whatsapp_business_account',
+          entry: [
+            {
+              id: 'qa-waba',
+              changes: [
+                {
+                  field: 'messages',
+                  value: {
+                    messaging_product: 'whatsapp',
+                    metadata: {
+                      display_phone_number: '+15559990005',
+                      phone_number_id: 'qa-phone-number-id',
+                    },
+                    contacts: [
+                      {
+                        wa_id: waId,
+                        profile: { name: `QA Dialog ${stamp}` },
+                      },
+                    ],
+                    messages: [
+                      {
+                        from: waId,
+                        id: `wamid.${stamp}.inbound`,
+                        timestamp: '1777777777',
+                        type: 'text',
+                        text: { body: `Necesito humano desde 360dialog ${stamp}` },
+                        referral: {
+                          ctwa_clid: `d360-ctwa-${stamp}`,
+                          source_id: `d360-ad-${stamp}`,
+                          source_type: 'ad',
+                          source_url: `https://example.test/d360/${stamp}`,
+                          headline: `360 Promo ${stamp}`,
+                          body: `Reserva desde WhatsApp ${stamp}`,
+                          media_type: 'image',
+                          image_url: `https://example.test/d360/${stamp}.jpg`,
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        { campaignId: context.campaignId }
+      ).then(expectWebhookOk)
+
+      readWebhookState(context, phone).then((state) => {
+        expect(state.leads, 'one 360dialog lead').to.have.length(1)
+        expect(state.conversations, 'one 360dialog conversation').to.have.length(1)
+        expect(state.messages, 'one 360dialog inbound message').to.have.length(1)
+        expect(state.lead.full_name).to.eq(`QA Dialog ${stamp}`)
+        expect(state.lead.campaign_id).to.eq(context.campaignId)
+        expect(state.lead.ctwa_clid).to.eq(`d360-ctwa-${stamp}`)
+        expect(state.lead.ad_id).to.eq(`d360-ad-${stamp}`)
+        expect(state.conversation.status).to.eq('pending')
+        expect(state.messages[0].channel_message_id).to.eq(`wamid.${stamp}.inbound`)
+        expect(state.messages[0].metadata.provider_metadata.provider).to.eq('360dialog')
+        expect(state.messages[0].metadata.ctwa_referral.ad_media_url).to.eq(`https://example.test/d360/${stamp}.jpg`)
+      })
+    })
+  })
+
+  it('reconciles 360dialog status callbacks into notification and inbox message rows', () => {
+    const stamp = `qa-webhook-status-${Date.now()}-${Cypress._.random(1000, 9999)}`
+    const phone = phoneFromStamp(stamp, 'status')
+    const providerMessageId = `wamid.${stamp}.status`
+    cleanupStamps.push(stamp)
+
+    getWebhookContext().then((context) => {
+      cy.task('qaWhatsAppStatusSeed', {
+        clinicId: context.clinicId,
+        stamp,
+        phone,
+        providerMessageId,
+        provider: '360dialog',
+      })
+
+      postDialog360Webhook(context, {
+        object: 'whatsapp_business_account',
+        entry: [
+          {
+            id: 'qa-waba',
+            changes: [
+              {
+                field: 'messages',
+                value: {
+                  messaging_product: 'whatsapp',
+                  statuses: [
+                    {
+                      id: providerMessageId,
+                      status: 'delivered',
+                      timestamp: '1777777777',
+                      recipient_id: phone.replace(/\D/g, ''),
+                      conversation: { id: `qa-conversation-${stamp}` },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        ],
+      }).then(expectWebhookOk)
+
+      cy.task('qaWhatsAppStatusState', { providerMessageId }).then((state: any) => {
+        expect(state.notification.status).to.eq('delivered')
+        expect(state.notification.provider_status).to.eq('delivered')
+        expect(state.notification.delivered_at).to.be.a('string')
+        expect(state.inboxMessage.metadata.provider).to.eq('360dialog')
+        expect(state.inboxMessage.metadata.provider_status).to.eq('delivered')
+        expect(state.inboxMessage.metadata.provider_delivered_at).to.be.a('string')
       })
     })
   })
