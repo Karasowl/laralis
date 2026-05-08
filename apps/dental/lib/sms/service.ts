@@ -11,6 +11,7 @@ import type {
   SendSMSParams,
   SendSMSResult,
   NotificationType,
+  MessageStatus,
 } from './types'
 import { DEFAULT_SMS_CONFIG } from './types'
 
@@ -154,6 +155,14 @@ export function formatPhoneNumber(phone: string, countryCode: string): string {
   return `+${countryCode}${cleaned}`
 }
 
+export interface TwilioSMSStatusWebhook {
+  providerMessageId: string
+  providerStatus: string
+  status: MessageStatus
+  timestamp?: string
+  errorMessage?: string
+}
+
 /**
  * Send SMS via Twilio using environment credentials
  */
@@ -233,6 +242,23 @@ function mapTwilioStatus(twilioStatus: string): 'pending' | 'sent' | 'delivered'
       return 'undelivered'
     default:
       return 'pending'
+  }
+}
+
+export function parseTwilioSMSStatusWebhook(payload: Record<string, string>): TwilioSMSStatusWebhook | null {
+  const providerMessageId = payload.MessageSid?.trim() || payload.SmsSid?.trim() || payload.SmsMessageSid?.trim()
+  const providerStatus = payload.MessageStatus?.trim() || payload.SmsStatus?.trim()
+
+  if (!providerMessageId || !providerStatus) {
+    return null
+  }
+
+  return {
+    providerMessageId,
+    providerStatus,
+    status: mapTwilioStatus(providerStatus),
+    timestamp: payload.Timestamp?.trim() || undefined,
+    errorMessage: payload.ErrorMessage?.trim() || payload.ErrorCode?.trim() || undefined,
   }
 }
 
@@ -602,12 +628,16 @@ export async function updateSMSStatus(
   status: string,
   timestamp?: string,
   errorMessage?: string
-): Promise<void> {
+): Promise<{ updatedCount: number }> {
+  const mappedStatus = mapTwilioStatus(status)
   const updateData: Record<string, unknown> = {
-    status: mapTwilioStatus(status),
+    status: mappedStatus,
     updated_at: new Date().toISOString(),
   }
 
+  if (mappedStatus === 'sent' && timestamp) {
+    updateData.sent_at = timestamp
+  }
   if (status === 'delivered' && timestamp) {
     updateData.delivered_at = timestamp
   }
@@ -615,14 +645,18 @@ export async function updateSMSStatus(
     updateData.error_message = errorMessage
   }
 
-  const { error } = await supabaseAdmin
+  const { data, error } = await supabaseAdmin
     .from('sms_notifications')
     .update(updateData)
     .eq('provider_message_id', providerMessageId)
+    .select('id')
 
   if (error) {
     console.error('[sms] Failed to update status:', error)
+    throw error
   }
+
+  return { updatedCount: data?.length || 0 }
 }
 
 /**

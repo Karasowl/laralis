@@ -207,6 +207,7 @@ Cobertura actual:
 - El mismo spec usa `x-laralis-qa-notifications: fail` para simular fallos de proveedor: la reserva queda creada en `pending`, `confirmation_email_sent` no se marca y SMS/WhatsApp se registran como `failed`.
 - El flujo UI completo se ejecuta en desktop, tablet y mobile: servicio, fecha, hora, datos del paciente, submit, pantalla de confirmacion y sin scroll horizontal.
 - El seed QA deja `working_hours`, servicio publico y configuracion de notificaciones coherente para que futuras reconstrucciones de stage no vuelvan a dejar booking vacio.
+- `apps/dental/cypress/e2e/stage/39-notification-delivery-webhooks.cy.ts` siembra filas reales en `email_notifications` y `sms_notifications`, verifica que los webhooks app-level rechazan callbacks externos sin firma en el runtime preview, y luego usa el bypass QA limitado a stage para reconciliar bounce de Resend y delivery de Twilio SMS contra la base.
 - `apps/dental/tests/qa/notification-provider-contracts.test.ts` valida contratos de proveedor sin red real: payloads HTTP de Twilio/360dialog, auth headers, formateo de telefonos, parsing de callbacks de estado, errores de proveedor, switches de email/SMS y plantillas WhatsApp.
 - `apps/dental/cypress/e2e/stage/37-push-notifications.cy.ts` cubre push aparte: APIs protegidas de subscribe/unsubscribe, validacion de track-click, ciclo create/update/deactivate en `push_subscriptions`, `push_notifications.status=clicked`, y estados UI con PushManager mockeado.
 - El spec de push reproduce el bug de producto `Notification.permission=granted` sin suscripcion existente; la UI debe mostrar boton de activar y decodificar `NEXT_PUBLIC_VAPID_PUBLIC_KEY` a un `applicationServerKey` no vacio antes de llamar `pushManager.subscribe`.
@@ -215,7 +216,7 @@ Cobertura actual:
 Brechas abiertas:
 
 - La gestion interna de solicitudes de booking por el equipo clinico ya tiene spec: aceptar, rechazar, convertir en tratamiento y trazabilidad de estado.
-- Entrega real de Resend/Twilio/WhatsApp, rutas app-level de callback de entrega y reintentos reales siguen fuera del QA default.
+- Entrega real de Resend/Twilio/WhatsApp y reintentos reales siguen fuera del QA default; las rutas app-level de callback para Resend y Twilio SMS ya quedan cubiertas como provider-contract/stage-mock.
 - Entrega real de Web Push, evento `push` real del service worker, comportamiento mobile real, reintentos/backoff de proveedor y wiring automatico desde cron/tratamientos/inventario siguen fuera del QA default; por ahora push queda cubierto como contrato API/browser mockeado y provider-contract server-side.
 
 ## Cron jobs

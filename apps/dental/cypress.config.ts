@@ -1697,6 +1697,131 @@ export default defineConfig({
           return { cleaned: true, count: ids.length };
         },
 
+        async qaNotificationDeliveryWebhookSeed({
+          stamp,
+          clinicName,
+        }: {
+          stamp: string;
+          clinicName: string;
+        }) {
+          const client = adminClient();
+
+          const { data: clinic, error: clinicError } = await client
+            .from('clinics')
+            .select('id, name')
+            .eq('name', clinicName)
+            .single();
+
+          if (clinicError || !clinic?.id) {
+            throw new Error(`Could not find QA clinic "${clinicName}": ${clinicError?.message || 'missing clinic'}`);
+          }
+
+          const emailProviderMessageId = `qa-email-${stamp}`;
+          const smsProviderMessageId = `qa-sms-status-${stamp}`;
+          const now = new Date().toISOString();
+
+          const { data: email, error: emailError } = await client
+            .from('email_notifications')
+            .insert({
+              clinic_id: clinic.id,
+              treatment_id: null,
+              patient_id: null,
+              notification_type: 'reminder',
+              recipient_email: `${stamp}@laralis.test`,
+              recipient_name: `QA Delivery ${stamp}`,
+              subject: `QA delivery webhook ${stamp}`,
+              status: 'sent',
+              sent_at: now,
+              provider: 'resend',
+              provider_message_id: emailProviderMessageId,
+              metadata: { qa: true, stamp },
+            })
+            .select('id')
+            .single();
+
+          if (emailError || !email?.id) {
+            throw new Error(`Could not seed email delivery webhook row: ${emailError?.message || 'missing row'}`);
+          }
+
+          const { data: sms, error: smsError } = await client
+            .from('sms_notifications')
+            .insert({
+              clinic_id: clinic.id,
+              treatment_id: null,
+              patient_id: null,
+              notification_type: 'custom',
+              recipient_phone: '+15555550123',
+              recipient_name: `QA Delivery ${stamp}`,
+              message_content: `QA delivery webhook ${stamp}`,
+              status: 'sent',
+              sent_at: now,
+              provider: 'twilio',
+              provider_message_id: smsProviderMessageId,
+              cost_cents: 0,
+            })
+            .select('id')
+            .single();
+
+          if (smsError || !sms?.id) {
+            throw new Error(`Could not seed SMS delivery webhook row: ${smsError?.message || 'missing row'}`);
+          }
+
+          return {
+            clinicId: clinic.id,
+            clinicName: clinic.name,
+            emailId: email.id,
+            smsId: sms.id,
+            emailProviderMessageId,
+            smsProviderMessageId,
+          };
+        },
+
+        async qaNotificationDeliveryWebhookState({
+          emailProviderMessageId,
+          smsProviderMessageId,
+        }: {
+          emailProviderMessageId: string;
+          smsProviderMessageId: string;
+        }) {
+          const client = adminClient();
+
+          const { data: emails, error: emailError } = await client
+            .from('email_notifications')
+            .select('*')
+            .eq('provider_message_id', emailProviderMessageId)
+            .order('created_at', { ascending: false });
+          if (emailError) throw new Error(`Could not read email delivery webhook row: ${emailError.message}`);
+
+          const { data: smsRows, error: smsError } = await client
+            .from('sms_notifications')
+            .select('*')
+            .eq('provider_message_id', smsProviderMessageId)
+            .order('created_at', { ascending: false });
+          if (smsError) throw new Error(`Could not read SMS delivery webhook row: ${smsError.message}`);
+
+          return {
+            email: emails?.[0] || null,
+            emails: emails || [],
+            sms: smsRows?.[0] || null,
+            smsRows: smsRows || [],
+          };
+        },
+
+        async qaNotificationDeliveryWebhookCleanup({
+          providerMessageIds,
+        }: {
+          providerMessageIds: string[];
+        }) {
+          const ids = (providerMessageIds || []).filter(Boolean);
+          if (ids.length === 0) return { cleaned: false, count: 0 };
+
+          const client = adminClient();
+          await client.from('email_notifications').delete().in('provider_message_id', ids);
+          await client.from('sms_notifications').delete().in('provider_message_id', ids);
+
+          return { cleaned: true, count: ids.length };
+        },
+
         async qaWhatsAppWebhookCleanup({ stamp }: { stamp?: string }) {
           if (!stamp) return { cleaned: false };
 

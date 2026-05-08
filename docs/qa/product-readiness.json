@@ -31,8 +31,11 @@
     "evidence": [
       "apps/dental/app/api/public/book/route.ts",
       "apps/dental/app/api/cron/send-reminders/route.ts",
+      "apps/dental/app/api/webhooks/resend/route.ts",
+      "apps/dental/app/api/webhooks/twilio/sms-status/route.ts",
       "apps/dental/cypress/e2e/stage/06-public-booking-notifications.cy.ts",
       "apps/dental/cypress/e2e/stage/17-cron-jobs.cy.ts",
+      "apps/dental/cypress/e2e/stage/39-notification-delivery-webhooks.cy.ts",
       "apps/dental/tests/qa/notification-provider-contracts.test.ts"
     ],
     "proven": [
@@ -41,15 +44,16 @@
       "Stage mock records staff push intent for a public booking in push_notifications with an actionable booking URL",
       "Reminder cron mutates scheduled reminders and notification records",
       "Forced provider failures keep the booking pending, mark email as unsent, and log failed SMS/WhatsApp notification rows",
+      "Resend and Twilio SMS app-level delivery webhook routes reject unsigned production-preview requests and reconcile stage callback payloads into notification logs",
       "Twilio/360dialog provider contracts validate outbound payloads, auth headers, status callback parsing, and provider error handling without live calls"
     ],
     "notProven": [
       "Real Resend delivery",
       "Real Twilio SMS delivery",
       "Real WhatsApp provider delivery",
-      "Email/SMS app-level bounce/delivery webhook routes and retry scheduling"
+      "Email/SMS retry scheduling after transient provider failures"
     ],
-    "nextTest": "Add app-level delivery callback/status reconciliation routes and optional real-provider smoke gated by explicit env flags."
+    "nextTest": "Add retry/backoff scheduling for transient email/SMS provider failures and optional real-provider smoke gated by explicit env flags."
   },
   {
     "area": "lara-ai-actions-audio",

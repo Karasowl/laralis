@@ -1,6 +1,6 @@
 # QA Inventory Report
 
-Generated: 2026-05-06T19:00:05.376Z
+Generated: 2026-05-08T23:24:55.583Z
 
 Status: warn
 Failing checks: 0
@@ -27,10 +27,10 @@ required QA docs: 10; missing: 0
 
 Status: pass
 
-capabilities: 82; domains: 32; required missing domains: 0
+capabilities: 83; domains: 32; required missing domains: 0
 
-- status counts: covered=81, partial=1
-- priority counts: P0=67, P1=15
+- status counts: covered=82, partial=1
+- priority counts: P0=68, P1=15
 
 ## Product readiness truth table
 
@@ -82,7 +82,7 @@ seed script: present; assert script: present; env example: present; package scri
 
 Status: pass
 
-declared spec scripts: 47; existing e2e specs: 39; missing declared specs: 0
+declared spec scripts: 48; existing e2e specs: 40; missing declared specs: 0
 
 - ok: test:e2e:multitenancy -> cypress/e2e/stage/04-multiclinic-isolation.cy.ts
 - ok: test:e2e:auth -> cypress/e2e/stage/00-auth-and-shell.cy.ts
@@ -92,8 +92,8 @@ declared spec scripts: 47; existing e2e specs: 39; missing declared specs: 0
 - ok: test:e2e:treatments -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
 - ok: test:e2e:settings -> cypress/e2e/stage/05-permission-boundaries.cy.ts
 - ok: test:e2e:marketing -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
-- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.{js,ts} (39 specs)
-- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.{js,ts} (39 specs)
+- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.{js,ts} (40 specs)
+- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.{js,ts} (40 specs)
 - ok: test:e2e:stage:core-navigation -> cypress/e2e/stage/29-core-navigation-smoke.cy.ts
 - ok: test:e2e:stage:business -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
 - ok: test:e2e:stage:crud -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
@@ -131,6 +131,7 @@ declared spec scripts: 47; existing e2e specs: 39; missing declared specs: 0
 - ok: test:e2e:stage:schema -> cypress/e2e/stage/36-stage-schema-contracts.cy.ts
 - ok: test:e2e:stage:push -> cypress/e2e/stage/37-push-notifications.cy.ts
 - ok: test:e2e:stage:whatsapp-settings -> cypress/e2e/stage/38-whatsapp-settings-provider.cy.ts
+- ok: test:e2e:stage:delivery-webhooks -> cypress/e2e/stage/39-notification-delivery-webhooks.cy.ts
 
 ## i18n parity
 
@@ -142,7 +143,7 @@ en keys: 4970; es effective keys: 4970; missing en: 0; missing es: 0
 
 Status: pass
 
-ui files: 439; files with data-testid: 26; data-testid occurrences: 103; required hooks: 16; missing required hooks: 0
+ui files: 441; files with data-testid: 26; data-testid occurrences: 103; required hooks: 16; missing required hooks: 0
 
 - has hooks: app/auth/login/page.tsx
 - has hooks: app/book/[slug]/confirmation/page.tsx
@@ -175,7 +176,7 @@ ui files: 439; files with data-testid: 26; data-testid occurrences: 103; require
 
 Status: pass
 
-api routes: 165; permission guard: 117 (withPermission: 30, manual: 87); qa classified: 16; using supabaseAdmin: 135; admin without permission/cron guard/classification: 0
+api routes: 167; permission guard: 117 (withPermission: 30, manual: 87); qa classified: 16; using supabaseAdmin: 135; admin without permission/cron guard/classification: 0
 
 ## Cron guard inventory
 

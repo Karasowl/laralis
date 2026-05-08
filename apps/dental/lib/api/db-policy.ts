@@ -1,6 +1,6 @@
 import type { DbAccessPolicy } from './types'
 
-const ADMIN_PATH_SEGMENTS = ['/api/cron/', '/api/public/', '/api/whatsapp/webhook']
+const ADMIN_PATH_SEGMENTS = ['/api/cron/', '/api/public/', '/api/webhooks/', '/api/whatsapp/webhook']
 
 export function resolveDbAccessPolicy(pathname: string): DbAccessPolicy {
   const normalized = pathname.toLowerCase()

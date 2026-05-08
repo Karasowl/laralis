@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { isConfirmationEnabled, isEmailEnabled, isReminderEnabled } from '@/lib/email/service'
-import { formatPhoneNumber, getSMSConfigFromSettings, isEventEnabled } from '@/lib/sms/service'
+import { parseResendEmailWebhook } from '@/lib/email/webhooks'
+import { formatPhoneNumber, getSMSConfigFromSettings, isEventEnabled, parseTwilioSMSStatusWebhook } from '@/lib/sms/service'
 import { TwilioWhatsAppProvider } from '@/lib/whatsapp/providers/twilio'
 import { Dialog360WhatsAppProvider } from '@/lib/whatsapp/providers/dialog360'
 import { interpolateTemplate } from '@/lib/whatsapp/service'
@@ -328,6 +329,57 @@ describe('Notification provider contracts', () => {
     expect(isReminderEnabled({ email_enabled: true, reminder_enabled: false })).toBe(false)
   })
 
+  it('maps Resend delivery callbacks into existing email notification states', () => {
+    expect(
+      parseResendEmailWebhook({
+        type: 'email.delivered',
+        created_at: '2026-05-08T12:00:00.000Z',
+        data: {
+          email_id: 'email-qa-delivered',
+          created_at: '2026-05-08T11:59:00.000Z',
+          from: 'Laralis <no-reply@laralis.test>',
+          to: ['patient@laralis.test'],
+          subject: 'Recordatorio QA',
+        },
+      })
+    ).toMatchObject({
+      providerMessageId: 'email-qa-delivered',
+      eventType: 'email.delivered',
+      status: 'sent',
+      eventAt: '2026-05-08T12:00:00.000Z',
+      metadata: {
+        resend_event: 'email.delivered',
+        provider_status: 'delivered',
+      },
+    })
+
+    expect(
+      parseResendEmailWebhook({
+        type: 'email.bounced',
+        created_at: '2026-05-08T12:05:00.000Z',
+        data: {
+          email_id: 'email-qa-bounced',
+          created_at: '2026-05-08T12:04:00.000Z',
+          from: 'Laralis <no-reply@laralis.test>',
+          to: ['patient@laralis.test'],
+          subject: 'Recordatorio QA',
+          bounce: {
+            message: 'Mailbox unavailable',
+            type: 'permanent',
+            subType: 'suppressed',
+          },
+        },
+      })
+    ).toMatchObject({
+      providerMessageId: 'email-qa-bounced',
+      eventType: 'email.bounced',
+      status: 'bounced',
+      errorMessage: 'Mailbox unavailable',
+    })
+
+    expect(parseResendEmailWebhook({ type: 'contact.created', data: { id: 'contact-1' } })).toBeNull()
+  })
+
   it('deep-merges SMS settings and applies patient/staff event switches', () => {
     const config = getSMSConfigFromSettings({
       sms: {
@@ -358,6 +410,38 @@ describe('Notification provider contracts', () => {
     expect(formatPhoneNumber('(555) 555-0123', '1')).toBe('+15555550123')
     expect(formatPhoneNumber('+52 55 1234 5678', '52')).toBe('+525512345678')
     expect(formatPhoneNumber('521234567890', '52')).toBe('+521234567890')
+  })
+
+  it('parses Twilio SMS status callbacks without relying on a live provider call', () => {
+    expect(
+      parseTwilioSMSStatusWebhook({
+        MessageSid: 'SMsmsDelivered',
+        MessageStatus: 'delivered',
+        Timestamp: '2026-05-08T12:10:00.000Z',
+      })
+    ).toEqual({
+      providerMessageId: 'SMsmsDelivered',
+      providerStatus: 'delivered',
+      status: 'delivered',
+      timestamp: '2026-05-08T12:10:00.000Z',
+      errorMessage: undefined,
+    })
+
+    expect(
+      parseTwilioSMSStatusWebhook({
+        SmsSid: 'SMsmsFailed',
+        SmsStatus: 'undelivered',
+        ErrorMessage: 'Carrier blocked SMS',
+      })
+    ).toEqual({
+      providerMessageId: 'SMsmsFailed',
+      providerStatus: 'undelivered',
+      status: 'undelivered',
+      timestamp: undefined,
+      errorMessage: 'Carrier blocked SMS',
+    })
+
+    expect(parseTwilioSMSStatusWebhook({ MessageSid: 'SMmissing-status' })).toBeNull()
   })
 
   it('builds Twilio WhatsApp requests and maps queued status to pending', async () => {

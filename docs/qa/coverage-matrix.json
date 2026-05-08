@@ -288,6 +288,14 @@
     "status": "covered"
   },
   {
+    "id": "qa-077-notification-delivery-webhooks",
+    "priority": "P0",
+    "domain": "notifications",
+    "capability": "Callbacks app-level de Resend y Twilio SMS rechazan requests unsigned y reconcilian estados contra email_notifications/sms_notifications",
+    "layers": ["cypress", "api", "database", "provider-contract", "supabase-task"],
+    "status": "covered"
+  },
+  {
     "id": "qa-035-cron-reminders",
     "priority": "P0",
     "domain": "cron",
