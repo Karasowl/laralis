@@ -46,6 +46,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_notification_retry_queue_active_once
 
 ALTER TABLE notification_retry_queue ENABLE ROW LEVEL SECURITY;
 
+GRANT SELECT, INSERT, UPDATE, DELETE ON notification_retry_queue TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON notification_retry_queue TO service_role;
+
 DROP POLICY IF EXISTS "Users can view notification retries for their clinics"
   ON notification_retry_queue;
 CREATE POLICY "Users can view notification retries for their clinics"
