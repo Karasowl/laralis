@@ -6,6 +6,11 @@ import { sendBookingReceivedSMS } from '@/lib/sms'
 import { sendBookingReceivedWhatsApp } from '@/lib/whatsapp'
 import { readJson } from '@/lib/validation'
 import { getPushNotificationServiceForRequest } from '@/lib/notifications/qa'
+import {
+  buildEmailRetryMetadata,
+  isRetryableNotificationError,
+  queueNotificationRetry,
+} from '@/lib/notifications/retry-queue'
 
 // QA route contract: @qa-public-route public booking request intake.
 export const dynamic = 'force-dynamic'
@@ -70,6 +75,79 @@ function bookingNotificationMessage(params: {
   requestedTime: string
 }): string {
   return `Hola ${params.patientName}, recibimos tu solicitud de cita en ${params.clinicName}. Servicio: ${params.serviceName}. Fecha: ${params.requestedDate} ${params.requestedTime}.`
+}
+
+async function logBookingEmailNotification(params: {
+  clinicId: string
+  bookingId: string
+  clinicName: string
+  patientName: string
+  patientEmail: string
+  serviceName: string
+  requestedDate: string
+  requestedTime: string
+  success: boolean
+  mocked: boolean
+  messageId?: string
+  error?: string
+}): Promise<string | null> {
+  const retryMetadata = buildEmailRetryMetadata({
+    kind: 'booking_confirmation',
+    data: {
+      clinicId: params.clinicId,
+      clinicName: params.clinicName,
+      patientName: params.patientName,
+      patientEmail: params.patientEmail,
+      serviceName: params.serviceName,
+      appointmentDate: params.requestedDate,
+      appointmentTime: params.requestedTime,
+      bookingId: params.bookingId,
+    },
+  }, {
+    source: 'public_booking',
+    public_booking_id: params.bookingId,
+    mocked: params.mocked,
+  })
+
+  const { data, error } = await supabaseAdmin
+    .from('email_notifications')
+    .insert({
+      clinic_id: params.clinicId,
+      treatment_id: null,
+      patient_id: null,
+      notification_type: 'confirmation',
+      recipient_email: params.patientEmail,
+      recipient_name: params.patientName,
+      subject: `Solicitud de Cita Recibida - ${params.serviceName}`,
+      status: params.success ? 'sent' : 'failed',
+      sent_at: params.success ? new Date().toISOString() : null,
+      provider: 'resend',
+      provider_message_id: params.messageId || null,
+      error_message: params.error || null,
+      metadata: retryMetadata,
+    })
+    .select('id')
+    .single()
+
+  if (error) {
+    console.error('Failed to log public booking email notification:', error)
+    return null
+  }
+
+  if (!params.success && data?.id && isRetryableNotificationError(params.error)) {
+    await queueNotificationRetry({
+      clinicId: params.clinicId,
+      channel: 'email',
+      notificationId: data.id,
+      provider: 'resend',
+      providerMessageId: params.messageId || null,
+      reason: 'email_provider_failure',
+      errorMessage: params.error || null,
+      metadata: retryMetadata,
+    })
+  }
+
+  return data?.id || null
 }
 
 async function recordMockSmsNotification(params: {
@@ -380,14 +458,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Send confirmation email if email provided and enabled
     if (data.patient_email && isConfirmationEnabled(notificationSettings)) {
       try {
+        let emailOutcome: NotificationResult & { messageId?: string }
+
         if (forceFailedNotifications) {
-          notificationResults.push({
+          emailOutcome = {
             channel: 'email',
             attempted: true,
             mocked: true,
             success: false,
             error: 'QA forced email failure'
-          })
+          }
         } else if (!mockNotifications) {
           const result = await sendBookingConfirmation({
             clinicId: data.clinic_id,
@@ -400,23 +480,42 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             bookingId: booking.id
           })
 
-          notificationResults.push({
+          emailOutcome = {
             channel: 'email',
             attempted: true,
             mocked: false,
             success: result.success,
+            messageId: result.messageId,
             error: result.error
-          })
+          }
         } else {
-          notificationResults.push({
+          emailOutcome = {
             channel: 'email',
             attempted: true,
             mocked: true,
-            success: true
-          })
+            success: true,
+            messageId: `qa-email-${booking.id}`
+          }
         }
 
-        if (!forceFailedNotifications) {
+        notificationResults.push(emailOutcome)
+
+        await logBookingEmailNotification({
+          clinicId: data.clinic_id,
+          bookingId: booking.id,
+          clinicName: clinic.name,
+          patientName: data.patient_name,
+          patientEmail: data.patient_email,
+          serviceName: service.name,
+          requestedDate: data.requested_date,
+          requestedTime: data.requested_time,
+          success: emailOutcome.success,
+          mocked: emailOutcome.mocked,
+          messageId: emailOutcome.messageId,
+          error: emailOutcome.error,
+        })
+
+        if (emailOutcome.success) {
           await supabaseAdmin
             .from('public_bookings')
             .update({ confirmation_email_sent: true })

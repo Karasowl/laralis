@@ -14,6 +14,7 @@ import type {
   MessageStatus,
 } from './types'
 import { DEFAULT_SMS_CONFIG } from './types'
+import { isRetryableNotificationError, queueNotificationRetry } from '@/lib/notifications/retry-queue'
 
 /** Event types for SMS notifications */
 export type SMSEventType =
@@ -225,6 +226,29 @@ async function sendViaTwilio(
 }
 
 /**
+ * Send one SMS provider attempt without creating a new notification log.
+ * The retry cron uses this to update the original sms_notifications row.
+ */
+export async function sendSMSDeliveryAttempt(params: {
+  clinicId: string
+  recipientPhone: string
+  message: string
+}): Promise<SendSMSResult> {
+  const config = await getSMSConfig(params.clinicId)
+  if (!config.enabled) {
+    return { success: false, error: 'SMS is not enabled for this clinic' }
+  }
+
+  const validation = validateTwilioConfig(config)
+  if (!validation.valid) {
+    return { success: false, error: validation.error }
+  }
+
+  const formattedPhone = formatPhoneNumber(params.recipientPhone, config.default_country_code)
+  return sendViaTwilio(formattedPhone, params.message, config)
+}
+
+/**
  * Map Twilio status to our internal status
  */
 function mapTwilioStatus(twilioStatus: string): 'pending' | 'sent' | 'delivered' | 'failed' | 'undelivered' {
@@ -296,7 +320,7 @@ export async function sendSMS(params: SendSMSParams): Promise<SendSMSResult> {
   const result = await sendViaTwilio(formattedPhone, message, config)
 
   // Log the notification
-  const { error: logError } = await supabaseAdmin.from('sms_notifications').insert({
+  const { data: logRow, error: logError } = await supabaseAdmin.from('sms_notifications').insert({
     clinic_id: clinicId,
     treatment_id: treatmentId || null,
     patient_id: patientId || null,
@@ -312,9 +336,29 @@ export async function sendSMS(params: SendSMSParams): Promise<SendSMSResult> {
     provider_message_id: result.messageId || null,
     cost_cents: result.costCents || 2,
   })
+    .select('id')
+    .single()
 
   if (logError) {
     console.error('[sms] Failed to log notification:', logError)
+  }
+
+  if (!logError && logRow?.id && !result.success && isRetryableNotificationError(result.error)) {
+    await queueNotificationRetry({
+      clinicId,
+      channel: 'sms',
+      notificationId: logRow.id,
+      provider: 'twilio',
+      providerMessageId: result.messageId || null,
+      reason: 'sms_provider_failure',
+      errorMessage: result.error || null,
+      metadata: {
+        notification_type: notificationType,
+        public_booking_id: publicBookingId || null,
+        treatment_id: treatmentId || null,
+        patient_id: patientId || null,
+      },
+    })
   }
 
   return result

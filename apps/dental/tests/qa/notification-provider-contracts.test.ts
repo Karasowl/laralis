@@ -7,6 +7,12 @@ import { Dialog360WhatsAppProvider } from '@/lib/whatsapp/providers/dialog360'
 import { interpolateTemplate } from '@/lib/whatsapp/service'
 import type { WhatsAppConfig } from '@/lib/whatsapp/types'
 import {
+  buildEmailRetryMetadata,
+  calculateNotificationRetryAt,
+  isRetryableNotificationError,
+  readEmailRetryPayload,
+} from '@/lib/notifications/retry-queue'
+import {
   buildWebPushPayload,
   buildWebPushSubscription,
   classifyWebPushError,
@@ -378,6 +384,43 @@ describe('Notification provider contracts', () => {
     })
 
     expect(parseResendEmailWebhook({ type: 'contact.created', data: { id: 'contact-1' } })).toBeNull()
+  })
+
+  it('classifies email/SMS retry failures and builds deterministic retry metadata', () => {
+    expect(isRetryableNotificationError('Provider timeout 503 while sending notification')).toBe(true)
+    expect(isRetryableNotificationError('Rate limit 429 from provider')).toBe(true)
+    expect(isRetryableNotificationError('Network connection reset')).toBe(true)
+
+    expect(isRetryableNotificationError('Invalid email recipient')).toBe(false)
+    expect(isRetryableNotificationError('Twilio config incomplete')).toBe(false)
+    expect(isRetryableNotificationError('Carrier blocked SMS')).toBe(false)
+
+    expect(calculateNotificationRetryAt(0, new Date('2026-05-08T12:00:00.000Z')).toISOString()).toBe('2026-05-08T12:05:00.000Z')
+    expect(calculateNotificationRetryAt(1, new Date('2026-05-08T12:00:00.000Z')).toISOString()).toBe('2026-05-08T12:15:00.000Z')
+    expect(calculateNotificationRetryAt(2, new Date('2026-05-08T12:00:00.000Z')).toISOString()).toBe('2026-05-08T13:00:00.000Z')
+
+    const metadata = buildEmailRetryMetadata({
+      kind: 'reminder',
+      hoursUntil: 24,
+      emailData: {
+        patientName: 'QA Patient',
+        patientEmail: 'qa-patient@laralis.test',
+        clinicName: 'Laralis QA',
+        serviceName: 'Limpieza',
+        appointmentDate: '2026-05-09',
+        appointmentTime: '10:00',
+      },
+    }, {
+      source: 'qa-contract',
+    })
+
+    expect(readEmailRetryPayload(metadata)).toMatchObject({
+      kind: 'reminder',
+      hoursUntil: 24,
+      emailData: {
+        patientEmail: 'qa-patient@laralis.test',
+      },
+    })
   })
 
   it('deep-merges SMS settings and applies patient/staff event switches', () => {

@@ -143,7 +143,7 @@ export default defineConfig({
         select?: string;
         migrationHint?: string;
       }) => {
-        const allowedTables = new Set(['action_logs', 'push_subscriptions', 'push_notifications']);
+        const allowedTables = new Set(['action_logs', 'push_subscriptions', 'push_notifications', 'notification_retry_queue']);
         if (!allowedTables.has(table)) {
           throw new Error(`Stage schema contract cannot inspect unexpected table: ${table}`);
         }
@@ -1820,6 +1820,217 @@ export default defineConfig({
           await client.from('sms_notifications').delete().in('provider_message_id', ids);
 
           return { cleaned: true, count: ids.length };
+        },
+
+        async qaNotificationRetrySeed({
+          stamp,
+          clinicName,
+        }: {
+          stamp: string;
+          clinicName: string;
+        }) {
+          const client = adminClient();
+
+          const { data: clinic, error: clinicError } = await client
+            .from('clinics')
+            .select('id, name')
+            .eq('name', clinicName)
+            .single();
+
+          if (clinicError || !clinic?.id) {
+            throw new Error(`Could not find QA clinic "${clinicName}": ${clinicError?.message || 'missing clinic'}`);
+          }
+
+          const dueAt = new Date(Date.now() - 60_000).toISOString();
+          const errorMessage = 'Provider timeout 503 while sending notification';
+
+          const retryPayload = {
+            kind: 'reminder',
+            emailData: {
+              patientName: `QA Retry ${stamp}`,
+              patientEmail: `${stamp}@laralis.test`,
+              clinicName: clinic.name,
+              serviceName: 'Limpieza QA',
+              appointmentDate: civilDate(1),
+              appointmentTime: '10:30',
+              duration: 45,
+            },
+            hoursUntil: 24,
+          };
+
+          const { data: email, error: emailError } = await client
+            .from('email_notifications')
+            .insert({
+              clinic_id: clinic.id,
+              treatment_id: null,
+              patient_id: null,
+              notification_type: 'reminder',
+              recipient_email: `${stamp}@laralis.test`,
+              recipient_name: `QA Retry ${stamp}`,
+              subject: `QA retry email ${stamp}`,
+              status: 'failed',
+              sent_at: null,
+              provider: 'resend',
+              provider_message_id: null,
+              error_message: errorMessage,
+              metadata: {
+                qa: true,
+                stamp,
+                retry_payload: retryPayload,
+              },
+            })
+            .select('id')
+            .single();
+
+          if (emailError || !email?.id) {
+            throw new Error(`Could not seed retry email row: ${emailError?.message || 'missing row'}`);
+          }
+
+          const { data: sms, error: smsError } = await client
+            .from('sms_notifications')
+            .insert({
+              clinic_id: clinic.id,
+              treatment_id: null,
+              patient_id: null,
+              notification_type: 'custom',
+              recipient_phone: '+15555550123',
+              recipient_name: `QA Retry ${stamp}`,
+              message_content: `QA retry SMS ${stamp}`,
+              status: 'failed',
+              sent_at: null,
+              provider: 'twilio',
+              provider_message_id: null,
+              error_message: errorMessage,
+              cost_cents: 0,
+            })
+            .select('id')
+            .single();
+
+          if (smsError || !sms?.id) {
+            throw new Error(`Could not seed retry SMS row: ${smsError?.message || 'missing row'}`);
+          }
+
+          const { data: retries, error: retryError } = await client
+            .from('notification_retry_queue')
+            .insert([
+              {
+                clinic_id: clinic.id,
+                channel: 'email',
+                notification_id: email.id,
+                provider: 'resend',
+                status: 'pending',
+                reason: 'qa_transient_email_failure',
+                error_message: errorMessage,
+                retry_count: 0,
+                max_attempts: 3,
+                next_retry_at: dueAt,
+                metadata: { qa: true, stamp },
+              },
+              {
+                clinic_id: clinic.id,
+                channel: 'sms',
+                notification_id: sms.id,
+                provider: 'twilio',
+                status: 'pending',
+                reason: 'qa_transient_sms_failure',
+                error_message: errorMessage,
+                retry_count: 0,
+                max_attempts: 3,
+                next_retry_at: dueAt,
+                metadata: { qa: true, stamp },
+              },
+            ])
+            .select('*');
+
+          if (retryError || !retries || retries.length !== 2) {
+            throw new Error(`Could not seed notification retries: ${retryError?.message || 'missing rows'}`);
+          }
+
+          return {
+            stamp,
+            clinicId: clinic.id,
+            emailId: email.id,
+            smsId: sms.id,
+            retryIds: retries.map((row: any) => row.id),
+          };
+        },
+
+        async qaNotificationRetryState({
+          emailId,
+          smsId,
+          retryIds,
+        }: {
+          emailId: string;
+          smsId: string;
+          retryIds: string[];
+        }) {
+          const client = adminClient();
+
+          const { data: emails, error: emailError } = await client
+            .from('email_notifications')
+            .select('*')
+            .eq('id', emailId);
+          if (emailError) throw new Error(`Could not read retry email row: ${emailError.message}`);
+
+          const { data: smsRows, error: smsError } = await client
+            .from('sms_notifications')
+            .select('*')
+            .eq('id', smsId);
+          if (smsError) throw new Error(`Could not read retry SMS row: ${smsError.message}`);
+
+          const { data: retries, error: retryError } = await client
+            .from('notification_retry_queue')
+            .select('*')
+            .in('id', retryIds)
+            .order('channel', { ascending: true });
+          if (retryError) throw new Error(`Could not read notification retry rows: ${retryError.message}`);
+
+          return {
+            email: emails?.[0] || null,
+            sms: smsRows?.[0] || null,
+            retries: retries || [],
+          };
+        },
+
+        async qaNotificationRetryMakeDue({ retryIds }: { retryIds: string[] }) {
+          const ids = (retryIds || []).filter(Boolean);
+          if (ids.length === 0) return { updated: 0 };
+
+          const client = adminClient();
+          const { error } = await client
+            .from('notification_retry_queue')
+            .update({
+              status: 'pending',
+              next_retry_at: new Date(Date.now() - 60_000).toISOString(),
+            })
+            .in('id', ids);
+
+          if (error) throw new Error(`Could not make notification retries due: ${error.message}`);
+          return { updated: ids.length };
+        },
+
+        async qaNotificationRetryCleanup({
+          emailId,
+          smsId,
+          retryIds,
+        }: {
+          emailId?: string;
+          smsId?: string;
+          retryIds?: string[];
+        }) {
+          const client = adminClient();
+          const ids = (retryIds || []).filter(Boolean);
+          if (ids.length > 0) {
+            await client.from('notification_retry_queue').delete().in('id', ids);
+          }
+          if (emailId) {
+            await client.from('email_notifications').delete().eq('id', emailId);
+          }
+          if (smsId) {
+            await client.from('sms_notifications').delete().eq('id', smsId);
+          }
+
+          return { cleaned: true };
         },
 
         async qaWhatsAppWebhookCleanup({ stamp }: { stamp?: string }) {

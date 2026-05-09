@@ -17,6 +17,11 @@ import {
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
 import { forbiddenIfMissingPermission } from '@/lib/permissions';
+import {
+  buildEmailRetryMetadata,
+  isRetryableNotificationError,
+  queueNotificationRetry,
+} from '@/lib/notifications/retry-queue';
 
 export const dynamic = 'force-dynamic';
 
@@ -143,8 +148,15 @@ export async function POST(request: NextRequest) {
     // Send confirmation email
     const result = await sendConfirmationEmail(emailData);
 
+    const retryMetadata = buildEmailRetryMetadata({
+      kind: 'confirmation',
+      emailData,
+    }, {
+      source: 'send_confirmation_api',
+    });
+
     // Log notification
-    await supabaseAdmin.from('email_notifications').insert({
+    const { data: notificationLog, error: notificationLogError } = await supabaseAdmin.from('email_notifications').insert({
       clinic_id: clinicId,
       treatment_id: body.treatmentId,
       patient_id: patient.id,
@@ -156,7 +168,31 @@ export async function POST(request: NextRequest) {
       sent_at: result.success ? new Date().toISOString() : null,
       provider_message_id: result.messageId || null,
       error_message: result.error || null,
-    });
+      metadata: retryMetadata,
+    })
+      .select('id')
+      .single();
+
+    if (notificationLogError) {
+      console.error('[notifications/send-confirmation] Failed to log notification:', notificationLogError);
+    }
+
+    if (
+      notificationLog?.id &&
+      !result.success &&
+      isRetryableNotificationError(result.error)
+    ) {
+      await queueNotificationRetry({
+        clinicId,
+        channel: 'email',
+        notificationId: notificationLog.id,
+        provider: 'resend',
+        providerMessageId: result.messageId || null,
+        reason: 'email_provider_failure',
+        errorMessage: result.error || null,
+        metadata: retryMetadata,
+      });
+    }
 
     if (result.success) {
       return NextResponse.json({

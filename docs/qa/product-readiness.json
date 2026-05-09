@@ -31,11 +31,14 @@
     "evidence": [
       "apps/dental/app/api/public/book/route.ts",
       "apps/dental/app/api/cron/send-reminders/route.ts",
+      "apps/dental/app/api/cron/retry-notifications/route.ts",
       "apps/dental/app/api/webhooks/resend/route.ts",
       "apps/dental/app/api/webhooks/twilio/sms-status/route.ts",
+      "apps/dental/lib/notifications/retry-queue.ts",
       "apps/dental/cypress/e2e/stage/06-public-booking-notifications.cy.ts",
       "apps/dental/cypress/e2e/stage/17-cron-jobs.cy.ts",
       "apps/dental/cypress/e2e/stage/39-notification-delivery-webhooks.cy.ts",
+      "apps/dental/cypress/e2e/stage/40-notification-retry-queue.cy.ts",
       "apps/dental/tests/qa/notification-provider-contracts.test.ts"
     ],
     "proven": [
@@ -45,15 +48,15 @@
       "Reminder cron mutates scheduled reminders and notification records",
       "Forced provider failures keep the booking pending, mark email as unsent, and log failed SMS/WhatsApp notification rows",
       "Resend and Twilio SMS app-level delivery webhook routes reject unsigned production-preview requests and reconcile stage callback payloads into notification logs",
+      "Transient email/SMS provider failures can be queued, rescheduled with backoff, and processed by a CRON_SECRET-protected retry cron against the original notification rows",
       "Twilio/360dialog provider contracts validate outbound payloads, auth headers, status callback parsing, and provider error handling without live calls"
     ],
     "notProven": [
       "Real Resend delivery",
       "Real Twilio SMS delivery",
-      "Real WhatsApp provider delivery",
-      "Email/SMS retry scheduling after transient provider failures"
+      "Real WhatsApp provider delivery"
     ],
-    "nextTest": "Add retry/backoff scheduling for transient email/SMS provider failures and optional real-provider smoke gated by explicit env flags."
+    "nextTest": "Add optional real-provider smoke gated by explicit env flags once Resend/Twilio/WhatsApp senders are approved and safe test recipients exist."
   },
   {
     "area": "lara-ai-actions-audio",

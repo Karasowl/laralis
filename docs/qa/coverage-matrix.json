@@ -296,6 +296,14 @@
     "status": "covered"
   },
   {
+    "id": "qa-078-notification-retry-backoff",
+    "priority": "P0",
+    "domain": "notifications",
+    "capability": "Fallos transitorios de email/SMS se encolan, se reprograman con backoff y luego actualizan la fila original al reintentar",
+    "layers": ["cypress", "api", "database", "provider-mock", "supabase-task"],
+    "status": "covered"
+  },
+  {
     "id": "qa-035-cron-reminders",
     "priority": "P0",
     "domain": "cron",

@@ -25,6 +25,11 @@ import {
   getPushNotificationServiceForRequest,
   isQaNotificationMockRequest,
 } from '@/lib/notifications/qa';
+import {
+  buildEmailRetryMetadata,
+  isRetryableNotificationError,
+  queueNotificationRetry,
+} from '@/lib/notifications/retry-queue';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds max execution time
@@ -177,6 +182,14 @@ export async function GET(request: NextRequest) {
           appointmentTime: treatment.treatment_time || undefined,
           duration: treatment.services.est_minutes,
         };
+        const emailRetryMetadata = buildEmailRetryMetadata({
+          kind: 'reminder',
+          emailData,
+          hoursUntil: Math.max(1, hoursUntil),
+        }, {
+          source: 'send_reminders_cron',
+          scheduled_reminder_id: reminder.id,
+        });
 
         // Send reminder email
         const emailResult: { success: boolean; messageId?: string; error?: string } =
@@ -196,6 +209,7 @@ export async function GET(request: NextRequest) {
             subject: 'Recordatorio de cita',
             status: 'sent',
             providerId: emailResult.messageId,
+            metadata: emailRetryMetadata,
           });
 
           // Send granular SMS reminders based on settings
@@ -247,7 +261,7 @@ export async function GET(request: NextRequest) {
           results.sent++;
         } else {
           // Log failed notification
-          await logNotification({
+          const notificationId = await logNotification({
             clinicId: reminder.clinic_id,
             treatmentId: reminder.treatment_id,
             patientId: reminder.patient_id,
@@ -257,7 +271,21 @@ export async function GET(request: NextRequest) {
             subject: 'Recordatorio de cita',
             status: 'failed',
             errorMessage: emailResult.error,
+            metadata: emailRetryMetadata,
           });
+
+          if (notificationId && isRetryableNotificationError(emailResult.error)) {
+            await queueNotificationRetry({
+              clinicId: reminder.clinic_id,
+              channel: 'email',
+              notificationId,
+              provider: 'resend',
+              providerMessageId: emailResult.messageId || null,
+              reason: 'email_provider_failure',
+              errorMessage: emailResult.error || null,
+              metadata: emailRetryMetadata,
+            });
+          }
 
           // Mark reminder as failed
           await markReminderStatus(reminder.id, 'failed', emailResult.error);
@@ -334,6 +362,7 @@ async function logNotification(params: {
   status: 'pending' | 'sent' | 'failed';
   providerId?: string;
   errorMessage?: string;
+  metadata?: Record<string, unknown>;
 }): Promise<string | null> {
   const { data, error } = await supabaseAdmin
     .from('email_notifications')
@@ -349,6 +378,7 @@ async function logNotification(params: {
       sent_at: params.status === 'sent' ? new Date().toISOString() : null,
       provider_message_id: params.providerId || null,
       error_message: params.errorMessage || null,
+      metadata: params.metadata || {},
     })
     .select('id')
     .single();

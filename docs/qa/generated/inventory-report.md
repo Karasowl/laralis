@@ -1,6 +1,6 @@
 # QA Inventory Report
 
-Generated: 2026-05-08T23:24:55.583Z
+Generated: 2026-05-09T02:07:10.208Z
 
 Status: warn
 Failing checks: 0
@@ -27,10 +27,10 @@ required QA docs: 10; missing: 0
 
 Status: pass
 
-capabilities: 83; domains: 32; required missing domains: 0
+capabilities: 84; domains: 32; required missing domains: 0
 
-- status counts: covered=82, partial=1
-- priority counts: P0=68, P1=15
+- status counts: covered=83, partial=1
+- priority counts: P0=69, P1=15
 
 ## Product readiness truth table
 
@@ -39,7 +39,7 @@ Status: warn
 areas: 7; implementation: partial=7; coverage: provider-mock=4, provider-contract=2, contract-only=1; open P0 risks: 5
 
 - open: inbox-whatsapp-actions [P0] implementation=partial, coverage=provider-mock; not proven=1
-- open: booking-notifications [P0] implementation=partial, coverage=provider-mock; not proven=4
+- open: booking-notifications [P0] implementation=partial, coverage=provider-mock; not proven=3
 - open: lara-ai-actions-audio [P0] implementation=partial, coverage=provider-mock; not proven=5
 - open: push-notifications [P1] implementation=partial, coverage=provider-contract; not proven=5
 - open: whatsapp-inbound-webhook [P0] implementation=partial, coverage=provider-contract; not proven=5
@@ -82,7 +82,7 @@ seed script: present; assert script: present; env example: present; package scri
 
 Status: pass
 
-declared spec scripts: 48; existing e2e specs: 40; missing declared specs: 0
+declared spec scripts: 49; existing e2e specs: 41; missing declared specs: 0
 
 - ok: test:e2e:multitenancy -> cypress/e2e/stage/04-multiclinic-isolation.cy.ts
 - ok: test:e2e:auth -> cypress/e2e/stage/00-auth-and-shell.cy.ts
@@ -92,8 +92,8 @@ declared spec scripts: 48; existing e2e specs: 40; missing declared specs: 0
 - ok: test:e2e:treatments -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
 - ok: test:e2e:settings -> cypress/e2e/stage/05-permission-boundaries.cy.ts
 - ok: test:e2e:marketing -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
-- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.{js,ts} (40 specs)
-- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.{js,ts} (40 specs)
+- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.{js,ts} (41 specs)
+- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.{js,ts} (41 specs)
 - ok: test:e2e:stage:core-navigation -> cypress/e2e/stage/29-core-navigation-smoke.cy.ts
 - ok: test:e2e:stage:business -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
 - ok: test:e2e:stage:crud -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
@@ -132,6 +132,7 @@ declared spec scripts: 48; existing e2e specs: 40; missing declared specs: 0
 - ok: test:e2e:stage:push -> cypress/e2e/stage/37-push-notifications.cy.ts
 - ok: test:e2e:stage:whatsapp-settings -> cypress/e2e/stage/38-whatsapp-settings-provider.cy.ts
 - ok: test:e2e:stage:delivery-webhooks -> cypress/e2e/stage/39-notification-delivery-webhooks.cy.ts
+- ok: test:e2e:stage:notification-retries -> cypress/e2e/stage/40-notification-retry-queue.cy.ts
 
 ## i18n parity
 
@@ -143,7 +144,7 @@ en keys: 4970; es effective keys: 4970; missing en: 0; missing es: 0
 
 Status: pass
 
-ui files: 441; files with data-testid: 26; data-testid occurrences: 103; required hooks: 16; missing required hooks: 0
+ui files: 442; files with data-testid: 26; data-testid occurrences: 103; required hooks: 16; missing required hooks: 0
 
 - has hooks: app/auth/login/page.tsx
 - has hooks: app/book/[slug]/confirmation/page.tsx
@@ -176,16 +177,17 @@ ui files: 441; files with data-testid: 26; data-testid occurrences: 103; require
 
 Status: pass
 
-api routes: 167; permission guard: 117 (withPermission: 30, manual: 87); qa classified: 16; using supabaseAdmin: 135; admin without permission/cron guard/classification: 0
+api routes: 168; permission guard: 117 (withPermission: 30, manual: 87); qa classified: 16; using supabaseAdmin: 136; admin without permission/cron guard/classification: 0
 
 ## Cron guard inventory
 
 Status: pass
 
-cron entries: 5; missing/unguarded: 0
+cron entries: 6; missing/unguarded: 0
 
 - ok: /api/cron/complete-appointments (1 0 * * *)
 - ok: /api/cron/recurring-expenses (5 0 * * *)
 - ok: /api/cron/send-reminders (*/15 * * * *)
+- ok: /api/cron/retry-notifications (*/10 * * * *)
 - ok: /api/cron/snapshots (0 3 * * *)
 - ok: /api/cron/cleanup-draft-workspaces (30 3 * * *)

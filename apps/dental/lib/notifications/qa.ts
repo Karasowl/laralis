@@ -7,19 +7,21 @@ import {
 
 const STAGE_SUPABASE_REF = 'kafbqdliromcveojtdar'
 
+export type QaNotificationMode = 'mock' | 'fail' | null
+
+export function getQaNotificationMode(request: NextRequest): QaNotificationMode {
+  const mode = request.headers.get('x-laralis-qa-notifications')
+  const isStage = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').includes(STAGE_SUPABASE_REF)
+  if (!isStage) return null
+  return mode === 'mock' || mode === 'fail' ? mode : null
+}
+
 export function isQaNotificationMockRequest(request: NextRequest): boolean {
-  return (
-    request.headers.get('x-laralis-qa-notifications') === 'mock' &&
-    (process.env.NEXT_PUBLIC_SUPABASE_URL || '').includes(STAGE_SUPABASE_REF)
-  )
+  return getQaNotificationMode(request) === 'mock'
 }
 
 export function isQaNotificationControlledRequest(request: NextRequest): boolean {
-  const mode = request.headers.get('x-laralis-qa-notifications')
-  return (
-    (mode === 'mock' || mode === 'fail') &&
-    (process.env.NEXT_PUBLIC_SUPABASE_URL || '').includes(STAGE_SUPABASE_REF)
-  )
+  return getQaNotificationMode(request) !== null
 }
 
 export function getPushNotificationServiceForRequest(request: NextRequest): PushNotificationService {

@@ -85,6 +85,7 @@ describe('Stage cron jobs', () => {
     expectUnauthorized('/api/cron/send-reminders')
     expectUnauthorized('/api/cron/complete-appointments')
     expectUnauthorized('/api/cron/recurring-expenses')
+    expectUnauthorized('/api/cron/retry-notifications')
     expectUnauthorized('/api/cron/cleanup-draft-workspaces?dryRun=true')
   })
 
