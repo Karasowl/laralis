@@ -670,5 +670,21 @@
     "capability": "Memoria conversacional de Lara mantiene entidad en foco, referencias por pronombre, periodo, topic y acciones pendientes",
     "layers": ["vitest", "cypress", "api", "provider-mock"],
     "status": "covered"
+  },
+  {
+    "id": "qa-079-lara-session-history",
+    "priority": "P0",
+    "domain": "lara",
+    "capability": "Sesiones y mensajes de Lara persisten historial, respetan clinica/usuario, se archivan y se eliminan sin fuga entre clinicas",
+    "layers": ["cypress", "api", "database"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-080-lara-chat-schema-contract",
+    "priority": "P0",
+    "domain": "schema",
+    "capability": "Stage exige public.chat_sessions y public.chat_messages antes de tratar historial persistido de Lara como cubierto",
+    "layers": ["cypress", "database", "supabase-task"],
+    "status": "covered"
   }
 ]

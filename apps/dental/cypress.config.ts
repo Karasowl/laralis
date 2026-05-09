@@ -143,7 +143,14 @@ export default defineConfig({
         select?: string;
         migrationHint?: string;
       }) => {
-        const allowedTables = new Set(['action_logs', 'push_subscriptions', 'push_notifications', 'notification_retry_queue']);
+        const allowedTables = new Set([
+          'action_logs',
+          'chat_sessions',
+          'chat_messages',
+          'push_subscriptions',
+          'push_notifications',
+          'notification_retry_queue',
+        ]);
         if (!allowedTables.has(table)) {
           throw new Error(`Stage schema contract cannot inspect unexpected table: ${table}`);
         }

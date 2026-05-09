@@ -1,6 +1,6 @@
 # QA Inventory Report
 
-Generated: 2026-05-09T02:07:10.208Z
+Generated: 2026-05-09T02:48:36.061Z
 
 Status: warn
 Failing checks: 0
@@ -27,10 +27,10 @@ required QA docs: 10; missing: 0
 
 Status: pass
 
-capabilities: 84; domains: 32; required missing domains: 0
+capabilities: 86; domains: 32; required missing domains: 0
 
-- status counts: covered=83, partial=1
-- priority counts: P0=69, P1=15
+- status counts: covered=85, partial=1
+- priority counts: P0=71, P1=15
 
 ## Product readiness truth table
 
@@ -82,7 +82,7 @@ seed script: present; assert script: present; env example: present; package scri
 
 Status: pass
 
-declared spec scripts: 49; existing e2e specs: 41; missing declared specs: 0
+declared spec scripts: 50; existing e2e specs: 42; missing declared specs: 0
 
 - ok: test:e2e:multitenancy -> cypress/e2e/stage/04-multiclinic-isolation.cy.ts
 - ok: test:e2e:auth -> cypress/e2e/stage/00-auth-and-shell.cy.ts
@@ -92,8 +92,8 @@ declared spec scripts: 49; existing e2e specs: 41; missing declared specs: 0
 - ok: test:e2e:treatments -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
 - ok: test:e2e:settings -> cypress/e2e/stage/05-permission-boundaries.cy.ts
 - ok: test:e2e:marketing -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
-- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.{js,ts} (41 specs)
-- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.{js,ts} (41 specs)
+- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.{js,ts} (42 specs)
+- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.{js,ts} (42 specs)
 - ok: test:e2e:stage:core-navigation -> cypress/e2e/stage/29-core-navigation-smoke.cy.ts
 - ok: test:e2e:stage:business -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
 - ok: test:e2e:stage:crud -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
@@ -112,6 +112,7 @@ declared spec scripts: 49; existing e2e specs: 41; missing declared specs: 0
 - ok: test:e2e:stage:full-lifecycle -> cypress/e2e/stage/16-full-lifecycle-user.cy.ts
 - ok: test:e2e:stage:crons -> cypress/e2e/stage/17-cron-jobs.cy.ts
 - ok: test:e2e:stage:lara -> cypress/e2e/stage/18-lara-ai-actions.cy.ts
+- ok: test:e2e:stage:lara-history -> cypress/e2e/stage/41-lara-session-history.cy.ts
 - ok: test:e2e:stage:reports -> cypress/e2e/stage/19-reports-dashboard-oracles.cy.ts
 - ok: test:e2e:stage:roles -> cypress/e2e/stage/20-role-matrix-and-clinic-access.cy.ts
 - ok: test:e2e:stage:lara-isolation -> cypress/e2e/stage/21-lara-dashboard-multiclinic-isolation.cy.ts

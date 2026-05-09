@@ -70,7 +70,10 @@
       "apps/dental/lib/ai/context/ConversationContextManager.ts",
       "apps/dental/tests/qa/lara-conversation-context.test.ts",
       "apps/dental/cypress/e2e/stage/18-lara-ai-actions.cy.ts",
+      "apps/dental/cypress/e2e/stage/41-lara-session-history.cy.ts",
       "apps/dental/cypress/e2e/stage/36-stage-schema-contracts.cy.ts",
+      "supabase/migrations/54_create_ai_chat_tables.sql",
+      "supabase/migrations/81_grant_ai_chat_tables.sql",
       "supabase/migrations/73_ensure_action_logs_table.sql"
     ],
     "proven": [
@@ -82,16 +85,19 @@
       "Viewer permissions block mutable AI actions",
       "Mocked STT/TTS contracts and browser audio playback are exercised",
       "Forced LLM/STT/TTS provider failures return deterministic retryable errors instead of silent UI or timeout behavior",
+      "Persisted Lara sessions store ordered messages, metadata, suggested actions, archive state, and stay isolated by clinic and user ownership",
+      "Stage schema exposes chat_sessions and chat_messages for persisted Lara histories",
+      "Stage grants allow authenticated and service_role access paths required by Lara chat APIs while RLS keeps user ownership checks",
       "Stage schema exposes action_logs for Lara action audit trails"
     ],
     "notProven": [
       "Real LLM quality",
       "Real STT provider transcription quality",
       "Real TTS provider audio quality",
-      "Long cross-session conversation memory quality with live LLM behavior",
+      "Live LLM quality using persisted session history across long conversations",
       "Exact live-provider latency, rate-limit, malformed-response, and cost behavior"
     ],
-    "nextTest": "Add optional live-provider smoke for LLM/STT/TTS behind explicit env flags, then add cross-session memory quality assertions if Lara persists conversations beyond request history."
+    "nextTest": "Add optional live-provider smoke for LLM/STT/TTS behind explicit env flags, then assert live LLM behavior over long persisted histories once the provider path is approved for non-deterministic QA."
   },
   {
     "area": "push-notifications",

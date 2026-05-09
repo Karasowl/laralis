@@ -12,6 +12,26 @@ describe('Stage database schema contracts', () => {
     })
   })
 
+  it('requires Lara persisted chat session tables', () => {
+    cy.task('qaAssertStageTable', {
+      table: 'chat_sessions',
+      select: 'id, clinic_id, user_id, mode, title, message_count, is_archived',
+      migrationHint:
+        'Apply supabase/migrations/54_create_ai_chat_tables.sql before treating Lara persisted session history as covered.',
+    }).then((result) => {
+      expect(result).to.deep.eq({ table: 'chat_sessions', readable: true })
+    })
+
+    cy.task('qaAssertStageTable', {
+      table: 'chat_messages',
+      select: 'id, session_id, role, content, action_suggested, audio_duration_ms',
+      migrationHint:
+        'Apply supabase/migrations/54_create_ai_chat_tables.sql before treating Lara persisted session history as covered.',
+    }).then((result) => {
+      expect(result).to.deep.eq({ table: 'chat_messages', readable: true })
+    })
+  })
+
   it('requires push notification subscription and tracking tables', () => {
     cy.task('qaAssertStageTable', {
       table: 'push_subscriptions',

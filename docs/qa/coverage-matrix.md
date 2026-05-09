@@ -251,11 +251,13 @@ Cobertura actual:
 - El mismo spec abre Lara desde la UI, genera una respuesta deterministica, pulsa el boton de escuchar y verifica con `Audio` mockeado en navegador que `/api/ai/synthesize` responde y que `audio.play()` se ejecuta.
 - `FloatingAssistant`, `QueryAssistant` y `ActionConfirmCard` tienen hooks `data-testid` para que la suite no dependa de texto traducido al probar Lara.
 - `apps/dental/cypress/e2e/stage/21-lara-dashboard-multiclinic-isolation.cy.ts` prueba Lara con clinica A y clinica B: el mock sigue pasando por permisos reales, pero ahora lee un snapshot de pacientes, tratamientos y campanas de la clinica resuelta para detectar fugas de contexto multi-clinica.
-- `apps/dental/cypress/e2e/stage/36-stage-schema-contracts.cy.ts` agrega un gate de esquema: `public.action_logs` debe existir en Supabase stage antes de considerar completa la auditoria de acciones confirmadas por Lara.
+- `apps/dental/cypress/e2e/stage/36-stage-schema-contracts.cy.ts` agrega gates de esquema: `public.action_logs`, `public.chat_sessions` y `public.chat_messages` deben existir en Supabase stage antes de considerar completa la auditoria y el historial persistido de Lara.
+- `apps/dental/cypress/e2e/stage/41-lara-session-history.cy.ts` crea una sesion real de Lara, guarda mensajes con metadata de audio y accion sugerida, verifica historial persistido, comprueba que no aparece en otra clinica ni para otro usuario, y valida archivado/borrado por API.
+- `supabase/migrations/81_grant_ai_chat_tables.sql` versiona los grants necesarios para que el API de Lara pueda usar `chat_sessions`, `chat_messages` y `ai_feedback` desde `service_role`/`authenticated` sin depender de privilegios manuales del dashboard.
 
 Brechas abiertas:
 
-- Lara cubre respuesta mockeada, accion sugerida, persistencia funcional, auditoria en `action_logs`, contrato de memoria conversacional por request, limites de permisos, audio input/output, fallos controlados de proveedor y panel visual. Entry Mode completo, memoria larga persistida entre sesiones y un smoke real no deterministico de proveedor quedan como endurecimiento posterior.
+- Lara cubre respuesta mockeada, accion sugerida, persistencia funcional, auditoria en `action_logs`, contrato de memoria conversacional por request, persistencia basica de sesiones/mensajes, aislamiento de historial por clinica/usuario, limites de permisos, audio input/output, fallos controlados de proveedor y panel visual. Entry Mode completo, calidad de memoria larga con proveedor real y un smoke real no deterministico de proveedor quedan como endurecimiento posterior.
 
 ## Gates de inventario
 
