@@ -1,6 +1,6 @@
 # Numeric Oracle Audit
 
-Generated: 2026-05-10T18:28:28.150Z
+Generated: 2026-05-10T18:59:34.333Z
 
 Status: warn
 Metric groups: 11
