@@ -195,7 +195,7 @@ function openEntryEntity(entityId: string) {
   cy.get('[data-testid="lara-entry-mode"]', { timeout: 30000 }).should('be.visible').click()
   cy.get('[data-testid="lara-entry-assistant"]', { timeout: 30000 }).should('be.visible')
   cy.get('[data-testid="lara-entry-entity-selector"]').should('exist')
-  cy.get(`[data-testid="lara-entry-entity-${entityId}"]`).should('be.visible').click()
+  cy.get(`[data-testid="lara-entry-entity-${entityId}"]`).scrollIntoView().should('exist').click({ force: true })
   cy.get('[data-testid="lara-entry-flow"]').should('exist')
 }
 
