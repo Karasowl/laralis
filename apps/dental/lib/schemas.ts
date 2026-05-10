@@ -93,6 +93,7 @@ export const patientSchema = z.object({
   email: z.string().email().optional().or(z.literal('')),
   phone: z.string().optional(),
   birth_date: z.string().optional(),
+  gender: z.enum(['male', 'female', 'other']).optional(),
   address: z.string().optional(),
   notes: z.string().optional(),
   source_id: z.string().optional(),
@@ -130,6 +131,7 @@ export const treatmentFormSchema = z.object({
   patient_id: z.string().min(1, 'Patient is required'),
   service_id: z.string().min(1, 'Service is required'),
   treatment_date: z.string().min(1, 'Date is required'),
+  minutes: z.number().int().positive().optional(),
   notes: z.string().optional(),
   discount_pct: z.number().min(0).default(0), // No upper limit
   paid: z.boolean().default(false)

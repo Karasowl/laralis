@@ -72,7 +72,19 @@ function qaExtractEntryValue(field: string | undefined, userInput: string) {
     return Number.isFinite(numeric) ? Math.round(numeric * 100) : null
   }
 
-  if (['est_minutes', 'minutes', 'work_days', 'hours_per_day', 'real_pct'].includes(field)) {
+  if (
+    field.endsWith('_pesos') ||
+    [
+      'est_minutes',
+      'minutes',
+      'work_days',
+      'hours_per_day',
+      'real_pct',
+      'portions',
+      'depreciation_months',
+      'quantity',
+    ].includes(field)
+  ) {
     const numeric = Number(value.replace(/[^\d.]/g, ''))
     return Number.isFinite(numeric) ? numeric : null
   }

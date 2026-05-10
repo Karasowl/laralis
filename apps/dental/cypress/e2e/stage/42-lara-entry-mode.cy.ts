@@ -22,6 +22,14 @@ type Patient = {
   last_name: string
 }
 
+type ApiRecord = {
+  id: string
+  name?: string
+  vendor?: string
+  description?: string
+  category?: string
+}
+
 function readDataset(): Cypress.Chainable<QaDataset> {
   return cy.readFile('../../docs/qa/dataset.json')
 }
@@ -51,6 +59,37 @@ function selectQaClinic(key = 'clinicA'): Cypress.Chainable<Clinic> {
   })
 }
 
+function responseRecords(body: unknown): ApiRecord[] {
+  if (Array.isArray(body)) return body as ApiRecord[]
+  if (body && typeof body === 'object' && Array.isArray((body as { data?: unknown }).data)) {
+    return (body as { data: ApiRecord[] }).data
+  }
+  return []
+}
+
+function cleanupRecordsByQuery(
+  endpoint: string,
+  query: string,
+  matches: (record: ApiRecord) => boolean
+) {
+  cy.loginAsDoctor()
+  selectQaClinic('clinicA').then(() => {
+    cy.request(`${endpoint}?${query}`).then((response) => {
+      expect(response.status).to.eq(200)
+      const records = responseRecords(response.body).filter(matches)
+
+      cy.wrap(records).each((record) => {
+        const item = record as ApiRecord
+        cy.request({
+          method: 'DELETE',
+          url: `${endpoint}/${item.id}`,
+          failOnStatusCode: false,
+        })
+      })
+    })
+  })
+}
+
 function cleanupPatientsBySearch(search: string) {
   cy.loginAsDoctor()
   selectQaClinic('clinicA').then(() => {
@@ -66,6 +105,30 @@ function cleanupPatientsBySearch(search: string) {
       })
     })
   })
+}
+
+function cleanupServicesBySearch(search: string) {
+  cleanupRecordsByQuery(
+    '/api/services',
+    `search=${encodeURIComponent(search)}`,
+    (record) => record.name === search
+  )
+}
+
+function cleanupSuppliesBySearch(search: string) {
+  cleanupRecordsByQuery(
+    '/api/supplies',
+    `search=${encodeURIComponent(search)}`,
+    (record) => record.name === search
+  )
+}
+
+function cleanupExpensesByVendor(vendor: string) {
+  cleanupRecordsByQuery(
+    '/api/expenses',
+    `vendor=${encodeURIComponent(vendor)}`,
+    (record) => record.vendor === vendor
+  )
 }
 
 function entryBody(clinicId: string, currentField = 'first_name', userInput = 'QA Direct') {
@@ -88,8 +151,51 @@ function submitEntryValue(value: string) {
   cy.wait('@laraEntryChat').its('response.statusCode').should('eq', 200)
 }
 
+function submitEntryField(expectedField: string, value: string) {
+  cy.get('[data-testid="lara-entry-current-field"]', { timeout: 30000 }).should(
+    'contain.text',
+    expectedField
+  )
+  submitEntryValue(value)
+}
+
+function setupEntryIntercept() {
+  cy.intercept('POST', '/api/ai/chat', (req) => {
+    req.headers['x-laralis-qa-ai'] = 'mock'
+    req.continue()
+  }).as('laraEntryChat')
+}
+
+function loginOwnerAtQaClinic() {
+  cy.loginAsDoctor()
+  selectQaClinic('clinicA')
+  cy.visit('/')
+  cy.assertNotInSetupFlow()
+}
+
+function openEntryEntity(entityId: string) {
+  cy.get('[data-testid="lara-fab"]', { timeout: 30000 }).should('be.visible').click()
+  cy.get('[data-testid="lara-entry-mode"]', { timeout: 30000 }).should('be.visible').click()
+  cy.get('[data-testid="lara-entry-assistant"]', { timeout: 30000 }).should('be.visible')
+  cy.get('[data-testid="lara-entry-entity-selector"]').should('exist')
+  cy.get(`[data-testid="lara-entry-entity-${entityId}"]`).should('be.visible').click()
+  cy.get('[data-testid="lara-entry-flow"]').should('exist')
+}
+
+function saveEntry(alias: string, expectedStatus = 201) {
+  cy.get('[data-testid="lara-entry-preview-panel"]', { timeout: 30000 }).should('be.visible')
+  cy.get('[data-testid="lara-entry-save"]').should('be.enabled').click()
+  cy.wait(alias).then((interception) => {
+    expect(interception.response?.statusCode).to.eq(expectedStatus)
+  })
+  cy.get('[data-testid="lara-entry-success"]', { timeout: 30000 }).should('be.visible')
+}
+
 describe('Stage Lara entry mode', () => {
   let cleanupSearch = ''
+  let cleanupServiceSearch = ''
+  let cleanupSupplySearch = ''
+  let cleanupExpenseVendor = ''
 
   beforeEach(() => {
     cy.viewport(1280, 720)
@@ -99,6 +205,18 @@ describe('Stage Lara entry mode', () => {
     if (cleanupSearch) {
       cleanupPatientsBySearch(cleanupSearch)
       cleanupSearch = ''
+    }
+    if (cleanupServiceSearch) {
+      cleanupServicesBySearch(cleanupServiceSearch)
+      cleanupServiceSearch = ''
+    }
+    if (cleanupSupplySearch) {
+      cleanupSuppliesBySearch(cleanupSupplySearch)
+      cleanupSupplySearch = ''
+    }
+    if (cleanupExpenseVendor) {
+      cleanupExpensesByVendor(cleanupExpenseVendor)
+      cleanupExpenseVendor = ''
     }
   })
 
@@ -153,26 +271,13 @@ describe('Stage Lara entry mode', () => {
     cy.visit('/')
     cy.assertNotInSetupFlow()
 
-    cy.intercept('POST', '/api/ai/chat', (req) => {
-      req.headers['x-laralis-qa-ai'] = 'mock'
-      req.continue()
-    }).as('laraEntryChat')
+    setupEntryIntercept()
     cy.intercept('POST', '/api/patients').as('createPatient')
 
-    cy.get('[data-testid="lara-fab"]', { timeout: 30000 }).should('be.visible').click()
-    cy.get('[data-testid="lara-entry-mode"]', { timeout: 30000 }).should('be.visible').click()
-    cy.get('[data-testid="lara-entry-assistant"]', { timeout: 30000 }).should('be.visible')
-    cy.get('[data-testid="lara-entry-entity-selector"]').should('exist')
-    cy.get('[data-testid="lara-entry-entity-patient"]').should('be.visible').click()
-
-    cy.get('[data-testid="lara-entry-flow"]').should('exist')
-    cy.get('[data-testid="lara-entry-current-field"]').should('contain.text', 'first name')
-    submitEntryValue(firstName)
-
-    cy.get('[data-testid="lara-entry-current-field"]', { timeout: 30000 }).should('contain.text', 'last name')
-    submitEntryValue(lastName)
-
-    cy.get('[data-testid="lara-entry-current-field"]').should('contain.text', 'phone')
+    openEntryEntity('patient')
+    submitEntryField('first name', firstName)
+    submitEntryField('last name', lastName)
+    cy.get('[data-testid="lara-entry-current-field"]', { timeout: 30000 }).should('contain.text', 'phone')
     Cypress._.times(6, () => {
       cy.get('[data-testid="lara-entry-skip-field"]').should('be.enabled').click()
     })
@@ -191,6 +296,87 @@ describe('Stage Lara entry mode', () => {
       expect(response.status).to.eq(200)
       const patients = (response.body.data || []) as Patient[]
       expect(patients.some((patient) => patient.first_name === firstName && patient.last_name === lastName)).to.eq(true)
+    })
+  })
+
+  it('creates a service through Lara entry with typed numeric extraction', () => {
+    const name = `QAEntryService${Date.now()}`
+    cleanupServiceSearch = name
+    cleanupServicesBySearch(name)
+
+    loginOwnerAtQaClinic()
+    setupEntryIntercept()
+    cy.intercept('POST', '/api/services').as('createService')
+
+    openEntryEntity('service')
+    submitEntryField('name', name)
+    submitEntryField('category', 'preventivo')
+    submitEntryField('description', 'Servicio QA creado por Lara')
+    submitEntryField('est minutes', '45')
+    submitEntryField('base price cents', '25')
+
+    cy.get('[data-testid="lara-entry-preview-panel"]').should('contain.text', name)
+    cy.get('[data-testid="lara-entry-preview-panel"]').should('contain.text', '2500')
+    saveEntry('@createService')
+
+    cy.request(`/api/services?search=${encodeURIComponent(name)}`).then((response) => {
+      expect(response.status).to.eq(200)
+      const services = responseRecords(response.body)
+      expect(services.some((service) => service.name === name)).to.eq(true)
+    })
+  })
+
+  it('creates a supply through Lara entry using the form-level peso field', () => {
+    const name = `QAEntrySupply${Date.now()}`
+    cleanupSupplySearch = name
+    cleanupSuppliesBySearch(name)
+
+    loginOwnerAtQaClinic()
+    setupEntryIntercept()
+    cy.intercept('POST', '/api/supplies').as('createSupply')
+
+    openEntryEntity('supply')
+    submitEntryField('name', name)
+    submitEntryField('category', 'material')
+    submitEntryField('presentation', 'Caja')
+    submitEntryField('price pesos', '120')
+    submitEntryField('portions', '12')
+
+    cy.get('[data-testid="lara-entry-preview-panel"]').should('contain.text', name)
+    cy.get('[data-testid="lara-entry-preview-panel"]').should('contain.text', '120')
+    saveEntry('@createSupply')
+
+    cy.request(`/api/supplies?search=${encodeURIComponent(name)}`).then((response) => {
+      expect(response.status).to.eq(200)
+      const supplies = responseRecords(response.body)
+      expect(supplies.some((supply) => supply.name === name)).to.eq(true)
+    })
+  })
+
+  it('creates an expense through Lara entry and persists the vendor/date context', () => {
+    const vendor = `QAEntryVendor${Date.now()}`
+    cleanupExpenseVendor = vendor
+    cleanupExpensesByVendor(vendor)
+
+    loginOwnerAtQaClinic()
+    setupEntryIntercept()
+    cy.intercept('POST', '/api/expenses').as('createExpense')
+
+    openEntryEntity('expense')
+    submitEntryField('expense date', '2026-05-10')
+    submitEntryField('category', 'Insumos')
+    submitEntryField('amount cents', '17')
+    submitEntryField('description', 'Gasto QA creado por Lara')
+    submitEntryField('vendor', vendor)
+
+    cy.get('[data-testid="lara-entry-preview-panel"]').should('contain.text', vendor)
+    cy.get('[data-testid="lara-entry-preview-panel"]').should('contain.text', '1700')
+    saveEntry('@createExpense')
+
+    cy.request(`/api/expenses?vendor=${encodeURIComponent(vendor)}`).then((response) => {
+      expect(response.status).to.eq(200)
+      const expenses = responseRecords(response.body)
+      expect(expenses.some((expense) => expense.vendor === vendor)).to.eq(true)
     })
   })
 })

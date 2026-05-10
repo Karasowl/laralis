@@ -255,11 +255,12 @@ Cobertura actual:
 - `apps/dental/cypress/e2e/stage/41-lara-session-history.cy.ts` crea una sesion real de Lara, guarda mensajes con metadata de audio y accion sugerida, verifica historial persistido, comprueba que no aparece en otra clinica ni para otro usuario, y valida archivado/borrado por API.
 - `supabase/migrations/81_grant_ai_chat_tables.sql` versiona los grants necesarios para que el API de Lara pueda usar `chat_sessions`, `chat_messages` y `ai_feedback` desde `service_role`/`authenticated` sin depender de privilegios manuales del dashboard.
 - `apps/dental/app/api/ai/chat/route.ts` ahora exige contexto de clinica y permiso `lara.use_entry_mode` para Entry Mode; el modo `x-laralis-qa-ai: mock` queda limitado al Supabase stage `kafbqdliromcveojtdar`.
-- `apps/dental/cypress/e2e/stage/42-lara-entry-mode.cy.ts` prueba que viewer recibe `403` en Entry Mode, que assistant puede usar el mock QA, y que la UI de Lara crea un paciente real en Supabase stage sin llamar al proveedor LLM.
+- `apps/dental/cypress/e2e/stage/42-lara-entry-mode.cy.ts` prueba que viewer recibe `403` en Entry Mode, que assistant puede usar el mock QA, y que la UI de Lara crea paciente, servicio, insumo y gasto reales en Supabase stage sin llamar al proveedor LLM.
+- `apps/dental/tests/qa/lara-entry-context.test.ts` evita que Entry Mode pregunte campos que no existen en el schema de la entidad; este gate detecto y cubre la alineacion de `gender`, `minutes`, `price_pesos` y `purchase_price_pesos`.
 
 Brechas abiertas:
 
-- Lara cubre respuesta mockeada, accion sugerida, persistencia funcional, auditoria en `action_logs`, contrato de memoria conversacional por request, persistencia basica de sesiones/mensajes, aislamiento de historial por clinica/usuario, limites de permisos, Entry Mode para alta de paciente, audio input/output, fallos controlados de proveedor y panel visual. Entry Mode para todas las entidades, calidad de memoria larga con proveedor real y un smoke real no deterministico de proveedor quedan como endurecimiento posterior.
+- Lara cubre respuesta mockeada, accion sugerida, persistencia funcional, auditoria en `action_logs`, contrato de memoria conversacional por request, persistencia basica de sesiones/mensajes, aislamiento de historial por clinica/usuario, limites de permisos, Entry Mode para alta de paciente/servicio/insumo/gasto, audio input/output, fallos controlados de proveedor y panel visual. Entry Mode para tratamientos y entidades de configuracion, calidad de memoria larga con proveedor real y un smoke real no deterministico de proveedor quedan como endurecimiento posterior.
 
 ## Gates de inventario
 
