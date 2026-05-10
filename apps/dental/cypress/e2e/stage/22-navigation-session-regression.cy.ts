@@ -61,6 +61,13 @@ describe('Stage navigation and session regressions', () => {
     cy.loginAsDoctor()
   })
 
+  it('redirects active accounts away from onboarding', () => {
+    cy.visit('/onboarding', { failOnStatusCode: false })
+    cy.location('pathname', { timeout: 30000 }).should('not.eq', '/onboarding')
+    cy.assertNotInSetupFlow()
+    cy.assertAppShell()
+  })
+
   it('keeps the authenticated shell stable across reload, back, forward, and language changes', () => {
     cy.viewport(1280, 720)
     loadSeedClinic('clinicA').then((clinicA) => {

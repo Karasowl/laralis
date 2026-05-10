@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { useOnboarding } from '@/hooks/use-onboarding'
 import { OnboardingModal } from '@/components/onboarding/OnboardingModal'
 import { WelcomeStep } from '@/components/onboarding/WelcomeStep'
@@ -42,24 +41,22 @@ export default function OnboardingPage() {
     clearOnboardingStorage()
   }, [])
 
-  // Client guard: if user already has workspace AND clinic, prefer full setup page
+  // Client guard: if the user already has an accessible workspace, leave the
+  // first-run flow. Use the server route so member/admin accounts are handled
+  // the same way as owner accounts.
   useEffect(() => {
-    const supabase = createClient()
     ;(async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
+        const response = await fetch('/api/workspaces?list=true', {
+          credentials: 'include',
+          cache: 'no-store',
+        })
 
-        // Check if user has a usable workspace. Archived/deleted workspaces
-        // should not block a fresh onboarding.
-        const { data: ws } = await supabase
-          .from('workspaces')
-          .select('id, status, onboarding_completed')
-          .eq('owner_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(10)
+        if (response.status === 401) return
+        if (!response.ok) return
 
-        const visibleWorkspaces = (ws || []).filter((workspace: any) => {
+        const workspaces = await response.json().catch(() => [])
+        const visibleWorkspaces = (Array.isArray(workspaces) ? workspaces : []).filter((workspace: any) => {
           const status = workspace?.status || (workspace?.onboarding_completed ? 'active' : 'draft')
           return !['archived', 'pending_deletion', 'deleted'].includes(status)
         })
@@ -75,9 +72,7 @@ export default function OnboardingPage() {
             return
           }
 
-          // Draft workspaces are handled by middleware on fresh navigation.
-          // Do not redirect from this client effect because it can race with
-          // the just-created onboarding flow before router.push('/setup') runs.
+          router.replace('/setup/resume')
         }
       } catch {}
     })()
