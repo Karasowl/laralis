@@ -1,22 +1,24 @@
 # QA Inventory Report
 
-Generated: 2026-05-10T07:48:33.076Z
+Generated: 2026-05-10T18:26:25.820Z
 
 Status: warn
 Failing checks: 0
-Warning checks: 1
+Warning checks: 2
 
 ## QA docs
 
 Status: pass
 
-required QA docs: 10; missing: 0
+required QA docs: 12; missing: 0
 
 - ok: docs/qa/README.md
 - ok: docs/qa/coverage-matrix.md
 - ok: docs/qa/coverage-matrix.json
 - ok: docs/qa/product-readiness.md
 - ok: docs/qa/product-readiness.json
+- ok: docs/qa/numeric-oracles.md
+- ok: docs/qa/numeric-oracles.json
 - ok: docs/qa/dataset.md
 - ok: docs/qa/dataset.json
 - ok: docs/qa/oracles.md
@@ -27,16 +29,16 @@ required QA docs: 10; missing: 0
 
 Status: pass
 
-capabilities: 93; domains: 32; required missing domains: 0
+capabilities: 94; domains: 33; required missing domains: 0
 
-- status counts: covered=91, partial=1, planned=1
-- priority counts: P0=78, P1=15
+- status counts: covered=91, partial=1, planned=2
+- priority counts: P0=79, P1=15
 
 ## Product readiness truth table
 
 Status: warn
 
-areas: 8; implementation: partial=8; coverage: provider-mock=4, provider-contract=2, contract-only=1, real=1; open P0 risks: 6
+areas: 9; implementation: partial=9; coverage: provider-mock=4, provider-contract=2, contract-only=1, real=2; open P0 risks: 7
 
 - open: inbox-whatsapp-actions [P0] implementation=partial, coverage=provider-mock; not proven=1
 - open: booking-notifications [P0] implementation=partial, coverage=provider-mock; not proven=3
@@ -46,6 +48,7 @@ areas: 8; implementation: partial=8; coverage: provider-mock=4, provider-contrac
 - open: whatsapp-provider-settings [P0] implementation=partial, coverage=provider-mock; not proven=3
 - open: visual-regression [P1] implementation=partial, coverage=contract-only; not proven=4
 - open: data-portability-exports [P0] implementation=partial, coverage=real; not proven=3
+- open: numeric-oracle-spine [P0] implementation=partial, coverage=real; not proven=5
 
 ## QA dataset
 
@@ -66,17 +69,27 @@ completed revenue cents: 7650000; variable cost cents: 331000; allocated fixed c
 - oracle gross profit cents: 7319000
 - oracle operating profit cents: 1979000
 
+## Numeric oracle audit
+
+Status: warn
+
+numeric metric groups: 11; assertions: 57; statuses: covered=10, planned=1; open P0: 1
+
+- open numeric P0: num-011-goal-setting-and-targets [planned] Validar objetivos de dinero, pacientes, tratamientos y marketing cuando el producto tenga flujo estable de metas.
+
 ## QA stage seed
 
 Status: pass
 
-seed script: present; assert script: present; env example: present; package scripts: 6/6
+seed script: present; assert script: present; env example: present; package scripts: 8/8
 
 - ok: qa:seed:plan
 - ok: qa:seed
 - ok: qa:seed:reset
 - ok: qa:stage:assert
+- ok: qa:stage:prepare
 - ok: qa:oracles
+- ok: qa:numeric
 - ok: qa:check
 
 ## Cypress spec inventory

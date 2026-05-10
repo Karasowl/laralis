@@ -1,9 +1,80 @@
-describe('Stage read-only dental workflow from demo video', () => {
+type Oracles = {
+  patients: {
+    total: number
+    bySource: Record<string, number>
+  }
+  treatments: {
+    total: number
+    byStatus: Record<string, number>
+  }
+  marketing: {
+    metaMayo: {
+      patients: number
+      spendCents: number
+      revenueCents: number
+      roas: number
+    }
+  }
+}
+
+type QaDataset = {
+  clinics: Array<{ key: string; name: string }>
+}
+
+function classifyTreatment(row: any) {
+  if (row.status === 'cancelled') return 'cancelled'
+  if (row.status === 'pending' || row.status === 'scheduled') return 'pending'
+
+  const price = row.price_cents || 0
+  const paid = row.amount_paid_cents || 0
+  if (row.status === 'completed' && paid >= price && price > 0) return 'completed_paid'
+  if (row.status === 'completed' && paid > 0 && paid < price) return 'partial'
+  return row.status || 'unknown'
+}
+
+function selectQaClinicA() {
+  return cy.readFile('../../docs/qa/dataset.json').then((dataset: QaDataset) => {
+    const clinicName = dataset.clinics.find((clinic) => clinic.key === 'clinicA')?.name
+    expect(clinicName, 'QA clinic A name').to.be.a('string')
+
+    return cy.request('/api/clinics').then((clinicsResponse) => {
+      expect(clinicsResponse.status).to.eq(200)
+      const clinic = (clinicsResponse.body.data || []).find((item: any) => item.name === clinicName)
+      expect(clinic, `QA clinic ${clinicName} must exist`).to.exist
+
+      return cy.request('POST', '/api/clinics', { clinicId: clinic.id }).then((selectResponse) => {
+        expect(selectResponse.status).to.eq(200)
+      })
+    })
+  })
+}
+
+function countBy<T>(rows: T[], classify: (row: T) => string) {
+  return rows.reduce((acc: Record<string, number>, row) => {
+    const key = classify(row)
+    acc[key] = (acc[key] || 0) + 1
+    return acc
+  }, {})
+}
+
+describe('Stage read-only dental data integrity flow from demo video', () => {
   beforeEach(() => {
     cy.loginAsDoctor()
+    selectQaClinicA()
   })
 
-  it('loads patients, filters, and the create patient source fields without saving', () => {
+  it('loads patients and verifies the seeded acquisition mix without saving', () => {
+    cy.readFile('../../docs/qa/oracles.json').then((oracles: Oracles) => {
+      cy.request('/api/patients').then((response) => {
+        expect(response.status).to.eq(200)
+        const patients = response.body.data || []
+        expect(patients, 'QA clinic patient count').to.have.length(oracles.patients.total)
+        expect(countBy(patients, (patient: any) => patient.source?.name || 'unknown')).to.include(
+          oracles.patients.bySource
+        )
+      })
+    })
+
     cy.visit('/patients')
     cy.location('pathname', { timeout: 30000 }).should('include', '/patients')
     cy.assertAppShell()
@@ -29,7 +100,22 @@ describe('Stage read-only dental workflow from demo video', () => {
     cy.location('pathname').should('include', '/patients')
   })
 
-  it('loads marketing platforms and campaigns used for patient attribution', () => {
+  it('loads marketing and verifies Meta Mayo attribution numbers', () => {
+    cy.readFile('../../docs/qa/oracles.json').then((oracles: Oracles) => {
+      cy.request('/api/marketing/campaigns/roi?startDate=2026-05-01&endDate=2026-05-31').then((response) => {
+        expect(response.status).to.eq(200)
+        const meta = (response.body.data || []).find((campaign: any) => campaign.name === 'Meta Mayo')
+
+        expect(meta, 'Meta Mayo campaign').to.exist
+        expect(meta.patientsCount, 'Meta Mayo patients').to.eq(oracles.marketing.metaMayo.patients)
+        expect(meta.investmentCents, 'Meta Mayo spend').to.eq(oracles.marketing.metaMayo.spendCents)
+        expect(meta.revenueCents, 'Meta Mayo revenue').to.eq(oracles.marketing.metaMayo.revenueCents)
+        expect(Number((meta.revenueCents / meta.investmentCents).toFixed(4)), 'Meta Mayo ROAS').to.eq(
+          oracles.marketing.metaMayo.roas
+        )
+      })
+    })
+
     cy.visit('/marketing')
     cy.assertAppShell()
     cy.contains(/Marketing/i, { timeout: 30000 }).should('be.visible')
@@ -40,7 +126,16 @@ describe('Stage read-only dental workflow from demo video', () => {
     cy.contains(/No hay campañas|No campaigns/i).should('not.exist')
   })
 
-  it('loads treatments and can navigate back to patients without losing clinic context', () => {
+  it('loads treatments and verifies status counts before navigating back to patients', () => {
+    cy.readFile('../../docs/qa/oracles.json').then((oracles: Oracles) => {
+      cy.request('/api/treatments').then((response) => {
+        expect(response.status).to.eq(200)
+        const treatments = response.body.data || []
+        expect(treatments, 'QA clinic treatments count').to.have.length(oracles.treatments.total)
+        expect(countBy(treatments, classifyTreatment)).to.include(oracles.treatments.byStatus)
+      })
+    })
+
     cy.visit('/treatments')
     cy.assertAppShell()
     cy.contains(/Tratamientos|Treatments/i, { timeout: 30000 }).should('be.visible')

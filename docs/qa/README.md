@@ -10,6 +10,20 @@ La tabla de verdad sobre producto real, mocks y brechas vive en [Product Readine
 
 El dataset canonico vive en [QA Dataset](./dataset.md). Los resultados esperados viven en [QA Oracles](./oracles.md).
 
+El contrato ejecutable de numeros P0 vive en [Numeric QA Oracles](./numeric-oracles.md). Su version legible por maquina vive en `docs/qa/numeric-oracles.json` y se valida con:
+
+```bash
+npm --workspace @laralis/dental run qa:numeric
+```
+
+Antes de usar `test:e2e:stage:business` como puerta de release, stage debe estar limpio y sembrado con el dataset QA canonico:
+
+```bash
+npm --workspace @laralis/dental run qa:stage:prepare
+```
+
+Si no se prepara stage, un fallo de conteos no debe ignorarse como flaky: significa dataset sucio, clinica activa incorrecta o aislamiento roto.
+
 ## Objetivo
 
 El objetivo no es arreglar bugs aislados. El objetivo es construir un sistema que detecte sistematicamente bugs presentes y futuros.

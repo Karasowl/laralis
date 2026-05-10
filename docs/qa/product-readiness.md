@@ -47,3 +47,21 @@ docs/qa/product-readiness.json
 `product-readiness.json` dice cuanta confianza real tenemos en esa capacidad.
 
 Ambas cosas son necesarias. Cobertura sin readiness puede mentir. Readiness sin tests se olvida.
+
+## Numeros
+
+Los numeros del producto tienen una regla adicional: no se consideran listos por aparecer en dashboard.
+
+Para marcar una capacidad numerica como `real`, debe estar probada desde al menos dos capas:
+
+- formula o dataset-oracle;
+- API stage;
+- UI o export que consuma el mismo valor.
+
+El contrato completo vive en:
+
+```text
+docs/qa/numeric-oracles.md
+```
+
+Esto aplica a costos de insumos, recetas de servicios, margen de contribucion, costo fijo por minuto, depreciacion, pagos, gastos, objetivos, marketing, reportes, dashboards y Lara.

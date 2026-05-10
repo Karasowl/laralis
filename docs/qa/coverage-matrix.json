@@ -742,5 +742,13 @@
     "capability": "Import real no dry-run restaura todos los modulos exportados y verifica conteos/relaciones en un workspace temporal descartable",
     "layers": ["cypress", "api", "database", "supabase-task"],
     "status": "planned"
+  },
+  {
+    "id": "qa-088-numeric-oracle-spine",
+    "priority": "P0",
+    "domain": "business-oracles",
+    "capability": "Cada numero critico queda validado desde dato base/formula hasta API, UI/export y decision de negocio: costos de insumos, recetas, margen de contribucion, costo fijo por minuto, depreciacion, pagos, gastos, marketing, objetivos y dashboards",
+    "layers": ["vitest", "cypress", "api", "ui", "database", "export", "oracle"],
+    "status": "planned"
   }
 ]

@@ -23,6 +23,10 @@ type Oracles = {
   }
 }
 
+type QaDataset = {
+  clinics: Array<{ key: string; name: string }>
+}
+
 function classifyTreatment(row: any) {
   if (row.status === 'cancelled') return 'cancelled'
   if (row.status === 'pending' || row.status === 'scheduled') return 'pending'
@@ -34,9 +38,27 @@ function classifyTreatment(row: any) {
   return row.status || 'unknown'
 }
 
+function selectQaClinicA() {
+  return cy.readFile('../../docs/qa/dataset.json').then((dataset: QaDataset) => {
+    const clinicName = dataset.clinics.find((clinic) => clinic.key === 'clinicA')?.name
+    expect(clinicName, 'QA clinic A name').to.be.a('string')
+
+    return cy.request('/api/clinics').then((clinicsResponse) => {
+      expect(clinicsResponse.status).to.eq(200)
+      const clinic = (clinicsResponse.body.data || []).find((item: any) => item.name === clinicName)
+      expect(clinic, `QA clinic ${clinicName} must exist before business oracles run`).to.exist
+
+      return cy.request('POST', '/api/clinics', { clinicId: clinic.id }).then((selectResponse) => {
+        expect(selectResponse.status).to.eq(200)
+      })
+    })
+  })
+}
+
 describe('Stage QA business oracles', () => {
   beforeEach(() => {
     cy.loginAsDoctor()
+    selectQaClinicA()
   })
 
   it('matches seeded patient and treatment counts through authenticated APIs', () => {
@@ -44,7 +66,10 @@ describe('Stage QA business oracles', () => {
       cy.request('/api/patients').then((response) => {
         expect(response.status).to.eq(200)
         const patients = response.body.data || []
-        expect(patients, 'patients total').to.have.length(oracles.patients.total)
+        expect(
+          patients,
+          `patients total in QA clinic A. If this is not ${oracles.patients.total}, stage is dirty: run qa:stage:prepare before trusting business oracles.`
+        ).to.have.length(oracles.patients.total)
 
         const bySource = patients.reduce((acc: Record<string, number>, patient: any) => {
           const sourceName = patient.source?.name || 'unknown'
@@ -58,7 +83,10 @@ describe('Stage QA business oracles', () => {
       cy.request('/api/treatments').then((response) => {
         expect(response.status).to.eq(200)
         const treatments = response.body.data || []
-        expect(treatments, 'treatments total').to.have.length(oracles.treatments.total)
+        expect(
+          treatments,
+          `treatments total in QA clinic A. If this is not ${oracles.treatments.total}, stage is dirty: run qa:stage:prepare before trusting business oracles.`
+        ).to.have.length(oracles.treatments.total)
 
         const byStatus = treatments.reduce((acc: Record<string, number>, treatment: any) => {
           const status = classifyTreatment(treatment)

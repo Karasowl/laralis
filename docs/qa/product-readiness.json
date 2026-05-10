@@ -248,5 +248,40 @@
       "Large real-clinic exports stay within timeout and memory budgets beyond the QA dataset"
     ],
     "nextTest": "Create a destructive-safe roundtrip spec that imports into a temporary workspace, verifies every exported module, and deletes the workspace tree at the end."
+  },
+  {
+    "area": "numeric-oracle-spine",
+    "risk": "P0",
+    "implementationStatus": "partial",
+    "coverageMode": "real",
+    "evidence": [
+      "docs/qa/numeric-oracles.md",
+      "docs/qa/dataset.json",
+      "docs/qa/oracles.json",
+      "apps/dental/tests/qa/qa-oracles.test.ts",
+      "apps/dental/tests/calc/integration.test.ts",
+      "apps/dental/cypress/e2e/stage/02-qa-business-oracles.cy.ts",
+      "apps/dental/cypress/e2e/stage/10-fixed-costs-cost-per-minute.cy.ts",
+      "apps/dental/cypress/e2e/stage/11-assets-depreciation.cy.ts",
+      "apps/dental/cypress/e2e/stage/12-time-settings-simulations.cy.ts",
+      "apps/dental/cypress/e2e/stage/13-expenses-budget-links.cy.ts",
+      "apps/dental/cypress/e2e/stage/14-date-filters-coherence.cy.ts",
+      "apps/dental/cypress/e2e/stage/19-reports-dashboard-oracles.cy.ts",
+      "apps/dental/cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts"
+    ],
+    "proven": [
+      "The QA dataset pins patient acquisition, treatments, fixed costs, supplies, service recipes, marketing spend, revenue, variable cost, allocated fixed cost, operating profit, break-even, CPA, ROAS, and ROI",
+      "Pure QA oracle tests derive service variable costs, fixed cost per minute, contribution, operating profit, break-even, CPA, ROAS, and ROI from dataset inputs",
+      "Stage Cypress specs validate selected APIs for business oracles, fixed costs, depreciation, time simulations, expenses, date filters, reports, dashboards, marketing ROI, and export completeness",
+      "Export coverage now requires supplies and service_supplies so external audits can recalculate variable cost and contribution margin"
+    ],
+    "notProven": [
+      "Every number visible in every UI card/table/chart is compared to an oracle",
+      "Every simulator and objective-setting workflow has a dedicated numeric oracle",
+      "Every date-filtered denominator/numerator pair is covered across all modules",
+      "Real import roundtrip preserves all numeric inputs and recalculates the same outputs",
+      "Stage business oracle currently requires clean QA seed state before it can be used as a release gate"
+    ],
+    "nextTest": "Turn docs/qa/numeric-oracles.md into executable coverage by adding a numeric UI/export audit that maps every P0 number to formula, API, selector/export key, and expected value."
   }
 ]

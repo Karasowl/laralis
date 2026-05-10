@@ -1,0 +1,343 @@
+{
+  "version": 1,
+  "name": "Laralis Dental Numeric Oracle Spine",
+  "policy": "Every P0 business number must have source data, expected formula/value, API evidence, UI or export evidence, and a business decision it protects.",
+  "metrics": [
+    {
+      "id": "num-001-acquisition-counts",
+      "priority": "P0",
+      "domain": "patients",
+      "status": "covered",
+      "businessDecision": "Medir captacion real por fuente y evitar decisiones de marketing basadas en pacientes mal atribuidos.",
+      "formula": "patientGroups grouped by sourceKey, mapped to source display name",
+      "assertions": [
+        { "label": "patients total", "path": "oracles.patients.total", "expected": 30, "unit": "count" },
+        { "label": "Meta Mayo patients", "path": "oracles.patients.bySource.Meta Mayo", "expected": 22, "unit": "count" },
+        { "label": "Referidos patients", "path": "oracles.patients.bySource.Referidos", "expected": 7, "unit": "count" },
+        { "label": "Organico patients", "path": "oracles.patients.bySource.Organico", "expected": 1, "unit": "count" }
+      ],
+      "layers": {
+        "formula": ["apps/dental/tests/qa/qa-oracles.test.ts"],
+        "api": [
+          { "route": "GET /api/patients", "spec": "apps/dental/cypress/e2e/stage/02-qa-business-oracles.cy.ts" },
+          { "route": "GET /api/reports/summary", "spec": "apps/dental/cypress/e2e/stage/19-reports-dashboard-oracles.cy.ts" }
+        ],
+        "ui": [
+          { "surface": "/patients", "spec": "apps/dental/cypress/e2e/stage/09-patient-treatment-history.cy.ts" },
+          { "surface": "/ dashboard cards", "spec": "apps/dental/cypress/e2e/stage/19-reports-dashboard-oracles.cy.ts" }
+        ],
+        "export": [
+          { "key": "patients", "spec": "apps/dental/cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts" }
+        ]
+      }
+    },
+    {
+      "id": "num-002-treatment-status-counts",
+      "priority": "P0",
+      "domain": "treatments",
+      "status": "covered",
+      "businessDecision": "Separar tratamientos pagados, parciales, pendientes y cancelados antes de calcular ingresos, caja y margen.",
+      "formula": "treatmentGroups grouped by status, with completed paid separated from partial cash",
+      "assertions": [
+        { "label": "treatments total", "path": "oracles.treatments.total", "expected": 32, "unit": "count" },
+        { "label": "completed paid treatments", "path": "oracles.treatments.byStatus.completed_paid", "expected": 29, "unit": "count" },
+        { "label": "partial treatments", "path": "oracles.treatments.byStatus.partial", "expected": 1, "unit": "count" },
+        { "label": "pending treatments", "path": "oracles.treatments.byStatus.pending", "expected": 1, "unit": "count" },
+        { "label": "cancelled treatments", "path": "oracles.treatments.byStatus.cancelled", "expected": 1, "unit": "count" }
+      ],
+      "layers": {
+        "formula": ["apps/dental/tests/qa/qa-oracles.test.ts"],
+        "api": [
+          { "route": "GET /api/treatments", "spec": "apps/dental/cypress/e2e/stage/02-qa-business-oracles.cy.ts" },
+          { "route": "GET /api/reports/revenue", "spec": "apps/dental/cypress/e2e/stage/19-reports-dashboard-oracles.cy.ts" }
+        ],
+        "ui": [
+          { "surface": "/treatments", "spec": "apps/dental/cypress/e2e/stage/30-treatment-status-payment-lifecycle.cy.ts" },
+          { "surface": "/patients/:id treatment history", "spec": "apps/dental/cypress/e2e/stage/09-patient-treatment-history.cy.ts" }
+        ],
+        "export": [
+          { "key": "treatments", "spec": "apps/dental/cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts" }
+        ]
+      }
+    },
+    {
+      "id": "num-003-time-and-fixed-costs",
+      "priority": "P0",
+      "domain": "business-calculations",
+      "status": "covered",
+      "businessDecision": "Calcular costo fijo por minuto para precios, simulaciones y rentabilidad real por servicio.",
+      "formula": "monthly fixed cost / monthly productive minutes",
+      "assertions": [
+        { "label": "working days", "path": "oracles.time.workingDays", "expected": 26, "unit": "days" },
+        { "label": "productive minutes per day", "path": "oracles.time.productiveMinutesPerDay", "expected": 360, "unit": "minutes" },
+        { "label": "monthly productive minutes", "path": "oracles.time.monthlyProductiveMinutes", "expected": 9360, "unit": "minutes" },
+        { "label": "monthly fixed cost", "path": "oracles.fixedCosts.monthlyTotalCents", "expected": 4680000, "unit": "cents" },
+        { "label": "fixed cost per minute", "path": "oracles.fixedCosts.costPerMinuteCents", "expected": 500, "unit": "cents_per_minute" }
+      ],
+      "layers": {
+        "formula": [
+          "apps/dental/tests/qa/qa-oracles.test.ts",
+          "apps/dental/tests/calc/integration.test.ts"
+        ],
+        "api": [
+          { "route": "GET /api/time/cost-per-minute", "spec": "apps/dental/cypress/e2e/stage/10-fixed-costs-cost-per-minute.cy.ts" },
+          { "route": "POST /api/actions/update-time-settings", "spec": "apps/dental/cypress/e2e/stage/12-time-settings-simulations.cy.ts" }
+        ],
+        "ui": [
+          { "surface": "/fixed-costs", "spec": "apps/dental/cypress/e2e/stage/10-fixed-costs-cost-per-minute.cy.ts" },
+          { "surface": "/time", "spec": "apps/dental/cypress/e2e/stage/12-time-settings-simulations.cy.ts" }
+        ],
+        "export": [
+          { "key": "fixed_costs", "spec": "apps/dental/cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts" }
+        ]
+      }
+    },
+    {
+      "id": "num-004-service-cost-stack",
+      "priority": "P0",
+      "domain": "services",
+      "status": "covered",
+      "businessDecision": "Evitar que precios y margen de contribucion ignoren insumos, duracion o costo fijo asignado.",
+      "formula": "service net = price - variable cost from service_supplies - fixed cost per minute * duration",
+      "assertions": [
+        { "label": "resina price", "path": "oracles.services.resina.priceCents", "expected": 250000, "unit": "cents" },
+        { "label": "resina variable cost", "path": "oracles.services.resina.variableCostCents", "expected": 13000, "unit": "cents" },
+        { "label": "resina allocated fixed cost", "path": "oracles.services.resina.allocatedFixedCostCents", "expected": 30000, "unit": "cents" },
+        { "label": "resina net per treatment", "path": "oracles.services.resina.netPerTreatmentCents", "expected": 207000, "unit": "cents" },
+        { "label": "limpieza price", "path": "oracles.services.limpieza.priceCents", "expected": 150000, "unit": "cents" },
+        { "label": "limpieza variable cost", "path": "oracles.services.limpieza.variableCostCents", "expected": 2500, "unit": "cents" },
+        { "label": "limpieza allocated fixed cost", "path": "oracles.services.limpieza.allocatedFixedCostCents", "expected": 22500, "unit": "cents" },
+        { "label": "limpieza net per treatment", "path": "oracles.services.limpieza.netPerTreatmentCents", "expected": 125000, "unit": "cents" },
+        { "label": "endodoncia price", "path": "oracles.services.endodoncia.priceCents", "expected": 650000, "unit": "cents" },
+        { "label": "endodoncia variable cost", "path": "oracles.services.endodoncia.variableCostCents", "expected": 33000, "unit": "cents" },
+        { "label": "endodoncia allocated fixed cost", "path": "oracles.services.endodoncia.allocatedFixedCostCents", "expected": 60000, "unit": "cents" },
+        { "label": "endodoncia net per treatment", "path": "oracles.services.endodoncia.netPerTreatmentCents", "expected": 557000, "unit": "cents" }
+      ],
+      "layers": {
+        "formula": [
+          "apps/dental/tests/qa/qa-oracles.test.ts",
+          "apps/dental/tests/calc/integration.test.ts"
+        ],
+        "api": [
+          { "route": "GET /api/services", "spec": "apps/dental/cypress/e2e/stage/03-crud-lifecycle.cy.ts" },
+          { "route": "GET /api/services/:id/cost", "spec": "apps/dental/cypress/e2e/stage/12-time-settings-simulations.cy.ts" }
+        ],
+        "ui": [
+          { "surface": "/services", "spec": "apps/dental/cypress/e2e/stage/03-crud-lifecycle.cy.ts" },
+          { "surface": "Lara Entry service", "spec": "apps/dental/cypress/e2e/stage/42-lara-entry-mode.cy.ts" }
+        ],
+        "export": [
+          { "key": "services", "spec": "apps/dental/cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts" },
+          { "key": "supplies", "spec": "apps/dental/cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts" },
+          { "key": "service_supplies", "spec": "apps/dental/cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts" }
+        ]
+      }
+    },
+    {
+      "id": "num-005-asset-depreciation",
+      "priority": "P0",
+      "domain": "assets",
+      "status": "covered",
+      "businessDecision": "Incluir depreciacion en rentabilidad y punto de equilibrio cuando los activos consumen valor mensual.",
+      "formula": "(purchase amount - salvage amount) / useful life months",
+      "assertions": [
+        { "label": "asset monthly depreciation", "path": "oracles.assets.monthlyDepreciationCents", "expected": 166667, "unit": "cents" }
+      ],
+      "layers": {
+        "formula": ["apps/dental/cypress/e2e/stage/11-assets-depreciation.cy.ts"],
+        "api": [
+          { "route": "GET /api/assets/summary", "spec": "apps/dental/cypress/e2e/stage/11-assets-depreciation.cy.ts" },
+          { "route": "GET /api/equilibrium", "spec": "apps/dental/cypress/e2e/stage/11-assets-depreciation.cy.ts" },
+          { "route": "GET /api/analytics/profit-analysis", "spec": "apps/dental/cypress/e2e/stage/11-assets-depreciation.cy.ts" }
+        ],
+        "ui": [
+          { "surface": "/assets", "spec": "apps/dental/cypress/e2e/stage/11-assets-depreciation.cy.ts" }
+        ],
+        "export": [
+          { "key": "assets", "spec": "apps/dental/cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts" }
+        ]
+      }
+    },
+    {
+      "id": "num-006-financial-margin-stack",
+      "priority": "P0",
+      "domain": "financial",
+      "status": "covered",
+      "businessDecision": "Saber margen bruto, margen de contribucion, caja cobrada y utilidad operativa sin doble conteo de costos.",
+      "formula": "gross profit = completed revenue - variable cost; service net = gross profit - allocated fixed cost; operating profit separates planned fixed costs, allocated fixed cost and marketing spend",
+      "assertions": [
+        { "label": "completed revenue", "path": "oracles.financial.completedRevenueCents", "expected": 7650000, "unit": "cents" },
+        { "label": "partial cash collected", "path": "oracles.financial.partialCashCollectedCents", "expected": 125000, "unit": "cents" },
+        { "label": "cash collected", "path": "oracles.financial.cashCollectedCents", "expected": 7775000, "unit": "cents" },
+        { "label": "completed variable cost", "path": "oracles.financial.completedVariableCostCents", "expected": 331000, "unit": "cents" },
+        { "label": "gross profit", "path": "oracles.financial.grossProfitCents", "expected": 7319000, "unit": "cents" },
+        { "label": "gross margin percent", "path": "oracles.financial.grossMarginPercent", "expected": 95.6732, "unit": "percent", "tolerance": 0.0001 },
+        { "label": "allocated fixed cost", "path": "oracles.financial.allocatedFixedCostCents", "expected": 900000, "unit": "cents" },
+        { "label": "service net profit", "path": "oracles.financial.serviceNetProfitCents", "expected": 6419000, "unit": "cents" },
+        { "label": "monthly fixed cost", "path": "oracles.financial.monthlyFixedCostCents", "expected": 4680000, "unit": "cents" },
+        { "label": "marketing spend", "path": "oracles.financial.marketingSpendCents", "expected": 660000, "unit": "cents" },
+        { "label": "actual expense", "path": "oracles.financial.actualExpenseCents", "expected": 1090000, "unit": "cents" },
+        { "label": "operating profit", "path": "oracles.financial.operatingProfitCents", "expected": 1979000, "unit": "cents" },
+        { "label": "operating margin percent", "path": "oracles.financial.operatingMarginPercent", "expected": 25.8693, "unit": "percent", "tolerance": 0.0001 }
+      ],
+      "layers": {
+        "formula": ["apps/dental/tests/qa/qa-oracles.test.ts"],
+        "api": [
+          { "route": "GET /api/reports/revenue", "spec": "apps/dental/cypress/e2e/stage/19-reports-dashboard-oracles.cy.ts" },
+          { "route": "GET /api/reports/summary", "spec": "apps/dental/cypress/e2e/stage/19-reports-dashboard-oracles.cy.ts" },
+          { "route": "GET /api/dashboard/financial", "spec": "apps/dental/cypress/e2e/stage/19-reports-dashboard-oracles.cy.ts" }
+        ],
+        "ui": [
+          { "surface": "dashboard cards", "spec": "apps/dental/cypress/e2e/stage/19-reports-dashboard-oracles.cy.ts" },
+          { "surface": "/reports", "spec": "apps/dental/cypress/e2e/stage/19-reports-dashboard-oracles.cy.ts" }
+        ],
+        "export": [
+          { "key": "treatments", "spec": "apps/dental/cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts" },
+          { "key": "expenses", "spec": "apps/dental/cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts" },
+          { "key": "fixed_costs", "spec": "apps/dental/cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts" }
+        ]
+      }
+    },
+    {
+      "id": "num-007-marketing-meta-mayo",
+      "priority": "P0",
+      "domain": "marketing",
+      "status": "covered",
+      "businessDecision": "Decidir si una campana merece mas presupuesto midiendo pacientes, revenue, CPA, ROAS y ROI con la misma atribucion.",
+      "formula": "CPA = spend / patients; ROAS = revenue / spend; ROI = (revenue - spend) / spend",
+      "assertions": [
+        { "label": "Meta Mayo patients", "path": "oracles.marketing.metaMayo.patients", "expected": 22, "unit": "count" },
+        { "label": "Meta Mayo spend", "path": "oracles.marketing.metaMayo.spendCents", "expected": 660000, "unit": "cents" },
+        { "label": "Meta Mayo revenue", "path": "oracles.marketing.metaMayo.revenueCents", "expected": 6300000, "unit": "cents" },
+        { "label": "Meta Mayo CPA", "path": "oracles.marketing.metaMayo.cpaCents", "expected": 30000, "unit": "cents" },
+        { "label": "Meta Mayo ROAS", "path": "oracles.marketing.metaMayo.roas", "expected": 9.5455, "unit": "ratio", "tolerance": 0.0001 },
+        { "label": "Meta Mayo ROI", "path": "oracles.marketing.metaMayo.roi", "expected": 8.5455, "unit": "ratio", "tolerance": 0.0001 },
+        { "label": "Meta Mayo ROI percent", "path": "oracles.marketing.metaMayo.roiPercent", "expected": 854.55, "unit": "percent", "tolerance": 0.01 }
+      ],
+      "layers": {
+        "formula": ["apps/dental/tests/qa/qa-oracles.test.ts"],
+        "api": [
+          { "route": "GET /api/marketing/campaigns/roi", "spec": "apps/dental/cypress/e2e/stage/02-qa-business-oracles.cy.ts" },
+          { "route": "GET /api/analytics/channel-roi", "spec": "apps/dental/cypress/e2e/stage/19-reports-dashboard-oracles.cy.ts" }
+        ],
+        "ui": [
+          { "surface": "/marketing", "spec": "apps/dental/cypress/e2e/stage/23-chart-tooltips-dark-mode.cy.js" },
+          { "surface": "dashboard marketing tab", "spec": "apps/dental/cypress/e2e/stage/19-reports-dashboard-oracles.cy.ts" }
+        ],
+        "export": [
+          { "key": "marketing_campaigns", "spec": "apps/dental/cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts" },
+          { "key": "patient_sources", "spec": "apps/dental/cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts" },
+          { "key": "patients.campaign_id", "spec": "apps/dental/cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts" }
+        ]
+      }
+    },
+    {
+      "id": "num-008-referred-revenue",
+      "priority": "P0",
+      "domain": "marketing",
+      "status": "covered",
+      "businessDecision": "Comparar referidos contra campanas pagadas para no sobreinvertir solo por volumen bruto.",
+      "formula": "revenue for treatments attributed to Referidos source",
+      "assertions": [
+        { "label": "Referidos patients", "path": "oracles.marketing.referidos.patients", "expected": 7, "unit": "count" },
+        { "label": "Referidos revenue", "path": "oracles.marketing.referidos.revenueCents", "expected": 1350000, "unit": "cents" }
+      ],
+      "layers": {
+        "formula": ["apps/dental/tests/qa/qa-oracles.test.ts"],
+        "api": [
+          { "route": "GET /api/marketing/campaigns/roi", "spec": "apps/dental/cypress/e2e/stage/02-qa-business-oracles.cy.ts" }
+        ],
+        "ui": [
+          { "surface": "/marketing", "spec": "apps/dental/cypress/e2e/stage/15-visual-responsive-coverage.cy.ts" }
+        ],
+        "export": [
+          { "key": "patient_sources", "spec": "apps/dental/cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts" },
+          { "key": "patients.source_id", "spec": "apps/dental/cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts" }
+        ]
+      }
+    },
+    {
+      "id": "num-009-break-even",
+      "priority": "P0",
+      "domain": "business-calculations",
+      "status": "covered",
+      "businessDecision": "Definir cuantos tratamientos necesita la clinica para cubrir costos fijos y costos fijos mas marketing.",
+      "formula": "ceil(fixed costs / average contribution margin), optionally adding marketing spend",
+      "assertions": [
+        { "label": "average contribution margin", "path": "oracles.breakEven.averageContributionMarginCents", "expected": 252379, "unit": "cents" },
+        { "label": "fixed-only treatments", "path": "oracles.breakEven.fixedOnlyTreatments", "expected": 19, "unit": "count" },
+        { "label": "fixed-plus-marketing treatments", "path": "oracles.breakEven.fixedPlusMarketingTreatments", "expected": 22, "unit": "count" }
+      ],
+      "layers": {
+        "formula": [
+          "apps/dental/tests/qa/qa-oracles.test.ts",
+          "apps/dental/tests/calc/integration.test.ts"
+        ],
+        "api": [
+          { "route": "GET /api/equilibrium", "spec": "apps/dental/cypress/e2e/stage/11-assets-depreciation.cy.ts" },
+          { "route": "GET /api/reports/summary", "spec": "apps/dental/cypress/e2e/stage/19-reports-dashboard-oracles.cy.ts" }
+        ],
+        "ui": [
+          { "surface": "/reports profitability", "spec": "apps/dental/cypress/e2e/stage/24-visual-regression-baselines.cy.js" }
+        ],
+        "export": [
+          { "key": "services", "spec": "apps/dental/cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts" },
+          { "key": "treatments", "spec": "apps/dental/cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts" },
+          { "key": "fixed_costs", "spec": "apps/dental/cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts" }
+        ]
+      }
+    },
+    {
+      "id": "num-010-export-recalculation-inputs",
+      "priority": "P0",
+      "domain": "data-portability",
+      "status": "covered",
+      "businessDecision": "Permitir recalcular costo variable y margen fuera de Laralis desde un export completo.",
+      "formula": "export must include every raw input used by the numeric oracles",
+      "assertions": [
+        { "label": "supplies count", "path": "dataset.supplies.length", "expected": 5, "unit": "count" },
+        { "label": "services count", "path": "dataset.services.length", "expected": 3, "unit": "count" },
+        { "label": "service recipe rows", "path": "computed.serviceSupplyRecipeRows", "expected": 7, "unit": "count" },
+        { "label": "fixed costs count", "path": "dataset.fixedCosts.length", "expected": 5, "unit": "count" },
+        { "label": "assets count", "path": "dataset.assets.length", "expected": 1, "unit": "count" }
+      ],
+      "layers": {
+        "formula": ["apps/dental/tests/qa/qa-oracles.test.ts"],
+        "api": [
+          { "route": "GET /api/clinic/:clinicId/export?type=full", "spec": "apps/dental/cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts" },
+          { "route": "POST /api/export/generate", "spec": "apps/dental/cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts" }
+        ],
+        "ui": [
+          { "surface": "/settings/export-import", "spec": "apps/dental/cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts" },
+          { "surface": "Lara export download", "spec": "apps/dental/cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts" }
+        ],
+        "export": [
+          { "key": "supplies", "spec": "apps/dental/cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts" },
+          { "key": "service_supplies", "spec": "apps/dental/cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts" },
+          { "key": "services", "spec": "apps/dental/cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts" },
+          { "key": "fixed_costs", "spec": "apps/dental/cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts" },
+          { "key": "assets", "spec": "apps/dental/cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts" }
+        ]
+      }
+    },
+    {
+      "id": "num-011-goal-setting-and-targets",
+      "priority": "P0",
+      "domain": "goals",
+      "status": "planned",
+      "businessDecision": "Validar objetivos de dinero, pacientes, tratamientos y marketing cuando el producto tenga flujo estable de metas.",
+      "formula": "targets must derive from contribution margin, required revenue, acquisition rate and campaign CPA",
+      "assertions": [],
+      "layers": {
+        "formula": [],
+        "api": [],
+        "ui": [],
+        "export": []
+      },
+      "notProven": [
+        "No hay aun un oraculo ejecutable para objetivos de dinero y marketing end-to-end.",
+        "Debe agregarse cuando el flujo de metas quede estable."
+      ]
+    }
+  ]
+}

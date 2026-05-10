@@ -9,6 +9,90 @@ Cada entrada debe explicar:
 - Como se verifica.
 - Que riesgo protege.
 
+## 2026-05-10 - Auditoria de profundidad Cypress antes de release
+
+## Contexto
+
+Se reviso la suite stage despues de ampliar QA para evitar una falsa sensacion de seguridad. El objetivo fue separar pruebas profundas de pruebas superficiales y decidir si el bug de exportacion debe esperar a que toda la matriz QA quede perfecta.
+
+## Hallazgos
+
+- `apps/dental/cypress/e2e/stage/01-readonly-dental-flow.cy.ts` es superficial si se interpreta como prueba de negocio: hace login, abre pantallas y busca textos, pero no crea datos, no verifica APIs, no valida relaciones ni calcula resultados esperados.
+- `apps/dental/cypress/e2e/stage/29-core-navigation-smoke.cy.ts` tambien es superficial, pero de forma aceptable: su contrato es ser alarma rapida de rutas P0, auth/setup regression y overflow horizontal.
+- `apps/dental/cypress/e2e/stage/23-chart-tooltips-dark-mode.cy.js` no debe tratarse como oraculo financiero completo. Verifica que charts, tooltips, tema y datos visibles existen, pero los calculos esperados viven en specs de negocio.
+- `apps/dental/cypress/e2e/stage/24-visual-regression-baselines.cy.js` es prueba visual delegada a `captureStageVisualSnapshot`; no reemplaza oraculos matematicos.
+- La suite de exports paso completa con 6 tests.
+- `test:e2e:stage:business` fallo en `patients total`: esperaba 30 pacientes del dataset QA y encontro 34. Eso indica stage contaminado por datos sobrantes o falta de reset deterministico antes de ejecutar oraculos.
+
+## Decision operativa
+
+No se debe usar "toda la suite stage pasa" como condicion de merge mientras el dataset QA no arranque limpio. Pero tampoco conviene bloquear un bug productivo de exportacion esperando a perfeccionar toda la matriz QA.
+
+Para un bug que afecta margen de contribucion real, la salida sana es:
+
+1. Publicar el arreglo de exportacion con una puerta corta: `test:e2e:stage:exports` y `test:e2e:stage:core-navigation`.
+2. No mergear toda la rama larga del monorepo solo por ese bug si el diff incluye muchos cambios no relacionados.
+3. Antes de confiar en business oracles, ejecutar `qa:seed` o `qa:seed:reset` con credenciales stage y luego `qa:stage:assert`.
+4. Convertir el fallo de 34 vs 30 en trabajo QA: la suite debe fallar temprano con mensaje de "stage QA dirty" o resetear datos QA de forma controlada antes de los oraculos.
+
+## Comandos ejecutados
+
+```text
+npm --workspace @laralis/dental run test:e2e:stage:exports
+npm --workspace @laralis/dental run test:e2e:stage:business
+npm --workspace @laralis/dental run test:e2e:stage:core-navigation
+```
+
+Resultado:
+
+- `exports`: 6 passing.
+- `business`: 2 passing, 1 failing por `patients total` 34 vs 30.
+- `core-navigation`: 1 passing.
+
+## 2026-05-10 - Numeros como contrato P0 de QA
+
+## Contexto
+
+Los numeros de Laralis afectan decisiones reales: margen de contribucion, costo variable, costo fijo por minuto, utilidad, objetivos de dinero, objetivos de marketing, CPA, ROAS, ROI y exportaciones usadas para auditoria externa.
+
+## Decision
+
+El QA numerico no debe limitarse a dashboard. Debe cubrir toda la cadena: insumo, receta de servicio, costo variable, costo fijo, tiempo, tratamiento, pago, gasto, marketing, reporte, Lara y export.
+
+## Contrato agregado
+
+- `docs/qa/numeric-oracles.md` define la regla `dato base -> formula -> API -> UI -> export -> decision de negocio`.
+- `docs/qa/coverage-matrix.md` ahora separa explicitamente el QA numerico de los smoke tests visuales.
+- `docs/qa/product-readiness.md` exige multiples capas antes de marcar una capacidad numerica como `real`.
+
+## Riesgo que protege
+
+- Que una cifra aparezca visualmente correcta pero venga de una formula rota.
+- Que un dashboard pase smoke tests sin validar importes concretos.
+- Que un export omita insumos/recetas y haga imposible recalcular margen real.
+- Que cambios en gastos, pagos o marketing rompan objetivos y rentabilidad sin que Cypress lo detecte.
+
+## 2026-05-10 - Business oracles deterministas y smoke superficial degradado
+
+## Contexto
+
+El fallo `patients total` 34 vs 30 mostro dos problemas distintos: stage podia quedar contaminado por datos acumulados, y un spec read-only podia dar confianza falsa porque abria pantallas sin probar los datos de negocio.
+
+## Cambio
+
+- `02-qa-business-oracles.cy.ts` selecciona la clinica QA A desde `docs/qa/dataset.json` antes de validar APIs.
+- Los mensajes de conteo indican que se debe ejecutar `qa:stage:prepare` si el dataset no coincide.
+- `01-readonly-dental-flow.cy.ts` valida pacientes/fuentes, tratamientos/estados y Meta Mayo contra `docs/qa/oracles.json` antes de abrir UI.
+- `qa:stage:prepare` queda como alias operativo para resembrar y auditar stage: `qa:seed` + `qa:stage:assert`.
+- `qa:release:numeric` agrupa preparacion de stage, contrato numerico, business oracles, reports y exports.
+
+## Riesgo que protege
+
+- Que Cypress pruebe la clinica activa equivocada.
+- Que stage sucio parezca bug de formula o bug de UI.
+- Que un flujo read-only superficial se cuente como cobertura de negocio.
+- Que una rama de numeros o exports se libere sin preparar datos QA deterministas.
+
 ## 2026-05-10 - Exports incompletos quedan cubiertos por oraculo QA
 
 ## Contexto

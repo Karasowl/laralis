@@ -281,6 +281,8 @@ function analyzeQaDocs() {
     path.join(repoRoot, 'docs', 'qa', 'coverage-matrix.json'),
     path.join(repoRoot, 'docs', 'qa', 'product-readiness.md'),
     path.join(repoRoot, 'docs', 'qa', 'product-readiness.json'),
+    path.join(repoRoot, 'docs', 'qa', 'numeric-oracles.md'),
+    path.join(repoRoot, 'docs', 'qa', 'numeric-oracles.json'),
     path.join(repoRoot, 'docs', 'qa', 'dataset.md'),
     path.join(repoRoot, 'docs', 'qa', 'dataset.json'),
     path.join(repoRoot, 'docs', 'qa', 'oracles.md'),
@@ -560,13 +562,71 @@ function analyzeQaOracles() {
   }
 }
 
+function analyzeNumericOracles() {
+  const numericPath = path.join(repoRoot, 'docs', 'qa', 'numeric-oracles.json')
+
+  if (!fs.existsSync(numericPath)) {
+    return {
+      status: 'fail',
+      summary: 'No existe docs/qa/numeric-oracles.json.',
+      details: []
+    }
+  }
+
+  const numeric = loadJSON(numericPath)
+  const metrics = Array.isArray(numeric.metrics) ? numeric.metrics : []
+  const ids = metrics.map(metric => metric.id).filter(Boolean)
+  const duplicateIds = ids.filter((id, index) => ids.indexOf(id) !== index)
+  const invalid = metrics.filter(metric => {
+    return (
+      !metric.id ||
+      !metric.priority ||
+      !metric.domain ||
+      !metric.status ||
+      !metric.businessDecision ||
+      !metric.formula ||
+      !Array.isArray(metric.assertions) ||
+      !metric.layers
+    )
+  })
+  const coveredP0MissingLayers = metrics.filter(metric => {
+    if (metric.priority !== 'P0' || metric.status !== 'covered') return false
+    const layers = metric.layers || {}
+    return (
+      !metric.assertions.length ||
+      !(layers.formula || []).length ||
+      !(layers.api || []).length ||
+      (!((layers.ui || []).length) && !((layers.export || []).length))
+    )
+  })
+  const assertionTotal = metrics.reduce((sum, metric) => sum + (metric.assertions?.length || 0), 0)
+  const statusCounts = metrics.reduce((acc, metric) => {
+    acc[metric.status] = (acc[metric.status] || 0) + 1
+    return acc
+  }, {})
+  const openP0 = metrics.filter(metric => metric.priority === 'P0' && metric.status !== 'covered')
+  const fail = metrics.length < 10 || duplicateIds.length > 0 || invalid.length > 0 || coveredP0MissingLayers.length > 0
+
+  return {
+    status: fail ? 'fail' : openP0.length ? 'warn' : 'pass',
+    summary: `numeric metric groups: ${metrics.length}; assertions: ${assertionTotal}; statuses: ${Object.entries(statusCounts).map(([key, value]) => `${key}=${value}`).join(', ')}; open P0: ${openP0.length}`,
+    details: [
+      ...(metrics.length < 10 ? [`needs at least 10 numeric metric groups; found ${metrics.length}`] : []),
+      ...duplicateIds.map(id => `duplicate numeric id: ${id}`),
+      ...invalid.map(metric => `invalid numeric metric: ${metric.id || '(missing id)'}`),
+      ...coveredP0MissingLayers.map(metric => `covered P0 numeric metric missing required evidence layer: ${metric.id}`),
+      ...openP0.map(metric => `open numeric P0: ${metric.id} [${metric.status}] ${metric.businessDecision}`)
+    ]
+  }
+}
+
 function analyzeQaSeed() {
   const seedPath = path.join(cwd, 'scripts', 'qa-stage-seed.mjs')
   const assertPath = path.join(cwd, 'scripts', 'qa-stage-assert.mjs')
   const envExamplePath = path.join(cwd, '.env.qa.example')
   const packageJson = loadJSON(path.join(cwd, 'package.json'))
   const scripts = packageJson.scripts || {}
-  const requiredScripts = ['qa:seed:plan', 'qa:seed', 'qa:seed:reset', 'qa:stage:assert', 'qa:oracles', 'qa:check']
+  const requiredScripts = ['qa:seed:plan', 'qa:seed', 'qa:seed:reset', 'qa:stage:assert', 'qa:stage:prepare', 'qa:oracles', 'qa:numeric', 'qa:check']
   const missingScripts = requiredScripts.filter(name => !scripts[name])
   const seedExists = fs.existsSync(seedPath)
   const assertExists = fs.existsSync(assertPath)
@@ -600,6 +660,7 @@ const checks = [
   ['Product readiness truth table', analyzeProductReadiness()],
   ['QA dataset', analyzeQaDataset()],
   ['QA oracles', analyzeQaOracles()],
+  ['Numeric oracle audit', analyzeNumericOracles()],
   ['QA stage seed', analyzeQaSeed()],
   ['Cypress spec inventory', analyzeCypressSpecs()],
   ['i18n parity', analyzeI18n()],

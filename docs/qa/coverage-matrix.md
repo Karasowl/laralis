@@ -52,6 +52,7 @@ Cobertura actual:
 
 - `apps/dental/cypress/e2e/stage/00-auth-and-shell.cy.ts` cubre el smoke de autenticacion: rutas protegidas redirigen a login, el usuario QA entra al shell activo sin onboarding/setup, el registro con email existente queda en `/auth/register` con error claro y el cambio ES/EN no expone cancelacion de setup.
 - `apps/dental/cypress/e2e/stage/29-core-navigation-smoke.cy.ts` abre dashboard, pacientes, tratamientos, marketing y reportes en stage, verifica shell activo, contenido principal, ausencia de error fatal y ausencia de scroll horizontal.
+- `apps/dental/cypress/e2e/stage/01-readonly-dental-flow.cy.ts` ya no cuenta solo como recorrido visual: selecciona la clinica QA A, valida pacientes/fuentes, tratamientos/estados y Meta Mayo contra `docs/qa/oracles.json`, y despues abre las pantallas sin guardar datos.
 - `apps/dental/cypress/e2e/stage/16-full-lifecycle-user.cy.ts` crea un usuario unico confirmado por tarea Supabase stage, inicia sesion por UI, completa onboarding real, crea workspace y clinica, siembra los requisitos minimos de setup, finaliza setup desde la UI y confirma que el workspace queda activo.
 - El mismo spec usa los modulos principales como un usuario nuevo: activo/depreciacion, costo fijo, configuracion de tiempo, insumo, servicio con receta, campana, paciente atribuido, tratamiento con pago parcial, gasto vinculado, vistas de pacientes/tratamientos/marketing/gastos y cambio ES/EN sin caer en onboarding/setup.
 - El cierre del flujo borra el arbol de cuenta QA con `qaDeleteUserByEmail` y vuelve a ejecutar la limpieza para confirmar que no queda usuario auth pendiente. La eliminacion self-service real queda como riesgo aparte porque `/api/account/delete` todavia no debe usarse como oraculo principal.
@@ -109,7 +110,25 @@ Cobertura actual:
 - `apps/dental/cypress/e2e/stage/13-expenses-budget-links.cy.ts` crea un costo fijo planificado, un gasto fijo vinculado, un insumo y un gasto variable vinculado al inventario; verifica `GET /api/expenses/stats`, `GET /api/analytics/expenses`, `GET /api/dashboard/expenses`, filtros de gastos, variacion planificado-vs-real y que crear/editar/borrar gastos variables actualiza el stock por `portions`.
 - `apps/dental/cypress/e2e/stage/14-date-filters-coherence.cy.ts` crea datos controlados dentro y fuera de un rango, y verifica que listados, tarjetas de dashboard, graficas de revenue/servicios y reportes no mezclan fechas cuando llegan `date_from/date_to`, `start_date/end_date` o `from/to`.
 - `apps/dental/cypress/e2e/stage/02-qa-business-oracles.cy.ts` y `tests/qa/qa-oracles.test.ts` sostienen los oraculos agregados de marketing, ingresos, costos variables, costos fijos asignados, margen bruto y utilidad operativa.
+- `02-qa-business-oracles.cy.ts` selecciona explicitamente `QA Dental Centro` antes de pedir APIs; si los conteos no coinciden, el mensaje apunta a `qa:stage:prepare` en vez de dejar un fallo opaco de 30 vs otro numero.
 - `apps/dental/cypress/e2e/stage/19-reports-dashboard-oracles.cy.ts` compara mayo 2026 contra `docs/qa/oracles.json` en `/api/reports/revenue`, `/api/reports/summary`, tarjetas de dashboard y endpoints de marketing ROI/channel ROI; valida revenue, tratamientos, pacientes, gasto, ROAS, ROI y CPA de "Meta Mayo".
+
+## QA numerico de punta a punta
+
+Los dashboards no son el unico lugar donde pueden romperse los numeros. La cobertura numerica debe atravesar insumos, recetas de servicios, costos fijos, tiempo productivo, activos/depreciacion, tratamientos, pagos, gastos, marketing, reportes, Lara y exports.
+
+Contrato detallado:
+
+```text
+docs/qa/numeric-oracles.md
+```
+
+Regla de interpretacion:
+
+- Un spec que solo verifica que una pagina muestra "Margen", "ROI" o "Costo" no cuenta como QA numerico.
+- Un numero queda cubierto cuando existe formula esperada, dataset controlado, endpoint validado y al menos una superficie UI/export que lo consuma sin cambiarlo.
+- Si stage acumula datos y cambia los conteos del dataset, el fallo es valido: hay que resetear/resembrar o corregir el aislamiento, no relajar el oraculo.
+- Para limpiar y resembrar el dataset QA antes de oraculos stage, usar `npm --workspace @laralis/dental run qa:stage:prepare`.
 
 ## Onboarding y setup
 
