@@ -1,6 +1,6 @@
 # QA Inventory Report
 
-Generated: 2026-05-10T06:58:52.665Z
+Generated: 2026-05-10T07:48:33.076Z
 
 Status: warn
 Failing checks: 0
@@ -27,16 +27,16 @@ required QA docs: 10; missing: 0
 
 Status: pass
 
-capabilities: 91; domains: 32; required missing domains: 0
+capabilities: 93; domains: 32; required missing domains: 0
 
-- status counts: covered=90, partial=1
-- priority counts: P0=76, P1=15
+- status counts: covered=91, partial=1, planned=1
+- priority counts: P0=78, P1=15
 
 ## Product readiness truth table
 
 Status: warn
 
-areas: 7; implementation: partial=7; coverage: provider-mock=4, provider-contract=2, contract-only=1; open P0 risks: 5
+areas: 8; implementation: partial=8; coverage: provider-mock=4, provider-contract=2, contract-only=1, real=1; open P0 risks: 6
 
 - open: inbox-whatsapp-actions [P0] implementation=partial, coverage=provider-mock; not proven=1
 - open: booking-notifications [P0] implementation=partial, coverage=provider-mock; not proven=3
@@ -45,6 +45,7 @@ areas: 7; implementation: partial=7; coverage: provider-mock=4, provider-contrac
 - open: whatsapp-inbound-webhook [P0] implementation=partial, coverage=provider-contract; not proven=5
 - open: whatsapp-provider-settings [P0] implementation=partial, coverage=provider-mock; not proven=3
 - open: visual-regression [P1] implementation=partial, coverage=contract-only; not proven=4
+- open: data-portability-exports [P0] implementation=partial, coverage=real; not proven=3
 
 ## QA dataset
 
@@ -82,7 +83,7 @@ seed script: present; assert script: present; env example: present; package scri
 
 Status: pass
 
-declared spec scripts: 51; existing e2e specs: 43; missing declared specs: 0
+declared spec scripts: 52; existing e2e specs: 43; missing declared specs: 0
 
 - ok: test:e2e:multitenancy -> cypress/e2e/stage/04-multiclinic-isolation.cy.ts
 - ok: test:e2e:auth -> cypress/e2e/stage/00-auth-and-shell.cy.ts
@@ -127,6 +128,7 @@ declared spec scripts: 51; existing e2e specs: 43; missing declared specs: 0
 - ok: test:e2e:stage:treatment-payments -> cypress/e2e/stage/30-treatment-status-payment-lifecycle.cy.ts
 - ok: test:e2e:stage:i18n -> cypress/e2e/stage/31-i18n-layout-language-switch.cy.ts
 - ok: test:e2e:stage:data-safety -> cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts
+- ok: test:e2e:stage:exports -> cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts
 - ok: test:e2e:stage:prescriptions -> cypress/e2e/stage/33-prescriptions-medications-pdf.cy.ts
 - ok: test:e2e:stage:inbox -> cypress/e2e/stage/34-inbox-whatsapp-lifecycle.cy.ts
 - ok: test:e2e:stage:whatsapp-webhook -> cypress/e2e/stage/35-whatsapp-webhook-inbound.cy.ts

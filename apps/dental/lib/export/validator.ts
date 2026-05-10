@@ -460,12 +460,15 @@ export class BundleValidator {
     total += this.bundle.data.rolePermissions?.length || 0;
     total += this.bundle.data.workspaceUsers?.length || 0;
     total += this.bundle.data.workspaceMembers?.length || 0;
+    total += this.bundle.data.customRoleTemplates?.length || 0;
 
     this.bundle.data.clinics.forEach((clinic) => {
       total += 1; // clinic itself
       total += clinic.customCategories?.length || 0;
       total += clinic.categories?.length || 0;
       total += clinic.patientSources?.length || 0;
+      total += clinic.invitations?.length || 0;
+      total += clinic.clinicUsers?.length || 0;
       total += clinic.assets?.length || 0;
       total += clinic.supplies?.length || 0;
       total += clinic.fixedCosts?.length || 0;
@@ -474,9 +477,34 @@ export class BundleValidator {
       total += clinic.tariffs?.length || 0;
       total += clinic.marketingCampaigns?.length || 0;
       total += clinic.marketingCampaignStatusHistory?.length || 0;
+      total += clinic.marketingCampaignChannels?.length || 0;
+      total += clinic.leads?.length || 0;
+      total += clinic.inboxConversations?.length || 0;
+      total += clinic.inboxMessages?.length || 0;
       total += clinic.patients?.length || 0;
       total += clinic.treatments?.length || 0;
       total += clinic.expenses?.length || 0;
+      total += clinic.publicBookingServices?.length || 0;
+      total += clinic.publicBookings?.length || 0;
+      total += clinic.bookingBlockedSlots?.length || 0;
+      total += clinic.emailNotifications?.length || 0;
+      total += clinic.smsNotifications?.length || 0;
+      total += clinic.whatsappTemplates?.length || 0;
+      total += clinic.whatsappNotifications?.length || 0;
+      total += clinic.scheduledReminders?.length || 0;
+      total += clinic.pushSubscriptions?.length || 0;
+      total += clinic.pushNotifications?.length || 0;
+      total += clinic.notificationRetryQueue?.length || 0;
+      total += clinic.medications?.length || 0;
+      total += clinic.prescriptions?.length || 0;
+      total += clinic.prescriptionItems?.length || 0;
+      total += clinic.quotes?.length || 0;
+      total += clinic.quoteItems?.length || 0;
+      total += clinic.actionLogs?.length || 0;
+      total += clinic.clinicGoogleCalendar ? 1 : 0;
+      total += clinic.chatSessions?.length || 0;
+      total += clinic.chatMessages?.length || 0;
+      total += clinic.aiFeedback?.length || 0;
     });
 
     return total;

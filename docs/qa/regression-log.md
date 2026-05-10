@@ -9,6 +9,44 @@ Cada entrada debe explicar:
 - Como se verifica.
 - Que riesgo protege.
 
+## 2026-05-10 - Exports incompletos quedan cubiertos por oraculo QA
+
+## Contexto
+
+Los exports tenian cobertura de humo: generar workspace bundle, validar e importar en `dryRun`. Eso no probaba que el backup incluyera todas las entidades nuevas ni que el export clinico para IA contuviera booking, inbox/WhatsApp, notificaciones, Lara, recetas o presupuestos.
+
+## Riesgo
+
+- Un modulo nuevo podia quedar fuera del export sin que Cypress fallara.
+- El export clinico `full/both` servia solo un subconjunto del producto, aunque la UI lo presentaba como export completo para IA.
+- `dryRun` de import valida contrato, pero no prueba restauracion real de todos los modulos exportados.
+
+## Cambio
+
+- `GET /api/clinic/:clinicId/export?type=full|both` ahora incluye equipo/invitaciones, roles custom, booking publico, inbox/WhatsApp, notificaciones, reintentos, Lara, recetas, presupuestos y sus tablas dependientes.
+- `POST /api/export/generate` incluye en el bundle de workspace las entidades nuevas de booking, inbox/WhatsApp, notificaciones y roles custom.
+- Las descargas desde Settings y Lara ya no re-formatean el JSON con indentacion, para reducir peso del archivo exportado.
+- `apps/dental/cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts` ahora valida conteos del dataset QA, claves exportadas y relaciones tratamiento-paciente-servicio para workspace export y clinic full export.
+- `test:e2e:stage:exports` queda como alias operativo del spec de data portability.
+
+## Brecha que queda registrada
+
+Falta una prueba de roundtrip real no-dry-run: importar en un workspace temporal, verificar todos los modulos restaurados y borrar el workspace. Queda registrada como `qa-087-export-real-import-roundtrip`.
+
+## Archivos tocados
+
+- `apps/dental/app/api/clinic/[clinicId]/export/route.ts`
+- `apps/dental/app/settings/export-import/components/ExportSection.tsx`
+- `apps/dental/components/ai-assistant/QueryMode/QueryAssistant.tsx`
+- `apps/dental/lib/export/exporter.ts`
+- `apps/dental/lib/export/types.ts`
+- `apps/dental/lib/export/validator.ts`
+- `apps/dental/cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts`
+- `apps/dental/package.json`
+- `docs/qa/coverage-matrix.json`
+- `docs/qa/coverage-matrix.md`
+- `docs/qa/product-readiness.json`
+
 ## 2026-05-04 - Lara debe responder, sugerir acciones y probar audio sin proveedores reales
 
 ### Problema

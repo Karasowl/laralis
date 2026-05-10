@@ -898,6 +898,10 @@ export interface ClinicDataBundle {
   // Marketing (Level 7)
   marketingCampaigns: MarketingCampaign[];
   marketingCampaignStatusHistory: MarketingCampaignStatusHistory[];
+  marketingCampaignChannels?: Record<string, unknown>[];
+  leads?: Record<string, unknown>[];
+  inboxConversations?: Record<string, unknown>[];
+  inboxMessages?: Record<string, unknown>[];
 
   // Clinical (Level 8-9)
   patients: Patient[];
@@ -909,9 +913,17 @@ export interface ClinicDataBundle {
   // Notifications & Reminders
   emailNotifications?: EmailNotification[];
   smsNotifications?: SMSNotification[];
+  whatsappTemplates?: Record<string, unknown>[];
+  whatsappNotifications?: Record<string, unknown>[];
   scheduledReminders?: ScheduledReminder[];
   pushSubscriptions?: PushSubscription[];
   pushNotifications?: PushNotification[];
+  notificationRetryQueue?: Record<string, unknown>[];
+
+  // Public booking
+  publicBookingServices?: Record<string, unknown>[];
+  publicBookings?: Record<string, unknown>[];
+  bookingBlockedSlots?: Record<string, unknown>[];
 
   // Prescriptions & Medications
   medications?: Medication[];
@@ -994,6 +1006,7 @@ export interface ExportBundle {
     // Level 2: Workspace Users
     workspaceUsers: WorkspaceUser[];
     workspaceMembers: WorkspaceMember[];
+    customRoleTemplates?: Record<string, unknown>[];
 
     // Level 3+: Clinics with all nested data
     clinics: ClinicDataBundle[];

@@ -222,5 +222,31 @@
       "Every language and theme combination has visual baselines"
     ],
     "nextTest": "Add targeted baselines only after each module has stable product behavior and selectors."
+  },
+  {
+    "area": "data-portability-exports",
+    "risk": "P0",
+    "implementationStatus": "partial",
+    "coverageMode": "real",
+    "evidence": [
+      "apps/dental/app/api/export/generate/route.ts",
+      "apps/dental/app/api/clinic/[clinicId]/export/route.ts",
+      "apps/dental/lib/export/exporter.ts",
+      "apps/dental/cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts"
+    ],
+    "proven": [
+      "Workspace export includes the QA workspace, both QA clinics, core clinical/financial entities, booking public data, inbox/WhatsApp data, notification logs, Lara data, prescriptions, quotes, and custom role templates",
+      "Clinic full export includes the same product areas in snake_case for AI/external audit consumers",
+      "Export recordCounts match the seeded QA dataset for patients, treatments, services, supplies, fixed costs, assets, patient sources, campaigns, service recipes, expenses, and public booking records",
+      "Treatment relationships point to exported patients and services",
+      "Clinic B remains isolated with no patients or treatments in the exported QA dataset",
+      "Dry-run import still validates the workspace bundle without creating data"
+    ],
+    "notProven": [
+      "Real non-dry-run import restores every extended module into a temporary workspace",
+      "Restored booking, inbox, WhatsApp, push, prescription, quote, and Lara records behave correctly after import",
+      "Large real-clinic exports stay within timeout and memory budgets beyond the QA dataset"
+    ],
+    "nextTest": "Create a destructive-safe roundtrip spec that imports into a temporary workspace, verifies every exported module, and deletes the workspace tree at the end."
   }
 ]

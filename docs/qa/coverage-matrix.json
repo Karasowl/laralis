@@ -726,5 +726,21 @@
     "capability": "Entry Mode crea activo y costo fijo por UI, convierte campos en pesos antes de persistir y limpia registros QA en Supabase stage",
     "layers": ["cypress", "ui", "api", "database", "provider-mock"],
     "status": "covered"
+  },
+  {
+    "id": "qa-086-export-completeness-oracle",
+    "priority": "P0",
+    "domain": "data-portability",
+    "capability": "Export workspace y export clinico full incluyen entidades core, booking, inbox/WhatsApp, notificaciones, Lara, recetas, presupuestos y conteos/relaciones del dataset QA",
+    "layers": ["cypress", "api", "database", "oracle"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-087-export-real-import-roundtrip",
+    "priority": "P0",
+    "domain": "data-portability",
+    "capability": "Import real no dry-run restaura todos los modulos exportados y verifica conteos/relaciones en un workspace temporal descartable",
+    "layers": ["cypress", "api", "database", "supabase-task"],
+    "status": "planned"
   }
 ]

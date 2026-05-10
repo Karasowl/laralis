@@ -301,9 +301,12 @@ Cobertura actual:
 
 - `apps/dental/cypress/e2e/stage/32-data-portability-security-snapshots.cy.ts` verifica que export/import, snapshots/restore y MFA no son accesibles sin sesion.
 - El mismo spec exporta el workspace QA, valida el bundle generado y ejecuta import en `dryRun` para confirmar el contrato sin crear datos nuevos.
+- El export de workspace ahora tiene oraculo de completitud: exige entidades core, equipo, booking publico, inbox/WhatsApp, notificaciones, Lara, recetas, presupuestos, conteos del dataset QA y relaciones tratamiento-paciente-servicio.
+- El export clinico `GET /api/clinic/:clinicId/export?type=full` tambien tiene oraculo de completitud y presupuesto de tamano para detectar payloads inflados o entidades ausentes.
 - Tambien crea un snapshot real de la clinica QA, consulta metadata, ejecuta restore en `dryRun` y borra el snapshot para no dejar basura permanente.
 - En seguridad, inicia setup de MFA, verifica QR/secret, rechaza un codigo invalido y limpia el estado pendiente para que el usuario QA siga siendo reutilizable.
 - Las pantallas `/settings/export-import`, `/settings/snapshots` y `/settings/security` se abren en desktop y mobile sin caer a onboarding/setup ni producir scroll horizontal.
+- Brecha declarada: el import real no-dry-run de todos los modulos exportados todavia debe probarse en un workspace temporal descartable antes de prometer restauracion completa.
 
 ## Capacidades que no pueden quedar fuera
 

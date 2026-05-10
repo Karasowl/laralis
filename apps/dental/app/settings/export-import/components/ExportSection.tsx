@@ -88,7 +88,7 @@ export function ExportSection() {
       setExportComplete(true);
 
       // Trigger download
-      const blob = new Blob([JSON.stringify(data.bundle, null, 2)], {
+      const blob = new Blob([JSON.stringify(data.bundle)], {
         type: 'application/json',
       });
       const url = URL.createObjectURL(blob);
@@ -134,7 +134,7 @@ export function ExportSection() {
       const data = await response.json();
 
       // Trigger download
-      const blob = new Blob([JSON.stringify(data, null, 2)], {
+      const blob = new Blob([JSON.stringify(data)], {
         type: 'application/json',
       });
       const url = URL.createObjectURL(blob);

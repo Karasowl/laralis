@@ -20,6 +20,43 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
 
 // Types for export
+type ExportRow = Record<string, unknown> & {
+  id?: string
+  name?: string | null
+  first_name?: string | null
+  last_name?: string | null
+  workspace_id?: string | null
+  campaign_id?: string | null
+  source_id?: string | null
+  patient_id?: string | null
+  service_id?: string | null
+  category_id?: string | null
+}
+
+type ExportError = {
+  code?: string
+  message?: string
+}
+
+type DynamicQueryResult<T> = PromiseLike<{
+  data: T | null
+  error: ExportError | null
+}>
+
+type DynamicRowsQuery = DynamicQueryResult<ExportRow[]> & {
+  eq(column: string, value: string): DynamicRowsQuery
+  in(column: string, values: string[]): DynamicRowsQuery
+  maybeSingle(): DynamicQueryResult<ExportRow | null>
+}
+
+type DynamicSupabaseClient = {
+  from(table: string): {
+    select(columns: string): DynamicRowsQuery
+  }
+}
+
+const dynamicSupabase = supabaseAdmin as unknown as DynamicSupabaseClient
+
 interface ExportMetadata {
   version: string
   exportDate: string
@@ -32,32 +69,64 @@ interface ExportMetadata {
 
 interface FullExportData {
   // Clinic configuration
-  clinic: any
-  settings_time: any
+  clinic: ExportRow | null
+  settings_time: ExportRow | null
+  clinic_google_calendar: ExportRow | null
   // Categories
-  categories: any[]
-  custom_categories: any[]
+  categories: ExportRow[]
+  custom_categories: ExportRow[]
   // Patients & Sources
-  patients: any[]
-  patient_sources: any[]
+  patients: ExportRow[]
+  patient_sources: ExportRow[]
+  clinic_users: ExportRow[]
+  invitations: ExportRow[]
+  custom_role_templates: ExportRow[]
   // Treatments (with full details for per-patient analysis)
-  treatments: any[]
+  treatments: ExportRow[]
   // Services & Recipes
-  services: any[]
-  supplies: any[]
-  service_supplies: any[]
+  services: ExportRow[]
+  supplies: ExportRow[]
+  service_supplies: ExportRow[]
   // Financials
-  expenses: any[]
-  fixed_costs: any[]
-  assets: any[]
+  expenses: ExportRow[]
+  fixed_costs: ExportRow[]
+  assets: ExportRow[]
   // Marketing
-  marketing_campaigns: any[]
-  marketing_campaign_status_history: any[]
+  marketing_campaigns: ExportRow[]
+  marketing_campaign_status_history: ExportRow[]
+  marketing_campaign_channels: ExportRow[]
+  leads: ExportRow[]
+  inbox_conversations: ExportRow[]
+  inbox_messages: ExportRow[]
+  // Public booking
+  public_booking_services: ExportRow[]
+  public_bookings: ExportRow[]
+  booking_blocked_slots: ExportRow[]
+  // Notifications
+  email_notifications: ExportRow[]
+  sms_notifications: ExportRow[]
+  whatsapp_templates: ExportRow[]
+  whatsapp_notifications: ExportRow[]
+  scheduled_reminders: ExportRow[]
+  push_subscriptions: ExportRow[]
+  push_notifications: ExportRow[]
+  notification_retry_queue: ExportRow[]
+  // AI assistant
+  action_logs: ExportRow[]
+  chat_sessions: ExportRow[]
+  chat_messages: ExportRow[]
+  ai_feedback: ExportRow[]
+  // Medical records and quotes
+  medications: ExportRow[]
+  prescriptions: ExportRow[]
+  prescription_items: ExportRow[]
+  quotes: ExportRow[]
+  quote_items: ExportRow[]
 }
 
 interface ExportResponse {
   metadata: ExportMetadata
-  snapshot?: any // ClinicSnapshot for AI
+  snapshot?: unknown // ClinicSnapshot for AI
   data?: FullExportData // Full records
 }
 
@@ -148,28 +217,18 @@ export async function GET(
       const fullData = await loadFullClinicData(clinicId)
       response.data = fullData
 
-      // Update record counts
-      response.metadata.recordCounts.clinic = fullData.clinic ? 1 : 0
-      response.metadata.recordCounts.settings_time = fullData.settings_time ? 1 : 0
-      response.metadata.recordCounts.categories = fullData.categories.length
-      response.metadata.recordCounts.custom_categories = fullData.custom_categories.length
-      response.metadata.recordCounts.patients = fullData.patients.length
-      response.metadata.recordCounts.patient_sources = fullData.patient_sources.length
-      response.metadata.recordCounts.treatments = fullData.treatments.length
-      response.metadata.recordCounts.services = fullData.services.length
-      response.metadata.recordCounts.supplies = fullData.supplies.length
-      response.metadata.recordCounts.service_supplies = fullData.service_supplies.length
-      response.metadata.recordCounts.expenses = fullData.expenses.length
-      response.metadata.recordCounts.fixed_costs = fullData.fixed_costs.length
-      response.metadata.recordCounts.assets = fullData.assets.length
-      response.metadata.recordCounts.marketing_campaigns = fullData.marketing_campaigns.length
-      response.metadata.recordCounts.marketing_campaign_status_history = fullData.marketing_campaign_status_history.length
+      response.metadata.recordCounts = {
+        ...response.metadata.recordCounts,
+        ...countFullExportRecords(fullData),
+      }
     }
 
     // Return with appropriate headers for download
     const filename = `clinic-export-${clinicId.slice(0, 8)}-${exportType}-${new Date().toISOString().slice(0, 10)}.json`
 
-    return new NextResponse(JSON.stringify(response, null, 2), {
+    const pretty = searchParams.get('pretty') === '1'
+
+    return new NextResponse(JSON.stringify(response, null, pretty ? 2 : 0), {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
@@ -186,6 +245,117 @@ export async function GET(
       { status: 500 }
     )
   }
+}
+
+function countFullExportRecords(data: FullExportData): Record<string, number> {
+  return Object.fromEntries(
+    Object.entries(data).map(([key, value]) => [
+      key,
+      Array.isArray(value) ? value.length : value ? 1 : 0,
+    ])
+  )
+}
+
+function logExportError(table: string, error: unknown) {
+  const message = error && typeof error === 'object' && 'message' in error
+    ? String((error as { message?: unknown }).message)
+    : String(error)
+  console.error(`[AI Export] ${table} error:`, message)
+}
+
+function isMissingTableOrColumn(error: ExportError | null | undefined) {
+  const message = error?.message || ''
+  return (
+    error?.code === '42P01' ||
+    error?.code === 'PGRST205' ||
+    /Could not find the table/i.test(message) ||
+    /Could not find the .* column/i.test(message) ||
+    /relation .* does not exist/i.test(message)
+  )
+}
+
+async function selectClinicRows(table: string, clinicId: string): Promise<ExportRow[]> {
+  const { data, error } = await dynamicSupabase
+    .from(table)
+    .select('*')
+    .eq('clinic_id', clinicId)
+
+  if (error) {
+    logExportError(table, error)
+    return []
+  }
+
+  return data || []
+}
+
+async function selectWorkspaceRows(table: string, workspaceId?: string | null): Promise<ExportRow[]> {
+  if (!workspaceId) return []
+
+  const { data, error } = await dynamicSupabase
+    .from(table)
+    .select('*')
+    .eq('workspace_id', workspaceId)
+
+  if (error) {
+    if (!isMissingTableOrColumn(error)) logExportError(table, error)
+    return []
+  }
+
+  return data || []
+}
+
+async function selectRowsByIds(
+  table: string,
+  column: string,
+  ids: Array<string | null | undefined>
+): Promise<ExportRow[]> {
+  const filteredIds = Array.from(new Set(ids.filter((id): id is string => Boolean(id))))
+  if (!filteredIds.length) return []
+
+  const { data, error } = await dynamicSupabase
+    .from(table)
+    .select('*')
+    .in(column, filteredIds)
+
+  if (error) {
+    if (!isMissingTableOrColumn(error)) logExportError(table, error)
+    return []
+  }
+
+  return data || []
+}
+
+async function selectServiceSuppliesByClinic(clinicId: string): Promise<ExportRow[]> {
+  const { data: services, error } = await supabaseAdmin
+    .from('services')
+    .select('id')
+    .eq('clinic_id', clinicId)
+
+  if (error) {
+    logExportError('service_supplies.services', error)
+    return []
+  }
+
+  return selectRowsByIds(
+    'service_supplies',
+    'service_id',
+    ((services || []) as ExportRow[]).map((service) => service.id)
+  )
+}
+
+async function selectSingleByClinic(table: string, clinicId: string): Promise<ExportRow | null> {
+  const { data, error } = await dynamicSupabase
+    .from(table)
+    .select('*')
+    .eq('clinic_id', clinicId)
+    .maybeSingle()
+
+  if (error) {
+    if (!isMissingTableOrColumn(error)) logExportError(table, error)
+    return null
+  }
+
+  return data || null
 }
 
 /**
@@ -206,12 +376,34 @@ async function loadFullClinicData(clinicId: string): Promise<FullExportData> {
     treatmentsResult,
     servicesResult,
     suppliesResult,
-    serviceSuppliesResult,
+    serviceSupplies,
     expensesResult,
     fixedCostsResult,
     assetsResult,
     campaignsResult,
-    campaignHistoryResult
+    campaignHistoryResult,
+    clinicUsers,
+    invitations,
+    marketingCampaignChannels,
+    leads,
+    inboxConversations,
+    publicBookingServices,
+    publicBookings,
+    bookingBlockedSlots,
+    emailNotifications,
+    smsNotifications,
+    whatsappTemplates,
+    whatsappNotifications,
+    scheduledReminders,
+    pushSubscriptions,
+    pushNotifications,
+    notificationRetryQueue,
+    actionLogs,
+    clinicGoogleCalendar,
+    chatSessions,
+    medications,
+    prescriptions,
+    quotes
   ] = await Promise.all([
     // Clinic - full record with global discount config
     supabaseAdmin
@@ -277,10 +469,7 @@ async function loadFullClinicData(clinicId: string): Promise<FullExportData> {
       .order('name'),
 
     // Service-Supply relationships (recipes)
-    supabaseAdmin
-      .from('service_supplies')
-      .select('*')
-      .eq('clinic_id', clinicId),
+    selectServiceSuppliesByClinic(clinicId),
 
     // Expenses
     supabaseAdmin
@@ -313,7 +502,33 @@ async function loadFullClinicData(clinicId: string): Promise<FullExportData> {
     // Marketing campaign status history - need different approach
     supabaseAdmin
       .from('marketing_campaign_status_history')
+      .select('*'),
+
+    selectClinicRows('clinic_users', clinicId),
+    selectClinicRows('invitations', clinicId),
+    selectClinicRows('marketing_campaign_channels', clinicId),
+    selectClinicRows('leads', clinicId),
+    selectClinicRows('inbox_conversations', clinicId),
+    selectClinicRows('public_booking_services', clinicId),
+    selectClinicRows('public_bookings', clinicId),
+    selectClinicRows('booking_blocked_slots', clinicId),
+    selectClinicRows('email_notifications', clinicId),
+    selectClinicRows('sms_notifications', clinicId),
+    selectClinicRows('whatsapp_templates', clinicId),
+    selectClinicRows('whatsapp_notifications', clinicId),
+    selectClinicRows('scheduled_reminders', clinicId),
+    selectClinicRows('push_subscriptions', clinicId),
+    selectClinicRows('push_notifications', clinicId),
+    selectClinicRows('notification_retry_queue', clinicId),
+    selectClinicRows('action_logs', clinicId),
+    selectSingleByClinic('clinic_google_calendar', clinicId),
+    selectClinicRows('chat_sessions', clinicId),
+    supabaseAdmin
+      .from('medications')
       .select('*')
+      .or(`clinic_id.eq.${clinicId},clinic_id.is.null`),
+    selectClinicRows('prescriptions', clinicId),
+    selectClinicRows('quotes', clinicId)
   ])
 
   // Log any errors with full details
@@ -327,7 +542,6 @@ async function loadFullClinicData(clinicId: string): Promise<FullExportData> {
   if (categoriesResult.error) console.error('[AI Export] Categories error:', categoriesResult.error)
   if (customCategoriesResult.error) console.error('[AI Export] Custom categories error:', customCategoriesResult.error)
   if (sourcesResult.error) console.error('[AI Export] Sources error:', sourcesResult.error)
-  if (serviceSuppliesResult.error) console.error('[AI Export] Service supplies error:', serviceSuppliesResult.error)
   if (campaignsResult.error) console.error('[AI Export] Campaigns error:', campaignsResult.error)
 
 
@@ -340,67 +554,131 @@ async function loadFullClinicData(clinicId: string): Promise<FullExportData> {
     fixedCosts: fixedCostsResult.data?.length || 0,
     assets: assetsResult.data?.length || 0,
     campaigns: campaignsResult.data?.length || 0,
+    leads: leads.length,
+    publicBookings: publicBookings.length,
+    inboxConversations: inboxConversations.length,
   })
 
   // Get campaign IDs for filtering status history
-  const campaignIds = (campaignsResult.data || []).map((c: any) => c.id)
-  const filteredHistory = (campaignHistoryResult.data || []).filter(
-    (h: any) => campaignIds.includes(h.campaign_id)
+  const campaignRows = (campaignsResult.data || []) as ExportRow[]
+  const campaignIds = campaignRows.map((campaign) => campaign.id).filter((id): id is string => Boolean(id))
+  const filteredHistory = ((campaignHistoryResult.data || []) as ExportRow[]).filter(
+    (history) => typeof history.campaign_id === 'string' && campaignIds.includes(history.campaign_id)
   )
 
   // Enrich patients with campaign and source names
-  const campaigns = campaignsResult.data || []
-  const sources = sourcesResult.data || []
-  const enrichedPatients = (patientsResult.data || []).map((patient: any) => ({
+  const campaigns = campaignRows
+  const sources = (sourcesResult.data || []) as ExportRow[]
+  const clinic = (clinicResult.data || null) as ExportRow | null
+  const chatMessages = await selectRowsByIds(
+    'chat_messages',
+    'session_id',
+    chatSessions.map((session) => session.id)
+  )
+  const aiFeedback = await selectRowsByIds(
+    'ai_feedback',
+    'message_id',
+    chatMessages.map((message) => message.id)
+  )
+  const inboxMessages = await selectRowsByIds(
+    'inbox_messages',
+    'conversation_id',
+    inboxConversations.map((conversation) => conversation.id)
+  )
+  const prescriptionItems = await selectRowsByIds(
+    'prescription_items',
+    'prescription_id',
+    prescriptions.map((prescription) => prescription.id)
+  )
+  const quoteItems = await selectRowsByIds(
+    'quote_items',
+    'quote_id',
+    quotes.map((quote) => quote.id)
+  )
+  const customRoleTemplates = await selectWorkspaceRows('custom_role_templates', clinic?.workspace_id)
+  const patientRows = (patientsResult.data || []) as ExportRow[]
+  const enrichedPatients = patientRows.map((patient) => ({
     ...patient,
-    campaign_name: campaigns.find((c: any) => c.id === patient.campaign_id)?.name || null,
-    source_name: sources.find((s: any) => s.id === patient.source_id)?.name || null,
+    campaign_name: campaigns.find((campaign) => campaign.id === patient.campaign_id)?.name || null,
+    source_name: sources.find((source) => source.id === patient.source_id)?.name || null,
   }))
 
   // Enrich treatments with service and patient names
-  const services = servicesResult.data || []
-  const patients = patientsResult.data || []
-  const enrichedTreatments = (treatmentsResult.data || []).map((treatment: any) => {
-    const patient = patients.find((p: any) => p.id === treatment.patient_id)
+  const services = (servicesResult.data || []) as ExportRow[]
+  const patients = patientRows
+  const enrichedTreatments = ((treatmentsResult.data || []) as ExportRow[]).map((treatment) => {
+    const patient = patients.find((row) => row.id === treatment.patient_id)
     const patientName = patient
       ? `${patient.first_name || ''} ${patient.last_name || ''}`.trim() || patient.name || null
       : null
     return {
       ...treatment,
-      service_name: services.find((s: any) => s.id === treatment.service_id)?.name || null,
+      service_name: services.find((service) => service.id === treatment.service_id)?.name || null,
       patient_name: patientName,
     }
   })
 
   // Enrich services with category names
-  const customCategories = customCategoriesResult.data || []
-  const enrichedServices = (servicesResult.data || []).map((service: any) => ({
+  const customCategories = (customCategoriesResult.data || []) as ExportRow[]
+  const enrichedServices = services.map((service) => ({
     ...service,
-    category_name: customCategories.find((c: any) => c.id === service.category_id)?.name || null,
+    category_name: customCategories.find((category) => category.id === service.category_id)?.name || null,
   }))
 
   return {
     // Clinic configuration
-    clinic: clinicResult.data || null,
+    clinic,
     settings_time: timeSettingsResult.data || null,
+    clinic_google_calendar: clinicGoogleCalendar,
     // Categories
-    categories: categoriesResult.data || [],
-    custom_categories: customCategoriesResult.data || [],
+    categories: (categoriesResult.data || []) as ExportRow[],
+    custom_categories: customCategories,
     // Patients & Sources
     patients: enrichedPatients,
     patient_sources: sourcesResult.data || [],
+    clinic_users: clinicUsers,
+    invitations,
+    custom_role_templates: customRoleTemplates,
     // Treatments
     treatments: enrichedTreatments,
     // Services & Recipes
     services: enrichedServices,
-    supplies: suppliesResult.data || [],
-    service_supplies: serviceSuppliesResult.data || [],
+    supplies: (suppliesResult.data || []) as ExportRow[],
+    service_supplies: serviceSupplies,
     // Financials
-    expenses: expensesResult.data || [],
-    fixed_costs: fixedCostsResult.data || [],
-    assets: assetsResult.data || [],
+    expenses: (expensesResult.data || []) as ExportRow[],
+    fixed_costs: (fixedCostsResult.data || []) as ExportRow[],
+    assets: (assetsResult.data || []) as ExportRow[],
     // Marketing
-    marketing_campaigns: campaignsResult.data || [],
-    marketing_campaign_status_history: filteredHistory
+    marketing_campaigns: campaigns,
+    marketing_campaign_status_history: filteredHistory,
+    marketing_campaign_channels: marketingCampaignChannels,
+    leads,
+    inbox_conversations: inboxConversations,
+    inbox_messages: inboxMessages,
+    // Public booking
+    public_booking_services: publicBookingServices,
+    public_bookings: publicBookings,
+    booking_blocked_slots: bookingBlockedSlots,
+    // Notifications
+    email_notifications: emailNotifications,
+    sms_notifications: smsNotifications,
+    whatsapp_templates: whatsappTemplates,
+    whatsapp_notifications: whatsappNotifications,
+    scheduled_reminders: scheduledReminders,
+    push_subscriptions: pushSubscriptions,
+    push_notifications: pushNotifications,
+    notification_retry_queue: notificationRetryQueue,
+    // AI assistant
+    action_logs: actionLogs,
+    chat_sessions: chatSessions,
+    chat_messages: chatMessages,
+    ai_feedback: aiFeedback,
+    // Medical records and quotes
+    medications: (medications.data || []) as ExportRow[],
+    prescriptions,
+    prescription_items: prescriptionItems,
+    quotes,
+    quote_items: quoteItems,
   }
 }

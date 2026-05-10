@@ -10,6 +10,7 @@ import type {
   ExportBundle,
   ExportOptions,
   ClinicDataBundle,
+  Clinic,
   Workspace,
   Organization,
   CategoryType,
@@ -20,6 +21,32 @@ import type {
 import { addChecksum, validateMoneyFields } from './checksum';
 import { CURRENT_SCHEMA_VERSION, EXPORT_FORMAT_VERSION } from './migrations';
 
+type ExportRow = Record<string, unknown> & {
+  id?: string;
+};
+
+type DynamicQueryResult<T> = PromiseLike<{
+  data: T | null;
+  error: unknown;
+}>;
+
+type DynamicRowsQuery = DynamicQueryResult<ExportRow[]> & {
+  eq(column: string, value: string): DynamicRowsQuery;
+  in(column: string, values: string[]): DynamicRowsQuery;
+};
+
+type DynamicSupabaseClient = {
+  from(table: string): {
+    select(columns: string): DynamicRowsQuery;
+  };
+};
+
+function rowIds(rows: Array<{ id?: unknown }>): string[] {
+  return rows
+    .map((row) => row.id)
+    .filter((id): id is string => typeof id === 'string' && id.length > 0);
+}
+
 /**
  * Export Error
  */
@@ -27,7 +54,7 @@ export class ExportError extends Error {
   constructor(
     message: string,
     public code: string,
-    public details?: any
+    public details?: unknown
   ) {
     super(message);
     this.name = 'ExportError';
@@ -97,6 +124,7 @@ export class WorkspaceExporter {
       // Level 2: Workspace users
       const workspaceUsers = await this.fetchWorkspaceUsers();
       const workspaceMembers = await this.fetchWorkspaceMembers();
+      const customRoleTemplates = await this.fetchCustomRoleTemplates();
 
       // Level 3+: Clinics with all nested data
       const clinics = await this.fetchClinics();
@@ -125,6 +153,7 @@ export class WorkspaceExporter {
           rolePermissions,
           workspaceUsers,
           workspaceMembers,
+          customRoleTemplates,
           clinics,
         },
         migrations: {
@@ -134,7 +163,7 @@ export class WorkspaceExporter {
       };
 
       // Add checksum
-      const bundle = await addChecksum(bundleWithoutChecksum as any);
+      const bundle = await addChecksum(bundleWithoutChecksum);
 
       // Validate money fields
       const moneyErrors = validateMoneyFields(bundle);
@@ -277,6 +306,10 @@ export class WorkspaceExporter {
     return (data as WorkspaceMember[]) || [];
   }
 
+  private async fetchCustomRoleTemplates() {
+    return this.fetchRowsByWorkspace('custom_role_templates', this.workspaceId);
+  }
+
   /**
    * Fetch all clinics with nested data
    */
@@ -310,7 +343,7 @@ export class WorkspaceExporter {
   /**
    * Fetch all data for a single clinic
    */
-  private async fetchClinicData(clinic: any): Promise<ClinicDataBundle> {
+  private async fetchClinicData(clinic: Clinic): Promise<ClinicDataBundle> {
     const clinicId = clinic.id;
     console.log(`[Regular Export] Fetching data for clinic: ${clinic.name} (${clinicId})`);
 
@@ -329,9 +362,15 @@ export class WorkspaceExporter {
       serviceSupplies,
       marketingCampaigns,
       marketingCampaignStatusHistory,
+      marketingCampaignChannels,
+      leads,
+      inboxConversations,
       patients,
       treatments,
       expenses,
+      publicBookingServices,
+      publicBookings,
+      bookingBlockedSlots,
       workspaceActivity,
       // AI Assistant Data (Migrations 50-54)
       actionLogs,
@@ -340,9 +379,12 @@ export class WorkspaceExporter {
       // Notifications & Reminders
       emailNotifications,
       smsNotifications,
+      whatsappTemplates,
+      whatsappNotifications,
       scheduledReminders,
       pushSubscriptions,
       pushNotifications,
+      notificationRetryQueue,
       // Prescriptions & Medications
       medications,
       prescriptions,
@@ -362,9 +404,15 @@ export class WorkspaceExporter {
       this.fetchServiceSupplies(clinicId),
       this.fetchMarketingCampaigns(clinicId),
       this.fetchMarketingCampaignStatusHistory(clinicId),
+      this.fetchRowsByClinic('marketing_campaign_channels', clinicId),
+      this.fetchRowsByClinic('leads', clinicId),
+      this.fetchRowsByClinic('inbox_conversations', clinicId),
       this.fetchPatients(clinicId),
       this.fetchTreatments(clinicId),
       this.fetchExpenses(clinicId),
+      this.fetchRowsByClinic('public_booking_services', clinicId),
+      this.fetchRowsByClinic('public_bookings', clinicId),
+      this.fetchRowsByClinic('booking_blocked_slots', clinicId),
       this.options.includeAuditLogs ? this.fetchWorkspaceActivity(clinicId) : [],
       // AI Assistant Data
       this.fetchActionLogs(clinicId),
@@ -373,9 +421,12 @@ export class WorkspaceExporter {
       // Notifications & Reminders
       this.fetchEmailNotifications(clinicId),
       this.fetchSmsNotifications(clinicId),
+      this.fetchRowsByClinic('whatsapp_templates', clinicId),
+      this.fetchRowsByClinic('whatsapp_notifications', clinicId),
       this.fetchScheduledReminders(clinicId),
       this.fetchPushSubscriptions(clinicId),
       this.fetchPushNotifications(clinicId),
+      this.fetchRowsByClinic('notification_retry_queue', clinicId),
       // Prescriptions & Medications
       this.fetchMedications(clinicId),
       this.fetchPrescriptions(clinicId),
@@ -384,17 +435,24 @@ export class WorkspaceExporter {
     ]);
 
     // Fetch dependent data that needs IDs from parent tables
-    const sessionIds = chatSessions.map((s: any) => s.id);
+    const sessionIds = rowIds(chatSessions);
     const chatMessages = await this.fetchChatMessages(clinicId, sessionIds);
 
-    const messageIds = chatMessages.map((m: any) => m.id);
+    const messageIds = rowIds(chatMessages);
     const aiFeedback = await this.fetchAiFeedback(clinicId, messageIds);
 
-    const prescriptionIds = prescriptions.map((p: any) => p.id);
+    const prescriptionIds = rowIds(prescriptions);
     const prescriptionItems = await this.fetchPrescriptionItems(prescriptionIds);
 
-    const quoteIds = quotes.map((q: any) => q.id);
+    const quoteIds = rowIds(quotes);
     const quoteItems = await this.fetchQuoteItems(quoteIds);
+
+    const inboxConversationIds = rowIds(inboxConversations);
+    const inboxMessages = await this.fetchRowsByIds(
+      'inbox_messages',
+      'conversation_id',
+      inboxConversationIds
+    );
 
     // Calculate record counts for this clinic
     const recordCounts: Record<string, number> = {
@@ -411,9 +469,16 @@ export class WorkspaceExporter {
       service_supplies: serviceSupplies.length,
       marketing_campaigns: marketingCampaigns.length,
       marketing_campaign_status_history: marketingCampaignStatusHistory.length,
+      marketing_campaign_channels: marketingCampaignChannels.length,
+      leads: leads.length,
+      inbox_conversations: inboxConversations.length,
+      inbox_messages: inboxMessages.length,
       patients: patients.length,
       treatments: treatments.length,
       expenses: expenses.length,
+      public_booking_services: publicBookingServices.length,
+      public_bookings: publicBookings.length,
+      booking_blocked_slots: bookingBlockedSlots.length,
       workspace_activity: workspaceActivity?.length || 0,
       // AI Assistant Data
       action_logs: actionLogs.length,
@@ -424,9 +489,12 @@ export class WorkspaceExporter {
       // Notifications & Reminders
       email_notifications: emailNotifications.length,
       sms_notifications: smsNotifications.length,
+      whatsapp_templates: whatsappTemplates.length,
+      whatsapp_notifications: whatsappNotifications.length,
       scheduled_reminders: scheduledReminders.length,
       push_subscriptions: pushSubscriptions.length,
       push_notifications: pushNotifications.length,
+      notification_retry_queue: notificationRetryQueue.length,
       // Prescriptions & Medications
       medications: medications.length,
       prescriptions: prescriptions.length,
@@ -460,9 +528,16 @@ export class WorkspaceExporter {
       serviceSupplies,
       marketingCampaigns,
       marketingCampaignStatusHistory,
+      marketingCampaignChannels,
+      leads,
+      inboxConversations,
+      inboxMessages,
       patients,
       treatments,
       expenses,
+      publicBookingServices,
+      publicBookings,
+      bookingBlockedSlots,
       workspaceActivity,
       // AI Assistant Data
       actionLogs,
@@ -473,9 +548,12 @@ export class WorkspaceExporter {
       // Notifications & Reminders
       emailNotifications,
       smsNotifications,
+      whatsappTemplates,
+      whatsappNotifications,
       scheduledReminders,
       pushSubscriptions,
       pushNotifications,
+      notificationRetryQueue,
       // Prescriptions & Medications
       medications,
       prescriptions,
@@ -565,11 +643,27 @@ export class WorkspaceExporter {
   }
 
   private async fetchServiceSupplies(clinicId: string) {
-    // Service supplies need to join with services to filter by clinic
-    const { data } = await this.supabase
+    const { data: services, error: servicesError } = await this.supabase
+      .from('services')
+      .select('id')
+      .eq('clinic_id', clinicId);
+
+    if (servicesError) {
+      console.error('[Regular Export] Service supplies service lookup error:', servicesError);
+      return [];
+    }
+
+    const serviceIds = rowIds(services || []);
+    if (serviceIds.length === 0) {
+      this.recordCount('service_supplies', 0);
+      return [];
+    }
+
+    const { data, error } = await this.supabase
       .from('service_supplies')
-      .select('*, services!inner(clinic_id)')
-      .eq('services.clinic_id', clinicId);
+      .select('*')
+      .in('service_id', serviceIds);
+    if (error) console.error('[Regular Export] Service supplies error:', error);
     this.recordCount('service_supplies', data?.length || 0);
     return data || [];
   }
@@ -784,6 +878,57 @@ export class WorkspaceExporter {
       .select('*')
       .in('quote_id', quoteIds);
     this.recordCount('quote_items', data?.length || 0);
+    return data || [];
+  }
+
+  private async fetchRowsByClinic(table: string, clinicId: string) {
+    const supabase = this.supabase as unknown as DynamicSupabaseClient;
+    const { data, error } = await supabase
+      .from(table)
+      .select('*')
+      .eq('clinic_id', clinicId);
+
+    if (error) {
+      console.error(`[Regular Export] ${table} error:`, error);
+      return [];
+    }
+
+    this.recordCount(table, data?.length || 0);
+    return data || [];
+  }
+
+  private async fetchRowsByWorkspace(table: string, workspaceId: string) {
+    const supabase = this.supabase as unknown as DynamicSupabaseClient;
+    const { data, error } = await supabase
+      .from(table)
+      .select('*')
+      .eq('workspace_id', workspaceId);
+
+    if (error) {
+      console.error(`[Regular Export] ${table} error:`, error);
+      return [];
+    }
+
+    this.recordCount(table, data?.length || 0);
+    return data || [];
+  }
+
+  private async fetchRowsByIds(table: string, column: string, ids: string[]) {
+    const filteredIds = Array.from(new Set(ids.filter(Boolean)));
+    if (filteredIds.length === 0) return [];
+
+    const supabase = this.supabase as unknown as DynamicSupabaseClient;
+    const { data, error } = await supabase
+      .from(table)
+      .select('*')
+      .in(column, filteredIds);
+
+    if (error) {
+      console.error(`[Regular Export] ${table} error:`, error);
+      return [];
+    }
+
+    this.recordCount(table, data?.length || 0);
     return data || [];
   }
 
