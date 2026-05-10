@@ -1,0 +1,233 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { resolveClinicContext } from '@/lib/clinic'
+import { forbiddenIfMissingPermission } from '@/lib/permissions'
+import { z } from 'zod'
+import { readJson } from '@/lib/validation'
+
+export const dynamic = 'force-dynamic'
+
+// Helper to transform empty strings to undefined
+const emptyToUndefined = z.string().transform(val => val === '' ? undefined : val)
+const optionalString = emptyToUndefined.optional()
+
+const prescriptionItemSchema = z.object({
+  medication_id: z.string().uuid().optional().nullable(),
+  medication_name: z.string().min(1).max(255),
+  medication_strength: optionalString,
+  medication_form: optionalString,
+  dosage: z.string().min(1).max(100),
+  frequency: z.string().min(1).max(100),
+  duration: optionalString,
+  quantity: optionalString,
+  instructions: optionalString,
+  sort_order: z.number().int().default(0),
+})
+
+const dateRegex = /^\d{4}-\d{2}-\d{2}$/
+const optionalDateString = z.string().optional().transform(val => {
+  if (!val || val === '') return undefined
+  if (!dateRegex.test(val)) return undefined
+  return val
+})
+
+const prescriptionSchema = z.object({
+  patient_id: z.string().uuid(),
+  treatment_id: z.string().uuid().optional().nullable(),
+  prescription_date: z.string().regex(dateRegex, 'Invalid date format'),
+  prescriber_name: z.string().min(1).max(255),
+  prescriber_license: optionalString,
+  prescriber_specialty: optionalString,
+  diagnosis: optionalString,
+  valid_until: optionalDateString,
+  notes: optionalString,
+  pharmacy_notes: optionalString,
+  items: z.array(prescriptionItemSchema).min(1, 'At least one medication is required'),
+})
+
+/**
+ * GET /api/prescriptions
+ * Fetch prescriptions with optional filters
+ */
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  try {
+    const cookieStore = await cookies()
+    const searchParams = request.nextUrl.searchParams
+
+    const clinicContext = await resolveClinicContext({
+      requestedClinicId: searchParams.get('clinicId'),
+      cookieStore,
+    })
+
+    if ('error' in clinicContext) {
+      return NextResponse.json(
+        { error: clinicContext.error.message },
+        { status: clinicContext.error.status }
+      )
+    }
+
+    const { clinicId, userId } = clinicContext
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'prescriptions.view')
+    if (forbidden) return forbidden
+
+    // Get query params
+    const patientId = searchParams.get('patientId')
+    const treatmentId = searchParams.get('treatmentId')
+    const status = searchParams.get('status')
+    const startDate = searchParams.get('startDate')
+    const endDate = searchParams.get('endDate')
+
+    // Build query
+    let query = supabaseAdmin
+      .from('prescriptions')
+      .select(`
+        *,
+        patient:patients(id, first_name, last_name, email, phone),
+        items:prescription_items(*)
+      `)
+      .eq('clinic_id', clinicId)
+      .order('prescription_date', { ascending: false })
+
+    if (patientId) {
+      query = query.eq('patient_id', patientId)
+    }
+
+    if (treatmentId) {
+      query = query.eq('treatment_id', treatmentId)
+    }
+
+    if (status) {
+      query = query.eq('status', status)
+    }
+
+    if (startDate) {
+      query = query.gte('prescription_date', startDate)
+    }
+
+    if (endDate) {
+      query = query.lte('prescription_date', endDate)
+    }
+
+    const { data, error } = await query
+
+    if (error) {
+      console.error('[Prescriptions] Error fetching:', error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ data })
+  } catch (error) {
+    console.error('[Prescriptions] Unexpected error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+/**
+ * POST /api/prescriptions
+ * Create a new prescription with items
+ */
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  try {
+    const cookieStore = await cookies()
+    const bodyResult = await readJson(request)
+    if ('error' in bodyResult) {
+      return bodyResult.error
+    }
+    const body = bodyResult.data
+
+    const clinicContext = await resolveClinicContext({
+      requestedClinicId: body.clinic_id,
+      cookieStore,
+    })
+
+    if ('error' in clinicContext) {
+      return NextResponse.json(
+        { error: clinicContext.error.message },
+        { status: clinicContext.error.status }
+      )
+    }
+
+    const { clinicId, userId } = clinicContext
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'prescriptions.create')
+    if (forbidden) return forbidden
+
+    // Validate input
+    const validation = prescriptionSchema.safeParse(body)
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: validation.error.errors },
+        { status: 400 }
+      )
+    }
+
+    const { items, ...prescriptionData } = validation.data
+
+    // Verify patient belongs to clinic
+    const { data: patient, error: patientError } = await supabaseAdmin
+      .from('patients')
+      .select('id')
+      .eq('id', prescriptionData.patient_id)
+      .eq('clinic_id', clinicId)
+      .single()
+
+    if (patientError || !patient) {
+      return NextResponse.json({ error: 'Patient not found' }, { status: 404 })
+    }
+
+    // Create prescription (prescription_number is auto-generated by trigger)
+    const { data: prescription, error: prescriptionError } = await supabaseAdmin
+      .from('prescriptions')
+      .insert({
+        clinic_id: clinicId,
+        created_by: userId,
+        status: 'active',
+        ...prescriptionData,
+      })
+      .select()
+      .single()
+
+    if (prescriptionError) {
+      console.error('[Prescriptions] Error creating:', prescriptionError)
+      return NextResponse.json({ error: prescriptionError.message }, { status: 500 })
+    }
+
+    // Create prescription items
+    const itemsToInsert = items.map((item, index) => ({
+      prescription_id: prescription.id,
+      ...item,
+      sort_order: item.sort_order ?? index,
+    }))
+
+    const { error: itemsError } = await supabaseAdmin
+      .from('prescription_items')
+      .insert(itemsToInsert)
+
+    if (itemsError) {
+      console.error('[Prescriptions] Error creating items:', itemsError)
+      // Rollback prescription
+      await supabaseAdmin.from('prescriptions').delete().eq('id', prescription.id)
+      return NextResponse.json({ error: itemsError.message }, { status: 500 })
+    }
+
+    // Fetch complete prescription with items
+    const { data: completePrescription, error: fetchError } = await supabaseAdmin
+      .from('prescriptions')
+      .select(`
+        *,
+        patient:patients(id, first_name, last_name, email, phone),
+        items:prescription_items(*)
+      `)
+      .eq('id', prescription.id)
+      .single()
+
+    if (fetchError) {
+      return NextResponse.json({ data: prescription }, { status: 201 })
+    }
+
+    return NextResponse.json({ data: completePrescription }, { status: 201 })
+  } catch (error) {
+    console.error('[Prescriptions] Unexpected error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}

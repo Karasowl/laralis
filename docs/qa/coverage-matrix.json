@@ -1,0 +1,754 @@
+[
+  {
+    "id": "qa-001-smoke-login-active-shell",
+    "priority": "P0",
+    "domain": "smoke",
+    "capability": "Login con cuenta existente y entrada al shell activo sin onboarding/setup",
+    "layers": ["cypress"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-002-smoke-core-navigation",
+    "priority": "P0",
+    "domain": "smoke",
+    "capability": "Abrir dashboard, pacientes, tratamientos, marketing y reportes sin errores",
+    "layers": ["cypress"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-003-auth-register-existing-account",
+    "priority": "P0",
+    "domain": "auth",
+    "capability": "Registro con email existente muestra error claro y no envia a verify-email",
+    "layers": ["cypress", "api"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-004-full-lifecycle-user",
+    "priority": "P0",
+    "domain": "lifecycle",
+    "capability": "Crear usuario unico, confirmar en stage, hacer onboarding, usar app y limpiar cuenta",
+    "layers": ["cypress", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-005-onboarding-workspace-clinic",
+    "priority": "P0",
+    "domain": "onboarding",
+    "capability": "Crear workspace y clinica desde onboarding y no volver a setup al cambiar idioma",
+    "layers": ["cypress", "api"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-006-onboarding-cancel-safe",
+    "priority": "P0",
+    "domain": "onboarding",
+    "capability": "Cancelar setup no borra datos de una clinica activa ni deja al usuario sin workspace",
+    "layers": ["cypress", "api"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-007-multi-clinic-create-second",
+    "priority": "P0",
+    "domain": "multi-clinic",
+    "capability": "Crear segunda clinica dentro del mismo workspace",
+    "layers": ["cypress", "api"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-008-multi-clinic-data-isolation",
+    "priority": "P0",
+    "domain": "multi-clinic",
+    "capability": "Pacientes, tratamientos, dashboards, marketing y Lara respetan clinica activa",
+    "layers": ["cypress", "api", "database"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-009-team-add-admin",
+    "priority": "P0",
+    "domain": "permissions",
+    "capability": "Agregar administradores o miembros dentro de una clinica",
+    "layers": ["cypress", "api"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-010-role-permission-matrix",
+    "priority": "P0",
+    "domain": "permissions",
+    "capability": "Owner, admin, doctor, assistant, receptionist y viewer tienen permisos correctos",
+    "layers": ["api", "cypress", "database"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-011-backend-permission-enforcement",
+    "priority": "P0",
+    "domain": "permissions",
+    "capability": "El backend bloquea acciones prohibidas aunque la UI no las muestre",
+      "layers": ["api"],
+      "status": "covered"
+  },
+  {
+    "id": "qa-012-patients-crud",
+    "priority": "P0",
+    "domain": "crud",
+    "capability": "Pacientes: crear, editar, buscar, filtrar y borrar o limpiar",
+    "layers": ["cypress", "api"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-013-patient-treatment-history",
+    "priority": "P0",
+    "domain": "patients",
+    "capability": "Ficha de paciente muestra correctamente tratamientos asociados",
+    "layers": ["cypress", "api"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-014-supplies-crud",
+    "priority": "P0",
+    "domain": "crud",
+    "capability": "Insumos: crear, editar, buscar y limpiar",
+    "layers": ["cypress", "api"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-015-supply-affects-service-cost",
+    "priority": "P0",
+    "domain": "business-calculations",
+    "capability": "Un insumo nuevo afecta correctamente el costo variable de un servicio",
+    "layers": ["vitest", "cypress", "api"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-016-services-crud-and-margin",
+    "priority": "P0",
+    "domain": "business-calculations",
+    "capability": "Servicios: crear, editar, asociar insumos y validar margen de beneficio",
+    "layers": ["vitest", "cypress", "api"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-017-treatments-crud-status-payments",
+    "priority": "P0",
+    "domain": "crud",
+    "capability": "Tratamientos: crear, pagar, parcial, pendiente, cancelar y limpiar",
+    "layers": ["cypress", "api"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-018-expenses-crud-and-budget-links",
+    "priority": "P0",
+    "domain": "expenses",
+    "capability": "Gastos se relacionan correctamente con costos fijos o variables planificados",
+    "layers": ["cypress", "api", "vitest"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-019-fixed-costs-crud",
+    "priority": "P0",
+    "domain": "business-calculations",
+    "capability": "Costos fijos: crear, editar y verificar efecto en costo por minuto",
+    "layers": ["vitest", "cypress", "api"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-020-depreciation",
+    "priority": "P0",
+    "domain": "business-calculations",
+    "capability": "Depreciacion se activa, calcula y aparece donde corresponde",
+    "layers": ["vitest", "cypress", "api"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-021-time-settings-simulations",
+    "priority": "P0",
+    "domain": "business-calculations",
+    "capability": "Configuracion de tiempo alimenta simulaciones de beneficio, costo fijo y variable",
+    "layers": ["vitest", "cypress", "api"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-022-date-filters-coherence",
+    "priority": "P0",
+    "domain": "date-filters",
+    "capability": "Filtros de fecha cambian coherentemente tablas, tarjetas, dashboards y reportes",
+    "layers": ["vitest", "cypress", "api"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-023-date-only-timezone-regression",
+    "priority": "P0",
+    "domain": "date-filters",
+    "capability": "Fechas YYYY-MM-DD se tratan como fechas civiles y no se mueven por timezone",
+    "layers": ["vitest"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-024-marketing-dataset-meta-mayo",
+    "priority": "P0",
+    "domain": "marketing",
+    "capability": "Dataset con 22 pacientes de Meta Mayo y 7 referidos aparece correctamente",
+    "layers": ["cypress", "api", "database"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-025-marketing-roi-cpa",
+    "priority": "P0",
+    "domain": "marketing",
+    "capability": "Marketing calcula ROI, CPA, pacientes por fuente e ingresos por campana",
+    "layers": ["vitest", "cypress", "api"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-026-dashboard-business-oracles",
+    "priority": "P0",
+    "domain": "dashboards",
+    "capability": "Dashboard muestra margen bruto, neto, utilidad, costos e ingresos esperados",
+    "layers": ["cypress", "api", "vitest"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-027-reports-business-oracles",
+    "priority": "P0",
+    "domain": "reports",
+    "capability": "Reportes coinciden con oraculos del dataset QA por periodo y modulo",
+    "layers": ["cypress", "api"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-028-chart-rendering",
+    "priority": "P0",
+    "domain": "visual",
+    "capability": "Graficas se pintan con barras, lineas, segmentos y tooltips correctos",
+    "layers": ["cypress", "visual"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-029-visual-responsive-desktop-tablet-mobile",
+    "priority": "P0",
+    "domain": "visual",
+    "capability": "Pantallas criticas se ven en desktop, tablet y mobile sin scroll horizontal",
+    "layers": ["cypress", "visual"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-030-dark-mode",
+    "priority": "P1",
+    "domain": "visual",
+    "capability": "Modo oscuro conserva contraste, layout, graficas y formularios",
+    "layers": ["cypress", "visual"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-031-i18n-es-en-complete",
+    "priority": "P0",
+    "domain": "i18n",
+    "capability": "Espanol e ingles tienen todas las claves y no rompen layouts",
+    "layers": ["inventory", "cypress", "visual"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-032-language-switch-regression",
+    "priority": "P0",
+    "domain": "navigation",
+    "capability": "Cambiar idioma no manda a onboarding/setup ni pierde clinica activa",
+    "layers": ["cypress"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-033-booking-public-flow",
+    "priority": "P0",
+    "domain": "booking",
+    "capability": "Paciente genera cita publica con disponibilidad correcta",
+    "layers": ["cypress", "api"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-034-booking-notifications",
+    "priority": "P0",
+    "domain": "notifications",
+    "capability": "Crear cita dispara email, SMS o WhatsApp esperado con providers mockeados",
+    "layers": ["api", "provider-mock"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-066-booking-notification-provider-failures",
+    "priority": "P0",
+    "domain": "notifications",
+    "capability": "Fallo mockeado de email/SMS/WhatsApp no rompe la reserva y registra estados fallidos",
+    "layers": ["cypress", "api", "database", "provider-mock", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-069-notification-provider-contracts",
+    "priority": "P0",
+    "domain": "notifications",
+    "capability": "Contratos de Twilio/360dialog validan payloads, auth headers, callbacks de estado y errores sin red real",
+    "layers": ["vitest", "provider-contract"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-077-notification-delivery-webhooks",
+    "priority": "P0",
+    "domain": "notifications",
+    "capability": "Callbacks app-level de Resend y Twilio SMS rechazan requests unsigned y reconcilian estados contra email_notifications/sms_notifications",
+    "layers": ["cypress", "api", "database", "provider-contract", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-078-notification-retry-backoff",
+    "priority": "P0",
+    "domain": "notifications",
+    "capability": "Fallos transitorios de email/SMS se encolan, se reprograman con backoff y luego actualizan la fila original al reintentar",
+    "layers": ["cypress", "api", "database", "provider-mock", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-035-cron-reminders",
+    "priority": "P0",
+    "domain": "cron",
+    "capability": "Cron de recordatorios procesa citas esperadas y respeta CRON_SECRET",
+    "layers": ["api", "provider-mock"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-036-cron-recurring-expenses",
+    "priority": "P1",
+    "domain": "cron",
+    "capability": "Cron de gastos recurrentes crea solo los gastos esperados",
+    "layers": ["api", "database"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-037-cron-complete-appointments",
+    "priority": "P1",
+    "domain": "cron",
+    "capability": "Cron de citas completadas cambia estados correctos sin tocar futuras",
+    "layers": ["api", "database"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-038-lara-opens-and-responds",
+    "priority": "P0",
+    "domain": "lara",
+    "capability": "Lara abre, recibe pregunta y devuelve respuesta deterministica en stage",
+    "layers": ["cypress", "provider-mock"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-039-lara-suggested-actions-confirm",
+    "priority": "P0",
+    "domain": "lara",
+    "capability": "Lara sugiere acciones, usuario confirma y la accion cambia la base de datos",
+    "layers": ["cypress", "api", "database", "provider-mock"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-040-lara-permission-boundaries",
+    "priority": "P0",
+    "domain": "lara",
+    "capability": "Lara no ejecuta acciones fuera del permiso del usuario",
+    "layers": ["api", "cypress", "provider-mock"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-041-audio-input",
+    "priority": "P1",
+    "domain": "audio",
+    "capability": "Entrada de audio simula grabacion/carga y produce transcripcion esperada",
+    "layers": ["cypress", "provider-mock"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-042-audio-output",
+    "priority": "P1",
+    "domain": "audio",
+    "capability": "Salida de audio genera/reproduce respuesta o llama proveedor correcto",
+    "layers": ["cypress", "provider-mock"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-067-lara-provider-failure-contracts",
+    "priority": "P0",
+    "domain": "lara",
+    "capability": "Lara expone fallos controlados de LLM, STT y TTS como errores retryable",
+    "layers": ["cypress", "api", "provider-mock"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-068-stage-action-logs-schema-contract",
+    "priority": "P0",
+    "domain": "schema",
+    "capability": "Stage exige public.action_logs para auditoria real de acciones confirmadas por Lara",
+    "layers": ["cypress", "database", "supabase-task", "migration"],
+    "status": "partial"
+  },
+  {
+    "id": "qa-043-browser-navigation-session",
+    "priority": "P1",
+    "domain": "navigation",
+    "capability": "Refrescar, atras/adelante y sesion expirada conservan comportamiento coherente",
+    "layers": ["cypress"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-044-cleanup-delete-account",
+    "priority": "P0",
+    "domain": "lifecycle",
+    "capability": "El full lifecycle limpia datos creados o elimina la cuenta QA",
+    "layers": ["cypress", "api", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-045-self-service-account-deletion",
+    "priority": "P0",
+    "domain": "account",
+    "capability": "El borrado self-service exige OTP del usuario actual, bloquea la ruta legacy y elimina workspaces/clinicas owned sin dejar huerfanos",
+    "layers": ["cypress", "api", "database", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-046-dashboard-appointments-real-data",
+    "priority": "P0",
+    "domain": "dashboard",
+    "capability": "Las metricas de citas del dashboard salen de tratamientos y bookings reales, excluyen cancelados/convertidos y son deterministicas",
+    "layers": ["cypress", "api", "database", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-047-booking-request-admin-actions",
+    "priority": "P0",
+    "domain": "booking",
+    "capability": "El equipo puede listar solicitudes publicas, confirmar una cita creando paciente/tratamiento y rechazar otra sin efectos colaterales",
+    "layers": ["cypress", "api", "database", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-048-appointment-conflict-enforcement",
+    "priority": "P0",
+    "domain": "calendar",
+    "capability": "La agenda detecta choques con tratamientos y bookings publicos, y el backend bloquea escrituras conflictivas",
+    "layers": ["cypress", "api", "database", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-049-export-import-bundle-contract",
+    "priority": "P0",
+    "domain": "data-portability",
+    "capability": "Exportar workspace QA, validar bundle e importar en dry-run sin crear datos",
+    "layers": ["cypress", "api", "database"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-050-snapshots-create-restore-cleanup",
+    "priority": "P0",
+    "domain": "snapshots",
+    "capability": "Crear snapshot, verificar metadata, restaurar en dry-run y borrar el snapshot QA",
+    "layers": ["cypress", "api", "database"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-051-security-mfa-setup-cleanup",
+    "priority": "P0",
+    "domain": "security",
+    "capability": "MFA permite iniciar setup, rechaza codigo invalido y limpia estado pendiente sin romper login",
+    "layers": ["cypress", "api"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-052-critical-settings-responsive",
+    "priority": "P1",
+    "domain": "visual",
+    "capability": "Export/import, snapshots y seguridad cargan en desktop/mobile sin setup regresivo ni scroll horizontal",
+    "layers": ["cypress", "visual"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-053-prescriptions-medications-crud",
+    "priority": "P0",
+    "domain": "prescriptions",
+    "capability": "Crear medicamento clinico, crear receta con item, actualizar estado y limpiar datos QA",
+    "layers": ["cypress", "api", "database"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-054-prescription-pdf-contract",
+    "priority": "P0",
+    "domain": "prescriptions",
+    "capability": "Generar PDF de receta con permiso print, cabeceras correctas y contenido PDF valido",
+    "layers": ["cypress", "api"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-055-prescriptions-filters",
+    "priority": "P0",
+    "domain": "prescriptions",
+    "capability": "Filtros de recetas por paciente, estado y fecha devuelven la receta esperada",
+    "layers": ["cypress", "api"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-056-prescriptions-responsive-ui",
+    "priority": "P1",
+    "domain": "visual",
+    "capability": "Pantalla de recetas carga en desktop/mobile sin setup regresivo ni scroll horizontal",
+    "layers": ["cypress", "visual"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-057-inbox-whatsapp-conversation-lifecycle",
+    "priority": "P0",
+    "domain": "inbox",
+    "capability": "Conversacion WhatsApp: marcar leida, asignar, alternar bot, transferir, responder con proveedor mockeado y cerrar",
+    "layers": ["cypress", "api", "database", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-058-inbox-lead-conversion-idempotency",
+    "priority": "P0",
+    "domain": "inbox",
+    "capability": "Convertir un lead de inbox en paciente, vincular conversacion/lead/paciente y evitar duplicados al reintentar",
+    "layers": ["cypress", "api", "database", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-059-inbox-responsive-ui",
+    "priority": "P1",
+    "domain": "visual",
+    "capability": "Bandeja de entrada renderiza conversaciones y mensajes en desktop/mobile sin setup regresivo ni scroll horizontal",
+    "layers": ["cypress", "visual"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-060-whatsapp-webhook-signature-guard",
+    "priority": "P0",
+    "domain": "webhook",
+    "capability": "Webhook inbound de WhatsApp rechaza requests unsigned en runtime production preview",
+    "layers": ["cypress", "api"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-065-whatsapp-webhook-twilio-signed-contract",
+    "priority": "P0",
+    "domain": "webhook",
+    "capability": "Webhook inbound de WhatsApp acepta form Twilio firmado sin bypass de firma QA",
+    "layers": ["cypress", "api", "provider-contract", "database", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-061-whatsapp-webhook-lead-state-machine",
+    "priority": "P0",
+    "domain": "webhook",
+    "capability": "Webhook inbound crea lead/conversacion/mensaje y avanza collecting_name -> collecting_email -> chatting",
+    "layers": ["cypress", "api", "database", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-062-whatsapp-webhook-handoff-keyword",
+    "priority": "P0",
+    "domain": "webhook",
+    "capability": "Webhook inbound mueve la conversacion a pending cuando el paciente pide humano o agente",
+    "layers": ["cypress", "api", "database", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-063-whatsapp-webhook-ctwa-attribution",
+    "priority": "P0",
+    "domain": "webhook",
+    "capability": "Webhook inbound persiste atribucion Click-to-WhatsApp desde Referral* de Twilio",
+    "layers": ["cypress", "api", "database", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-064-whatsapp-webhook-provider-retry-idempotency",
+    "priority": "P0",
+    "domain": "webhook",
+    "capability": "Webhook inbound ignora reintentos del proveedor con el mismo MessageSid para no duplicar mensajes",
+    "layers": ["cypress", "api", "database", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-066-push-api-auth-validation",
+    "priority": "P1",
+    "domain": "notifications",
+    "capability": "Push subscribe/unsubscribe exigen sesion activa y track-click valida UUID antes de mutar estado",
+    "layers": ["cypress", "api"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-067-push-subscription-db-lifecycle",
+    "priority": "P1",
+    "domain": "notifications",
+    "capability": "API de push crea, actualiza y desactiva suscripciones contra Supabase stage con clinic_id y user_id reales",
+    "layers": ["cypress", "api", "database", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-068-push-click-tracking",
+    "priority": "P1",
+    "domain": "notifications",
+    "capability": "Click tracking de notificacion push cambia status a clicked y persiste clicked_at",
+    "layers": ["cypress", "api", "database", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-069-push-browser-permission-states",
+    "priority": "P1",
+    "domain": "notifications",
+    "capability": "UI de notificaciones cubre permiso granted sin suscripcion, denegado/default y suscripcion existente con PushManager mockeado",
+    "layers": ["cypress", "browser-mock"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-070-push-schema-contract",
+    "priority": "P1",
+    "domain": "schema",
+    "capability": "Stage debe tener tablas push_subscriptions y push_notifications aplicadas antes de tratar push como cubierto",
+    "layers": ["cypress", "database", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-071-push-provider-contracts",
+    "priority": "P1",
+    "domain": "notifications",
+    "capability": "Sender Web Push arma VAPID/payload, marca sent/failed y desactiva suscripciones expiradas sin llamar proveedor real",
+    "layers": ["vitest", "provider-contract"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-072-booking-staff-push-notification",
+    "priority": "P0",
+    "domain": "notifications",
+    "capability": "Reserva publica notifica al equipo por push mockeado y persiste push_notifications con booking id accionable",
+    "layers": ["cypress", "api", "database", "provider-mock", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-073-inbox-ui-action-lifecycle",
+    "priority": "P0",
+    "domain": "inbox",
+    "capability": "UI de Inbox ejecuta asignar, tomar/reanudar bot, transferir, responder, convertir lead a paciente y cerrar conversacion persistiendo cada cambio en Supabase stage",
+    "layers": ["cypress", "ui", "api", "database", "provider-mock", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-074-whatsapp-webhook-360dialog-cloud-api",
+    "priority": "P0",
+    "domain": "webhook",
+    "capability": "Webhook inbound de WhatsApp acepta payload JSON Cloud API/360dialog, crea lead/conversacion/mensaje y persiste CTWA referral",
+    "layers": ["cypress", "api", "provider-contract", "database", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-075-whatsapp-provider-status-reconciliation",
+    "priority": "P0",
+    "domain": "webhook",
+    "capability": "Callbacks de estado del proveedor actualizan whatsapp_notifications e inbox_messages por provider_message_id/channel_message_id",
+    "layers": ["cypress", "api", "provider-contract", "database", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-076-whatsapp-settings-provider-test",
+    "priority": "P0",
+    "domain": "notifications",
+    "capability": "Settings permite probar la configuracion WhatsApp guardada y registra exito/fallo del proveedor en whatsapp_notifications",
+    "layers": ["cypress", "ui", "api", "database", "provider-mock", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-077-whatsapp-provider-readiness",
+    "priority": "P0",
+    "domain": "notifications",
+    "capability": "Settings expone diagnostico de readiness para numero, credenciales, seguridad de webhook y configuracion externa pendiente",
+    "layers": ["cypress", "ui", "api", "provider-config"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-078-lara-conversation-context",
+    "priority": "P0",
+    "domain": "lara",
+    "capability": "Memoria conversacional de Lara mantiene entidad en foco, referencias por pronombre, periodo, topic y acciones pendientes",
+    "layers": ["vitest", "cypress", "api", "provider-mock"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-079-lara-session-history",
+    "priority": "P0",
+    "domain": "lara",
+    "capability": "Sesiones y mensajes de Lara persisten historial, respetan clinica/usuario, se archivan y se eliminan sin fuga entre clinicas",
+    "layers": ["cypress", "api", "database"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-080-lara-chat-schema-contract",
+    "priority": "P0",
+    "domain": "schema",
+    "capability": "Stage exige public.chat_sessions y public.chat_messages antes de tratar historial persistido de Lara como cubierto",
+    "layers": ["cypress", "database", "supabase-task"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-081-lara-entry-chat-permissions",
+    "priority": "P0",
+    "domain": "lara",
+    "capability": "Entry Mode usa /api/ai/chat autenticado, bloquea usuarios sin lara.use_entry_mode y permite mock stage-only para usuarios con permiso",
+    "layers": ["cypress", "api", "permissions", "provider-mock"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-082-lara-entry-patient-ui",
+    "priority": "P0",
+    "domain": "lara",
+    "capability": "Entry Mode crea un paciente por UI con Lara mockeada, guarda en Supabase stage y limpia el dato de prueba",
+    "layers": ["cypress", "ui", "api", "database", "provider-mock"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-083-lara-entry-context-schema-contract",
+    "priority": "P0",
+    "domain": "lara",
+    "capability": "Entry Mode mantiene el orden conversacional alineado con los schemas de entidad y usa campos de formulario correctos para pesos/cents",
+    "layers": ["vitest", "schema", "provider-mock"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-084-lara-entry-non-patient-ui",
+    "priority": "P0",
+    "domain": "lara",
+    "capability": "Entry Mode crea servicio, insumo y gasto por UI con Lara mockeada, valores numericos tipados y limpieza en Supabase stage",
+    "layers": ["cypress", "ui", "api", "database", "provider-mock"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-085-lara-entry-assets-fixed-costs-ui",
+    "priority": "P0",
+    "domain": "lara",
+    "capability": "Entry Mode crea activo y costo fijo por UI, convierte campos en pesos antes de persistir y limpia registros QA en Supabase stage",
+    "layers": ["cypress", "ui", "api", "database", "provider-mock"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-086-export-completeness-oracle",
+    "priority": "P0",
+    "domain": "data-portability",
+    "capability": "Export workspace y export clinico full incluyen entidades core, booking, inbox/WhatsApp, notificaciones, Lara, recetas, presupuestos y conteos/relaciones del dataset QA",
+    "layers": ["cypress", "api", "database", "oracle"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-087-export-real-import-roundtrip",
+    "priority": "P0",
+    "domain": "data-portability",
+    "capability": "Import real no dry-run restaura todos los modulos exportados y verifica conteos/relaciones en un workspace temporal descartable",
+    "layers": ["cypress", "api", "database", "supabase-task"],
+    "status": "planned"
+  },
+  {
+    "id": "qa-088-numeric-oracle-spine",
+    "priority": "P0",
+    "domain": "business-oracles",
+    "capability": "Cada numero critico queda validado desde dato base/formula hasta API, UI/export y decision de negocio: costos de insumos, recetas, margen de contribucion, costo fijo por minuto, depreciacion, pagos, gastos, marketing, objetivos y dashboards",
+    "layers": ["vitest", "cypress", "api", "ui", "database", "export", "oracle"],
+    "status": "planned"
+  }
+]

@@ -1,0 +1,405 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
+import { z } from 'zod';
+import { readJson, validateSchema } from '@/lib/validation';
+import {
+  forbiddenIfMissingWorkspacePermission,
+  getAccessibleWorkspaceIds,
+  userCanAccessWorkspace,
+} from '@/lib/workspace-access';
+
+export const dynamic = 'force-dynamic'
+
+const hiddenWorkspaceStatuses = new Set(['archived', 'pending_deletion', 'deleted']);
+
+function isVisibleWorkspace(workspace: any) {
+  const status = workspace?.status || (workspace?.onboarding_completed ? 'active' : 'draft');
+  return !hiddenWorkspaceStatuses.has(status);
+}
+
+function isActiveWorkspace(workspace: any) {
+  const status = workspace?.status || (workspace?.onboarding_completed ? 'active' : 'draft');
+  return status === 'active';
+}
+
+const workspaceCreateSchema = z.object({
+  workspaceName: z.string().min(1).optional(),
+  name: z.string().min(1).optional(),
+  workspaceSlug: z.string().min(1).optional(),
+  slug: z.string().min(1).optional(),
+  clinicName: z.string().min(1).optional(),
+  clinicAddress: z.string().optional(),
+  description: z.string().optional(),
+  onboarding_completed: z.boolean().optional(),
+  onboarding_step: z.number().int().nonnegative().optional(),
+}).refine((data) => Boolean(data.workspaceName || data.name), {
+  message: 'workspaceName or name is required',
+}).refine((data) => Boolean(data.workspaceSlug || data.slug), {
+  message: 'workspaceSlug or slug is required',
+});
+
+
+export async function GET(request: NextRequest) {
+  try {
+    const cookieStore = cookies();
+    const { searchParams } = new URL(request.url);
+    const listAll = searchParams.get('list') === 'true';
+    
+    // Crear cliente de Supabase para el servidor
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options);
+            });
+          },
+        },
+      }
+    );
+
+    // Verificar autenticación
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const accessibleWorkspaceIds = await getAccessibleWorkspaceIds(user.id);
+
+    // Si se solicita listar todos los workspaces
+    if (listAll) {
+      if (accessibleWorkspaceIds.length === 0) {
+        return NextResponse.json([]);
+      }
+
+      const { data: workspaces, error } = await supabaseAdmin
+        .from('workspaces')
+        .select('*')
+        .in('id', accessibleWorkspaceIds)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching workspaces:', error);
+        return NextResponse.json(
+          { error: 'Failed to fetch workspaces' },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json((workspaces || []).filter(isVisibleWorkspace));
+    }
+
+    // Comportamiento original para obtener workspace actual
+    const workspaceId = cookieStore.get('workspaceId')?.value;
+
+    if (workspaceId) {
+      const canAccessWorkspace = await userCanAccessWorkspace(user.id, workspaceId);
+
+      // Verificar que el workspace existe y pertenece al usuario o membresia activa
+      const { data: workspace, error } = await supabaseAdmin
+        .from('workspaces')
+        .select('*')
+        .eq('id', workspaceId)
+        .single();
+
+      if (canAccessWorkspace && !error && workspace && isVisibleWorkspace(workspace)) {
+        if (isActiveWorkspace(workspace)) {
+          return NextResponse.json({ workspace });
+        }
+
+        const { data: activeWorkspaces } = accessibleWorkspaceIds.length > 0
+          ? await supabaseAdmin
+              .from('workspaces')
+              .select('*')
+              .in('id', accessibleWorkspaceIds)
+              .eq('onboarding_completed', true)
+              .order('created_at', { ascending: true })
+              .limit(1)
+          : { data: [] as any[] };
+
+        const activeWorkspace = activeWorkspaces?.find(isActiveWorkspace) || activeWorkspaces?.[0];
+
+        if (activeWorkspace) {
+          const response = NextResponse.json({ workspace: activeWorkspace });
+          response.cookies.set('workspaceId', activeWorkspace.id, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 60 * 60 * 24 * 30,
+            path: '/',
+          });
+          return response;
+        }
+
+        return NextResponse.json({ workspace });
+      }
+    }
+
+    // Buscar workspaces del usuario
+    if (accessibleWorkspaceIds.length === 0) {
+      return NextResponse.json({ workspace: null });
+    }
+
+    const { data: workspaces, error } = await supabaseAdmin
+      .from('workspaces')
+      .select('*')
+      .in('id', accessibleWorkspaceIds)
+      .order('created_at', { ascending: true })
+      .limit(20);
+
+    if (error) {
+      console.error('Error fetching workspaces:', error);
+      return NextResponse.json(
+        { error: 'Failed to fetch workspaces' },
+        { status: 500 }
+      );
+    }
+
+    const visibleWorkspaces = (workspaces || []).filter(isVisibleWorkspace);
+
+    if (visibleWorkspaces.length > 0) {
+      const selectedWorkspace = visibleWorkspaces.find(isActiveWorkspace) || visibleWorkspaces[0];
+      // Guardar el primer workspace en cookies
+      const response = NextResponse.json({ workspace: selectedWorkspace });
+      response.cookies.set('workspaceId', selectedWorkspace.id, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 30 // 30 días
+      });
+      return response;
+    }
+
+    return NextResponse.json({ workspace: null });
+  } catch (error) {
+    console.error('Unexpected error in GET /api/workspaces:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const cookieStore = cookies();
+    
+    // Crear cliente de Supabase para el servidor
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options);
+            });
+          },
+        },
+      }
+    );
+
+    // Verificar autenticación
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
+    }
+    const parsed = validateSchema(workspaceCreateSchema, bodyResult.data);
+    if ('error' in parsed) {
+      return parsed.error;
+    }
+    const body = parsed.data;
+
+    const accessibleWorkspaceIds = await getAccessibleWorkspaceIds(user.id);
+    if (accessibleWorkspaceIds.length > 0) {
+      const { data: existingWorkspaces, error: existingWorkspacesError } = await supabaseAdmin
+        .from('workspaces')
+        .select('id, status, onboarding_completed')
+        .in('id', accessibleWorkspaceIds)
+
+      if (existingWorkspacesError) {
+        return NextResponse.json(
+          { error: 'Failed to validate existing workspaces', details: existingWorkspacesError.message },
+          { status: 500 }
+        );
+      }
+
+      const visibleWorkspaces = (existingWorkspaces || []).filter(isVisibleWorkspace);
+      const currentWorkspaceId = cookieStore.get('workspaceId')?.value;
+      const permissionWorkspace =
+        visibleWorkspaces.find(workspace => workspace.id === currentWorkspaceId) ||
+        visibleWorkspaces.find(isActiveWorkspace) ||
+        visibleWorkspaces[0];
+
+      if (permissionWorkspace) {
+        const forbidden = await forbiddenIfMissingWorkspacePermission(
+          user.id,
+          permissionWorkspace.id,
+          'settings.edit'
+        );
+        if (forbidden) return forbidden;
+      }
+    }
+    
+    // Support both formats: onboarding (with clinic) and regular creation (without clinic)
+    const workspaceName = body.workspaceName || body.name;
+    const workspaceSlug = body.workspaceSlug || body.slug;
+    const clinicName = body.clinicName;
+    const clinicAddress = body.clinicAddress;
+    const description = body.description;
+    const onboardingCompleted = body.onboarding_completed !== undefined ? body.onboarding_completed : !!clinicName;
+    const onboardingStep = body.onboarding_step !== undefined ? body.onboarding_step : (clinicName ? 3 : 0);
+    const now = new Date().toISOString();
+
+    console.info('Creating workspace with data:', { workspaceName, workspaceSlug, clinicName, userId: user.id });
+
+    // Validar datos requeridos
+    if (!workspaceName || !workspaceSlug) {
+      return NextResponse.json(
+        { error: 'Missing required fields', details: { workspaceName: !!workspaceName, workspaceSlug: !!workspaceSlug } },
+        { status: 400 }
+      );
+    }
+
+    // Crear el workspace asociado al usuario autenticado
+    const { data: workspace, error: workspaceError } = await supabaseAdmin
+      .from('workspaces')
+      .insert({
+        name: workspaceName,
+        slug: workspaceSlug,
+        description: description || `Workspace de ${workspaceName}`,
+        owner_id: user.id,
+        onboarding_completed: onboardingCompleted,
+        onboarding_step: onboardingStep,
+        status: onboardingCompleted ? 'active' : 'draft',
+        setup_started_at: now,
+        setup_last_seen_at: now,
+        setup_completed_at: onboardingCompleted ? now : null
+      })
+      .select()
+      .single();
+
+    if (workspaceError) {
+      console.error('Error creating workspace:', workspaceError);
+      if (workspaceError.code === '23505') {
+        return NextResponse.json(
+          { error: 'El slug ya está en uso. Por favor elige otro.' },
+          { status: 400 }
+        );
+      }
+      return NextResponse.json(
+        { error: 'Failed to create workspace', details: workspaceError.message || workspaceError },
+        { status: 500 }
+      );
+    }
+
+    console.info('Workspace created successfully:', workspace.id);
+
+    let clinic = null;
+    
+    // Solo crear la clínica si se proporciona clinicName (durante onboarding)
+    if (clinicName) {
+      const { data: clinicData, error: clinicError } = await supabaseAdmin
+        .from('clinics')
+        .insert({
+          workspace_id: workspace.id,
+          name: clinicName,
+          address: clinicAddress || null,
+          is_active: true
+        })
+        .select()
+        .single();
+
+      if (clinicError) {
+        console.error('Error creating clinic:', clinicError);
+        
+        // Rollback: eliminar workspace si falla la creación de la clínica
+        await supabaseAdmin
+          .from('workspaces')
+          .delete()
+          .eq('id', workspace.id);
+        
+        return NextResponse.json(
+          { error: 'Failed to create clinic', details: (clinicError as any).message || clinicError },
+          { status: 500 }
+        );
+      }
+      
+      clinic = clinicData;
+    }
+
+    // Crear el miembro owner del workspace
+    const { error: memberError } = await supabaseAdmin
+      .from('workspace_members')
+      .insert({
+        workspace_id: workspace.id,
+        user_id: user.id,
+        role: 'owner',
+        clinic_ids: clinic?.id ? [clinic.id] : []
+      });
+
+    if (memberError) {
+      console.error('Error creating workspace member:', memberError);
+      // No es crítico, continuamos ya que owner_id en workspaces es suficiente
+    }
+
+    // Establecer cookies para workspace y clinic (si existe)
+    const responseData: any = { 
+      workspace,
+      success: true
+    };
+    
+    if (clinic) {
+      responseData.clinic = clinic;
+    }
+    
+    const response = NextResponse.json(responseData);
+
+    response.cookies.set('workspaceId', workspace.id, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 30 // 30 días
+    });
+
+    if (clinic) {
+      response.cookies.set('clinicId', clinic.id, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 30 // 30 días
+      });
+    }
+
+    return response;
+  } catch (error) {
+    console.error('Unexpected error in POST /api/workspaces:', error);
+    return NextResponse.json(
+      { error: 'Internal server error', details: (error as any)?.message },
+      { status: 500 }
+    );
+  }
+}

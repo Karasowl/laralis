@@ -1,0 +1,325 @@
+{
+  "version": 1,
+  "name": "Laralis Dental QA Dataset",
+  "period": {
+    "from": "2026-05-01",
+    "to": "2026-05-31",
+    "workingDays": 26,
+    "productiveMinutesPerDay": 360,
+    "monthlyProductiveMinutes": 9360
+  },
+  "workspace": {
+    "key": "qaWorkspace",
+    "name": "QA Workspace Laralis",
+    "slug": "qa-workspace-laralis"
+  },
+  "clinics": [
+    {
+      "key": "clinicA",
+      "name": "QA Dental Centro",
+      "slug": "qa-dental-centro"
+    },
+    {
+      "key": "clinicB",
+      "name": "QA Dental Norte",
+      "slug": "qa-dental-norte"
+    }
+  ],
+  "users": [
+    {
+      "key": "owner",
+      "email": "qa-owner@laralis.test",
+      "role": "owner"
+    },
+    {
+      "key": "admin",
+      "email": "qa-admin@laralis.test",
+      "role": "admin"
+    },
+    {
+      "key": "doctor",
+      "email": "qa-doctor@laralis.test",
+      "role": "doctor"
+    },
+    {
+      "key": "assistant",
+      "email": "qa-assistant@laralis.test",
+      "role": "assistant"
+    },
+    {
+      "key": "receptionist",
+      "email": "qa-receptionist@laralis.test",
+      "role": "receptionist"
+    },
+    {
+      "key": "viewer",
+      "email": "qa-viewer@laralis.test",
+      "role": "viewer"
+    }
+  ],
+  "sources": [
+    {
+      "key": "metaMayo",
+      "name": "Meta Mayo",
+      "expectedPatients": 22
+    },
+    {
+      "key": "referidos",
+      "name": "Referidos",
+      "expectedPatients": 7
+    },
+    {
+      "key": "organico",
+      "name": "Organico",
+      "expectedPatients": 1
+    }
+  ],
+  "campaigns": [
+    {
+      "key": "metaMayo",
+      "name": "Meta Mayo",
+      "sourceKey": "metaMayo",
+      "spendCents": 660000,
+      "periodFrom": "2026-05-01",
+      "periodTo": "2026-05-31"
+    }
+  ],
+  "timeSettings": {
+    "workDaysPerWeek": 6,
+    "hoursPerDay": 8,
+    "realPct": 75,
+    "workingDaysPattern": {
+      "monday": true,
+      "tuesday": true,
+      "wednesday": true,
+      "thursday": true,
+      "friday": true,
+      "saturday": true,
+      "sunday": false
+    }
+  },
+  "fixedCosts": [
+    {
+      "key": "rent",
+      "name": "Renta QA",
+      "monthlyAmountCents": 2000000
+    },
+    {
+      "key": "assistantSalary",
+      "name": "Asistente QA",
+      "monthlyAmountCents": 1600000
+    },
+    {
+      "key": "utilities",
+      "name": "Servicios QA",
+      "monthlyAmountCents": 400000
+    },
+    {
+      "key": "software",
+      "name": "Software QA",
+      "monthlyAmountCents": 280000
+    },
+    {
+      "key": "cleaning",
+      "name": "Limpieza QA",
+      "monthlyAmountCents": 400000
+    }
+  ],
+  "assets": [
+    {
+      "key": "dentalChair",
+      "name": "Sillon Dental QA",
+      "purchaseAmountCents": 12000000,
+      "salvageAmountCents": 2000000,
+      "usefulLifeMonths": 60,
+      "expectedMonthlyDepreciationCents": 166667
+    }
+  ],
+  "supplies": [
+    {
+      "key": "anesthesia",
+      "name": "Anestesia QA",
+      "unit": "cartucho",
+      "unitCostCents": 4500
+    },
+    {
+      "key": "compositeGram",
+      "name": "Composite QA",
+      "unit": "porcion 0.5g",
+      "unitCostCents": 6000
+    },
+    {
+      "key": "disposableKit",
+      "name": "Kit desechable QA",
+      "unit": "kit",
+      "unitCostCents": 2500
+    },
+    {
+      "key": "surgicalKit",
+      "name": "Kit quirurgico QA",
+      "unit": "kit",
+      "unitCostCents": 18000
+    },
+    {
+      "key": "suture",
+      "name": "Sutura QA",
+      "unit": "pieza",
+      "unitCostCents": 6000
+    }
+  ],
+  "services": [
+    {
+      "key": "resina",
+      "name": "Resina QA",
+      "priceCents": 250000,
+      "durationMinutes": 60,
+      "supplies": [
+        {
+          "supplyKey": "anesthesia",
+          "quantity": 1
+        },
+        {
+          "supplyKey": "compositeGram",
+          "quantity": 1
+        },
+        {
+          "supplyKey": "disposableKit",
+          "quantity": 1
+        }
+      ],
+      "expectedVariableCostCents": 13000,
+      "expectedAllocatedFixedCostCents": 30000
+    },
+    {
+      "key": "limpieza",
+      "name": "Limpieza QA",
+      "priceCents": 150000,
+      "durationMinutes": 45,
+      "supplies": [
+        {
+          "supplyKey": "disposableKit",
+          "quantity": 1
+        }
+      ],
+      "expectedVariableCostCents": 2500,
+      "expectedAllocatedFixedCostCents": 22500
+    },
+    {
+      "key": "endodoncia",
+      "name": "Endodoncia QA",
+      "priceCents": 650000,
+      "durationMinutes": 120,
+      "supplies": [
+        {
+          "supplyKey": "anesthesia",
+          "quantity": 2
+        },
+        {
+          "supplyKey": "surgicalKit",
+          "quantity": 1
+        },
+        {
+          "supplyKey": "suture",
+          "quantity": 1
+        }
+      ],
+      "expectedVariableCostCents": 33000,
+      "expectedAllocatedFixedCostCents": 60000
+    }
+  ],
+  "patientGroups": [
+    {
+      "sourceKey": "metaMayo",
+      "count": 22,
+      "namePrefix": "QA Meta Mayo"
+    },
+    {
+      "sourceKey": "referidos",
+      "count": 7,
+      "namePrefix": "QA Referido"
+    },
+    {
+      "sourceKey": "organico",
+      "count": 1,
+      "namePrefix": "QA Organico"
+    }
+  ],
+  "treatmentGroups": [
+    {
+      "clinicKey": "clinicA",
+      "sourceKey": "metaMayo",
+      "serviceKey": "resina",
+      "status": "completed_paid",
+      "count": 10
+    },
+    {
+      "clinicKey": "clinicA",
+      "sourceKey": "metaMayo",
+      "serviceKey": "limpieza",
+      "status": "completed_paid",
+      "count": 8
+    },
+    {
+      "clinicKey": "clinicA",
+      "sourceKey": "metaMayo",
+      "serviceKey": "endodoncia",
+      "status": "completed_paid",
+      "count": 4
+    },
+    {
+      "clinicKey": "clinicA",
+      "sourceKey": "referidos",
+      "serviceKey": "resina",
+      "status": "completed_paid",
+      "count": 3
+    },
+    {
+      "clinicKey": "clinicA",
+      "sourceKey": "referidos",
+      "serviceKey": "limpieza",
+      "status": "completed_paid",
+      "count": 4
+    },
+    {
+      "clinicKey": "clinicA",
+      "sourceKey": "organico",
+      "serviceKey": "resina",
+      "status": "partial",
+      "count": 1,
+      "paidCents": 125000
+    },
+    {
+      "clinicKey": "clinicA",
+      "sourceKey": "organico",
+      "serviceKey": "limpieza",
+      "status": "pending",
+      "count": 1
+    },
+    {
+      "clinicKey": "clinicA",
+      "sourceKey": "metaMayo",
+      "serviceKey": "limpieza",
+      "status": "cancelled",
+      "count": 1
+    }
+  ],
+  "bookingCases": [
+    {
+      "key": "publicBookingSms",
+      "clinicKey": "clinicA",
+      "serviceKey": "limpieza",
+      "patientName": "QA Booking SMS",
+      "patientPhone": "+15555550123",
+      "expectedNotifications": ["email", "sms", "whatsapp"]
+    }
+  ],
+  "laraCases": [
+    {
+      "key": "createExpenseSuggestion",
+      "prompt": "Registra un gasto de laboratorio QA por 1500 pesos",
+      "expectedAction": "create_expense",
+      "expectedConfirmationRequired": true,
+      "expectedDatabaseEffect": "expense_created"
+    }
+  ]
+}

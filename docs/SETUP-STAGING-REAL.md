@@ -178,6 +178,20 @@ https://laralis-xxx.vercel.app
 
 ## Paso 3: Probar que Funciona (5 min)
 
+### 3.0 - Abrir Cypress contra Stage
+
+En este repo ya existe un lanzador para abrir Cypress contra stage sin escribir comandos:
+
+```text
+Abrir Cypress Stage.bat
+```
+
+La primera vez pide las credenciales de stage y las guarda localmente en `apps/dental/cypress.env.json`, que esta ignorado por Git.
+
+Guia completa: [Cypress Stage Testing](./STAGE-CYPRESS-TESTING.md)
+
+La estrategia completa de QA de stage esta documentada en [Laralis Stage QA Harness](./qa/README.md). Ese documento debe ser el punto de entrada para cualquier agente que vaya a ampliar pruebas, crear datasets QA, validar dashboards, permisos, crons, i18n, audio, booking o regresiones.
+
 ### 3.1 - Visita tu Staging
 
 1. Abre la URL que te dio Vercel

@@ -1,0 +1,206 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { zSupply } from '@/lib/zod';
+import type { Supply, ApiResponse } from '@/lib/types';
+import { cookies } from 'next/headers';
+import { resolveClinicContext } from '@/lib/clinic';
+import { readJson } from '@/lib/validation';
+import { forbiddenIfMissingPermission } from '@/lib/permissions';
+import { sendLowStockAlertPush } from '@/lib/notifications/product-push';
+
+export const dynamic = 'force-dynamic'
+
+
+export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<Supply[]>>> {
+  try {
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limitParam = searchParams.get('limit');
+    // Default to no limit (or very high limit) to show all supplies in dropdowns
+    // Only apply pagination if explicitly requested
+    const limit = limitParam ? parseInt(limitParam) : 10000;
+    const category = searchParams.get('category');
+    const search = searchParams.get('search');
+
+    const cookieStore = cookies();
+    const clinicContext = await resolveClinicContext({ requestedClinicId: searchParams.get('clinicId'), cookieStore });
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
+    }
+    const { clinicId, userId } = clinicContext;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'supplies.view');
+    if (forbidden) return forbidden;
+
+    let query = supabaseAdmin
+      .from('supplies')
+      .select('*')
+      .eq('clinic_id', clinicId)
+      .order('name', { ascending: true });
+
+    // Apply filters
+    if (category) {
+      query = query.eq('category', category);
+    }
+
+    if (search) {
+      query = query.ilike('name', `%${search}%`);
+    }
+
+    // Apply pagination only if limit is explicitly provided
+    if (limitParam) {
+      const from = (page - 1) * limit;
+      const to = from + limit - 1;
+      query = query.range(from, to);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Error fetching supplies:', error);
+      return NextResponse.json(
+        { error: 'Failed to fetch supplies', message: error.message },
+        { status: 500 }
+      );
+    }
+
+    // Add calculated cost_per_portion_cents field
+    const suppliesWithCostPerPortion = (data || []).map(supply => ({
+      ...supply,
+      cost_per_portion_cents: Math.round(supply.price_cents / supply.portions)
+    }));
+
+    return NextResponse.json({ data: suppliesWithCostPerPortion });
+  } catch (error) {
+    console.error('Unexpected error in GET /api/supplies:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse<Supply>>> {
+  try {
+    const bodyResult = await readJson(request);
+    if ('error' in bodyResult) {
+      return bodyResult.error;
+    }
+    const body = bodyResult.data;
+
+    const cookieStore = cookies();
+    const clinicContext = await resolveClinicContext({ requestedClinicId: body?.clinic_id, cookieStore });
+    if ('error' in clinicContext) {
+      return NextResponse.json({ error: clinicContext.error.message }, { status: clinicContext.error.status });
+    }
+    const { clinicId, userId } = clinicContext;
+    const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'supplies.create');
+    if (forbidden) return forbidden;
+    
+    // Si viene con price_pesos, convertir a cents
+    let dataToValidate = { ...body };
+    if ('price_pesos' in body) {
+      dataToValidate.price_cents = Math.round(body.price_pesos * 100);
+      delete dataToValidate.price_pesos;
+    }
+    
+    // Add clinic_id to body for validation
+    dataToValidate.clinic_id = clinicId;
+    
+    // Calcular cost_per_portion_cents si no viene
+    if (dataToValidate.price_cents && dataToValidate.portions > 0) {
+      dataToValidate.cost_per_portion_cents = Math.round(dataToValidate.price_cents / dataToValidate.portions);
+    }
+    
+    // Validate request body
+    const validationResult = zSupply.safeParse(dataToValidate);
+    if (!validationResult.success) {
+      return NextResponse.json(
+        { 
+          error: 'Validation failed', 
+          message: validationResult.error.errors.map(e => e.message).join(', ')
+        },
+        { status: 400 }
+      );
+    }
+
+    const { clinic_id, name, category, presentation, price_cents, portions } = validationResult.data;
+
+    // Extract and validate inventory fields (optional, not in main zod schema)
+    // Must be non-negative integers
+    const rawStockQty = body.stock_quantity ?? 0;
+    const rawMinAlert = body.min_stock_alert ?? 10;
+
+    const stock_quantity = typeof rawStockQty === 'number' && Number.isInteger(rawStockQty) && rawStockQty >= 0
+      ? rawStockQty
+      : 0;
+    const min_stock_alert = typeof rawMinAlert === 'number' && Number.isInteger(rawMinAlert) && rawMinAlert >= 0
+      ? rawMinAlert
+      : 10;
+
+    // Prevent duplicate names per clinic (case-insensitive)
+    const { data: existingByName, error: dupCheckErr } = await supabaseAdmin
+      .from('supplies')
+      .select('id, name')
+      .eq('clinic_id', clinic_id)
+      .ilike('name', name.trim())
+      .limit(1);
+
+    if (dupCheckErr) {
+      console.error('Error checking duplicate supply name:', dupCheckErr)
+    }
+
+    if (existingByName && existingByName.length > 0) {
+      return NextResponse.json(
+        { error: 'Duplicate name', message: 'Ya existe un insumo con ese nombre en esta clínica.' },
+        { status: 409 }
+      )
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('supplies')
+      .insert({
+        clinic_id,
+        name,
+        category,
+        presentation,
+        price_cents,
+        portions,
+        stock_quantity,
+        min_stock_alert
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating supply:', error);
+      return NextResponse.json(
+        { error: 'Failed to create supply', message: error.message },
+        { status: 500 }
+      );
+    }
+
+    // Add calculated cost_per_portion_cents field
+    const supplyWithCostPerPortion = {
+      ...data,
+      cost_per_portion_cents: Math.round(data.price_cents / data.portions)
+    };
+
+    try {
+      await sendLowStockAlertPush(request, clinicId, supplyWithCostPerPortion);
+    } catch (pushError) {
+      console.warn('[supplies POST] Failed to send low stock push notification:', pushError);
+    }
+
+    return NextResponse.json({ 
+      data: supplyWithCostPerPortion,
+      message: 'Supply created successfully'
+    }, { status: 201 });
+
+  } catch (error) {
+    console.error('Unexpected error in POST /api/supplies:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}

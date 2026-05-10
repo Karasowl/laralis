@@ -1,0 +1,300 @@
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
+
+type RateLimitResult = Awaited<ReturnType<Ratelimit['limit']>>;
+
+let cachedRateLimiter: Ratelimit | null | undefined;
+
+function getRateLimiter(): Ratelimit | null {
+  if (cachedRateLimiter !== undefined) {
+    return cachedRateLimiter;
+  }
+
+  const hasEnv = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!hasEnv) {
+    cachedRateLimiter = null;
+    return cachedRateLimiter;
+  }
+
+  try {
+    const redis = Redis.fromEnv();
+    cachedRateLimiter = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(100, '1 m'),
+      analytics: true,
+      prefix: 'laralis:ratelimit',
+    });
+  } catch (error) {
+    console.error('Rate limiter initialization failed', error);
+    cachedRateLimiter = null;
+  }
+
+  return cachedRateLimiter;
+}
+
+function setRateLimitHeaders(
+  response: NextResponse,
+  result: RateLimitResult,
+  options: { includeRetryAfter?: boolean } = {}
+) {
+  response.headers.set('X-RateLimit-Limit', String(result.limit));
+  response.headers.set('X-RateLimit-Remaining', String(result.remaining));
+  response.headers.set('X-RateLimit-Reset', String(result.reset));
+
+  if (options.includeRetryAfter) {
+    const retryAfterSeconds = Math.max(0, Math.ceil((result.reset - Date.now()) / 1000));
+    response.headers.set('Retry-After', retryAfterSeconds.toString());
+  }
+}
+
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  const isStaticAsset = pathname.startsWith('/_next') || pathname.includes('.') || pathname === '/test-auth';
+
+  const limiter = getRateLimiter();
+  let rateLimitResult: RateLimitResult | null = null;
+
+  if (!isStaticAsset && limiter) {
+    const ip = request.ip || request.headers.get('x-forwarded-for') || 'unknown';
+    const identifier = `${ip}:${request.method}:${pathname}`;
+    rateLimitResult = await limiter.limit(identifier);
+
+    if (!rateLimitResult.success) {
+      const limitedResponse = NextResponse.json(
+        { message: 'Demasiadas peticiones, intenta nuevamente en unos segundos.' },
+        { status: 429 }
+      );
+      setRateLimitHeaders(limitedResponse, rateLimitResult, { includeRetryAfter: true });
+      return limitedResponse;
+    }
+  }
+
+  if (isStaticAsset) {
+    return NextResponse.next();
+  }
+
+  if (pathname.startsWith('/api')) {
+    const apiResponse = NextResponse.next();
+    if (rateLimitResult) {
+      setRateLimitHeaders(apiResponse, rateLimitResult);
+    }
+    return apiResponse;
+  }
+
+  // Create a single response object that will be modified and returned
+  const response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  });
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          // Get cookie value from request
+          const cookie = request.cookies.get(name);
+          return cookie?.value;
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          // Set cookie on both request and response
+          request.cookies.set({
+            name,
+            value,
+            ...options,
+          });
+          response.cookies.set({
+            name,
+            value,
+            ...options,
+          });
+        },
+        remove(name: string, options: CookieOptions) {
+          // Remove cookie from both request and response
+          request.cookies.set({
+            name,
+            value: '',
+            ...options,
+          });
+          response.cookies.set({
+            name,
+            value: '',
+            ...options,
+          });
+        },
+      },
+    }
+  );
+
+  // Refresh session and get user
+  const { data: { user }, error } = await supabase.auth.getUser()
+  
+  // Also try to refresh the session if there's an error
+  if (error && !pathname.startsWith('/auth')) {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session) {
+      await supabase.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token
+      })
+    }
+  }
+  
+  // Limit debug logs to development only (disabled for performance)
+  // if (process.env.NODE_ENV !== 'production') {
+  //   if (pathname === '/' || pathname.startsWith('/auth')) {
+  //     console.log(`[Middleware] Path: ${pathname}, User: ${user?.email || 'none'}, Error: ${error?.message || 'none'}`)
+  //   }
+  // }
+
+  // Public paths that don't require authentication
+  const publicPaths = [
+    '/auth/login',
+    '/auth/register',
+    '/auth/forgot-password',
+    '/auth/reset-password',
+    '/auth/callback',
+    '/auth/logout',
+    '/auth/verify-email',
+    '/terms',
+    '/privacy',
+    '/book', // Public booking pages
+  ];
+
+  const isPublicPath = publicPaths.some(path => pathname.startsWith(path));
+  const isOnboarding = pathname === '/onboarding';
+  const isSetup = pathname.startsWith('/setup');
+  const workspaceLifecycleSelect = 'id, status, onboarding_completed';
+  const resolveWorkspaceDestination = (workspaces: any[] | null | undefined) => {
+    const rows = workspaces || [];
+    const visible = rows.filter((workspace) => !['archived', 'pending_deletion', 'deleted'].includes(
+      workspace?.status || (workspace?.onboarding_completed ? 'active' : 'draft')
+    ));
+    if (visible.length === 0) return '/onboarding';
+    if (visible.some((workspace) => (workspace?.status || (workspace?.onboarding_completed ? 'active' : 'draft')) === 'active')) {
+      return '/';
+    }
+    return '/setup/resume';
+  };
+  const getAccessibleWorkspaces = async (userId: string) => {
+    const workspaceMap = new Map<string, any>();
+
+    const { data: ownedWorkspaces } = await supabase
+      .from('workspaces')
+      .select(workspaceLifecycleSelect)
+      .eq('owner_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    for (const workspace of ownedWorkspaces || []) {
+      workspaceMap.set(workspace.id, workspace);
+    }
+
+    const membershipWorkspaceIds = new Set<string>();
+    for (const table of ['workspace_users', 'workspace_members']) {
+      const { data: memberships, error: membershipError } = await supabase
+        .from(table)
+        .select('workspace_id')
+        .eq('user_id', userId)
+        .eq('is_active', true);
+
+      if (membershipError) continue;
+
+      for (const membership of memberships || []) {
+        if (membership.workspace_id) membershipWorkspaceIds.add(membership.workspace_id);
+      }
+    }
+
+    const missingIds = Array.from(membershipWorkspaceIds).filter((id) => !workspaceMap.has(id));
+    if (missingIds.length > 0) {
+      const { data: memberWorkspaces } = await supabase
+        .from('workspaces')
+        .select(workspaceLifecycleSelect)
+        .in('id', missingIds)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      for (const workspace of memberWorkspaces || []) {
+        workspaceMap.set(workspace.id, workspace);
+      }
+    }
+
+    return Array.from(workspaceMap.values());
+  };
+
+  // If no user and trying to access protected route
+  if (!user && !isPublicPath) {
+    const redirectUrl = new URL('/auth/login', request.url);
+    redirectUrl.searchParams.set('redirectTo', pathname);
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  // If has user and trying to access auth pages (except logout/callback/reset-password/verify-email/book)
+  if (user && isPublicPath &&
+      !pathname.includes('/logout') &&
+      !pathname.includes('/callback') &&
+      !pathname.includes('/reset-password') &&
+      !pathname.includes('/verify-email') &&
+      !pathname.startsWith('/book')) {
+    // Check if user has workspace (cached check)
+    const workspaces = await getAccessibleWorkspaces(user.id);
+
+    return NextResponse.redirect(new URL(resolveWorkspaceDestination(workspaces), request.url));
+  }
+
+  // If user already has a usable workspace and tries onboarding, send them to
+  // the correct lifecycle screen. Archived/deleted workspaces do not block a
+  // fresh onboarding.
+  if (user && pathname === '/onboarding') {
+    const workspaces = await getAccessibleWorkspaces(user.id);
+    const destination = resolveWorkspaceDestination(workspaces);
+    if (destination !== '/onboarding') {
+      return NextResponse.redirect(new URL(destination, request.url));
+    }
+  }
+
+  // If authenticated and not in onboarding, check for workspace
+  // Do not bounce away from setup while the just-created workspace propagates.
+  if (user && !isPublicPath && !isOnboarding && !isSetup) {
+    const cookieWs = request.cookies.get('workspaceId')?.value
+
+    // Only check database if no workspace cookie exists
+    if (!cookieWs) {
+      const workspace = await getAccessibleWorkspaces(user.id);
+
+      const destination = resolveWorkspaceDestination(workspace);
+      if (destination !== '/') {
+        return NextResponse.redirect(new URL(destination, request.url));
+      }
+    }
+  }
+
+  // Keep onboarding accessible even if a workspace already exists.
+  // The app itself decides when onboarding is completed.
+
+  if (rateLimitResult) {
+    setRateLimitHeaders(response, rateLimitResult);
+  }
+
+  return response;
+}
+
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public files with extensions
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
+};

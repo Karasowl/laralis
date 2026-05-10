@@ -1,4 +1,12 @@
-\# Project Memory — Dental App
+\# Project Memory — Laralis Suite / Dental App
+
+\## Monorepo branch context
+
+\- This branch is migrating Laralis from a single Next.js app under `web/` into a monorepo.
+\- The existing dental product now lives in `apps/dental/` and should remain behaviorally unchanged during the structural migration.
+\- Future apps are expected under `apps/home`, `apps/business`, and `apps/hub`, but do not create or wire them until the dental app is verified in its new location.
+\- Shared packages will live under `packages/`. Extract shared code only after a real reuse boundary is clear.
+\- When running app commands from the repo root, prefer workspace scripts such as `npm run dev:dental`, `npm run build:dental`, and `npm run typecheck:dental`.
 
 Reference spreadsheet lives under docs/reference/Consultorio-PoDent.xlsx.
  The spreadsheet is reference for calculations, not a runtime dependency.

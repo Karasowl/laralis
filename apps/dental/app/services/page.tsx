@@ -1,0 +1,579 @@
+'use client'
+
+import { useState, useEffect, useMemo } from 'react'
+import { useTranslations } from 'next-intl'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { AppLayout } from '@/components/layouts/AppLayout'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { FormModal } from '@/components/ui/form-modal'
+import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { ServiceForm } from './components/ServiceForm'
+import { SuppliesManager } from './components/SuppliesManager'
+import { ServicesTable } from './components/ServicesTable'
+import { CategoryModal } from './components/CategoryModal'
+import { SupplyMultiSelector } from './components/SupplyMultiSelector'
+import { BulkDiscountModal } from './components/BulkDiscountModal'
+import { SingleDiscountModal } from './components/SingleDiscountModal'
+import { useCurrentClinic } from '@/hooks/use-current-clinic'
+import { useWorkspace } from '@/contexts/workspace-context'
+import { useRouter } from 'next/navigation'
+import { useServices } from '@/hooks/use-services'
+import { useTimeSettings } from '@/hooks/use-time-settings'
+import { useRequirementsGuard } from '@/lib/requirements/useGuard'
+import { toast } from 'sonner'
+import { serviceSchema, type ServiceFormData } from '@/lib/schemas'
+import { Plus, Percent } from 'lucide-react'
+import { calcularPrecioFinal } from '@/lib/calc/tarifa'
+
+interface ServiceSupply {
+  supply_id: string
+  quantity: number
+}
+
+const resolveSupplyCost = (supply: any): number => {
+  if (typeof supply?.cost_per_portion_cents === 'number') return supply.cost_per_portion_cents
+  if (typeof supply?.cost_per_unit_cents === 'number') return supply.cost_per_unit_cents
+  if (typeof supply?.price_cents === 'number') return supply.price_cents
+  if (typeof supply?.cost_per_unit === 'number') return supply.cost_per_unit
+  return 0
+}
+
+const DEFAULT_SERVICE_FORM_VALUES: ServiceFormData = {
+  name: '',
+  category: 'otros',
+  est_minutes: 30,
+  base_price_cents: 0,
+  description: '',
+  margin_pct: 30,
+  target_price: 0
+};
+
+export default function ServicesPage() {
+  const t = useTranslations('services')
+  const tCommon = useTranslations('common')
+  const { currentClinic } = useCurrentClinic()
+  const { workspace } = useWorkspace()
+  const router = useRouter()
+  useEffect(() => {
+    try { console.log('[ServicesPage] currentClinic', currentClinic?.id) } catch {}
+  }, [currentClinic?.id])
+  const { calculations } = useTimeSettings({ clinicId: currentClinic?.id })
+  const fixedCostPerMinuteCents = calculations.fixedCostPerMinuteCents || 0
+
+  const {
+    services,
+    categories,
+    supplies,
+    loading,
+
+    createService,
+    updateService,
+    deleteService,
+    fetchServiceSupplies,
+    createCategory,
+    updateCategory,
+    deleteCategory,
+    fetchServices
+  } = useServices({ clinicId: currentClinic?.id })
+
+  // Modal states
+  const [createOpen, setCreateOpen] = useState(false)
+  const [editService, setEditService] = useState<any>(null)
+  const [deleteServiceData, setDeleteServiceData] = useState<any>(null)
+  const [suppliesModalOpen, setSuppliesModalOpen] = useState(false)
+  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null)
+  const [selectedServiceForSupplies, setSelectedServiceForSupplies] = useState<any>(null)
+  const [serviceSupplies, setServiceSupplies] = useState<ServiceSupply[]>([])
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false)
+  const [multiSelectorOpen, setMultiSelectorOpen] = useState(false)
+  const [bulkDiscountModalOpen, setBulkDiscountModalOpen] = useState(false)
+  const [singleDiscountModalOpen, setSingleDiscountModalOpen] = useState(false)
+  const [selectedServiceForDiscount, setSelectedServiceForDiscount] = useState<any>(null)
+
+  useEffect(() => {
+    if (currentClinic?.id) {
+      fetchServices()
+    }
+  }, [currentClinic?.id, fetchServices])
+
+  // Form
+  const form = useForm<ServiceFormData>({
+    resolver: zodResolver(serviceSchema),
+    defaultValues: DEFAULT_SERVICE_FORM_VALUES,
+    mode: 'onBlur', // PERFORMANCE: Validate only on blur instead of every keystroke
+  })
+
+  // Guard for create_service (ensures supplies exist or opens importer)
+  const { ensureReady } = useRequirementsGuard(() => ({ clinicId: currentClinic?.id as string }))
+
+  // Load service supplies when editing
+  useEffect(() => {
+    if (selectedServiceId) {
+      fetchServiceSupplies(selectedServiceId).then((supplies) => {
+        const mapped = supplies.map((s) => ({
+          supply_id: s.supply_id,
+          quantity: s.quantity
+        }))
+        setServiceSupplies(mapped.length > 0 ? mapped : [{ supply_id: '', quantity: 1 }])
+      })
+    }
+  }, [selectedServiceId, fetchServiceSupplies])
+
+  // Submit handlers
+  const handleCreate = async (data: ServiceFormData) => {
+    const ready = await ensureReady('create_service')
+    if (!ready.allowed) {
+      toast.info(t('please_import_supplies'))
+      return
+    }
+    const sanitizedSupplies = serviceSupplies.filter((ss) => ss.supply_id && (ss.quantity ?? 0) > 0)
+    const success = await createService({
+      ...data,
+      supplies: sanitizedSupplies
+    })
+    if (success) {
+      await fetchServices()
+      setCreateOpen(false)
+      form.reset()
+      setServiceSupplies([])
+      // Tras crear, vuelve al Setup solo si seguimos en onboarding
+      try { if (typeof window !== 'undefined') localStorage.setItem('setup_service_recipe_done', 'true') } catch {}
+      const fromSetup = (typeof window !== 'undefined' && sessionStorage.getItem('return_to_setup') === '1')
+      const inOnboarding = (workspace?.onboarding_completed === false) || (workspace?.onboarding_completed === undefined && fromSetup)
+      if (inOnboarding) {
+        try { if (typeof window !== 'undefined') sessionStorage.removeItem('return_to_setup') } catch {}
+        setTimeout(() => router.push('/setup'), 0)
+      }
+    }
+  }
+
+  const handleEdit = async (data: ServiceFormData) => {
+    if (!editService) return
+    const sanitizedSupplies = serviceSupplies.filter((ss) => ss.supply_id && (ss.quantity ?? 0) > 0)
+    const success = await updateService(editService.id, {
+      ...data,
+      supplies: sanitizedSupplies
+    })
+    if (success) {
+      await fetchServices()
+      setEditService(null)
+      form.reset()
+      setServiceSupplies([])
+      // En onboarding, marcar y volver a Setup tras editar receta
+      try { if (typeof window !== 'undefined') localStorage.setItem('setup_service_recipe_done', 'true') } catch {}
+      const fromSetup = (typeof window !== 'undefined' && sessionStorage.getItem('return_to_setup') === '1')
+      const inOnboarding = (workspace?.onboarding_completed === false) || (workspace?.onboarding_completed === undefined && fromSetup)
+      if (inOnboarding) {
+        try { if (typeof window !== 'undefined') sessionStorage.removeItem('return_to_setup') } catch {}
+        setTimeout(() => router.push('/setup'), 0)
+      }
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deleteServiceData) return
+    const success = await deleteService(deleteServiceData.id)
+    if (success) {
+      setDeleteServiceData(null)
+    }
+  }
+
+
+  // Add/remove supplies helpers
+  const addSupply = () => {
+    setServiceSupplies([...serviceSupplies, { supply_id: '', quantity: 1 }])
+  }
+
+  const removeSupply = (index: number) => {
+    setServiceSupplies(serviceSupplies.filter((_, i) => i !== index))
+  }
+
+  const updateSupply = (index: number, field: 'supply_id' | 'quantity', value: any) => {
+    const updated = [...serviceSupplies]
+    updated[index] = { ...updated[index], [field]: value }
+    setServiceSupplies(updated)
+  }
+
+  // Multi-select handlers
+  const handleMultiSelectConfirm = (selectedIds: string[]) => {
+    const newSupplies = selectedIds.map(id => ({ supply_id: id, quantity: 1 }))
+    setServiceSupplies([...serviceSupplies, ...newSupplies])
+  }
+
+  const alreadySelectedIds = useMemo(
+    () => serviceSupplies.map(ss => ss.supply_id).filter(Boolean),
+    [serviceSupplies]
+  )
+
+  const variableCostCents = useMemo(() => {
+    return serviceSupplies.reduce((total, ss) => {
+      const supply = supplies.find((s) => s.id === ss.supply_id)
+      if (!supply) return total
+      const qty = Number.isFinite(ss.quantity) ? ss.quantity : 0
+      const costCents = resolveSupplyCost(supply)
+      return total + costCents * Math.max(qty, 0)
+    }, 0)
+  }, [serviceSupplies, supplies])
+
+  const estMinutes = form.watch('est_minutes') || 0
+  const totalFixedCostCents = Math.max(0, Math.round(estMinutes * fixedCostPerMinuteCents))
+  const totalServiceCostCents = totalFixedCostCents + variableCostCents
+
+  useEffect(() => {
+    const current = form.getValues('base_price_cents') ?? 0
+    if (current !== totalServiceCostCents) {
+      form.setValue('base_price_cents', totalServiceCostCents, { shouldDirty: current !== totalServiceCostCents })
+    }
+  }, [totalServiceCostCents, form])
+
+  // Handlers for table actions
+  const handleManageSupplies = async (service: any) => {
+    if (!service?.id) {
+      console.error('Service id is undefined:', service)
+      return
+    }
+
+    // Refetch services to ensure supplies list is up to date
+    await fetchServices()
+
+    setSelectedServiceId(service.id)
+    setSelectedServiceForSupplies(service)
+    setSuppliesModalOpen(true)
+  }
+
+  const handleEditService = (service: any) => {
+    if (!service?.id) {
+      console.error('Service is invalid:', service)
+      return
+    }
+
+    // Get margin_pct from service or use default
+    const margin = service.margin_pct !== undefined && service.margin_pct !== null ? service.margin_pct : 30
+
+    // Use the REAL base cost recalculated by the backend
+    // The backend already calculates: total_cost_cents = fixed_cost_cents + variable_cost_cents
+    const baseCost = service.total_cost_cents || 0
+
+    // Current price from DB (may be outdated if costs changed)
+    const currentPriceCents = service.price_cents || 0
+    const currentPricePesos = Math.round(currentPriceCents / 100)
+
+    // Calculate suggested price based on current costs and configured margin
+    const suggestedPriceCents = Math.round(baseCost * (1 + margin / 100))
+    const suggestedPricePesos = Math.round(suggestedPriceCents / 100)
+
+    form.reset({
+      name: service.name,
+      category: service.category || 'otros',
+      est_minutes: service.est_minutes || service.duration_minutes || 30,
+      base_price_cents: baseCost,  // Use real recalculated cost
+      description: service.description || '',
+      margin_pct: margin,
+      target_price: currentPricePesos  // Show current price, user can adjust manually
+    })
+    setSelectedServiceId(service.id)
+    setEditService(service)
+  }
+
+  const handleDeleteService = (service: any) => {
+    if (!service?.id) {
+      console.error('Service is invalid:', service)
+      return
+    }
+    setDeleteServiceData(service)
+  }
+
+  const handleApplyBulkDiscount = async (discount: {
+    type: 'none' | 'percentage' | 'fixed'
+    value: number
+    reason?: string
+  }) => {
+    try {
+      // Update each service with the discount
+      // FIX: Send original_price_cents instead of price_cents
+      // The trigger will calculate price_cents from original_price_cents + discount
+      const updatePromises = services.map((service: any) =>
+        fetch(`/api/services/${service.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: service.name,
+            category: service.category,
+            est_minutes: service.est_minutes,
+            description: service.description,
+            // Use original_price_cents as the base (price before discount)
+            original_price_cents: service.original_price_cents || service.price_cents,
+            margin_pct: service.margin_pct,
+            discount_type: discount.type,
+            discount_value: discount.value,
+            discount_reason: discount.reason || null
+          })
+        })
+      )
+
+      await Promise.all(updatePromises)
+
+      toast.success(t('updateSuccess'))
+      fetchServices() // Refresh the list
+    } catch (error) {
+      console.error('Error applying bulk discount:', error)
+      toast.error(t('saveError'))
+    }
+  }
+
+  const handleApplyDiscount = (service: any) => {
+    if (!service?.id) {
+      console.error('Service is invalid:', service)
+      return
+    }
+    setSelectedServiceForDiscount(service)
+    setSingleDiscountModalOpen(true)
+  }
+
+  const handleApplySingleDiscount = async (discount: {
+    type: 'none' | 'percentage' | 'fixed'
+    value: number
+    reason?: string
+  }) => {
+    if (!selectedServiceForDiscount) return
+
+    try {
+      // FIX: Send original_price_cents instead of price_cents
+      // The trigger will calculate price_cents from original_price_cents + discount
+      const response = await fetch(`/api/services/${selectedServiceForDiscount.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: selectedServiceForDiscount.name,
+          category: selectedServiceForDiscount.category,
+          est_minutes: selectedServiceForDiscount.est_minutes,
+          description: selectedServiceForDiscount.description,
+          // Use original_price_cents as the base (price before discount)
+          original_price_cents: selectedServiceForDiscount.original_price_cents || selectedServiceForDiscount.price_cents,
+          margin_pct: selectedServiceForDiscount.margin_pct,
+          discount_type: discount.type,
+          discount_value: discount.value,
+          discount_reason: discount.reason || null
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to apply discount')
+      }
+
+      toast.success(t('updateSuccess'))
+      fetchServices() // Refresh the list
+      setSingleDiscountModalOpen(false)
+      setSelectedServiceForDiscount(null)
+    } catch (error) {
+      console.error('Error applying discount:', error)
+      toast.error(t('saveError'))
+    }
+  }
+
+  // Onboarding autofix: open recipe wizard (use edit + supplies modal) when flagged
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const svcId = sessionStorage.getItem('auto_open_recipe_wizard_serviceId')
+      if (!svcId) return
+      sessionStorage.removeItem('auto_open_recipe_wizard_serviceId')
+      // Wait one tick for data
+      setTimeout(() => {
+        const svc = services.find((s: any) => s.id === svcId)
+        if (svc) {
+          handleEditService(svc)
+          setSuppliesModalOpen(true)
+        }
+      }, 0)
+    } catch {}
+  }, [services])
+
+  return (
+    <AppLayout>
+      <div className="container mx-auto p-6 max-w-7xl space-y-6" data-testid="services-page">
+        <PageHeader
+          title={t('title')}
+          subtitle={t('subtitle')}
+          actions={
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <Button
+                variant="outline"
+                onClick={() => setCategoryModalOpen(true)}
+                className="w-full sm:w-auto h-10"
+              >
+                {t('manage_categories')}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setBulkDiscountModalOpen(true)}
+                className="w-full sm:w-auto h-10"
+                disabled={!services || services.length === 0}
+              >
+                <Percent className="h-4 w-4 mr-2" />
+                {t('apply_bulk_discount')}
+              </Button>
+              <Button
+                onClick={async () => { const { allowed } = await ensureReady('create_service'); if (allowed) setCreateOpen(true) }}
+                className="w-full sm:w-auto h-10"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                {t('add_service')}
+              </Button>
+            </div>
+          }
+        />
+
+        <ServicesTable
+          services={services}
+          loading={loading}
+          categories={categories}
+          fixedCostPerMinuteCents={fixedCostPerMinuteCents}
+          onManageSupplies={handleManageSupplies}
+          onEdit={handleEditService}
+          onDelete={handleDeleteService}
+          onApplyDiscount={handleApplyDiscount}
+        />
+
+        {/* Create Modal */}
+        <FormModal
+          open={createOpen}
+          onOpenChange={(open) => {
+            setCreateOpen(open)
+            if (open) {
+              form.reset(DEFAULT_SERVICE_FORM_VALUES)
+              setServiceSupplies([{ supply_id: '', quantity: 1 }])
+            } else {
+              setServiceSupplies([])
+              form.reset(DEFAULT_SERVICE_FORM_VALUES)
+            }
+          }}
+          title={t('create_service')}
+          onSubmit={form.handleSubmit(handleCreate)}
+          maxWidth="2xl"
+          cancelLabel={tCommon('cancel')}
+          submitLabel={tCommon('save')}
+        >
+          <ServiceForm
+            form={form}
+            categories={categories}
+            supplies={supplies}
+            serviceSupplies={serviceSupplies}
+            onSuppliesChange={setServiceSupplies}
+            onOpenMultiSelector={() => setMultiSelectorOpen(true)}
+            fixedCostPerMinuteCents={fixedCostPerMinuteCents}
+            totalFixedCostCents={totalFixedCostCents}
+            variableCostCents={variableCostCents}
+            totalServiceCostCents={totalServiceCostCents}
+            t={t}
+          />
+        </FormModal>
+
+        {/* Edit Modal */}
+        <FormModal
+          open={!!editService}
+          onOpenChange={(open) => {
+            if (!open) {
+              setEditService(null)
+              setSelectedServiceId(null)
+              setServiceSupplies([])
+              form.reset(DEFAULT_SERVICE_FORM_VALUES)
+            }
+          }}
+          title={t('edit_service')}
+          onSubmit={form.handleSubmit(handleEdit)}
+          maxWidth="2xl"
+          cancelLabel={tCommon('cancel')}
+          submitLabel={tCommon('save')}
+        >
+          <ServiceForm
+            form={form}
+            categories={categories}
+            supplies={supplies}
+            serviceSupplies={serviceSupplies}
+            onSuppliesChange={setServiceSupplies}
+            onOpenMultiSelector={() => setMultiSelectorOpen(true)}
+            fixedCostPerMinuteCents={fixedCostPerMinuteCents}
+            totalFixedCostCents={totalFixedCostCents}
+            variableCostCents={variableCostCents}
+            totalServiceCostCents={totalServiceCostCents}
+            t={t}
+          />
+        </FormModal>
+
+        {/* Supplies Modal */}
+        <FormModal
+          open={suppliesModalOpen}
+          onOpenChange={setSuppliesModalOpen}
+          title={selectedServiceForSupplies ? `${t('manage_supplies')} - ${selectedServiceForSupplies.name}` : t('manage_supplies')}
+          cancelLabel={tCommon('close')}
+          submitLabel={tCommon('save')}
+          onSubmit={() => setSuppliesModalOpen(false)}
+          maxWidth="lg"
+        >
+          <SuppliesManager
+            supplies={supplies}
+            serviceSupplies={serviceSupplies}
+            onAdd={addSupply}
+            onRemove={removeSupply}
+            onUpdate={updateSupply}
+            variableCost={variableCostCents}
+            t={t}
+          />
+        </FormModal>
+
+        {/* Category Modal */}
+        <CategoryModal
+          open={categoryModalOpen}
+          onOpenChange={setCategoryModalOpen}
+          categories={categories}
+          onCreateCategory={createCategory}
+          onUpdateCategory={updateCategory}
+          onDeleteCategory={deleteCategory}
+        />
+
+        {/* Bulk Discount Modal */}
+        <BulkDiscountModal
+          open={bulkDiscountModalOpen}
+          onOpenChange={setBulkDiscountModalOpen}
+          services={services}
+          priceRounding={currentClinic?.price_rounding || 10}
+          onApply={handleApplyBulkDiscount}
+        />
+
+        {/* Single Service Discount Modal */}
+        <SingleDiscountModal
+          open={singleDiscountModalOpen}
+          onOpenChange={setSingleDiscountModalOpen}
+          service={selectedServiceForDiscount}
+          priceRounding={currentClinic?.price_rounding || 10}
+          onApply={handleApplySingleDiscount}
+        />
+
+        {/* Delete Confirmation */}
+        <ConfirmDialog
+          open={!!deleteServiceData}
+          onOpenChange={(open) => !open && setDeleteServiceData(null)}
+          title={t('delete_service')}
+          description={t('delete_service_confirm', {
+            name: deleteServiceData?.name || ''
+          })}
+          onConfirm={handleDelete}
+          variant="destructive"
+        />
+
+        {/* Multi-select supplies dialog */}
+        <SupplyMultiSelector
+          open={multiSelectorOpen}
+          onOpenChange={setMultiSelectorOpen}
+          supplies={supplies}
+          onConfirm={handleMultiSelectConfirm}
+          alreadySelectedIds={alreadySelectedIds}
+          t={t}
+        />
+      </div>
+    </AppLayout>
+  )
+}
