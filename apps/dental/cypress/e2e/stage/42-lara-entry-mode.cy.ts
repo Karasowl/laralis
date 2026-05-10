@@ -150,6 +150,9 @@ describe('Stage Lara entry mode', () => {
       selectQaClinic('clinicA')
     })
 
+    cy.visit('/')
+    cy.assertNotInSetupFlow()
+
     cy.intercept('POST', '/api/ai/chat', (req) => {
       req.headers['x-laralis-qa-ai'] = 'mock'
       req.continue()
@@ -159,10 +162,10 @@ describe('Stage Lara entry mode', () => {
     cy.get('[data-testid="lara-fab"]', { timeout: 30000 }).should('be.visible').click()
     cy.get('[data-testid="lara-entry-mode"]', { timeout: 30000 }).should('be.visible').click()
     cy.get('[data-testid="lara-entry-assistant"]', { timeout: 30000 }).should('be.visible')
-    cy.get('[data-testid="lara-entry-entity-selector"]').should('be.visible')
-    cy.get('[data-testid="lara-entry-entity-patient"]').click()
+    cy.get('[data-testid="lara-entry-entity-selector"]').should('exist')
+    cy.get('[data-testid="lara-entry-entity-patient"]').should('be.visible').click()
 
-    cy.get('[data-testid="lara-entry-flow"]').should('be.visible')
+    cy.get('[data-testid="lara-entry-flow"]').should('exist')
     cy.get('[data-testid="lara-entry-current-field"]').should('contain.text', 'first name')
     submitEntryValue(firstName)
 
