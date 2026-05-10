@@ -65,7 +65,20 @@ export const POST = withPermission(
       const body = bodyResult.data as Record<string, unknown>;
       const { clinicId } = context;
 
-      const validationResult = zFixedCost.safeParse({ ...body, clinic_id: clinicId });
+      const { amount_pesos, ...bodyWithoutPesos } = body as {
+        amount_pesos?: number;
+      } & Record<string, unknown>;
+
+      const dataToValidate: Record<string, unknown> = {
+        ...bodyWithoutPesos,
+        clinic_id: clinicId,
+      };
+
+      if (typeof amount_pesos === 'number') {
+        dataToValidate.amount_cents = Math.round(amount_pesos * 100);
+      }
+
+      const validationResult = zFixedCost.safeParse(dataToValidate);
       if (!validationResult.success) {
         return NextResponse.json(
           {

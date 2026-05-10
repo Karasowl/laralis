@@ -718,5 +718,13 @@
     "capability": "Entry Mode crea servicio, insumo y gasto por UI con Lara mockeada, valores numericos tipados y limpieza en Supabase stage",
     "layers": ["cypress", "ui", "api", "database", "provider-mock"],
     "status": "covered"
+  },
+  {
+    "id": "qa-085-lara-entry-assets-fixed-costs-ui",
+    "priority": "P0",
+    "domain": "lara",
+    "capability": "Entry Mode crea activo y costo fijo por UI, convierte campos en pesos antes de persistir y limpia registros QA en Supabase stage",
+    "layers": ["cypress", "ui", "api", "database", "provider-mock"],
+    "status": "covered"
   }
 ]

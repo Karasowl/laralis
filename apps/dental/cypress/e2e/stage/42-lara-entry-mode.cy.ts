@@ -25,6 +25,7 @@ type Patient = {
 type ApiRecord = {
   id: string
   name?: string
+  concept?: string
   vendor?: string
   description?: string
   category?: string
@@ -131,6 +132,22 @@ function cleanupExpensesByVendor(vendor: string) {
   )
 }
 
+function cleanupAssetsBySearch(search: string) {
+  cleanupRecordsByQuery(
+    '/api/assets',
+    `search=${encodeURIComponent(search)}`,
+    (record) => record.name === search
+  )
+}
+
+function cleanupFixedCostsByCategory(category: string, concept: string) {
+  cleanupRecordsByQuery(
+    '/api/fixed-costs',
+    `category=${encodeURIComponent(category)}`,
+    (record) => record.concept === concept
+  )
+}
+
 function entryBody(clinicId: string, currentField = 'first_name', userInput = 'QA Direct') {
   return {
     userInput,
@@ -196,6 +213,9 @@ describe('Stage Lara entry mode', () => {
   let cleanupServiceSearch = ''
   let cleanupSupplySearch = ''
   let cleanupExpenseVendor = ''
+  let cleanupAssetSearch = ''
+  let cleanupFixedCostCategory = ''
+  let cleanupFixedCostConcept = ''
 
   beforeEach(() => {
     cy.viewport(1280, 720)
@@ -217,6 +237,15 @@ describe('Stage Lara entry mode', () => {
     if (cleanupExpenseVendor) {
       cleanupExpensesByVendor(cleanupExpenseVendor)
       cleanupExpenseVendor = ''
+    }
+    if (cleanupAssetSearch) {
+      cleanupAssetsBySearch(cleanupAssetSearch)
+      cleanupAssetSearch = ''
+    }
+    if (cleanupFixedCostCategory && cleanupFixedCostConcept) {
+      cleanupFixedCostsByCategory(cleanupFixedCostCategory, cleanupFixedCostConcept)
+      cleanupFixedCostCategory = ''
+      cleanupFixedCostConcept = ''
     }
   })
 
@@ -377,6 +406,62 @@ describe('Stage Lara entry mode', () => {
       expect(response.status).to.eq(200)
       const expenses = responseRecords(response.body)
       expect(expenses.some((expense) => expense.vendor === vendor)).to.eq(true)
+    })
+  })
+
+  it('creates an asset through Lara entry using the form-level purchase peso field', () => {
+    const name = `QAEntryAsset${Date.now()}`
+    cleanupAssetSearch = name
+    cleanupAssetsBySearch(name)
+
+    loginOwnerAtQaClinic()
+    setupEntryIntercept()
+    cy.intercept('POST', '/api/assets').as('createAsset')
+
+    openEntryEntity('asset')
+    submitEntryField('name', name)
+    submitEntryField('category', 'equipo')
+    submitEntryField('purchase price pesos', '12000')
+    submitEntryField('depreciation months', '60')
+    submitEntryField('purchase date', '2026-05-10')
+
+    cy.get('[data-testid="lara-entry-preview-panel"]').should('contain.text', name)
+    cy.get('[data-testid="lara-entry-preview-panel"]').should('contain.text', '12000')
+    saveEntry('@createAsset')
+
+    cy.request(`/api/assets?search=${encodeURIComponent(name)}`).then((response) => {
+      expect(response.status).to.eq(200)
+      const assets = responseRecords(response.body)
+      expect(assets.some((asset) => asset.name === name)).to.eq(true)
+    })
+  })
+
+  it('creates a fixed cost through Lara entry and converts pesos before persistence', () => {
+    const stamp = Date.now()
+    const category = `qa-entry-${stamp}`
+    const concept = `QAEntryFixedCost${stamp}`
+    cleanupFixedCostCategory = category
+    cleanupFixedCostConcept = concept
+    cleanupFixedCostsByCategory(category, concept)
+
+    loginOwnerAtQaClinic()
+    setupEntryIntercept()
+    cy.intercept('POST', '/api/fixed-costs').as('createFixedCost')
+
+    openEntryEntity('fixedCost')
+    submitEntryField('category', category)
+    submitEntryField('concept', concept)
+    submitEntryField('frequency', 'monthly')
+    submitEntryField('amount pesos', '5000')
+
+    cy.get('[data-testid="lara-entry-preview-panel"]').should('contain.text', concept)
+    cy.get('[data-testid="lara-entry-preview-panel"]').should('contain.text', '5000')
+    saveEntry('@createFixedCost')
+
+    cy.request(`/api/fixed-costs?category=${encodeURIComponent(category)}`).then((response) => {
+      expect(response.status).to.eq(200)
+      const fixedCosts = responseRecords(response.body)
+      expect(fixedCosts.some((fixedCost) => fixedCost.concept === concept)).to.eq(true)
     })
   })
 })

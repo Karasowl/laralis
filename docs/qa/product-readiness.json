@@ -95,18 +95,18 @@
       "Stage grants allow authenticated and service_role access paths required by Lara chat APIs while RLS keeps user ownership checks",
       "Entry Mode chat requires lara.use_entry_mode, blocks viewer, supports a stage-only deterministic mock, and creates a patient through the UI as an assistant without external LLM calls",
       "Entry Mode context contract keeps conversational field order aligned with entity schemas, including gender, minutes, price_pesos, and purchase_price_pesos",
-      "Entry Mode creates service, supply, and expense records through the UI as an owner with deterministic typed numeric extraction and database cleanup",
+      "Entry Mode creates service, supply, expense, asset, and fixed-cost records through the UI as an owner with deterministic typed numeric extraction and database cleanup",
       "Stage schema exposes action_logs for Lara action audit trails"
     ],
     "notProven": [
       "Real LLM quality",
       "Real STT provider transcription quality",
       "Real TTS provider audio quality",
-      "Entry Mode UI coverage for treatments and configuration entities that need related fixtures or safer product decisions",
+      "Entry Mode UI coverage for treatments, campaigns, platforms, categories, workspace, clinic, time settings, and patient source entities that need related fixtures or safer product decisions",
       "Live LLM quality using persisted session history across long conversations",
       "Exact live-provider latency, rate-limit, malformed-response, and cost behavior"
     ],
-    "nextTest": "Expand Entry Mode to treatments with controlled patient/service/recipe fixtures, then cover asset/fixed-cost/campaign/config entities and add optional live-provider smoke for LLM/STT/TTS behind explicit env flags once the provider path is approved for non-deterministic QA."
+    "nextTest": "Expand Entry Mode to treatments with controlled patient/service/recipe fixtures, then cover campaign/platform/category/workspace/clinic/time/patient-source entities and add optional live-provider smoke for LLM/STT/TTS behind explicit env flags once the provider path is approved for non-deterministic QA."
   },
   {
     "area": "push-notifications",
