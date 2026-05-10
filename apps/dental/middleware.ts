@@ -171,6 +171,11 @@ export async function middleware(request: NextRequest) {
   const isOnboarding = pathname === '/onboarding';
   const isSetup = pathname.startsWith('/setup');
   const workspaceLifecycleSelect = 'id, status, onboarding_completed';
+  const workspaceLifecycleFallbackSelect = 'id, onboarding_completed';
+  const shouldRetryWorkspaceLifecycleWithoutStatus = (workspaceError: any) => {
+    const message = String(workspaceError?.message || '').toLowerCase();
+    return message.includes('status') && message.includes('column');
+  };
   const resolveWorkspaceDestination = (workspaces: any[] | null | undefined) => {
     const rows = workspaces || [];
     const visible = rows.filter((workspace) => !['archived', 'pending_deletion', 'deleted'].includes(
@@ -185,12 +190,22 @@ export async function middleware(request: NextRequest) {
   const getAccessibleWorkspaces = async (userId: string) => {
     const workspaceMap = new Map<string, any>();
 
-    const { data: ownedWorkspaces } = await supabase
+    let { data: ownedWorkspaces, error: ownedWorkspacesError } = await supabase
       .from('workspaces')
       .select(workspaceLifecycleSelect)
       .eq('owner_id', userId)
       .order('created_at', { ascending: false })
       .limit(10);
+
+    if (ownedWorkspacesError && shouldRetryWorkspaceLifecycleWithoutStatus(ownedWorkspacesError)) {
+      const fallback = await supabase
+        .from('workspaces')
+        .select(workspaceLifecycleFallbackSelect)
+        .eq('owner_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      ownedWorkspaces = fallback.data;
+    }
 
     for (const workspace of ownedWorkspaces || []) {
       workspaceMap.set(workspace.id, workspace);
@@ -213,12 +228,22 @@ export async function middleware(request: NextRequest) {
 
     const missingIds = Array.from(membershipWorkspaceIds).filter((id) => !workspaceMap.has(id));
     if (missingIds.length > 0) {
-      const { data: memberWorkspaces } = await supabase
+      let { data: memberWorkspaces, error: memberWorkspacesError } = await supabase
         .from('workspaces')
         .select(workspaceLifecycleSelect)
         .in('id', missingIds)
         .order('created_at', { ascending: false })
         .limit(10);
+
+      if (memberWorkspacesError && shouldRetryWorkspaceLifecycleWithoutStatus(memberWorkspacesError)) {
+        const fallback = await supabase
+          .from('workspaces')
+          .select(workspaceLifecycleFallbackSelect)
+          .in('id', missingIds)
+          .order('created_at', { ascending: false })
+          .limit(10);
+        memberWorkspaces = fallback.data;
+      }
 
       for (const workspace of memberWorkspaces || []) {
         workspaceMap.set(workspace.id, workspace);
