@@ -1,6 +1,6 @@
 # QA Inventory Report
 
-Generated: 2026-05-09T02:48:36.061Z
+Generated: 2026-05-10T06:25:48.502Z
 
 Status: warn
 Failing checks: 0
@@ -27,10 +27,10 @@ required QA docs: 10; missing: 0
 
 Status: pass
 
-capabilities: 86; domains: 32; required missing domains: 0
+capabilities: 88; domains: 32; required missing domains: 0
 
-- status counts: covered=85, partial=1
-- priority counts: P0=71, P1=15
+- status counts: covered=87, partial=1
+- priority counts: P0=73, P1=15
 
 ## Product readiness truth table
 
@@ -40,7 +40,7 @@ areas: 7; implementation: partial=7; coverage: provider-mock=4, provider-contrac
 
 - open: inbox-whatsapp-actions [P0] implementation=partial, coverage=provider-mock; not proven=1
 - open: booking-notifications [P0] implementation=partial, coverage=provider-mock; not proven=3
-- open: lara-ai-actions-audio [P0] implementation=partial, coverage=provider-mock; not proven=5
+- open: lara-ai-actions-audio [P0] implementation=partial, coverage=provider-mock; not proven=6
 - open: push-notifications [P1] implementation=partial, coverage=provider-contract; not proven=5
 - open: whatsapp-inbound-webhook [P0] implementation=partial, coverage=provider-contract; not proven=5
 - open: whatsapp-provider-settings [P0] implementation=partial, coverage=provider-mock; not proven=3
@@ -82,7 +82,7 @@ seed script: present; assert script: present; env example: present; package scri
 
 Status: pass
 
-declared spec scripts: 50; existing e2e specs: 42; missing declared specs: 0
+declared spec scripts: 51; existing e2e specs: 43; missing declared specs: 0
 
 - ok: test:e2e:multitenancy -> cypress/e2e/stage/04-multiclinic-isolation.cy.ts
 - ok: test:e2e:auth -> cypress/e2e/stage/00-auth-and-shell.cy.ts
@@ -92,8 +92,8 @@ declared spec scripts: 50; existing e2e specs: 42; missing declared specs: 0
 - ok: test:e2e:treatments -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
 - ok: test:e2e:settings -> cypress/e2e/stage/05-permission-boundaries.cy.ts
 - ok: test:e2e:marketing -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
-- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.{js,ts} (42 specs)
-- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.{js,ts} (42 specs)
+- ok: test:e2e:stage -> cypress/e2e/stage/**/*.cy.{js,ts} (43 specs)
+- ok: test:e2e:stage:headed -> cypress/e2e/stage/**/*.cy.{js,ts} (43 specs)
 - ok: test:e2e:stage:core-navigation -> cypress/e2e/stage/29-core-navigation-smoke.cy.ts
 - ok: test:e2e:stage:business -> cypress/e2e/stage/02-qa-business-oracles.cy.ts
 - ok: test:e2e:stage:crud -> cypress/e2e/stage/03-crud-lifecycle.cy.ts
@@ -113,6 +113,7 @@ declared spec scripts: 50; existing e2e specs: 42; missing declared specs: 0
 - ok: test:e2e:stage:crons -> cypress/e2e/stage/17-cron-jobs.cy.ts
 - ok: test:e2e:stage:lara -> cypress/e2e/stage/18-lara-ai-actions.cy.ts
 - ok: test:e2e:stage:lara-history -> cypress/e2e/stage/41-lara-session-history.cy.ts
+- ok: test:e2e:stage:lara-entry -> cypress/e2e/stage/42-lara-entry-mode.cy.ts
 - ok: test:e2e:stage:reports -> cypress/e2e/stage/19-reports-dashboard-oracles.cy.ts
 - ok: test:e2e:stage:roles -> cypress/e2e/stage/20-role-matrix-and-clinic-access.cy.ts
 - ok: test:e2e:stage:lara-isolation -> cypress/e2e/stage/21-lara-dashboard-multiclinic-isolation.cy.ts
@@ -145,7 +146,7 @@ en keys: 4970; es effective keys: 4970; missing en: 0; missing es: 0
 
 Status: pass
 
-ui files: 442; files with data-testid: 26; data-testid occurrences: 103; required hooks: 16; missing required hooks: 0
+ui files: 442; files with data-testid: 29; data-testid occurrences: 120; required hooks: 16; missing required hooks: 0
 
 - has hooks: app/auth/login/page.tsx
 - has hooks: app/book/[slug]/confirmation/page.tsx
@@ -162,6 +163,9 @@ ui files: 442; files with data-testid: 26; data-testid occurrences: 103; require
 - has hooks: app/setup/resume/page.tsx
 - has hooks: app/treatments/page.tsx
 - has hooks: components/ai-assistant/AudioPlayer.tsx
+- has hooks: components/ai-assistant/EntryMode/EntitySelector.tsx
+- has hooks: components/ai-assistant/EntryMode/EntryAssistant.tsx
+- has hooks: components/ai-assistant/EntryMode/GenericEntryFlow.tsx
 - has hooks: components/ai-assistant/FloatingAssistant.tsx
 - has hooks: components/ai-assistant/QueryMode/QueryAssistant.tsx
 - has hooks: components/dashboard/marketing/CACTrendChart.tsx
@@ -178,7 +182,7 @@ ui files: 442; files with data-testid: 26; data-testid occurrences: 103; require
 
 Status: pass
 
-api routes: 168; permission guard: 117 (withPermission: 30, manual: 87); qa classified: 16; using supabaseAdmin: 136; admin without permission/cron guard/classification: 0
+api routes: 168; permission guard: 118 (withPermission: 30, manual: 88); qa classified: 16; using supabaseAdmin: 136; admin without permission/cron guard/classification: 0
 
 ## Cron guard inventory
 

@@ -11,6 +11,9 @@ import type { Message, EntryContext } from '@/lib/ai'
 import { hasAIConfig, validateAIConfig } from '@/lib/ai/config'
 import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
+import { cookies } from 'next/headers'
+import { resolveClinicContext } from '@/lib/clinic'
+import { forbiddenIfMissingPermission, type Permission } from '@/lib/permissions'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -31,11 +34,129 @@ interface EntryResponse {
 const chatRequestSchema = z.object({
   userInput: z.string().min(1),
   mode: z.enum(['entry', 'simple']).optional().default('simple'),
+  clinicId: z.string().uuid().optional(),
   context: z.unknown().optional(),
 })
 
+const QA_STAGE_SUPABASE_REF = 'kafbqdliromcveojtdar'
+
+type QaAiMode = 'mock' | 'fail' | null
+
+function qaAiMode(request: NextRequest): QaAiMode {
+  const mode = request.headers.get('x-laralis-qa-ai')
+  return mode === 'mock' || mode === 'fail' ? mode : null
+}
+
+function isQaStage() {
+  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL?.includes(QA_STAGE_SUPABASE_REF))
+}
+
+function laraPermissionForMode(mode: 'entry' | 'simple'): Permission {
+  return mode === 'entry' ? 'lara.use_entry_mode' : 'lara.use_query_mode'
+}
+
+function contextField(context: unknown): string | undefined {
+  if (!context || typeof context !== 'object') return undefined
+  const field = (context as { currentField?: unknown }).currentField
+  return typeof field === 'string' ? field : undefined
+}
+
+function qaExtractEntryValue(field: string | undefined, userInput: string) {
+  const value = userInput.trim()
+  if (/^(skip|saltar|omitir)$/i.test(value)) return null
+
+  if (!field) return value
+
+  if (field.endsWith('_cents')) {
+    const numeric = Number(value.replace(/[^\d.]/g, ''))
+    return Number.isFinite(numeric) ? Math.round(numeric * 100) : null
+  }
+
+  if (['est_minutes', 'minutes', 'work_days', 'hours_per_day', 'real_pct'].includes(field)) {
+    const numeric = Number(value.replace(/[^\d.]/g, ''))
+    return Number.isFinite(numeric) ? numeric : null
+  }
+
+  if (field === 'gender') {
+    const normalized = value.toLowerCase()
+    if (['male', 'female', 'other'].includes(normalized)) return normalized
+    if (['masculino', 'hombre'].includes(normalized)) return 'male'
+    if (['femenino', 'mujer'].includes(normalized)) return 'female'
+    return 'other'
+  }
+
+  return value
+}
+
+function createQaEntryResponse(userInput: string, context: unknown) {
+  const field = contextField(context)
+  const extractedValue = qaExtractEntryValue(field, userInput)
+
+  return NextResponse.json({
+    response: field
+      ? `Lara QA capturo ${field} de forma deterministica.`
+      : 'Lara QA capturo el dato de forma deterministica.',
+    extracted_value: extractedValue,
+    is_valid: true,
+    validation_error: null,
+    provider: 'qa-mock',
+  })
+}
+
 export async function POST(request: NextRequest) {
   try {
+    const bodyResult = await readJson(request)
+    if ('error' in bodyResult) {
+      return bodyResult.error
+    }
+    const parsed = validateSchema(chatRequestSchema, bodyResult.data)
+    if ('error' in parsed) {
+      return parsed.error
+    }
+    const { userInput, context, mode, clinicId } = parsed.data as ChatRequest & { clinicId?: string }
+
+    const clinicContext = await resolveClinicContext({
+      requestedClinicId: clinicId,
+      cookieStore: cookies(),
+    })
+
+    if ('error' in clinicContext) {
+      return NextResponse.json(
+        { error: clinicContext.error.message },
+        { status: clinicContext.error.status }
+      )
+    }
+
+    const forbidden = await forbiddenIfMissingPermission(
+      clinicContext.userId,
+      clinicContext.clinicId,
+      laraPermissionForMode(mode)
+    )
+    if (forbidden) return forbidden
+
+    const qaMode = qaAiMode(request)
+    if (qaMode && !isQaStage()) {
+      return NextResponse.json(
+        { error: 'QA AI mode is only available on stage' },
+        { status: 403 }
+      )
+    }
+
+    if (qaMode === 'fail') {
+      return NextResponse.json(
+        {
+          error: 'qa_entry_llm_failure',
+          message: 'QA forced Lara entry mode failure',
+          retryable: true,
+        },
+        { status: 503 }
+      )
+    }
+
+    if (qaMode === 'mock' && mode === 'entry') {
+      return createQaEntryResponse(userInput, context)
+    }
+
     // Check if AI is configured
     if (!hasAIConfig()) {
       return NextResponse.json(
@@ -54,15 +175,6 @@ export async function POST(request: NextRequest) {
         { status: 503 }
       )
     }
-    const bodyResult = await readJson(request)
-    if ('error' in bodyResult) {
-      return bodyResult.error
-    }
-    const parsed = validateSchema(chatRequestSchema, bodyResult.data)
-    if ('error' in parsed) {
-      return parsed.error
-    }
-    const { userInput, context, mode } = parsed.data as ChatRequest
 
     let response: string
 

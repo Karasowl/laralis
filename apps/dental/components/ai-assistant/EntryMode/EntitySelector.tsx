@@ -157,7 +157,7 @@ export function EntitySelector({ onSelect }: EntitySelectorProps) {
   }))
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="lara-entry-entity-selector">
       <div>
         <h3 className="text-lg font-semibold">{t('entry.selectEntity')}</h3>
         <p className="text-sm text-muted-foreground mt-1">
@@ -176,6 +176,7 @@ export function EntitySelector({ onSelect }: EntitySelectorProps) {
                 key={entity.id}
                 onClick={() => entity.available && onSelect(entity.id)}
                 disabled={!entity.available}
+                data-testid={`lara-entry-entity-${entity.id}`}
                 className={`flex items-center gap-4 p-3 rounded-lg border transition-all ${
                   entity.available
                     ? 'hover:border-primary hover:bg-primary/10 dark:hover:bg-primary/20 cursor-pointer hover:scale-[1.02]'

@@ -65,12 +65,16 @@
     "coverageMode": "provider-mock",
     "evidence": [
       "apps/dental/app/api/ai/query/route.ts",
+      "apps/dental/app/api/ai/chat/route.ts",
       "apps/dental/app/api/ai/transcribe/route.ts",
       "apps/dental/app/api/ai/synthesize/route.ts",
+      "apps/dental/components/ai-assistant/EntryMode/EntryAssistant.tsx",
+      "apps/dental/components/ai-assistant/EntryMode/GenericEntryFlow.tsx",
       "apps/dental/lib/ai/context/ConversationContextManager.ts",
       "apps/dental/tests/qa/lara-conversation-context.test.ts",
       "apps/dental/cypress/e2e/stage/18-lara-ai-actions.cy.ts",
       "apps/dental/cypress/e2e/stage/41-lara-session-history.cy.ts",
+      "apps/dental/cypress/e2e/stage/42-lara-entry-mode.cy.ts",
       "apps/dental/cypress/e2e/stage/36-stage-schema-contracts.cy.ts",
       "supabase/migrations/54_create_ai_chat_tables.sql",
       "supabase/migrations/81_grant_ai_chat_tables.sql",
@@ -88,16 +92,18 @@
       "Persisted Lara sessions store ordered messages, metadata, suggested actions, archive state, and stay isolated by clinic and user ownership",
       "Stage schema exposes chat_sessions and chat_messages for persisted Lara histories",
       "Stage grants allow authenticated and service_role access paths required by Lara chat APIs while RLS keeps user ownership checks",
+      "Entry Mode chat requires lara.use_entry_mode, blocks viewer, supports a stage-only deterministic mock, and creates a patient through the UI as an assistant without external LLM calls",
       "Stage schema exposes action_logs for Lara action audit trails"
     ],
     "notProven": [
       "Real LLM quality",
       "Real STT provider transcription quality",
       "Real TTS provider audio quality",
+      "Entry Mode UI coverage for all non-patient entities",
       "Live LLM quality using persisted session history across long conversations",
       "Exact live-provider latency, rate-limit, malformed-response, and cost behavior"
     ],
-    "nextTest": "Add optional live-provider smoke for LLM/STT/TTS behind explicit env flags, then assert live LLM behavior over long persisted histories once the provider path is approved for non-deterministic QA."
+    "nextTest": "Expand Entry Mode from patient to treatment/service/supply/expense with deterministic fixtures, then add optional live-provider smoke for LLM/STT/TTS behind explicit env flags once the provider path is approved for non-deterministic QA."
   },
   {
     "area": "push-notifications",

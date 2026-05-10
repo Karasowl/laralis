@@ -686,5 +686,21 @@
     "capability": "Stage exige public.chat_sessions y public.chat_messages antes de tratar historial persistido de Lara como cubierto",
     "layers": ["cypress", "database", "supabase-task"],
     "status": "covered"
+  },
+  {
+    "id": "qa-081-lara-entry-chat-permissions",
+    "priority": "P0",
+    "domain": "lara",
+    "capability": "Entry Mode usa /api/ai/chat autenticado, bloquea usuarios sin lara.use_entry_mode y permite mock stage-only para usuarios con permiso",
+    "layers": ["cypress", "api", "permissions", "provider-mock"],
+    "status": "covered"
+  },
+  {
+    "id": "qa-082-lara-entry-patient-ui",
+    "priority": "P0",
+    "domain": "lara",
+    "capability": "Entry Mode crea un paciente por UI con Lara mockeada, guarda en Supabase stage y limpia el dato de prueba",
+    "layers": ["cypress", "ui", "api", "database", "provider-mock"],
+    "status": "covered"
   }
 ]

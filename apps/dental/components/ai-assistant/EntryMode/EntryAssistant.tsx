@@ -33,7 +33,7 @@ export function EntryAssistant({ onClose }: EntryAssistantProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm" data-testid="lara-entry-assistant">
       <div className="fixed inset-0 flex items-center justify-center p-4">
         <div className="relative w-full max-w-2xl h-[90vh] bg-background border rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in-0 zoom-in-95 duration-200">
           {/* Header */}
@@ -51,6 +51,7 @@ export function EntryAssistant({ onClose }: EntryAssistantProps) {
               onClick={handleBack}
               className="p-2 hover:bg-background/50 rounded-lg transition-colors"
               aria-label={t('cancel')}
+              data-testid="lara-entry-close"
             >
               <X className="h-6 w-6" />
             </button>

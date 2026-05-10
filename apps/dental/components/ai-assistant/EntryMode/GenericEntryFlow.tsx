@@ -95,6 +95,7 @@ export function GenericEntryFlow({ entityType, onComplete, onCancel }: GenericEn
         body: JSON.stringify({
           userInput: text,
           mode: 'entry',
+          clinicId: currentClinic?.id,
           context,
         }),
       })
@@ -199,7 +200,7 @@ export function GenericEntryFlow({ entityType, onComplete, onCancel }: GenericEn
   // Success state
   if (step === 'success') {
     return (
-      <div className="flex flex-col items-center justify-center py-12 space-y-4">
+      <div className="flex flex-col items-center justify-center py-12 space-y-4" data-testid="lara-entry-success">
         <CheckCircle2 className="h-16 w-16 text-green-500 animate-in zoom-in duration-300" />
         <h3 className="text-xl font-semibold">{t('saveSuccess')}</h3>
         <p className="text-muted-foreground">{tCommon('success')}</p>
@@ -210,7 +211,7 @@ export function GenericEntryFlow({ entityType, onComplete, onCancel }: GenericEn
   // Error state
   if (step === 'error') {
     return (
-      <div className="flex flex-col items-center justify-center py-12 space-y-4">
+      <div className="flex flex-col items-center justify-center py-12 space-y-4" data-testid="lara-entry-error">
         <AlertCircle className="h-16 w-16 text-red-500" />
         <h3 className="text-xl font-semibold">{error || t('saveError')}</h3>
         <div className="flex gap-3">
@@ -237,7 +238,7 @@ export function GenericEntryFlow({ entityType, onComplete, onCancel }: GenericEn
   // Preview state
   if (step === 'preview') {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6" data-testid="lara-entry-preview-panel">
         <h3 className="text-lg font-semibold">{t('preview')}</h3>
 
         <div className="border rounded-lg overflow-hidden">
@@ -267,6 +268,7 @@ export function GenericEntryFlow({ entityType, onComplete, onCancel }: GenericEn
           <button
             onClick={handleSave}
             disabled={step === 'saving'}
+            data-testid="lara-entry-save"
             className="flex-1 px-4 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
             {step === 'saving' ? tCommon('saving') : t('confirmAndSave')}
@@ -276,12 +278,14 @@ export function GenericEntryFlow({ entityType, onComplete, onCancel }: GenericEn
               setStep('collecting')
               setError(null)
             }}
+            data-testid="lara-entry-restart"
             className="px-4 py-3 border rounded-lg hover:bg-muted transition-colors"
           >
             {t('restart')}
           </button>
           <button
             onClick={onCancel}
+            data-testid="lara-entry-cancel"
             className="px-4 py-3 border rounded-lg hover:bg-muted transition-colors"
           >
             {tCommon('cancel')}
@@ -293,7 +297,7 @@ export function GenericEntryFlow({ entityType, onComplete, onCancel }: GenericEn
 
   // Collecting state (main conversation)
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="lara-entry-flow">
       {/* Progress Bar */}
       <div className="space-y-2">
         <div className="flex justify-between text-sm">
@@ -320,7 +324,9 @@ export function GenericEntryFlow({ entityType, onComplete, onCancel }: GenericEn
             {tMessages('currentField')}
           </p>
           <p className="text-xs text-primary dark:text-primary/80 capitalize">
-            {currentField?.replace(/_/g, ' ')}
+            <span data-testid="lara-entry-current-field">
+              {currentField?.replace(/_/g, ' ')}
+            </span>
           </p>
         </div>
         {currentFieldIndex > 0 && (
@@ -369,11 +375,13 @@ export function GenericEntryFlow({ entityType, onComplete, onCancel }: GenericEn
             }}
             placeholder={t('textInputPlaceholder')}
             disabled={isProcessing}
+            data-testid="lara-entry-input"
             className="flex-1 px-4 py-3 border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
           />
           <button
             onClick={handleTextSubmit}
             disabled={isProcessing || !textInput.trim()}
+            data-testid="lara-entry-submit"
             className="px-4 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isProcessing ? (
@@ -411,6 +419,7 @@ export function GenericEntryFlow({ entityType, onComplete, onCancel }: GenericEn
         <button
           onClick={moveToNextField}
           disabled={isProcessing}
+          data-testid="lara-entry-skip-field"
           className="flex-1 px-4 py-2 border rounded-lg hover:bg-muted transition-colors disabled:opacity-50"
         >
           {t('skipField')}
@@ -418,6 +427,7 @@ export function GenericEntryFlow({ entityType, onComplete, onCancel }: GenericEn
         <button
           onClick={() => setStep('preview')}
           disabled={isProcessing || Object.keys(collectedData).length === 0}
+          data-testid="lara-entry-preview"
           className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {t('preview')}
@@ -425,6 +435,7 @@ export function GenericEntryFlow({ entityType, onComplete, onCancel }: GenericEn
         <button
           onClick={onCancel}
           disabled={isProcessing}
+          data-testid="lara-entry-cancel"
           className="px-4 py-2 border rounded-lg hover:bg-muted transition-colors disabled:opacity-50"
         >
           {tCommon('cancel')}
