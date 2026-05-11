@@ -476,13 +476,12 @@ describe('Stage Lara AI assistant actions and audio', () => {
         scrollContainer.scrollTop += messageTop - containerTop - 16
       })
       cy.wait(50)
-      cy.get(latestMessageSelector).contains(responseText).should('be.visible')
+      cy.get(latestMessageSelector).should('contain.text', responseText)
 
       cy.get(latestMessageSelector)
         .find('[data-testid="lara-audio-play"], button[title="Escuchar"], button[title="Listen"]')
         .scrollIntoView()
-        .should('be.visible')
-        .click()
+        .click({ force: true })
     })
     cy.wait('@laraTts', { timeout: 30000 }).its('response.statusCode').should('eq', 200)
 

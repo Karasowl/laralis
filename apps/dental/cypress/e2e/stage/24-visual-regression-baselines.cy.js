@@ -249,7 +249,7 @@ describe('Stage visual regression baselines', () => {
       viewport: { width: 390, height: 844 },
       waitForSelectors: ['[data-testid="notifications-settings-form"]'],
       waitForText: 'Notificaciones|Notifications|SMS|WhatsApp',
-      snapshotSelector: '[data-testid="notifications-settings-page"]',
+      snapshotSelector: 'viewport',
       minWidth: 340,
       minHeight: 520,
       baselineName: 'notifications-settings-mobile-light',
