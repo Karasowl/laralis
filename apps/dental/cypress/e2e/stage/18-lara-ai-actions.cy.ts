@@ -452,7 +452,13 @@ describe('Stage Lara AI assistant actions and audio', () => {
     cy.wait('@laraQuery', { timeout: 45000 })
     const responseText = 'Lara QA respondio de forma deterministica'
     cy.get('[data-testid="lara-query-scroll"]', { timeout: 30000 }).scrollTo('bottom', { ensureScrollable: false })
-    cy.get('[data-testid="lara-message-assistant"]', { timeout: 45000 }).then(($messages) => {
+    cy.get('[data-testid="lara-message-assistant"]', { timeout: 45000 }).should(($messages) => {
+      const hasMatchingMessage = $messages.toArray().some((message) =>
+        message.textContent?.includes(responseText)
+      )
+      expect(hasMatchingMessage, 'rendered Lara QA response').to.eq(true)
+    })
+    cy.get('[data-testid="lara-message-assistant"]').then(($messages) => {
       const latestMatchingMessage = $messages.toArray().reverse().find((message) =>
         message.textContent?.includes(responseText)
       )
