@@ -471,8 +471,11 @@ describe('Stage Lara AI assistant actions and audio', () => {
         const scrollContainer = $scrollContainer[0] as HTMLElement
         const latestMessage = scrollContainer.querySelector(latestMessageSelector) as HTMLElement | null
         expect(latestMessage, 'latest Lara QA response in scroll container').to.exist
-        scrollContainer.scrollTop = Math.max(0, (latestMessage?.offsetTop || 0) - 16)
+        const messageTop = latestMessage?.getBoundingClientRect().top || 0
+        const containerTop = scrollContainer.getBoundingClientRect().top
+        scrollContainer.scrollTop += messageTop - containerTop - 16
       })
+      cy.wait(50)
       cy.get(latestMessageSelector).contains(responseText).should('be.visible')
 
       cy.get(latestMessageSelector)
