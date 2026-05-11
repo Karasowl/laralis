@@ -461,16 +461,18 @@ describe('Stage Lara AI assistant actions and audio', () => {
       const latestMatchingMessage = $messages.toArray().reverse().find((message) =>
         message.textContent?.includes(responseText)
       )
+      const latestMessageIndex = latestMatchingMessage?.getAttribute('data-lara-message-index')
 
       expect(latestMatchingMessage, 'latest Lara QA response').to.exist
+      expect(latestMessageIndex, 'latest Lara QA response index').to.exist
 
-      cy.wrap(Cypress.$(latestMatchingMessage as HTMLElement)).as('latestLaraResponse')
-      cy.get('@latestLaraResponse')
+      const latestMessageSelector = `[data-testid="lara-message-assistant"][data-lara-message-index="${latestMessageIndex}"]`
+      cy.get(latestMessageSelector)
         .contains(responseText)
         .scrollIntoView()
         .should('be.visible')
 
-      cy.get('@latestLaraResponse')
+      cy.get(latestMessageSelector)
         .find('[data-testid="lara-audio-play"], button[title="Escuchar"], button[title="Listen"]')
         .scrollIntoView()
         .should('be.visible')
