@@ -451,7 +451,6 @@ describe('Stage Lara AI assistant actions and audio', () => {
 
     cy.wait('@laraQuery', { timeout: 45000 })
     const responseText = 'Lara QA respondio de forma deterministica'
-    cy.get('[data-testid="lara-query-scroll"]', { timeout: 30000 }).scrollTo('bottom', { ensureScrollable: false })
     cy.get('[data-testid="lara-message-assistant"]', { timeout: 45000 }).should(($messages) => {
       const hasMatchingMessage = $messages.toArray().some((message) =>
         message.textContent?.includes(responseText)
@@ -464,16 +463,18 @@ describe('Stage Lara AI assistant actions and audio', () => {
       )
 
       expect(latestMatchingMessage, 'latest Lara QA response').to.exist
-      latestMatchingMessage?.scrollIntoView({ block: 'center', inline: 'nearest' })
 
-      cy.wrap(Cypress.$(latestMatchingMessage as HTMLElement))
+      cy.wrap(Cypress.$(latestMatchingMessage as HTMLElement)).as('latestLaraResponse')
+      cy.get('@latestLaraResponse')
+        .contains(responseText)
+        .scrollIntoView()
         .should('be.visible')
-        .within(() => {
-          cy.contains(responseText).should('be.visible')
-          cy.get('[data-testid="lara-audio-play"], button[title="Escuchar"], button[title="Listen"]')
-            .should('be.visible')
-            .click()
-        })
+
+      cy.get('@latestLaraResponse')
+        .find('[data-testid="lara-audio-play"], button[title="Escuchar"], button[title="Listen"]')
+        .scrollIntoView()
+        .should('be.visible')
+        .click()
     })
     cy.wait('@laraTts', { timeout: 30000 }).its('response.statusCode').should('eq', 200)
 
