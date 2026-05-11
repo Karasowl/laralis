@@ -466,7 +466,7 @@ describe('Stage Lara AI assistant actions and audio', () => {
       expect(latestMatchingMessage, 'latest Lara QA response').to.exist
       latestMatchingMessage?.scrollIntoView({ block: 'center', inline: 'nearest' })
 
-      cy.wrap(latestMatchingMessage)
+      cy.wrap(Cypress.$(latestMatchingMessage as HTMLElement))
         .should('be.visible')
         .within(() => {
           cy.contains(responseText).should('be.visible')
