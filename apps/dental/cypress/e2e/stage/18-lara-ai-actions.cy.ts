@@ -467,10 +467,13 @@ describe('Stage Lara AI assistant actions and audio', () => {
       expect(latestMessageIndex, 'latest Lara QA response index').to.exist
 
       const latestMessageSelector = `[data-testid="lara-message-assistant"][data-lara-message-index="${latestMessageIndex}"]`
-      cy.get(latestMessageSelector)
-        .contains(responseText)
-        .scrollIntoView()
-        .should('be.visible')
+      cy.get('[data-testid="lara-query-scroll"]').then(($scrollContainer) => {
+        const scrollContainer = $scrollContainer[0] as HTMLElement
+        const latestMessage = scrollContainer.querySelector(latestMessageSelector) as HTMLElement | null
+        expect(latestMessage, 'latest Lara QA response in scroll container').to.exist
+        scrollContainer.scrollTop = Math.max(0, (latestMessage?.offsetTop || 0) - 16)
+      })
+      cy.get(latestMessageSelector).contains(responseText).should('be.visible')
 
       cy.get(latestMessageSelector)
         .find('[data-testid="lara-audio-play"], button[title="Escuchar"], button[title="Listen"]')
