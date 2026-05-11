@@ -50,11 +50,11 @@ function updateAssistantMessage(
   messages: QueryMessage[],
   clientId: string,
   patch: Partial<QueryMessage>
-) {
+): QueryMessage[] {
   const existingIndex = messages.findIndex((message) => message?.clientId === clientId)
   if (existingIndex >= 0) {
     return messages.map((message, index) =>
-      index === existingIndex ? { ...message, ...patch, role: 'assistant' } : message
+      index === existingIndex ? { ...message, ...patch, role: 'assistant' as const } : message
     )
   }
 
@@ -739,6 +739,7 @@ export function QueryAssistant({ onClose, currentClinic: providedClinic, session
             ref={scrollContainerRef}
             onScroll={handleScroll}
             className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 scroll-smooth"
+            data-testid="lara-query-scroll"
           >
             {isLoadingHistory && conversation.length === 0 && (
               <div className="flex justify-center py-8">
@@ -768,6 +769,9 @@ export function QueryAssistant({ onClose, currentClinic: providedClinic, session
               <div
                 key={idx}
                 className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'} gap-3 animate-in fade-in-0 slide-in-from-bottom-2 duration-200`}
+                data-testid={`lara-message-${msg.role}`}
+                data-lara-message-role={msg.role}
+                data-lara-message-index={idx}
               >
                 <div
                   className={`max-w-[95%] sm:max-w-[80%] ${msg.role === 'user'

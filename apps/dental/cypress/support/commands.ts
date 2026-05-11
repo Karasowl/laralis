@@ -106,9 +106,14 @@ Cypress.Commands.add('switchLanguage', (targetLocale: 'en' | 'es') => {
   const label = targetLocale === 'en' ? /EN\s+English|English/i : /ES\s+Espa.ol|Espa.ol/i
   const ariaLabel = targetLocale === 'en' ? /Language: English/i : /Language: Espa.ol/i
 
-  cy.get('button[aria-label^="Language:"]:visible').first().click()
-  cy.contains('[role="menuitem"]', label, { timeout: 30000 }).then(($item) => {
-    ;($item[0] as HTMLElement).click()
+  cy.get('button[aria-label^="Language:"]:visible').first().then(($button) => {
+    const currentLabel = $button.attr('aria-label') || ''
+    if (ariaLabel.test(currentLabel)) return
+
+    cy.wrap($button).click({ force: true })
+    cy.contains('[role="menuitem"]', label, { timeout: 30000 }).then(($item) => {
+      ;($item[0] as HTMLElement).click()
+    })
   })
   cy.location('pathname', { timeout: 30000 }).should('not.match', /\/auth\/login/)
   cy.get('button[aria-label^="Language:"]:visible', { timeout: 30000 })

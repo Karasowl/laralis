@@ -78,6 +78,16 @@ export default defineConfig({
         return '';
       };
 
+      const setConfigEnvDefault = (name: string, value: string) => {
+        if (!value) return;
+        config.env = config.env || {};
+        if (typeof config.env[name] !== 'string' || config.env[name].trim().length === 0) {
+          config.env[name] = value;
+        }
+      };
+
+      setConfigEnvDefault('CRON_SECRET', envValue('CYPRESS_CRON_SECRET', 'CRON_SECRET'));
+
       const decodeJwtPayload = (token: string) => {
         const payload = token.split('.')[1];
         if (!payload) return null;

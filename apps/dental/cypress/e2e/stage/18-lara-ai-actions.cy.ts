@@ -450,12 +450,25 @@ describe('Stage Lara AI assistant actions and audio', () => {
     cy.get('[data-testid="lara-query-submit"]').should('be.enabled').click()
 
     cy.wait('@laraQuery', { timeout: 45000 })
-    cy.contains('Lara QA respondio de forma deterministica', { timeout: 45000 }).should('be.visible')
-    cy.get('[data-testid="lara-audio-play"], button[title="Escuchar"], button[title="Listen"]', { timeout: 30000 })
-      .last()
-      .scrollIntoView()
-      .should('be.visible')
-      .click()
+    const responseText = 'Lara QA respondio de forma deterministica'
+    cy.get('[data-testid="lara-query-scroll"]', { timeout: 30000 }).scrollTo('bottom', { ensureScrollable: false })
+    cy.get('[data-testid="lara-message-assistant"]', { timeout: 45000 }).then(($messages) => {
+      const latestMatchingMessage = $messages.toArray().reverse().find((message) =>
+        message.textContent?.includes(responseText)
+      )
+
+      expect(latestMatchingMessage, 'latest Lara QA response').to.exist
+      latestMatchingMessage?.scrollIntoView({ block: 'center', inline: 'nearest' })
+
+      cy.wrap(latestMatchingMessage)
+        .should('be.visible')
+        .within(() => {
+          cy.contains(responseText).should('be.visible')
+          cy.get('[data-testid="lara-audio-play"], button[title="Escuchar"], button[title="Listen"]')
+            .should('be.visible')
+            .click()
+        })
+    })
     cy.wait('@laraTts', { timeout: 30000 }).its('response.statusCode').should('eq', 200)
 
     cy.window().its('__laraAudioEvents').should((events) => {

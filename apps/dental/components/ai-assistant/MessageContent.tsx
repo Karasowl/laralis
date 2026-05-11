@@ -173,22 +173,14 @@ export function MessageContent({ text, role }: MessageContentProps) {
     ),
   }
 
-  // Assistant messages render markdown
-  // Note: Using type assertion due to react-markdown v10 types issue
-  const MarkdownComponent = Markdown as React.ComponentType<{
-    children: string
-    remarkPlugins?: unknown[]
-    className?: string
-    components?: Components
-  }>
-
   return (
-    <MarkdownComponent
-      remarkPlugins={[remarkGfm]}
-      className="prose prose-sm dark:prose-invert max-w-none"
-      components={components}
-    >
-      {text}
-    </MarkdownComponent>
+    <div className="prose prose-sm dark:prose-invert max-w-none">
+      <Markdown
+        remarkPlugins={[remarkGfm]}
+        components={components}
+      >
+        {text}
+      </Markdown>
+    </div>
   )
 }
