@@ -15,6 +15,21 @@
       "documentation": "Documentation"
     },
     "releases": {
+      "v0_6_1": {
+        "date": "2026-05-12",
+        "title": "Dashboard: 'Patients Seen' vs 'New Patients' per day",
+        "fixed": [
+          "The dashboard card 'Current Patients' was actually showing new-patient acquisition rate (first_visit_date in period / days), even though the tooltip promised 'patients seen per day'. In clinics with recurring patients it could read 0.4/day when the real average of patients seen was 1.1/day, triggering false alarms against the break-even target."
+        ],
+        "improved": [
+          "The card is now labelled 'Patients Seen' and calculates unique patients with a completed treatment in the period ÷ days. That is the metric that should be compared against the break-even target (treatments generate revenue, not new registrations).",
+          "Added a separate 'New Patients' card that keeps the acquisition rate (useful for growth tracking) with tooltip and subtitle explaining it is not the same as patients seen.",
+          "Tooltips rewritten to reflect the exact formula running in the backend."
+        ],
+        "ui": [
+          "When the dashboard shows 4 cards (Ticket, Needed, Seen, New) it uses lg:grid-cols-4; when 'Net Profit' is also visible it uses lg:grid-cols-3 xl:grid-cols-5 to avoid breaking medium screens."
+        ]
+      },
       "v0_6_0": {
         "date": "2026-04-25",
         "title": "WhatsApp mini-CRM: Inbox + Click-to-WhatsApp attribution",

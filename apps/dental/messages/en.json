@@ -3871,9 +3871,11 @@
       "patientsNeeded": "Patients Needed",
       "day": "day",
       "toReachBreakEven": "to reach break-even",
-      "currentPatients": "Current Patients",
+      "currentPatients": "Patients Seen",
       "onTrack": "✓ On track",
       "belowTarget": "⚠️ {diff} patients below target",
+      "newPatients": "New Patients",
+      "newPatientsAcquired": "acquired this period",
       "netProfit": "Net Profit",
       "netProfit_negative_tooltip": "Your expenses exceed your income. Review your fixed costs or consider increasing prices.",
       "profitable": "Profitable",
@@ -3889,8 +3891,12 @@
           "explanation": "How many patients you need to see daily to cover all your fixed and variable costs."
         },
         "currentPatients": {
-          "formula": "Period Treatments ÷ Days Elapsed",
-          "explanation": "Your actual average of patients seen per day in the selected period."
+          "formula": "Unique patients seen in period ÷ Period days",
+          "explanation": "Your real average of unique patients seen per day. Each patient is counted once even with multiple treatments in the period."
+        },
+        "newPatients": {
+          "formula": "New patients with first visit in period ÷ Period days",
+          "explanation": "New-patient acquisition rate: how many patients registered their first visit per day. Measures growth, not workload."
         },
         "netProfit": {
           "formula": "Total Revenue - Fixed Costs - Variable Costs - Expenses",

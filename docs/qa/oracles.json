@@ -89,6 +89,13 @@
     "fixedOnlyTreatments": 19,
     "fixedPlusMarketingTreatments": 22
   },
+  "kpis": {
+    "uniquePatientsSeenInPeriod": 30,
+    "newPatientsAcquiredInPeriod": 30,
+    "periodDaysInclusive": 31,
+    "avgPatientsPerDay": 0.9677419354838710,
+    "avgNewPatientsPerDay": 0.9677419354838710
+  },
   "visual": {
     "requiredViewports": [
       "mobile",

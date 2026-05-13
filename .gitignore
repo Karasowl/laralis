@@ -28,6 +28,7 @@ apps/*/.env.local
 apps/*/.env.development.local
 apps/*/.env.test.local
 apps/*/.env.production.local
+apps/*/.env.qa.local
 apps/*/cypress.env.json
 
 # Testing

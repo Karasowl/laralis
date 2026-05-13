@@ -4137,9 +4137,11 @@
       "patientsNeeded": "Pacientes Necesarios",
       "day": "día",
       "toReachBreakEven": "para alcanzar punto de equilibrio",
-      "currentPatients": "Pacientes Actuales",
+      "currentPatients": "Pacientes Atendidos",
       "onTrack": "✓ Vas bien encaminado",
       "belowTarget": "⚠️ {diff} pacientes menos que la meta",
+      "newPatients": "Nuevos Pacientes",
+      "newPatientsAcquired": "adquiridos en el período",
       "netProfit": "Ganancia Neta",
       "netProfit_negative_tooltip": "Tus gastos superan tus ingresos. Revisa tus costos fijos o considera aumentar precios.",
       "profitable": "Con ganancia",
@@ -4155,8 +4157,12 @@
           "explanation": "Cuántos pacientes necesitas atender diariamente para cubrir todos tus costos fijos y variables."
         },
         "currentPatients": {
-          "formula": "Tratamientos del Período ÷ Días Transcurridos",
-          "explanation": "Tu promedio real de pacientes atendidos por día en el período seleccionado."
+          "formula": "Pacientes únicos atendidos en el período ÷ Días del período",
+          "explanation": "Tu promedio real de pacientes únicos atendidos por día. Cuenta cada paciente una sola vez aunque tenga varios tratamientos en el período."
+        },
+        "newPatients": {
+          "formula": "Pacientes nuevos con primera visita en el período ÷ Días del período",
+          "explanation": "Tasa de adquisición de pacientes nuevos: cuántos pacientes registraron su primera visita por día. No mide pacientes atendidos, mide crecimiento."
         },
         "netProfit": {
           "formula": "Ingresos Totales - Costos Fijos - Costos Variables - Gastos",

@@ -15,6 +15,21 @@
       "documentation": "Documentación"
     },
     "releases": {
+      "v0_6_1": {
+        "date": "2026-05-12",
+        "title": "Dashboard: 'Pacientes Atendidos' vs 'Nuevos Pacientes' por día",
+        "fixed": [
+          "El card 'Pacientes Actuales' del dashboard mostraba la tasa de adquisición de pacientes nuevos (first_visit_date en el período / días), aunque el tooltip prometía 'pacientes atendidos por día'. En clínicas con pacientes recurrentes podía mostrar 0.4/día cuando el promedio real de atendidos era 1.1/día, generando alarmas falsas contra la meta de break-even."
+        ],
+        "improved": [
+          "El card ahora se llama 'Pacientes Atendidos' y calcula pacientes únicos con tratamiento completado en el período ÷ días del período. Esa es la métrica que tiene sentido comparar contra la meta de break-even (los tratamientos son los que generan ingreso, no los registros nuevos).",
+          "Se agregó un card separado 'Nuevos Pacientes' que mantiene la tasa de adquisición (útil para medir crecimiento) con tooltip y subtítulo que dejan claro que no es lo mismo que atendidos.",
+          "Tooltips reescritos para reflejar exactamente la fórmula que se ejecuta en el backend."
+        ],
+        "ui": [
+          "Si el dashboard muestra 4 cards (Ticket, Necesarios, Atendidos, Nuevos) usa lg:grid-cols-4; si suma 'Ganancia Neta' usa lg:grid-cols-3 xl:grid-cols-5 para no romper el layout en pantallas medianas."
+        ]
+      },
       "v0_6_0": {
         "date": "2026-04-25",
         "title": "Mini-CRM de WhatsApp: Bandeja de entrada + atribución Click-to-WhatsApp",
