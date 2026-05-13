@@ -44,6 +44,13 @@ type Oracles = {
     marketingSpendCents: number
     actualExpenseCents: number
   }
+  kpis: {
+    uniquePatientsSeenInPeriod: number
+    newPatientsAcquiredInPeriod: number
+    periodDaysInclusive: number
+    avgPatientsPerDay: number
+    avgNewPatientsPerDay: number
+  }
 }
 
 function selectQaClinic(key = 'clinicA'): Cypress.Chainable<Clinic> {
@@ -195,6 +202,39 @@ describe('Stage reports, dashboard, and marketing business oracles', () => {
         expect(channel.investmentCents, 'channel investment').to.eq(metaMayo.spendCents)
         expect(round(channel.roi.value, 2), 'channel ROI percent').to.eq(metaMayo.roiPercent)
         expect(response.body.summary.bestChannel.name).to.eq('Meta Mayo')
+      })
+    })
+  })
+
+  it('separates patients-seen-per-day from new-patients-per-day in summary KPIs', () => {
+    cy.readFile('../../docs/qa/oracles.json').then((oracles: Oracles) => {
+      const reportRange = `from=${oracles.period.from}&to=${oracles.period.to}`
+      const tolerance = 0.0001
+
+      cy.request(`/api/reports/summary?${reportRange}`).then((response) => {
+        expect(response.status).to.eq(200)
+        const kpis = response.body.data.kpis
+
+        // Both KPIs must be exposed by the API. Regression guard: a missing field means the dashboard
+        // would fall back to undefined and silently mis-render the card (the bug reported on 2026-05-12).
+        expect(kpis, 'kpis payload').to.have.property('avgPatientsPerDay')
+        expect(kpis, 'kpis payload').to.have.property('avgNewPatientsPerDay')
+
+        const expectedSeen = oracles.kpis.uniquePatientsSeenInPeriod / oracles.kpis.periodDaysInclusive
+        const expectedNew = oracles.kpis.newPatientsAcquiredInPeriod / oracles.kpis.periodDaysInclusive
+
+        expect(Math.abs(kpis.avgPatientsPerDay - expectedSeen), 'avgPatientsPerDay matches seen/day')
+          .to.be.lessThan(tolerance)
+        expect(Math.abs(kpis.avgNewPatientsPerDay - expectedNew), 'avgNewPatientsPerDay matches acquisition/day')
+          .to.be.lessThan(tolerance)
+
+        // Invariant that does not depend on the dataset: patients SEEN cannot exceed completed_paid + partial
+        // treatments divided by period days (each treatment is at most one patient-visit).
+        const clinicallyCompleted =
+          oracles.treatments.byStatus.completed_paid + oracles.treatments.byStatus.partial
+        const upperBound = clinicallyCompleted / oracles.kpis.periodDaysInclusive
+        expect(kpis.avgPatientsPerDay, 'seen/day upper bound (≤ completed treatments / days)')
+          .to.be.lte(upperBound + tolerance)
       })
     })
   })

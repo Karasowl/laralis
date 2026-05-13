@@ -17,6 +17,10 @@ Cada entrada sigue la estructura:
 
 ## Entradas
 
+### 2026-05-12
+
+- **[2026-05-12-fix-dashboard-patients-seen-vs-new.md](2026-05-12-fix-dashboard-patients-seen-vs-new.md)** - Fix P0: el card "Pacientes Actuales" del dashboard mostraba la tasa de adquisición (nuevos pacientes/día) en vez de pacientes atendidos/día, generando alarmas falsas contra la meta de break-even en clínicas con pacientes recurrentes. Cálculo corregido + nuevo card separado "Nuevos Pacientes" + oracle Cypress en spec 19 para detectar regresión.
+
 ### 2026-04-25
 
 - **[2026-04-25-whatsapp-mini-crm.md](2026-04-25-whatsapp-mini-crm.md)** - Mini-CRM de WhatsApp: Inbox linkeado al menú principal, captura de metadata Click-to-WhatsApp en el webhook (first-touch wins), endpoint y dialog para convertir lead a paciente, FK explícita `treatments.lead_id` con backfill, schema bump v6, doc operativo de migración del número y SQL de diagnóstico de estado.

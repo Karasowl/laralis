@@ -731,6 +731,7 @@ export default function InsightsPage() {
                         : 0
                     })()}
                     pacientesActualesPorDia={kpis.avgPatientsPerDay || 0}
+                    nuevosPacientesPorDia={kpis.avgNewPatientsPerDay ?? 0}
                     gananciaNetaCents={profitAnalysis?.profits.net_profit_cents || (metrics.revenue.current - metrics.expenses.current)}
                     gananciaNetaChange={profitAnalysis ? undefined : (metrics.revenue.change - metrics.expenses.change)}
                     workDays={equilibriumData.workDays}

@@ -429,6 +429,7 @@ export function calculateKPIs(
   avgTreatmentValue: number;
   avgMargin: number;
   avgPatientsPerDay: number;
+  avgNewPatientsPerDay: number;
   treatmentCount: number;
   totalTreatments: number;
 } {
@@ -437,6 +438,7 @@ export function calculateKPIs(
       avgTreatmentValue: 0,
       avgMargin: 0,
       avgPatientsPerDay: 0,
+      avgNewPatientsPerDay: 0,
       treatmentCount: 0,
       totalTreatments: 0
     };
@@ -449,30 +451,33 @@ export function calculateKPIs(
   const avgTreatmentValue = Math.round(totalRevenue / Math.max(1, treatmentCount));
   const avgMargin = treatmentCount ? totalMargin / treatmentCount : 0;
 
-  // FIXED: Calculate avgPatientsPerDay correctly
-  // If daysInPeriod is provided, use it (e.g., elapsed days in month)
-  // Otherwise fall back to days with activity (less accurate but better than before)
+  // avgPatientsPerDay = unique patients SEEN (with completed treatment) in the period / days
+  // This is the ratio the break-even comparison expects and matches the card label "Current Patients / Pacientes Actuales".
+  // avgNewPatientsPerDay = newly acquired patients (first_visit_date in period) / days. Used as an acquisition rate KPI.
+  const uniqueSeenPatients = new Set(completed.map((treatment) => treatment.patient_id).filter(Boolean) as string[]);
+
   let avgPatientsPerDay = 0;
+  let avgNewPatientsPerDay = 0;
 
   if (options?.daysInPeriod && options.daysInPeriod > 0) {
-    // Correct calculation: patients in period / days elapsed
-    const patientsInPeriod = options.totalPatients ?? patients.length;
-    avgPatientsPerDay = patientsInPeriod / options.daysInPeriod;
+    avgPatientsPerDay = uniqueSeenPatients.size / options.daysInPeriod;
+    const newPatientsInPeriod = options.totalPatients ?? patients.length;
+    avgNewPatientsPerDay = newPatientsInPeriod / options.daysInPeriod;
   } else {
-    // Fallback: use days with treatment activity
     const activeDays = new Set<string>();
     for (const treatment of completed) {
       const date = normaliseDate(treatment.treatment_date);
       activeDays.add(date.toISOString().slice(0, 10));
     }
-    const uniquePatients = new Set(patients.map(patient => patient.id));
-    avgPatientsPerDay = activeDays.size ? uniquePatients.size / activeDays.size : uniquePatients.size;
+    avgPatientsPerDay = activeDays.size ? uniqueSeenPatients.size / activeDays.size : uniqueSeenPatients.size;
+    avgNewPatientsPerDay = activeDays.size ? patients.length / activeDays.size : patients.length;
   }
 
   return {
     avgTreatmentValue,
     avgMargin,
     avgPatientsPerDay,
+    avgNewPatientsPerDay,
     treatmentCount,
     totalTreatments: treatments.length,
   };

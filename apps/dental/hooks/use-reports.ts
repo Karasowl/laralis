@@ -25,6 +25,7 @@ interface ReportsSummaryResponse {
       avgTreatmentValue: number
       avgMargin: number
       avgPatientsPerDay: number
+      avgNewPatientsPerDay: number
       treatmentCount: number
     }
   }

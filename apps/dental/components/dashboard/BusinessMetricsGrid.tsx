@@ -22,6 +22,8 @@ interface BusinessMetricsGridProps {
   pacientesNecesariosPorDia: number
   pacientesActualesPorDia: number
   pacientesChange?: number
+  /** New-patient acquisition rate (patients with first_visit_date in period / days). Optional; if omitted, the card is hidden. */
+  nuevosPacientesPorDia?: number
   gananciaNetaCents: number // Cambio: ingresos - gastos (no duplicar "Ingresos del Mes")
   gananciaNetaChange?: number
   workDays?: number
@@ -46,6 +48,7 @@ export function BusinessMetricsGrid({
   pacientesNecesariosPorDia,
   pacientesActualesPorDia,
   pacientesChange,
+  nuevosPacientesPorDia,
   gananciaNetaCents,
   gananciaNetaChange,
   workDays = 20,
@@ -77,6 +80,11 @@ export function BusinessMetricsGrid({
   const currentPatientsTooltip: MetricTooltipData = {
     formula: t('tooltips.currentPatients.formula'),
     explanation: t('tooltips.currentPatients.explanation')
+  }
+
+  const newPatientsTooltip: MetricTooltipData = {
+    formula: t('tooltips.newPatients.formula'),
+    explanation: t('tooltips.newPatients.explanation')
   }
 
   const netProfitTooltip: MetricTooltipData = {
@@ -114,11 +122,17 @@ export function BusinessMetricsGrid({
     return change > 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-destructive'
   }
 
+  const showNewPatientsCard = typeof nuevosPacientesPorDia === 'number'
+
+  const totalVisibleCards = 3 + (showNewPatientsCard ? 1 : 0) + (hideNetProfit ? 0 : 1)
+
+  const gridColsClass =
+    totalVisibleCards >= 5 ? 'lg:grid-cols-3 xl:grid-cols-5'
+    : totalVisibleCards === 4 ? 'lg:grid-cols-4'
+    : 'lg:grid-cols-3'
+
   return (
-    <div className={cn(
-      "grid gap-3 sm:gap-4 md:gap-6 grid-cols-2",
-      hideNetProfit ? "lg:grid-cols-3" : "lg:grid-cols-4"
-    )}>
+    <div className={cn('grid gap-3 sm:gap-4 md:gap-6 grid-cols-2', gridColsClass)}>
       {/* Ticket Promedio */}
       <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:scale-[1.01]">
         <div className="absolute top-0 right-0 w-24 h-24 bg-primary/10 rounded-full blur-2xl" />
@@ -244,6 +258,37 @@ export function BusinessMetricsGrid({
           </div>
         </CardContent>
       </Card>
+
+      {/* Nuevos Pacientes / día (acquisition rate) */}
+      {showNewPatientsCard && (
+        <Card className="relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:scale-[1.01]">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-sky-500/10 rounded-full blur-2xl" />
+          <CardContent className="p-4 sm:p-6 relative">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-10 h-10 rounded-lg bg-sky-100 dark:bg-sky-950/30 flex items-center justify-center">
+                <Users className="h-5 w-5 text-sky-600 dark:text-sky-400" />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <MetricTooltip data={newPatientsTooltip}>
+                <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide">
+                  {t('newPatients')}
+                </p>
+              </MetricTooltip>
+              <p className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground tabular-nums">
+                {(nuevosPacientesPorDia ?? 0).toFixed(1)}
+                <span className="text-xs sm:text-sm text-muted-foreground font-normal ml-1">
+                  /{t('day')}
+                </span>
+              </p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">
+                {t('newPatientsAcquired')}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Ganancia Neta - conditionally hidden to avoid duplicate with Financial Metrics */}
       {!hideNetProfit && (
