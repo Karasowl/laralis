@@ -17,8 +17,54 @@ import {
   userHasPermission,
   type Permission,
 } from '@/lib/permissions'
+import { listConvexDocumentsByClinic } from '@/lib/convex/server'
+import { shouldReturnConvexData } from '@/lib/data-backend'
 
 export const dynamic = 'force-dynamic'
+
+type ImportedRecord = Record<string, any>
+
+function normalizeConvexRecord(row: ImportedRecord | null | undefined) {
+  if (!row) return null
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, ...rest } = row
+  return rest
+}
+
+interface SessionListFilters {
+  userId: string
+  mode: 'entry' | 'query' | null
+  includeArchived: boolean
+  limit: number
+  offset: number
+}
+
+async function getSessionsFromConvex(clinicId: string, filters: SessionListFilters) {
+  const rows = await listConvexDocumentsByClinic('chat_sessions', clinicId, 10000) as ImportedRecord[]
+
+  const filtered = rows.filter((row) => {
+    if (row.user_id !== filters.userId) return false
+    if (filters.mode && row.mode !== filters.mode) return false
+    if (!filters.includeArchived && row.is_archived !== false) return false
+    return true
+  })
+
+  filtered.sort((a, b) => String(b.last_message_at || '').localeCompare(String(a.last_message_at || '')))
+
+  const total = filtered.length
+  const page = filtered
+    .slice(filters.offset, filters.offset + filters.limit)
+    .map(normalizeConvexRecord)
+
+  return {
+    data: page,
+    pagination: {
+      total,
+      limit: filters.limit,
+      offset: filters.offset,
+      hasMore: total > filters.offset + filters.limit,
+    },
+  }
+}
 
 // Schema for creating a session
 const createSessionSchema = z.object({
@@ -88,6 +134,20 @@ export async function GET(request: NextRequest) {
       )
       : await forbiddenIfMissingAnyLaraAccess(clinicContext.userId, clinicContext.clinicId)
     if (forbidden) return forbidden
+
+    // Convex read branch (flag-gated). Auth + clinic access already verified by
+    // resolveClinicContext (getUser + user_has_clinic_access -> 403) and Lara
+    // permission gates above, so this is safe despite the Convex bridge lacking RLS.
+    if (shouldReturnConvexData('chat_sessions')) {
+      const result = await getSessionsFromConvex(clinicContext.clinicId, {
+        userId: session.user.id,
+        mode,
+        includeArchived,
+        limit,
+        offset,
+      })
+      return NextResponse.json(result)
+    }
 
     // Build query
     let query = supabaseAdmin

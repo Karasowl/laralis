@@ -12,8 +12,57 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { z } from 'zod'
 import { readJson } from '@/lib/validation'
 import { forbiddenIfMissingPermission, type Permission } from '@/lib/permissions'
+import { listConvexDocumentsByClinic, listConvexTable } from '@/lib/convex/server'
+import { shouldReturnConvexData } from '@/lib/data-backend'
 
 export const dynamic = 'force-dynamic'
+
+type ImportedRecord = Record<string, any>
+
+function normalizeConvexRecord(row: ImportedRecord | null | undefined) {
+  if (!row) return null
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, ...rest } = row
+  return rest
+}
+
+/**
+ * Convex read replica of the GET payload. Convex has no joins: messages are
+ * reassembled from the `chat_messages` table by matching `session_id`,
+ * replicating the same order/range/count as the Supabase branch.
+ */
+async function getSessionMessagesFromConvex(
+  clinicId: string,
+  session: ImportedRecord,
+  sessionId: string,
+  limit: number,
+  offset: number
+) {
+  // chat_messages has NO clinic_id column (it's scoped via session_id ->
+  // chat_sessions -> clinic). listConvexDocumentsByClinic would match zero
+  // rows; fetch the table and filter by session_id, exactly like the
+  // Supabase query which scopes by session_id alone.
+  const allMessages = (await listConvexTable('chat_messages', 10000) as ImportedRecord[])
+    .filter((row) => String(row.session_id || '') === sessionId)
+    .sort((a, b) => String(a.created_at || '').localeCompare(String(b.created_at || '')))
+
+  const total = allMessages.length
+  const messages = allMessages
+    .slice(offset, offset + limit)
+    .map(normalizeConvexRecord)
+
+  return {
+    data: {
+      session: normalizeConvexRecord(session),
+      messages,
+    },
+    pagination: {
+      total,
+      limit,
+      offset,
+      hasMore: total > offset + limit,
+    },
+  }
+}
 
 // Schema for updating a session
 const updateSessionSchema = z.object({
@@ -74,6 +123,20 @@ export async function GET(
     // Get messages
     const limit = Math.min(parseInt(searchParams.get('limit') || '100'), 500)
     const offset = parseInt(searchParams.get('offset') || '0')
+
+    // Convex read branch (flag-gated). Runs only AFTER auth + ownership
+    // (chat_sessions row matched by user_id) + clinic permission guard, since
+    // the Convex bridge has no RLS. Byte-identical shape to the Supabase path.
+    if (shouldReturnConvexData('chat_sessions')) {
+      const payload = await getSessionMessagesFromConvex(
+        chatSession.clinic_id,
+        chatSession,
+        sessionId,
+        limit,
+        offset
+      )
+      return NextResponse.json(payload)
+    }
 
     const { data: messages, error: messagesError, count } = await supabaseAdmin
       .from('chat_messages')

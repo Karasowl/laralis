@@ -13,6 +13,8 @@ import { resolveClinicContext } from '@/lib/clinic'
 import { z } from 'zod'
 import { readJson } from '@/lib/validation'
 import { forbiddenIfMissingPermission, userHasPermission } from '@/lib/permissions'
+import { listConvexDocumentsByClinic } from '@/lib/convex/server'
+import { shouldReturnConvexData } from '@/lib/data-backend'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,6 +25,45 @@ const feedbackSchema = z.object({
   comment: z.string().max(1000).optional(),
   query_type: z.string().max(50).optional(),
 })
+
+type ImportedRecord = Record<string, any>
+
+function normalizeConvexRecord(row: ImportedRecord) {
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, ...rest } = row
+  return rest
+}
+
+/**
+ * Convex read replica of the GET feedback-stats aggregation.
+ * Convex has no joins; ai_feedback rows already carry clinic_id and the
+ * rating/query_type fields, so we fetch by clinic and replicate the SAME
+ * filter/aggregation the Supabase path performs (byte-identical shape).
+ */
+async function getFeedbackStatsFromConvex(clinicId: string) {
+  const rows = (await listConvexDocumentsByClinic('ai_feedback', clinicId, 10000) as ImportedRecord[])
+    .map(normalizeConvexRecord)
+
+  const total = rows.length || 0
+  const positive = rows.filter((f) => f.rating === 'positive').length || 0
+  const negative = rows.filter((f) => f.rating === 'negative').length || 0
+
+  const byQueryType: Record<string, { positive: number; negative: number }> = {}
+  rows.forEach((f) => {
+    const type = f.query_type || 'unknown'
+    if (!byQueryType[type]) {
+      byQueryType[type] = { positive: 0, negative: 0 }
+    }
+    byQueryType[type][f.rating as 'positive' | 'negative']++
+  })
+
+  return {
+    total,
+    positive,
+    negative,
+    satisfaction_rate: total > 0 ? Math.round((positive / total) * 100) : null,
+    by_query_type: byQueryType,
+  }
+}
 
 async function forbiddenIfMissingAnyLaraAccess(userId: string, clinicId: string) {
   const [canEntry, canQuery] = await Promise.all([
@@ -214,6 +255,16 @@ export async function GET(request: NextRequest) {
       'lara.use_query_mode'
     )
     if (forbidden) return forbidden
+
+    // Convex read branch (flag-gated). Placed AFTER auth (getSession),
+    // clinic-access verification (resolveClinicContext enforces a 403 when
+    // the user is not a member of the requested clinic) and the Lara
+    // permission check, so the Convex bridge (which has no RLS) is reached
+    // with the same authorization guarantees as the Supabase path.
+    if (shouldReturnConvexData('ai_feedback')) {
+      const data = await getFeedbackStatsFromConvex(clinicContext.clinicId)
+      return NextResponse.json({ data })
+    }
 
     // Get feedback stats
     const { data: feedback, error } = await supabaseAdmin

@@ -3,9 +3,52 @@ import { createClient } from '@/lib/supabase/server';
 import { aiService } from '@/lib/ai/service';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
+import { listConvexDocumentsByClinic, listConvexTable } from '@/lib/convex/server';
+import { shouldReturnConvexData } from '@/lib/data-backend';
+import { assertClinicAccess } from '@/lib/auth/verify-clinic-access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+type ImportedRecord = Record<string, any>;
+
+function normalizeConvexRecord(row: ImportedRecord | null | undefined) {
+    if (!row) return null;
+    const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, ...rest } = row;
+    return rest;
+}
+
+// Convex has NO joins; reassemble sessions + messages from the mirrored tables.
+// Mirrors the exact filter/sort the Supabase GET branch applies.
+async function getSessionsFromConvex(userId: string, clinicId: string) {
+    const rows = await listConvexDocumentsByClinic('ai_chat_sessions', clinicId, 10000) as ImportedRecord[];
+    return rows
+        .filter((row) => String(row.user_id || '') === userId)
+        .sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')))
+        .map(normalizeConvexRecord);
+}
+
+async function getMessagesForSessionFromConvex(sessionId: string) {
+    // ai_chat_messages has NO clinic_id column (scoped via session_id).
+    // listConvexDocumentsByClinic would match zero rows; fetch the table and
+    // filter by session_id, mirroring the Supabase query (session_id only).
+    const rows = await listConvexTable('ai_chat_messages', 10000) as ImportedRecord[];
+    return rows
+        .filter((row) => String(row.session_id || '') === sessionId)
+        .sort((a, b) => String(a.created_at || '').localeCompare(String(b.created_at || '')))
+        .map(normalizeConvexRecord);
+}
+
+// sessionId lookup is user-scoped (no clinic in the query), exactly like the
+// Supabase branch which filters by id + user_id. listByClinic needs a clinicId,
+// so resolve the row from the full mirror and re-check ownership in JS.
+async function findUserSessionFromConvex(userId: string, sessionId: string) {
+    const rows = await listConvexTable('ai_chat_sessions', 10000) as ImportedRecord[];
+    const found = rows.find(
+        (row) => String(row.id || '') === sessionId && String(row.user_id || '') === userId
+    );
+    return found ? normalizeConvexRecord(found) : null;
+}
 
 const chatActionSchema = z.discriminatedUnion('action', [
     z.object({
@@ -49,6 +92,47 @@ export async function GET(request: NextRequest) {
         const clinicId = searchParams.get('clinicId');
         const sessionId = searchParams.get('sessionId');
         const mode = searchParams.get('mode'); // 'list' or 'single' (default)
+
+        // Convex read branch (flag-gated). The Convex bridge has NO RLS, so any
+        // clinicId-scoped read must be guarded by assertClinicAccess first. Reads
+        // are additionally scoped to the authenticated user (the same boundary the
+        // Supabase branch enforces via .eq('user_id', user.id)). Byte-identical shape.
+        if (shouldReturnConvexData('ai_chat_sessions')) {
+            if (mode === 'list' && clinicId) {
+                const denied = await assertClinicAccess(user.id, clinicId, supabase);
+                if (denied) return denied;
+                const sessions = await getSessionsFromConvex(user.id, clinicId);
+                return NextResponse.json({ sessions });
+            }
+
+            let sessionData: ImportedRecord | null = null;
+
+            if (sessionId) {
+                // Resolve the session (scoped to the authenticated user) so we can
+                // derive its clinic for the message fetch.
+                const session = await findUserSessionFromConvex(user.id, sessionId);
+                if (!session) {
+                    // Mirror Supabase .single() failure (no row -> error -> 500).
+                    throw new Error('Session not found');
+                }
+                sessionData = session;
+            } else if (clinicId) {
+                const denied = await assertClinicAccess(user.id, clinicId, supabase);
+                if (denied) return denied;
+                const sessions = await getSessionsFromConvex(user.id, clinicId);
+                sessionData = sessions[0] || null;
+            }
+
+            if (!sessionData) {
+                return NextResponse.json({ session: null, messages: [] });
+            }
+
+            const messages = await getMessagesForSessionFromConvex(
+                String(sessionData.id)
+            );
+
+            return NextResponse.json({ session: sessionData, messages });
+        }
 
         if (mode === 'list' && clinicId) {
             // List all sessions for this clinic
