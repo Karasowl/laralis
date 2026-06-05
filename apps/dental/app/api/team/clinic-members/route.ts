@@ -288,7 +288,7 @@ async function getClinicMembersFromConvex(
       workspace_role: workspaceRolesByUser.get(String(m.user_id)) || null,
       // custom_permissions JSONB keys are stored encoded in Convex; decode back
       // to canonical "resource.action" keys to match the Supabase response.
-      custom_permissions: decodeConvexValue(m.custom_permissions),
+      custom_permissions: decodeConvexValue(m.custom_permissions) as ClinicMember['custom_permissions'],
       custom_role_id: m.custom_role_id,
       is_active: m.is_active,
       joined_at: m.joined_at,
