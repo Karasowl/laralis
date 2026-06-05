@@ -319,6 +319,55 @@ export const userHasPermission = query({
   },
 })
 
+/**
+ * Exact JS replica of the SQL is_clinic_member / user_has_clinic_access RPC
+ * (migration 72_fix_rls_clinic_memberships). Access iff:
+ *   1. active clinic_users row for (clinic, user), OR
+ *   2. active workspace_users row for the clinic's workspace, with the clinic
+ *      passing the allowed_clinics restriction (empty/null array = all clinics).
+ */
+export const userHasClinicAccess = query({
+  args: {
+    secret: v.string(),
+    userId: v.string(),
+    clinicId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    assertBridgeSecret(args.secret)
+
+    const [clinics, clinicUsers, workspaceUsers] = (await Promise.all([
+      ctx.db.query('clinics' as any).collect(),
+      ctx.db.query('clinic_users' as any).collect(),
+      ctx.db.query('workspace_users' as any).collect(),
+    ])) as ImportedDocument[][]
+
+    const clinic = clinics.find((row) => row.id === args.clinicId || row.legacyId === args.clinicId)
+    if (!clinic) return false
+    const clinicLegacyId = String(clinic.id ?? clinic.legacyId)
+    const workspaceId = clinic.workspace_id != null ? String(clinic.workspace_id) : null
+
+    // 1. direct clinic_users membership (is_active = true, strict)
+    const directMember = clinicUsers.some(
+      (m) => String(m.clinic_id) === clinicLegacyId && m.user_id === args.userId && m.is_active === true
+    )
+    if (directMember) return true
+
+    // 2. via workspace_users, honoring allowed_clinics ('{}' / NULL = all)
+    if (workspaceId) {
+      const viaWorkspace = workspaceUsers.some((wu) => {
+        if (String(wu.workspace_id) !== workspaceId || wu.user_id !== args.userId || wu.is_active !== true) {
+          return false
+        }
+        const allowed = Array.isArray(wu.allowed_clinics) ? wu.allowed_clinics.map(String) : []
+        return allowed.length === 0 || allowed.includes(clinicLegacyId)
+      })
+      if (viaWorkspace) return true
+    }
+
+    return false
+  },
+})
+
 async function getAuthContextForUser(ctx: any, userId: string) {
   const [users, workspaces, workspaceUsers, workspaceMembers, clinicUsers, clinics, rolePermissions] =
     (await Promise.all([

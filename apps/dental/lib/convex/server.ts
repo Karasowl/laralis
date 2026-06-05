@@ -138,6 +138,17 @@ export async function convexUserHasPermission(userId: string, clinicId: string, 
   })
 }
 
+export async function convexUserHasClinicAccess(userId: string, clinicId: string) {
+  const secret = process.env.CONVEX_AUTH_BRIDGE_SECRET
+  if (!secret) throw new Error('CONVEX_AUTH_BRIDGE_SECRET is required')
+
+  return getConvexHttpClient().query(api.authBridge.userHasClinicAccess, {
+    secret,
+    userId,
+    clinicId,
+  })
+}
+
 function getConvexMutationSecret() {
   const secret = process.env.CONVEX_AUTH_BRIDGE_SECRET
   if (!secret) throw new Error('CONVEX_AUTH_BRIDGE_SECRET is required')
