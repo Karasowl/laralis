@@ -3,8 +3,9 @@ import { z } from 'zod';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { withPermission } from '@/lib/middleware/with-permission';
 import { readJson } from '@/lib/validation';
-import { listConvexDocumentsByWorkspace } from '@/lib/convex/server';
+import { listConvexDocumentsByWorkspace, decodeConvexValue } from '@/lib/convex/server';
 import { shouldReturnConvexData } from '@/lib/data-backend';
+import { getAuthBackend } from '@/lib/auth/convex-session';
 
 type ConvexRecord = Record<string, any>;
 
@@ -34,7 +35,9 @@ export const GET = withPermission('team.view', async (request, ctx) => {
   // The Convex bridge has no RLS; the guard above is the authorization boundary.
   // Default backend stays Supabase (see getDataReadBackend); only flips when
   // DATA_READ_BACKEND_ROLE_PERMISSIONS / DATA_READ_BACKEND / DATA_BACKEND select convex.
-  if (shouldReturnConvexData('role_permissions')) {
+  // getAuthBackend()==='convex' is also honored so the whole permission subsystem
+  // flips on a full auth cutover too (matches lib/permissions/check.ts).
+  if (getAuthBackend() === 'convex' || shouldReturnConvexData('role_permissions')) {
     try {
       const rows = (await listConvexDocumentsByWorkspace(
         'custom_role_templates',
@@ -55,7 +58,13 @@ export const GET = withPermission('team.view', async (request, ctx) => {
         String(b.created_at ?? '').localeCompare(String(a.created_at ?? ''))
       );
 
-      const roles = sorted.map((row) => normalizeConvexRecord(row));
+      // Convex stores JSONB object keys encoded; the `permissions` map keys are
+      // semantic ("patients.view"), so decode them back so the response matches
+      // the Supabase `select('*')` shape byte-for-byte.
+      const roles = sorted.map((row) => {
+        const normalized = normalizeConvexRecord(row);
+        return { ...normalized, permissions: decodeConvexValue(normalized.permissions) };
+      });
       return NextResponse.json({ roles });
     } catch (convexError) {
       console.error('[custom-roles] Convex read error:', convexError);

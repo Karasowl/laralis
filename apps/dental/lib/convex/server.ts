@@ -3,7 +3,7 @@ import { createHash } from 'crypto'
 import { api } from '@/convex/_generated/api'
 import { encodeConvexValue, prepareConvexRow } from './legacy'
 
-export { getLegacyIdForTable, prepareConvexRow } from './legacy'
+export { getLegacyIdForTable, prepareConvexRow, decodeConvexValue } from './legacy'
 
 let client: ConvexHttpClient | null = null
 let clientUrl: string | null = null

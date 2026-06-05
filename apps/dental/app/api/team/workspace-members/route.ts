@@ -13,8 +13,10 @@ import {
 import {
   listConvexDocumentsByWorkspace,
   listConvexTable,
+  decodeConvexValue,
 } from '@/lib/convex/server';
 import { shouldReturnConvexData } from '@/lib/data-backend';
+import { getAuthBackend } from '@/lib/auth/convex-session';
 
 /**
  * GET /api/team/workspace-members
@@ -85,7 +87,7 @@ export async function GET(request: NextRequest) {
     // The Convex bridge has NO RLS, so the caller authorization above MUST stay
     // before this branch. Default backend is Supabase; only flips when the
     // permissions/auth domain ('role_permissions') is routed to Convex.
-    if (shouldReturnConvexData('role_permissions')) {
+    if (getAuthBackend() === 'convex' || shouldReturnConvexData('role_permissions')) {
       // workspaceId is guaranteed non-null here: an active membership row was
       // just resolved for it (the access check above). Same value the Supabase
       // path uses below.
@@ -203,7 +205,9 @@ async function getWorkspaceMembersFromConvex(workspaceId: string): Promise<Works
         user_id: m.user_id,
         workspace_id: m.workspace_id,
         role: m.role as WorkspaceRole,
-        custom_permissions: m.custom_permissions,
+        // custom_permissions JSONB keys are stored encoded in Convex; decode back
+        // to canonical "resource.action" keys to match the Supabase response.
+        custom_permissions: decodeConvexValue(m.custom_permissions),
         custom_role_id: m.custom_role_id,
         allowed_clinics: m.allowed_clinics || [],
         is_active: m.is_active,

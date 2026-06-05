@@ -5,6 +5,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { isValidPermission, type Permission } from '@/lib/permissions';
 import { shouldReturnConvexData } from '@/lib/data-backend';
 import { convexUserHasPermission } from '@/lib/convex/server';
+import { getAuthBackend } from '@/lib/auth/convex-session';
 
 // QA route contract: @qa-self-service-route authenticated current-user permission check.
 /**
@@ -76,7 +77,10 @@ export async function GET(request: NextRequest) {
     //
     // Returns the EXACT same { allowed, permission, clinicId } shape as the
     // Supabase path below.
-    if (shouldReturnConvexData('role_permissions')) {
+    // Gate mirrors lib/permissions/check.ts so the whole permission subsystem
+    // (enforcement guard + self-service routes) flips on the SAME signal: either
+    // a full auth cutover (AUTH_BACKEND=convex) or DATA_READ_BACKEND_ROLE_PERMISSIONS.
+    if (getAuthBackend() === 'convex' || shouldReturnConvexData('role_permissions')) {
       const allowed = await convexUserHasPermission(userId, clinicId, permission);
 
       return NextResponse.json({

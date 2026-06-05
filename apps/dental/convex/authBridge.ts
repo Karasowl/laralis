@@ -203,6 +203,29 @@ export const contextForUser = query({
   },
 })
 
+/**
+ * Exact JS replica of the SQL check_user_permission RPC (migration 76).
+ *
+ * Precedence (matching the SQL exactly):
+ *   1. clinic.workspace_id NULL -> false
+ *   2. no active workspace_users row -> false
+ *   3. ws role 'owner' -> true
+ *   4. ws role 'super_admin' -> true, except workspace.delete / transfer_ownership
+ *   5. allowed_clinics non-empty and clinic not in it -> false
+ *   6. workspace custom_permissions[key] -> return it (early)
+ *   7. compute ws decision: custom_role template (perms key, else base_role
+ *      role_permissions scope=workspace), else ws role role_permissions
+ *   8. clinic custom_permissions[key] -> return it (early)
+ *   9. compute clinic decision: custom_role template (perms key, else base_role
+ *      role_permissions scope=clinic), else clinic role role_permissions
+ *   10. clinic decision (incl. explicit false) wins over workspace decision
+ *   11. else false
+ *
+ * Self-contained (does not reuse getAuthContextForUser) so the per-table reads
+ * mirror the SQL exactly. custom_permissions / template.permissions JSONB keys
+ * were encoded on write by encodeConvexFieldName, so we encode the permission
+ * key before looking it up.
+ */
 export const userHasPermission = query({
   args: {
     secret: v.string(),
@@ -214,30 +237,85 @@ export const userHasPermission = query({
     assertBridgeSecret(args.secret)
     const [resource, action] = args.permission.split('.')
     if (!resource || !action) return false
+    const permKey = `${resource}.${action}`
+    const encodedPermKey = encodeConvexFieldName(permKey)
 
-    const context = await getAuthContextForUser(ctx, args.userId)
-    const clinic = context.clinics.find((row) => row.id === args.clinicId || row.legacyId === args.clinicId)
+    const [clinics, workspaceUsers, clinicUsers, rolePermissions, customRoleTemplates] =
+      (await Promise.all([
+        ctx.db.query('clinics' as any).collect(),
+        ctx.db.query('workspace_users' as any).collect(),
+        ctx.db.query('clinic_users' as any).collect(),
+        ctx.db.query('role_permissions' as any).collect(),
+        ctx.db.query('custom_role_templates' as any).collect(),
+      ])) as ImportedDocument[][]
+
+    const clinic = clinics.find((row) => row.id === args.clinicId || row.legacyId === args.clinicId)
     if (!clinic?.workspace_id) return false
-
     const workspaceId = String(clinic.workspace_id)
-    if (context.workspaces.some((workspace) => workspace.id === workspaceId && workspace.owner_id === args.userId)) {
-      return true
+    const clinicLegacyId = String(clinic.id ?? clinic.legacyId)
+
+    // 2. active workspace_users membership (SQL: is_active = true, strict)
+    const ws = workspaceUsers.find((m) =>
+      String(m.workspace_id) === workspaceId && m.user_id === args.userId && m.is_active === true)
+    if (!ws) return false
+
+    // 3-4. owner / super_admin
+    if (ws.role === 'owner') return true
+    if (ws.role === 'super_admin') {
+      return !(permKey === 'workspace.delete' || permKey === 'workspace.transfer_ownership')
     }
 
-    const directClinicMembership = context.clinicUsers.find((membership) => {
-      return membership.clinic_id === args.clinicId && membership.user_id === args.userId && membership.is_active !== false
-    })
-    if (directClinicMembership && roleAllows(context.rolePermissions, directClinicMembership.role, resource, action)) {
-      return true
+    // 5. allowed_clinics restriction
+    const allowedClinics = Array.isArray(ws.allowed_clinics) ? ws.allowed_clinics.map(String) : []
+    if (allowedClinics.length > 0 && !allowedClinics.includes(clinicLegacyId)) {
+      return false
     }
 
-    const workspaceMembership = [...context.workspaceUsers, ...context.workspaceMembers].find((membership) => {
-      return membership.workspace_id === workspaceId && membership.user_id === args.userId && membership.is_active !== false
-    })
-    if (!workspaceMembership) return false
-    if (workspaceMembership.role === 'owner') return true
+    // 6. workspace explicit override (short-circuits before clinic)
+    const wsOverride = jsonbBool(ws.custom_permissions, encodedPermKey)
+    if (wsOverride !== null) return wsOverride
 
-    return roleAllows(context.rolePermissions, workspaceMembership.role, resource, action)
+    // 7. workspace decision (template or base role)
+    let wsAllowed: boolean | null = null
+    if (ws.custom_role_id) {
+      const tpl = customRoleTemplates.find((t) =>
+        (t.id === ws.custom_role_id || t.legacyId === ws.custom_role_id) && t.scope === 'workspace' && t.is_active === true)
+      if (tpl) {
+        const tplBool = jsonbBool(tpl.permissions, encodedPermKey)
+        if (tplBool !== null) wsAllowed = tplBool
+        else if (tpl.base_role) wsAllowed = roleDecision(rolePermissions, tpl.base_role, 'workspace', resource, action)
+      }
+      // template missing -> wsAllowed stays null (matches SQL: no base fallback)
+    } else {
+      wsAllowed = roleDecision(rolePermissions, ws.role, 'workspace', resource, action)
+    }
+
+    // 8. clinic membership + explicit override (SQL: is_active = true, strict)
+    const cu = clinicUsers.find((m) =>
+      String(m.clinic_id) === clinicLegacyId && m.user_id === args.userId && m.is_active === true)
+    if (cu) {
+      const cuOverride = jsonbBool(cu.custom_permissions, encodedPermKey)
+      if (cuOverride !== null) return cuOverride
+    }
+
+    // 9. clinic decision (template or base role)
+    let clinicAllowed: boolean | null = null
+    if (cu?.custom_role_id) {
+      const tpl = customRoleTemplates.find((t) =>
+        (t.id === cu.custom_role_id || t.legacyId === cu.custom_role_id) && t.scope === 'clinic' && t.is_active === true)
+      if (tpl) {
+        const tplBool = jsonbBool(tpl.permissions, encodedPermKey)
+        if (tplBool !== null) clinicAllowed = tplBool
+        else if (tpl.base_role) clinicAllowed = roleDecision(rolePermissions, tpl.base_role, 'clinic', resource, action)
+      }
+    } else if (cu?.role) {
+      clinicAllowed = roleDecision(rolePermissions, cu.role, 'clinic', resource, action)
+    }
+
+    // 10-11. clinic decision (incl. explicit false) wins over workspace; else false
+    if (clinicAllowed !== null) return clinicAllowed
+    if (wsAllowed !== null) return wsAllowed
+    return false
   },
 })
 
@@ -293,16 +371,61 @@ async function getAuthContextForUser(ctx: any, userId: string) {
   }
 }
 
-function roleAllows(rolePermissions: ImportedDocument[], role: string | null | undefined, resource: string, action: string) {
-  if (!role) return false
-  return rolePermissions.some((permission) => {
-    return (
+/**
+ * Replica of encodeConvexFieldName in lib/convex/legacy.ts. JSONB object keys
+ * (custom_permissions, template.permissions) were encoded on write the same way,
+ * so a permission key like "patients.view" must be encoded ("." -> "_u2e_")
+ * before looking it up in those maps.
+ */
+function encodeConvexFieldName(key: string) {
+  let encoded = ''
+  for (const char of key) {
+    encoded += /[A-Za-z0-9_]/.test(char) ? char : `_u${char.codePointAt(0)?.toString(16)}_`
+  }
+  if (!encoded) encoded = '_empty'
+  if (encoded === '_id' || encoded === '_creationTime') encoded = `legacy${encoded}`
+  return encoded
+}
+
+/**
+ * Reads a tri-state boolean out of an encoded JSONB permission map.
+ * Returns null when the key is absent (so the caller can fall through to the
+ * next precedence level), true/false when the key is present. Mirrors the SQL
+ * `(perms ->> key)::boolean` plus the "key not present" short-circuit.
+ */
+function jsonbBool(obj: any, encodedKey: string): boolean | null {
+  if (!obj || typeof obj !== 'object') return null
+  if (!(encodedKey in obj)) return null
+  const value = obj[encodedKey]
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'string') return value === 'true' || value === 't'
+  if (value === null || value === undefined) return null
+  return Boolean(value)
+}
+
+/**
+ * Resolves a role_permissions row to a tri-state decision.
+ * Returns null when no matching (role, scope, resource, action) row exists
+ * (so the caller can fall through), otherwise the row's `allowed` flag.
+ * Mirrors the SQL lookup against role_permissions with an explicit scope.
+ */
+function roleDecision(
+  rolePermissions: ImportedDocument[],
+  role: string | null | undefined,
+  scope: string,
+  resource: string,
+  action: string
+): boolean | null {
+  if (!role) return null
+  const row = rolePermissions.find(
+    (permission) =>
       permission.role === role &&
+      permission.scope === scope &&
       permission.resource === resource &&
-      permission.action === action &&
-      permission.allowed === true
-    )
-  })
+      permission.action === action
+  )
+  if (!row) return null
+  return row.allowed === true || row.allowed === 'true'
 }
 
 async function upsertPasswordCredentialForUser(

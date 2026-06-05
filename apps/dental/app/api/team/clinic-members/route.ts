@@ -8,10 +8,12 @@ import { forbiddenIfMissingPermission } from '@/lib/permissions';
 import { readJson } from '@/lib/validation';
 import { getAuthUserProfilesByIds, type AuthUserProfile } from '@/lib/auth-user-profiles';
 import { shouldReturnConvexData } from '@/lib/data-backend';
+import { getAuthBackend } from '@/lib/auth/convex-session';
 import {
   listConvexDocumentsByClinic,
   listConvexDocumentsByWorkspace,
   listConvexTable,
+  decodeConvexValue,
 } from '@/lib/convex/server';
 
 /**
@@ -82,7 +84,7 @@ export async function GET(request: NextRequest) {
     // Flag-gated Convex read branch. Runs ONLY after getUser (resolveClinicContext),
     // the team.view permission guard, and the caller membership/access check above.
     // The Convex bridge has no RLS, so the authorization MUST remain in front of it.
-    if (shouldReturnConvexData('role_permissions')) {
+    if (getAuthBackend() === 'convex' || shouldReturnConvexData('role_permissions')) {
       const transformedMembers = await getClinicMembersFromConvex(
         clinicId,
         clinic.workspace_id as string
@@ -284,7 +286,9 @@ async function getClinicMembersFromConvex(
       clinic_id: m.clinic_id,
       role: m.role as ClinicRole,
       workspace_role: workspaceRolesByUser.get(String(m.user_id)) || null,
-      custom_permissions: m.custom_permissions,
+      // custom_permissions JSONB keys are stored encoded in Convex; decode back
+      // to canonical "resource.action" keys to match the Supabase response.
+      custom_permissions: decodeConvexValue(m.custom_permissions),
       custom_role_id: m.custom_role_id,
       is_active: m.is_active,
       joined_at: m.joined_at,

@@ -3,11 +3,13 @@ import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { shouldReturnConvexData } from '@/lib/data-backend';
+import { getAuthBackend } from '@/lib/auth/convex-session';
 import {
   getConvexDocumentByLegacyId,
   listConvexDocumentsByClinic,
   listConvexDocumentsByWorkspace,
   listConvexTable,
+  decodeConvexValue,
 } from '@/lib/convex/server';
 import type { PermissionMap, WorkspaceRole, ClinicRole } from '@/lib/permissions';
 
@@ -54,7 +56,10 @@ export async function GET() {
     // clinic_users reads the Supabase path performs to build workspaceRole,
     // clinicRole, clinicId and workspaceId. Response shape is byte-identical.
     // ------------------------------------------------------------------
-    if (shouldReturnConvexData('role_permissions')) {
+    // Gate mirrors lib/permissions/check.ts so the whole permission subsystem
+    // (enforcement guard + self-service routes) flips on the SAME signal: either
+    // a full auth cutover (AUTH_BACKEND=convex) or DATA_READ_BACKEND_ROLE_PERMISSIONS.
+    if (getAuthBackend() === 'convex' || shouldReturnConvexData('role_permissions')) {
       return await handleConvexRead(userId, clinicId);
     }
 
@@ -161,11 +166,15 @@ function normalizeConvexRecord(row: ConvexRecord) {
 /**
  * Replica of the SQL `||` JSONB concat (right operand overrides existing keys)
  * and `jsonb_object_agg` (last write wins) on a plain object, preserving the
- * exact override precedence get_user_permissions relies on.
+ * exact override precedence get_user_permissions relies on. Source keys are
+ * decoded first via decodeConvexValue because Convex stores JSONB object keys
+ * encoded ("patients.view" -> "patients_u2e_view"); decoding is a no-op for the
+ * already-canonical maps this is also called with.
  */
 function mergePermissions(target: PermissionMap, source: Record<string, unknown> | null | undefined): PermissionMap {
   if (!source || typeof source !== 'object') return target;
-  for (const [key, value] of Object.entries(source)) {
+  const decoded = decodeConvexValue(source) as Record<string, unknown>;
+  for (const [key, value] of Object.entries(decoded)) {
     // Mirror Postgres ::BOOLEAN coercion of JSONB values (already booleans here).
     (target as Record<string, unknown>)[key] = Boolean(value);
   }

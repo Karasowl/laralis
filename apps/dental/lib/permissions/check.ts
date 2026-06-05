@@ -10,7 +10,11 @@ export async function userHasPermission(
   clinicId: string,
   permission: Permission
 ): Promise<boolean> {
-  if (getAuthBackend() === 'convex' || shouldReturnConvexData('permissions')) {
+  // Domain key MUST stay 'role_permissions' to match every other permission
+  // route (permissions/check, permissions/my, team/*). A single env flip of
+  // DATA_READ_BACKEND_ROLE_PERMISSIONS=convex then switches the whole permission
+  // subsystem (enforcement guard + self-service routes) atomically.
+  if (getAuthBackend() === 'convex' || shouldReturnConvexData('role_permissions')) {
     return await convexUserHasPermission(userId, clinicId, permission)
   }
 

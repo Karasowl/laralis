@@ -58,7 +58,7 @@ export function encodeConvexValue(value: unknown): unknown {
   return value
 }
 
-function encodeConvexFieldName(key: string) {
+export function encodeConvexFieldName(key: string) {
   let encoded = ''
 
   for (const char of key) {
@@ -68,6 +68,41 @@ function encodeConvexFieldName(key: string) {
   if (!encoded) encoded = '_empty'
   if (encoded === '_id' || encoded === '_creationTime') encoded = `legacy${encoded}`
   return encoded
+}
+
+/**
+ * Exact inverse of encodeConvexFieldName. Convex stores every JSONB object key
+ * encoded (non-[A-Za-z0-9_] -> `_u<hex>_`), so semantic-key maps such as
+ * permission overrides ("patients.view" stored as "patients_u2e_view") must be
+ * decoded on read before downstream code can match canonical keys. No-op for
+ * keys that contain no `_u<hex>_` token (the common case).
+ */
+export function decodeConvexFieldName(key: string) {
+  if (key === '_empty') return ''
+  if (key === 'legacy_id') return '_id'
+  if (key === 'legacy_creationTime') return '_creationTime'
+  return key.replace(/_u([0-9a-f]+)_/g, (match, hex) => {
+    const codePoint = Number.parseInt(hex, 16)
+    return Number.isNaN(codePoint) ? match : String.fromCodePoint(codePoint)
+  })
+}
+
+/**
+ * Recursive inverse of encodeConvexValue: decodes every nested object key back
+ * to its original Supabase form. Primitive values pass through unchanged.
+ */
+export function decodeConvexValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map((item) => decodeConvexValue(item))
+
+  if (value && typeof value === 'object') {
+    const object: ConvexLegacyRow = {}
+    for (const [key, child] of Object.entries(value as ConvexLegacyRow)) {
+      object[decodeConvexFieldName(key)] = decodeConvexValue(child)
+    }
+    return object
+  }
+
+  return value
 }
 
 function encodeLegacyIdPart(value: unknown) {
