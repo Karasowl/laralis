@@ -8,8 +8,17 @@ import {
   forbiddenIfMissingWorkspacePermission,
   userCanAccessWorkspace,
 } from '@/lib/workspace-access'
+import { listConvexDocumentsByWorkspace } from '@/lib/convex/server'
+import { shouldReturnConvexData } from '@/lib/data-backend'
 
 export const dynamic = 'force-dynamic'
+
+type ConvexRecord = Record<string, any>
+
+function normalizeConvexRecord(row: ConvexRecord) {
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row
+  return rest
+}
 
 const createClinicSchema = z.object({
   name: z.string().min(1),
@@ -54,6 +63,19 @@ export async function GET(
     const canAccessWorkspace = await userCanAccessWorkspace(user.id, params.id)
     if (!canAccessWorkspace) {
       return NextResponse.json({ error: 'Workspace not found or unauthorized' }, { status: 404 })
+    }
+
+    // Convex read branch (flag-gated). Guarded by getUser() + userCanAccessWorkspace
+    // above, since the Convex bridge has no RLS. clinics is keyed by workspace_id
+    // (NO clinic_id column) so scope by workspace, not by clinic.
+    if (shouldReturnConvexData('clinics')) {
+      const rows = await listConvexDocumentsByWorkspace('clinics', params.id, 10000) as ConvexRecord[]
+      const data = rows
+        .map(normalizeConvexRecord)
+        .sort((left, right) =>
+          String(left.name || '').localeCompare(String(right.name || ''))
+        )
+      return NextResponse.json({ data: data || [] })
     }
 
     const { data, error } = await supabaseAdmin

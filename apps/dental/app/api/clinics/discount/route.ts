@@ -5,8 +5,26 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { resolveClinicContext } from '@/lib/clinic'
 import { readJson } from '@/lib/validation'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
+import { getConvexDocumentByLegacyId } from '@/lib/convex/server'
+import { shouldReturnConvexData } from '@/lib/data-backend'
 
 export const dynamic = 'force-dynamic'
+
+const DEFAULT_DISCOUNT_CONFIG = {
+  enabled: false,
+  type: 'percentage',
+  value: 0,
+} as const
+
+type ImportedRecord = Record<string, any>
+
+// clinics is keyed by `id` and has NO clinic_id column, so a single-clinic
+// read must use getConvexDocumentByLegacyId('clinics', clinicId).
+// listConvexDocumentsByClinic('clinics', ...) would return zero rows.
+async function getClinicDiscountFromConvex(clinicId: string) {
+  const clinic = await getConvexDocumentByLegacyId('clinics', clinicId) as ImportedRecord | null
+  return clinic?.global_discount_config || DEFAULT_DISCOUNT_CONFIG
+}
 
 const globalDiscountSchema = z.object({
   enabled: z.boolean(),
@@ -45,6 +63,15 @@ export async function GET(request: NextRequest) {
       'services.view'
     )
     if (forbidden) return forbidden
+
+    // Convex read branch. Gated behind auth (resolveClinicContext verifies the
+    // user owns/belongs to the clinic) + authorization (forbiddenIfMissingPermission)
+    // above, since the Convex bridge has no RLS. Byte-identical shape to the
+    // Supabase path below.
+    if (shouldReturnConvexData('clinics')) {
+      const data = await getClinicDiscountFromConvex(clinicContext.clinicId)
+      return NextResponse.json({ data })
+    }
 
     const { data: clinic, error } = await supabaseAdmin
       .from('clinics')

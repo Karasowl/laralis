@@ -68,7 +68,7 @@ function categoryPermission(type: string | null, mode: 'read' | 'write'): Permis
 }
 
 function normalizeConvexCategory(row: Record<string, any>) {
-  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, ...rest } = row
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row
   return rest
 }
 

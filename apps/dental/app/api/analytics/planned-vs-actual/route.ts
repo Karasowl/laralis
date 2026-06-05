@@ -50,7 +50,7 @@ type ImportedRecord = Record<string, any>
  * Strip Convex internal fields so rows match the Supabase shape exactly.
  */
 function normalizeConvexRecord(row: ImportedRecord) {
-  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, ...rest } = row
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row
   return rest
 }
 

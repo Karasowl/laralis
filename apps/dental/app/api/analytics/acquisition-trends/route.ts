@@ -17,7 +17,7 @@ interface AcquisitionPoint {
 type ImportedRecord = Record<string, any>
 
 function normalizeConvexRecord(row: ImportedRecord) {
-  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, ...rest } = row
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row
   return rest
 }
 

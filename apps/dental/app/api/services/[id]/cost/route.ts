@@ -87,7 +87,7 @@ export async function GET(
         }
       }
 
-      const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, ...serviceRow } = service
+      const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...serviceRow } = service
       return NextResponse.json({
         data: {
           ...serviceRow,

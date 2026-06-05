@@ -176,7 +176,7 @@ function byId(rows: ImportedRecord[]) {
 
 function normalizeConvexRecord(row: ImportedRecord | null | undefined) {
   if (!row) return null;
-  const { _id, _creationTime, legacyId, legacyTable, ...rest } = row;
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row;
   return rest;
 }
 
