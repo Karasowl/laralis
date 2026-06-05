@@ -5,8 +5,92 @@ import { resolveClinicContext } from '@/lib/clinic'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
 import { z } from 'zod'
 import { readJson } from '@/lib/validation'
+import { listConvexDocumentsByClinic, listConvexTable } from '@/lib/convex/server'
+import { shouldReturnConvexData } from '@/lib/data-backend'
 
 export const dynamic = 'force-dynamic'
+
+type ImportedRecord = Record<string, any>
+
+function normalizeConvexRecord(row: ImportedRecord | null | undefined) {
+  if (!row) return null
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, ...rest } = row
+  return rest
+}
+
+function buildPatientLookup(rows: ImportedRecord[]) {
+  return new Map(
+    rows.flatMap((row) => {
+      const ids = [row.id, row.legacyId].filter(Boolean).map((id) => String(id))
+      return ids.map((id) => [id, row] as const)
+    })
+  )
+}
+
+interface PrescriptionConvexFilters {
+  patientId: string | null
+  treatmentId: string | null
+  status: string | null
+  startDate: string | null
+  endDate: string | null
+}
+
+async function getPrescriptionsFromConvex(clinicId: string, filters: PrescriptionConvexFilters) {
+  const [prescriptions, patients, items] = await Promise.all([
+    listConvexDocumentsByClinic('prescriptions', clinicId, 10000) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('patients', clinicId, 10000) as Promise<ImportedRecord[]>,
+    // prescription_items has NO clinic_id column; scope by FK prescription_id via JS filter
+    listConvexTable('prescription_items', 10000) as Promise<ImportedRecord[]>,
+  ])
+
+  const patientsById = buildPatientLookup(patients)
+
+  // Group items by prescription_id (Convex has no joins)
+  const itemsByPrescription = new Map<string, ImportedRecord[]>()
+  for (const item of items) {
+    const prescriptionId = item.prescription_id != null ? String(item.prescription_id) : null
+    if (!prescriptionId) continue
+    const bucket = itemsByPrescription.get(prescriptionId)
+    if (bucket) {
+      bucket.push(item)
+    } else {
+      itemsByPrescription.set(prescriptionId, [item])
+    }
+  }
+
+  const buildPatientEmbed = (patientId: string | null | undefined) => {
+    if (!patientId) return null
+    const patient = patientsById.get(String(patientId))
+    if (!patient) return null
+    return {
+      id: patient.id ?? patient.legacyId ?? null,
+      first_name: patient.first_name ?? null,
+      last_name: patient.last_name ?? null,
+      email: patient.email ?? null,
+      phone: patient.phone ?? null,
+    }
+  }
+
+  return prescriptions
+    .filter((row) => {
+      if (filters.patientId && String(row.patient_id) !== filters.patientId) return false
+      if (filters.treatmentId && String(row.treatment_id) !== filters.treatmentId) return false
+      if (filters.status && row.status !== filters.status) return false
+      if (filters.startDate && String(row.prescription_date || '') < filters.startDate) return false
+      if (filters.endDate && String(row.prescription_date || '') > filters.endDate) return false
+      return true
+    })
+    .sort((a, b) => String(b.prescription_date || '').localeCompare(String(a.prescription_date || '')))
+    .map((row) => {
+      const prescriptionId = row.id != null ? String(row.id) : (row.legacyId != null ? String(row.legacyId) : null)
+      const relatedItems = prescriptionId ? (itemsByPrescription.get(prescriptionId) || []) : []
+      return {
+        ...normalizeConvexRecord(row),
+        patient: buildPatientEmbed(row.patient_id),
+        items: relatedItems.map(normalizeConvexRecord),
+      }
+    })
+}
 
 // Helper to transform empty strings to undefined
 const emptyToUndefined = z.string().transform(val => val === '' ? undefined : val)
@@ -77,6 +161,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const status = searchParams.get('status')
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
+
+    if (shouldReturnConvexData('prescriptions')) {
+      const data = await getPrescriptionsFromConvex(clinicId, {
+        patientId,
+        treatmentId,
+        status,
+        startDate,
+        endDate,
+      })
+      return NextResponse.json({ data })
+    }
 
     // Build query
     let query = supabaseAdmin

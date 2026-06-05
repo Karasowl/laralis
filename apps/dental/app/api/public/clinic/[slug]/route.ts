@@ -1,8 +1,112 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { listConvexDocumentsByClinic, listConvexTable } from '@/lib/convex/server'
+import { shouldReturnConvexData } from '@/lib/data-backend'
 
 // QA route contract: @qa-public-route public booking clinic profile by slug.
 export const dynamic = 'force-dynamic'
+
+type ImportedRecord = Record<string, any>
+
+function normalizeConvexRecord(row: ImportedRecord | null | undefined) {
+  if (!row) return null
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, ...rest } = row
+  return rest
+}
+
+function byFk(rows: ImportedRecord[]) {
+  return new Map(
+    rows.flatMap((row) => {
+      const ids = [row.id, row.legacyId].filter(Boolean).map((id) => String(id))
+      return ids.map((id) => [id, row] as const)
+    })
+  )
+}
+
+/**
+ * Convex read branch.
+ *
+ * SECURITY: the Convex bridge has NO RLS. This is a PUBLIC route (no getUser),
+ * so we intentionally add NO auth guard, but we MUST preserve the EXACT same
+ * exposure as the Supabase path: clinic profile + ONLY whitelisted services
+ * from `public_booking_services` (empty when none) — never the full catalog.
+ *
+ * Tables involved (all clinic-scoped EXCEPT the clinics lookup which is by slug):
+ * - clinics: looked up by slug, so listByClinic is useless here. Use
+ *   listConvexTable + JS filter on slug (same as /api/clinics Convex branch).
+ * - public_booking_services: HAS clinic_id (migration 62) -> listByClinic.
+ * - services: HAS clinic_id -> listByClinic, reassembled by FK on service_id.
+ */
+async function getPublicClinicFromConvex(
+  slug: string
+): Promise<PublicClinicResponse | { error: string; status: number }> {
+  const clinics = await listConvexTable('clinics', 10000) as ImportedRecord[]
+  const clinicRaw = clinics.find((row) => String(row.slug ?? '') === slug)
+
+  if (!clinicRaw) {
+    return { error: 'Clinic not found', status: 404 }
+  }
+
+  const clinic = normalizeConvexRecord(clinicRaw) as ImportedRecord
+
+  const bookingConfig = clinic.booking_config as BookingConfig
+  if (!bookingConfig?.enabled) {
+    return { error: 'Online booking is not enabled for this clinic', status: 403 }
+  }
+
+  const clinicId = String(clinicRaw.id ?? clinicRaw.legacyId)
+
+  const [whitelistRaw, servicesRaw] = await Promise.all([
+    listConvexDocumentsByClinic('public_booking_services', clinicId, 10000) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('services', clinicId, 10000) as Promise<ImportedRecord[]>,
+  ])
+
+  const servicesByFk = byFk(servicesRaw)
+
+  const whitelistedServices = whitelistRaw
+    // Mirror Supabase `.eq('is_active', true)` (NULL excluded -> strict true)
+    .filter((ws) => ws.is_active === true)
+    // Mirror `.order('display_order', { ascending: true })`
+    .sort((a, b) => Number(a.display_order ?? 0) - Number(b.display_order ?? 0))
+
+  let services: PublicClinicResponse['services'] = []
+
+  if (whitelistedServices.length > 0) {
+    services = whitelistedServices
+      // Inner join semantics: Supabase join drops rows whose service is missing.
+      .map((ws) => {
+        const service = servicesByFk.get(String(ws.service_id))
+        if (!service) return null
+        return {
+          id: service.id,
+          name: service.name,
+          description: service.description,
+          price_cents: service.price_cents,
+          duration_minutes: ws.custom_duration_minutes || service.est_minutes || bookingConfig.slot_duration_minutes,
+          category: service.category,
+        }
+      })
+      .filter((s): s is PublicClinicResponse['services'][number] => s !== null)
+  } else {
+    // SECURITY: same default as Supabase path — no whitelist means NO services
+    // are exposed publicly. Never dump the full catalog.
+    services = []
+  }
+
+  return {
+    id: clinic.id,
+    name: clinic.name,
+    slug: clinic.slug,
+    phone: clinic.phone ?? null,
+    address: clinic.address ?? null,
+    booking_config: {
+      ...bookingConfig,
+      // Don't expose internal settings
+      enabled: true,
+    },
+    services,
+  }
+}
 
 interface RouteParams {
   params: {
@@ -58,6 +162,14 @@ export async function GET(
         { error: 'Slug is required' },
         { status: 400 }
       )
+    }
+
+    if (shouldReturnConvexData('public_booking_services')) {
+      const result = await getPublicClinicFromConvex(slug)
+      if ('error' in result) {
+        return NextResponse.json({ error: result.error }, { status: result.status })
+      }
+      return NextResponse.json({ data: result })
     }
 
     // Fetch clinic by slug
