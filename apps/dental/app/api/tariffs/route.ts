@@ -10,6 +10,34 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { resolveClinicContext } from '@/lib/clinic'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
 import { calcularPrecioConDescuento } from '@/lib/calc/tarifa'
+import { listConvexDocumentsByClinic } from '@/lib/convex/server'
+import { shouldReturnConvexData } from '@/lib/data-backend'
+
+type ImportedRecord = Record<string, any>
+
+function normalizeConvexRecord(row: ImportedRecord | null | undefined) {
+  if (!row) return null
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row
+  return rest
+}
+
+// GET reads from the clinic-scoped `tariffs` table (clinic_id NOT NULL per mig 16)
+// with a flat `select('*')` — there are NO nested joins in the read path, so the
+// Convex branch mirrors that flat shape exactly. The per-service cost aggregation
+// (service + service_supplies + supplies recipe) lives in the POST helpers only.
+async function getTariffsFromConvex(clinicId: string) {
+  const rows = await listConvexDocumentsByClinic('tariffs', clinicId, 10000) as ImportedRecord[]
+
+  return rows
+    .map(normalizeConvexRecord)
+    .filter((row): row is ImportedRecord => row !== null)
+    // Codepoint compare (not localeCompare) to match Postgres UUID byte
+    // ordering of .order('service_id'); avoids locale-dependent drift.
+    .sort((a, b) => {
+      const x = String(a.service_id || ''), y = String(b.service_id || '')
+      return x < y ? -1 : x > y ? 1 : 0
+    })
+}
 
 const tariffItemSchema = z.object({
   service_id: z.string().min(1, 'service_id is required'),
@@ -287,6 +315,14 @@ export async function GET(request: NextRequest) {
       'financial_reports.view'
     )
     if (forbidden) return forbidden
+
+    // Convex read branch (flag-gated). Auth + clinic access already enforced above
+    // via resolveClinicContext + forbiddenIfMissingPermission, so the Convex bridge
+    // (which has no RLS) is safe to query for this clinic here.
+    if (shouldReturnConvexData('tariffs')) {
+      const data = await getTariffsFromConvex(clinicContext.clinicId)
+      return NextResponse.json({ data })
+    }
 
     const { data, error } = await supabaseAdmin
       .from('tariffs')
