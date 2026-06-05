@@ -5,8 +5,49 @@ import { resolveClinicContext } from '@/lib/clinic';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
 import { forbiddenIfMissingPermission } from '@/lib/permissions';
+import { listConvexTable } from '@/lib/convex/server';
+import { shouldReturnConvexData } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
+
+type ImportedRecord = Record<string, any>;
+
+function normalizeConvexRecord(row: ImportedRecord) {
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, ...rest } = row;
+  return rest;
+}
+
+async function getMarketingPlatformsFromConvex(clinicId: string, activeOnly: boolean) {
+  const rows = await listConvexTable('categories', 10000) as ImportedRecord[];
+
+  const filtered = rows.filter((row) => {
+    if (row.entity_type !== 'marketing_platform') return false;
+    // Replicate `.or('clinic_id.is.null,clinic_id.eq.${clinicId}')`
+    const rowClinicId = row.clinic_id ?? null;
+    if (rowClinicId !== null && rowClinicId !== clinicId) return false;
+    if (activeOnly && row.is_active !== true) return false;
+    return true;
+  });
+
+  // Replicate ordering: is_system DESC, display_order ASC (NULLS LAST), display_name ASC
+  filtered.sort((a, b) => {
+    const aSystem = a.is_system === true ? 1 : 0;
+    const bSystem = b.is_system === true ? 1 : 0;
+    if (aSystem !== bSystem) return bSystem - aSystem;
+
+    const aOrder = a.display_order ?? null;
+    const bOrder = b.display_order ?? null;
+    if (aOrder === null && bOrder !== null) return 1;
+    if (aOrder !== null && bOrder === null) return -1;
+    if (aOrder !== null && bOrder !== null && Number(aOrder) !== Number(bOrder)) {
+      return Number(aOrder) - Number(bOrder);
+    }
+
+    return String(a.display_name ?? '').localeCompare(String(b.display_name ?? ''));
+  });
+
+  return filtered.map(normalizeConvexRecord);
+}
 
 
 const createPlatformSchema = z.object({
@@ -44,6 +85,11 @@ export async function GET(request: NextRequest) {
     const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'campaigns.view');
     if (forbidden) return forbidden;
     const activeOnly = searchParams.get('active') === 'true';
+
+    if (shouldReturnConvexData('categories')) {
+      const data = await getMarketingPlatformsFromConvex(clinicId, activeOnly);
+      return NextResponse.json({ data });
+    }
 
     let query = supabaseAdmin
       .from('categories')
