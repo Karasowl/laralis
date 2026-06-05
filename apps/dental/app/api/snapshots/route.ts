@@ -22,9 +22,18 @@ import {
 import { z } from 'zod'
 import { validateSchema } from '@/lib/validation'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
+import { listConvexDocumentsByClinic, decodeConvexValue } from '@/lib/convex/server'
+import { shouldReturnConvexData } from '@/lib/data-backend'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+
+type ImportedRecord = Record<string, any>
+
+function normalizeConvexRecord(row: ImportedRecord) {
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row
+  return decodeConvexValue(rest) as ImportedRecord
+}
 
 const createSnapshotSchema = z.object({
   type: z.enum(['manual', 'scheduled', 'pre-restore']).optional(),
@@ -54,20 +63,31 @@ export async function GET(request: NextRequest) {
     const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'export_import.export')
     if (forbidden) return forbidden
 
-    // Get snapshots from database (more reliable than storage manifest)
-    const { data: snapshots, error } = await supabaseAdmin
-      .from('clinic_snapshots')
-      .select('*')
-      .eq('clinic_id', clinicId)
-      .eq('status', 'completed')
-      .order('created_at', { ascending: false })
+    // Get snapshots from database (more reliable than storage manifest).
+    // Flag-gated Convex branch (default Supabase). clinic_snapshots is clinic-scoped;
+    // the actual snapshot FILES live in Supabase Storage (download path unaffected).
+    let snapshots: ImportedRecord[] | null
+    if (shouldReturnConvexData('clinic_snapshots')) {
+      snapshots = (await listConvexDocumentsByClinic('clinic_snapshots', clinicId, 10000) as ImportedRecord[])
+        .map(normalizeConvexRecord)
+        .filter((row) => row.status === 'completed')
+        .sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))
+    } else {
+      const { data, error } = await supabaseAdmin
+        .from('clinic_snapshots')
+        .select('*')
+        .eq('clinic_id', clinicId)
+        .eq('status', 'completed')
+        .order('created_at', { ascending: false })
 
-    if (error) {
-      console.error('Failed to list snapshots:', error)
-      return NextResponse.json(
-        { error: 'Failed to list snapshots' },
-        { status: 500 }
-      )
+      if (error) {
+        console.error('Failed to list snapshots:', error)
+        return NextResponse.json(
+          { error: 'Failed to list snapshots' },
+          { status: 500 }
+        )
+      }
+      snapshots = data
     }
 
     // Transform to response format

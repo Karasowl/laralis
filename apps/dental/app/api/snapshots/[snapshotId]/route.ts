@@ -13,9 +13,19 @@ import { resolveClinicContext } from '@/lib/clinic'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { SnapshotStorageService } from '@/lib/snapshots'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
+import { getConvexDocumentByLegacyId, decodeConvexValue } from '@/lib/convex/server'
+import { shouldReturnConvexData } from '@/lib/data-backend'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+
+type ImportedRecord = Record<string, any>
+
+function normalizeConvexRecord(row: ImportedRecord | null | undefined) {
+  if (!row) return null
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row
+  return decodeConvexValue(rest) as ImportedRecord
+}
 
 /**
  * GET /api/snapshots/[snapshotId]
@@ -44,15 +54,30 @@ export async function GET(
     const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'export_import.export')
     if (forbidden) return forbidden
 
-    // Verify snapshot exists and belongs to this clinic
-    const { data: snapshot, error: snapshotError } = await supabaseAdmin
-      .from('clinic_snapshots')
-      .select('*')
-      .eq('id', snapshotId)
-      .eq('clinic_id', clinicId)
-      .single()
+    // Verify snapshot exists and belongs to this clinic. Flag-gated Convex branch
+    // (default Supabase): clinic_snapshots is keyed by id, so fetch by legacy id and
+    // re-check clinic ownership in JS (mirrors .eq('id').eq('clinic_id').single()).
+    // The snapshot FILE itself is downloaded from Supabase Storage below regardless.
+    let snapshot: ImportedRecord | null
+    if (shouldReturnConvexData('clinic_snapshots')) {
+      const doc = normalizeConvexRecord(await getConvexDocumentByLegacyId('clinic_snapshots', snapshotId) as ImportedRecord | null)
+      snapshot = doc && String(doc.clinic_id) === String(clinicId) ? doc : null
+    } else {
+      const { data, error: snapshotError } = await supabaseAdmin
+        .from('clinic_snapshots')
+        .select('*')
+        .eq('id', snapshotId)
+        .eq('clinic_id', clinicId)
+        .single()
 
-    if (snapshotError || !snapshot) {
+      if (snapshotError) {
+        snapshot = null
+      } else {
+        snapshot = data
+      }
+    }
+
+    if (!snapshot) {
       return NextResponse.json(
         { error: 'Snapshot not found' },
         { status: 404 }
