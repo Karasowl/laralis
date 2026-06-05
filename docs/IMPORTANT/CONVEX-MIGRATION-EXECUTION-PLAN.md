@@ -275,12 +275,20 @@ when `shouldWriteConvexData(table)` is on. Batch 1/2 "write wrap" items are ther
 already satisfied by the two client factories; no per-route wrapping is needed.
 (`saveMfaPreferences` also wraps defensively — idempotent via `MIRRORED_CLIENT_MARKER`.)
 
-### Reads: 89 / 110 GET routes carry a flag-gated Convex branch
+### Reads: 96 / 110 GET routes carry a flag-gated Convex branch
 All **user-facing** GET reads are migrated, including the previously-deferred complex
 group: permissions/check, permissions/my, team/{clinic-members,workspace-members,custom-roles},
 reports/summary, prescriptions/[id], tariffs, ai/chat/history, bookings, public/*, and the
-final follow-ups **invitations**, **invitations/accept/[token]**, **settings/security/mfa**,
+follow-ups **invitations**, **invitations/accept/[token]**, **settings/security/mfa**,
 **medications**, **settings/{user,preferences,notifications,booking}**.
+
+The **operational cron jobs** and **snapshot metadata** reads are also migrated now
+(flag-gated, default Supabase; writes/processing untouched): cron/complete-appointments,
+cron/snapshots, cron/cleanup-draft-workspaces, cron/send-reminders (4-level join
+FK-reassembled in JS), cron/retry-notifications (+ lib/notifications/retry-queue), and
+snapshots + snapshots/[snapshotId] (clinic_snapshots metadata; the files stay in
+Supabase Storage). Only **8** GET routes remain on Supabase — all structurally
+non-migratable (see below).
 
 Key correctness work landed this phase:
 - **authBridge.userHasPermission** rewritten to replicate `check_user_permission`
@@ -294,25 +302,20 @@ Key correctness work landed this phase:
 - **Permission-subsystem flag unified** on `role_permissions` + `getAuthBackend()==='convex'`
   so enforcement guard and all self-service/team routes flip atomically.
 
-### The 21 GET routes WITHOUT a Convex branch — why each is out of scope
+### The 8 GET routes WITHOUT a Convex branch — structurally non-migratable
 | Route(s) | Category | Reason |
 |---|---|---|
 | migration/convex-compare, convex-full-sync, convex-health, convex-sync | Migration tooling | Read/compare BOTH backends BY DESIGN — must never read only Convex |
-| clinic/[clinicId]/export | Backup/DR | Dumps Supabase (export edge) |
-| snapshots, snapshots/[snapshotId] | Backup/DR | Read `clinic_snapshots` but the subsystem is coupled to Supabase Storage (file download) |
+| clinic/[clinicId]/export | Backup/DR | Dumps Supabase via `information_schema` table discovery (export edge) |
 | snapshots/discover | Backup/DR | **Impossible on Convex** — introspects Supabase `information_schema` (no catalog in Convex) |
-| reset | Destructive admin | Wipes ~14 Supabase tables; GET count branch is admin tooling |
-| cron/recurring-expenses | Operational | **Pure Postgres RPC** (`process_recurring_expenses`) — no read to migrate |
-| cron/snapshots | Operational/Backup | Runs the Supabase snapshot exporter |
-| cron/complete-appointments | Operational | Write-dominant (bulk treatments UPDATE); clinics read is trivial |
-| cron/cleanup-draft-workspaces | Operational | Destructive workspace-lifecycle job (deletes workspace trees) |
-| cron/send-reminders | Operational | 4-level nested-join notification pipeline |
-| cron/retry-notifications | Operational | Notification-retry pipeline via Supabase-specific helpers |
+| reset | Destructive admin | Wipes ~14 Supabase tables; GET count branch is admin tooling (audit: do-not-migrate) |
+| cron/recurring-expenses | Operational | **Pure Postgres RPC** (`process_recurring_expenses`) — no read to migrate; the mirror refreshes the expenses snapshot after the RPC |
 
-The cron + backup routes belong to the **full-cutover phase**, not the read-parity/canary
-phase: a cron reading the Convex mirror while Supabase is still the write source could
-process stale/duplicate rows. Migrate them (with FK-reassembly + adversarial verification,
-e.g. send-reminders' deep join) only when `DATA_WRITE_MODE` for their domains also flips.
+Caveat for the migrated cron jobs: they honor the same per-domain read flag as the UI, so a
+cron only reads Convex once its domain's `DATA_READ_BACKEND_<DOMAIN>` is flipped. Flip a
+cron's read domain to Convex only after that domain's data is verified in sync (otherwise a
+cron could process stale/duplicate rows); ideally flip cron read domains together with
+`DATA_WRITE_MODE` at full cutover.
 
 ### Operator next steps (canary)
 1. Per domain, set `DATA_READ_BACKEND_<DOMAIN>=convex`; observe `convex-compare`
