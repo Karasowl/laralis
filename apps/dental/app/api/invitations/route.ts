@@ -9,6 +9,41 @@ import {
   findAuthUserIdByEmail,
   getAuthUserProfileById,
 } from '@/lib/auth-user-profiles';
+import { listConvexDocumentsByWorkspace, decodeConvexValue } from '@/lib/convex/server';
+import { shouldReturnConvexData } from '@/lib/data-backend';
+
+type ImportedRecord = Record<string, any>;
+
+function normalizeConvexRecord(row: ImportedRecord) {
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row;
+  return rest;
+}
+
+// Project a Convex invitations row to the EXACT column subset the Supabase
+// .select() returns, decoding the two JSONB permission maps (stored with encoded
+// keys in Convex) so the response is byte-identical.
+function projectInvitationRow(row: ImportedRecord) {
+  return {
+    id: row.id,
+    workspace_id: row.workspace_id,
+    clinic_id: row.clinic_id,
+    clinic_ids: row.clinic_ids,
+    email: row.email,
+    role: row.role,
+    permissions: decodeConvexValue(row.permissions),
+    custom_permissions: decodeConvexValue(row.custom_permissions),
+    custom_role_id: row.custom_role_id,
+    token: row.token,
+    expires_at: row.expires_at,
+    invited_by: row.invited_by,
+    accepted_at: row.accepted_at,
+    rejected_at: row.rejected_at,
+    message: row.message,
+    resent_count: row.resent_count,
+    last_resent_at: row.last_resent_at,
+    created_at: row.created_at,
+  };
+}
 
 /**
  * GET /api/invitations
@@ -71,57 +106,84 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Build query. The inviter lives in auth.users, not in a user_profiles table.
-    let query = supabaseAdmin
-      .from('invitations')
-      .select(`
-        id,
-        workspace_id,
-        clinic_id,
-        clinic_ids,
-        email,
-        role,
-        permissions,
-        custom_permissions,
-        custom_role_id,
-        token,
-        expires_at,
-        invited_by,
-        accepted_at,
-        rejected_at,
-        message,
-        resent_count,
-        last_resent_at,
-        created_at
-      `)
-      .eq('workspace_id', workspaceId)
-      .order('created_at', { ascending: false });
+    // Flag-gated Convex read branch. Reached only AFTER auth (resolveClinicContext),
+    // the team.view permission guard, and the active workspace_users membership
+    // check above. The Convex bridge has NO RLS, so that authorization MUST stay in
+    // front. Replicates the workspace-scoped select + status filters + ordering.
+    let invitations: ImportedRecord[] | null;
+    if (shouldReturnConvexData('invitations')) {
+      const now = new Date();
+      const rows = (await listConvexDocumentsByWorkspace('invitations', workspaceId!, 10000) as ImportedRecord[])
+        .map(normalizeConvexRecord)
+        .filter((row) => {
+          if (statusParam === 'pending') {
+            return !row.accepted_at && !row.rejected_at && new Date(row.expires_at) > now;
+          } else if (statusParam === 'accepted') {
+            return Boolean(row.accepted_at);
+          } else if (statusParam === 'rejected') {
+            return Boolean(row.rejected_at);
+          } else if (statusParam === 'expired') {
+            return !row.accepted_at && !row.rejected_at && new Date(row.expires_at) < now;
+          }
+          return true;
+        })
+        .sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))
+        .map(projectInvitationRow);
+      invitations = rows;
+    } else {
+      // Build query. The inviter lives in auth.users, not in a user_profiles table.
+      let query = supabaseAdmin
+        .from('invitations')
+        .select(`
+          id,
+          workspace_id,
+          clinic_id,
+          clinic_ids,
+          email,
+          role,
+          permissions,
+          custom_permissions,
+          custom_role_id,
+          token,
+          expires_at,
+          invited_by,
+          accepted_at,
+          rejected_at,
+          message,
+          resent_count,
+          last_resent_at,
+          created_at
+        `)
+        .eq('workspace_id', workspaceId)
+        .order('created_at', { ascending: false });
 
-    // Filter by status
-    if (statusParam === 'pending') {
-      query = query
-        .is('accepted_at', null)
-        .is('rejected_at', null)
-        .gt('expires_at', new Date().toISOString());
-    } else if (statusParam === 'accepted') {
-      query = query.not('accepted_at', 'is', null);
-    } else if (statusParam === 'rejected') {
-      query = query.not('rejected_at', 'is', null);
-    } else if (statusParam === 'expired') {
-      query = query
-        .is('accepted_at', null)
-        .is('rejected_at', null)
-        .lt('expires_at', new Date().toISOString());
-    }
+      // Filter by status
+      if (statusParam === 'pending') {
+        query = query
+          .is('accepted_at', null)
+          .is('rejected_at', null)
+          .gt('expires_at', new Date().toISOString());
+      } else if (statusParam === 'accepted') {
+        query = query.not('accepted_at', 'is', null);
+      } else if (statusParam === 'rejected') {
+        query = query.not('rejected_at', 'is', null);
+      } else if (statusParam === 'expired') {
+        query = query
+          .is('accepted_at', null)
+          .is('rejected_at', null)
+          .lt('expires_at', new Date().toISOString());
+      }
 
-    const { data: invitations, error } = await query;
+      const result = await query;
 
-    if (error) {
-      console.error('[invitations] Error fetching invitations:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch invitations' },
-        { status: 500 }
-      );
+      if (result.error) {
+        console.error('[invitations] Error fetching invitations:', result.error);
+        return NextResponse.json(
+          { error: 'Failed to fetch invitations' },
+          { status: 500 }
+        );
+      }
+      invitations = result.data;
     }
 
     // Transform and add status

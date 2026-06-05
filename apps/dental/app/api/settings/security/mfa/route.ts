@@ -3,10 +3,29 @@ import { createClient } from '@/lib/supabase/server';
 import {
   loadMfaPreferences,
   saveMfaPreferences,
+  ensureMfaPreferences,
   type MfaPreferences,
 } from '@/lib/security/mfa-preferences';
+import { listConvexTable, decodeConvexValue } from '@/lib/convex/server';
+import { shouldReturnConvexData } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
+
+type ImportedRecord = Record<string, any>;
+
+function normalizeConvexRecord(row: ImportedRecord) {
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row;
+  return rest;
+}
+
+// Convex equivalent of loadMfaPreferences: user_settings is user-scoped (no
+// clinic_id) with the MFA prefs under key 'security'. The JSONB value is decoded
+// (Convex stores nested object keys encoded) so the shape matches Supabase.
+async function loadMfaPreferencesFromConvex(userId: string): Promise<MfaPreferences> {
+  const rows = (await listConvexTable('user_settings', 10000) as ImportedRecord[]).map(normalizeConvexRecord);
+  const row = rows.find((r) => String(r.user_id) === userId && r.key === 'security');
+  return ensureMfaPreferences(row ? decodeConvexValue(row.value) : undefined);
+}
 
 export async function GET() {
   try {
@@ -22,7 +41,11 @@ export async function GET() {
 
     if (authError) throw authError;
 
-    const preferences = await loadMfaPreferences(supabase, user.id);
+    // Convex read branch (flag-gated, default Supabase). Auth already enforced by
+    // supabase.auth.getUser() above; prefs are scoped to user.id only.
+    const preferences = shouldReturnConvexData('user_settings')
+      ? await loadMfaPreferencesFromConvex(user.id)
+      : await loadMfaPreferences(supabase, user.id);
     const twoFactor = preferences.two_factor;
     const pending = preferences.two_factor_pending;
 

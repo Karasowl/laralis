@@ -3,6 +3,16 @@ import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { getAuthUserProfileById } from '@/lib/auth-user-profiles';
+import { listConvexTable, getConvexDocumentByLegacyId } from '@/lib/convex/server';
+import { shouldReturnConvexData } from '@/lib/data-backend';
+
+type ImportedRecord = Record<string, any>;
+
+function normalizeConvexRecord(row: ImportedRecord | null | undefined) {
+  if (!row) return null;
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row;
+  return rest;
+}
 
 // QA route contract: @qa-token-route public invitation lookup plus authenticated email-matched acceptance.
 /**
@@ -18,31 +28,44 @@ export async function GET(
   const { token } = await params;
 
   try {
+    // Public-by-token endpoint (the unguessable token is the only credential),
+    // so the flag-gated Convex read branch needs no extra auth guard — it mirrors
+    // exactly what the Supabase path exposes. invitations is looked up by its
+    // unique token; workspaces/clinics are keyed by id (no clinic_id column).
+    const useConvex = shouldReturnConvexData('invitations');
+
     // Get the invitation first. The inviter FK points to auth.users, so joining
     // user_profiles in this query makes valid invitations look missing.
-    const { data: invitation, error } = await supabaseAdmin
-      .from('invitations')
-      .select(`
-        id,
-        workspace_id,
-        clinic_id,
-        clinic_ids,
-        email,
-        role,
-        message,
-        expires_at,
-        accepted_at,
-        rejected_at,
-        invited_by
-      `)
-      .eq('token', token)
-      .single();
+    let invitation: ImportedRecord | null;
+    if (useConvex) {
+      const rows = (await listConvexTable('invitations', 10000) as ImportedRecord[]).map(normalizeConvexRecord);
+      invitation = rows.find((r) => r && r.token === token) ?? null;
+    } else {
+      const { data, error } = await supabaseAdmin
+        .from('invitations')
+        .select(`
+          id,
+          workspace_id,
+          clinic_id,
+          clinic_ids,
+          email,
+          role,
+          message,
+          expires_at,
+          accepted_at,
+          rejected_at,
+          invited_by
+        `)
+        .eq('token', token)
+        .single();
 
-    if (error || !invitation) {
       if (error) {
         console.error('[invitations] Invitation lookup failed:', error);
       }
+      invitation = data ?? null;
+    }
 
+    if (!invitation) {
       return NextResponse.json(
         { error: 'Invitation not found' },
         { status: 404 }
@@ -72,8 +95,19 @@ export async function GET(
       );
     }
 
-    const [{ data: workspace }, { data: clinic }, inviterProfile] =
-      await Promise.all([
+    let workspace: { id: any; name: any } | null;
+    let clinic: { id: any; name: any } | null;
+    if (useConvex) {
+      const wsDoc = invitation.workspace_id
+        ? normalizeConvexRecord(await getConvexDocumentByLegacyId('workspaces', String(invitation.workspace_id)) as ImportedRecord | null)
+        : null;
+      workspace = wsDoc ? { id: wsDoc.id, name: wsDoc.name } : null;
+      const clinicDoc = invitation.clinic_id
+        ? normalizeConvexRecord(await getConvexDocumentByLegacyId('clinics', String(invitation.clinic_id)) as ImportedRecord | null)
+        : null;
+      clinic = clinicDoc ? { id: clinicDoc.id, name: clinicDoc.name } : null;
+    } else {
+      const [{ data: ws }, { data: cl }] = await Promise.all([
         supabaseAdmin
           .from('workspaces')
           .select('id, name')
@@ -86,10 +120,14 @@ export async function GET(
               .eq('id', invitation.clinic_id)
               .maybeSingle()
           : Promise.resolve({ data: null }),
-        invitation.invited_by
-          ? getAuthUserProfileById(invitation.invited_by)
-          : Promise.resolve(null),
       ]);
+      workspace = ws;
+      clinic = cl;
+    }
+
+    const inviterProfile = invitation.invited_by
+      ? await getAuthUserProfileById(invitation.invited_by)
+      : null;
 
     return NextResponse.json({
       invitation: {
