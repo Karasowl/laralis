@@ -5,6 +5,8 @@ import { resolveClinicContext } from '@/lib/clinic';
 import { z } from 'zod';
 import { readJson } from '@/lib/validation';
 import { forbiddenIfMissingPermission } from '@/lib/permissions';
+import { getConvexDocumentByLegacyId, patchConvexDocumentByLegacyId } from '@/lib/convex/server';
+import { shouldUseConvexOnlyWritePath, shouldWriteConvexData } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,6 +56,47 @@ export async function POST(
     const { clinicId, userId } = clinicContext;
     const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'treatments.mark_paid');
     if (forbidden) return forbidden;
+
+    if (shouldUseConvexOnlyWritePath('treatments')) {
+      const treatment = await getConvexDocumentByLegacyId('treatments', params.id) as Record<string, any> | null
+      if (!treatment || treatment.clinic_id !== clinicId) {
+        return NextResponse.json({ error: 'Treatment not found' }, { status: 404 })
+      }
+
+      const currentBalance = Number(treatment.pending_balance_cents || 0)
+      if (amount_cents > currentBalance) {
+        return NextResponse.json(
+          {
+            error: 'Payment exceeds balance',
+            message: `Maximum payment allowed: ${currentBalance} cents`,
+            max_payment_cents: currentBalance
+          },
+          { status: 400 }
+        )
+      }
+
+      const currentPaid = Number(treatment.amount_paid_cents || 0)
+      const newPaid = currentPaid + amount_cents
+      const newBalance = currentBalance - amount_cents
+      const patch = {
+        amount_paid_cents: newPaid,
+        pending_balance_cents: newBalance,
+        is_paid: newBalance <= 0,
+        updated_at: new Date().toISOString(),
+      }
+
+      await patchConvexDocumentByLegacyId('treatments', params.id, patch)
+
+      return NextResponse.json({
+        data: {
+          ...treatment,
+          ...patch,
+          balance_cents: newBalance,
+          payment_registered_cents: amount_cents,
+        },
+        message: patch.is_paid ? 'Payment completed - fully paid' : 'Payment registered successfully',
+      })
+    }
 
     // Get current treatment
     const { data: treatment, error: fetchError } = await supabaseAdmin
@@ -110,6 +153,14 @@ export async function POST(
         { error: 'Failed to register payment', message: updateError.message },
         { status: 500 }
       );
+    }
+
+    if (updated && shouldWriteConvexData('treatments')) {
+      try {
+        await patchConvexDocumentByLegacyId('treatments', params.id, updated as Record<string, unknown>)
+      } catch (convexError) {
+        console.error('[treatments payment] Convex mirror failed:', convexError)
+      }
     }
 
     return NextResponse.json({

@@ -6,6 +6,8 @@ import { syncTreatmentToCalendar, deleteTreatmentFromCalendar, CalendarSyncResul
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
 import { forbiddenIfMissingPermission } from '@/lib/permissions';
+import { getConvexDocumentByLegacyId, listConvexDocumentsByClinic, listConvexTable, patchConvexDocumentByLegacyId, deleteConvexDocumentByLegacyId } from '@/lib/convex/server';
+import { shouldUseConvexOnlyWritePath, shouldWriteConvexData } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
 
@@ -87,6 +89,46 @@ export async function PUT(
 
     // (ya incluimos alias arriba si aplica)
 
+    if (shouldUseConvexOnlyWritePath('treatments')) {
+      const current = await getConvexDocumentByLegacyId('treatments', params.id) as Record<string, any> | null
+      if (!current || current.clinic_id !== clinicId) {
+        return NextResponse.json({ error: 'Treatment not found' }, { status: 404 })
+      }
+
+      await patchConvexDocumentByLegacyId('treatments', params.id, payload)
+      const updated = {
+        ...current,
+        ...payload,
+      }
+
+      if (updated.patient_id && updated.status === 'completed') {
+        try {
+          const treatments = await listConvexDocumentsByClinic('treatments', clinicId)
+          const completedDates = treatments
+            .filter((row: any) => row.patient_id === updated.patient_id && row.status === 'completed' && row.treatment_date)
+            .map((row: any) => String(row.treatment_date))
+            .sort()
+          const earliest = completedDates[0]
+          if (earliest) {
+            const patient = await getConvexDocumentByLegacyId('patients', updated.patient_id) as Record<string, any> | null
+            if (patient && (!patient.first_visit_date || String(patient.first_visit_date) > earliest)) {
+              await patchConvexDocumentByLegacyId('patients', updated.patient_id, {
+                first_visit_date: earliest,
+                updated_at: new Date().toISOString(),
+              })
+            }
+          }
+        } catch (e) {
+          console.warn('[treatments PUT] Failed to adjust Convex patient first_visit_date:', e)
+        }
+      }
+
+      return NextResponse.json({
+        data: updated,
+        message: 'Treatment updated successfully',
+      })
+    }
+
     // Attempt update; if a column doesn't exist, remove and retry up to 4 times
     const triedMissing: Set<string> = new Set();
     let result = await supabaseAdmin
@@ -117,6 +159,14 @@ export async function PUT(
     if (result.error) {
       console.error('Error updating treatment:', result.error);
       return NextResponse.json({ error: 'Failed to update treatment', message: result.error.message }, { status: 500 });
+    }
+
+    if (result.data && shouldWriteConvexData('treatments')) {
+      try {
+        await patchConvexDocumentByLegacyId('treatments', params.id, result.data as Record<string, unknown>)
+      } catch (convexError) {
+        console.error('[treatments PUT] Convex mirror failed:', convexError)
+      }
     }
 
     // If treatment is completed and its date predates patient's first_visit_date, adjust it.
@@ -269,6 +319,31 @@ export async function DELETE(
     const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'treatments.delete');
     if (forbidden) return forbidden;
 
+    if (shouldUseConvexOnlyWritePath('treatments')) {
+      const treatment = await getConvexDocumentByLegacyId('treatments', params.id) as Record<string, any> | null
+      if (!treatment || treatment.clinic_id !== clinicId) {
+        return NextResponse.json({ error: 'Treatment not found' }, { status: 404 })
+      }
+
+      try {
+        const reminders = await listConvexTable('scheduled_reminders').catch(() => [])
+        await Promise.all(
+          reminders
+            .filter((row: any) => row.treatment_id === params.id && row.clinic_id === clinicId)
+            .map((row: any) => {
+              const rowId = String(row.id || row.legacyId || '')
+              return rowId ? deleteConvexDocumentByLegacyId('scheduled_reminders', rowId) : Promise.resolve()
+            })
+        )
+      } catch (e) {
+        console.warn('[treatments DELETE] Failed to delete Convex reminders:', e)
+      }
+
+      await deleteConvexDocumentByLegacyId('treatments', params.id)
+
+      return NextResponse.json({ data: null, message: 'Treatment deleted successfully' })
+    }
+
     // First, get the treatment to check for google_event_id
     const { data: treatment } = await supabaseAdmin
       .from('treatments')
@@ -298,6 +373,14 @@ export async function DELETE(
     if (error) {
       console.error('Error deleting treatment:', error);
       return NextResponse.json({ error: 'Failed to delete treatment', message: error.message }, { status: 500 });
+    }
+
+    if (shouldWriteConvexData('treatments')) {
+      try {
+        await deleteConvexDocumentByLegacyId('treatments', params.id)
+      } catch (convexError) {
+        console.error('[treatments DELETE] Convex mirror failed:', convexError)
+      }
     }
 
     // Delete event from Google Calendar if it exists

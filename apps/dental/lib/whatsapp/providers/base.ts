@@ -1,8 +1,10 @@
-/**
- * Base WhatsApp Provider Interface
- */
-
-import type { SendMessageResult, WhatsAppConfig, MessageStatus } from '../types'
+import type {
+  SendMessageResult,
+  WhatsAppConfig,
+  MessageStatus,
+  SendMessageOptions,
+  WhatsAppQuickReplyButton,
+} from '../types'
 
 export interface WhatsAppProviderInterface {
   /**
@@ -11,7 +13,8 @@ export interface WhatsAppProviderInterface {
   sendMessage(
     to: string,
     content: string,
-    config: WhatsAppConfig
+    config: WhatsAppConfig,
+    options?: SendMessageOptions
   ): Promise<SendMessageResult>
 
   /**
@@ -42,7 +45,8 @@ export abstract class BaseWhatsAppProvider implements WhatsAppProviderInterface 
   abstract sendMessage(
     to: string,
     content: string,
-    config: WhatsAppConfig
+    config: WhatsAppConfig,
+    options?: SendMessageOptions
   ): Promise<SendMessageResult>
 
   abstract validateConfig(config: WhatsAppConfig): { valid: boolean; error?: string }
@@ -87,5 +91,31 @@ export abstract class BaseWhatsAppProvider implements WhatsAppProviderInterface 
     }
 
     return statusMap[providerStatus.toLowerCase()] || 'pending'
+  }
+
+  protected normalizeQuickReplyButtons(
+    buttons: WhatsAppQuickReplyButton[] | undefined
+  ): WhatsAppQuickReplyButton[] {
+    return (buttons || [])
+      .map((button) => ({
+        id: button.id.trim().slice(0, 256),
+        title: button.title.trim().slice(0, 20),
+      }))
+      .filter((button) => button.id && button.title)
+      .slice(0, 3)
+  }
+
+  protected appendQuickReplyTextFallback(
+    content: string,
+    buttons: WhatsAppQuickReplyButton[] | undefined
+  ): string {
+    const normalizedButtons = this.normalizeQuickReplyButtons(buttons)
+    if (normalizedButtons.length === 0) return content
+
+    const options = normalizedButtons
+      .map((button, index) => `${index + 1}. ${button.title}`)
+      .join('\n')
+
+    return `${content}\n\nResponde con una opcion:\n${options}`
   }
 }

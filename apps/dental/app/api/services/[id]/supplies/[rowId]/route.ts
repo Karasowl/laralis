@@ -6,6 +6,8 @@ import { resolveClinicContext } from '@/lib/clinic';
 import { forbiddenIfMissingPermission } from '@/lib/permissions';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
+import { getConvexDocumentByLegacyId, patchConvexDocumentByLegacyId, deleteConvexDocumentByLegacyId } from '@/lib/convex/server';
+import { shouldUseConvexOnlyWritePath, shouldWriteConvexData } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
 
@@ -24,7 +26,7 @@ interface RouteParams {
 export async function DELETE(
   request: NextRequest,
   { params }: RouteParams
-): Promise<NextResponse<ApiResponse<null>>> {
+): Promise<NextResponse> {
   try {
     const cookieStore = cookies();
     const ctx = await resolveClinicContext({ cookieStore });
@@ -34,6 +36,26 @@ export async function DELETE(
     const { clinicId, userId } = ctx;
     const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'services.edit');
     if (forbidden) return forbidden;
+
+    if (shouldUseConvexOnlyWritePath('services')) {
+      const [recipeLine, service] = await Promise.all([
+        getConvexDocumentByLegacyId('service_supplies', params.rowId) as Promise<Record<string, any> | null>,
+        getConvexDocumentByLegacyId('services', params.id) as Promise<Record<string, any> | null>,
+      ])
+
+      if (!recipeLine || recipeLine.service_id !== params.id) {
+        return NextResponse.json({ error: 'Recipe line not found' }, { status: 404 })
+      }
+      if (!service || service.clinic_id !== clinicId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+
+      await deleteConvexDocumentByLegacyId('service_supplies', params.rowId)
+      return NextResponse.json({
+        data: null,
+        message: 'Recipe line deleted successfully'
+      })
+    }
 
     // Verify the recipe line exists and belongs to the service and clinic
     // Verify the recipe line exists and belongs to a service in this clinic
@@ -76,6 +98,14 @@ export async function DELETE(
       );
     }
 
+    if (shouldWriteConvexData('services')) {
+      try {
+        await deleteConvexDocumentByLegacyId('service_supplies', params.rowId)
+      } catch (convexError) {
+        console.error('[service supplies row DELETE] Convex mirror failed:', convexError)
+      }
+    }
+
     return NextResponse.json({
       data: null,
       message: 'Recipe line deleted successfully'
@@ -93,7 +123,7 @@ export async function DELETE(
 export async function PUT(
   request: NextRequest,
   { params }: RouteParams
-): Promise<NextResponse<ApiResponse<null>>> {
+): Promise<NextResponse> {
   try {
     const bodyResult = await readJson(request);
     if ('error' in bodyResult) {
@@ -111,6 +141,31 @@ export async function PUT(
     const { clinicId, userId } = ctx;
     const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'services.edit');
     if (forbidden) return forbidden;
+
+    if (shouldUseConvexOnlyWritePath('services')) {
+      const [recipeLine, service] = await Promise.all([
+        getConvexDocumentByLegacyId('service_supplies', params.rowId) as Promise<Record<string, any> | null>,
+        getConvexDocumentByLegacyId('services', params.id) as Promise<Record<string, any> | null>,
+      ])
+
+      if (!recipeLine || recipeLine.service_id !== params.id) {
+        return NextResponse.json({ error: 'Recipe line not found' }, { status: 404 })
+      }
+      if (!service || service.clinic_id !== clinicId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+
+      const { qty } = parsed.data
+      await patchConvexDocumentByLegacyId('service_supplies', params.rowId, {
+        qty,
+        updated_at: new Date().toISOString(),
+      })
+
+      return NextResponse.json({
+        data: null,
+        message: 'Recipe line updated successfully'
+      })
+    }
 
     // Verify the recipe line exists and belongs to the service and clinic
     const { data: recipeLine } = await supabaseAdmin
@@ -152,6 +207,17 @@ export async function PUT(
         { error: 'Failed to update recipe line', message: error.message },
         { status: 500 }
       );
+    }
+
+    if (shouldWriteConvexData('services')) {
+      try {
+        await patchConvexDocumentByLegacyId('service_supplies', params.rowId, {
+          qty,
+          updated_at: new Date().toISOString(),
+        })
+      } catch (convexError) {
+        console.error('[service supplies row PUT] Convex mirror failed:', convexError)
+      }
     }
 
     return NextResponse.json({

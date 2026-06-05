@@ -6,6 +6,8 @@ import { forbiddenIfMissingPermission } from '@/lib/permissions';
 import { deleteTreatmentFromCalendar } from '@/lib/google-calendar';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
+import { getConvexDocumentByLegacyId, patchConvexDocumentByLegacyId } from '@/lib/convex/server';
+import { shouldUseConvexOnlyWritePath, shouldWriteConvexData } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
 
@@ -56,6 +58,61 @@ export async function PATCH(
     if (forbidden) return forbidden;
 
     const { refund_reason } = body;
+
+    if (shouldUseConvexOnlyWritePath('treatments')) {
+      const treatment = await getConvexDocumentByLegacyId('treatments', params.id) as Record<string, any> | null
+      if (!treatment || treatment.clinic_id !== clinicId) {
+        return NextResponse.json({
+          error: 'Treatment not found',
+          code: 'NOT_FOUND'
+        }, { status: 404 })
+      }
+
+      if (treatment.is_refunded) {
+        return NextResponse.json({
+          error: 'This treatment has already been refunded',
+          code: 'ALREADY_REFUNDED'
+        }, { status: 400 })
+      }
+
+      if (treatment.status === 'cancelled') {
+        return NextResponse.json({
+          error: 'Cannot refund a cancelled treatment',
+          code: 'CANNOT_REFUND_CANCELLED'
+        }, { status: 400 })
+      }
+
+      const refundedAt = new Date().toISOString()
+      const patch = {
+        is_refunded: true,
+        refunded_at: refundedAt,
+        refund_reason: refund_reason.trim(),
+        google_event_id: null,
+        updated_at: refundedAt,
+      }
+      await patchConvexDocumentByLegacyId('treatments', params.id, patch)
+
+      const variableCost = treatment.variable_cost_cents || 0
+      const fixedCostPerMinute = treatment.fixed_cost_per_minute_cents || 0
+      const minutes = treatment.duration_minutes || 0
+      const fixedCost = fixedCostPerMinute * minutes
+      const totalLoss = variableCost + fixedCost
+
+      return NextResponse.json({
+        data: {
+          ...treatment,
+          ...patch,
+        },
+        message: 'Treatment refunded successfully',
+        refundDetails: {
+          refunded_at: refundedAt,
+          variable_cost_loss: variableCost,
+          fixed_cost_loss: fixedCost,
+          total_loss: totalLoss,
+          original_price: treatment.price_cents
+        }
+      })
+    }
 
     // First, fetch the treatment to verify it exists and check its current state
     const { data: treatment, error: fetchError } = await supabaseAdmin
@@ -109,6 +166,14 @@ export async function PATCH(
         error: 'Failed to process refund',
         message: updateError.message
       }, { status: 500 });
+    }
+
+    if (updatedTreatment && shouldWriteConvexData('treatments')) {
+      try {
+        await patchConvexDocumentByLegacyId('treatments', params.id, updatedTreatment as Record<string, unknown>)
+      } catch (convexError) {
+        console.error('[treatments refund] Convex mirror failed:', convexError)
+      }
     }
 
     // Delete from Google Calendar if connected (since treatment is now refunded)

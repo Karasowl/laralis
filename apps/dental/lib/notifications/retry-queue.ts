@@ -225,10 +225,24 @@ export async function listDueNotificationRetries(limit = 25, now: Date = new Dat
     .limit(safeLimit)
 
   if (error) {
+    if (isMissingNotificationRetryQueueTable(error)) {
+      console.warn('[notification-retry] notification_retry_queue table is not installed; skipping retry processing')
+      return []
+    }
+
     throw new Error(`Failed to fetch notification retries: ${error.message}`)
   }
 
   return (data || []) as NotificationRetryRow[]
+}
+
+function isMissingNotificationRetryQueueTable(error: { code?: string; message?: string }) {
+  const message = error.message || ''
+  return (
+    error.code === '42P01' ||
+    error.code === 'PGRST205' ||
+    /notification_retry_queue|schema cache|relation .* does not exist|Could not find the table/i.test(message)
+  )
 }
 
 export async function markNotificationRetryProcessing(retryId: string): Promise<void> {

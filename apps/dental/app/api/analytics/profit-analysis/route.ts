@@ -16,9 +16,223 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { withPermission } from '@/lib/middleware/with-permission'
+import { listConvexDocumentsByClinic } from '@/lib/convex/server'
+import { shouldReturnConvexData } from '@/lib/data-backend'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+
+type ImportedRecord = Record<string, any>
+
+function normalizeConvexRecord(row: ImportedRecord) {
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, ...rest } = row
+  return rest
+}
+
+/**
+ * Convex read branch: replicates the EXACT Supabase aggregation in JS.
+ *
+ * Mirrors:
+ * - treatments: status === 'completed', treatment_date filtered with the SAME
+ *   lexicographic >= startDate / <= endDate guards (each applied only when present),
+ *   summing price_cents (revenue) and variable_cost_cents.
+ * - expenses: expense_date filtered with the SAME guards, summing amount_cents.
+ * - fixed_costs: all rows for the clinic, summing amount_cents.
+ * - assets: monthly depreciation = round(purchase_price_cents / depreciation_months).
+ *
+ * Returns the SAME response shape (keys, nesting, units, rounding) as the Supabase path.
+ */
+async function getProfitAnalysisFromConvex(
+  clinicId: string,
+  startDate: string | null,
+  endDate: string | null,
+  periodDays: number,
+  daysInMonth: number
+) {
+  const [treatmentsRaw, expensesRaw, fixedCostsRaw, assetsRaw] = await Promise.all([
+    listConvexDocumentsByClinic('treatments', clinicId, 10000) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('expenses', clinicId, 10000) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('fixed_costs', clinicId, 10000) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('assets', clinicId, 10000) as Promise<ImportedRecord[]>,
+  ])
+
+  // ===== 1 & 2. Completed treatments within the date range =====
+  // status === 'completed' AND (no startDate OR treatment_date >= startDate)
+  //                          AND (no endDate   OR treatment_date <= endDate)
+  // Lexicographic comparison is safe on YYYY-MM-DD strings, matching Supabase .gte/.lte.
+  const treatments = treatmentsRaw
+    .map(normalizeConvexRecord)
+    .filter((t) => {
+      if (t.status !== 'completed') return false
+      const treatmentDate = String(t.treatment_date || '')
+      if (startDate && treatmentDate < startDate) return false
+      if (endDate && treatmentDate > endDate) return false
+      return true
+    })
+
+  const revenueCents = treatments.reduce(
+    (sum, t) => sum + (t.price_cents || 0),
+    0
+  )
+
+  const variableCostsCents = treatments.reduce(
+    (sum, t) => sum + (t.variable_cost_cents || 0),
+    0
+  )
+
+  // ===== 3. Expenses within the date range =====
+  const expenses = expensesRaw
+    .map(normalizeConvexRecord)
+    .filter((e) => {
+      const expenseDate = String(e.expense_date || '')
+      if (startDate && expenseDate < startDate) return false
+      if (endDate && expenseDate > endDate) return false
+      return true
+    })
+
+  const fixedCostsRealCents = expenses.reduce(
+    (sum, e) => sum + (e.amount_cents || 0),
+    0
+  )
+
+  // ===== 4. Configured fixed costs (all rows for the clinic) =====
+  const monthlyConfiguredFixedCents = fixedCostsRaw.reduce(
+    (sum, fc) => sum + (fc.amount_cents || 0),
+    0
+  )
+
+  const fixedCostsConfiguredCents = Math.round(
+    monthlyConfiguredFixedCents * periodDays / daysInMonth
+  )
+
+  // ===== 5. Asset depreciation (all rows for the clinic) =====
+  const monthlyDepreciationCents = assetsRaw.reduce((sum, asset) => {
+    const months = asset.depreciation_months || 1
+    const monthlyDepreciation = Math.round((asset.purchase_price_cents || 0) / months)
+    return sum + monthlyDepreciation
+  }, 0)
+
+  const depreciationCents = Math.round(
+    monthlyDepreciationCents * periodDays / daysInMonth
+  )
+
+  return buildProfitResponse({
+    revenueCents,
+    variableCostsCents,
+    fixedCostsRealCents,
+    fixedCostsConfiguredCents,
+    depreciationCents,
+    monthlyConfiguredFixedCents,
+    monthlyDepreciationCents,
+    treatmentsCount: treatments.length,
+    expensesCount: expenses.length,
+    startDate,
+    endDate,
+    periodDays,
+    daysInMonth,
+  })
+}
+
+/**
+ * Builds the response body from pre-aggregated cents totals.
+ * Shared by the Supabase and Convex branches to guarantee byte-identical shape,
+ * rounding, and field names.
+ */
+function buildProfitResponse(input: {
+  revenueCents: number
+  variableCostsCents: number
+  fixedCostsRealCents: number
+  fixedCostsConfiguredCents: number
+  depreciationCents: number
+  monthlyConfiguredFixedCents: number
+  monthlyDepreciationCents: number
+  treatmentsCount: number
+  expensesCount: number
+  startDate: string | null
+  endDate: string | null
+  periodDays: number
+  daysInMonth: number
+}) {
+  const {
+    revenueCents,
+    variableCostsCents,
+    fixedCostsRealCents,
+    fixedCostsConfiguredCents,
+    depreciationCents,
+    monthlyConfiguredFixedCents,
+    monthlyDepreciationCents,
+    treatmentsCount,
+    expensesCount,
+    startDate,
+    endDate,
+    periodDays,
+    daysInMonth,
+  } = input
+
+  const realProfitCents = revenueCents - fixedCostsRealCents
+  const realMarginPct = revenueCents > 0
+    ? (realProfitCents / revenueCents) * 100
+    : 0
+
+  const theoreticalCostsCents = variableCostsCents + fixedCostsConfiguredCents + depreciationCents
+  const theoreticalProfitCents = revenueCents - theoreticalCostsCents
+  const theoreticalMarginPct = revenueCents > 0
+    ? (theoreticalProfitCents / revenueCents) * 100
+    : 0
+
+  const differenceCents = realProfitCents - theoreticalProfitCents
+
+  const grossProfitCents = revenueCents - variableCostsCents
+  const grossMarginPct = revenueCents > 0
+    ? (grossProfitCents / revenueCents) * 100
+    : 0
+
+  const netProfitCents = realProfitCents
+  const netMarginPct = realMarginPct
+
+  const totalCostsCents = fixedCostsRealCents
+
+  return NextResponse.json({
+    revenue_cents: revenueCents,
+    costs: {
+      expenses_cents: fixedCostsRealCents,
+      variable_cents: variableCostsCents,
+      configured_fixed_cents: fixedCostsConfiguredCents,
+      depreciation_cents: depreciationCents,
+      total_cents: totalCostsCents
+    },
+    profits: {
+      real_profit_cents: realProfitCents,
+      real_margin_pct: Math.round(realMarginPct * 10) / 10,
+      theoretical_profit_cents: theoreticalProfitCents,
+      theoretical_margin_pct: Math.round(theoreticalMarginPct * 10) / 10,
+      difference_cents: differenceCents,
+      gross_profit_cents: grossProfitCents,
+      gross_margin_pct: Math.round(grossMarginPct * 10) / 10,
+      net_profit_cents: netProfitCents,
+      net_margin_pct: Math.round(netMarginPct * 10) / 10
+    },
+    benchmarks: {
+      gross_margin_target_pct: 85,
+      operating_margin_target_pct: 20,
+      ebitda_margin_target_pct: 17.5,
+      overhead_ratio_target_pct: 63
+    },
+    period: {
+      start: startDate || null,
+      end: endDate || null,
+      days: periodDays
+    },
+    treatments_count: treatmentsCount,
+    expenses_count: expensesCount,
+    metadata: {
+      monthly_configured_fixed_cents: monthlyConfiguredFixedCents,
+      monthly_depreciation_cents: monthlyDepreciationCents,
+      proration_factor: periodDays / daysInMonth,
+      explanation: 'Real profit = Revenue - Registered Expenses. Theoretical = Revenue - Variable - Configured Fixed - Depreciation.'
+    }
+  })
+}
 
 /**
  * Calculate the number of days in a period and the reference month's days for prorating
@@ -55,6 +269,12 @@ export const GET = withPermission('financial_reports.view', async (request, cont
 
     // Calculate period days for prorating monthly costs
     const { periodDays, daysInMonth } = calculatePeriodInfo(startDate, endDate)
+
+    // Convex read branch (flag-gated). Returns the SAME response shape with
+    // identical numeric aggregation. Production is unaffected until the flag flips.
+    if (shouldReturnConvexData('treatments')) {
+      return await getProfitAnalysisFromConvex(clinicId, startDate, endDate, periodDays, daysInMonth)
+    }
 
     // ===== 1. Get Revenue from completed treatments =====
     // Include variable_cost_cents for accurate gross profit calculation

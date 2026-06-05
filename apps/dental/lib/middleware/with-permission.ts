@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { resolveClinicContext, type ClinicContextSuccess } from '@/lib/clinic';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { getAuthBackend } from '@/lib/auth/convex-session';
+import { getConvexDocumentByLegacyId } from '@/lib/convex/server';
+import { userHasPermission } from '@/lib/permissions/check';
 import type { Permission } from '@/lib/permissions';
 
 /**
@@ -19,29 +22,33 @@ type PermissionHandler = (
   context: PermissionContext
 ) => Promise<NextResponse>;
 
-/**
- * Check if user has permission using the database function
- */
-async function checkPermission(
-  userId: string,
-  clinicId: string,
-  permission: Permission
-): Promise<boolean> {
-  const [resource, action] = permission.split('.');
-
-  const { data, error } = await supabaseAdmin.rpc('check_user_permission', {
-    p_user_id: userId,
-    p_clinic_id: clinicId,
-    p_resource: resource,
-    p_action: action,
-  });
-
-  if (error) {
-    console.error('[withPermission] Error checking permission:', error);
-    return false;
+async function getClinicWorkspaceId(clinicId: string) {
+  if (getAuthBackend() === 'convex') {
+    const clinic = await getConvexDocumentByLegacyId('clinics', clinicId) as { workspace_id?: string; workspaceId?: string } | null;
+    return clinic?.workspace_id || clinic?.workspaceId || null;
   }
 
-  return Boolean(data);
+  const { data: clinic, error } = await supabaseAdmin
+    .from('clinics')
+    .select('workspace_id')
+    .eq('id', clinicId)
+    .single();
+
+  if (clinic?.workspace_id) return clinic.workspace_id;
+
+  if (getAuthBackend() === 'dual') {
+    try {
+      const convexClinic = await getConvexDocumentByLegacyId('clinics', clinicId) as { workspace_id?: string; workspaceId?: string } | null;
+      if (convexClinic?.workspace_id || convexClinic?.workspaceId) {
+        return convexClinic.workspace_id || convexClinic.workspaceId || null;
+      }
+    } catch (convexError) {
+      console.error('[withPermission] Error loading Convex clinic workspace:', convexError);
+    }
+  }
+
+  if (error) console.error('[withPermission] Error loading clinic workspace:', error);
+  return null;
 }
 
 /**
@@ -86,14 +93,9 @@ export function withPermission(
 
     const { clinicId, userId } = context;
 
-    // Get workspace ID for context
-    const { data: clinic } = await supabaseAdmin
-      .from('clinics')
-      .select('workspace_id')
-      .eq('id', clinicId)
-      .single();
+    const workspaceId = await getClinicWorkspaceId(clinicId);
 
-    if (!clinic) {
+    if (!workspaceId) {
       return NextResponse.json(
         { error: 'Clinic not found' },
         { status: 404 }
@@ -101,7 +103,7 @@ export function withPermission(
     }
 
     // Check permission
-    const hasPermission = await checkPermission(userId, clinicId, permission);
+    const hasPermission = await userHasPermission(userId, clinicId, permission);
 
     if (!hasPermission) {
       return NextResponse.json(
@@ -117,7 +119,7 @@ export function withPermission(
     return handler(request, {
       clinicId,
       userId,
-      workspaceId: clinic.workspace_id,
+      workspaceId,
     });
   };
 }
@@ -155,13 +157,9 @@ export function withAllPermissions(
 
     const { clinicId, userId } = context;
 
-    const { data: clinic } = await supabaseAdmin
-      .from('clinics')
-      .select('workspace_id')
-      .eq('id', clinicId)
-      .single();
+    const workspaceId = await getClinicWorkspaceId(clinicId);
 
-    if (!clinic) {
+    if (!workspaceId) {
       return NextResponse.json(
         { error: 'Clinic not found' },
         { status: 404 }
@@ -170,7 +168,7 @@ export function withAllPermissions(
 
     // Check all permissions
     const results = await Promise.all(
-      permissions.map((perm) => checkPermission(userId, clinicId, perm))
+      permissions.map((perm) => userHasPermission(userId, clinicId, perm))
     );
 
     const missingPermissions = permissions.filter((_, i) => !results[i]);
@@ -188,7 +186,7 @@ export function withAllPermissions(
     return handler(request, {
       clinicId,
       userId,
-      workspaceId: clinic.workspace_id,
+      workspaceId,
     });
   };
 }
@@ -226,13 +224,9 @@ export function withAnyPermission(
 
     const { clinicId, userId } = context;
 
-    const { data: clinic } = await supabaseAdmin
-      .from('clinics')
-      .select('workspace_id')
-      .eq('id', clinicId)
-      .single();
+    const workspaceId = await getClinicWorkspaceId(clinicId);
 
-    if (!clinic) {
+    if (!workspaceId) {
       return NextResponse.json(
         { error: 'Clinic not found' },
         { status: 404 }
@@ -241,7 +235,7 @@ export function withAnyPermission(
 
     // Check if any permission passes
     const results = await Promise.all(
-      permissions.map((perm) => checkPermission(userId, clinicId, perm))
+      permissions.map((perm) => userHasPermission(userId, clinicId, perm))
     );
 
     const hasAnyPermission = results.some(Boolean);
@@ -259,7 +253,7 @@ export function withAnyPermission(
     return handler(request, {
       clinicId,
       userId,
-      workspaceId: clinic.workspace_id,
+      workspaceId,
     });
   };
 }

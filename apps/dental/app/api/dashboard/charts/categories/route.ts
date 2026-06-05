@@ -3,6 +3,8 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { cookies } from 'next/headers'
 import { resolveClinicContext } from '@/lib/clinic'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
+import { listConvexDocumentsByClinic } from '@/lib/convex/server';
+import { shouldReturnConvexData } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
 
@@ -37,6 +39,34 @@ export async function GET(request: NextRequest) {
 
     const startISO = start.toISOString().split('T')[0]
     const endISO = end.toISOString().split('T')[0]
+
+    if (shouldReturnConvexData('dashboard')) {
+      const [allTreatments, services] = await Promise.all([
+        listConvexDocumentsByClinic('treatments', clinicId),
+        listConvexDocumentsByClinic('services', clinicId),
+      ])
+      const serviceInfo = new Map<string, { name: string; category?: string }>()
+      for (const service of services as any[]) {
+        serviceInfo.set(service.id, {
+          name: service.name || 'Servicio sin nombre',
+          category: service.category || undefined,
+        })
+      }
+
+      const sums: Record<string, number> = {}
+      for (const t of allTreatments as any[]) {
+        const treatmentDate = String(t.treatment_date || '')
+        if (t.status !== 'completed' || treatmentDate < startISO || treatmentDate > endISO) continue
+        if (!t.service_id) continue
+        const info = serviceInfo.get(t.service_id)
+        const label = info?.name || info?.category || 'Servicio sin nombre'
+        sums[label] = (sums[label] || 0) + (t.price_cents || 0)
+      }
+
+      return NextResponse.json({
+        categories: Object.entries(sums).map(([name, value]) => ({ name, value }))
+      })
+    }
 
     // Fetch completed treatments within period
     const { data: treatments, error: tErr } = await supabaseAdmin

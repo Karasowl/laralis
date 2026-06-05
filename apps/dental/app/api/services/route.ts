@@ -7,6 +7,8 @@ import { withRouteContext } from '@/lib/api/route-handler';
 import { createRouteLogger } from '@/lib/api/logger';
 import { readJsonBody } from '@/lib/api/validation';
 import { forbiddenIfMissingPermission } from '@/lib/permissions';
+import { listConvexDocumentsByClinic, listConvexTable, upsertConvexDocumentByLegacyId } from '@/lib/convex/server';
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath, shouldWriteConvexData } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
 
@@ -82,6 +84,177 @@ const normalizeSupplyList = (supplies?: Array<{ supply_id?: string; qty?: number
   return Array.from(merged.entries()).map(([supply_id, qty]) => ({ supply_id, qty }))
 }
 
+type ImportedRecord = Record<string, any>
+
+function normalizeConvexRecord(row: ImportedRecord | null | undefined) {
+  if (!row) return null;
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, ...rest } = row;
+  return rest;
+}
+
+function byId(rows: ImportedRecord[]) {
+  return new Map(
+    rows.flatMap((row) => {
+      const ids = [row.id, row.legacyId].filter(Boolean).map((id) => String(id));
+      return ids.map((id) => [id, row] as const);
+    })
+  );
+}
+
+function calculateFixedCostPerMinute(
+  timeSettings: ImportedRecord | null | undefined,
+  fixedCosts: ImportedRecord[],
+  assets: ImportedRecord[]
+) {
+  const totalFixedCostsCents = fixedCosts.reduce((sum, cost) => sum + (Number(cost.amount_cents) || 0), 0);
+  const totalDepreciationCents = assets.reduce((sum, asset) => {
+    const months = Number(asset.depreciation_months) || 1;
+    return sum + Math.round((Number(asset.purchase_price_cents) || 0) / months);
+  }, 0);
+  const monthlyFixedCostsCents = totalFixedCostsCents + totalDepreciationCents;
+
+  if (!timeSettings) return 0;
+  const workDays = Number(timeSettings.work_days) || 20;
+  const hoursPerDay = Number(timeSettings.hours_per_day) || 7;
+  const rawRealPct = Number(timeSettings.real_pct ?? 0.8);
+  const realPctFactor = rawRealPct <= 1 ? rawRealPct : rawRealPct / 100;
+  const effectiveMinutes = workDays * hoursPerDay * 60 * realPctFactor;
+  return effectiveMinutes > 0 && monthlyFixedCostsCents > 0
+    ? Math.round(monthlyFixedCostsCents / effectiveMinutes)
+    : 0;
+}
+
+async function getServicesFromConvex(clinicId: string, search: string | null) {
+  const [
+    timeRows,
+    fixedCosts,
+    assets,
+    services,
+    serviceSupplies,
+    supplies,
+  ] = await Promise.all([
+    listConvexDocumentsByClinic('settings_time', clinicId, 10) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('fixed_costs', clinicId, 1000) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('assets', clinicId, 1000) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('services', clinicId, 1000) as Promise<ImportedRecord[]>,
+    listConvexTable('service_supplies', 5000) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('supplies', clinicId, 1000) as Promise<ImportedRecord[]>,
+  ]);
+
+  const fixedCostPerMinuteCents = calculateFixedCostPerMinute(timeRows[0], fixedCosts, assets);
+  const suppliesById = byId(supplies);
+  const normalizedSearch = search?.trim().toLowerCase();
+
+  return services
+    .filter((service) => {
+      if (!normalizedSearch) return true;
+      return String(service.name || '').toLowerCase().includes(normalizedSearch);
+    })
+    .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
+    .map((service) => {
+      const serviceId = String(service.id || service.legacyId || '');
+      const recipeRows = serviceSupplies
+        .filter((row) => row.service_id === serviceId || row.serviceId === serviceId)
+        .map((row) => {
+          const supply = row.supply_id ? suppliesById.get(String(row.supply_id)) : null;
+          return {
+            ...normalizeConvexRecord(row),
+            supplies: normalizeConvexRecord(supply),
+          };
+        });
+      const variableCostCents = recipeRows.reduce((total, row: any) => {
+        const supply = row.supplies;
+        const qty = Number(row.qty) || 0;
+        const price = Number(supply?.price_cents) || 0;
+        const portions = Number(supply?.portions) || 0;
+        if (supply && portions > 0 && qty > 0) {
+          return total + Math.round((price / portions) * qty);
+        }
+        return total;
+      }, 0);
+      const estMinutes = Number(service.est_minutes) || 0;
+      const fixedCostCents = Math.round(estMinutes * fixedCostPerMinuteCents);
+
+      return {
+        ...normalizeConvexRecord(service),
+        service_supplies: recipeRows,
+        fixed_cost_cents: fixedCostCents,
+        variable_cost_cents: Math.round(variableCostCents),
+        total_cost_cents: fixedCostCents + Math.round(variableCostCents),
+      };
+    });
+}
+
+async function findConvexServiceNameConflict(clinicId: string, name: string) {
+  const services = await getServicesFromConvex(clinicId, name);
+  return services.find((service: any) => String(service.name || '').trim().toLowerCase() === name.trim().toLowerCase()) ?? null;
+}
+
+function calculateDiscountedPriceCents(originalPriceCents: number, discountType: string, discountValue: number) {
+  if (discountType === 'percentage') {
+    return Math.max(0, Math.round(originalPriceCents * (1 - discountValue / 100)));
+  }
+  if (discountType === 'fixed') {
+    return Math.max(0, originalPriceCents - Math.round(discountValue * 100));
+  }
+  return originalPriceCents;
+}
+
+async function createServiceInConvex(
+  clinicId: string,
+  service: Record<string, unknown>,
+  serviceSuppliesPayload: Array<{ supply_id: string; qty: number }>
+) {
+  const now = new Date().toISOString();
+  const id = crypto.randomUUID();
+  const serviceDocument = {
+    ...service,
+    id,
+    clinic_id: clinicId,
+    created_at: now,
+    updated_at: now,
+  };
+  await upsertConvexDocumentByLegacyId('services', id, serviceDocument);
+
+  for (const supply of serviceSuppliesPayload) {
+    const rowId = crypto.randomUUID();
+    await upsertConvexDocumentByLegacyId('service_supplies', rowId, {
+      id: rowId,
+      clinic_id: clinicId,
+      service_id: id,
+      supply_id: supply.supply_id,
+      qty: supply.qty,
+      created_at: now,
+    });
+  }
+
+  return serviceDocument;
+}
+
+async function mirrorServiceToConvex(
+  logger: ReturnType<typeof createRouteLogger>,
+  service: Record<string, unknown>,
+  serviceSupplies: Record<string, unknown>[]
+) {
+  const id = service.id;
+  if (typeof id !== 'string') return;
+
+  try {
+    await upsertConvexDocumentByLegacyId('services', id, service);
+    for (const row of serviceSupplies) {
+      const rowId = row.id;
+      if (typeof rowId === 'string') {
+        await upsertConvexDocumentByLegacyId('service_supplies', rowId, row);
+      }
+    }
+  } catch (error) {
+    logger.error('services.dual_write.convex_failed', {
+      serviceId: id,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
 export async function GET(request: NextRequest) {
   return withRouteContext(request, async ({ requestId }) => {
     const logger = createRouteLogger(requestId);
@@ -98,6 +271,11 @@ export async function GET(request: NextRequest) {
       const { clinicId, userId } = clinicContext;
       const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'services.view');
       if (forbidden) return forbidden;
+
+      if (shouldReturnConvexData('services')) {
+        const servicesWithCost = await getServicesFromConvex(clinicId, search);
+        return NextResponse.json(servicesWithCost);
+      }
 
       // Get time settings to calculate fixed costs
       const { data: timeSettings } = await supabaseAdmin
@@ -331,6 +509,42 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      const serviceSuppliesPayload = normalizeSupplyList(supplies)
+      const price_cents = calculateDiscountedPriceCents(original_price_cents, discount_type, discount_value);
+
+      if (shouldUseConvexOnlyWritePath('services')) {
+        const existingService = await findConvexServiceNameConflict(clinicId, name);
+        if (existingService) {
+          return NextResponse.json(
+            { error: 'duplicate_service_name', message: 'Ya existe un servicio con ese nombre. Por favor, usa un nombre diferente.' },
+            { status: 409 }
+          );
+        }
+
+        const serviceData = await createServiceInConvex(
+          clinicId,
+          {
+            name,
+            category,
+            est_minutes,
+            description: description ?? null,
+            original_price_cents,
+            price_cents,
+            final_price_with_discount_cents: price_cents,
+            margin_pct,
+            discount_type,
+            discount_value,
+            discount_reason: rawBody.discount_reason || null,
+          },
+          serviceSuppliesPayload
+        );
+
+        return NextResponse.json({
+          data: serviceData,
+          message: 'Service created successfully'
+        }, { status: 201 });
+      }
+
       // Create the service with new fields (including discount fields)
       // Note: The trigger will calculate price_cents from original_price_cents + discount
       const { data: serviceData, error: serviceError} = await supabaseAdmin
@@ -378,7 +592,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const serviceSuppliesPayload = normalizeSupplyList(supplies)
+      let createdServiceSupplies: Record<string, unknown>[] = []
 
       if (serviceSuppliesPayload.length > 0) {
         const serviceSupplies = serviceSuppliesPayload.map((supply) => ({
@@ -387,14 +601,21 @@ export async function POST(request: NextRequest) {
           qty: supply.qty
         }))
 
-        const { error: suppliesError } = await supabaseAdmin
+        const { data: insertedServiceSupplies, error: suppliesError } = await supabaseAdmin
           .from('service_supplies')
           .insert(serviceSupplies)
+          .select()
 
         if (suppliesError) {
           logger.error('services.post.supplies_attach_failed', { error: suppliesError.message });
           // Consider rolling back the service creation here
+        } else {
+          createdServiceSupplies = (insertedServiceSupplies || []) as Record<string, unknown>[]
         }
+      }
+
+      if (serviceData && shouldWriteConvexData('services')) {
+        await mirrorServiceToConvex(logger, serviceData as Record<string, unknown>, createdServiceSupplies);
       }
 
       return NextResponse.json({

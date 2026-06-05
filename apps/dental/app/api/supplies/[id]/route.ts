@@ -7,9 +7,65 @@ import { resolveClinicContext } from '@/lib/clinic';
 import { readJson } from '@/lib/validation';
 import { forbiddenIfMissingPermission } from '@/lib/permissions';
 import { sendLowStockAlertPush } from '@/lib/notifications/product-push';
+import { getConvexDocumentByLegacyId, listConvexDocumentsByClinic, listConvexTable, patchConvexDocumentByLegacyId, deleteConvexDocumentByLegacyId } from '@/lib/convex/server';
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath, shouldWriteConvexData } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
 
+type ImportedRecord = Record<string, any>
+
+function normalizeConvexRecord(row: ImportedRecord | null | undefined) {
+  if (!row) return null;
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, ...rest } = row;
+  return rest;
+}
+
+function withCostPerPortion<T extends { price_cents?: number; portions?: number }>(supply: T) {
+  return {
+    ...supply,
+    cost_per_portion_cents: supply.portions && supply.portions > 0
+      ? Math.round((supply.price_cents || 0) / supply.portions)
+      : 0,
+  };
+}
+
+function isClinicRow(row: ImportedRecord | null | undefined, clinicId: string) {
+  return row?.clinic_id === clinicId || row?.clinicId === clinicId;
+}
+
+async function getConvexSupply(id: string, clinicId: string) {
+  const supply = await getConvexDocumentByLegacyId('supplies', id) as ImportedRecord | null;
+  if (!supply || !isClinicRow(supply, clinicId)) return null;
+  return withCostPerPortion(normalizeConvexRecord(supply) as ImportedRecord);
+}
+
+async function findConvexSupplyNameConflict(clinicId: string, name: string, excludeId: string) {
+  const rows = await listConvexDocumentsByClinic('supplies', clinicId, 1000) as ImportedRecord[];
+  return rows.find((row) => {
+    const rowId = String(row.id || row.legacyId || '');
+    return rowId !== excludeId && String(row.name || '').trim().toLowerCase() === name.trim().toLowerCase();
+  }) ?? null;
+}
+
+async function getConvexSupplyUsage(supplyId: string, clinicId: string) {
+  const [serviceSupplies, services] = await Promise.all([
+    listConvexTable('service_supplies', 5000) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('services', clinicId, 1000) as Promise<ImportedRecord[]>,
+  ]);
+  const serviceNamesById = new Map<string, string>();
+  for (const service of services) {
+    if (service.id && service.name) serviceNamesById.set(String(service.id), String(service.name));
+    if (service.legacyId && service.name) serviceNamesById.set(String(service.legacyId), String(service.name));
+  }
+
+  return serviceSupplies
+    .filter((row) => row.supply_id === supplyId || row.supplyId === supplyId)
+    .slice(0, 5)
+    .map((row) => ({
+      ...row,
+      service_name: row.service_id ? serviceNamesById.get(String(row.service_id)) : undefined,
+    }));
+}
 
 interface RouteParams {
   params: {
@@ -20,7 +76,7 @@ interface RouteParams {
 export async function GET(
   request: NextRequest, 
   { params }: RouteParams
-): Promise<NextResponse<ApiResponse<Supply>>> {
+): Promise<NextResponse> {
   try {
     const cookieStore = cookies();
     const clinicContext = await resolveClinicContext({ cookieStore });
@@ -30,6 +86,17 @@ export async function GET(
     const { clinicId, userId } = clinicContext;
     const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'supplies.view');
     if (forbidden) return forbidden;
+
+    if (shouldReturnConvexData('supplies')) {
+      const supply = await getConvexSupply(params.id, clinicId);
+      if (!supply) {
+        return NextResponse.json(
+          { error: 'Supply not found' },
+          { status: 404 }
+        );
+      }
+      return NextResponse.json({ data: supply } as ApiResponse<Supply>);
+    }
 
     const { data, error } = await supabaseAdmin
       .from('supplies')
@@ -72,13 +139,13 @@ export async function GET(
 export async function PUT(
   request: NextRequest, 
   { params }: RouteParams
-): Promise<NextResponse<ApiResponse<Supply>>> {
+): Promise<NextResponse> {
   try {
     const bodyResult = await readJson(request);
     if ('error' in bodyResult) {
       return bodyResult.error;
     }
-    const body = bodyResult.data;
+    const body = bodyResult.data as Record<string, any>;
     console.info('PUT /api/supplies/[id] - Received body:', body, 'ID:', params.id);
     
     const cookieStore = cookies();
@@ -135,6 +202,48 @@ export async function PUT(
     if ('min_stock_alert' in body) {
       const raw = body.min_stock_alert;
       min_stock_alert = typeof raw === 'number' && Number.isInteger(raw) && raw >= 0 ? raw : 10;
+    }
+
+    if (shouldUseConvexOnlyWritePath('supplies')) {
+      const existingSupply = await getConvexSupply(params.id, clinicId);
+      if (!existingSupply) {
+        return NextResponse.json(
+          { error: 'Supply not found or access denied' },
+          { status: 404 }
+        );
+      }
+
+      if (name) {
+        const existingSameName = await findConvexSupplyNameConflict(clinicId, name, params.id);
+        if (existingSameName) {
+          return NextResponse.json(
+            { error: 'Duplicate name', message: 'Ya existe un insumo con ese nombre en esta clínica.' },
+            { status: 409 }
+          );
+        }
+      }
+
+      const updateData: Record<string, unknown> = {
+        name,
+        category,
+        presentation,
+        price_cents,
+        portions,
+        updated_at: new Date().toISOString()
+      };
+      if (stock_quantity !== undefined) updateData.stock_quantity = stock_quantity;
+      if (min_stock_alert !== undefined) updateData.min_stock_alert = min_stock_alert;
+
+      await patchConvexDocumentByLegacyId('supplies', params.id, updateData);
+      const supplyWithCostPerPortion = withCostPerPortion({
+        ...existingSupply,
+        ...updateData,
+      } as ImportedRecord);
+
+      return NextResponse.json({
+        data: supplyWithCostPerPortion,
+        message: 'Supply updated successfully'
+      } as ApiResponse<Supply>);
     }
 
     // Verificar que el supply pertenece a la clínica
@@ -214,6 +323,14 @@ export async function PUT(
       }
     }
 
+    if (shouldWriteConvexData('supplies')) {
+      try {
+        await patchConvexDocumentByLegacyId('supplies', params.id, data as Record<string, unknown>);
+      } catch (convexError) {
+        console.error('[supplies PUT] Convex dual-write failed:', convexError);
+      }
+    }
+
     return NextResponse.json({ 
       data: supplyWithCostPerPortion,
       message: 'Supply updated successfully'
@@ -231,7 +348,7 @@ export async function PUT(
 export async function DELETE(
   request: NextRequest, 
   { params }: RouteParams
-): Promise<NextResponse<ApiResponse<null>>> {
+): Promise<NextResponse> {
   try {
     const cookieStore = cookies();
     const clinicContext = await resolveClinicContext({ cookieStore });
@@ -241,6 +358,38 @@ export async function DELETE(
     const { clinicId, userId } = clinicContext;
     const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'supplies.delete');
     if (forbidden) return forbidden;
+
+    if (shouldUseConvexOnlyWritePath('supplies')) {
+      const existingSupply = await getConvexSupply(params.id, clinicId);
+      if (!existingSupply) {
+        return NextResponse.json(
+          { error: 'Supply not found or access denied' },
+          { status: 404 }
+        );
+      }
+
+      const usage = await getConvexSupplyUsage(params.id, clinicId);
+      if (usage.length > 0) {
+        const serviceNames = usage
+          .map((row) => row.service_name)
+          .filter(Boolean);
+        const nameList = serviceNames.slice(0, 3).join(', ');
+        const moreCount = Math.max(0, serviceNames.length - 3);
+        const message = serviceNames.length > 0
+          ? `No puedes eliminar este insumo porque forma parte de ${serviceNames.length} servicio(s): ${nameList}${moreCount > 0 ? ` y ${moreCount} más` : ''}. Elimina primero el insumo de esos servicios.`
+          : 'No puedes eliminar este insumo porque forma parte de uno o más servicios activos. Elimina primero el insumo de esos servicios.';
+        return NextResponse.json(
+          { error: 'supply_in_use', message },
+          { status: 409 }
+        );
+      }
+
+      await deleteConvexDocumentByLegacyId('supplies', params.id);
+      return NextResponse.json({
+        data: null,
+        message: 'Supply deleted successfully'
+      } as ApiResponse<null>);
+    }
 
     // Verificar que el supply pertenece a la clínica
     const { data: existingSupply } = await supabaseAdmin
@@ -294,6 +443,14 @@ export async function DELETE(
         { error: 'Failed to delete supply', message: error.message },
         { status: 500 }
       );
+    }
+
+    if (shouldWriteConvexData('supplies')) {
+      try {
+        await deleteConvexDocumentByLegacyId('supplies', params.id);
+      } catch (convexError) {
+        console.error('[supplies DELETE] Convex dual-write failed:', convexError);
+      }
     }
 
     return NextResponse.json({ 

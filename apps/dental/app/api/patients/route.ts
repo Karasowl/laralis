@@ -7,6 +7,8 @@ import { withRouteContext } from '@/lib/api/route-handler';
 import { createRouteLogger } from '@/lib/api/logger';
 import { readJsonBody } from '@/lib/api/validation';
 import { forbiddenIfMissingPermission } from '@/lib/permissions';
+import { listConvexDocumentsByClinic, listConvexTable, upsertConvexDocumentByLegacyId } from '@/lib/convex/server';
+import { shouldCompareConvexData, shouldReturnConvexData, shouldUseConvexOnlyWritePath, shouldWriteConvexData } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
 
@@ -71,6 +73,11 @@ export async function GET(request: NextRequest) {
 
       const search = searchParams.get('search');
 
+      if (shouldReturnConvexData('patients')) {
+        const data = await getPatientsFromConvex(clinicId, search);
+        return NextResponse.json({ data });
+      }
+
       let query = supabaseAdmin
         .from('patients')
         .select(`
@@ -97,6 +104,10 @@ export async function GET(request: NextRequest) {
         );
       }
 
+      if (shouldCompareConvexData('patients')) {
+        await comparePatientsWithConvex(logger, clinicId, search, data || []);
+      }
+
       return NextResponse.json({ data: data || [] });
     } catch (error) {
       logger.error('patients.get.unexpected_error', {
@@ -108,6 +119,146 @@ export async function GET(request: NextRequest) {
       );
     }
   });
+}
+
+type ImportedRecord = Record<string, any>
+
+async function getPatientsFromConvex(clinicId: string, search: string | null) {
+  const [patientRows, sourceRows, campaignRows, categoryRows] = await Promise.all([
+    listConvexDocumentsByClinic('patients', clinicId, 500) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('patient_sources', clinicId, 500) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('marketing_campaigns', clinicId, 500) as Promise<ImportedRecord[]>,
+    listConvexTable('categories', 1000) as Promise<ImportedRecord[]>,
+  ]);
+
+  const sourceById = byId(sourceRows);
+  const campaignById = byId(campaignRows);
+  const categoryById = byId(categoryRows);
+  const patientById = byId(patientRows);
+  const normalizedSearch = search?.trim().toLowerCase();
+
+  return patientRows
+    .filter((row) => {
+      if (!normalizedSearch) return true;
+      return [row.first_name, row.last_name, row.email]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(normalizedSearch));
+    })
+    .sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))
+    .map((row) => {
+      const patient = normalizeConvexRecord(row);
+      const referredBy = row.referred_by_patient_id ? patientById.get(String(row.referred_by_patient_id)) : null;
+
+      return {
+        ...patient,
+        source: row.source_id ? normalizeConvexRecord(sourceById.get(String(row.source_id))) : null,
+        campaign: row.campaign_id ? normalizeConvexRecord(campaignById.get(String(row.campaign_id))) : null,
+        platform: row.platform_id ? normalizeConvexRecord(categoryById.get(String(row.platform_id))) : null,
+        referred_by: referredBy
+          ? {
+              id: referredBy.id,
+              first_name: referredBy.first_name,
+              last_name: referredBy.last_name,
+            }
+          : null,
+      };
+    });
+}
+
+function byId(rows: ImportedRecord[]) {
+  return new Map(
+    rows.flatMap((row) => {
+      const ids = [row.id, row.legacyId].filter(Boolean).map((id) => String(id));
+      return ids.map((id) => [id, row] as const);
+    })
+  );
+}
+
+function normalizeConvexRecord(row: ImportedRecord | null | undefined) {
+  if (!row) return null;
+  const { _id, _creationTime, legacyId, legacyTable, ...rest } = row;
+  return rest;
+}
+
+async function comparePatientsWithConvex(
+  logger: ReturnType<typeof createRouteLogger>,
+  clinicId: string,
+  search: string | null,
+  supabaseRows: unknown[]
+) {
+  try {
+    const convexRows = await getPatientsFromConvex(clinicId, search);
+    if (convexRows.length !== supabaseRows.length) {
+      logger.warn('patients.dual_read.count_mismatch', {
+        clinicId,
+        search: search ?? null,
+        supabase: supabaseRows.length,
+        convex: convexRows.length,
+      });
+    }
+  } catch (error) {
+    logger.error('patients.dual_read.convex_failed', {
+      clinicId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+async function findConvexPatientConflict(
+  clinicId: string,
+  patient: { first_name?: string | null; last_name?: string | null; email?: string | null },
+  excludeId?: string
+): Promise<ImportedRecord | null> {
+  const rows = await getPatientsFromConvex(clinicId, null);
+  const normalizedName = `${patient.first_name || ''} ${patient.last_name || ''}`.trim().toLowerCase();
+  const normalizedEmail = patient.email?.trim().toLowerCase();
+
+  return rows.find((row: any) => {
+    if (excludeId && row.id === excludeId) return false;
+    const rowName = `${row.first_name || ''} ${row.last_name || ''}`.trim().toLowerCase();
+    const rowEmail = row.email?.trim().toLowerCase();
+
+    return (
+      (normalizedName.length > 0 && rowName === normalizedName) ||
+      (normalizedEmail && rowEmail === normalizedEmail)
+    );
+  }) ?? null;
+}
+
+async function createPatientInConvex(
+  clinicId: string,
+  patientData: Record<string, unknown>
+) {
+  const now = new Date().toISOString();
+  const id = crypto.randomUUID();
+  const row = {
+    active: true,
+    ...patientData,
+    id,
+    clinic_id: clinicId,
+    created_at: now,
+    updated_at: now,
+  };
+
+  await upsertConvexDocumentByLegacyId('patients', id, row);
+  return row;
+}
+
+async function mirrorPatientToConvex(
+  logger: ReturnType<typeof createRouteLogger>,
+  patient: Record<string, unknown>
+) {
+  const id = patient.id;
+  if (typeof id !== 'string') return;
+
+  try {
+    await upsertConvexDocumentByLegacyId('patients', id, patient);
+  } catch (error) {
+    logger.error('patients.dual_write.convex_failed', {
+      patientId: id,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -176,6 +327,31 @@ export async function POST(request: NextRequest) {
         clinic_id: clinicId,
       };
 
+      if (shouldUseConvexOnlyWritePath('patients')) {
+        const conflict = await findConvexPatientConflict(clinicId, patientData);
+        if (conflict) {
+          const fullName = `${patientData.first_name || ''} ${patientData.last_name || ''}`.trim();
+          return NextResponse.json(
+            {
+              error: conflict.email && patientData.email && conflict.email === patientData.email
+                ? 'DUPLICATE_PATIENT_EMAIL'
+                : 'DUPLICATE_PATIENT_NAME',
+              data: {
+                name: fullName || 'Unknown',
+                email: patientData.email || 'Unknown',
+              },
+            },
+            { status: 409 }
+          );
+        }
+
+        const data = await createPatientInConvex(clinicId, patientData);
+        return NextResponse.json({
+          data,
+          message: 'Patient created successfully',
+        });
+      }
+
       const { data, error } = await supabaseAdmin
         .from('patients')
         .insert(patientData)
@@ -222,6 +398,10 @@ export async function POST(request: NextRequest) {
           { error: 'Failed to create patient', message: error.message },
           { status: 500 }
         );
+      }
+
+      if (data && shouldWriteConvexData('patients')) {
+        await mirrorPatientToConvex(logger, data as Record<string, unknown>);
       }
 
       return NextResponse.json({

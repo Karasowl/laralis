@@ -4,13 +4,67 @@ import { withPermission } from '@/lib/middleware/with-permission';
 import { zAsset } from '@/lib/zod';
 import type { Asset, ApiResponse } from '@/lib/types';
 import { readJson } from '@/lib/validation';
+import { listConvexDocumentsByClinic, upsertConvexDocumentByLegacyId } from '@/lib/convex/server';
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath, shouldWriteConvexData } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
 
+type ImportedRecord = Record<string, any>;
+
+function normalizeConvexRecord(row: ImportedRecord) {
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, ...rest } = row;
+  return rest;
+}
+
+async function getAssetsFromConvex(clinicId: string, search: string | null, page: number, limit: number) {
+  const normalizedSearch = search?.trim().toLowerCase();
+  let rows = await listConvexDocumentsByClinic('assets', clinicId, 1000) as ImportedRecord[];
+
+  if (normalizedSearch) {
+    rows = rows.filter((row) => String(row.name || '').toLowerCase().includes(normalizedSearch));
+  }
+
+  rows = rows.sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+  const from = (Math.max(1, page) - 1) * Math.max(1, limit);
+  return rows.slice(from, from + Math.max(1, limit)).map(normalizeConvexRecord);
+}
+
+function normalizeAssetPayload(row: Record<string, unknown>) {
+  const { depreciation_months, ...rest } = row as { depreciation_months?: number } & Record<string, unknown>;
+  const normalizedMonths = typeof depreciation_months === 'number' && Number.isFinite(depreciation_months)
+    ? Math.max(1, Math.round(depreciation_months))
+    : 36;
+
+  return {
+    ...rest,
+    depreciation_months: normalizedMonths,
+    depreciation_years: Math.max(1, Math.round(normalizedMonths / 12)),
+  };
+}
+
+async function createAssetInConvex(row: Record<string, unknown>) {
+  const now = new Date().toISOString();
+  const id = crypto.randomUUID();
+  const document = {
+    ...normalizeAssetPayload(row),
+    id,
+    created_at: now,
+    updated_at: now,
+  };
+
+  await upsertConvexDocumentByLegacyId('assets', id, document);
+  return document;
+}
+
+async function mirrorAssetToConvex(row: Record<string, unknown>) {
+  const id = row.id;
+  if (typeof id !== 'string') return;
+  await upsertConvexDocumentByLegacyId('assets', id, row);
+}
 
 export const GET = withPermission(
   'assets.view',
-  async (request, context): Promise<NextResponse<ApiResponse<Asset[]>>> => {
+  async (request, context): Promise<NextResponse> => {
     try {
       const searchParams = request.nextUrl.searchParams;
       const page = parseInt(searchParams.get('page') || '1', 10);
@@ -18,6 +72,11 @@ export const GET = withPermission(
       const search = searchParams.get('search');
 
       const { clinicId } = context;
+
+      if (shouldReturnConvexData('assets')) {
+        const data = await getAssetsFromConvex(clinicId, search, page, limit);
+        return NextResponse.json({ data });
+      }
 
       let query = supabaseAdmin
         .from('assets')
@@ -56,7 +115,7 @@ export const GET = withPermission(
 
 export const POST = withPermission(
   'assets.create',
-  async (request, context): Promise<NextResponse<ApiResponse<Asset>>> => {
+  async (request, context): Promise<NextResponse> => {
     try {
       const bodyResult = await readJson(request);
       if ('error' in bodyResult) {
@@ -107,6 +166,15 @@ export const POST = withPermission(
         depreciation_years: depreciationYears,
       };
 
+      if (shouldUseConvexOnlyWritePath('assets')) {
+        const data = await createAssetInConvex({
+          ...rest,
+          depreciation_months,
+        });
+
+        return NextResponse.json({ data, message: 'Asset created successfully' }, { status: 201 });
+      }
+
       const { data, error } = await supabaseAdmin
         .from('assets')
         .insert(dataToInsert)
@@ -119,6 +187,14 @@ export const POST = withPermission(
           { error: 'Failed to create asset', message: error.message },
           { status: 500 }
         );
+      }
+
+      if (data && shouldWriteConvexData('assets')) {
+        try {
+          await mirrorAssetToConvex(data as Record<string, unknown>);
+        } catch (convexError) {
+          console.error('[assets POST] Convex dual-write failed:', convexError);
+        }
       }
 
       return NextResponse.json({ data, message: 'Asset created successfully' }, { status: 201 });

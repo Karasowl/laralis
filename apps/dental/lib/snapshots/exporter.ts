@@ -10,6 +10,7 @@ import { gzip } from 'pako'
 import { createHash } from 'crypto'
 import { TableDiscoveryService } from './discovery'
 import { SnapshotStorageService } from './storage'
+import { createMirroredSupabaseClient } from '@/lib/convex/supabase-runtime-mirror'
 import {
   ClinicSnapshot,
   SnapshotMetadata,
@@ -31,14 +32,16 @@ export class ClinicSnapshotExporter {
   private storage: SnapshotStorageService
   private clinicName: string = ''
   private workspaceId: string = ''
+  private supabase: SupabaseClient
 
   constructor(
-    private supabase: SupabaseClient,
+    supabase: SupabaseClient,
     private clinicId: string,
     private options: ExportOptions
   ) {
-    this.discovery = new TableDiscoveryService(supabase)
-    this.storage = new SnapshotStorageService(supabase)
+    this.supabase = createMirroredSupabaseClient(supabase)
+    this.discovery = new TableDiscoveryService(this.supabase)
+    this.storage = new SnapshotStorageService(this.supabase)
   }
 
   /**

@@ -3,6 +3,8 @@ import { cookies } from 'next/headers'
 import { resolveClinicContext } from '@/lib/clinic'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
+import { listConvexDocumentsByClinic } from '@/lib/convex/server';
+import { shouldReturnConvexData } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
 
@@ -131,6 +133,35 @@ export async function GET(request: NextRequest) {
     // If explicit dates are provided, use them as custom range (overrides period)
     const period: SupportedPeriod = (dateFrom && dateTo) ? 'custom' : rawPeriod
     const ranges = computeRanges(period, dateFrom, dateTo)
+
+    if (shouldReturnConvexData('dashboard')) {
+      const expenses = await listConvexDocumentsByClinic('expenses', clinicId)
+      const currentStart = toDateParam(ranges.current.start)
+      const currentEnd = toDateParam(ranges.current.end)
+      const previousStart = toDateParam(ranges.previous.start)
+      const previousEnd = toDateParam(ranges.previous.end)
+
+      const currentExpenses = expenses.filter((row: any) => {
+        const expenseDate = String(row.expense_date || '')
+        return expenseDate >= currentStart && expenseDate <= currentEnd
+      })
+      const previousExpenses = expenses.filter((row: any) => {
+        const expenseDate = String(row.expense_date || '')
+        return expenseDate >= previousStart && expenseDate <= previousEnd
+      })
+
+      return NextResponse.json({
+        expenses: {
+          current: sumExpenses(currentExpenses),
+          previous: sumExpenses(previousExpenses),
+        },
+        totals: {
+          current_count: currentExpenses.length,
+          previous_count: previousExpenses.length,
+        },
+        period: ranges.label,
+      })
+    }
 
     const { data: currentExpenses, error: currentErr } = await supabaseAdmin
       .from('expenses')

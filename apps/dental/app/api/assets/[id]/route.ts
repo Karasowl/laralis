@@ -4,13 +4,28 @@ import { withPermission } from '@/lib/middleware/with-permission';
 import { zAsset } from '@/lib/zod';
 import type { Asset, ApiResponse } from '@/lib/types';
 import { readJson } from '@/lib/validation';
+import { getConvexDocumentByLegacyId, patchConvexDocumentByLegacyId, deleteConvexDocumentByLegacyId } from '@/lib/convex/server';
+import { shouldUseConvexOnlyWritePath, shouldWriteConvexData } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
 
+type ImportedRecord = Record<string, any>;
+
+function normalizeConvexRecord(row: ImportedRecord | null | undefined) {
+  if (!row) return null;
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, ...rest } = row;
+  return rest;
+}
+
+async function getAssetFromConvex(id: string, clinicId: string) {
+  const row = await getConvexDocumentByLegacyId('assets', id) as ImportedRecord | null;
+  if (!row || row.clinic_id !== clinicId) return null;
+  return normalizeConvexRecord(row);
+}
 
 export const PUT = withPermission(
   'assets.edit',
-  async (request, context): Promise<NextResponse<ApiResponse<Asset>>> => {
+  async (request, context): Promise<NextResponse> => {
     try {
       const assetId = request.nextUrl.pathname.split('/').pop();
       if (!assetId) {
@@ -55,7 +70,25 @@ export const PUT = withPermission(
       const dataToUpdate: Record<string, unknown> = { ...rest };
       if (typeof depreciation_months === 'number' && Number.isFinite(depreciation_months)) {
         const normalizedMonths = Math.max(1, Math.round(depreciation_months));
+        dataToUpdate.depreciation_months = normalizedMonths;
         dataToUpdate.depreciation_years = Math.max(1, Math.round(normalizedMonths / 12));
+      }
+
+      if (shouldUseConvexOnlyWritePath('assets')) {
+        const current = await getAssetFromConvex(assetId, clinicId);
+        if (!current) {
+          return NextResponse.json(
+            { error: 'Asset not found' },
+            { status: 404 }
+          );
+        }
+
+        const patch = {
+          ...dataToUpdate,
+          updated_at: new Date().toISOString(),
+        };
+        await patchConvexDocumentByLegacyId('assets', assetId, patch);
+        return NextResponse.json({ data: { ...current, ...patch }, message: 'Asset updated successfully' });
       }
 
       const { data, error } = await supabaseAdmin
@@ -81,6 +114,14 @@ export const PUT = withPermission(
         );
       }
 
+      if (shouldWriteConvexData('assets')) {
+        try {
+          await patchConvexDocumentByLegacyId('assets', assetId, data as Record<string, unknown>);
+        } catch (convexError) {
+          console.error('[assets PUT] Convex dual-write failed:', convexError);
+        }
+      }
+
       return NextResponse.json({ data, message: 'Asset updated successfully' });
     } catch (error) {
       console.error('Unexpected error in PUT /api/assets/[id]:', error);
@@ -94,11 +135,24 @@ export const PUT = withPermission(
 
 export const DELETE = withPermission(
   'assets.delete',
-  async (request, context): Promise<NextResponse<ApiResponse<null>>> => {
+  async (request, context): Promise<NextResponse> => {
     try {
       const assetId = request.nextUrl.pathname.split('/').pop();
       if (!assetId) {
         return NextResponse.json({ error: 'Asset ID is required' }, { status: 400 });
+      }
+
+      if (shouldUseConvexOnlyWritePath('assets')) {
+        const current = await getAssetFromConvex(assetId, context.clinicId);
+        if (!current) {
+          return NextResponse.json(
+            { error: 'Asset not found' },
+            { status: 404 }
+          );
+        }
+
+        await deleteConvexDocumentByLegacyId('assets', assetId);
+        return NextResponse.json({ data: null, message: 'Asset deleted successfully' });
       }
 
       const { error } = await supabaseAdmin
@@ -113,6 +167,14 @@ export const DELETE = withPermission(
           { error: 'Failed to delete asset', message: error.message },
           { status: 500 }
         );
+      }
+
+      if (shouldWriteConvexData('assets')) {
+        try {
+          await deleteConvexDocumentByLegacyId('assets', assetId);
+        } catch (convexError) {
+          console.error('[assets DELETE] Convex dual-write failed:', convexError);
+        }
       }
 
       return NextResponse.json({ data: null, message: 'Asset deleted successfully' });

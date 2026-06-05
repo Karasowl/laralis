@@ -1,3 +1,5 @@
+import { createMirroredSupabaseClient } from '@/lib/convex/supabase-runtime-mirror'
+
 export interface MfaTwoFactor {
   enabled?: boolean
   secret?: string
@@ -45,7 +47,8 @@ export async function saveMfaPreferences(
   userId: string,
   preferences: MfaPreferences
 ) {
-  const { error } = await supabase
+  const db = createMirroredSupabaseClient(supabase)
+  const { error } = await db
     .from('user_settings')
     .upsert(
       {

@@ -5,8 +5,221 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
 import { calculateROI } from '@/lib/calc/marketing'
 import { getFirstTreatmentDateByPatient } from '@/lib/calc/patient-acquisition'
+import { listConvexDocumentsByClinic, listConvexTable } from '@/lib/convex/server'
+import { shouldReturnConvexData } from '@/lib/data-backend'
 
 export const dynamic = 'force-dynamic'
+
+type ImportedRecord = Record<string, any>
+
+/**
+ * Replicates getFirstTreatmentDateByPatient (lib/calc/patient-acquisition.ts)
+ * over Convex treatment rows. Keeps the EXACT same filtering and "earliest
+ * lexicographic ISO date wins" logic so the in-memory acquisition window
+ * matches the Supabase path byte-for-byte.
+ */
+function buildFirstTreatmentDateMapFromConvex(
+  treatments: ImportedRecord[],
+  patientIds: string[]
+): Map<string, string> {
+  const allowed = patientIds.length > 0 ? new Set(patientIds.map((id) => String(id))) : null
+  const firstDate = new Map<string, string>()
+
+  for (const t of treatments) {
+    // Same filters as the Supabase query: treatment_date NOT NULL and
+    // status != 'cancelled'.
+    if (t.treatment_date === null || t.treatment_date === undefined) continue
+    if (t.status == null || t.status === 'cancelled') continue
+
+    const pid = String(t.patient_id ?? '')
+    if (!pid) continue
+    if (allowed && !allowed.has(pid)) continue
+
+    const iso = String(t.treatment_date || '').slice(0, 10)
+    if (!iso) continue
+
+    const existing = firstDate.get(pid)
+    if (!existing || iso < existing) firstDate.set(pid, iso)
+  }
+
+  return firstDate
+}
+
+/**
+ * Convex read path. Fetches the SAME tables the Supabase branch reads
+ * (marketing_campaigns, patients, treatments, expenses, categories) via the
+ * migration bridge and reassembles them in JS — Convex has no relational
+ * joins, so foreign keys (patient.campaign_id, treatment.patient_id,
+ * expense.campaign_id, expense.category_id) are matched by hand. Every
+ * aggregation, rounding (Math.round on cents), filter (status === 'completed',
+ * lexicographic YYYY-MM-DD date ranges) and the shared calculateROI/
+ * first-treatment logic mirror the Supabase path so the numbers are identical.
+ */
+async function getChannelRoiFromConvex(
+  clinicId: string,
+  period: number,
+  startDateStr: string,
+  endDateStr: string
+) {
+  // 1. Real marketing campaigns (mirror of the .or('is_archived.is.null,
+  //    is_archived.eq.false') filter — keep rows where is_archived is null/
+  //    undefined or strictly false).
+  const campaignsRaw = await listConvexDocumentsByClinic('marketing_campaigns', clinicId, 10000) as ImportedRecord[]
+  const campaigns = (campaignsRaw || [])
+    .filter((c) => c.is_archived === null || c.is_archived === undefined || c.is_archived === false)
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      code: c.code,
+      platform_id: c.platform_id,
+      is_active: c.is_active,
+    }))
+
+  if (campaigns.length === 0) {
+    return {
+      period,
+      dateRange: {
+        start: startDateStr,
+        end: endDateStr,
+      },
+      channels: [],
+      isEmpty: true,
+      message: 'no_campaigns',
+      summary: {
+        totalPatients: 0,
+        totalMarketingExpensesCents: 0,
+        bestChannel: null,
+        worstChannel: null,
+      },
+    }
+  }
+
+  // 2. Patients linked to any campaign (campaign_id NOT NULL).
+  const patientsRaw = await listConvexDocumentsByClinic('patients', clinicId, 10000) as ImportedRecord[]
+  const patientsLinked = (patientsRaw || [])
+    .filter((p) => p.campaign_id !== null && p.campaign_id !== undefined)
+    .map((p) => ({ id: p.id, campaign_id: p.campaign_id }))
+
+  // Fetch all clinic treatments once; reused for both the first-treatment
+  // acquisition window AND the completed-revenue aggregation below.
+  const treatmentsRaw = await listConvexDocumentsByClinic('treatments', clinicId, 10000) as ImportedRecord[]
+
+  const linkedIds = patientsLinked.map((p) => String(p.id))
+  const firstTreatmentByPatient = buildFirstTreatmentDateMapFromConvex(treatmentsRaw || [], linkedIds)
+
+  // Keep only campaign-linked patients whose FIRST treatment falls inside the
+  // inclusive [startDateStr, endDateStr] range (lexicographic on YYYY-MM-DD).
+  const patients = patientsLinked.filter((p) => {
+    const iso = firstTreatmentByPatient.get(String(p.id))
+    return iso !== undefined && iso >= startDateStr && iso <= endDateStr
+  })
+
+  // 3. Completed-treatment revenue for the acquired patients.
+  const patientIdSet = new Set(patients.map((p) => String(p.id)))
+  const treatments = patientIdSet.size > 0
+    ? (treatmentsRaw || [])
+        .filter((t) => t.status === 'completed' && patientIdSet.has(String(t.patient_id)))
+        .map((t) => ({ patient_id: t.patient_id, price_cents: t.price_cents }))
+    : []
+
+  // 4. Marketing expenses directly linked to campaigns within the date range.
+  const expensesRaw = await listConvexDocumentsByClinic('expenses', clinicId, 10000) as ImportedRecord[]
+  const campaignExpenses = (expensesRaw || [])
+    .filter((e) => {
+      if (e.campaign_id === null || e.campaign_id === undefined) return false
+      const d = String(e.expense_date || '')
+      return d >= startDateStr && d <= endDateStr
+    })
+    .map((e) => ({ amount_cents: e.amount_cents, campaign_id: e.campaign_id }))
+
+  // Total marketing expenses (category name === 'marketing') for proportional
+  // fallback. Categories are global (no clinic filter), matching the Supabase
+  // `.from('categories').eq('name','marketing')` query.
+  const categories = await listConvexTable('categories', 10000) as ImportedRecord[]
+  const marketingCategoryIds = (categories || [])
+    .filter((c) => c.name === 'marketing')
+    .map((c) => String(c.id))
+  const marketingCategoryIdSet = new Set(marketingCategoryIds)
+
+  let totalMarketingExpenses = 0
+  if (marketingCategoryIdSet.size > 0) {
+    totalMarketingExpenses = (expensesRaw || [])
+      .filter((e) => {
+        if (!marketingCategoryIdSet.has(String(e.category_id))) return false
+        const d = String(e.expense_date || '')
+        return d >= startDateStr && d <= endDateStr
+      })
+      .reduce((sum, e) => sum + (e.amount_cents || 0), 0)
+  }
+
+  // 5. Per-campaign metrics (identical aggregation to the Supabase branch).
+  const totalPatients = patients.length
+  const channelMetrics = campaigns.map((campaign) => {
+    const campaignPatients = patients.filter((p) => p.campaign_id === campaign.id)
+    const campaignPatientCount = campaignPatients.length
+    const campaignPatientIds = campaignPatients.map((p) => p.id)
+
+    const campaignRevenue = treatments
+      .filter((t) => campaignPatientIds.includes(t.patient_id))
+      .reduce((sum, t) => sum + (t.price_cents || 0), 0)
+
+    const directExpenses = campaignExpenses
+      .filter((e) => e.campaign_id === campaign.id)
+      .reduce((sum, e) => sum + (e.amount_cents || 0), 0)
+
+    const campaignInvestment = directExpenses > 0
+      ? directExpenses
+      : totalPatients > 0
+        ? Math.round((campaignPatientCount / totalPatients) * totalMarketingExpenses)
+        : 0
+
+    const roi = calculateROI(campaignRevenue, campaignInvestment)
+
+    return {
+      campaign: {
+        id: campaign.id,
+        name: campaign.name,
+        code: campaign.code,
+        isActive: campaign.is_active,
+      },
+      patients: campaignPatientCount,
+      revenueCents: campaignRevenue,
+      investmentCents: campaignInvestment,
+      roi: {
+        value: roi,
+        formatted: `${roi.toFixed(1)}%`,
+      },
+    }
+  })
+
+  const sortedChannels = channelMetrics.sort((a, b) => b.roi.value - a.roi.value)
+  const bestChannel = sortedChannels.find((c) => c.patients > 0) || sortedChannels[0]
+  const worstChannel = [...sortedChannels].reverse().find((c) => c.patients > 0) || sortedChannels[sortedChannels.length - 1]
+
+  return {
+    period,
+    dateRange: {
+      start: startDateStr,
+      end: endDateStr,
+    },
+    channels: sortedChannels,
+    isEmpty: false,
+    summary: {
+      totalPatients,
+      totalMarketingExpensesCents: totalMarketingExpenses,
+      bestChannel: bestChannel ? {
+        name: bestChannel.campaign.name,
+        roi: bestChannel.roi.value,
+        patients: bestChannel.patients,
+      } : null,
+      worstChannel: worstChannel ? {
+        name: worstChannel.campaign.name,
+        roi: worstChannel.roi.value,
+        patients: worstChannel.patients,
+      } : null,
+    },
+  }
+}
 
 /**
  * GET /api/analytics/channel-roi
@@ -75,6 +288,14 @@ export async function GET(request: NextRequest) {
 
     console.info('[channel-roi] Fetching for clinic:', clinicId)
     console.info('[channel-roi] Date range:', startDateStr, 'to', endDateStr)
+
+    // Convex read branch (flag-gated). Returns the byte-identical response
+    // shape via getChannelRoiFromConvex, replicating every Supabase
+    // aggregation/filter in JS. Default (no flag) keeps the Supabase path.
+    if (shouldReturnConvexData('marketing_campaigns')) {
+      const payload = await getChannelRoiFromConvex(clinicId, period, startDateStr, endDateStr)
+      return NextResponse.json(payload)
+    }
 
     // 1. Get user's REAL marketing campaigns (NOT dummy patient_sources)
     // Use .or() to handle NULL values - campaigns might have is_archived = null

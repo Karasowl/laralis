@@ -6,6 +6,9 @@
  */
 
 import { SupabaseClient } from '@supabase/supabase-js'
+import { deleteConvexStorageObject, uploadConvexStorageObject } from '@/lib/convex/server'
+import { shouldWriteConvexData } from '@/lib/data-backend'
+import { createMirroredSupabaseClient } from '@/lib/convex/supabase-runtime-mirror'
 import {
   SnapshotMetadata,
   StorageManifest,
@@ -16,11 +19,13 @@ import {
 
 export class SnapshotStorageService {
   private config: StorageConfig
+  private supabase: SupabaseClient
 
   constructor(
-    private supabase: SupabaseClient,
+    supabase: SupabaseClient,
     config: Partial<StorageConfig> = {}
   ) {
+    this.supabase = createMirroredSupabaseClient(supabase)
     this.config = { ...DEFAULT_STORAGE_CONFIG, ...config }
   }
 
@@ -76,6 +81,8 @@ export class SnapshotStorageService {
         error
       )
     }
+
+    await this.mirrorUploadToConvex(path, data, 'application/gzip', 'snapshot-upload')
 
     return path
   }
@@ -160,6 +167,8 @@ export class SnapshotStorageService {
       )
     }
 
+    await this.mirrorDeleteFromConvex(path)
+
     // Actualizar manifest para remover este snapshot
     await this.removeFromManifest(clinicId, snapshotId)
   }
@@ -215,9 +224,10 @@ export class SnapshotStorageService {
     }
 
     // Subir manifest actualizado
+    const manifestPayload = JSON.stringify(manifest, null, 2)
     const { error } = await this.supabase.storage
       .from(this.config.bucketName)
-      .upload(manifestPath, JSON.stringify(manifest, null, 2), {
+      .upload(manifestPath, manifestPayload, {
         contentType: 'application/json',
         upsert: true,
       })
@@ -229,6 +239,8 @@ export class SnapshotStorageService {
         error
       )
     }
+
+    await this.mirrorUploadToConvex(manifestPath, manifestPayload, 'application/json', 'snapshot-manifest')
   }
 
   /**
@@ -251,12 +263,15 @@ export class SnapshotStorageService {
       manifest.snapshots = manifest.snapshots.filter((s) => s.id !== snapshotId)
       manifest.updatedAt = new Date().toISOString()
 
+      const manifestPayload = JSON.stringify(manifest, null, 2)
       await this.supabase.storage
         .from(this.config.bucketName)
-        .upload(manifestPath, JSON.stringify(manifest, null, 2), {
+        .upload(manifestPath, manifestPayload, {
           contentType: 'application/json',
           upsert: true,
         })
+
+      await this.mirrorUploadToConvex(manifestPath, manifestPayload, 'application/json', 'snapshot-manifest')
     } catch (error) {
       console.error('Failed to update manifest after delete:', error)
     }
@@ -272,6 +287,7 @@ export class SnapshotStorageService {
     const path = this.getSnapshotPath(clinicId, snapshotId)
 
     await this.supabase.storage.from(this.config.bucketName).remove([path])
+    await this.mirrorDeleteFromConvex(path)
   }
 
   /**
@@ -389,12 +405,15 @@ export class SnapshotStorageService {
           )
           manifest.updatedAt = new Date().toISOString()
 
+          const manifestPayload = JSON.stringify(manifest, null, 2)
           await this.supabase.storage
             .from(this.config.bucketName)
-            .upload(manifestPath, JSON.stringify(manifest, null, 2), {
+            .upload(manifestPath, manifestPayload, {
               contentType: 'application/json',
               upsert: true,
             })
+
+          await this.mirrorUploadToConvex(manifestPath, manifestPayload, 'application/json', 'snapshot-manifest')
         }
       } catch (manifestError) {
         console.error('Failed to update manifest after cleanup:', manifestError)
@@ -402,5 +421,42 @@ export class SnapshotStorageService {
     }
 
     return deleted
+  }
+
+  private async mirrorUploadToConvex(
+    path: string,
+    data: Uint8Array | string,
+    contentType: string,
+    source: string
+  ): Promise<void> {
+    if (!shouldWriteConvexData('storage')) return
+
+    try {
+      await uploadConvexStorageObject({
+        bucket: this.config.bucketName,
+        path,
+        data,
+        contentType,
+        source,
+      })
+    } catch (error) {
+      if (process.env.CONVEX_STORAGE_MIRROR_STRICT === '1') {
+        throw error
+      }
+      console.error(`Failed to mirror ${path} to Convex Storage:`, error)
+    }
+  }
+
+  private async mirrorDeleteFromConvex(path: string): Promise<void> {
+    if (!shouldWriteConvexData('storage')) return
+
+    try {
+      await deleteConvexStorageObject(this.config.bucketName, path)
+    } catch (error) {
+      if (process.env.CONVEX_STORAGE_MIRROR_STRICT === '1') {
+        throw error
+      }
+      console.error(`Failed to delete ${path} from Convex Storage mirror:`, error)
+    }
   }
 }

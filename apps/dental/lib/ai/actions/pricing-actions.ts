@@ -10,6 +10,14 @@
  */
 
 import type { ActionParams, ActionResult, ActionContext } from '../types'
+import { createMirroredSupabaseClient } from '@/lib/convex/supabase-runtime-mirror'
+
+function withMirroredSupabase(context: ActionContext): ActionContext {
+  return {
+    ...context,
+    supabase: createMirroredSupabaseClient(context.supabase),
+  }
+}
 
 /**
  * Execute: Update service price
@@ -18,6 +26,7 @@ export async function executeUpdateServicePrice(
   params: ActionParams['update_service_price'],
   context: ActionContext
 ): Promise<ActionResult> {
+  context = withMirroredSupabase(context)
   const { supabase, clinicId, userId, dryRun } = context
   const { service_id, new_price_cents, reason } = params
 
@@ -143,6 +152,7 @@ export async function executeAdjustServiceMargin(
   params: ActionParams['adjust_service_margin'],
   context: ActionContext
 ): Promise<ActionResult> {
+  context = withMirroredSupabase(context)
   const { supabase, clinicId, userId, dryRun } = context
   const { service_id, target_margin_pct, adjust_price = false } = params
 
@@ -423,6 +433,7 @@ export async function executeSimulatePriceChange(
   params: ActionParams['simulate_price_change'],
   context: ActionContext
 ): Promise<ActionResult> {
+  context = withMirroredSupabase(context)
   const { supabase, clinicId, userId } = context
   const { service_id, change_type, change_value } = params
 
@@ -634,6 +645,7 @@ export async function executeCreateExpense(
   params: ActionParams['create_expense'],
   context: ActionContext
 ): Promise<ActionResult> {
+  context = withMirroredSupabase(context)
   const { supabase, clinicId, userId, dryRun } = context
   const { amount_cents, category_id, description, expense_date } = params
 
@@ -766,6 +778,7 @@ export async function executeUpdateTimeSettings(
   params: ActionParams['update_time_settings'],
   context: ActionContext
 ): Promise<ActionResult> {
+  context = withMirroredSupabase(context)
   const { supabase, clinicId, userId, dryRun } = context
   const { work_days, hours_per_day, real_productivity_pct } = params
 
@@ -899,7 +912,7 @@ export async function executeUpdateTimeSettings(
         .single()
     }
 
-    let attemptedPayload = currentSettings
+    let attemptedPayload: Record<string, unknown> = currentSettings
       ? { ...updates }
       : {
           work_days: work_days ?? 22,

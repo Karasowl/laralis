@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
+import { getCurrentUser } from '@/lib/auth/current-user';
+import { getConvexDocumentByLegacyId, listConvexTable } from '@/lib/convex/server';
+import { shouldReturnConvexData } from '@/lib/data-backend';
 import {
   forbiddenIfMissingWorkspacePermission,
   getAccessibleWorkspaceIds,
@@ -40,6 +42,60 @@ const workspaceCreateSchema = z.object({
   message: 'workspaceSlug or slug is required',
 });
 
+async function readWorkspaceById(workspaceId: string) {
+  if (shouldReturnConvexData('workspaces')) {
+    const workspace = await getConvexDocumentByLegacyId('workspaces', workspaceId) as Record<string, any> | null
+    return { workspace: workspace ? stripConvexMetadata(workspace) : null, error: null }
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('workspaces')
+    .select('*')
+    .eq('id', workspaceId)
+    .single();
+
+  return { workspace: data, error };
+}
+
+async function readWorkspacesByIds(
+  workspaceIds: string[],
+  options: { ascending?: boolean; limit?: number } = {}
+) {
+  if (workspaceIds.length === 0) return [] as any[];
+
+  if (shouldReturnConvexData('workspaces')) {
+    const idSet = new Set(workspaceIds);
+    const rows = await listConvexTable('workspaces', 10000) as Array<Record<string, any>>;
+    return rows
+      .filter((workspace) => idSet.has(String(workspace.id)))
+      .map(stripConvexMetadata)
+      .sort((left, right) => compareCreatedAt(left, right, options.ascending ?? true))
+      .slice(0, options.limit ?? Number.POSITIVE_INFINITY);
+  }
+
+  let query = supabaseAdmin
+    .from('workspaces')
+    .select('*')
+    .in('id', workspaceIds)
+    .order('created_at', { ascending: options.ascending ?? true });
+
+  if (options.limit) query = query.limit(options.limit);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+}
+
+function compareCreatedAt(left: any, right: any, ascending: boolean) {
+  const leftTime = Date.parse(left.created_at || '') || 0;
+  const rightTime = Date.parse(right.created_at || '') || 0;
+  return ascending ? leftTime - rightTime : rightTime - leftTime;
+}
+
+function stripConvexMetadata(row: Record<string, any>) {
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row;
+  return rest;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -47,26 +103,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const listAll = searchParams.get('list') === 'true';
     
-    // Crear cliente de Supabase para el servidor
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, options);
-            });
-          },
-        },
-      }
-    );
-
-    // Verificar autenticación
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user, error: authError } = await getCurrentUser(cookieStore);
 
     if (authError || !user) {
       return NextResponse.json(
@@ -83,21 +120,8 @@ export async function GET(request: NextRequest) {
         return NextResponse.json([]);
       }
 
-      const { data: workspaces, error } = await supabaseAdmin
-        .from('workspaces')
-        .select('*')
-        .in('id', accessibleWorkspaceIds)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching workspaces:', error);
-        return NextResponse.json(
-          { error: 'Failed to fetch workspaces' },
-          { status: 500 }
-        );
-      }
-
-      return NextResponse.json((workspaces || []).filter(isVisibleWorkspace));
+      const workspaces = await readWorkspacesByIds(accessibleWorkspaceIds, { ascending: false });
+      return NextResponse.json(workspaces.filter(isVisibleWorkspace));
     }
 
     // Comportamiento original para obtener workspace actual
@@ -107,26 +131,18 @@ export async function GET(request: NextRequest) {
       const canAccessWorkspace = await userCanAccessWorkspace(user.id, workspaceId);
 
       // Verificar que el workspace existe y pertenece al usuario o membresia activa
-      const { data: workspace, error } = await supabaseAdmin
-        .from('workspaces')
-        .select('*')
-        .eq('id', workspaceId)
-        .single();
+      const { workspace, error } = await readWorkspaceById(workspaceId);
 
       if (canAccessWorkspace && !error && workspace && isVisibleWorkspace(workspace)) {
         if (isActiveWorkspace(workspace)) {
           return NextResponse.json({ workspace });
         }
 
-        const { data: activeWorkspaces } = accessibleWorkspaceIds.length > 0
-          ? await supabaseAdmin
-              .from('workspaces')
-              .select('*')
-              .in('id', accessibleWorkspaceIds)
-              .eq('onboarding_completed', true)
-              .order('created_at', { ascending: true })
-              .limit(1)
-          : { data: [] as any[] };
+        const activeWorkspaces = accessibleWorkspaceIds.length > 0
+          ? (await readWorkspacesByIds(accessibleWorkspaceIds, { ascending: true }))
+              .filter((row) => row.onboarding_completed === true)
+              .slice(0, 1)
+          : [];
 
         const activeWorkspace = activeWorkspaces?.find(isActiveWorkspace) || activeWorkspaces?.[0];
 
@@ -151,22 +167,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ workspace: null });
     }
 
-    const { data: workspaces, error } = await supabaseAdmin
-      .from('workspaces')
-      .select('*')
-      .in('id', accessibleWorkspaceIds)
-      .order('created_at', { ascending: true })
-      .limit(20);
+    const workspaces = await readWorkspacesByIds(accessibleWorkspaceIds, { ascending: true, limit: 20 });
 
-    if (error) {
-      console.error('Error fetching workspaces:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch workspaces' },
-        { status: 500 }
-      );
-    }
-
-    const visibleWorkspaces = (workspaces || []).filter(isVisibleWorkspace);
+    const visibleWorkspaces = workspaces.filter(isVisibleWorkspace);
 
     if (visibleWorkspaces.length > 0) {
       const selectedWorkspace = visibleWorkspaces.find(isActiveWorkspace) || visibleWorkspaces[0];
@@ -195,26 +198,7 @@ export async function POST(request: NextRequest) {
   try {
     const cookieStore = cookies();
     
-    // Crear cliente de Supabase para el servidor
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, options);
-            });
-          },
-        },
-      }
-    );
-
-    // Verificar autenticación
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user, error: authError } = await getCurrentUser(cookieStore);
 
     if (authError || !user) {
       return NextResponse.json(
@@ -235,17 +219,7 @@ export async function POST(request: NextRequest) {
 
     const accessibleWorkspaceIds = await getAccessibleWorkspaceIds(user.id);
     if (accessibleWorkspaceIds.length > 0) {
-      const { data: existingWorkspaces, error: existingWorkspacesError } = await supabaseAdmin
-        .from('workspaces')
-        .select('id, status, onboarding_completed')
-        .in('id', accessibleWorkspaceIds)
-
-      if (existingWorkspacesError) {
-        return NextResponse.json(
-          { error: 'Failed to validate existing workspaces', details: existingWorkspacesError.message },
-          { status: 500 }
-        );
-      }
+      const existingWorkspaces = await readWorkspacesByIds(accessibleWorkspaceIds);
 
       const visibleWorkspaces = (existingWorkspaces || []).filter(isVisibleWorkspace);
       const currentWorkspaceId = cookieStore.get('workspaceId')?.value;

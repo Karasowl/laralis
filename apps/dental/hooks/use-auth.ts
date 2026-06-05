@@ -58,12 +58,30 @@ export function useAuth(): UseAuthReturn {
     setError(null)
 
     try {
+      if (getAuthBackend() === 'convex') {
+        return await loginWithConvexCredentials(credentials, {
+          setError,
+          t,
+          router,
+        })
+      }
+
       const { error: signInError, data } = await supabase.auth.signInWithPassword({
         email: credentials.email,
         password: credentials.password
       })
 
       if (signInError) {
+        if (getAuthBackend() === 'dual') {
+          const convexLogin = await loginWithConvexCredentials(credentials, {
+            setError,
+            t,
+            router,
+            silent: true,
+          })
+          if (convexLogin) return true
+        }
+
         setError(signInError.message)
         toast.error(signInError.message)
         return false
@@ -74,6 +92,8 @@ export function useAuth(): UseAuthReturn {
         toast.error('Login failed - no user returned')
         return false
       }
+
+      await bridgeConvexPasswordCredential(credentials)
 
       const preferredLanguage = (data.user.user_metadata as Record<string, any> | null)?.preferred_language as string | undefined
       if (preferredLanguage) {
@@ -206,6 +226,7 @@ export function useAuth(): UseAuthReturn {
     
     try {
       await supabase.auth.signOut()
+      await fetch('/api/auth/convex-logout', { method: 'POST' }).catch(() => null)
       toast.success(t('logout_success'))
       router.push('/auth/login')
     } catch (err) {
@@ -251,5 +272,74 @@ export function useAuth(): UseAuthReturn {
     logout,
     resetPassword,
     clearError
+  }
+}
+
+async function bridgeConvexPasswordCredential(credentials: AuthCredentials) {
+  if (process.env.NEXT_PUBLIC_CONVEX_AUTH_BRIDGE !== '1') return
+
+  try {
+    await fetch('/api/auth/convex-bridge', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        email: credentials.email,
+        password: credentials.password,
+      }),
+    })
+  } catch (error) {
+    console.error('[useAuth] Convex auth bridge failed', error)
+  }
+}
+
+function getAuthBackend() {
+  const value = process.env.NEXT_PUBLIC_AUTH_BACKEND || 'supabase'
+  return value === 'convex' || value === 'dual' ? value : 'supabase'
+}
+
+async function loginWithConvexCredentials(
+  credentials: AuthCredentials,
+  options: {
+    setError: (message: string | null) => void
+    t: (key: string) => string
+    router: ReturnType<typeof useRouter>
+    silent?: boolean
+  }
+) {
+  try {
+    const response = await fetch('/api/auth/convex-login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        email: credentials.email,
+        password: credentials.password,
+      }),
+    })
+
+    if (!response.ok) {
+      if (!options.silent) {
+        const body = await response.json().catch(() => null)
+        const message = body?.error || 'Login failed'
+        options.setError(message)
+        toast.error(message)
+      }
+      return false
+    }
+
+    toast.success(options.t('login_success'))
+    options.router.refresh()
+
+    setTimeout(() => {
+      window.location.href = '/'
+    }, 500)
+
+    return true
+  } catch (error) {
+    if (!options.silent) {
+      const message = error instanceof Error ? error.message : 'Login failed'
+      options.setError(message)
+      toast.error(message)
+    }
+    return false
   }
 }

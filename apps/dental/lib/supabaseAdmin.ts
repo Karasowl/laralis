@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { createMirroredSupabaseClient } from '@/lib/convex/supabase-runtime-mirror';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -25,7 +26,7 @@ if (!keyToUse) {
 }
 
 // Cliente con service role key para operaciones admin (solo server-side)
-export const supabaseAdmin = createClient(
+export const supabaseAdminRaw = createClient(
   supabaseUrl,
   keyToUse || '',
   {
@@ -35,6 +36,9 @@ export const supabaseAdmin = createClient(
     }
   }
 );
+
+// Server-side writes can be mirrored into Convex when DATA_WRITE_MODE=dual.
+export const supabaseAdmin = createMirroredSupabaseClient(supabaseAdminRaw);
 
 // Helper para verificar si estamos usando service role
 export const isUsingServiceRole = !!supabaseServiceRoleKey;

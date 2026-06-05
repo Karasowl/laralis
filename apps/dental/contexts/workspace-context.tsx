@@ -1,9 +1,16 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from 'react';
-import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
+import { createClient } from '@/lib/supabase/client';
 import { useRouter, usePathname } from 'next/navigation';
-import type { User } from '@supabase/supabase-js';
+
+type AuthBackend = 'supabase' | 'convex' | 'dual';
+
+interface AppUser {
+  id: string;
+  email?: string | null;
+  user_metadata?: Record<string, any>;
+}
 
 interface Workspace {
   id: string;
@@ -35,7 +42,7 @@ interface Clinic {
 }
 
 interface WorkspaceContextType {
-  user: User | null;
+  user: AppUser | null;
   workspace: Workspace | null;
   workspaces: Workspace[];
   currentClinic: Clinic | null;
@@ -86,7 +93,7 @@ const isHiddenWorkspace = (workspace: Pick<Workspace, 'status' | 'onboarding_com
 };
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [currentClinic, setCurrentClinic] = useState<Clinic | null>(null);
@@ -97,19 +104,28 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const redirectingRef = (typeof window !== 'undefined') ? (window as any).__routeRedirectingRef ?? ((window as any).__routeRedirectingRef = { current: false }) : { current: false };
   const pathname = usePathname();
 
-  // PERFORMANCE: Create Supabase client once using useRef to avoid recreating on every render
-  // This prevents ALL useEffects that depend on supabase from re-running unnecessarily
-  const supabaseRef = useRef<ReturnType<typeof createSupabaseBrowserClient> | null>(null);
-  if (!supabaseRef.current) {
-    supabaseRef.current = createSupabaseBrowserClient();
-  }
-  const supabase = supabaseRef.current;
+  const authBackend = getClientAuthBackend();
+  const shouldUseSupabaseAuth = authBackend !== 'convex';
+
+  const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
+  const getSupabaseClient = useCallback(() => {
+    if (!shouldUseSupabaseAuth) return null;
+    if (!supabaseRef.current) {
+      supabaseRef.current = createClient();
+    }
+    return supabaseRef.current;
+  }, [shouldUseSupabaseAuth]);
 
   // PERFORMANCE: Memoize signOut to prevent recreating on every render
   const signOut = useCallback(async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
+      }
+
+      await fetch('/api/auth/convex-logout', { method: 'POST' }).catch(() => null);
 
       // Limpiar estado local
       setUser(null);
@@ -131,7 +147,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       sessionStorage.clear();
       window.location.href = '/auth/login';
     }
-  }, [supabase]);
+  }, [getSupabaseClient]);
 
   // PERFORMANCE: Memoize refreshWorkspaces to prevent recreating on every render
   const refreshWorkspaces = useCallback(async () => {
@@ -250,7 +266,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [user, workspace, pathname, router, supabase]);
+  }, [user, workspace, pathname, router]);
 
   // PERFORMANCE: Memoize refreshClinics to prevent recreating on every render
   const refreshClinics = useCallback(async () => {
@@ -260,22 +276,27 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const { data, error } = await supabase
-        .from('clinics')
-        .select('*')
-        .eq('workspace_id', workspace.id)
-        .eq('is_active', true)
-        .order('name');
+      const response = await fetch(`/api/clinics?workspaceId=${encodeURIComponent(workspace.id)}`, {
+        credentials: 'include',
+        cache: 'no-store',
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.error || 'Failed to fetch clinics');
+      }
 
-      setClinics(data || []);
+      const payload = await response.json();
+      const clinicRows = (Array.isArray(payload) ? payload : payload?.data || [])
+        .filter((clinic: Clinic) => clinic.is_active !== false) as Clinic[];
+
+      setClinics(clinicRows);
 
       // 🔥 VALIDACIÓN: Verificar si la clínica actual pertenece a este workspace
       let needsNewClinic = false;
 
       if (currentClinic) {
-        const clinicStillExists = data && data.some(c => c.id === currentClinic.id);
+        const clinicStillExists = clinicRows.some(c => c.id === currentClinic.id);
         if (!clinicStillExists) {
           console.warn(`[workspace-context] 🧹 Clínica ID ${currentClinic.id} no pertenece al workspace actual. Auto-limpiando...`);
           try {
@@ -303,30 +324,29 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       } catch {}
 
       // Seleccionar la clínica preferida si es necesario
-      if (needsNewClinic && data && data.length > 0) {
+      if (needsNewClinic && clinicRows.length > 0) {
         const preferredClinic = preferredClinicId
-          ? data.find((clinic) => clinic.id === preferredClinicId)
+          ? clinicRows.find((clinic) => clinic.id === preferredClinicId)
           : undefined;
-        const nextClinic = preferredClinic || data[0];
+        const nextClinic = preferredClinic || clinicRows[0];
         console.log(`[workspace-context] 📍 Seleccionando clínica del workspace: ${nextClinic.name}`);
         setCurrentClinic(nextClinic);
       }
     } catch (err: any) {
       setError(err.message);
     }
-  }, [workspace, currentClinic, supabase]);
+  }, [workspace, currentClinic]);
 
   // PERFORMANCE: Memoize refreshUser to prevent recreating on every render
   const refreshUser = useCallback(async () => {
     try {
-      const { data: { user }, error } = await supabase.auth.getUser();
-      if (error) throw error;
-      setUser(user);
+      const currentUser = await fetchCurrentUser();
+      setUser(currentUser);
     } catch (err: any) {
       console.error('Error refreshing user:', err);
       setError(err.message);
     }
-  }, [supabase]);
+  }, []);
 
   // Manejar autenticación
   useEffect(() => {
@@ -335,7 +355,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     // Obtener usuario inicial
     const initAuth = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = await fetchCurrentUser();
         if (mounted) {
           setUser(user);
           if (!user) {
@@ -351,6 +371,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     };
     
     initAuth();
+
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      return () => {
+        mounted = false;
+      };
+    }
 
     // Escuchar cambios de autenticación
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -376,7 +403,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [supabase]);
+  }, [getSupabaseClient]);
 
   // Cargar workspaces cuando el usuario cambie
   useEffect(() => {
@@ -525,3 +552,27 @@ export const useWorkspace = () => {
   }
   return context;
 };
+
+function getClientAuthBackend(): AuthBackend {
+  const value = process.env.NEXT_PUBLIC_AUTH_BACKEND || 'supabase';
+  return value === 'convex' || value === 'dual' ? value : 'supabase';
+}
+
+async function fetchCurrentUser(): Promise<AppUser | null> {
+  const response = await fetch('/api/auth/me', {
+    credentials: 'include',
+    cache: 'no-store',
+  });
+
+  if (response.status === 401) {
+    return null;
+  }
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload?.error || 'Failed to fetch current user');
+  }
+
+  const payload = await response.json();
+  return payload?.user ?? null;
+}

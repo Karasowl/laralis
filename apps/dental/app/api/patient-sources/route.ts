@@ -5,6 +5,8 @@ import { resolveClinicContext } from '@/lib/clinic';
 import { forbiddenIfMissingPermission } from '@/lib/permissions';
 import { z } from 'zod';
 import { readJson } from '@/lib/validation';
+import { listConvexDocumentsByClinic, upsertConvexDocumentByLegacyId } from '@/lib/convex/server';
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath, shouldWriteConvexData } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
 
@@ -36,6 +38,17 @@ export async function GET(request: NextRequest) {
         { error: 'No clinic context available' },
         { status: 400 }
       );
+    }
+
+    if (shouldReturnConvexData('patient_sources')) {
+      const sources = await listConvexDocumentsByClinic('patient_sources', clinicId)
+      const filtered = activeOnly ? sources.filter((source: any) => source.is_active === true) : sources
+      filtered.sort((a: any, b: any) => {
+        const systemDelta = Number(Boolean(b.is_system)) - Number(Boolean(a.is_system))
+        if (systemDelta !== 0) return systemDelta
+        return String(a.name || '').localeCompare(String(b.name || ''))
+      })
+      return NextResponse.json({ data: filtered })
     }
 
     let query = supabaseAdmin
@@ -75,7 +88,7 @@ export async function POST(request: NextRequest) {
     if ('error' in bodyResult) {
       return bodyResult.error;
     }
-    const body = bodyResult.data;
+    const body = bodyResult.data as Record<string, any>;
     const cookieStore = cookies();
     const clinicContext = await resolveClinicContext({ requestedClinicId: body?.clinic_id, cookieStore });
     if ('error' in clinicContext) {
@@ -110,6 +123,35 @@ export async function POST(request: NextRequest) {
       is_system: false // Las creadas por el usuario no son del sistema
     };
 
+    if (shouldUseConvexOnlyWritePath('patient_sources')) {
+      const existing = (await listConvexDocumentsByClinic('patient_sources', clinicId))
+        .find((source: any) => String(source.name || '').trim().toLowerCase() === String(sourceData.name || '').trim().toLowerCase())
+      if (existing) {
+        return NextResponse.json(
+          {
+            error: 'Nombre duplicado',
+            message: 'Ya existe una vía con este nombre en esta clínica.'
+          },
+          { status: 400 }
+        )
+      }
+
+      const id = crypto.randomUUID()
+      const now = new Date().toISOString()
+      const document = {
+        ...sourceData,
+        id,
+        created_at: now,
+        updated_at: now,
+      }
+      await upsertConvexDocumentByLegacyId('patient_sources', id, document)
+
+      return NextResponse.json({
+        data: document,
+        message: 'Patient source created successfully'
+      })
+    }
+
     const { data, error } = await supabaseAdmin
       .from('patient_sources')
       .insert(sourceData)
@@ -134,6 +176,14 @@ export async function POST(request: NextRequest) {
         { error: 'Failed to create patient source', message: error.message },
         { status: 500 }
       );
+    }
+
+    if (data && shouldWriteConvexData('patient_sources')) {
+      try {
+        await upsertConvexDocumentByLegacyId('patient_sources', data.id, data as Record<string, unknown>)
+      } catch (convexError) {
+        console.error('[patient-sources] Convex mirror failed:', convexError)
+      }
     }
 
     return NextResponse.json({ 

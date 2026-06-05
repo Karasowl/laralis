@@ -3,6 +3,8 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { withPermission } from '@/lib/middleware/with-permission'
 import { withRouteContext } from '@/lib/api/route-handler'
 import { createRouteLogger } from '@/lib/api/logger'
+import { listConvexDocumentsByClinic } from '@/lib/convex/server';
+import { shouldReturnConvexData } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
 
@@ -29,27 +31,53 @@ export const GET = withPermission('expenses.view', async (request, context) =>
       const startDate = searchParams.get('start_date')
       const endDate = searchParams.get('end_date')
 
-      // Build expenses query within date range
-      let q = supabaseAdmin
-        .from('expenses')
-        .select('expense_date, category, amount_cents, is_variable')
-        .eq('clinic_id', clinicId)
+      let expenses: any[] = []
+      let fixedCosts: any[] = []
 
-      if (startDate) q = q.gte('expense_date', startDate)
-      if (endDate) q = q.lte('expense_date', endDate)
+      if (shouldReturnConvexData('expenses')) {
+        const [convexExpenses, convexFixedCosts] = await Promise.all([
+          listConvexDocumentsByClinic('expenses', clinicId),
+          listConvexDocumentsByClinic('fixed_costs', clinicId),
+        ])
+        expenses = convexExpenses.filter((expense: any) => {
+          const expenseDate = String(expense.expense_date || '')
+          return (!startDate || expenseDate >= startDate) && (!endDate || expenseDate <= endDate)
+        })
+        fixedCosts = convexFixedCosts
+      } else {
+        // Build expenses query within date range
+        let q = supabaseAdmin
+          .from('expenses')
+          .select('expense_date, category, amount_cents, is_variable')
+          .eq('clinic_id', clinicId)
 
-      const { data: expenses, error } = await q
-      if (error) {
-        logger.error('expenses.stats.fetch_expenses_failed', { error: error.message })
-        return NextResponse.json({ error: 'Failed to fetch expenses' }, { status: 500 })
+        if (startDate) q = q.gte('expense_date', startDate)
+        if (endDate) q = q.lte('expense_date', endDate)
+
+        const { data, error } = await q
+        if (error) {
+          logger.error('expenses.stats.fetch_expenses_failed', { error: error.message })
+          return NextResponse.json({ error: 'Failed to fetch expenses' }, { status: 500 })
+        }
+
+        expenses = data || []
+
+        const { data: fixedCostRows, error: fcError } = await supabaseAdmin
+          .from('fixed_costs')
+          .select('amount_cents')
+          .eq('clinic_id', clinicId)
+        if (fcError) {
+          logger.warn('expenses.stats.fixed_costs_fetch_warning', { error: fcError.message })
+        }
+        fixedCosts = fixedCostRows || []
       }
 
       const totalCents = (expenses || []).reduce((sum, e) => sum + (e.amount_cents || 0), 0)
-      const totalCount = expenses?.length || 0
+      const totalCount = expenses.length
 
       // Group by category
       const byCategoryMap = new Map<string, { amount: number; count: number }>()
-      for (const e of expenses || []) {
+      for (const e of expenses) {
         const cat = e.category || 'Otros'
         const prev = byCategoryMap.get(cat) || { amount: 0, count: 0 }
         prev.amount += e.amount_cents || 0
@@ -68,7 +96,7 @@ export const GET = withPermission('expenses.view', async (request, context) =>
 
       // Group by month (YYYY-MM)
       const byMonthMap = new Map<string, { amount: number; count: number }>()
-      for (const e of expenses || []) {
+      for (const e of expenses) {
         const month = (e.expense_date || '').toString().slice(0, 7) // YYYY-MM
         const prev = byMonthMap.get(month) || { amount: 0, count: 0 }
         prev.amount += e.amount_cents || 0
@@ -79,19 +107,11 @@ export const GET = withPermission('expenses.view', async (request, context) =>
         .map(([month, v]) => ({ month, amount: Math.round(v.amount), count: v.count }))
         .sort((a, b) => a.month.localeCompare(b.month))
 
-      // Planned (fixed costs for clinic)
-      const { data: fixedCosts, error: fcError } = await supabaseAdmin
-        .from('fixed_costs')
-        .select('amount_cents')
-        .eq('clinic_id', clinicId)
-      if (fcError) {
-        logger.warn('expenses.stats.fixed_costs_fetch_warning', { error: fcError.message })
-      }
       const plannedCents = (fixedCosts || []).reduce((sum, f) => sum + (f.amount_cents || 0), 0)
 
       // CRITICAL: Only compare FIXED expenses against planned fixed costs
       // Variable expenses are excluded because they are tied to treatments.
-      const fixedExpensesCents = (expenses || [])
+      const fixedExpensesCents = expenses
         .filter(e => !e.is_variable)
         .reduce((sum, e) => sum + (e.amount_cents || 0), 0)
 

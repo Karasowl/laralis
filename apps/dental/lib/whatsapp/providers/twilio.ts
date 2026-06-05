@@ -1,12 +1,5 @@
-/**
- * Twilio WhatsApp Provider
- *
- * Uses Twilio's WhatsApp Business API
- * Docs: https://www.twilio.com/docs/whatsapp
- */
-
 import { BaseWhatsAppProvider } from './base'
-import type { SendMessageResult, WhatsAppConfig, MessageStatus } from '../types'
+import type { SendMessageResult, WhatsAppConfig, MessageStatus, SendMessageOptions } from '../types'
 
 export class TwilioWhatsAppProvider extends BaseWhatsAppProvider {
   private baseUrl = 'https://api.twilio.com/2010-04-01'
@@ -27,7 +20,8 @@ export class TwilioWhatsAppProvider extends BaseWhatsAppProvider {
   async sendMessage(
     to: string,
     content: string,
-    config: WhatsAppConfig
+    config: WhatsAppConfig,
+    options?: SendMessageOptions
   ): Promise<SendMessageResult> {
     const validation = this.validateConfig(config)
     if (!validation.valid) {
@@ -45,11 +39,12 @@ export class TwilioWhatsAppProvider extends BaseWhatsAppProvider {
         : `whatsapp:${fromNumber}`
 
       const url = `${this.baseUrl}/Accounts/${config.twilio_account_sid}/Messages.json`
+      const messageBody = this.appendQuickReplyTextFallback(content, options?.quickReplyButtons)
 
       const body = new URLSearchParams({
         To: whatsappTo,
         From: whatsappFrom,
-        Body: content,
+        Body: messageBody,
       })
 
       const response = await fetch(url, {

@@ -6,8 +6,99 @@ import { forbiddenIfMissingPermission } from '@/lib/permissions'
 import { calculateCAC } from '@/lib/calc/marketing'
 import { buildBuckets, chooseGranularity, findBucketKey } from '@/lib/calc/buckets'
 import { getFirstTreatmentDateByPatient } from '@/lib/calc/patient-acquisition'
+import { listConvexDocumentsByClinic, listConvexTable } from '@/lib/convex/server'
+import { shouldReturnConvexData } from '@/lib/data-backend'
 
 export const dynamic = 'force-dynamic'
+
+type ImportedRecord = Record<string, any>
+
+function normalizeConvexRecord(row: ImportedRecord) {
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, ...rest } = row
+  return rest
+}
+
+/**
+ * Replicates getFirstTreatmentDateByPatient (lib/calc/patient-acquisition.ts)
+ * over Convex treatment rows. Same filters as the Supabase query
+ * (treatment_date NOT NULL, status != 'cancelled') and the same
+ * "earliest lexicographic ISO date wins" reduction, so the bucketed
+ * new-patient counts match the Supabase path byte-for-byte.
+ */
+function buildFirstTreatmentDateMapFromConvex(
+  treatments: ImportedRecord[]
+): Map<string, string> {
+  const firstDate = new Map<string, string>()
+
+  for (const t of treatments) {
+    if (t.treatment_date === null || t.treatment_date === undefined) continue
+    if (t.status == null || t.status === 'cancelled') continue
+
+    const pid = String(t.patient_id ?? '')
+    if (!pid) continue
+
+    const iso = String(t.treatment_date || '').slice(0, 10)
+    if (!iso) continue
+
+    const existing = firstDate.get(pid)
+    if (!existing || iso < existing) firstDate.set(pid, iso)
+  }
+
+  return firstDate
+}
+
+/**
+ * Convex read path. Fetches the SAME tables the Supabase branch reads
+ * (categories, expenses, treatments) via the migration bridge and replicates
+ * the identical in-memory aggregation: marketing-category lookup by name,
+ * expense filtering by category + lexicographic [start, end] date range,
+ * first-treatment-per-patient bucketing, and the shared calculateCAC. Convex
+ * has no relational joins, so the expense → category and treatment → patient
+ * foreign keys are matched in JS. Money stays in integer cents.
+ */
+async function getCacTrendFromConvex(
+  clinicId: string,
+  rangeStartIso: string,
+  rangeEndIso: string
+): Promise<{
+  marketingExpenses: Array<{ amount_cents: number; expense_date: string }>
+  firstTreatmentDate: Map<string, string>
+}> {
+  // Marketing categories are global (no clinic filter), matching the Supabase
+  // `.from('categories').eq('name', 'marketing')` query.
+  const categories = await listConvexTable('categories', 10000) as ImportedRecord[]
+  const marketingCategoryIdSet = new Set(
+    (categories || [])
+      .filter((c) => c.name === 'marketing')
+      .map((c) => String(c.id))
+  )
+
+  // Fetch clinic expenses + treatments once.
+  const [expensesRaw, treatmentsRaw] = await Promise.all([
+    listConvexDocumentsByClinic('expenses', clinicId, 10000) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('treatments', clinicId, 10000) as Promise<ImportedRecord[]>,
+  ])
+
+  // Marketing expenses inside the inclusive [rangeStartIso, rangeEndIso] range.
+  // Mirrors the Supabase `.in('category_id', ids).gte().lte()` filter.
+  let marketingExpenses: Array<{ amount_cents: number; expense_date: string }> = []
+  if (marketingCategoryIdSet.size > 0) {
+    marketingExpenses = (expensesRaw || [])
+      .filter((e) => {
+        if (!marketingCategoryIdSet.has(String(e.category_id))) return false
+        const d = String(e.expense_date || '').slice(0, 10)
+        return d >= rangeStartIso && d <= rangeEndIso
+      })
+      .map((e) => {
+        const row = normalizeConvexRecord(e)
+        return { amount_cents: row.amount_cents, expense_date: row.expense_date }
+      })
+  }
+
+  const firstTreatmentDate = buildFirstTreatmentDateMapFromConvex(treatmentsRaw || [])
+
+  return { marketingExpenses, firstTreatmentDate }
+}
 
 /**
  * GET /api/analytics/cac-trend
@@ -79,42 +170,54 @@ export async function GET(request: NextRequest) {
     const rangeStartIso = buckets[0].start
     const rangeEndIso = buckets[buckets.length - 1].end
 
-    // Fetch marketing expenses + patients in the entire range, then bucket
-    // them in-memory. Replaces the previous PostgREST `categories!inner`
-    // join (which was unreliable in production) with a two-step lookup.
-    const { data: marketingCategories, error: marketingCatError } =
-      await supabaseAdmin
-        .from('categories')
-        .select('id')
-        .eq('name', 'marketing')
-
-    if (marketingCatError) {
-      console.error('[cac-trend] Error fetching marketing category:', marketingCatError)
-    }
-
-    const marketingCategoryIds = (marketingCategories || []).map((c: any) => c.id)
-
+    // Resolve the data source. Both branches produce the SAME two inputs
+    // (range-filtered marketing expenses + a patientId -> first-treatment-ISO
+    // map); the downstream bucketing / calculateCAC aggregation is identical
+    // regardless of source, so the response shape and numbers match exactly.
     let marketingExpenses: Array<{ amount_cents: number; expense_date: string }> = []
-    if (marketingCategoryIds.length > 0) {
-      const { data: expenses, error: expensesError } = await supabaseAdmin
-        .from('expenses')
-        .select('amount_cents, expense_date')
-        .eq('clinic_id', clinicId)
-        .in('category_id', marketingCategoryIds)
-        .gte('expense_date', rangeStartIso)
-        .lte('expense_date', rangeEndIso)
+    let firstTreatmentDate: Map<string, string>
 
-      if (expensesError) {
-        console.error('[cac-trend] Error fetching expenses:', expensesError)
-        throw expensesError
+    if (shouldReturnConvexData('expenses')) {
+      const convexData = await getCacTrendFromConvex(clinicId, rangeStartIso, rangeEndIso)
+      marketingExpenses = convexData.marketingExpenses
+      firstTreatmentDate = convexData.firstTreatmentDate
+    } else {
+      // Fetch marketing expenses + patients in the entire range, then bucket
+      // them in-memory. Replaces the previous PostgREST `categories!inner`
+      // join (which was unreliable in production) with a two-step lookup.
+      const { data: marketingCategories, error: marketingCatError } =
+        await supabaseAdmin
+          .from('categories')
+          .select('id')
+          .eq('name', 'marketing')
+
+      if (marketingCatError) {
+        console.error('[cac-trend] Error fetching marketing category:', marketingCatError)
       }
-      marketingExpenses = (expenses || []) as any
-    }
 
-    // "New patient" = patient whose FIRST treatment falls in the bucket.
-    // patients.created_at is the lead-capture date and over-counts contacts
-    // who never converted into actual visits.
-    const firstTreatmentDate = await getFirstTreatmentDateByPatient(clinicId)
+      const marketingCategoryIds = (marketingCategories || []).map((c: any) => c.id)
+
+      if (marketingCategoryIds.length > 0) {
+        const { data: expenses, error: expensesError } = await supabaseAdmin
+          .from('expenses')
+          .select('amount_cents, expense_date')
+          .eq('clinic_id', clinicId)
+          .in('category_id', marketingCategoryIds)
+          .gte('expense_date', rangeStartIso)
+          .lte('expense_date', rangeEndIso)
+
+        if (expensesError) {
+          console.error('[cac-trend] Error fetching expenses:', expensesError)
+          throw expensesError
+        }
+        marketingExpenses = (expenses || []) as any
+      }
+
+      // "New patient" = patient whose FIRST treatment falls in the bucket.
+      // patients.created_at is the lead-capture date and over-counts contacts
+      // who never converted into actual visits.
+      firstTreatmentDate = await getFirstTreatmentDateByPatient(clinicId)
+    }
 
     // Bucket aggregations.
     const expensesByBucket = new Map<string, number>()

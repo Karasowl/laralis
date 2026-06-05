@@ -11,6 +11,7 @@ import { createHash } from 'crypto'
 import { TableDiscoveryService } from './discovery'
 import { SnapshotStorageService } from './storage'
 import { createSnapshotExporter } from './exporter'
+import { createMirroredSupabaseClient } from '@/lib/convex/supabase-runtime-mirror'
 import {
   ClinicSnapshot,
   RestoreOptions,
@@ -24,14 +25,16 @@ export class ClinicSnapshotImporter {
   private discovery: TableDiscoveryService
   private storage: SnapshotStorageService
   private errors: RestoreError[] = []
+  private supabase: SupabaseClient
 
   constructor(
-    private supabase: SupabaseClient,
+    supabase: SupabaseClient,
     private clinicId: string,
     private options: RestoreOptions
   ) {
-    this.discovery = new TableDiscoveryService(supabase)
-    this.storage = new SnapshotStorageService(supabase)
+    this.supabase = createMirroredSupabaseClient(supabase)
+    this.discovery = new TableDiscoveryService(this.supabase)
+    this.storage = new SnapshotStorageService(this.supabase)
   }
 
   /**

@@ -1,10 +1,3 @@
-/**
- * WhatsApp Notification Service
- *
- * Handles sending WhatsApp messages through configured provider.
- * Supports template-based messages with variable substitution.
- */
-
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { getProviderFromConfig } from './providers'
 import type {
@@ -14,6 +7,7 @@ import type {
   SendMessageResult,
   NotificationType,
   MessageStatus,
+  WhatsAppQuickReplyButton,
 } from './types'
 
 // Default config for new clinics
@@ -98,6 +92,40 @@ const DEFAULT_TEMPLATES: Array<Pick<WhatsAppTemplate, 'name' | 'template_type' |
     language: 'en',
   },
 ]
+
+const DEFAULT_TEMPLATE_QUICK_REPLIES: Partial<Record<NotificationType, WhatsAppQuickReplyButton[]>> = {
+  appointment_confirmation: [
+    { id: 'appointment_confirmation:confirm', title: 'Confirmar' },
+    { id: 'appointment_confirmation:reschedule', title: 'Reagendar' },
+    { id: 'appointment_confirmation:cancel', title: 'Cancelar' },
+  ],
+  appointment_reminder: [
+    { id: 'appointment_reminder:confirm', title: 'Confirmar' },
+    { id: 'appointment_reminder:reschedule', title: 'Reagendar' },
+    { id: 'appointment_reminder:cancel', title: 'Cancelar' },
+  ],
+  appointment_rescheduled: [
+    { id: 'appointment_rescheduled:confirm', title: 'Confirmar' },
+    { id: 'appointment_rescheduled:reschedule', title: 'Reagendar' },
+    { id: 'appointment_rescheduled:cancel', title: 'Cancelar' },
+  ],
+  booking_received: [
+    { id: 'booking_received:confirm_data', title: 'Confirmar datos' },
+    { id: 'booking_received:change_time', title: 'Cambiar horario' },
+    { id: 'booking_received:agent', title: 'Hablar con asesor' },
+  ],
+  booking_confirmed: [
+    { id: 'booking_confirmed:confirm', title: 'Confirmar' },
+    { id: 'booking_confirmed:reschedule', title: 'Reagendar' },
+    { id: 'booking_confirmed:cancel', title: 'Cancelar' },
+  ],
+}
+
+export function getQuickReplyButtonsForTemplate(
+  templateType: NotificationType
+): WhatsAppQuickReplyButton[] {
+  return [...(DEFAULT_TEMPLATE_QUICK_REPLIES[templateType] || [])]
+}
 
 async function ensureDefaultTemplates(clinicId: string): Promise<void> {
   const { count, error } = await supabaseAdmin
@@ -278,7 +306,10 @@ export async function sendWhatsAppNotification(
   const messageContent = interpolateTemplate(template.content, variables)
 
   // Send message
-  const result = await provider.sendMessage(recipientPhone, messageContent, config)
+  const quickReplyButtons = getQuickReplyButtonsForTemplate(templateType)
+  const result = await provider.sendMessage(recipientPhone, messageContent, config, {
+    quickReplyButtons,
+  })
 
   // Log the notification
   const { error: logError } = await supabaseAdmin.from('whatsapp_notifications').insert({
@@ -313,8 +344,9 @@ export async function sendWhatsAppMessage(params: {
   clinicId: string
   recipientPhone: string
   content: string
+  quickReplyButtons?: WhatsAppQuickReplyButton[]
 }): Promise<SendMessageResult> {
-  const { clinicId, recipientPhone, content } = params
+  const { clinicId, recipientPhone, content, quickReplyButtons } = params
 
   const config = await getWhatsAppConfig(clinicId)
   if (!config || !config.enabled) {
@@ -327,7 +359,7 @@ export async function sendWhatsAppMessage(params: {
     return { success: false, error: validation.error }
   }
 
-  return provider.sendMessage(recipientPhone, content, config)
+  return provider.sendMessage(recipientPhone, content, config, { quickReplyButtons })
 }
 
 /**

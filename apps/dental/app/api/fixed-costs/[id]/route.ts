@@ -4,13 +4,28 @@ import { withPermission } from '@/lib/middleware/with-permission';
 import { zFixedCost } from '@/lib/zod';
 import type { FixedCost, ApiResponse } from '@/lib/types';
 import { readJson } from '@/lib/validation';
+import { getConvexDocumentByLegacyId, patchConvexDocumentByLegacyId, deleteConvexDocumentByLegacyId } from '@/lib/convex/server';
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath, shouldWriteConvexData } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
 
+type ImportedRecord = Record<string, any>;
+
+function normalizeConvexRecord(row: ImportedRecord | null | undefined) {
+  if (!row) return null;
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, ...rest } = row;
+  return rest;
+}
+
+async function getFixedCostFromConvex(id: string, clinicId: string) {
+  const row = await getConvexDocumentByLegacyId('fixed_costs', id) as ImportedRecord | null;
+  if (!row || row.clinic_id !== clinicId) return null;
+  return normalizeConvexRecord(row);
+}
 
 export const GET = withPermission(
   'fixed_costs.view',
-  async (request, context): Promise<NextResponse<ApiResponse<FixedCost>>> => {
+  async (request, context): Promise<NextResponse> => {
     try {
       const fixedCostId = request.nextUrl.pathname.split('/').pop();
       if (!fixedCostId) {
@@ -18,6 +33,17 @@ export const GET = withPermission(
           { error: 'Fixed cost ID is required' },
           { status: 400 }
         );
+      }
+
+      if (shouldReturnConvexData('fixed_costs')) {
+        const data = await getFixedCostFromConvex(fixedCostId, context.clinicId);
+        if (!data) {
+          return NextResponse.json(
+            { error: 'Fixed cost not found' },
+            { status: 404 }
+          );
+        }
+        return NextResponse.json({ data });
       }
 
       const { data, error } = await supabaseAdmin
@@ -55,7 +81,7 @@ export const GET = withPermission(
 
 export const PUT = withPermission(
   'fixed_costs.edit',
-  async (request, context): Promise<NextResponse<ApiResponse<FixedCost>>> => {
+  async (request, context): Promise<NextResponse> => {
     try {
       const fixedCostId = request.nextUrl.pathname.split('/').pop();
       if (!fixedCostId) {
@@ -85,6 +111,28 @@ export const PUT = withPermission(
 
       const { category, concept, amount_cents } = validationResult.data;
 
+      if (shouldUseConvexOnlyWritePath('fixed_costs')) {
+        const current = await getFixedCostFromConvex(fixedCostId, clinicId);
+        if (!current) {
+          return NextResponse.json(
+            { error: 'Fixed cost not found' },
+            { status: 404 }
+          );
+        }
+
+        const patch = {
+          category,
+          concept,
+          amount_cents,
+          updated_at: new Date().toISOString(),
+        };
+        await patchConvexDocumentByLegacyId('fixed_costs', fixedCostId, patch);
+        return NextResponse.json({
+          data: { ...current, ...patch },
+          message: 'Fixed cost updated successfully',
+        });
+      }
+
       const { data, error } = await supabaseAdmin
         .from('fixed_costs')
         .update({ category, concept, amount_cents })
@@ -108,6 +156,14 @@ export const PUT = withPermission(
         );
       }
 
+      if (data && shouldWriteConvexData('fixed_costs')) {
+        try {
+          await patchConvexDocumentByLegacyId('fixed_costs', fixedCostId, data as Record<string, unknown>);
+        } catch (convexError) {
+          console.error('[fixed-costs PUT] Convex dual-write failed:', convexError);
+        }
+      }
+
       return NextResponse.json({
         data,
         message: 'Fixed cost updated successfully',
@@ -124,7 +180,7 @@ export const PUT = withPermission(
 
 export const DELETE = withPermission(
   'fixed_costs.delete',
-  async (request, context): Promise<NextResponse<ApiResponse<null>>> => {
+  async (request, context): Promise<NextResponse> => {
     try {
       const fixedCostId = request.nextUrl.pathname.split('/').pop();
       if (!fixedCostId) {
@@ -132,6 +188,22 @@ export const DELETE = withPermission(
           { error: 'Fixed cost ID is required' },
           { status: 400 }
         );
+      }
+
+      if (shouldUseConvexOnlyWritePath('fixed_costs')) {
+        const current = await getFixedCostFromConvex(fixedCostId, context.clinicId);
+        if (!current) {
+          return NextResponse.json(
+            { error: 'Fixed cost not found' },
+            { status: 404 }
+          );
+        }
+
+        await deleteConvexDocumentByLegacyId('fixed_costs', fixedCostId);
+        return NextResponse.json({
+          data: null,
+          message: 'Fixed cost deleted successfully',
+        });
       }
 
       const { error } = await supabaseAdmin
@@ -146,6 +218,14 @@ export const DELETE = withPermission(
           { error: 'Failed to delete fixed cost', message: error.message },
           { status: 500 }
         );
+      }
+
+      if (shouldWriteConvexData('fixed_costs')) {
+        try {
+          await deleteConvexDocumentByLegacyId('fixed_costs', fixedCostId);
+        } catch (convexError) {
+          console.error('[fixed-costs DELETE] Convex dual-write failed:', convexError);
+        }
       }
 
       return NextResponse.json({

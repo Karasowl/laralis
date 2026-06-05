@@ -5,6 +5,8 @@ import { readJson } from '@/lib/validation';
 import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { forbiddenIfMissingPermission } from '@/lib/permissions';
+import { getConvexDocumentByLegacyId, listConvexDocumentsByClinic, patchConvexDocumentByLegacyId, deleteConvexDocumentByLegacyId } from '@/lib/convex/server';
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath, shouldWriteConvexData } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
 
@@ -28,6 +30,66 @@ const updatePatientSchema = z.object({
   acquisition_date: z.string().optional().nullable()
 });
 
+type ImportedRecord = Record<string, any>
+
+function normalizeConvexRecord(row: ImportedRecord | null | undefined) {
+  if (!row) return null;
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, ...rest } = row;
+  return rest;
+}
+
+function isClinicRow(row: ImportedRecord | null | undefined, clinicId: string) {
+  return row?.clinic_id === clinicId || row?.clinicId === clinicId;
+}
+
+async function findConvexPatientConflict(
+  clinicId: string,
+  patient: { first_name?: string | null; last_name?: string | null; email?: string | null },
+  excludeId: string
+) {
+  const rows = await listConvexDocumentsByClinic('patients', clinicId, 500) as ImportedRecord[];
+  const normalizedName = `${patient.first_name || ''} ${patient.last_name || ''}`.trim().toLowerCase();
+  const normalizedEmail = patient.email?.trim().toLowerCase();
+
+  return rows.find((row) => {
+    const rowId = String(row.id || row.legacyId || '');
+    if (rowId === excludeId) return false;
+
+    const rowName = `${row.first_name || ''} ${row.last_name || ''}`.trim().toLowerCase();
+    const rowEmail = row.email?.trim().toLowerCase();
+    return (
+      (normalizedName.length > 0 && rowName === normalizedName) ||
+      (normalizedEmail && rowEmail === normalizedEmail)
+    );
+  }) ?? null;
+}
+
+async function getConvexPatient(id: string, clinicId: string) {
+  const patient = await getConvexDocumentByLegacyId('patients', id) as ImportedRecord | null;
+  if (!patient || !isClinicRow(patient, clinicId)) return null;
+  return normalizeConvexRecord(patient);
+}
+
+async function getConvexTreatmentUsage(patientId: string, clinicId: string) {
+  const [treatments, services] = await Promise.all([
+    listConvexDocumentsByClinic('treatments', clinicId, 500) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('services', clinicId, 500) as Promise<ImportedRecord[]>,
+  ]);
+  const serviceNamesById = new Map<string, string>();
+  for (const service of services) {
+    if (service.id && service.name) serviceNamesById.set(String(service.id), String(service.name));
+    if (service.legacyId && service.name) serviceNamesById.set(String(service.legacyId), String(service.name));
+  }
+
+  return treatments
+    .filter((row) => row.patient_id === patientId || row.patientId === patientId)
+    .slice(0, 5)
+    .map((row) => ({
+      ...row,
+      service_name: row.service_id ? serviceNamesById.get(String(row.service_id)) : undefined,
+    }));
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -41,6 +103,17 @@ export async function GET(
     const { clinicId, userId } = clinicContext;
     const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'patients.view');
     if (forbidden) return forbidden;
+
+    if (shouldReturnConvexData('patients')) {
+      const patient = await getConvexPatient(params.id, clinicId);
+      if (!patient) {
+        return NextResponse.json(
+          { error: 'Patient not found' },
+          { status: 404 }
+        );
+      }
+      return NextResponse.json({ data: patient });
+    }
 
     const { data, error } = await supabaseAdmin
       .from('patients')
@@ -128,6 +201,50 @@ export async function PUT(
       );
     }
 
+    if (shouldUseConvexOnlyWritePath('patients')) {
+      const currentPatient = await getConvexPatient(params.id, clinicId);
+      if (!currentPatient) {
+        return NextResponse.json(
+          { error: 'Patient not found' },
+          { status: 404 }
+        );
+      }
+
+      const merged = {
+        ...currentPatient,
+        ...validationResult.data,
+      };
+      const conflict = await findConvexPatientConflict(clinicId, merged, params.id);
+      if (conflict) {
+        const fullName = `${merged.first_name || ''} ${merged.last_name || ''}`.trim();
+        return NextResponse.json(
+          {
+            error: conflict.email && merged.email && conflict.email === merged.email
+              ? 'DUPLICATE_PATIENT_EMAIL'
+              : 'DUPLICATE_PATIENT_NAME',
+            data: {
+              name: fullName || 'Unknown',
+              email: merged.email || 'Unknown',
+            },
+          },
+          { status: 409 }
+        );
+      }
+
+      const patch = {
+        ...validationResult.data,
+        updated_at: new Date().toISOString(),
+      };
+      await patchConvexDocumentByLegacyId('patients', params.id, patch);
+      return NextResponse.json({
+        data: {
+          ...currentPatient,
+          ...patch,
+        },
+        message: 'Patient updated successfully'
+      });
+    }
+
     const { data, error } = await supabaseAdmin
       .from('patients')
       .update({
@@ -197,6 +314,14 @@ export async function PUT(
       );
     }
 
+    if (data && shouldWriteConvexData('patients')) {
+      try {
+        await patchConvexDocumentByLegacyId('patients', params.id, data as Record<string, unknown>);
+      } catch (convexError) {
+        console.error('[patients PUT] Convex dual-write failed:', convexError);
+      }
+    }
+
     return NextResponse.json({
       data,
       message: 'Patient updated successfully'
@@ -223,6 +348,31 @@ export async function DELETE(
     const { clinicId, userId } = clinicContext;
     const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'patients.delete');
     if (forbidden) return forbidden;
+
+    if (shouldUseConvexOnlyWritePath('patients')) {
+      const usage = await getConvexTreatmentUsage(params.id, clinicId);
+      if (usage.length > 0) {
+        const serviceNames = usage
+          .map((row) => row.service_name)
+          .filter(Boolean) as string[];
+        const listed = serviceNames.slice(0, 3).join(', ');
+        const remaining = Math.max(0, serviceNames.length - 3);
+        return NextResponse.json(
+          {
+            error: 'patient_in_use',
+            message: serviceNames.length > 0
+              ? `No puedes eliminar este paciente porque tiene ${serviceNames.length} tratamiento(s) registrados (${listed}${remaining > 0 ? ` y ${remaining} más` : ''}). Elimina o reasigna esos tratamientos primero.`
+              : 'No puedes eliminar este paciente porque tiene tratamientos registrados.'
+          },
+          { status: 409 }
+        );
+      }
+
+      await deleteConvexDocumentByLegacyId('patients', params.id);
+      return NextResponse.json({
+        message: 'Patient deleted successfully'
+      });
+    }
 
     try {
       const { data: treatmentUsage, error: treatmentError } = await supabaseAdmin
@@ -287,6 +437,14 @@ export async function DELETE(
         { error: 'Failed to delete patient', message: error.message },
         { status: 500 }
       );
+    }
+
+    if (shouldWriteConvexData('patients')) {
+      try {
+        await deleteConvexDocumentByLegacyId('patients', params.id);
+      } catch (convexError) {
+        console.error('[patients DELETE] Convex dual-write failed:', convexError);
+      }
     }
 
     return NextResponse.json({ 

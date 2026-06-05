@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { getAuthBackend } from '@/lib/auth/convex-session'
+import { convexUserHasPermission } from '@/lib/convex/server'
+import { shouldReturnConvexData } from '@/lib/data-backend'
 import type { Permission } from './types'
 
 export async function userHasPermission(
@@ -7,6 +10,10 @@ export async function userHasPermission(
   clinicId: string,
   permission: Permission
 ): Promise<boolean> {
+  if (getAuthBackend() === 'convex' || shouldReturnConvexData('permissions')) {
+    return await convexUserHasPermission(userId, clinicId, permission)
+  }
+
   const [resource, action] = permission.split('.')
 
   const { data, error } = await supabaseAdmin.rpc('check_user_permission', {
@@ -17,6 +24,14 @@ export async function userHasPermission(
   })
 
   if (error) {
+    if (getAuthBackend() === 'dual') {
+      try {
+        return await convexUserHasPermission(userId, clinicId, permission)
+      } catch (convexError) {
+        console.error('[permissions] Error checking Convex permission:', convexError)
+      }
+    }
+
     console.error('[permissions] Error checking permission:', error)
     return false
   }

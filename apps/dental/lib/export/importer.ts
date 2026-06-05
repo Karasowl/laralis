@@ -9,6 +9,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ExportBundle, ImportOptions, ImportResult, ImportProgress } from './types';
 import { migrateBundle } from './migrator';
 import { validateBundle } from './validator';
+import { createMirroredSupabaseClient } from '@/lib/convex/supabase-runtime-mirror';
 
 /**
  * Import Error
@@ -59,7 +60,7 @@ export class WorkspaceBundleImporter {
     bundle: ExportBundle,
     options: ImportOptions
   ) {
-    this.supabase = supabase;
+    this.supabase = createMirroredSupabaseClient(supabase);
     this.bundle = bundle;
     this.options = options;
     this.insertedIds = { clinicIds: [] };

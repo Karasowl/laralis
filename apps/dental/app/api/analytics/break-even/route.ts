@@ -8,9 +8,64 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { withPermission } from '@/lib/middleware/with-permission'
+import { listConvexDocumentsByClinic } from '@/lib/convex/server'
+import { shouldReturnConvexData } from '@/lib/data-backend'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+
+type ImportedRecord = Record<string, any>
+
+function normalizeConvexRecord(row: ImportedRecord) {
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, ...rest } = row
+  return rest
+}
+
+type BreakEvenTreatmentRow = {
+  price_cents: number | null
+  variable_cost_cents: number | null
+}
+
+type BreakEvenFixedCostRow = {
+  amount_cents: number | null
+}
+
+/**
+ * Mirrors the Supabase read path:
+ *   treatments.select('price_cents, variable_cost_cents, fixed_cost_per_minute_cents, minutes')
+ *     .eq('clinic_id').gte('treatment_date', start).lte('treatment_date', end)
+ * Date bounds are lexicographic-safe on YYYY-MM-DD strings (gte/lte = >=/<=).
+ * No status filter is applied (the Supabase path uses ALL treatments in range).
+ */
+async function getBreakEvenDataFromConvex(
+  clinicId: string,
+  startDate: string | null,
+  endDate: string | null
+): Promise<{ treatments: BreakEvenTreatmentRow[]; fixedCosts: BreakEvenFixedCostRow[] }> {
+  const [treatmentRows, fixedCostRows] = await Promise.all([
+    listConvexDocumentsByClinic('treatments', clinicId, 10000) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('fixed_costs', clinicId, 10000) as Promise<ImportedRecord[]>,
+  ])
+
+  const treatments = (treatmentRows || [])
+    .map(normalizeConvexRecord)
+    .filter((row) => {
+      const treatmentDate = String(row.treatment_date || '')
+      if (startDate && treatmentDate < startDate) return false
+      if (endDate && treatmentDate > endDate) return false
+      return true
+    })
+    .map((row) => ({
+      price_cents: row.price_cents ?? null,
+      variable_cost_cents: row.variable_cost_cents ?? null,
+    }))
+
+  const fixedCosts = (fixedCostRows || [])
+    .map(normalizeConvexRecord)
+    .map((row) => ({ amount_cents: row.amount_cents ?? null }))
+
+  return { treatments, fixedCosts }
+}
 
 export const GET = withPermission('break_even.view', async (request, context) => {
   try {
@@ -19,25 +74,37 @@ export const GET = withPermission('break_even.view', async (request, context) =>
     const endDate = searchParams.get('end_date')
     const clinicId = context.clinicId
 
-    // Get revenue from treatments
-    let treatmentsQuery = supabaseAdmin
-      .from('treatments')
-      .select('price_cents, variable_cost_cents, fixed_cost_per_minute_cents, minutes')
-      .eq('clinic_id', clinicId)
+    let treatments: BreakEvenTreatmentRow[] | null
+    let fixedCosts: BreakEvenFixedCostRow[] | null
 
-    if (startDate) treatmentsQuery = treatmentsQuery.gte('treatment_date', startDate)
-    if (endDate) treatmentsQuery = treatmentsQuery.lte('treatment_date', endDate)
+    if (shouldReturnConvexData('treatments')) {
+      const convexData = await getBreakEvenDataFromConvex(clinicId, startDate, endDate)
+      treatments = convexData.treatments
+      fixedCosts = convexData.fixedCosts
+    } else {
+      // Get revenue from treatments
+      let treatmentsQuery = supabaseAdmin
+        .from('treatments')
+        .select('price_cents, variable_cost_cents, fixed_cost_per_minute_cents, minutes')
+        .eq('clinic_id', clinicId)
 
-    const { data: treatments, error: treatmentsError } = await treatmentsQuery
-    if (treatmentsError) throw treatmentsError
+      if (startDate) treatmentsQuery = treatmentsQuery.gte('treatment_date', startDate)
+      if (endDate) treatmentsQuery = treatmentsQuery.lte('treatment_date', endDate)
 
-    // Get fixed costs
-    const { data: fixedCosts, error: fixedCostsError } = await supabaseAdmin
-      .from('fixed_costs')
-      .select('amount_cents, frequency')
-      .eq('clinic_id', clinicId)
+      const { data: treatmentsData, error: treatmentsError } = await treatmentsQuery
+      if (treatmentsError) throw treatmentsError
 
-    if (fixedCostsError) throw fixedCostsError
+      // Get fixed costs
+      const { data: fixedCostsData, error: fixedCostsError } = await supabaseAdmin
+        .from('fixed_costs')
+        .select('amount_cents, frequency')
+        .eq('clinic_id', clinicId)
+
+      if (fixedCostsError) throw fixedCostsError
+
+      treatments = treatmentsData
+      fixedCosts = fixedCostsData
+    }
 
     // Calculate totals
     const totalRevenue = treatments?.reduce((sum, t) => sum + (t.price_cents || 0), 0) || 0

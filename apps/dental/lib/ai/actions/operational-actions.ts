@@ -6,12 +6,20 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ActionParams, ActionResult } from '../types'
+import { createMirroredSupabaseClient } from '@/lib/convex/supabase-runtime-mirror'
 
 interface ActionContext {
   supabase: SupabaseClient
   clinicId: string
   userId: string
   dryRun?: boolean
+}
+
+function withMirroredSupabase(context: ActionContext): ActionContext {
+  return {
+    ...context,
+    supabase: createMirroredSupabaseClient(context.supabase),
+  }
 }
 
 // Helper to format cents as currency string
@@ -33,6 +41,7 @@ export async function executeBulkUpdatePrices(
   params: ActionParams['bulk_update_prices'],
   context: ActionContext
 ): Promise<ActionResult> {
+  context = withMirroredSupabase(context)
   const { supabase, clinicId, userId, dryRun } = context
   const { change_type, change_value, service_ids, category } = params
 
@@ -143,6 +152,7 @@ export async function executeForecastRevenue(
   params: ActionParams['forecast_revenue'],
   context: ActionContext
 ): Promise<ActionResult> {
+  context = withMirroredSupabase(context)
   const { supabase, clinicId, userId } = context
   const days = params.days || 30
   const includeTrends = params.include_trends !== false
@@ -278,6 +288,7 @@ export async function executeAnalyzePatientRetention(
   params: ActionParams['analyze_patient_retention'],
   context: ActionContext
 ): Promise<ActionResult> {
+  context = withMirroredSupabase(context)
   const { supabase, clinicId, userId } = context
   const periodDays = params.period_days || 90
 
@@ -395,6 +406,7 @@ export async function executeOptimizeInventory(
   params: ActionParams['optimize_inventory'],
   context: ActionContext
 ): Promise<ActionResult> {
+  context = withMirroredSupabase(context)
   const { supabase, clinicId, userId } = context
   const daysAhead = params.days_ahead || 30
   const reorderThreshold = params.reorder_threshold_pct || 25

@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/server';
 import { forbiddenIfMissingPermission, type Permission } from '@/lib/permissions';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
+import { getConvexDocumentByLegacyId, listConvexDocumentsByClinic, upsertConvexDocumentByLegacyId, patchConvexDocumentByLegacyId } from '@/lib/convex/server';
+import { shouldUseConvexOnlyWritePath, shouldWriteConvexData } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
 
@@ -44,6 +46,27 @@ function categoryWritePermission(type: string | null): Permission {
   }
 }
 
+function categoryReferenceTable(typeCode: string | null) {
+  if (typeCode === 'services') return 'services'
+  if (typeCode === 'supplies') return 'supplies'
+  if (typeCode === 'expenses') return 'expenses'
+  return null
+}
+
+async function remapConvexCategoryReferences(typeCode: string | null, clinicId: string, fromName: string | null | undefined, toName: string) {
+  const table = categoryReferenceTable(typeCode)
+  if (!table || !fromName) return
+  const rows = await listConvexDocumentsByClinic(table, clinicId)
+  await Promise.all(
+    rows
+      .filter((row: any) => row.category === fromName)
+      .map((row: any) => {
+        const id = String(row.id || row.legacyId || '')
+        return id ? patchConvexDocumentByLegacyId(table, id, { category: toName, updated_at: new Date().toISOString() }) : Promise.resolve()
+      })
+  )
+}
+
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const cookieStore = cookies();
@@ -75,6 +98,48 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
     const newNameRaw = parsed.data.name.trim();
     const newCode = slugify(newNameRaw);
+
+    if (shouldUseConvexOnlyWritePath('categories')) {
+      const cat = await getConvexDocumentByLegacyId('categories', params.id) as Record<string, any> | null
+      if (!cat) return NextResponse.json({ error: 'Category not found' }, { status: 404 })
+      const nameToMatch = cat.display_name || cat.name
+
+      if (!cat.clinic_id || cat.is_system) {
+        const id = crypto.randomUUID()
+        const now = new Date().toISOString()
+        const typeMap: Record<string, string> = {
+          services: 'service',
+          supplies: 'supply',
+          expenses: 'fixed_cost',
+          assets: 'asset',
+        }
+        const document = {
+          id,
+          clinic_id: clinicId,
+          category_type_id: cat.category_type_id ?? null,
+          entity_type: cat.entity_type ?? typeMap[typeCode] ?? 'service',
+          code: newCode,
+          name: cat.category_type_id ? newNameRaw : newCode,
+          display_name: newNameRaw,
+          is_system: false,
+          is_active: true,
+          display_order: cat.display_order ?? 999,
+          metadata: cat.metadata ?? {},
+          created_at: now,
+          updated_at: now,
+        }
+        await upsertConvexDocumentByLegacyId('categories', id, document)
+        await remapConvexCategoryReferences(typeCode, clinicId, nameToMatch, newNameRaw)
+        return NextResponse.json({ data: document })
+      }
+
+      const updatePayload = cat.category_type_id !== undefined
+        ? { name: newNameRaw, code: newCode, updated_at: new Date().toISOString() }
+        : { name: newCode, display_name: newNameRaw, updated_at: new Date().toISOString() }
+      await patchConvexDocumentByLegacyId('categories', params.id, updatePayload)
+      await remapConvexCategoryReferences(typeCode, clinicId, nameToMatch, newNameRaw)
+      return NextResponse.json({ data: { ...cat, ...updatePayload } })
+    }
 
     const db = isUsingServiceRole ? supabaseAdmin : createClient();
     // Fetch category
@@ -180,6 +245,14 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       .single();
     if (updErr) return NextResponse.json({ error: 'Failed to update category' }, { status: 500 });
 
+    if (updated && shouldWriteConvexData('categories')) {
+      try {
+        await patchConvexDocumentByLegacyId('categories', params.id, updated as Record<string, unknown>)
+      } catch (convexError) {
+        console.error('[categories PUT] Convex mirror failed:', convexError)
+      }
+    }
+
     // Remap entities for this clinic
     if (nameToMatch) {
       const table = typeCode === 'services' ? 'services' : (typeCode === 'supplies' ? 'supplies' : (typeCode === 'expenses' ? 'expenses' : null));
@@ -221,6 +294,25 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 
     const db = isUsingServiceRole ? supabaseAdmin : createClient();
 
+    if (shouldUseConvexOnlyWritePath('categories')) {
+      const cat = await getConvexDocumentByLegacyId('categories', params.id) as Record<string, any> | null
+      if (!cat) return NextResponse.json({ error: 'Category not found' }, { status: 404 })
+      const nameToMatch = cat.display_name || cat.name
+      const defaultName = typeCode === 'expenses' ? 'Otros' : 'otros'
+
+      if (!cat.clinic_id || cat.is_system) {
+        await remapConvexCategoryReferences(typeCode, clinicId, nameToMatch, defaultName)
+        return NextResponse.json({ data: { id: params.id, remapped: true } })
+      }
+
+      await patchConvexDocumentByLegacyId('categories', params.id, {
+        is_active: false,
+        updated_at: new Date().toISOString(),
+      })
+      await remapConvexCategoryReferences(typeCode, clinicId, nameToMatch, defaultName)
+      return NextResponse.json({ data: { id: params.id, deleted: true } })
+    }
+
     // Load category
     const { data: cat } = await db
       .from('categories')
@@ -252,6 +344,17 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       .update({ is_active: false })
       .eq('id', params.id);
     if (delErr) return NextResponse.json({ error: 'Failed to delete category' }, { status: 500 });
+
+    if (shouldWriteConvexData('categories')) {
+      try {
+        await patchConvexDocumentByLegacyId('categories', params.id, {
+          is_active: false,
+          updated_at: new Date().toISOString(),
+        })
+      } catch (convexError) {
+        console.error('[categories DELETE] Convex mirror failed:', convexError)
+      }
+    }
 
     // Remap entities to default
     if (nameToMatch) {

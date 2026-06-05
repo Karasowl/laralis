@@ -3,6 +3,8 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { cookies } from 'next/headers'
 import { resolveClinicContext } from '@/lib/clinic'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
+import { listConvexDocumentsByClinic } from '@/lib/convex/server';
+import { shouldReturnConvexData } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
 
@@ -38,6 +40,30 @@ export async function GET(request: NextRequest) {
 
     const startISO = start.toISOString().split('T')[0]
     const endISO = end.toISOString().split('T')[0]
+
+    if (shouldReturnConvexData('dashboard')) {
+      const treatments = await listConvexDocumentsByClinic('treatments', clinicId)
+      const data = treatments.filter((treatment: any) => {
+        const treatmentDate = String(treatment.treatment_date || '')
+        return treatmentDate >= startISO && treatmentDate <= endISO
+      })
+
+      const nonCancelled = data.filter((t: any) => t.status !== 'cancelled')
+      const normalised = nonCancelled.map((t: any) => {
+        const status = t.status === 'scheduled' || t.status === 'in_progress' ? 'pending' : (t.status || 'pending')
+        return { status }
+      })
+      const completed = normalised.filter((t: any) => t.status === 'completed')
+      const pending = normalised.filter((t: any) => t.status === 'pending')
+
+      return NextResponse.json({
+        treatments: {
+          total: normalised.length,
+          completed: completed.length,
+          pending: pending.length
+        }
+      })
+    }
 
     const { data, error } = await supabaseAdmin
       .from('treatments')

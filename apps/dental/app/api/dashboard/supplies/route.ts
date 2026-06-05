@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { resolveClinicContext } from '@/lib/clinic'
+import { listConvexDocumentsByClinic } from '@/lib/convex/server';
+import { shouldReturnConvexData } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
 
@@ -16,6 +18,29 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: ctx.error.message }, { status: ctx.error.status })
     }
     const { clinicId } = ctx
+
+    if (shouldReturnConvexData('dashboard')) {
+      const supplies = await listConvexDocumentsByClinic('supplies', clinicId)
+      const totalSupplies = supplies.length
+      const lowStock = supplies.filter((s: any) => {
+        const stock = Number(s.current_stock ?? s.stock_quantity ?? 0)
+        const min = Number(s.min_stock ?? s.min_stock_alert ?? 0)
+        return stock <= min
+      }).length
+      const inventoryValue = supplies.reduce((sum: number, s: any) => {
+        const stock = Number(s.current_stock ?? s.stock_quantity ?? 0)
+        const unitCost = Number(s.unit_cost_cents ?? s.price_per_unit_cents ?? s.price_per_portion_cents ?? 0)
+        return sum + (stock * unitCost)
+      }, 0)
+
+      return NextResponse.json({
+        total: totalSupplies,
+        lowStock,
+        inventoryValue,
+        trend: lowStock > 0 ? 'warning' : 'good',
+        trendValue: lowStock
+      })
+    }
 
     // Get supplies count and low stock items
     const { data: supplies, error } = await supabase

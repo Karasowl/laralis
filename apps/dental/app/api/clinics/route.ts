@@ -4,9 +4,11 @@ import { ApiResponse, Clinic } from '@/lib/types'
 import { cookies } from 'next/headers'
 import { setClinicIdCookie } from '@/lib/clinic'
 import { createClient } from '@/lib/supabase/server'
-import { createServerClient } from '@supabase/ssr'
 import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
+import { getCurrentUser } from '@/lib/auth/current-user'
+import { getConvexAuthContext, getConvexDocumentByLegacyId, listConvexTable } from '@/lib/convex/server'
+import { shouldReturnConvexData } from '@/lib/data-backend'
 import { getAccessibleWorkspaceIds, userCanAccessWorkspace } from '@/lib/workspace-access'
 
 // QA route contract: @qa-context-route authenticated clinic list and active-clinic selection.
@@ -35,20 +37,7 @@ export async function GET(request: Request) {
       return queryValidation.error
     }
 
-    // Crear cliente de Supabase para el servidor con el usuario autenticado
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() { return cookieStore.getAll() },
-          setAll(cookiesToSet) { cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options)) },
-        },
-      }
-    )
-
-    // Obtener el usuario autenticado
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const { user, error: authError } = await getCurrentUser(cookieStore)
 
     if (authError || !user) {
       return NextResponse.json<ApiResponse<Clinic[]>>({
@@ -75,20 +64,7 @@ export async function GET(request: Request) {
       }
     }
 
-    // Obtener solo las clínicas de los workspaces válidos
-    const { data, error } = await supabaseAdmin
-      .from('clinics')
-      .select('*')
-      .in('workspace_id', workspaceIds)
-      .order('name', { ascending: true })
-
-    if (error) {
-      console.error('Error fetching clinics:', error)
-      return NextResponse.json<ApiResponse<Clinic[]>>({
-        error: 'Failed to fetch clinics',
-        message: error.message
-      }, { status: 500 })
-    }
+    const data = await readClinicsByWorkspaceIds(workspaceIds)
 
     return NextResponse.json<ApiResponse<Clinic[]>>({ data: data || [] })
   } catch (error) {
@@ -113,8 +89,7 @@ export async function POST(request: Request) {
     const { clinicId } = parsed.data
 
     const cookieStore = cookies()
-    const supabase = createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const { user, error: authError } = await getCurrentUser(cookieStore)
 
     if (authError || !user) {
       return NextResponse.json<ApiResponse<null>>({
@@ -122,7 +97,7 @@ export async function POST(request: Request) {
       }, { status: 401 })
     }
 
-    const { data: hasAccess, error: accessError } = await supabase.rpc('user_has_clinic_access', { clinic_id: clinicId })
+    const { data: hasAccess, error: accessError } = await userCanSelectClinic(user.id, clinicId)
 
     if (accessError) {
       console.error('Error validating clinic access:', accessError)
@@ -138,11 +113,7 @@ export async function POST(request: Request) {
       }, { status: 403 })
     }
 
-    const { data: selectedClinic, error: selectedClinicError } = await supabaseAdmin
-      .from('clinics')
-      .select('workspace_id')
-      .eq('id', clinicId)
-      .maybeSingle()
+    const { clinic: selectedClinic, error: selectedClinicError } = await readClinicById(clinicId)
 
     if (selectedClinicError || !selectedClinic?.workspace_id) {
       return NextResponse.json<ApiResponse<null>>({
@@ -169,6 +140,65 @@ export async function POST(request: Request) {
       error: 'Internal server error'
     }, { status: 500 })
   }
+}
+
+async function readClinicsByWorkspaceIds(workspaceIds: string[]) {
+  if (workspaceIds.length === 0) return [] as Clinic[]
+
+  if (shouldReturnConvexData('clinics')) {
+    const workspaceIdSet = new Set(workspaceIds)
+    const rows = await listConvexTable('clinics', 10000) as Array<Record<string, any>>
+    return rows
+      .filter((clinic) => workspaceIdSet.has(String(clinic.workspace_id)))
+      .filter((clinic) => clinic.is_active !== false)
+      .map(stripConvexMetadata)
+      .sort((left, right) => String(left.name || '').localeCompare(String(right.name || ''))) as Clinic[]
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('clinics')
+    .select('*')
+    .in('workspace_id', workspaceIds)
+    .eq('is_active', true)
+    .order('name', { ascending: true })
+
+  if (error) {
+    console.error('Error fetching clinics:', error)
+    throw error
+  }
+
+  return (data || []) as Clinic[]
+}
+
+async function readClinicById(clinicId: string) {
+  if (shouldReturnConvexData('clinics')) {
+    const clinic = await getConvexDocumentByLegacyId('clinics', clinicId) as Record<string, any> | null
+    return { clinic: clinic ? stripConvexMetadata(clinic) : null, error: null }
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('clinics')
+    .select('workspace_id')
+    .eq('id', clinicId)
+    .maybeSingle()
+
+  return { clinic: data, error }
+}
+
+async function userCanSelectClinic(userId: string, clinicId: string) {
+  if (shouldReturnConvexData('clinics')) {
+    const context = await getConvexAuthContext(userId)
+    const allowed = (context.clinics || []).some((clinic: any) => clinic.id === clinicId || clinic.legacyId === clinicId)
+    return { data: allowed, error: null }
+  }
+
+  const supabase = createClient()
+  return supabase.rpc('user_has_clinic_access', { clinic_id: clinicId })
+}
+
+function stripConvexMetadata(row: Record<string, any>) {
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row
+  return rest
 }
 
 

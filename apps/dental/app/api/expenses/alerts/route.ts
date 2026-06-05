@@ -3,6 +3,8 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { withPermission } from '@/lib/middleware/with-permission'
 import { withRouteContext } from '@/lib/api/route-handler'
 import { createRouteLogger } from '@/lib/api/logger'
+import { listConvexDocumentsByClinic } from '@/lib/convex/server';
+import { shouldReturnConvexData } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
 
@@ -16,30 +18,43 @@ export const GET = withPermission('expenses.view', async (request, context) =>
     try {
       const clinicId = context.clinicId
 
-      // Fetch supplies for low stock + price change insights
-      const { data: supplies, error: suppliesError } = await supabaseAdmin
-        .from('supplies')
-        .select('id,name,category,stock_quantity,min_stock_alert,price_per_portion_cents,last_purchase_price_cents')
-        .eq('clinic_id', clinicId)
+      let supplies: any[] = []
+      let fixedCosts: any[] = []
+      let expenses: any[] = []
 
-      if (suppliesError) {
-        logger.warn('expenses.alerts.supplies_fetch_warning', { error: suppliesError.message })
+      if (shouldReturnConvexData('expenses')) {
+        ;[supplies, fixedCosts, expenses] = await Promise.all([
+          listConvexDocumentsByClinic('supplies', clinicId),
+          listConvexDocumentsByClinic('fixed_costs', clinicId),
+          listConvexDocumentsByClinic('expenses', clinicId),
+        ])
+      } else {
+        // Fetch supplies for low stock + price change insights
+        const { data: supplyRows, error: suppliesError } = await supabaseAdmin
+          .from('supplies')
+          .select('id,name,category,stock_quantity,min_stock_alert,price_per_portion_cents,last_purchase_price_cents')
+          .eq('clinic_id', clinicId)
+
+        if (suppliesError) {
+          logger.warn('expenses.alerts.supplies_fetch_warning', { error: suppliesError.message })
+        }
+        supplies = supplyRows || []
       }
 
-      const low_stock = (supplies || [])
-        .filter(s => (s.stock_quantity ?? 0) <= (s.min_stock_alert ?? 0))
+      const low_stock = supplies
+        .filter(s => (s.stock_quantity ?? s.current_stock ?? 0) <= (s.min_stock_alert ?? s.min_stock ?? 0))
         .slice(0, 5)
         .map(s => ({
           id: s.id,
           name: s.name,
           category: s.category,
-          stock_quantity: s.stock_quantity ?? 0,
-          min_stock_alert: s.min_stock_alert ?? 0,
+          stock_quantity: s.stock_quantity ?? s.current_stock ?? 0,
+          min_stock_alert: s.min_stock_alert ?? s.min_stock ?? 0,
           clinic_id: clinicId,
           clinic_name: ''
         }))
 
-      const price_changes = (supplies || [])
+      const price_changes = supplies
         .map(s => {
           const prev = s.price_per_portion_cents ?? 0
           const last = s.last_purchase_price_cents ?? 0
@@ -62,24 +77,35 @@ export const GET = withPermission('expenses.view', async (request, context) =>
       const start = new Date(now.getFullYear(), now.getMonth(), 1)
       const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
 
-      const { data: fixedCosts, error: fcError } = await supabaseAdmin
-        .from('fixed_costs')
-        .select('amount_cents')
-        .eq('clinic_id', clinicId)
+      if (!shouldReturnConvexData('expenses')) {
+        const { data: fixedCostRows, error: fcError } = await supabaseAdmin
+          .from('fixed_costs')
+          .select('amount_cents')
+          .eq('clinic_id', clinicId)
 
-      if (fcError) {
-        logger.warn('expenses.alerts.fixed_costs_fetch_warning', { error: fcError.message })
-      }
+        if (fcError) {
+          logger.warn('expenses.alerts.fixed_costs_fetch_warning', { error: fcError.message })
+        }
+        fixedCosts = fixedCostRows || []
 
-      const { data: expenses, error: expError } = await supabaseAdmin
-        .from('expenses')
-        .select('amount_cents,expense_date')
-        .eq('clinic_id', clinicId)
-        .gte('expense_date', start.toISOString().slice(0, 10))
-        .lte('expense_date', end.toISOString().slice(0, 10))
+        const { data: expenseRows, error: expError } = await supabaseAdmin
+          .from('expenses')
+          .select('amount_cents,expense_date')
+          .eq('clinic_id', clinicId)
+          .gte('expense_date', start.toISOString().slice(0, 10))
+          .lte('expense_date', end.toISOString().slice(0, 10))
 
-      if (expError) {
-        logger.warn('expenses.alerts.expenses_fetch_warning', { error: expError.message })
+        if (expError) {
+          logger.warn('expenses.alerts.expenses_fetch_warning', { error: expError.message })
+        }
+        expenses = expenseRows || []
+      } else {
+        const startDate = start.toISOString().slice(0, 10)
+        const endDate = end.toISOString().slice(0, 10)
+        expenses = expenses.filter((expense: any) => {
+          const expenseDate = String(expense.expense_date || '')
+          return expenseDate >= startDate && expenseDate <= endDate
+        })
       }
 
       const planned = (fixedCosts || []).reduce((sum, r: AmountRow) => sum + (r.amount_cents || 0), 0)

@@ -2,8 +2,36 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { withPermission } from '@/lib/middleware/with-permission'
 import { detectWorkingDayPattern, type TreatmentRecord } from '@/lib/calc/dates'
+import { listConvexDocumentsByClinic } from '@/lib/convex/server'
+import { shouldReturnConvexData } from '@/lib/data-backend'
 
 export const dynamic = 'force-dynamic'
+
+type ImportedRecord = Record<string, any>
+
+function normalizeConvexRecord(row: ImportedRecord) {
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, ...rest } = row
+  return rest
+}
+
+/**
+ * Replicate the Supabase read path against Convex:
+ * select treatments where status = 'completed' and treatment_date >= cutoff,
+ * ordered ascending by treatment_date, then keep only treatment_date.
+ */
+async function getCompletedTreatmentDatesFromConvex(
+  clinicId: string,
+  cutoffDateStr: string
+): Promise<TreatmentRecord[]> {
+  const rows = (await listConvexDocumentsByClinic('treatments', clinicId, 10000)) as ImportedRecord[]
+
+  return rows
+    .map(normalizeConvexRecord)
+    .filter((row) => row.status === 'completed')
+    .filter((row) => String(row.treatment_date ?? '') >= cutoffDateStr)
+    .sort((a, b) => String(a.treatment_date ?? '').localeCompare(String(b.treatment_date ?? '')))
+    .map((row) => ({ treatment_date: row.treatment_date }))
+}
 
 
 /**
@@ -30,6 +58,25 @@ export const GET = withPermission('break_even.view', async (request, context) =>
     const cutoffDate = new Date()
     cutoffDate.setDate(cutoffDate.getDate() - lookbackDays)
     const cutoffDateStr = cutoffDate.toISOString().split('T')[0]
+
+    if (shouldReturnConvexData('treatments')) {
+      const treatmentRecords = await getCompletedTreatmentDatesFromConvex(
+        context.clinicId,
+        cutoffDateStr
+      )
+
+      const detectedPattern = detectWorkingDayPattern(
+        treatmentRecords,
+        lookbackDays
+      )
+
+      return NextResponse.json({
+        detected: detectedPattern,
+        lookbackDays,
+        queriedFrom: cutoffDateStr,
+        totalTreatments: treatmentRecords.length
+      })
+    }
 
     const { data: treatments, error } = await supabaseAdmin
       .from('treatments')

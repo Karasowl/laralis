@@ -3,6 +3,8 @@ import { cookies } from 'next/headers'
 import { resolveClinicContext } from '@/lib/clinic'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
+import { listConvexDocumentsByClinic } from '@/lib/convex/server';
+import { shouldReturnConvexData } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
 
@@ -135,6 +137,41 @@ export async function GET(request: NextRequest) {
 
     const ranges = computeRanges(period, dateFrom, dateTo)
     console.info('[revenue] Date ranges - Current:', toDateParam(ranges.current.start), 'to', toDateParam(ranges.current.end))
+
+    if (shouldReturnConvexData('dashboard')) {
+      const treatments = await listConvexDocumentsByClinic('treatments', clinicId)
+      const currentStart = toDateParam(ranges.current.start)
+      const currentEnd = toDateParam(ranges.current.end)
+      const previousStart = toDateParam(ranges.previous.start)
+      const previousEnd = toDateParam(ranges.previous.end)
+
+      const completedPaid = (row: any) => {
+        const price = Number(row.price_cents || 0)
+        const paid = Number(row.amount_paid_cents || 0)
+        return row.status === 'completed' && price > 0 && (row.is_paid === true || paid >= price)
+      }
+
+      const currentPaidTreatments = treatments.filter((row: any) => {
+        const treatmentDate = String(row.treatment_date || '')
+        return treatmentDate >= currentStart && treatmentDate <= currentEnd && completedPaid(row)
+      })
+      const previousPaidTreatments = treatments.filter((row: any) => {
+        const treatmentDate = String(row.treatment_date || '')
+        return treatmentDate >= previousStart && treatmentDate <= previousEnd && completedPaid(row)
+      })
+
+      return NextResponse.json({
+        revenue: {
+          current: sumRevenue(currentPaidTreatments),
+          previous: sumRevenue(previousPaidTreatments),
+        },
+        totals: {
+          current_count: currentPaidTreatments.length,
+          previous_count: previousPaidTreatments.length,
+        },
+        period: ranges.label,
+      })
+    }
 
     const { data: currentTreatments, error: currentErr } = await supabaseAdmin
       .from('treatments')

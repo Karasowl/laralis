@@ -3,6 +3,12 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
+import {
+  CONVEX_SESSION_COOKIE_NAME,
+  getAuthBackend,
+  isConvexAuthEnabled,
+  verifyConvexSessionToken,
+} from './lib/auth/convex-session';
 
 type RateLimitResult = Awaited<ReturnType<Ratelimit['limit']>>;
 
@@ -92,51 +98,73 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          // Get cookie value from request
-          const cookie = request.cookies.get(name);
-          return cookie?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          // Set cookie on both request and response
-          request.cookies.set({
-            name,
-            value,
-            ...options,
-          });
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          });
-        },
-        remove(name: string, options: CookieOptions) {
-          // Remove cookie from both request and response
-          request.cookies.set({
-            name,
-            value: '',
-            ...options,
-          });
-          response.cookies.set({
-            name,
-            value: '',
-            ...options,
-          });
-        },
-      },
-    }
-  );
+  const authBackend = getAuthBackend();
+  const hasSupabaseAuthEnv = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+  const shouldUseSupabaseAuth = authBackend !== 'convex' && hasSupabaseAuthEnv;
+  const supabase = shouldUseSupabaseAuth
+    ? createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          cookies: {
+            get(name: string) {
+              // Get cookie value from request
+              const cookie = request.cookies.get(name);
+              return cookie?.value;
+            },
+            set(name: string, value: string, options: CookieOptions) {
+              // Set cookie on both request and response
+              request.cookies.set({
+                name,
+                value,
+                ...options,
+              });
+              response.cookies.set({
+                name,
+                value,
+                ...options,
+              });
+            },
+            remove(name: string, options: CookieOptions) {
+              // Remove cookie from both request and response
+              request.cookies.set({
+                name,
+                value: '',
+                ...options,
+              });
+              response.cookies.set({
+                name,
+                value: '',
+                ...options,
+              });
+            },
+          },
+        }
+      )
+    : null;
 
   // Refresh session and get user
-  const { data: { user }, error } = await supabase.auth.getUser()
+  const { user, error } = supabase
+    ? await supabase.auth.getUser().then((result) => ({
+        user: result.data.user,
+        error: result.error,
+      }))
+    : { user: null, error: null };
+  const convexSession = !user && isConvexAuthEnabled()
+    ? await verifyConvexSessionToken(
+        request.cookies.get(CONVEX_SESSION_COOKIE_NAME)?.value,
+        process.env.CONVEX_AUTH_SESSION_SECRET
+      )
+    : null;
+  const authUser = user ?? (convexSession
+    ? {
+        id: convexSession.sub,
+        email: convexSession.email,
+      }
+    : null);
   
   // Also try to refresh the session if there's an error
-  if (error && !pathname.startsWith('/auth')) {
+  if (supabase && error && !pathname.startsWith('/auth')) {
     const { data: { session } } = await supabase.auth.getSession()
     if (session) {
       await supabase.auth.setSession({
@@ -159,6 +187,7 @@ export async function middleware(request: NextRequest) {
     '/auth/register',
     '/auth/forgot-password',
     '/auth/reset-password',
+    '/auth/convex-reset-password',
     '/auth/callback',
     '/auth/logout',
     '/auth/verify-email',
@@ -188,6 +217,14 @@ export async function middleware(request: NextRequest) {
     return '/setup/resume';
   };
   const getAccessibleWorkspaces = async (userId: string) => {
+    if (convexSession?.sub === userId) {
+      return convexSession.workspaceId
+        ? [{ id: convexSession.workspaceId, status: 'active', onboarding_completed: true }]
+        : [];
+    }
+
+    if (!supabase) return [];
+
     const workspaceMap = new Map<string, any>();
 
     let { data: ownedWorkspaces, error: ownedWorkspacesError } = await supabase
@@ -204,7 +241,10 @@ export async function middleware(request: NextRequest) {
         .eq('owner_id', userId)
         .order('created_at', { ascending: false })
         .limit(10);
-      ownedWorkspaces = fallback.data;
+      ownedWorkspaces = (fallback.data || []).map((workspace) => ({
+        ...workspace,
+        status: workspace.onboarding_completed ? 'active' : 'draft',
+      }));
     }
 
     for (const workspace of ownedWorkspaces || []) {
@@ -242,7 +282,10 @@ export async function middleware(request: NextRequest) {
           .in('id', missingIds)
           .order('created_at', { ascending: false })
           .limit(10);
-        memberWorkspaces = fallback.data;
+        memberWorkspaces = (fallback.data || []).map((workspace) => ({
+          ...workspace,
+          status: workspace.onboarding_completed ? 'active' : 'draft',
+        }));
       }
 
       for (const workspace of memberWorkspaces || []) {
@@ -254,21 +297,21 @@ export async function middleware(request: NextRequest) {
   };
 
   // If no user and trying to access protected route
-  if (!user && !isPublicPath) {
+  if (!authUser && !isPublicPath) {
     const redirectUrl = new URL('/auth/login', request.url);
     redirectUrl.searchParams.set('redirectTo', pathname);
     return NextResponse.redirect(redirectUrl);
   }
 
   // If has user and trying to access auth pages (except logout/callback/reset-password/verify-email/book)
-  if (user && isPublicPath &&
+  if (authUser && isPublicPath &&
       !pathname.includes('/logout') &&
       !pathname.includes('/callback') &&
       !pathname.includes('/reset-password') &&
       !pathname.includes('/verify-email') &&
       !pathname.startsWith('/book')) {
     // Check if user has workspace (cached check)
-    const workspaces = await getAccessibleWorkspaces(user.id);
+    const workspaces = await getAccessibleWorkspaces(authUser.id);
 
     return NextResponse.redirect(new URL(resolveWorkspaceDestination(workspaces), request.url));
   }
@@ -276,8 +319,8 @@ export async function middleware(request: NextRequest) {
   // If user already has a usable workspace and tries onboarding, send them to
   // the correct lifecycle screen. Archived/deleted workspaces do not block a
   // fresh onboarding.
-  if (user && pathname === '/onboarding') {
-    const workspaces = await getAccessibleWorkspaces(user.id);
+  if (authUser && pathname === '/onboarding') {
+    const workspaces = await getAccessibleWorkspaces(authUser.id);
     const destination = resolveWorkspaceDestination(workspaces);
     if (destination !== '/onboarding') {
       return NextResponse.redirect(new URL(destination, request.url));
@@ -286,12 +329,12 @@ export async function middleware(request: NextRequest) {
 
   // If authenticated and not in onboarding, check for workspace
   // Do not bounce away from setup while the just-created workspace propagates.
-  if (user && !isPublicPath && !isOnboarding && !isSetup) {
+  if (authUser && !isPublicPath && !isOnboarding && !isSetup) {
     const cookieWs = request.cookies.get('workspaceId')?.value
 
     // Only check database if no workspace cookie exists
     if (!cookieWs) {
-      const workspace = await getAccessibleWorkspaces(user.id);
+      const workspace = await getAccessibleWorkspaces(authUser.id);
 
       const destination = resolveWorkspaceDestination(workspace);
       if (destination !== '/') {

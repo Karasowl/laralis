@@ -249,6 +249,47 @@ function extractDialog360StatusUpdates(payload: unknown): ProviderStatusUpdate[]
   return updates
 }
 
+function extractDialog360MessageBody(message: any): string {
+  const textBody = typeof message?.text?.body === 'string' ? message.text.body.trim() : ''
+  if (textBody) return textBody
+
+  const buttonTitle =
+    typeof message?.interactive?.button_reply?.title === 'string'
+      ? message.interactive.button_reply.title.trim()
+      : ''
+  if (buttonTitle) return buttonTitle
+
+  const listTitle =
+    typeof message?.interactive?.list_reply?.title === 'string'
+      ? message.interactive.list_reply.title.trim()
+      : ''
+  if (listTitle) return listTitle
+
+  return ''
+}
+
+function extractDialog360InteractiveReply(message: any): Record<string, string> | null {
+  const buttonReply = message?.interactive?.button_reply
+  if (buttonReply?.id || buttonReply?.title) {
+    return {
+      type: 'button_reply',
+      id: String(buttonReply.id || ''),
+      title: String(buttonReply.title || ''),
+    }
+  }
+
+  const listReply = message?.interactive?.list_reply
+  if (listReply?.id || listReply?.title) {
+    return {
+      type: 'list_reply',
+      id: String(listReply.id || ''),
+      title: String(listReply.title || ''),
+    }
+  }
+
+  return null
+}
+
 function extractDialog360InboundMessages(
   payload: unknown,
   clinicId: string | null,
@@ -267,8 +308,9 @@ function extractDialog360InboundMessages(
       const inboundMessages = Array.isArray(value.messages) ? value.messages : []
 
       for (const message of inboundMessages) {
-        const body = typeof message?.text?.body === 'string' ? message.text.body.trim() : ''
+        const body = extractDialog360MessageBody(message)
         if (!body) continue
+        const interactiveReply = extractDialog360InteractiveReply(message)
 
         const fromRaw = typeof message.from === 'string' ? `+${message.from.replace(/^\+/, '')}` : ''
         const contact = contacts.find((row: any) => String(row?.wa_id || '') === String(message.from || ''))
@@ -291,6 +333,7 @@ function extractDialog360InboundMessages(
             phone_number_id: metadata.phone_number_id || null,
             display_phone_number: metadata.display_phone_number || null,
             message_type: message.type || null,
+            ...(interactiveReply ? { interactive_reply: interactiveReply } : {}),
           },
         })
       }
@@ -387,7 +430,7 @@ async function handleTwilioWebhook(
     campaignId,
     fromRaw: formParams.From || '',
     toRaw: formParams.To || '',
-    body: (formParams.Body || '').trim(),
+    body: (formParams.Body || formParams.ButtonText || formParams.ButtonPayload || '').trim(),
     profileName: (formParams.ProfileName || '').trim(),
     messageSid: (formParams.MessageSid || '').trim(),
     ctwaReferral: extractCtwaReferralFromTwilio(formParams),
@@ -395,6 +438,8 @@ async function handleTwilioWebhook(
       provider: 'twilio',
       account_sid: formParams.AccountSid || null,
       messaging_service_sid: formParams.MessagingServiceSid || null,
+      button_text: formParams.ButtonText || null,
+      button_payload: formParams.ButtonPayload || null,
     },
   })
 }

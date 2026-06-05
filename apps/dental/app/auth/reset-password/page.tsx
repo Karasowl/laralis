@@ -132,11 +132,24 @@ function ResetPasswordContent() {
         return
       }
 
-      setSuccess(true)
-      toast.success(t('successMessage'))
-      
       // Check if user has workspace to determine redirect
       const { data: { user } } = await supabase.auth.getUser()
+
+      if (user?.email && process.env.NEXT_PUBLIC_CONVEX_AUTH_BRIDGE === '1') {
+        await fetch('/api/auth/convex-bridge', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            email: user.email,
+            password: data.password,
+          }),
+        }).catch((error) => {
+          console.error('[reset-password] Convex auth bridge failed', error)
+        })
+      }
+
+      setSuccess(true)
+      toast.success(t('successMessage'))
       
       if (user) {
         const { data: workspaces } = await supabase
