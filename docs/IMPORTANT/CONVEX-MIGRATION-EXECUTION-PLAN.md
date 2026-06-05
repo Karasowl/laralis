@@ -262,3 +262,62 @@ _These orchestrate destructive multi-table cascades, PL/pgSQL RPCs, and 40+ tabl
 - Auth + permission cutover (AUTH_BACKEND=convex): permissions/check, permissions/my, team membership, and invitation accept depend on Postgres RPCs (check_user_permission, get_user_permissions, is_clinic_member) and Supabase Auth admin profile lookups that are not mirrorable. A resolution mismatch causes either lockouts or privilege escalation. Mitigation: exhaustive role-matrix parity tests against the existing convexUserHasPermission before flipping, and keep auth flip independent from data flip.
 - Destructive cascade fidelity: delete-account, workspace lifecycle, cleanup-draft-workspaces, and reset cascade across 14-60 tables in FK order. If the Convex equivalent misses a table or order, you get orphans or partial deletes with no transaction rollback. Mitigation: build dedicated Convex cascade mutations mirroring CLINIC_DELETE_SEQUENCE exactly, test on disposable workspaces, and gate behind dual_write verification.
 - Write-mirror completeness and silent failures: full read parity is only safe if dual-write has been live long enough that Convex holds every row. Unwrapped writers (still ~40 routes pre-batch-1) or a mirror error swallowed at runtime leaves Convex stale, so reads return wrong/empty data after cutover. Mitigation: land all write wraps first (batches 1-2), add a per-table Supabase-vs-Convex row-count reconciliation job, and alert on mirror failures before enabling any convex read.
+
+---
+
+## FINAL STATE (2026-06-05) — user-facing read+write parity COMPLETE
+
+### Writes: no gap remaining
+`createClient()` in `lib/supabase/server.ts` **already** returns a Convex-mirrored
+client (`createMirroredSupabaseClient`), exactly like `supabaseAdmin`. So EVERY write
+path — service-role (`supabaseAdmin`) and SSR (`createClient`) — dual-writes to Convex
+when `shouldWriteConvexData(table)` is on. Batch 1/2 "write wrap" items are therefore
+already satisfied by the two client factories; no per-route wrapping is needed.
+(`saveMfaPreferences` also wraps defensively — idempotent via `MIRRORED_CLIENT_MARKER`.)
+
+### Reads: 89 / 110 GET routes carry a flag-gated Convex branch
+All **user-facing** GET reads are migrated, including the previously-deferred complex
+group: permissions/check, permissions/my, team/{clinic-members,workspace-members,custom-roles},
+reports/summary, prescriptions/[id], tariffs, ai/chat/history, bookings, public/*, and the
+final follow-ups **invitations**, **invitations/accept/[token]**, **settings/security/mfa**,
+**medications**, **settings/{user,preferences,notifications,booking}**.
+
+Key correctness work landed this phase:
+- **authBridge.userHasPermission** rewritten to replicate `check_user_permission`
+  (migration 76) EXACTLY — super_admin carve-outs, allowed_clinics, encoded-JSONB
+  custom_permissions denies, custom_role_templates+base_role, clinic-beats-workspace
+  precedence, `is_active = true` strict. Deployed to Convex (typecheck clean).
+- **Encoded JSONB key decode**: added `decodeConvexFieldName`/`decodeConvexValue`
+  (exact inverse of `encodeConvexValue`) in `lib/convex/legacy.ts`; applied wherever a
+  semantic-keyed JSONB map is read back (permissions/my, team/*, invitations, user_settings,
+  mfa). Without it, `custom_permissions`/`permissions` overrides silently never applied.
+- **Permission-subsystem flag unified** on `role_permissions` + `getAuthBackend()==='convex'`
+  so enforcement guard and all self-service/team routes flip atomically.
+
+### The 21 GET routes WITHOUT a Convex branch — why each is out of scope
+| Route(s) | Category | Reason |
+|---|---|---|
+| migration/convex-compare, convex-full-sync, convex-health, convex-sync | Migration tooling | Read/compare BOTH backends BY DESIGN — must never read only Convex |
+| clinic/[clinicId]/export | Backup/DR | Dumps Supabase (export edge) |
+| snapshots, snapshots/[snapshotId] | Backup/DR | Read `clinic_snapshots` but the subsystem is coupled to Supabase Storage (file download) |
+| snapshots/discover | Backup/DR | **Impossible on Convex** — introspects Supabase `information_schema` (no catalog in Convex) |
+| reset | Destructive admin | Wipes ~14 Supabase tables; GET count branch is admin tooling |
+| cron/recurring-expenses | Operational | **Pure Postgres RPC** (`process_recurring_expenses`) — no read to migrate |
+| cron/snapshots | Operational/Backup | Runs the Supabase snapshot exporter |
+| cron/complete-appointments | Operational | Write-dominant (bulk treatments UPDATE); clinics read is trivial |
+| cron/cleanup-draft-workspaces | Operational | Destructive workspace-lifecycle job (deletes workspace trees) |
+| cron/send-reminders | Operational | 4-level nested-join notification pipeline |
+| cron/retry-notifications | Operational | Notification-retry pipeline via Supabase-specific helpers |
+
+The cron + backup routes belong to the **full-cutover phase**, not the read-parity/canary
+phase: a cron reading the Convex mirror while Supabase is still the write source could
+process stale/duplicate rows. Migrate them (with FK-reassembly + adversarial verification,
+e.g. send-reminders' deep join) only when `DATA_WRITE_MODE` for their domains also flips.
+
+### Operator next steps (canary)
+1. Per domain, set `DATA_READ_BACKEND_<DOMAIN>=convex`; observe `convex-compare`
+   (or `DATA_COMPARE_CONVEX=1` with `dual_read`) to diff both backends in prod.
+2. Permission subsystem flips together via a single `DATA_READ_BACKEND_ROLE_PERMISSIONS=convex`.
+3. Auth cutover (`AUTH_BACKEND=convex`) switches permission resolution to the bridge too.
+4. Only after read parity is verified per domain, flip `DATA_WRITE_MODE_<DOMAIN>=convex`
+   (convex-only writes), then revisit cron/backup migration.
