@@ -6,7 +6,13 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import type { ClinicMember, ClinicRole, WorkspaceRole } from '@/lib/permissions';
 import { forbiddenIfMissingPermission } from '@/lib/permissions';
 import { readJson } from '@/lib/validation';
-import { getAuthUserProfilesByIds } from '@/lib/auth-user-profiles';
+import { getAuthUserProfilesByIds, type AuthUserProfile } from '@/lib/auth-user-profiles';
+import { shouldReturnConvexData } from '@/lib/data-backend';
+import {
+  listConvexDocumentsByClinic,
+  listConvexDocumentsByWorkspace,
+  listConvexTable,
+} from '@/lib/convex/server';
 
 /**
  * GET /api/team/clinic-members
@@ -71,6 +77,20 @@ export async function GET(request: NextRequest) {
         { error: 'Access denied' },
         { status: 403 }
       );
+    }
+
+    // Flag-gated Convex read branch. Runs ONLY after getUser (resolveClinicContext),
+    // the team.view permission guard, and the caller membership/access check above.
+    // The Convex bridge has no RLS, so the authorization MUST remain in front of it.
+    if (shouldReturnConvexData('role_permissions')) {
+      const transformedMembers = await getClinicMembersFromConvex(
+        clinicId,
+        clinic.workspace_id as string
+      );
+      return NextResponse.json({
+        members: transformedMembers,
+        clinicId,
+      });
     }
 
     // Fetch all clinic members
@@ -161,6 +181,121 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+type ImportedRecord = Record<string, any>;
+
+function normalizeConvexRecord(row: ImportedRecord | null | undefined) {
+  if (!row) return null;
+  const {
+    _id,
+    _creationTime,
+    legacyId,
+    legacyTable,
+    convex_created_at,
+    convex_updated_at,
+    convex_snapshot_source,
+    ...rest
+  } = row;
+  return rest;
+}
+
+function byId(rows: ImportedRecord[]) {
+  return new Map(
+    rows.flatMap((row) => {
+      const ids = [row.id, row.legacyId].filter(Boolean).map((id) => String(id));
+      return ids.map((id) => [id, row] as const);
+    })
+  );
+}
+
+// Mirror of profileFromUser() in lib/auth-user-profiles.ts. The Supabase path resolves
+// member email/name/avatar via supabase.auth.admin.getUserById(); the Convex mirror table
+// supabase_auth_users stores the same JSON-serialized auth user object (id, email,
+// user_metadata), so we read the SAME fields here.
+function profileFromMirroredAuthUser(user: ImportedRecord | null | undefined): AuthUserProfile | null {
+  if (!user) return null;
+  const metadata = (user.user_metadata ?? user.raw_user_meta_data) as
+    | Record<string, unknown>
+    | undefined;
+
+  return {
+    email: typeof user.email === 'string' ? user.email : null,
+    full_name:
+      typeof metadata?.full_name === 'string'
+        ? metadata.full_name
+        : typeof metadata?.name === 'string'
+          ? metadata.name
+          : null,
+    avatar_url: typeof metadata?.avatar_url === 'string' ? metadata.avatar_url : null,
+  };
+}
+
+/**
+ * Convex equivalent of the Supabase clinic-members assembly.
+ * - clinic_users membership rows (FK clinic_id) come from the mirrored clinic_users table.
+ * - workspace role per member (FK workspace_id + user_id) from the mirrored workspace_users table.
+ * - auth profile (email/full_name/avatar_url) per member from the mirrored supabase_auth_users table by id.
+ * Produces a byte-identical ClinicMember[] shape vs the Supabase branch.
+ */
+async function getClinicMembersFromConvex(
+  clinicId: string,
+  workspaceId: string
+): Promise<ClinicMember[]> {
+  const [clinicUserRows, workspaceUserRows, authUserRows] = await Promise.all([
+    listConvexDocumentsByClinic('clinic_users', clinicId) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByWorkspace('workspace_users', workspaceId) as Promise<ImportedRecord[]>,
+    listConvexTable('supabase_auth_users', 10000) as Promise<ImportedRecord[]>,
+  ]);
+
+  // Match the Supabase ordering: joined_at ascending.
+  const members = [...clinicUserRows].sort((a, b) =>
+    String(a.joined_at ?? '').localeCompare(String(b.joined_at ?? ''))
+  );
+
+  const userIds = members.map((member) => String(member.user_id));
+
+  const workspaceRolesByUser = new Map<string, WorkspaceRole>();
+  for (const workspaceUser of workspaceUserRows) {
+    if (userIds.includes(String(workspaceUser.user_id))) {
+      workspaceRolesByUser.set(
+        String(workspaceUser.user_id),
+        workspaceUser.role as WorkspaceRole
+      );
+    }
+  }
+
+  const authUserById = byId(authUserRows);
+  const authProfilesById = new Map<string, AuthUserProfile>();
+  for (const userId of userIds) {
+    const profile = profileFromMirroredAuthUser(authUserById.get(userId));
+    if (profile) authProfilesById.set(userId, profile);
+  }
+
+  return members.map((m) => {
+    const profile = authProfilesById.get(String(m.user_id)) || null;
+    const email = profile?.email || '';
+    const fullName = profile?.full_name ?? null;
+    const avatarUrl = profile?.avatar_url ?? null;
+
+    return {
+      id: m.id,
+      user_id: m.user_id,
+      clinic_id: m.clinic_id,
+      role: m.role as ClinicRole,
+      workspace_role: workspaceRolesByUser.get(String(m.user_id)) || null,
+      custom_permissions: m.custom_permissions,
+      custom_role_id: m.custom_role_id,
+      is_active: m.is_active,
+      joined_at: m.joined_at,
+      can_access_all_patients: m.can_access_all_patients,
+      assigned_chair: m.assigned_chair,
+      schedule: m.schedule as Record<string, unknown> | null,
+      email,
+      full_name: fullName,
+      avatar_url: avatarUrl,
+    };
+  });
 }
 
 // Schema for adding a user to a clinic

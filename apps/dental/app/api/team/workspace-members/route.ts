@@ -10,6 +10,11 @@ import {
   findAuthUserIdByEmail,
   getAuthUserProfilesByIds,
 } from '@/lib/auth-user-profiles';
+import {
+  listConvexDocumentsByWorkspace,
+  listConvexTable,
+} from '@/lib/convex/server';
+import { shouldReturnConvexData } from '@/lib/data-backend';
 
 /**
  * GET /api/team/workspace-members
@@ -71,6 +76,24 @@ export async function GET(request: NextRequest) {
         { error: 'Access denied' },
         { status: 403 }
       );
+    }
+
+    // Flag-gated Convex read branch. Reached only AFTER:
+    //   1. resolveClinicContext (auth) succeeded,
+    //   2. forbiddenIfMissingPermission(userId, clinicId, 'team.view') passed,
+    //   3. the explicit workspace_users active-membership access check above passed.
+    // The Convex bridge has NO RLS, so the caller authorization above MUST stay
+    // before this branch. Default backend is Supabase; only flips when the
+    // permissions/auth domain ('role_permissions') is routed to Convex.
+    if (shouldReturnConvexData('role_permissions')) {
+      // workspaceId is guaranteed non-null here: an active membership row was
+      // just resolved for it (the access check above). Same value the Supabase
+      // path uses below.
+      const transformedMembers = await getWorkspaceMembersFromConvex(workspaceId!);
+      return NextResponse.json({
+        members: transformedMembers,
+        workspaceId,
+      });
     }
 
     // Fetch all workspace members
@@ -135,6 +158,95 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+type ImportedRecord = Record<string, any>;
+
+/**
+ * Convex equivalent of the Supabase GET member-list query.
+ *
+ * Mirrors EXACTLY:
+ *   supabaseAdmin.from('workspace_users')
+ *     .select(id, user_id, workspace_id, role, custom_permissions,
+ *             custom_role_id, allowed_clinics, is_active, joined_at)
+ *     .eq('workspace_id', workspaceId)
+ *     .order('joined_at', { ascending: true })
+ *
+ * Note: the member LIST query has NO is_active filter (only the caller's
+ * access-check membership is active-gated). We preserve that: every
+ * workspace_users row for the workspace is returned, active or not.
+ *
+ * Auth profiles (email / full_name / avatar_url) are resolved from the
+ * mirrored `supabase_auth_users` table by id, replicating the exact
+ * extraction performed by getAuthUserProfilesByIds -> profileFromUser
+ * (which reads user.email and user.user_metadata.{full_name|name|avatar_url}).
+ */
+async function getWorkspaceMembersFromConvex(workspaceId: string): Promise<WorkspaceMember[]> {
+  const [memberRows, authUserRows] = await Promise.all([
+    listConvexDocumentsByWorkspace('workspace_users', workspaceId, 10000) as Promise<ImportedRecord[]>,
+    listConvexTable('supabase_auth_users', 10000) as Promise<ImportedRecord[]>,
+  ]);
+
+  const authUserById = byId(authUserRows);
+
+  return memberRows
+    .filter((row) => String(row.workspace_id) === String(workspaceId))
+    .sort((a, b) =>
+      String(a.joined_at ?? '').localeCompare(String(b.joined_at ?? ''))
+    )
+    .map((m) => {
+      const authUser = m.user_id ? authUserById.get(String(m.user_id)) : null;
+      const profile = profileFromConvexAuthUser(authUser);
+
+      return {
+        id: m.id,
+        user_id: m.user_id,
+        workspace_id: m.workspace_id,
+        role: m.role as WorkspaceRole,
+        custom_permissions: m.custom_permissions,
+        custom_role_id: m.custom_role_id,
+        allowed_clinics: m.allowed_clinics || [],
+        is_active: m.is_active,
+        joined_at: m.joined_at,
+        email: profile.email || '',
+        full_name: profile.full_name ?? null,
+        avatar_url: profile.avatar_url ?? null,
+      } as WorkspaceMember;
+    });
+}
+
+function byId(rows: ImportedRecord[]) {
+  return new Map(
+    rows.flatMap((row) => {
+      const ids = [row.id, row.legacyId].filter(Boolean).map((id) => String(id));
+      return ids.map((id) => [id, row] as const);
+    })
+  );
+}
+
+/**
+ * Replicates lib/auth-user-profiles.ts -> profileFromUser EXACTLY, but reading
+ * from the mirrored supabase_auth_users row (which is the full Supabase auth
+ * user object serialized via JSON during sync, so it carries `email` and
+ * `user_metadata`).
+ */
+function profileFromConvexAuthUser(user: ImportedRecord | null | undefined): {
+  email: string | null;
+  full_name: string | null;
+  avatar_url: string | null;
+} {
+  const metadata = user?.user_metadata as Record<string, unknown> | undefined;
+
+  return {
+    email: user?.email || null,
+    full_name:
+      typeof metadata?.full_name === 'string'
+        ? metadata.full_name
+        : typeof metadata?.name === 'string'
+          ? metadata.name
+          : null,
+    avatar_url: typeof metadata?.avatar_url === 'string' ? metadata.avatar_url : null,
+  };
 }
 
 // Schema for creating a new invitation (which will become a workspace member)

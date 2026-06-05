@@ -3,6 +3,8 @@ import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { isValidPermission, type Permission } from '@/lib/permissions';
+import { shouldReturnConvexData } from '@/lib/data-backend';
+import { convexUserHasPermission } from '@/lib/convex/server';
 
 // QA route contract: @qa-self-service-route authenticated current-user permission check.
 /**
@@ -59,6 +61,31 @@ export async function GET(request: NextRequest) {
   const { clinicId, userId } = context;
 
   try {
+    // Convex read branch (flag-gated, default Supabase). This is HIGH-RISK auth
+    // code, so the branch only runs AFTER resolveClinicContext above has
+    // authenticated the caller and verified they belong to `clinicId`
+    // (it returns 401/403 otherwise). The Convex bridge has NO RLS, so that
+    // guard MUST stay before this branch and must never be skipped.
+    //
+    // convexUserHasPermission -> convex/authBridge.userHasPermission replicates
+    // the Supabase RPC `check_user_permission`: workspace-owner => all, then
+    // direct clinic_users role via role_permissions, then workspace
+    // membership role ('owner' => all) via role_permissions. It receives the
+    // full `resource.action` string and re-splits it the same way this route
+    // does, so the resolved (resource, action) pair is identical.
+    //
+    // Returns the EXACT same { allowed, permission, clinicId } shape as the
+    // Supabase path below.
+    if (shouldReturnConvexData('role_permissions')) {
+      const allowed = await convexUserHasPermission(userId, clinicId, permission);
+
+      return NextResponse.json({
+        allowed: Boolean(allowed),
+        permission,
+        clinicId,
+      });
+    }
+
     // Use the database function to check permission
     const { data: allowed, error } = await supabaseAdmin.rpc(
       'check_user_permission',

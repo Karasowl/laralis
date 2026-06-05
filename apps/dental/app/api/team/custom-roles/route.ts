@@ -3,6 +3,17 @@ import { z } from 'zod';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { withPermission } from '@/lib/middleware/with-permission';
 import { readJson } from '@/lib/validation';
+import { listConvexDocumentsByWorkspace } from '@/lib/convex/server';
+import { shouldReturnConvexData } from '@/lib/data-backend';
+
+type ConvexRecord = Record<string, any>;
+
+// Strips the full Convex metadata set so the Convex branch returns a
+// byte-identical row shape to the Supabase `select('*')` response.
+function normalizeConvexRecord(row: ConvexRecord) {
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row;
+  return rest;
+}
 
 const createSchema = z.object({
   name: z.string().min(2),
@@ -16,6 +27,41 @@ const createSchema = z.object({
 export const GET = withPermission('team.view', async (request, ctx) => {
   const { searchParams } = new URL(request.url);
   const scope = searchParams.get('scope');
+
+  // Flag-gated Convex read branch. SECURITY: this runs ONLY after withPermission
+  // has executed resolveClinicContext (getUser) AND the userHasPermission
+  // 'team.view' guard for the caller, so authorization is already enforced.
+  // The Convex bridge has no RLS; the guard above is the authorization boundary.
+  // Default backend stays Supabase (see getDataReadBackend); only flips when
+  // DATA_READ_BACKEND_ROLE_PERMISSIONS / DATA_READ_BACKEND / DATA_BACKEND select convex.
+  if (shouldReturnConvexData('role_permissions')) {
+    try {
+      const rows = (await listConvexDocumentsByWorkspace(
+        'custom_role_templates',
+        ctx.workspaceId,
+        10000
+      )) as ConvexRecord[];
+
+      // Replicate the optional `.eq('scope', scope)` filter (only valid values).
+      const filtered = rows.filter((row) => {
+        if (scope === 'workspace' || scope === 'clinic') {
+          return row.scope === scope;
+        }
+        return true;
+      });
+
+      // Replicate `.order('created_at', { ascending: false })`.
+      const sorted = filtered.sort((a, b) =>
+        String(b.created_at ?? '').localeCompare(String(a.created_at ?? ''))
+      );
+
+      const roles = sorted.map((row) => normalizeConvexRecord(row));
+      return NextResponse.json({ roles });
+    } catch (convexError) {
+      console.error('[custom-roles] Convex read error:', convexError);
+      return NextResponse.json({ error: 'Failed to fetch roles' }, { status: 500 });
+    }
+  }
 
   let query = supabaseAdmin
     .from('custom_role_templates')
