@@ -16,10 +16,19 @@ import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
 import { requireCronAuth } from '@/lib/cron-auth'
 import { resolveClinicContext } from '@/lib/clinic'
+import { listConvexTable } from '@/lib/convex/server'
+import { shouldReturnConvexData } from '@/lib/data-backend'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300 // 5 minutes max for all clinics
+
+type ImportedRecord = Record<string, any>
+
+function normalizeConvexRecord(row: ImportedRecord) {
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row
+  return rest
+}
 
 const snapshotRequestSchema = z.object({
   clinic_id: z.string().uuid(),
@@ -45,18 +54,30 @@ export async function GET(request: NextRequest) {
     const denied = requireCronAuth(request)
     if (denied) return denied
 
-    // Get all active clinics
-    const { data: clinics, error: clinicsError } = await supabaseAdmin
-      .from('clinics')
-      .select('id, name, workspace_id')
-      .eq('is_active', true)
+    // Get all active clinics. clinics is keyed by id (no clinic_id column) and
+    // this read spans all workspaces, so the Convex branch reads the whole table
+    // and filters in JS. Flag-gated, default Supabase. The per-clinic snapshot
+    // exporter below stays on Supabase (it dumps the Supabase database).
+    let clinics: Array<{ id: any; name: any; workspace_id: any }> | null
+    if (shouldReturnConvexData('clinics')) {
+      clinics = (await listConvexTable('clinics', 10000) as ImportedRecord[])
+        .map(normalizeConvexRecord)
+        .filter((row) => row.is_active === true)
+        .map((row) => ({ id: row.id, name: row.name, workspace_id: row.workspace_id }))
+    } else {
+      const { data, error: clinicsError } = await supabaseAdmin
+        .from('clinics')
+        .select('id, name, workspace_id')
+        .eq('is_active', true)
 
-    if (clinicsError) {
-      console.error('[cron/snapshots] Error fetching clinics:', clinicsError)
-      return NextResponse.json(
-        { error: 'Failed to fetch clinics' },
-        { status: 500 }
-      )
+      if (clinicsError) {
+        console.error('[cron/snapshots] Error fetching clinics:', clinicsError)
+        return NextResponse.json(
+          { error: 'Failed to fetch clinics' },
+          { status: 500 }
+        )
+      }
+      clinics = data
     }
 
     if (!clinics || clinics.length === 0) {

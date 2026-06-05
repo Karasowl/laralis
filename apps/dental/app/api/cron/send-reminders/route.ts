@@ -35,6 +35,103 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // 60 seconds max execution time
 
 import { requireCronAuth } from '@/lib/cron-auth';
+import { listConvexTable, decodeConvexValue } from '@/lib/convex/server';
+import { shouldReturnConvexData } from '@/lib/data-backend';
+
+type ImportedRecord = Record<string, any>;
+
+function normalizeConvexRecord(row: ImportedRecord) {
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row;
+  return rest;
+}
+
+function indexById(rows: ImportedRecord[]) {
+  const map = new Map<string, ImportedRecord>();
+  for (const row of rows) {
+    const id = row.id ?? row.legacyId;
+    if (id != null) map.set(String(id), row);
+  }
+  return map;
+}
+
+/**
+ * Convex equivalent of the scheduled_reminders deep-join read.
+ *
+ * The Supabase query is:
+ *   scheduled_reminders
+ *     treatments!inner ( id, treatment_date, treatment_time, service_id,
+ *                        services!inner ( name, est_minutes ) )
+ *     patients!inner  ( first_name, last_name, email, phone )
+ *     clinics!inner   ( name, phone, address, notification_settings )
+ *   WHERE status = 'pending' AND scheduled_for <= now  LIMIT 50
+ *
+ * Convex has no nested select, so we read each table and FK-reassemble in JS,
+ * replicating the !inner semantics: a reminder whose treatment / service /
+ * patient / clinic is missing is DROPPED (never reaches the 50-row cap).
+ */
+async function getDueRemindersFromConvex(nowISO: string) {
+  const [reminders, treatments, services, patients, clinics] = await Promise.all([
+    listConvexTable('scheduled_reminders', 10000) as Promise<ImportedRecord[]>,
+    listConvexTable('treatments', 10000) as Promise<ImportedRecord[]>,
+    listConvexTable('services', 10000) as Promise<ImportedRecord[]>,
+    listConvexTable('patients', 10000) as Promise<ImportedRecord[]>,
+    listConvexTable('clinics', 10000) as Promise<ImportedRecord[]>,
+  ]);
+
+  const treatmentsById = indexById(treatments.map(normalizeConvexRecord));
+  const servicesById = indexById(services.map(normalizeConvexRecord));
+  const patientsById = indexById(patients.map(normalizeConvexRecord));
+  const clinicsById = indexById(clinics.map(normalizeConvexRecord));
+
+  const due = reminders
+    .map(normalizeConvexRecord)
+    .filter((r) => r.status === 'pending' && String(r.scheduled_for ?? '') <= nowISO);
+
+  const result: ImportedRecord[] = [];
+  for (const reminder of due) {
+    if (result.length >= 50) break; // mirror .limit(50)
+
+    const treatment = reminder.treatment_id ? treatmentsById.get(String(reminder.treatment_id)) : null;
+    if (!treatment) continue; // treatments!inner
+    const service = treatment.service_id ? servicesById.get(String(treatment.service_id)) : null;
+    if (!service) continue; // services!inner
+    const patient = reminder.patient_id ? patientsById.get(String(reminder.patient_id)) : null;
+    if (!patient) continue; // patients!inner
+    const clinic = reminder.clinic_id ? clinicsById.get(String(reminder.clinic_id)) : null;
+    if (!clinic) continue; // clinics!inner
+
+    result.push({
+      id: reminder.id,
+      clinic_id: reminder.clinic_id,
+      treatment_id: reminder.treatment_id,
+      patient_id: reminder.patient_id,
+      scheduled_for: reminder.scheduled_for,
+      reminder_type: reminder.reminder_type,
+      treatments: {
+        id: treatment.id,
+        treatment_date: treatment.treatment_date,
+        treatment_time: treatment.treatment_time,
+        service_id: treatment.service_id,
+        services: { name: service.name, est_minutes: service.est_minutes },
+      },
+      patients: {
+        first_name: patient.first_name,
+        last_name: patient.last_name,
+        email: patient.email,
+        phone: patient.phone,
+      },
+      clinics: {
+        name: clinic.name,
+        phone: clinic.phone,
+        address: clinic.address,
+        // notification_settings is JSONB; decode nested keys to match Supabase.
+        notification_settings: decodeConvexValue(clinic.notification_settings),
+      },
+    });
+  }
+
+  return result;
+}
 
 export async function GET(request: NextRequest) {
   const denied = requireCronAuth(request);
@@ -57,49 +154,57 @@ export async function GET(request: NextRequest) {
   };
 
   try {
-    // Get pending reminders that are due (scheduled_for <= now)
-    const { data: pendingReminders, error: fetchError } = await supabaseAdmin
-      .from('scheduled_reminders')
-      .select(`
-        id,
-        clinic_id,
-        treatment_id,
-        patient_id,
-        scheduled_for,
-        reminder_type,
-        treatments!inner (
+    // Get pending reminders that are due (scheduled_for <= now).
+    // Flag-gated Convex branch (default Supabase) FK-reassembles the same
+    // deep join in JS; see getDueRemindersFromConvex.
+    let pendingReminders: ImportedRecord[] | null;
+    if (shouldReturnConvexData('scheduled_reminders')) {
+      pendingReminders = await getDueRemindersFromConvex(new Date().toISOString());
+    } else {
+      const { data, error: fetchError } = await supabaseAdmin
+        .from('scheduled_reminders')
+        .select(`
           id,
-          treatment_date,
-          treatment_time,
-          service_id,
-          services!inner (
+          clinic_id,
+          treatment_id,
+          patient_id,
+          scheduled_for,
+          reminder_type,
+          treatments!inner (
+            id,
+            treatment_date,
+            treatment_time,
+            service_id,
+            services!inner (
+              name,
+              est_minutes
+            )
+          ),
+          patients!inner (
+            first_name,
+            last_name,
+            email,
+            phone
+          ),
+          clinics!inner (
             name,
-            est_minutes
+            phone,
+            address,
+            notification_settings
           )
-        ),
-        patients!inner (
-          first_name,
-          last_name,
-          email,
-          phone
-        ),
-        clinics!inner (
-          name,
-          phone,
-          address,
-          notification_settings
-        )
-      `)
-      .eq('status', 'pending')
-      .lte('scheduled_for', new Date().toISOString())
-      .limit(50); // Process up to 50 reminders per invocation
+        `)
+        .eq('status', 'pending')
+        .lte('scheduled_for', new Date().toISOString())
+        .limit(50); // Process up to 50 reminders per invocation
 
-    if (fetchError) {
-      console.error('[cron/send-reminders] Failed to fetch reminders:', fetchError);
-      return NextResponse.json({
-        error: 'Failed to fetch pending reminders',
-        message: fetchError.message,
-      }, { status: 500 });
+      if (fetchError) {
+        console.error('[cron/send-reminders] Failed to fetch reminders:', fetchError);
+        return NextResponse.json({
+          error: 'Failed to fetch pending reminders',
+          message: fetchError.message,
+        }, { status: 500 });
+      }
+      pendingReminders = data;
     }
 
     if (!pendingReminders || pendingReminders.length === 0) {

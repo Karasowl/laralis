@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { requireCronAuth } from '@/lib/cron-auth'
+import { listConvexTable } from '@/lib/convex/server'
+import { shouldReturnConvexData } from '@/lib/data-backend'
 
 export const dynamic = 'force-dynamic'
+
+type ImportedRecord = Record<string, any>
+
+function normalizeConvexRecord(row: ImportedRecord) {
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row
+  return rest
+}
 
 /**
  * Cron endpoint to auto-complete past appointments at midnight.
@@ -16,15 +25,26 @@ export async function GET(request: NextRequest) {
     const denied = requireCronAuth(request)
     if (denied) return denied
 
-    // Get clinics with auto-complete enabled
-    const { data: clinics, error: clinicsError } = await supabaseAdmin
-      .from('clinics')
-      .select('id')
-      .eq('auto_complete_appointments', true)
+    // Get clinics with auto-complete enabled. clinics has no clinic_id column
+    // (keyed by id) and this read is workspace-agnostic, so the Convex branch
+    // reads the whole table and filters in JS. Flag-gated, default Supabase.
+    let clinics: Array<{ id: any }> | null
+    if (shouldReturnConvexData('clinics')) {
+      clinics = (await listConvexTable('clinics', 10000) as ImportedRecord[])
+        .map(normalizeConvexRecord)
+        .filter((row) => row.auto_complete_appointments === true)
+        .map((row) => ({ id: row.id }))
+    } else {
+      const { data, error: clinicsError } = await supabaseAdmin
+        .from('clinics')
+        .select('id')
+        .eq('auto_complete_appointments', true)
 
-    if (clinicsError) {
-      console.error('[cron/complete-appointments] Error fetching clinics:', clinicsError)
-      return NextResponse.json({ error: 'Failed to fetch clinics' }, { status: 500 })
+      if (clinicsError) {
+        console.error('[cron/complete-appointments] Error fetching clinics:', clinicsError)
+        return NextResponse.json({ error: 'Failed to fetch clinics' }, { status: 500 })
+      }
+      clinics = data
     }
 
     if (!clinics || clinics.length === 0) {

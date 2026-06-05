@@ -9,10 +9,19 @@ import {
   daysAgo,
   deleteWorkspaceTree,
 } from '@/lib/workspace-lifecycle'
+import { listConvexTable } from '@/lib/convex/server'
+import { shouldReturnConvexData } from '@/lib/data-backend'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
+
+type ImportedRecord = Record<string, any>
+
+function normalizeConvexRecord(row: ImportedRecord) {
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row
+  return rest
+}
 
 type CleanupResult = {
   expired: Array<{ id: string; name: string | null; delete_after: string }>
@@ -43,13 +52,34 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const { data: drafts, error: draftError } = await supabaseAdmin
-      .from('workspaces')
-      .select('id, name, status, onboarding_completed, setup_last_seen_at, updated_at, created_at')
-      .eq('status', 'draft')
-      .eq('onboarding_completed', false)
+    // workspaces is keyed by id (no clinic_id) and these reads span all
+    // workspaces, so the Convex branch reads the whole table and filters in JS.
+    // Flag-gated, default Supabase. The destructive helpers (countWorkspaceCriticalRows,
+    // deleteWorkspaceTree) keep their own Supabase queries and mirror their writes.
+    let drafts: ImportedRecord[] | null
+    if (shouldReturnConvexData('workspaces')) {
+      drafts = (await listConvexTable('workspaces', 10000) as ImportedRecord[])
+        .map(normalizeConvexRecord)
+        .filter((row) => row.status === 'draft' && row.onboarding_completed === false)
+        .map((row) => ({
+          id: row.id,
+          name: row.name,
+          status: row.status,
+          onboarding_completed: row.onboarding_completed,
+          setup_last_seen_at: row.setup_last_seen_at,
+          updated_at: row.updated_at,
+          created_at: row.created_at,
+        }))
+    } else {
+      const { data, error: draftError } = await supabaseAdmin
+        .from('workspaces')
+        .select('id, name, status, onboarding_completed, setup_last_seen_at, updated_at, created_at')
+        .eq('status', 'draft')
+        .eq('onboarding_completed', false)
 
-    if (draftError) throw draftError
+      if (draftError) throw draftError
+      drafts = data
+    }
 
     for (const workspace of drafts ?? []) {
       if (getTimestamp(workspace) >= draftCutoff) continue
@@ -77,15 +107,29 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const { data: expiredWorkspaces, error: expiredError } = await supabaseAdmin
-      .from('workspaces')
-      .select('id, name, delete_after')
-      .eq('status', 'expired')
-      .eq('onboarding_completed', false)
-      .not('delete_after', 'is', null)
-      .lte('delete_after', now.toISOString())
+    let expiredWorkspaces: Array<{ id: any; name: any; delete_after: any }> | null
+    if (shouldReturnConvexData('workspaces')) {
+      expiredWorkspaces = (await listConvexTable('workspaces', 10000) as ImportedRecord[])
+        .map(normalizeConvexRecord)
+        .filter((row) =>
+          row.status === 'expired' &&
+          row.onboarding_completed === false &&
+          row.delete_after != null &&
+          new Date(row.delete_after) <= now
+        )
+        .map((row) => ({ id: row.id, name: row.name, delete_after: row.delete_after }))
+    } else {
+      const { data, error: expiredError } = await supabaseAdmin
+        .from('workspaces')
+        .select('id, name, delete_after')
+        .eq('status', 'expired')
+        .eq('onboarding_completed', false)
+        .not('delete_after', 'is', null)
+        .lte('delete_after', now.toISOString())
 
-    if (expiredError) throw expiredError
+      if (expiredError) throw expiredError
+      expiredWorkspaces = data
+    }
 
     for (const workspace of expiredWorkspaces ?? []) {
       const counts = await countWorkspaceCriticalRows(workspace.id)

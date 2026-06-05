@@ -24,7 +24,12 @@ export async function GET(request: NextRequest) {
     const denied = requireCronAuth(request)
     if (denied) return denied
 
-    // Call the database function to process all recurring expenses
+    // NOTE (Convex migration): this endpoint has NO read query to flag-gate — all
+    // logic lives in the Postgres function process_recurring_expenses (finds due
+    // recurring templates, inserts expense rows). The runtime mirror refreshes the
+    // 'expenses' snapshot after the RPC (MIRRORED_RPC_REFRESH_TABLES), so Convex
+    // stays consistent. Full native Convex support requires porting the pl/pgsql
+    // function to a Convex mutation — a write-cutover task, not read parity.
     const { data, error } = await supabaseAdmin
       .rpc('process_recurring_expenses', { p_clinic_id: null })
 
