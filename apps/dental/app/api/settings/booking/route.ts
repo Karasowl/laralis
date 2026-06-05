@@ -5,8 +5,26 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { resolveClinicContext } from '@/lib/clinic';
 import { readJson } from '@/lib/validation';
 import { forbiddenIfMissingPermission } from '@/lib/permissions';
+import {
+  getConvexDocumentByLegacyId,
+  listConvexDocumentsByClinic,
+  decodeConvexValue,
+} from '@/lib/convex/server';
+import { shouldReturnConvexData } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic';
+
+type ImportedRecord = Record<string, any>;
+
+function normalizeConvexRecord(row: ImportedRecord) {
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row;
+  return rest;
+}
+
+// Postgres text ordering tie-break by code point (C-style), matching other routes.
+function byCodePoint(a: string, b: string) {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
 
 interface TimeRange {
   start: string;
@@ -111,28 +129,65 @@ export async function GET() {
     const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'settings.view');
     if (forbidden) return forbidden;
 
-    const { data: clinic, error: clinicError } = await supabaseAdmin
-      .from('clinics')
-      .select('id, name, slug, booking_config')
-      .eq('id', clinicId)
-      .single();
+    // Convex read branch (flag-gated, default Supabase). Auth + clinic scoping
+    // already enforced (resolveClinicContext + settings.view guard). clinics is
+    // keyed by id (no clinic_id column); services / public_booking_services are
+    // clinic-scoped. Same column subsets + ordering as the Supabase path.
+    let clinic: { id: any; name: any; slug: any; booking_config: unknown } | null;
+    let services: Array<{ id: any; name: any; description: any; est_minutes: any; is_active: any }> | null;
+    let selectedServices: Array<{ service_id: any; display_order: any; is_active: any }> | null;
 
-    if (clinicError || !clinic) {
-      return NextResponse.json({ error: 'Clinic not found' }, { status: 404 });
+    if (shouldReturnConvexData('clinics')) {
+      const doc = (await getConvexDocumentByLegacyId('clinics', clinicId)) as ImportedRecord | null;
+      if (!doc) {
+        return NextResponse.json({ error: 'Clinic not found' }, { status: 404 });
+      }
+      const c = normalizeConvexRecord(doc);
+      clinic = {
+        id: c.id,
+        name: c.name,
+        slug: c.slug,
+        // booking_config is JSONB; decode nested keys to match Supabase.
+        booking_config: decodeConvexValue(c.booking_config),
+      };
+
+      const svcRows = (await listConvexDocumentsByClinic('services', clinicId, 10000) as ImportedRecord[]).map(normalizeConvexRecord);
+      services = svcRows
+        .map((r) => ({ id: r.id, name: r.name, description: r.description, est_minutes: r.est_minutes, is_active: r.is_active }))
+        .sort((a, b) => byCodePoint(String(a.name ?? ''), String(b.name ?? '')));
+
+      const pbsRows = (await listConvexDocumentsByClinic('public_booking_services', clinicId, 10000) as ImportedRecord[]).map(normalizeConvexRecord);
+      selectedServices = pbsRows
+        .filter((r) => r.is_active === true)
+        .map((r) => ({ service_id: r.service_id, display_order: r.display_order, is_active: r.is_active }))
+        .sort((a, b) => Number(a.display_order ?? 0) - Number(b.display_order ?? 0));
+    } else {
+      const clinicResult = await supabaseAdmin
+        .from('clinics')
+        .select('id, name, slug, booking_config')
+        .eq('id', clinicId)
+        .single();
+
+      if (clinicResult.error || !clinicResult.data) {
+        return NextResponse.json({ error: 'Clinic not found' }, { status: 404 });
+      }
+      clinic = clinicResult.data;
+
+      const servicesResult = await supabaseAdmin
+        .from('services')
+        .select('id, name, description, est_minutes, is_active')
+        .eq('clinic_id', clinicId)
+        .order('name', { ascending: true });
+      services = servicesResult.data;
+
+      const selectedResult = await supabaseAdmin
+        .from('public_booking_services')
+        .select('service_id, display_order, is_active')
+        .eq('clinic_id', clinicId)
+        .eq('is_active', true)
+        .order('display_order', { ascending: true });
+      selectedServices = selectedResult.data;
     }
-
-    const { data: services } = await supabaseAdmin
-      .from('services')
-      .select('id, name, description, est_minutes, is_active')
-      .eq('clinic_id', clinicId)
-      .order('name', { ascending: true });
-
-    const { data: selectedServices } = await supabaseAdmin
-      .from('public_booking_services')
-      .select('service_id, display_order, is_active')
-      .eq('clinic_id', clinicId)
-      .eq('is_active', true)
-      .order('display_order', { ascending: true });
 
     const normalizedConfig = normalizeConfig(clinic.booking_config as BookingConfig | null);
     const selectedServiceIds = (selectedServices || []).map((row) => row.service_id);

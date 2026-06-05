@@ -2,9 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
+import { listConvexTable, decodeConvexValue } from '@/lib/convex/server';
+import { shouldReturnConvexData } from '@/lib/data-backend';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+type ImportedRecord = Record<string, any>;
+
+function normalizeConvexRecord(row: ImportedRecord) {
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row;
+  return rest;
+}
 
 const userSettingSchema = z.object({
     key: z.string().min(1),
@@ -22,6 +31,24 @@ export async function GET(request: NextRequest) {
 
         const searchParams = request.nextUrl.searchParams;
         const key = searchParams.get('key');
+
+        // Convex read branch (flag-gated, default Supabase). Auth already enforced
+        // by supabase.auth.getUser() above; user_settings is scoped to user.id only
+        // (no clinic_id), so we read the whole table and filter by user_id in JS.
+        if (shouldReturnConvexData('user_settings')) {
+            const rows = (await listConvexTable('user_settings', 10000) as ImportedRecord[])
+                .map(normalizeConvexRecord)
+                .filter((row) => String(row.user_id) === user.id && (!key || row.key === key));
+
+            // value is JSONB; Convex stores nested object keys encoded, so decode
+            // back to the original shape to match the Supabase response exactly.
+            const settings = rows.reduce((acc: Record<string, any>, item: ImportedRecord) => {
+                acc[item.key] = decodeConvexValue(item.value);
+                return acc;
+            }, {} as Record<string, any>);
+
+            return NextResponse.json({ settings });
+        }
 
         let query = supabase
             .from('user_settings')
