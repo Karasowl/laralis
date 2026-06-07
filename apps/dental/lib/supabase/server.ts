@@ -2,7 +2,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { getAuthBackend, getConvexSessionFromCookieStore } from '@/lib/auth/convex-session'
 import { createMirroredSupabaseClient } from '@/lib/convex/supabase-runtime-mirror'
-import { getConvexAuthUserLegacyId } from '@/lib/convex/server'
+import { getConvexAuthUserLegacyId, getConvexDocumentByLegacyId } from '@/lib/convex/server'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -59,7 +59,19 @@ function createConvexOnlyServerClient(cookieStore: ReturnType<typeof cookies>) {
     if (getAuthBackend() === 'convex') {
       const identity = await getConvexAuthUserLegacyId()
       if (identity?.legacyId) {
-        return { id: identity.legacyId, email: identity.email ?? '', user_metadata: {} as Record<string, unknown> }
+        // Enrich the @convex-dev/auth token identity with the user's profile metadata
+        // (full_name/name/avatar) from the mirrored supabase_auth_users row, so the UI
+        // shows the real name instead of the "DefaultUser" fallback.
+        let userMetadata: Record<string, unknown> = {}
+        try {
+          const authRow = (await getConvexDocumentByLegacyId('supabase_auth_users', identity.legacyId)) as
+            | { user_metadata?: Record<string, unknown>; raw_user_meta_data?: Record<string, unknown> }
+            | null
+          userMetadata = authRow?.user_metadata ?? authRow?.raw_user_meta_data ?? {}
+        } catch {
+          /* non-fatal — fall back to empty metadata */
+        }
+        return { id: identity.legacyId, email: identity.email ?? '', user_metadata: userMetadata }
       }
     }
     return null
