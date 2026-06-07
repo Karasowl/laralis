@@ -1,66 +1,12 @@
 import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
+import { MIRRORED_TABLE_NAMES } from './mirroredTables'
 
-const MIGRATED_TABLES = [
-  'workspaces',
-  'clinics',
-  'workspace_users',
-  'workspace_members',
-  'clinic_users',
-  'invitations',
-  'user_settings',
-  'verification_codes',
-  'category_types',
-  'categories',
-  'custom_categories',
-  'patient_sources',
-  'settings_time',
-  'clinic_google_calendar',
-  'fixed_costs',
-  'assets',
-  'supplies',
-  'services',
-  'service_supplies',
-  'tariffs',
-  'marketing_campaigns',
-  'marketing_campaign_status_history',
-  'patients',
-  'treatments',
-  'expenses',
-  'ai_chat_sessions',
-  'ai_chat_messages',
-  'chat_sessions',
-  'chat_messages',
-  'ai_feedback',
-  'workspace_activity',
-  'public_bookings',
-  'public_booking_services',
-  'booking_blocked_slots',
-  'medications',
-  'prescriptions',
-  'prescription_items',
-  'quotes',
-  'quote_items',
-  'email_notifications',
-  'scheduled_reminders',
-  'sms_notifications',
-  'push_subscriptions',
-  'push_notifications',
-  'clinic_snapshots',
-  'custom_role_templates',
-  'role_permissions',
-  'leads',
-  'marketing_campaign_channels',
-  'inbox_conversations',
-  'inbox_messages',
-  'notification_retry_queue',
-  'whatsapp_notifications',
-  'whatsapp_templates',
-  'action_logs',
-  'organizations',
-  'supabase_auth_users',
-  'storage_objects',
-] as const
+const MIGRATED_TABLES = MIRRORED_TABLE_NAMES
+
+// Every migrated table is declared in schema.ts with the uniform by_legacyId /
+// by_clinic / by_workspace indexes, so any of those may be used on any table.
+const INDEXED_TABLES = new Set<string>(MIRRORED_TABLE_NAMES)
 
 type ImportedDocument = Record<string, unknown>
 
@@ -123,6 +69,16 @@ function stableStringify(value: unknown): string {
 
 async function findDocumentByLegacyId(ctx: any, table: string, legacyId: string) {
   assertMigratedTable(table)
+  if (INDEXED_TABLES.has(table)) {
+    // Indexed lookup — every mirror row is written with legacyId set, so this hits
+    // the by_legacyId index instead of scanning the whole table.
+    const doc = await ctx.db
+      .query(table as any)
+      .withIndex('by_legacyId', (q: any) => q.eq('legacyId', legacyId))
+      .first()
+    if (doc) return doc as ImportedDocument & { _id: any }
+    // Safety net for any pre-index row that stored the uuid only in `id`.
+  }
   const docs = (await ctx.db.query(table as any).collect()) as Array<ImportedDocument & { _id: any }>
   return docs.find((doc) => doc.legacyId === legacyId || doc.id === legacyId) ?? null
 }
@@ -193,8 +149,17 @@ export const listByClinic = query({
   },
   handler: async (ctx, args) => {
     const limit = Math.max(1, Math.min(args.limit ?? 1000, 10000))
-    const docs = (await ctx.db.query(args.table as any).collect()) as ImportedDocument[]
 
+    if (INDEXED_TABLES.has(args.table)) {
+      // Indexed by clinic_id — returns only this clinic's rows instead of scanning
+      // the whole table. The mirror stores the Supabase column `clinic_id`.
+      return (await ctx.db
+        .query(args.table as any)
+        .withIndex('by_clinic', (q: any) => q.eq('clinic_id', args.clinicId))
+        .take(limit)) as ImportedDocument[]
+    }
+
+    const docs = (await ctx.db.query(args.table as any).collect()) as ImportedDocument[]
     return docs
       .filter((doc) => doc.clinic_id === args.clinicId || doc.clinicId === args.clinicId)
       .slice(0, limit)
@@ -222,8 +187,16 @@ export const listByWorkspace = query({
   },
   handler: async (ctx, args) => {
     const limit = Math.max(1, Math.min(args.limit ?? 1000, 10000))
-    const docs = (await ctx.db.query(args.table as any).collect()) as ImportedDocument[]
 
+    if (INDEXED_TABLES.has(args.table)) {
+      // Indexed by workspace_id instead of scanning the whole table.
+      return (await ctx.db
+        .query(args.table as any)
+        .withIndex('by_workspace', (q: any) => q.eq('workspace_id', args.workspaceId))
+        .take(limit)) as ImportedDocument[]
+    }
+
+    const docs = (await ctx.db.query(args.table as any).collect()) as ImportedDocument[]
     return docs
       .filter((doc) => doc.workspace_id === args.workspaceId || doc.workspaceId === args.workspaceId)
       .slice(0, limit)
