@@ -9,6 +9,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { WorkspaceExporter, ExportError } from '@/lib/export/exporter';
+import { upsertConvexDocumentByLegacyId } from '@/lib/convex/server';
+import { shouldUseConvexOnlyWritePath } from '@/lib/data-backend';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
@@ -94,7 +96,7 @@ export async function POST(request: NextRequest) {
     const { bundle, stats } = await exporter.export();
 
     // Log export activity
-    await supabaseAdmin.from('workspace_activity').insert({
+    const exportActivity = {
       workspace_id: workspaceId,
       user_id: user.id,
       user_email: user.email,
@@ -107,7 +109,17 @@ export async function POST(request: NextRequest) {
         bundleSize: stats.bundleSize,
         tables: stats.recordsByTable,
       },
-    });
+    };
+    if (shouldUseConvexOnlyWritePath('workspace_activity')) {
+      const activityId = crypto.randomUUID();
+      await upsertConvexDocumentByLegacyId('workspace_activity', activityId, {
+        id: activityId,
+        ...exportActivity,
+        created_at: new Date().toISOString(),
+      });
+    } else {
+      await supabaseAdmin.from('workspace_activity').insert(exportActivity);
+    }
 
     // Return bundle with stats
     return NextResponse.json(
