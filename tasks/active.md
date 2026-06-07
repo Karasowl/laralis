@@ -26,7 +26,16 @@
     - ✅ Settings/features (12 rutas): clinics/[id], clinics/discount, settings/booking|notifications|preferences, marketing campaigns+platforms, prescriptions, medications → **feature smoke 4/4** (marketing/platforms, medications, campaigns, prescriptions crean+borran convex-only)
     - ✅ Onboarding/team/invitations (14 rutas): onboarding, workspaces (POST/PUT/DELETE + cascada), workspaces/[id]/clinics, workspaces/[id]/lifecycle, team/clinic-members(+[id]), team/workspace-members(+[id]), team/custom-roles/[id], invitations (POST/DELETE + resend/accept/reject) → multi-tabla replicado a Convex (workspace+clinic+membresías, seedClinicDefaultsInConvex, encoding de permission-maps)
     - ✅ **Verificación adversarial (5 agentes): 22/24 hallazgos PASS**; 2 bugs reales corregidos: workspace-create columnas default de Postgres (created_at/is_active), workspaces/[id] DELETE cascada de `marketing_campaign_status_history`
-  - **Follow-up (siguiente fase)**: escrituras aún sin portar — `public/book`, `bookings/[id]`, `snapshots`(POST/DELETE/restore), `actions/*` (mutaciones IA), `ai/*` (persistencia de chat). Externos fuera de alcance: webhooks, google-calendar, export/import, MFA, push, account-delete.
+  - Ver: `docs/devlog/2026-06-07-convex-only-write-cutover.md`
+
+- [x] TASK-20260607-convex-write-remaining - Escrituras convex-only restantes (booking/snapshots/actions/ai) ✅ COMPLETADO 2026-06-07
+  - **Priority**: P1 | **Estimate**: L | **Area**: infra/data
+  - **Status**: ✅ 15 rutas + 3 módulos compartidos portados; **todas las rutas de escritura de datos de negocio son convex-only**
+    - ✅ `bookings/[id]`, `public/book`, los 5 `actions/*` (bypass de aiService.execute), los 5 `ai/*` (chat/sesiones/feedback)
+    - ✅ Snapshots end-to-end: `exporter.ts` (lee tablas de Convex), `importer.ts` (restore clinic-scoped multi-tenant-safe), `storage.ts` (upload blob+manifest a Convex) → `convex-write-snapshots.cy.ts` 1/1 (create→delete real)
+    - ✅ Verificación adversarial (5 agentes): 15/17 PASS; 2 "high" refutados (falsos positivos sobre `discoverClinicTables`, ya con rama Convex estática — el CREATE smoke lo prueba)
+    - ✅ Smokes en vivo acumulados: read 58/58, write-lifecycle 9/9, write-features 4/4, snapshot 1/1. typecheck 193 (≤ baseline), cero nuevos. Todo flag-gated, default supabase.
+  - **Fuera de alcance** (no son datos de negocio): webhooks, google-calendar OAuth, export/import, MFA, push, account-delete.
   - Ver: `docs/devlog/2026-06-07-convex-only-write-cutover.md`
 
 - [~] TASK-20260606-convex-decommission-bcde-a - Decomisión Supabase→Convex (Fases B/C/D/E + scaffold A)

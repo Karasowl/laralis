@@ -86,11 +86,31 @@ specs `cypress/e2e/convex-write-{lifecycle,features}.cy.ts`. Todo flag-gated, de
 Todo flag-gated, default Supabase: en producción (con llaves Supabase) nada cambia; las ramas
 Convex solo se activan con `DATA_WRITE_MODE=convex`. Rollback: quitar la flag.
 
-## Follow-ups (siguiente fase de escrituras)
+## Wave 3 — escrituras restantes (COMPLETADO 2026-06-07)
 
-Aún sin portar a convex-only (rompen en modo convex-write): `public/book`, `bookings/[id]`,
-`snapshots` (POST/DELETE/restore), `actions/*` (mutaciones del asistente IA), `ai/*`
-(persistencia de chat/feedback/sesiones). Fuera de alcance (externos/infra): webhooks
-(resend/twilio/whatsapp), google-calendar OAuth, export/import, MFA, push, account-delete.
-Nota menor: columnas DEFAULT de Postgres (created_at/is_active) — auditar que cada
-`createXInConvex` las setee explícitamente (revisado para workspaces; barrer el resto).
+Portadas las 15 rutas que faltaban + 3 módulos compartidos. Verificación adversarial (5
+agentes): **15/17 PASS**; los 2 "high" (restore + importer) son falsos positivos (el agente
+afirmó que `discoverClinicTables()` golpea Supabase, pero tiene rama estática Convex — refutado
+porque el snapshot CREATE smoke pasó usando esa misma discovery).
+- `bookings/[id]` PATCH (confirm/reject: patient+treatment+booking), `public/book` POST
+  (booking + notificaciones), los 5 `actions/*` (create-expense, update/bulk/adjust de precios,
+  update-time-settings — bypass de `aiService.execute` que escribía vía supabaseAdmin), los 5
+  `ai/*` (sesiones/mensajes/feedback/historial de chat).
+- **Snapshots end-to-end**: porté `ClinicSnapshotExporter` (lee todas las tablas de Convex,
+  strip+decode JSONB), `ClinicSnapshotImporter` (restore multi-tabla clinic-scoped, NUNCA el
+  `replaceTableSnapshot` global → multi-tenant-safe), y `SnapshotStorageService.upload`/
+  `updateManifestIndex` (sube el blob a Convex storage vía mirror). `snapshots` POST + DELETE +
+  restore ahora corren convex-only. **`convex-write-snapshots.cy.ts` 1/1** (create→delete, el
+  export real lee ~30 tablas de Convex, sube blob, escribe row, borra row+blob).
+
+**Estado: todas las rutas de escritura de datos de negocio están portadas a convex-only.**
+Commits wave 3: `dcd558d`, `5a7a3d7`, `96c3f69`, `f022418`.
+
+## Fuera de alcance (no son datos de negocio — integraciones externas)
+
+webhooks (resend/twilio/whatsapp — ingestan eventos externos), google-calendar OAuth,
+export/import (otro formato), MFA, push subscriptions, account-delete. Estas no son parte del
+cutover convex-only de la capa de datos.
+
+Nota menor: barrer columnas DEFAULT de Postgres (created_at/is_active) en cada `createXInConvex`
+restante (revisado para workspaces; los agentes las setearon explícitamente en wave 3).
