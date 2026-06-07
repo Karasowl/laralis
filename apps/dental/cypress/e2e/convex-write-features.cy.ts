@@ -3,6 +3,7 @@
  * Run with AUTH_BACKEND=convex + DATA_READ_BACKEND=convex + DATA_WRITE_MODE=convex.
  * Footprint-zero (create+delete) where a delete endpoint exists.
  */
+export {} // isolate module scope (cypress specs share global scope under tsc)
 const EMAIL = 'conladoctoralara@gmail.com'
 const PASS = 'TestConvex123!'
 

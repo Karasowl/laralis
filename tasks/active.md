@@ -17,7 +17,17 @@
     - ✅ Auditoría (ultracode, 10 agentes): `brokenWritePaths: []` — las 10 entidades (patients, services, treatments, expenses, fixed_costs, supplies, assets, categories, patient_sources, settings_time) ya tienen ruta de escritura convex-only correcta (POST/PUT/DELETE escriben directo a Convex, sin Supabase)
     - ✅ Lifecycle ejecutado convex-only: fixed_costs/supplies/assets/categories/services/patients/expenses/treatments (FK real patient+service) crean y borran; patient_sources crea (POST-only); settings_time verificado estáticamente (su upsert mutaría config real)
     - ✅ El mirror NO salva escrituras (mirror post-write tras un write Supabase que falla primero) — solo la rama `shouldUseConvexOnlyWritePath` funciona convex-only
-  - **Follow-up**: ~43 rutas de escritura secundarias (onboarding, clinics, team, invitations, marketing, prescriptions, settings, AI, actions) — en auditoría
+  - Ver: `docs/devlog/2026-06-07-convex-only-write-cutover.md`
+
+- [x] TASK-20260607-convex-write-secondary-onboarding-team - Escrituras convex-only del cluster secundario (settings/features + onboarding/team/invitations) ✅ COMPLETADO 2026-06-07
+  - **Priority**: P1 | **Estimate**: L | **Area**: infra/data
+  - **Status**: ✅ 26 rutas de escritura con rama convex-only añadida; verificadas (smoke vivo + adversarial)
+    - ✅ Auditoría (ultracode): 42/44 rutas secundarias rompían convex-only (el mirror no salva escrituras; falta rama `shouldUseConvexOnlyWritePath`)
+    - ✅ Settings/features (12 rutas): clinics/[id], clinics/discount, settings/booking|notifications|preferences, marketing campaigns+platforms, prescriptions, medications → **feature smoke 4/4** (marketing/platforms, medications, campaigns, prescriptions crean+borran convex-only)
+    - ✅ Onboarding/team/invitations (14 rutas): onboarding, workspaces (POST/PUT/DELETE + cascada), workspaces/[id]/clinics, workspaces/[id]/lifecycle, team/clinic-members(+[id]), team/workspace-members(+[id]), team/custom-roles/[id], invitations (POST/DELETE + resend/accept/reject) → multi-tabla replicado a Convex (workspace+clinic+membresías, seedClinicDefaultsInConvex, encoding de permission-maps)
+    - ✅ **Verificación adversarial (5 agentes): 22/24 hallazgos PASS**; 2 bugs reales corregidos: workspace-create columnas default de Postgres (created_at/is_active), workspaces/[id] DELETE cascada de `marketing_campaign_status_history`
+  - **Follow-up (siguiente fase)**: escrituras aún sin portar — `public/book`, `bookings/[id]`, `snapshots`(POST/DELETE/restore), `actions/*` (mutaciones IA), `ai/*` (persistencia de chat). Externos fuera de alcance: webhooks, google-calendar, export/import, MFA, push, account-delete.
+  - Ver: `docs/devlog/2026-06-07-convex-only-write-cutover.md`
 
 - [~] TASK-20260606-convex-decommission-bcde-a - Decomisión Supabase→Convex (Fases B/C/D/E + scaffold A)
   - **Priority**: P1

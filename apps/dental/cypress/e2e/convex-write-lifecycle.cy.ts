@@ -10,6 +10,7 @@
  *
  *   npx cypress run --spec cypress/e2e/convex-write-lifecycle.cy.ts --config baseUrl=http://localhost:<port>
  */
+export {} // isolate module scope (cypress specs share global scope under tsc)
 const EMAIL = 'conladoctoralara@gmail.com'
 const PASS = 'TestConvex123!'
 

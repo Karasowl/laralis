@@ -19,6 +19,7 @@ Cada entrada sigue la estructura:
 
 ### 2026-06-07
 
+- **[2026-06-07-convex-only-write-cutover.md](2026-06-07-convex-only-write-cutover.md)** - Cutover de ESCRITURAS convex-only. El runtime mirror no salva escrituras → cada ruta necesita rama `shouldUseConvexOnlyWritePath`. 10 entidades CRUD core (lifecycle 9/9) + 26 rutas secundarias (settings/features feature-smoke 4/4; onboarding/team/invitations multi-tabla). Verificación adversarial 22/24 PASS + 2 bugs reales corregidos. Incidente: `git reset --hard` repetido por el dev server — mitigado commiteando por oleada.
 - **[2026-06-07-convex-only-api-smoke-fixes.md](2026-06-07-convex-only-api-smoke-fixes.md)** - Smoke convex-only de los 58 GET pasa sin 5xx. Auditoría multi-agente (ultracode) + smoke real en `C:\dev\laralis`: 10 hallazgos "auth_not_convex_aware" eran falsos positivos (el shim convex-aware de `createClient`), 3 bugs reales (access-check `supabaseAdmin` inline antes de la rama Convex en `team/clinic-members`, `team/workspace-members`, `invitations`) y 2 falsos negativos cazados solo por el smoke (`dashboard/supplies`, `getWhatsAppConfig`). Helper `userHasActiveWorkspaceMembershipFromConvex` con parity estricta `is_active === true`. Typecheck baseline (197), cero nuevos.
 
 ### 2026-06-06
