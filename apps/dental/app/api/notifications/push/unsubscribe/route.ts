@@ -4,6 +4,8 @@ import { resolveClinicContext } from '@/lib/clinic'
 import { cookies } from 'next/headers'
 import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
+import { shouldUseConvexOnlyWritePath } from '@/lib/data-backend'
+import { listConvexTable, patchConvexDocumentByLegacyId } from '@/lib/convex/server'
 
 // QA route contract: @qa-self-service-route authenticated current-user push unsubscription.
 interface UnsubscribeBody {
@@ -40,6 +42,34 @@ export async function POST(request: NextRequest) {
       return parsed.error
     }
     const body: UnsubscribeBody = parsed.data
+
+    // Convex-only write path: supabaseAdmin is unreachable, so its .update() below
+    // would throw on the first .from() call. Mirror the same deactivation: the
+    // Supabase update matches push_subscriptions rows by user_id + endpoint (NOT
+    // clinic-scoped) and sets is_active:false. patch helpers key on the legacy id,
+    // so we read the table, filter on the same (user_id, endpoint) predicate, and
+    // patch each match to is_active:false (also bumping updated_at, a Postgres-
+    // default column Convex does not maintain automatically).
+    if (shouldUseConvexOnlyWritePath('push_subscriptions')) {
+      const rows = (await listConvexTable('push_subscriptions')) as Array<Record<string, any>>
+      const matches = rows.filter(
+        (row) =>
+          String(row.user_id) === String(clinicContext.userId) &&
+          String(row.endpoint) === String(body.endpoint)
+      )
+      const now = new Date().toISOString()
+      for (const row of matches) {
+        await patchConvexDocumentByLegacyId('push_subscriptions', String(row.id), {
+          is_active: false,
+          updated_at: now,
+        })
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Subscription removed'
+      })
+    }
 
     // Mark subscription as inactive instead of deleting
     const { error } = await supabaseAdmin

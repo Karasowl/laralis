@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
+import { shouldUseConvexOnlyWritePath } from '@/lib/data-backend'
+import { patchConvexDocumentByLegacyId } from '@/lib/convex/server'
 
 // QA route contract: @qa-public-route service-worker click tracking by opaque notification id.
 interface TrackClickBody {
@@ -29,6 +31,19 @@ export async function POST(request: NextRequest) {
       return parsed.error
     }
     const body: TrackClickBody = parsed.data
+
+    // Convex-only write path: replicate the push_notifications status update
+    // directly, since supabaseAdmin is unreachable in this mode. Mirrors the
+    // Supabase `.update().eq('id', ...)` below (same `status`/`clicked_at` patch).
+    // patchByLegacyId is a no-op when the id matches no row, matching Supabase's
+    // silent-success-on-no-match semantics (the SW posts opaque ids).
+    if (shouldUseConvexOnlyWritePath('push_notifications')) {
+      await patchConvexDocumentByLegacyId('push_notifications', body.notificationId, {
+        status: 'clicked',
+        clicked_at: new Date().toISOString(),
+      })
+      return NextResponse.json({ success: true })
+    }
 
     // Update notification status
     const { error } = await supabaseAdmin

@@ -16,7 +16,7 @@ import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
 import { requireCronAuth } from '@/lib/cron-auth'
 import { resolveClinicContext } from '@/lib/clinic'
-import { listConvexTable } from '@/lib/convex/server'
+import { getConvexDocumentByLegacyId, listConvexTable } from '@/lib/convex/server'
 import { shouldReturnConvexData } from '@/lib/data-backend'
 
 export const runtime = 'nodejs'
@@ -28,6 +28,56 @@ type ImportedRecord = Record<string, any>
 function normalizeConvexRecord(row: ImportedRecord) {
   const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row
   return rest
+}
+
+const DEFAULT_SNAPSHOT_EMAIL = 'system@laralis.com'
+
+/**
+ * Resolve the workspace owner id + email used as snapshot metadata.
+ *
+ * Convex-only (DATA_READ_BACKEND=convex): Supabase is unreachable so
+ * supabaseAdmin.from()/auth.admin.* throw. Read the workspace owner from the
+ * Convex `workspaces` mirror (keyed by id) and the owner email from the
+ * `supabase_auth_users` mirror (which stores the JSON-serialized auth user).
+ * Email is best-effort metadata; fall back to the system address when missing.
+ *
+ * Default Supabase path keeps the original behaviour intact.
+ */
+async function resolveSnapshotActor(
+  workspaceId: string
+): Promise<{ ownerId: string; userEmail: string }> {
+  if (shouldReturnConvexData('clinic_snapshots')) {
+    const workspace = (await getConvexDocumentByLegacyId('workspaces', workspaceId)) as
+      | { owner_id?: string }
+      | null
+    const ownerId = workspace?.owner_id || 'system'
+
+    let userEmail = DEFAULT_SNAPSHOT_EMAIL
+    if (workspace?.owner_id) {
+      const authUser = (await getConvexDocumentByLegacyId(
+        'supabase_auth_users',
+        workspace.owner_id
+      )) as { email?: string } | null
+      userEmail = authUser?.email || userEmail
+    }
+
+    return { ownerId, userEmail }
+  }
+
+  const { data: workspace } = await supabaseAdmin
+    .from('workspaces')
+    .select('owner_id')
+    .eq('id', workspaceId)
+    .single()
+
+  const ownerId = workspace?.owner_id || 'system'
+  let userEmail = DEFAULT_SNAPSHOT_EMAIL
+  if (workspace?.owner_id) {
+    const { data: user } = await supabaseAdmin.auth.admin.getUserById(workspace.owner_id)
+    userEmail = user?.user?.email || userEmail
+  }
+
+  return { ownerId, userEmail }
 }
 
 const snapshotRequestSchema = z.object({
@@ -97,21 +147,8 @@ export async function GET(request: NextRequest) {
 
     for (const clinic of clinics) {
       try {
-        // Get the workspace owner for the snapshot metadata
-        const { data: workspace } = await supabaseAdmin
-          .from('workspaces')
-          .select('owner_id')
-          .eq('id', clinic.workspace_id)
-          .single()
-
-        let userEmail = 'system@laralis.com'
-        const ownerId = workspace?.owner_id || 'system'
-        if (workspace?.owner_id) {
-          const { data: user } = await supabaseAdmin.auth.admin.getUserById(
-            workspace.owner_id
-          )
-          userEmail = user?.user?.email || userEmail
-        }
+        // Get the workspace owner for the snapshot metadata (convex-aware).
+        const { ownerId, userEmail } = await resolveSnapshotActor(clinic.workspace_id)
 
         // Create the snapshot
         const exporter = createSnapshotExporter(supabaseAdmin, clinic.id, {
@@ -222,32 +259,28 @@ export async function POST(request: NextRequest) {
     }
     const clinicId = parsed.data.clinic_id
 
-    // Get clinic info
-    const { data: clinic, error: clinicError } = await supabaseAdmin
-      .from('clinics')
-      .select('id, name, workspace_id')
-      .eq('id', clinicId)
-      .single()
+    // Get clinic info. clinics is keyed by id; the Convex branch reads the doc
+    // by legacy id. Flag-gated, default Supabase. Convex-only mode (Supabase
+    // unreachable) would otherwise throw on supabaseAdmin.from().
+    let clinic: { id: any; name: any; workspace_id: any } | null
+    if (shouldReturnConvexData('clinics')) {
+      const doc = (await getConvexDocumentByLegacyId('clinics', clinicId)) as ImportedRecord | null
+      clinic = doc ? { id: doc.id, name: doc.name, workspace_id: doc.workspace_id } : null
+    } else {
+      const { data, error: clinicError } = await supabaseAdmin
+        .from('clinics')
+        .select('id, name, workspace_id')
+        .eq('id', clinicId)
+        .single()
+      clinic = clinicError ? null : data
+    }
 
-    if (clinicError || !clinic) {
+    if (!clinic) {
       return NextResponse.json({ error: 'Clinic not found' }, { status: 404 })
     }
 
-    // Get workspace owner
-    const { data: workspace } = await supabaseAdmin
-      .from('workspaces')
-      .select('owner_id')
-      .eq('id', clinic.workspace_id)
-      .single()
-
-    let userEmail = 'system@laralis.com'
-    const ownerId = workspace?.owner_id || 'system'
-    if (workspace?.owner_id) {
-      const { data: user } = await supabaseAdmin.auth.admin.getUserById(
-        workspace.owner_id
-      )
-      userEmail = user?.user?.email || userEmail
-    }
+    // Get workspace owner + email for snapshot metadata (convex-aware).
+    const { ownerId, userEmail } = await resolveSnapshotActor(clinic.workspace_id)
 
     // Create snapshot
     const exporter = createSnapshotExporter(supabaseAdmin, clinicId, {

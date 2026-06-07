@@ -9,6 +9,15 @@ import { sendWhatsAppMessage, updateWhatsAppDeliveryStatus } from '@/lib/whatsap
 import { Dialog360WhatsAppProvider } from '@/lib/whatsapp/providers/dialog360'
 import { TwilioWhatsAppProvider } from '@/lib/whatsapp/providers/twilio'
 import type { MessageStatus, SendMessageResult } from '@/lib/whatsapp/types'
+import { shouldUseConvexOnlyWritePath } from '@/lib/data-backend'
+import {
+  decodeConvexValue,
+  getConvexDocumentByLegacyId,
+  listConvexDocumentsByClinic,
+  listConvexTable,
+  patchConvexDocumentByLegacyId,
+  upsertConvexDocumentByLegacyId,
+} from '@/lib/convex/server'
 
 // QA route contract: @qa-webhook-guard external Twilio webhook verified by provider signature.
 /**
@@ -505,10 +514,424 @@ export async function POST(request: NextRequest) {
   }
 }
 
+type ConvexRow = Record<string, any>
+
+/**
+ * Strip Convex bookkeeping fields from a mirrored document so the row matches the
+ * shape the Supabase path produces. `_id`/`_creationTime` are Convex's own system
+ * fields; `legacyId`/`legacyTable` are added by prepareConvexRow on write. JSONB
+ * values are key-decoded so semantic keys (e.g. `provider_metadata`) round-trip.
+ */
+function stripConvexMetadata(doc: ConvexRow | null): ConvexRow | null {
+  if (!doc) return null
+  const { _id, _creationTime, legacyId, legacyTable, ...rest } = doc
+  return decodeConvexValue(rest) as ConvexRow
+}
+
+/**
+ * Convex-only port of handleInboundWhatsAppMessage. In
+ * DATA_WRITE_MODE_INBOX_MESSAGES=convex Supabase is unreachable, so every
+ * supabaseAdmin read/write the Supabase path performs would throw on its first
+ * .from() call. This mirrors the full inbound flow against Convex:
+ *   - dedup by channel_message_id (listByClinic + in-memory filter, since
+ *     channel_message_id is not a clinic-scoped index),
+ *   - resolve clinic via marketing_campaign_channels when clinicId is absent,
+ *   - read the clinics doc,
+ *   - read-or-create the lead (first-touch CTWA attribution preserved),
+ *   - read-or-create the inbox_conversation,
+ *   - insert inbox_messages rows AND replicate the Postgres trigger
+ *     update_inbox_conversation_stats (last_message_at/preview/unread_count) which
+ *     does not run in Convex,
+ *   - drive the same name/email collection + AI reply state machine.
+ * Postgres-default columns (id/created_at/updated_at, and per-table CHECK/NOT NULL
+ * defaults like leads.status='new', conversations.status='bot') are set explicitly
+ * because Convex does not fill them. The lead/conversation/message tables have no
+ * is_active column (verified against migration 74), so none is set.
+ */
+async function handleInboundWhatsAppMessageConvex(
+  request: NextRequest,
+  inbound: InboundWhatsAppMessage
+): Promise<NextResponse> {
+  try {
+    let { clinicId, campaignId } = inbound
+    const { fromRaw, toRaw, body, profileName, messageSid, ctwaReferral, providerMetadata } = inbound
+
+    if (!fromRaw || !body) {
+      return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
+    }
+
+    const contactAddress = normalizeContactAddress(fromRaw)
+    const channelAddress = normalizeContactAddress(toRaw)
+    const normalizedPhone = stripWhatsAppPrefix(contactAddress)
+
+    // Resolve clinic first so we can scope the dedup + lead/conversation reads.
+    if (!clinicId) {
+      const channels = ((await listConvexTable('marketing_campaign_channels')) as ConvexRow[])
+        .map((row) => stripConvexMetadata(row) as ConvexRow)
+        .filter(
+          (row) =>
+            row.channel_type === 'whatsapp' &&
+            row.channel_address === channelAddress &&
+            row.is_active === true
+        )
+      const channel = channels[0]
+      if (channel) {
+        clinicId = channel.clinic_id
+        if (!campaignId && channel.campaign_id) {
+          campaignId = channel.campaign_id
+        }
+      }
+    }
+
+    if (!clinicId) {
+      return NextResponse.json({ error: 'Missing clinic context' }, { status: 400 })
+    }
+
+    // Idempotency: skip if this provider message id was already stored. Convex has
+    // no clinic-scoped channel_message_id index, so scan this clinic's messages.
+    if (messageSid) {
+      const conversations = (await listConvexDocumentsByClinic('inbox_conversations', clinicId)) as ConvexRow[]
+      const conversationIds = new Set(
+        conversations.map((row) => String((stripConvexMetadata(row) as ConvexRow).id))
+      )
+      // Messages aren't clinic-scoped in storage; filter by this clinic's conversations.
+      const allMessages = (await listConvexTable('inbox_messages')) as ConvexRow[]
+      const duplicate = allMessages
+        .map((row) => stripConvexMetadata(row) as ConvexRow)
+        .some(
+          (row) =>
+            row.channel_message_id === messageSid &&
+            conversationIds.has(String(row.conversation_id))
+        )
+      if (duplicate) {
+        return new NextResponse('', { status: 200 })
+      }
+    }
+
+    const clinic = stripConvexMetadata(
+      (await getConvexDocumentByLegacyId('clinics', clinicId)) as ConvexRow | null
+    )
+    if (!clinic) {
+      return NextResponse.json({ error: 'Clinic not found' }, { status: 404 })
+    }
+
+    // Read-or-create the lead. Match the Supabase query: clinic_id + phone, most
+    // recent created_at wins.
+    const clinicLeads = ((await listConvexDocumentsByClinic('leads', clinicId)) as ConvexRow[])
+      .map((row) => stripConvexMetadata(row) as ConvexRow)
+      .filter((row) => row.phone === normalizedPhone)
+      .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+    const lead = clinicLeads[0] || null
+
+    let leadId = lead?.id as string | undefined
+    let conversationState = lead?.full_name ? 'chatting' : 'collecting_name'
+
+    if (!leadId) {
+      const now = new Date().toISOString()
+      const newLeadId = crypto.randomUUID()
+      const newLead: ConvexRow = {
+        id: newLeadId,
+        clinic_id: clinicId,
+        campaign_id: campaignId || null,
+        phone: normalizedPhone,
+        full_name: profileName || null,
+        channel: 'whatsapp',
+        status: 'new',
+        metadata: {},
+        created_at: now,
+        updated_at: now,
+        ...(ctwaReferral
+          ? {
+              ctwa_clid: ctwaReferral.ctwa_clid,
+              ad_id: ctwaReferral.ad_id,
+              ad_source_type: ctwaReferral.ad_source_type,
+              ad_source_url: ctwaReferral.ad_source_url,
+              ad_headline: ctwaReferral.ad_headline,
+              ad_body: ctwaReferral.ad_body,
+              ad_media_type: ctwaReferral.ad_media_type,
+              ad_media_url: ctwaReferral.ad_media_url,
+            }
+          : {}),
+      }
+      await upsertConvexDocumentByLegacyId('leads', newLeadId, newLead)
+      leadId = newLeadId
+      if (newLead.full_name) {
+        conversationState = 'chatting'
+      }
+    } else {
+      // First-touch wins: only backfill CTWA fields if the lead never had any.
+      const referralUpdate = ctwaReferral && !lead?.ctwa_clid
+        ? {
+            ctwa_clid: ctwaReferral.ctwa_clid,
+            ad_id: ctwaReferral.ad_id,
+            ad_source_type: ctwaReferral.ad_source_type,
+            ad_source_url: ctwaReferral.ad_source_url,
+            ad_headline: ctwaReferral.ad_headline,
+            ad_body: ctwaReferral.ad_body,
+            ad_media_type: ctwaReferral.ad_media_type,
+            ad_media_url: ctwaReferral.ad_media_url,
+          }
+        : {}
+
+      await patchConvexDocumentByLegacyId('leads', leadId, {
+        last_contacted_at: new Date().toISOString(),
+        status: lead?.status === 'new' ? 'contacted' : lead?.status,
+        updated_at: new Date().toISOString(),
+        ...referralUpdate,
+      })
+    }
+
+    // Read-or-create the active conversation (status in bot/pending/in_progress,
+    // most recent last_message_at wins).
+    const openStatuses = new Set(['bot', 'pending', 'in_progress'])
+    const clinicConversations = ((await listConvexDocumentsByClinic('inbox_conversations', clinicId)) as ConvexRow[])
+      .map((row) => stripConvexMetadata(row) as ConvexRow)
+      .filter((row) => row.contact_address === contactAddress && openStatuses.has(String(row.status)))
+      .sort((a, b) => String(b.last_message_at || '').localeCompare(String(a.last_message_at || '')))
+
+    let conversation = clinicConversations[0] || null
+    let createdConversation = false
+
+    if (!conversation) {
+      const now = new Date().toISOString()
+      const newConversationId = crypto.randomUUID()
+      const newConversation: ConvexRow = {
+        id: newConversationId,
+        clinic_id: clinicId,
+        campaign_id: campaignId || null,
+        lead_id: leadId || null,
+        channel: 'whatsapp',
+        contact_address: contactAddress,
+        contact_name: profileName || lead?.full_name || null,
+        status: 'bot',
+        conversation_state: conversationState,
+        unread_count: 0,
+        last_message_at: now,
+        last_message_preview: body.slice(0, 200),
+        metadata: {},
+        created_at: now,
+        updated_at: now,
+      }
+      await upsertConvexDocumentByLegacyId('inbox_conversations', newConversationId, newConversation)
+      conversation = newConversation
+      createdConversation = true
+    }
+
+    // Insert the inbound message + replicate update_inbox_conversation_stats.
+    await insertInboxMessageConvex({
+      conversationId: conversation.id,
+      role: 'user',
+      content: body,
+      direction: 'inbound',
+      channelMessageId: messageSid || null,
+      metadata: {
+        from: contactAddress,
+        to: channelAddress,
+        profile_name: profileName || null,
+        ...(providerMetadata ? { provider_metadata: providerMetadata } : {}),
+        ...(ctwaReferral ? { ctwa_referral: ctwaReferral } : {}),
+      },
+      currentUnreadCount: Number(conversation.unread_count || 0),
+    })
+
+    if (conversation.status !== 'bot') {
+      return new NextResponse('', { status: 200 })
+    }
+
+    if (shouldHandoff(body)) {
+      await patchConvexDocumentByLegacyId('inbox_conversations', conversation.id, {
+        status: 'pending',
+        updated_at: new Date().toISOString(),
+      })
+      await sendWebhookWhatsAppMessage(request, {
+        clinicId,
+        recipientPhone: normalizedPhone,
+        content: 'Gracias. Un agente te contactara en breve.',
+      })
+      return new NextResponse('', { status: 200 })
+    }
+
+    if (conversation.conversation_state === 'collecting_name') {
+      if (createdConversation) {
+        await sendWebhookWhatsAppMessage(request, {
+          clinicId,
+          recipientPhone: normalizedPhone,
+          content: 'Hola. Para ayudarte mejor, cual es tu nombre?',
+        })
+        return new NextResponse('', { status: 200 })
+      }
+
+      await patchConvexDocumentByLegacyId('leads', leadId!, {
+        full_name: body,
+        status: 'contacted',
+        updated_at: new Date().toISOString(),
+      })
+      await patchConvexDocumentByLegacyId('inbox_conversations', conversation.id, {
+        conversation_state: 'collecting_email',
+        contact_name: body,
+        updated_at: new Date().toISOString(),
+      })
+      await sendWebhookWhatsAppMessage(request, {
+        clinicId,
+        recipientPhone: normalizedPhone,
+        content: 'Gracias. Cual es tu correo?',
+      })
+      return new NextResponse('', { status: 200 })
+    }
+
+    if (conversation.conversation_state === 'collecting_email') {
+      await patchConvexDocumentByLegacyId('leads', leadId!, {
+        email: body,
+        status: 'contacted',
+        updated_at: new Date().toISOString(),
+      })
+      await patchConvexDocumentByLegacyId('inbox_conversations', conversation.id, {
+        conversation_state: 'chatting',
+        updated_at: new Date().toISOString(),
+      })
+      await sendWebhookWhatsAppMessage(request, {
+        clinicId,
+        recipientPhone: normalizedPhone,
+        content: 'Listo, gracias. En que te puedo ayudar?',
+      })
+      return new NextResponse('', { status: 200 })
+    }
+
+    if (!hasAIConfig()) {
+      await sendWebhookWhatsAppMessage(request, {
+        clinicId,
+        recipientPhone: normalizedPhone,
+        content: 'Gracias. Un agente te respondera pronto.',
+      })
+      return new NextResponse('', { status: 200 })
+    }
+
+    try {
+      validateAIConfig()
+    } catch (error) {
+      console.error('[whatsapp webhook] AI config error:', error)
+      await sendWebhookWhatsAppMessage(request, {
+        clinicId,
+        recipientPhone: normalizedPhone,
+        content: 'Gracias. Un agente te respondera pronto.',
+      })
+      return new NextResponse('', { status: 200 })
+    }
+
+    const campaign = campaignId
+      ? stripConvexMetadata((await getConvexDocumentByLegacyId('marketing_campaigns', campaignId)) as ConvexRow | null)
+      : null
+
+    const conversationMessages = ((await listConvexTable('inbox_messages')) as ConvexRow[])
+      .map((row) => stripConvexMetadata(row) as ConvexRow)
+      .filter((row) => String(row.conversation_id) === String(conversation!.id))
+      .sort((a, b) => String(a.created_at || '').localeCompare(String(b.created_at || '')))
+      .slice(0, 20)
+
+    const systemPrompt = buildInboxSystemPrompt({
+      clinicName: clinic.name,
+      clinicPhone: clinic.phone,
+      clinicEmail: clinic.email,
+      campaignName: campaign?.name || null,
+      leadName: lead?.full_name || profileName || null,
+      leadEmail: lead?.email || null,
+    })
+
+    const aiMessages: AIMessage[] = [
+      { role: 'system', content: systemPrompt },
+      ...conversationMessages
+        .filter((msg) => msg.role !== 'system')
+        .map((msg) => ({
+          role: msg.role === 'agent' ? 'assistant' : msg.role,
+          content: msg.content,
+        })),
+    ]
+
+    const reply = await aiService.chat(aiMessages)
+
+    const sendResult = await sendWebhookWhatsAppMessage(request, {
+      clinicId,
+      recipientPhone: normalizedPhone,
+      content: reply,
+    })
+
+    // Re-read the latest unread_count: the inbound insert above already bumped it.
+    const latestConversation = stripConvexMetadata(
+      (await getConvexDocumentByLegacyId('inbox_conversations', conversation.id)) as ConvexRow | null
+    )
+
+    await insertInboxMessageConvex({
+      conversationId: conversation.id,
+      role: 'assistant',
+      content: reply,
+      direction: 'outbound',
+      channelMessageId: sendResult.messageId || null,
+      metadata: {
+        provider_status: sendResult.status || null,
+        provider_error: sendResult.error || null,
+      },
+      currentUnreadCount: Number(latestConversation?.unread_count ?? conversation.unread_count ?? 0),
+    })
+
+    return new NextResponse('', { status: 200 })
+  } catch (error) {
+    console.error('[whatsapp webhook] Convex error:', error)
+    return new NextResponse('Internal Server Error', { status: 500 })
+  }
+}
+
+/**
+ * Insert an inbox_messages row in Convex and replicate the Postgres
+ * update_inbox_conversation_stats trigger (which does not run in Convex):
+ * the parent conversation's last_message_at/preview/updated_at are refreshed and
+ * unread_count is incremented only for inbound messages.
+ */
+async function insertInboxMessageConvex(params: {
+  conversationId: string
+  role: 'user' | 'assistant'
+  content: string
+  direction: 'inbound' | 'outbound'
+  channelMessageId: string | null
+  metadata: Record<string, unknown>
+  currentUnreadCount: number
+}) {
+  const now = new Date().toISOString()
+  const messageId = crypto.randomUUID()
+  const message: ConvexRow = {
+    id: messageId,
+    conversation_id: params.conversationId,
+    role: params.role,
+    content: params.content,
+    direction: params.direction,
+    message_type: 'text',
+    channel_message_id: params.channelMessageId,
+    metadata: params.metadata,
+    created_at: now,
+  }
+  await upsertConvexDocumentByLegacyId('inbox_messages', messageId, message)
+
+  // Replicate trigger_update_inbox_conversation_stats.
+  const nextUnread =
+    params.direction === 'inbound' ? params.currentUnreadCount + 1 : params.currentUnreadCount
+  await patchConvexDocumentByLegacyId('inbox_conversations', params.conversationId, {
+    last_message_at: now,
+    last_message_preview: params.content.slice(0, 200),
+    unread_count: nextUnread,
+    updated_at: now,
+  })
+}
+
 async function handleInboundWhatsAppMessage(
   request: NextRequest,
   inbound: InboundWhatsAppMessage
 ) {
+  // Convex-only write path: Supabase is unreachable, so replicate the full inbound
+  // flow (clinic config read + leads/inbox_conversations/inbox_messages writes)
+  // directly against Convex. Default mode keeps the Supabase path below.
+  if (shouldUseConvexOnlyWritePath('inbox_messages')) {
+    return handleInboundWhatsAppMessageConvex(request, inbound)
+  }
+
   try {
     let { clinicId, campaignId } = inbound
     const { fromRaw, toRaw, body, profileName, messageSid, ctwaReferral, providerMetadata } = inbound

@@ -2,8 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
-import { listConvexTable, decodeConvexValue } from '@/lib/convex/server';
-import { shouldReturnConvexData } from '@/lib/data-backend';
+import {
+  listConvexTable,
+  decodeConvexValue,
+  getConvexDocumentByLegacyId,
+  getLegacyIdForTable,
+  upsertConvexDocumentByLegacyId,
+} from '@/lib/convex/server';
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -97,6 +103,43 @@ export async function POST(request: NextRequest) {
             return parsed.error;
         }
         const { key, value } = parsed.data;
+
+        // Convex-only write branch (flag-gated, default Supabase). In this mode the
+        // Supabase backend is unreachable, so the supabase.upsert() below would throw.
+        // Replicate the upsert on user_settings using the composite legacy key
+        // user_id:key (getLegacyIdForTable derives `user_settings:<enc(user_id)>:<enc(key)>`).
+        // The supabase.auth.updateUser metadata side-effect that some callers expect is a
+        // no-op via the convex-aware shim, so there is nothing else to mirror here.
+        // value is JSONB; upsertConvexDocumentByLegacyId encodes nested object keys
+        // (matching the GET decodeConvexValue path), so the stored shape round-trips.
+        if (shouldUseConvexOnlyWritePath('user_settings')) {
+            const now = new Date().toISOString();
+            const legacyId = getLegacyIdForTable('user_settings', { user_id: user.id, key })!;
+
+            // Preserve created_at on update (upsertByLegacyId patches existing docs, so
+            // an unconditional created_at would clobber the original insert timestamp).
+            const existing = (await getConvexDocumentByLegacyId('user_settings', legacyId)) as ImportedRecord | null;
+            const createdAt = existing?.created_at ?? now;
+
+            const row: ImportedRecord = {
+                id: legacyId,
+                user_id: user.id,
+                key,
+                value,
+                created_at: createdAt,
+                updated_at: now,
+            };
+            await upsertConvexDocumentByLegacyId('user_settings', legacyId, row);
+
+            // Mirror the Supabase .select().single() response (normalized to drop
+            // convex metadata) so the route payload matches the default path.
+            const stored = (await getConvexDocumentByLegacyId('user_settings', legacyId)) as ImportedRecord | null;
+            const data = stored ? normalizeConvexRecord(stored) : row;
+            if (data && 'value' in data) {
+                data.value = decodeConvexValue(data.value);
+            }
+            return NextResponse.json({ data });
+        }
 
         const { data, error } = await supabase
             .from('user_settings')
