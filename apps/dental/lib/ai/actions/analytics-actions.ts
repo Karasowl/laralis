@@ -7,6 +7,8 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ActionParams, ActionResult } from '../types'
+import { listConvexDocumentsByClinic, decodeConvexValue } from '@/lib/convex/server'
+import { shouldReturnConvexData } from '@/lib/data-backend'
 
 interface ActionContext {
   supabase: SupabaseClient
@@ -27,6 +29,38 @@ function formatCurrency(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`
 }
 
+// Convex bookkeeping fields stripped from rows so they mirror the Supabase shape.
+const CONVEX_META_FIELDS = ['_id', '_creationTime', 'legacyId', 'legacyTable', 'convex_created_at', 'convex_updated_at', 'convex_snapshot_source']
+function stripConvexRow(row: Record<string, any>): Record<string, any> {
+  const clean: Record<string, any> = {}
+  for (const [k, v] of Object.entries(row)) {
+    if (CONVEX_META_FIELDS.includes(k)) continue
+    clean[k] = v
+  }
+  return decodeConvexValue(clean) as Record<string, any>
+}
+
+/**
+ * Read every row of a clinic-scoped table from Convex (convex-only mode), stripped
+ * to the Supabase shape. Domain string per table keeps flag-gating consistent.
+ */
+async function listClinicTableFromConvex(table: string, clinicId: string): Promise<Record<string, any>[]> {
+  const rows = (await listConvexDocumentsByClinic(table, clinicId)) as Record<string, any>[]
+  return rows.map((r) => stripConvexRow(r))
+}
+
+/**
+ * True when a row's timestamp column falls within an inclusive [start, end] window.
+ * Mirrors the Supabase `.gte(col, start).lte(col, end)` ISO-string comparison.
+ */
+function withinRange(value: unknown, startIso?: string, endIso?: string): boolean {
+  if (value == null) return false
+  const v = String(value)
+  if (startIso !== undefined && v < startIso) return false
+  if (endIso !== undefined && v > endIso) return false
+  return true
+}
+
 /**
  * Get break-even analysis
  */
@@ -39,30 +73,51 @@ export async function executeGetBreakEvenAnalysis(
   const startDate = getDateDaysAgo(periodDays)
 
   try {
-    // Get fixed costs (manual + asset depreciation)
-    const [fixedCostsResult, assetsResult, treatmentsResult, servicesResult] = await Promise.all([
-      supabase.from('fixed_costs').select('amount_cents').eq('clinic_id', clinicId),
-      supabase.from('assets').select('acquisition_cost_cents, useful_life_years').eq('clinic_id', clinicId),
-      supabase
-        .from('treatments')
-        .select('price_cents, service_id')
-        .eq('clinic_id', clinicId)
-        .gte('treatment_date', startDate.toISOString()),
-      supabase.from('services').select('id, name, price_cents, variable_cost_cents').eq('clinic_id', clinicId),
-    ])
+    let fixedCostsData: Record<string, any>[]
+    let assetsData: Record<string, any>[]
+    let treatments: Record<string, any>[]
+    let services: Record<string, any>[]
+
+    if (shouldReturnConvexData('analytics')) {
+      const startIso = startDate.toISOString()
+      const [fixedCostsRows, assetsRows, treatmentRows, serviceRows] = await Promise.all([
+        listClinicTableFromConvex('fixed_costs', clinicId),
+        listClinicTableFromConvex('assets', clinicId),
+        listClinicTableFromConvex('treatments', clinicId),
+        listClinicTableFromConvex('services', clinicId),
+      ])
+      fixedCostsData = fixedCostsRows
+      assetsData = assetsRows
+      treatments = treatmentRows.filter((t) => withinRange(t.treatment_date, startIso))
+      services = serviceRows
+    } else {
+      // Get fixed costs (manual + asset depreciation)
+      const [fixedCostsResult, assetsResult, treatmentsResult, servicesResult] = await Promise.all([
+        supabase.from('fixed_costs').select('amount_cents').eq('clinic_id', clinicId),
+        supabase.from('assets').select('acquisition_cost_cents, useful_life_years').eq('clinic_id', clinicId),
+        supabase
+          .from('treatments')
+          .select('price_cents, service_id')
+          .eq('clinic_id', clinicId)
+          .gte('treatment_date', startDate.toISOString()),
+        supabase.from('services').select('id, name, price_cents, variable_cost_cents').eq('clinic_id', clinicId),
+      ])
+      fixedCostsData = fixedCostsResult.data || []
+      assetsData = assetsResult.data || []
+      treatments = treatmentsResult.data || []
+      services = servicesResult.data || []
+    }
 
     // Calculate total fixed costs
-    const manualFixedCosts = fixedCostsResult.data?.reduce((sum, fc) => sum + (fc.amount_cents || 0), 0) || 0
+    const manualFixedCosts = fixedCostsData.reduce((sum, fc) => sum + (fc.amount_cents || 0), 0) || 0
     const assetDepreciation =
-      assetsResult.data?.reduce((sum, asset) => {
+      assetsData.reduce((sum, asset) => {
         const monthlyDep = Math.round((asset.acquisition_cost_cents || 0) / ((asset.useful_life_years || 1) * 12))
         return sum + monthlyDep
       }, 0) || 0
     const totalFixedCosts = manualFixedCosts + assetDepreciation
 
     // Calculate revenue and variable costs
-    const treatments = treatmentsResult.data || []
-    const services = servicesResult.data || []
     const serviceMap = new Map(services.map(s => [s.id, s]))
 
     let totalRevenue = 0
@@ -150,20 +205,32 @@ export async function executeGetTopServices(
   const startDate = getDateDaysAgo(periodDays)
 
   try {
-    const [treatmentsResult, servicesResult] = await Promise.all([
-      supabase
-        .from('treatments')
-        .select('price_cents, service_id')
-        .eq('clinic_id', clinicId)
-        .gte('treatment_date', startDate.toISOString()),
-      supabase
-        .from('services')
-        .select('id, name, price_cents, variable_cost_cents, fixed_cost_cents')
-        .eq('clinic_id', clinicId),
-    ])
+    let treatments: Record<string, any>[]
+    let services: Record<string, any>[]
 
-    const treatments = treatmentsResult.data || []
-    const services = servicesResult.data || []
+    if (shouldReturnConvexData('analytics')) {
+      const startIso = startDate.toISOString()
+      const [treatmentRows, serviceRows] = await Promise.all([
+        listClinicTableFromConvex('treatments', clinicId),
+        listClinicTableFromConvex('services', clinicId),
+      ])
+      treatments = treatmentRows.filter((t) => withinRange(t.treatment_date, startIso))
+      services = serviceRows
+    } else {
+      const [treatmentsResult, servicesResult] = await Promise.all([
+        supabase
+          .from('treatments')
+          .select('price_cents, service_id')
+          .eq('clinic_id', clinicId)
+          .gte('treatment_date', startDate.toISOString()),
+        supabase
+          .from('services')
+          .select('id, name, price_cents, variable_cost_cents, fixed_cost_cents')
+          .eq('clinic_id', clinicId),
+      ])
+      treatments = treatmentsResult.data || []
+      services = servicesResult.data || []
+    }
 
     // Aggregate by service
     const serviceStats = new Map<string, { name: string; revenue: number; count: number; margin: number }>()
@@ -253,11 +320,20 @@ export async function executeGetExpenseBreakdown(
   const startDate = getDateDaysAgo(periodDays)
 
   try {
-    const { data: expenses } = await supabase
-      .from('expenses')
-      .select('amount_cents, category, subcategory, vendor')
-      .eq('clinic_id', clinicId)
-      .gte('expense_date', startDate.toISOString())
+    let expenses: Record<string, any>[]
+
+    if (shouldReturnConvexData('analytics')) {
+      const startIso = startDate.toISOString()
+      const rows = await listClinicTableFromConvex('expenses', clinicId)
+      expenses = rows.filter((e) => withinRange(e.expense_date, startIso))
+    } else {
+      const { data } = await supabase
+        .from('expenses')
+        .select('amount_cents, category, subcategory, vendor')
+        .eq('clinic_id', clinicId)
+        .gte('expense_date', startDate.toISOString())
+      expenses = data || []
+    }
 
     if (!expenses || expenses.length === 0) {
       return {
@@ -336,26 +412,41 @@ export async function executeGetServiceProfitability(
   const startDate = getDateDaysAgo(periodDays)
 
   try {
-    let servicesQuery = supabase
-      .from('services')
-      .select('id, name, price_cents, variable_cost_cents, fixed_cost_cents')
-      .eq('clinic_id', clinicId)
+    let services: Record<string, any>[]
+    let treatments: Record<string, any>[]
 
-    if (params.service_id) {
-      servicesQuery = servicesQuery.eq('id', params.service_id)
-    }
-
-    const [servicesResult, treatmentsResult] = await Promise.all([
-      servicesQuery,
-      supabase
-        .from('treatments')
-        .select('price_cents, service_id')
+    if (shouldReturnConvexData('analytics')) {
+      const startIso = startDate.toISOString()
+      const [serviceRows, treatmentRows] = await Promise.all([
+        listClinicTableFromConvex('services', clinicId),
+        listClinicTableFromConvex('treatments', clinicId),
+      ])
+      services = params.service_id
+        ? serviceRows.filter((s) => String(s.id) === String(params.service_id))
+        : serviceRows
+      treatments = treatmentRows.filter((t) => withinRange(t.treatment_date, startIso))
+    } else {
+      let servicesQuery = supabase
+        .from('services')
+        .select('id, name, price_cents, variable_cost_cents, fixed_cost_cents')
         .eq('clinic_id', clinicId)
-        .gte('treatment_date', startDate.toISOString()),
-    ])
 
-    const services = servicesResult.data || []
-    const treatments = treatmentsResult.data || []
+      if (params.service_id) {
+        servicesQuery = servicesQuery.eq('id', params.service_id)
+      }
+
+      const [servicesResult, treatmentsResult] = await Promise.all([
+        servicesQuery,
+        supabase
+          .from('treatments')
+          .select('price_cents, service_id')
+          .eq('clinic_id', clinicId)
+          .gte('treatment_date', startDate.toISOString()),
+      ])
+
+      services = servicesResult.data || []
+      treatments = treatmentsResult.data || []
+    }
 
     // Calculate profitability for each service
     const profitability = services.map(s => {
@@ -433,10 +524,17 @@ export async function executeIdentifyUnderperformingServices(
   const includeSuggestions = params.include_suggestions !== false
 
   try {
-    const { data: services } = await supabase
-      .from('services')
-      .select('id, name, price_cents, variable_cost_cents, fixed_cost_cents')
-      .eq('clinic_id', clinicId)
+    let services: Record<string, any>[]
+
+    if (shouldReturnConvexData('analytics')) {
+      services = await listClinicTableFromConvex('services', clinicId)
+    } else {
+      const { data } = await supabase
+        .from('services')
+        .select('id, name, price_cents, variable_cost_cents, fixed_cost_cents')
+        .eq('clinic_id', clinicId)
+      services = data || []
+    }
 
     if (!services || services.length === 0) {
       return {
@@ -525,50 +623,77 @@ export async function executeComparePeriods(
 
   try {
     // Query data for both periods
-    const [treatments1, treatments2, expenses1, expenses2, patients1, patients2] = await Promise.all([
-      supabase
-        .from('treatments')
-        .select('price_cents')
-        .eq('clinic_id', clinicId)
-        .gte('treatment_date', period1_start)
-        .lte('treatment_date', period1_end),
-      supabase
-        .from('treatments')
-        .select('price_cents')
-        .eq('clinic_id', clinicId)
-        .gte('treatment_date', period2_start)
-        .lte('treatment_date', period2_end),
-      supabase
-        .from('expenses')
-        .select('amount_cents')
-        .eq('clinic_id', clinicId)
-        .gte('expense_date', period1_start)
-        .lte('expense_date', period1_end),
-      supabase
-        .from('expenses')
-        .select('amount_cents')
-        .eq('clinic_id', clinicId)
-        .gte('expense_date', period2_start)
-        .lte('expense_date', period2_end),
-      supabase
-        .from('patients')
-        .select('id')
-        .eq('clinic_id', clinicId)
-        .gte('created_at', period1_start)
-        .lte('created_at', period1_end),
-      supabase
-        .from('patients')
-        .select('id')
-        .eq('clinic_id', clinicId)
-        .gte('created_at', period2_start)
-        .lte('created_at', period2_end),
-    ])
+    let treatments1Data: Record<string, any>[]
+    let treatments2Data: Record<string, any>[]
+    let expenses1Data: Record<string, any>[]
+    let expenses2Data: Record<string, any>[]
+    let patients1Data: Record<string, any>[]
+    let patients2Data: Record<string, any>[]
+
+    if (shouldReturnConvexData('analytics')) {
+      const [allTreatments, allExpenses, allPatients] = await Promise.all([
+        listClinicTableFromConvex('treatments', clinicId),
+        listClinicTableFromConvex('expenses', clinicId),
+        listClinicTableFromConvex('patients', clinicId),
+      ])
+      treatments1Data = allTreatments.filter((t) => withinRange(t.treatment_date, period1_start, period1_end))
+      treatments2Data = allTreatments.filter((t) => withinRange(t.treatment_date, period2_start, period2_end))
+      expenses1Data = allExpenses.filter((e) => withinRange(e.expense_date, period1_start, period1_end))
+      expenses2Data = allExpenses.filter((e) => withinRange(e.expense_date, period2_start, period2_end))
+      patients1Data = allPatients.filter((p) => withinRange(p.created_at, period1_start, period1_end))
+      patients2Data = allPatients.filter((p) => withinRange(p.created_at, period2_start, period2_end))
+    } else {
+      const [treatments1, treatments2, expenses1, expenses2, patients1, patients2] = await Promise.all([
+        supabase
+          .from('treatments')
+          .select('price_cents')
+          .eq('clinic_id', clinicId)
+          .gte('treatment_date', period1_start)
+          .lte('treatment_date', period1_end),
+        supabase
+          .from('treatments')
+          .select('price_cents')
+          .eq('clinic_id', clinicId)
+          .gte('treatment_date', period2_start)
+          .lte('treatment_date', period2_end),
+        supabase
+          .from('expenses')
+          .select('amount_cents')
+          .eq('clinic_id', clinicId)
+          .gte('expense_date', period1_start)
+          .lte('expense_date', period1_end),
+        supabase
+          .from('expenses')
+          .select('amount_cents')
+          .eq('clinic_id', clinicId)
+          .gte('expense_date', period2_start)
+          .lte('expense_date', period2_end),
+        supabase
+          .from('patients')
+          .select('id')
+          .eq('clinic_id', clinicId)
+          .gte('created_at', period1_start)
+          .lte('created_at', period1_end),
+        supabase
+          .from('patients')
+          .select('id')
+          .eq('clinic_id', clinicId)
+          .gte('created_at', period2_start)
+          .lte('created_at', period2_end),
+      ])
+      treatments1Data = treatments1.data || []
+      treatments2Data = treatments2.data || []
+      expenses1Data = expenses1.data || []
+      expenses2Data = expenses2.data || []
+      patients1Data = patients1.data || []
+      patients2Data = patients2.data || []
+    }
 
     const comparison: Record<string, { period1: number; period2: number; change: number; changePct: number }> = {}
 
     if (metrics.includes('revenue')) {
-      const rev1 = treatments1.data?.reduce((sum, t) => sum + (t.price_cents || 0), 0) || 0
-      const rev2 = treatments2.data?.reduce((sum, t) => sum + (t.price_cents || 0), 0) || 0
+      const rev1 = treatments1Data.reduce((sum, t) => sum + (t.price_cents || 0), 0) || 0
+      const rev2 = treatments2Data.reduce((sum, t) => sum + (t.price_cents || 0), 0) || 0
       comparison.revenue = {
         period1: rev1,
         period2: rev2,
@@ -578,8 +703,8 @@ export async function executeComparePeriods(
     }
 
     if (metrics.includes('expenses')) {
-      const exp1 = expenses1.data?.reduce((sum, e) => sum + (e.amount_cents || 0), 0) || 0
-      const exp2 = expenses2.data?.reduce((sum, e) => sum + (e.amount_cents || 0), 0) || 0
+      const exp1 = expenses1Data.reduce((sum, e) => sum + (e.amount_cents || 0), 0) || 0
+      const exp2 = expenses2Data.reduce((sum, e) => sum + (e.amount_cents || 0), 0) || 0
       comparison.expenses = {
         period1: exp1,
         period2: exp2,
@@ -589,8 +714,8 @@ export async function executeComparePeriods(
     }
 
     if (metrics.includes('treatments')) {
-      const count1 = treatments1.data?.length || 0
-      const count2 = treatments2.data?.length || 0
+      const count1 = treatments1Data.length || 0
+      const count2 = treatments2Data.length || 0
       comparison.treatments = {
         period1: count1,
         period2: count2,
@@ -600,8 +725,8 @@ export async function executeComparePeriods(
     }
 
     if (metrics.includes('patients')) {
-      const pat1 = patients1.data?.length || 0
-      const pat2 = patients2.data?.length || 0
+      const pat1 = patients1Data.length || 0
+      const pat2 = patients2Data.length || 0
       comparison.patients = {
         period1: pat1,
         period2: pat2,
