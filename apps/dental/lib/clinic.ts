@@ -2,7 +2,7 @@ import { cookies } from 'next/headers';
 import { supabaseAdmin } from './supabaseAdmin';
 import { createClient } from './supabase/server';
 import { getConvexSessionFromCookieStore, isConvexAuthEnabled, getAuthBackend, type ConvexSessionPayload } from './auth/convex-session';
-import { getConvexAuthContext, convexUserHasClinicAccess } from './convex/server';
+import { getConvexAuthContext, convexUserHasClinicAccess, getConvexAuthUserLegacyId } from './convex/server';
 import { shouldReturnConvexData } from './data-backend';
 
 const CLINIC_COOKIE_NAME = 'clinicId';
@@ -277,6 +277,26 @@ export async function resolveClinicContext({
   requestedClinicId?: string | null;
   cookieStore: ReturnType<typeof cookies>;
 }): Promise<ClinicContextSuccess | { error: ClinicContextError }> {
+  // Pure Convex Auth mode: resolve identity + clinic ENTIRELY via Convex. The
+  // createConvexOnlyServerClient shim now resolves a user from the @convex-dev/auth
+  // token, so we must NOT fall through to the Supabase membership path (which queries
+  // workspace_users/workspace_members via Supabase and fails once Supabase is gone).
+  if (getAuthBackend() === 'convex') {
+    const convexSession = await getConvexSessionFromCookieStore(cookieStore);
+    if (convexSession) {
+      return resolveConvexClinicContext({ session: convexSession, requestedClinicId, cookieStore });
+    }
+    const identity = await getConvexAuthUserLegacyId();
+    if (identity?.legacyId) {
+      return resolveConvexClinicContext({
+        session: { sub: identity.legacyId, email: identity.email ?? '', iat: 0, exp: 0 },
+        requestedClinicId,
+        cookieStore,
+      });
+    }
+    return { error: { status: 401, message: 'Unauthorized' } };
+  }
+
   const supabase = createClient();
   const {
     data: { user },
@@ -288,6 +308,21 @@ export async function resolveClinicContext({
       const convexSession = await getConvexSessionFromCookieStore(cookieStore);
       if (convexSession) {
         return resolveConvexClinicContext({ session: convexSession, requestedClinicId, cookieStore });
+      }
+
+      // @convex-dev/auth identity path: read the Convex Auth token, map the
+      // token-subject back to the Supabase UUID (legacyId) every membership join uses.
+      if (getAuthBackend() === 'convex') {
+        const identity = await getConvexAuthUserLegacyId();
+        if (identity?.legacyId) {
+          const syntheticSession: ConvexSessionPayload = {
+            sub: identity.legacyId,
+            email: identity.email ?? '',
+            iat: 0,
+            exp: 0,
+          };
+          return resolveConvexClinicContext({ session: syntheticSession, requestedClinicId, cookieStore });
+        }
       }
     }
 

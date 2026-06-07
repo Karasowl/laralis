@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
 import { getCurrentUser } from '@/lib/auth/current-user'
-import { getConvexAuthContext, getConvexDocumentByLegacyId, listConvexTable } from '@/lib/convex/server'
+import { getConvexDocumentByLegacyId, listConvexTable, convexUserHasClinicAccess } from '@/lib/convex/server'
 import { shouldReturnConvexData } from '@/lib/data-backend'
 import { getAccessibleWorkspaceIds, userCanAccessWorkspace } from '@/lib/workspace-access'
 
@@ -187,9 +187,11 @@ async function readClinicById(clinicId: string) {
 
 async function userCanSelectClinic(userId: string, clinicId: string) {
   if (shouldReturnConvexData('clinics')) {
-    const context = await getConvexAuthContext(userId)
-    const allowed = (context.clinics || []).some((clinic: any) => clinic.id === clinicId || clinic.legacyId === clinicId)
-    return { data: allowed, error: null }
+    // convexUserHasClinicAccess replicates is_clinic_member exactly (direct
+    // clinic_users membership OR workspace_users honoring allowed_clinics),
+    // matching the user_has_clinic_access RPC byte-for-byte.
+    const allowed = await convexUserHasClinicAccess(userId, clinicId)
+    return { data: Boolean(allowed), error: null }
   }
 
   const supabase = createClient()

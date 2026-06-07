@@ -34,7 +34,7 @@ const MIRRORED_RPC_REFRESH_TABLES: Record<string, string[]> = {
 let snapshotClient: SupabaseClient | null | undefined
 const MIRRORED_CLIENT_MARKER = Symbol.for('laralis.convex.mirroredSupabaseClient')
 
-const MIRRORED_TABLES = new Set([
+export const MIRRORED_TABLES = new Set([
   'supabase_auth_users',
   'workspaces',
   'clinics',

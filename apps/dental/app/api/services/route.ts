@@ -190,6 +190,13 @@ async function findConvexServiceNameConflict(clinicId: string, name: string) {
   return services.find((service: any) => String(service.name || '').trim().toLowerCase() === name.trim().toLowerCase()) ?? null;
 }
 
+/**
+ * 1:1 port of the calculate_service_final_price trigger (migration 68 — the FIX
+ * for the 2025-12-18 price-drift bug). price_cents is derived ONLY from
+ * original_price_cents + discount; it MUST NEVER be recomputed from costs
+ * (fixed_cost_per_minute/variable_cost/margin). 'fixed' discount_value is in
+ * currency units, so multiply by 100 to get cents; 'percentage' divides by 100.
+ */
 function calculateDiscountedPriceCents(originalPriceCents: number, discountType: string, discountValue: number) {
   if (discountType === 'percentage') {
     return Math.max(0, Math.round(originalPriceCents * (1 - discountValue / 100)));

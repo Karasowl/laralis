@@ -18,8 +18,9 @@ import { readJson } from '@/lib/validation';
 import { forbiddenIfMissingPermission } from '@/lib/permissions';
 import { checkScheduleConflicts } from '@/lib/calendar/server-conflicts';
 import { getPushNotificationServiceForRequest } from '@/lib/notifications/qa';
-import { listConvexDocumentsByClinic, listConvexTable, upsertConvexDocumentByLegacyId, patchConvexDocumentByLegacyId } from '@/lib/convex/server';
+import { listConvexDocumentsByClinic, listConvexTable, upsertConvexDocumentByLegacyId, patchConvexDocumentByLegacyId, getConvexDocumentByLegacyId } from '@/lib/convex/server';
 import { shouldReturnConvexData, shouldUseConvexOnlyWritePath, shouldWriteConvexData } from '@/lib/data-backend';
+import { deriveTreatmentPaymentState } from '@/lib/calc/treatment-payment';
 
 export const dynamic = 'force-dynamic'
 
@@ -136,6 +137,63 @@ async function getTreatmentsFromConvex(
     });
 }
 
+/**
+ * Convex port of create_treatment_reminder() (migration 61). For each newly created
+ * scheduled treatment whose date is today or later, insert a scheduled_reminders row
+ * based on the clinic's notification_settings (reminder_enabled / reminder_hours_before).
+ * Best-effort: a failure logs and never fails treatment creation. Fresh treatment ids
+ * mean no ON CONFLICT (treatment_id, reminder_type) collision on the create path.
+ */
+async function scheduleConvexTreatmentReminders(
+  createdRows: Array<Record<string, any>>,
+  clinicId: string,
+  now: string
+): Promise<void> {
+  try {
+    const todayStr = now.slice(0, 10);
+    const scheduledRows = createdRows.filter(
+      (r) => r.status === 'scheduled' && String(r.treatment_date).slice(0, 10) >= todayStr
+    );
+    if (scheduledRows.length === 0) return;
+
+    const clinic = (await getConvexDocumentByLegacyId('clinics', clinicId)) as Record<string, any> | null;
+    const settings = (clinic?.notification_settings ?? null) as Record<string, any> | null;
+    if (!settings || settings.reminder_enabled !== true) return;
+
+    // COALESCE(reminder_hours_before, 24): only NULL/undefined defaults to 24, an
+    // explicit 0 stays 0 (reminder at treatment time). `Number(x) || 24` would wrongly
+    // turn 0 into 24.
+    const rawReminderHours = settings.reminder_hours_before;
+    const reminderHours =
+      rawReminderHours != null && !Number.isNaN(Number(rawReminderHours))
+        ? Number(rawReminderHours)
+        : 24;
+    const reminderType =
+      reminderHours === 24 ? '24h' : reminderHours === 48 ? '48h' : reminderHours === 1 ? '1h' : 'custom';
+    const nowMs = new Date(now).getTime();
+
+    for (const r of scheduledRows) {
+      const time = r.treatment_time || '12:00:00';
+      const treatmentDateTime = new Date(`${String(r.treatment_date).slice(0, 10)}T${time}`);
+      const reminderDateTime = new Date(treatmentDateTime.getTime() - reminderHours * 3600 * 1000);
+      if (reminderDateTime.getTime() <= nowMs) continue;
+      const id = crypto.randomUUID();
+      await upsertConvexDocumentByLegacyId('scheduled_reminders', id, {
+        id,
+        clinic_id: clinicId,
+        treatment_id: r.id,
+        patient_id: r.patient_id,
+        scheduled_for: reminderDateTime.toISOString(),
+        reminder_type: reminderType,
+        status: 'pending',
+        created_at: now,
+      });
+    }
+  } catch (error) {
+    console.warn('[treatments] convex reminder scheduling failed', { clinicId, error });
+  }
+}
+
 async function createTreatmentsInConvex(
   clinicId: string,
   payloadBody: z.infer<typeof treatmentSchema>,
@@ -211,6 +269,13 @@ async function createTreatmentsInConvex(
 
   const now = new Date().toISOString();
   const treatmentDate = payloadBody.treatment_date || new Date().toISOString().split('T')[0];
+  // Reproduce the calculate_treatment_is_paid trigger (migration 73): clamp pending >= 0,
+  // is_paid = pending==0 OR status=='cancelled'. In Supabase mode the DB trigger fills
+  // is_paid; in convex-only mode we must stamp it or completed+paid treatments read unpaid.
+  const { pendingBalanceCents: clampedPending, isPaid } = deriveTreatmentPaymentState({
+    pendingBalanceCents: pendingBalanceVal,
+    status: normalizedStatus,
+  });
   const basePayload = {
     clinic_id: clinicId,
     patient_id: payloadBody.patient_id,
@@ -223,7 +288,8 @@ async function createTreatmentsInConvex(
     margin_pct: marginVal || 60,
     price_cents: priceVal || 0,
     amount_paid_cents: amountPaidVal,
-    pending_balance_cents: pendingBalanceVal,
+    pending_balance_cents: clampedPending,
+    is_paid: isPaid,
     status: normalizedStatus,
     notes: payloadBody.notes?.trim() ? payloadBody.notes.trim() : null,
     snapshot_costs: payloadBody.snapshot_costs || {},
@@ -243,6 +309,12 @@ async function createTreatmentsInConvex(
     await upsertConvexDocumentByLegacyId('treatments', id, row);
     createdRows.push(row);
   }
+
+  // Reproduce create_treatment_reminder() (trigger, migration 61): schedule a
+  // reminder row for each future scheduled treatment per the clinic's notification
+  // settings. In Supabase mode the DB trigger does this; the inline confirmation
+  // email/SMS/push is separate.
+  await scheduleConvexTreatmentReminders(createdRows, clinicId, now);
 
   if (normalizedStatus === 'completed') {
     const patient = patients.find((row) => row.id === payloadBody.patient_id || row.legacyId === payloadBody.patient_id);

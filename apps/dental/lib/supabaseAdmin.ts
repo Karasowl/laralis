@@ -25,10 +25,15 @@ if (!keyToUse) {
   console.error('❌ No Supabase keys found. Please configure your environment variables.');
 }
 
-// Cliente con service role key para operaciones admin (solo server-side)
+// Cliente con service role key para operaciones admin (solo server-side).
+// Use a non-empty placeholder key when none is configured so the client constructs
+// without throwing "supabaseKey is required" at module load. This keeps routes that
+// merely import supabaseAdmin working when Supabase keys are absent (Convex-only /
+// decommission scenario). Any actual Supabase call with the placeholder fails at
+// use-time, but Convex-only read/write paths never reach Supabase.
 export const supabaseAdminRaw = createClient(
   supabaseUrl,
-  keyToUse || '',
+  keyToUse || 'placeholder-anon-key',
   {
     auth: {
       autoRefreshToken: false,

@@ -315,7 +315,7 @@ export const replaceTableSnapshot = mutation({
           await ctx.db.replace(existing._id, {
             ...row,
             convex_created_at: existing.convex_created_at ?? now,
-          })
+          } as any)
           updated += 1
         }
       } else {
@@ -401,6 +401,29 @@ export const findStorageObject = query({
   handler: async (ctx, args) => {
     const docs = (await ctx.db.query('storage_objects' as any).collect()) as ImportedDocument[]
     return docs.find((doc) => doc.bucket === args.bucket && doc.path === args.path) ?? null
+  },
+})
+
+// Resolve a stored blob's short-lived download URL by (bucket, path). Read-only
+// and secret-less, mirroring findStorageObject. Returns null when the object is
+// not mirrored so the Next.js caller can fall back to Supabase Storage.
+export const getStorageObjectUrl = query({
+  args: {
+    bucket: v.string(),
+    path: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const docs = (await ctx.db.query('storage_objects' as any).collect()) as ImportedDocument[]
+    const existing = docs.find((doc) => doc.bucket === args.bucket && doc.path === args.path)
+    if (!existing || typeof existing.storageId !== 'string') return null
+    const url = await ctx.storage.getUrl(existing.storageId as any)
+    if (!url) return null
+    return {
+      url,
+      size: Number(existing.size ?? 0),
+      contentType: String(existing.contentType ?? 'application/octet-stream'),
+      sha256: existing.sha256 ?? null,
+    }
   },
 })
 
@@ -505,7 +528,7 @@ export const recordStorageObject = mutation({
     }
 
     if (existing) {
-      await ctx.db.patch(existing._id, row)
+      await ctx.db.patch(existing._id, row as any)
       return { path: args.path, id: existing._id, updated: true }
     }
 

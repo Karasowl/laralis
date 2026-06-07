@@ -5,6 +5,8 @@ import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
 import { requireCronAuth } from '@/lib/cron-auth'
 import { resolveClinicContext } from '@/lib/clinic'
+import { getDataWriteMode } from '@/lib/data-backend'
+import { processConvexRecurringExpenses } from '@/lib/convex/server'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,12 +26,24 @@ export async function GET(request: NextRequest) {
     const denied = requireCronAuth(request)
     if (denied) return denied
 
-    // NOTE (Convex migration): this endpoint has NO read query to flag-gate — all
-    // logic lives in the Postgres function process_recurring_expenses (finds due
-    // recurring templates, inserts expense rows). The runtime mirror refreshes the
-    // 'expenses' snapshot after the RPC (MIRRORED_RPC_REFRESH_TABLES), so Convex
-    // stays consistent. Full native Convex support requires porting the pl/pgsql
-    // function to a Convex mutation — a write-cutover task, not read parity.
+    // Convex-only write path: run the ported Convex mutation, never the Postgres RPC.
+    // In 'dual' we must NOT call the Convex mutation — supabaseAdmin's runtime mirror
+    // already re-snapshots 'expenses' after the Supabase RPC (MIRRORED_RPC_REFRESH_TABLES),
+    // so calling both would double-generate. So only 'convex' diverts here.
+    if (getDataWriteMode('expenses') === 'convex') {
+      const result = await processConvexRecurringExpenses(null)
+      console.info(`[cron/recurring-expenses] (convex) Generated ${result.generated_count} expense entries`)
+      return NextResponse.json({
+        success: true,
+        generated: result.generated_count,
+        expense_ids: result.expense_ids || [],
+        backend: 'convex',
+      })
+    }
+
+    // 'supabase' or 'dual': the Postgres function is the source of truth. process_recurring_expenses
+    // finds due recurring templates and inserts expense rows; the runtime mirror refreshes the
+    // 'expenses' snapshot afterward in 'dual'.
     const { data, error } = await supabaseAdmin
       .rpc('process_recurring_expenses', { p_clinic_id: null })
 
@@ -83,6 +97,18 @@ export async function POST(request: NextRequest) {
       )
     }
     const clinicId = ctx.clinicId
+
+    // Convex-only write path (see GET handler for the 'dual' double-generation note).
+    if (getDataWriteMode('expenses') === 'convex') {
+      const result = await processConvexRecurringExpenses(clinicId)
+      return NextResponse.json({
+        success: true,
+        clinic_id: clinicId,
+        generated: result.generated_count,
+        expense_ids: result.expense_ids || [],
+        backend: 'convex',
+      })
+    }
 
     // Call the database function for specific clinic
     const { data, error } = await supabaseAdmin

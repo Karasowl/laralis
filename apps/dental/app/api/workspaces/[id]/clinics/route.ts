@@ -9,7 +9,8 @@ import {
   userCanAccessWorkspace,
 } from '@/lib/workspace-access'
 import { listConvexDocumentsByWorkspace } from '@/lib/convex/server'
-import { shouldReturnConvexData } from '@/lib/data-backend'
+import { shouldReturnConvexData, shouldWriteConvexData } from '@/lib/data-backend'
+import { seedClinicDefaultsInConvex } from '@/lib/convex/clinic-seed'
 
 export const dynamic = 'force-dynamic'
 
@@ -151,6 +152,13 @@ export async function POST(
 
     if (error) {
       return NextResponse.json({ error: 'Failed to create clinic', message: error.message }, { status: 500 })
+    }
+
+    // Seed clinic defaults into Convex (port of the after_clinic_insert triggers).
+    // Idempotent + best-effort; default Supabase => no-op (clinic row mirrors via
+    // the wrapped supabaseAdmin client).
+    if (shouldWriteConvexData('clinics')) {
+      await seedClinicDefaultsInConvex(data.id)
     }
 
     const { data: workspaceUsers, error: workspaceUsersError } = await supabaseAdmin

@@ -5,6 +5,15 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { useAuthActions } from '@convex-dev/auth/react'
+
+// Build-time constant (NEXT_PUBLIC_* is inlined). When the Convex Auth provider is
+// mounted (convex/dual modes), useAuthActions is safe to call; in supabase mode the
+// provider is absent so the hook must NOT be invoked. The constant never changes at
+// runtime for a deployment, so the conditional hook call has a stable order.
+const CONVEX_AUTH_MOUNTED =
+  process.env.NEXT_PUBLIC_AUTH_BACKEND === 'convex' ||
+  process.env.NEXT_PUBLIC_AUTH_BACKEND === 'dual'
 
 interface AuthCredentials {
   email: string
@@ -27,6 +36,9 @@ interface UseAuthReturn extends AuthState {
   register: (credentials: RegisterCredentials) => Promise<boolean>
   logout: () => Promise<void>
   resetPassword: (email: string) => Promise<boolean>
+  // Convex Auth OTP steps (no-op fallback on the supabase backend).
+  verifyEmailCode: (email: string, code: string) => Promise<boolean>
+  confirmPasswordReset: (email: string, code: string, newPassword: string) => Promise<boolean>
   clearError: () => void
 }
 
@@ -36,6 +48,8 @@ export function useAuth(): UseAuthReturn {
   const router = useRouter()
   const t = useTranslations('auth')
   const supabase = useMemo(() => createClient(), [])
+  // eslint-disable-next-line react-hooks/rules-of-hooks -- CONVEX_AUTH_MOUNTED is a build constant (stable order per deployment)
+  const convexAuthActions = CONVEX_AUTH_MOUNTED ? useAuthActions() : null
 
   const persistLocalePreference = useCallback((preferredLocale?: string | null) => {
     if (!preferredLocale) return
@@ -59,6 +73,28 @@ export function useAuth(): UseAuthReturn {
 
     try {
       if (getAuthBackend() === 'convex') {
+        // Prefer @convex-dev/auth when its provider is mounted; otherwise fall back
+        // to the hand-rolled convex-login bridge.
+        if (convexAuthActions) {
+          try {
+            await convexAuthActions.signIn('password', {
+              email: credentials.email,
+              password: credentials.password,
+              flow: 'signIn',
+            })
+            toast.success(t('login_success'))
+            router.refresh()
+            setTimeout(() => {
+              window.location.href = '/'
+            }, 500)
+            return true
+          } catch (err) {
+            const message = err instanceof Error ? err.message : 'Login failed'
+            setError(message)
+            toast.error(message)
+            return false
+          }
+        }
         return await loginWithConvexCredentials(credentials, {
           setError,
           t,
@@ -130,7 +166,7 @@ export function useAuth(): UseAuthReturn {
     } finally {
       setLoading(false)
     }
-  }, [supabase, t, router, persistLocalePreference])
+  }, [supabase, t, router, persistLocalePreference, convexAuthActions])
 
   const register = useCallback(async (credentials: RegisterCredentials): Promise<boolean> => {
     setLoading(true)
@@ -147,6 +183,27 @@ export function useAuth(): UseAuthReturn {
       const cookieLocale = typeof document !== 'undefined'
         ? document.cookie.split('; ').find(part => part.startsWith('locale='))?.split('=')[1]
         : undefined
+
+      // Convex Auth sign-up: Password.verify=ResendOTP emails a code; go to the
+      // verify-email page to enter it (verifyEmailCode below completes the flow).
+      if (getAuthBackend() === 'convex' && convexAuthActions) {
+        try {
+          await convexAuthActions.signIn('password', {
+            email: credentials.email,
+            password: credentials.password,
+            name: fullName,
+            flow: 'signUp',
+          })
+          if (cookieLocale) persistLocalePreference(cookieLocale)
+          router.push(`/auth/verify-email?email=${encodeURIComponent(credentials.email)}`)
+          return true
+        } catch (err) {
+          const message = err instanceof Error ? err.message : t('errors.signUpError')
+          setError(message)
+          toast.error(message)
+          return false
+        }
+      }
 
       const { error: signUpError, data } = await supabase.auth.signUp({
         email: credentials.email,
@@ -219,12 +276,15 @@ export function useAuth(): UseAuthReturn {
     } finally {
       setLoading(false)
     }
-  }, [supabase, router, t, persistLocalePreference])
+  }, [supabase, router, t, persistLocalePreference, convexAuthActions])
 
   const logout = useCallback(async () => {
     setLoading(true)
     
     try {
+      if (convexAuthActions) {
+        await convexAuthActions.signOut().catch(() => null)
+      }
       await supabase.auth.signOut()
       await fetch('/api/auth/convex-logout', { method: 'POST' }).catch(() => null)
       toast.success(t('logout_success'))
@@ -235,13 +295,29 @@ export function useAuth(): UseAuthReturn {
     } finally {
       setLoading(false)
     }
-  }, [supabase, router, t, persistLocalePreference])
+  }, [supabase, router, t, persistLocalePreference, convexAuthActions])
 
   const resetPassword = useCallback(async (email: string): Promise<boolean> => {
     setLoading(true)
     setError(null)
 
     try {
+      // Convex Auth reset: Password.reset=ResendOTPPasswordReset emails a code; go to
+      // the reset page (convex mode) to enter the code + new password.
+      if (getAuthBackend() === 'convex' && convexAuthActions) {
+        try {
+          await convexAuthActions.signIn('password', { email, flow: 'reset' })
+          toast.success(t('reset_email_sent'))
+          router.push(`/auth/reset-password?email=${encodeURIComponent(email)}&convex=1`)
+          return true
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Reset failed'
+          setError(message)
+          toast.error(message)
+          return false
+        }
+      }
+
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth/reset-password`
       })
@@ -262,7 +338,59 @@ export function useAuth(): UseAuthReturn {
     } finally {
       setLoading(false)
     }
-  }, [supabase, t])
+  }, [supabase, t, router, convexAuthActions])
+
+  // Convex Auth: complete email verification (sign-up) with the emailed OTP.
+  const verifyEmailCode = useCallback(async (email: string, code: string): Promise<boolean> => {
+    if (!convexAuthActions) {
+      setError(t('errors.signUpError'))
+      return false
+    }
+    setLoading(true)
+    setError(null)
+    try {
+      await convexAuthActions.signIn('password', { email, code, flow: 'email-verification' })
+      toast.success(t('login_success'))
+      router.refresh()
+      setTimeout(() => {
+        window.location.href = '/'
+      }, 500)
+      return true
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t('errors.signUpError')
+      setError(message)
+      toast.error(message)
+      return false
+    } finally {
+      setLoading(false)
+    }
+  }, [convexAuthActions, t, router])
+
+  // Convex Auth: complete password reset with the emailed OTP + new password.
+  const confirmPasswordReset = useCallback(async (email: string, code: string, newPassword: string): Promise<boolean> => {
+    if (!convexAuthActions) {
+      setError('Reset failed')
+      return false
+    }
+    setLoading(true)
+    setError(null)
+    try {
+      await convexAuthActions.signIn('password', { email, code, newPassword, flow: 'reset-verification' })
+      toast.success(t('login_success'))
+      router.refresh()
+      setTimeout(() => {
+        window.location.href = '/'
+      }, 500)
+      return true
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Reset failed'
+      setError(message)
+      toast.error(message)
+      return false
+    } finally {
+      setLoading(false)
+    }
+  }, [convexAuthActions, t, router])
 
   return {
     loading,
@@ -271,6 +399,8 @@ export function useAuth(): UseAuthReturn {
     register,
     logout,
     resetPassword,
+    verifyEmailCode,
+    confirmPasswordReset,
     clearError
   }
 }

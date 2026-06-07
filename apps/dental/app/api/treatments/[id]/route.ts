@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
 import { forbiddenIfMissingPermission } from '@/lib/permissions';
 import { getConvexDocumentByLegacyId, listConvexDocumentsByClinic, listConvexTable, patchConvexDocumentByLegacyId, deleteConvexDocumentByLegacyId } from '@/lib/convex/server';
+import { deriveTreatmentPaymentState } from '@/lib/calc/treatment-payment';
 import { shouldUseConvexOnlyWritePath, shouldWriteConvexData } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
@@ -95,10 +96,50 @@ export async function PUT(
         return NextResponse.json({ error: 'Treatment not found' }, { status: 404 })
       }
 
+      // Reproduce trigger 73 (calculate_treatment_is_paid), which also fires on UPDATE:
+      // re-derive is_paid + clamp pending from the effective status/pending when either
+      // changed (Supabase mode gets this from the DB trigger).
+      if (payload.status !== undefined || payload.pending_balance_cents !== undefined) {
+        const effectiveStatus = payload.status !== undefined ? payload.status : current.status
+        const effectivePending = payload.pending_balance_cents !== undefined
+          ? payload.pending_balance_cents
+          : current.pending_balance_cents
+        const { pendingBalanceCents, isPaid } = deriveTreatmentPaymentState({
+          pendingBalanceCents: effectivePending,
+          status: effectiveStatus,
+        })
+        payload.pending_balance_cents = pendingBalanceCents
+        payload.is_paid = isPaid
+      }
+
       await patchConvexDocumentByLegacyId('treatments', params.id, payload)
       const updated = {
         ...current,
         ...payload,
+      }
+
+      // Reproduce cancel_treatment_reminder (trigger 61): when the status becomes
+      // terminal, cancel this treatment's pending reminders.
+      if (
+        payload.status !== undefined &&
+        ['completed', 'cancelled', 'no_show'].includes(String(payload.status)) &&
+        String(current.status) === 'scheduled'
+      ) {
+        try {
+          const reminders = await listConvexDocumentsByClinic('scheduled_reminders', clinicId) as Array<Record<string, any>>
+          const nowIso = new Date().toISOString()
+          for (const reminder of reminders) {
+            if (String(reminder.treatment_id) === String(params.id) && reminder.status === 'pending') {
+              await patchConvexDocumentByLegacyId('scheduled_reminders', String(reminder.id ?? reminder.legacyId), {
+                status: 'cancelled',
+                processed_at: nowIso,
+                updated_at: nowIso,
+              })
+            }
+          }
+        } catch (e) {
+          console.warn('[treatments PUT] Failed to cancel Convex reminders:', e)
+        }
       }
 
       if (updated.patient_id && updated.status === 'completed') {

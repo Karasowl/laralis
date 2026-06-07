@@ -144,3 +144,50 @@ Each `.rpc()` call must become a Convex query/mutation:
 - **A4**: choosing reset-on-cutover vs. dual grace period for user passwords.
 - **A5 / F**: testing login flows and flipping production flags.
 - Final Supabase project deletion (after a cold backup).
+
+---
+
+## PROGRESS — 2026-06-06 (Phases B, C, D, E done; A scaffolded)
+
+All work flag-gated, default Supabase, zero production impact until flipped.
+Typecheck stayed at the 189-error pre-existing baseline (zero new errors) and
+new pure logic is unit-tested (19 tests green).
+
+- **Phase D — DONE.** `lib/snapshots/static-schema.ts` enumerates the canonical
+  clinic table list (byte-identical to the legacy `getKnownDirectTables()` +
+  `KNOWN_INDIRECT_TABLES`); `discovery.ts` + `snapshots/discover` read it +
+  Convex counts behind `DATA_READ_BACKEND_SNAPSHOTS`. No more `information_schema`
+  for snapshot discovery. (`clinic/[id]/export` uses WorkspaceExporter, not
+  discovery — still a Supabase-export edge; revisit if native Convex export is built.)
+- **Phase B — DONE.** `convex/recurringExpenses.processDue` (PG-faithful date math
+  in `convex/lib/recurringDates.ts`, unit-tested) + `convex/bookingAvailability.checkSlotAvailable`
+  (migration-79 parity). `user_has_clinic_access`/`is_clinic_member` were already
+  ported; `clinics` route now uses `convexUserHasClinicAccess` for true parity.
+  Remaining RPC-on-Supabase: `process_recurring_expenses` only runs when
+  `DATA_WRITE_MODE_EXPENSES=convex` (else the mirror handles it).
+- **Phase E — DONE.** `lib/convex/clinic-seed.ts` ports `after_clinic_insert`
+  (7 patient_sources, conditional 3 custom_categories, 10 whatsapp_templates),
+  wired into onboarding + workspaces/[id]/clinics behind `shouldWriteConvexData('clinics')`.
+  `deriveTreatmentPaymentState` (trigger 73) + reminder scheduling (trigger 61) in
+  the convex treatment write path. Services price-recalc (trigger 68) already
+  ported; comment added to prevent drift. updated_at stampers are mirror-handled.
+- **Phase C — DONE.** Convex READ path for snapshot blobs
+  (`migration.getStorageObjectUrl` + `downloadConvexStorageObject`/`getConvexStorageObjectUrl`
+  + `storage.download`/`getSignedUrl` Convex-first behind `DATA_READ_BACKEND_STORAGE`,
+  falling back to Supabase for pre-mirror blobs). Writes already mirrored.
+  Pre-mirror blobs need `scripts/migration/import-convex-storage.mjs` before flipping.
+- **Phase A — SCAFFOLDED (A1 + A4 seed).** `@convex-dev/auth` + `@auth/core`
+  installed; `convex/{schema,auth,auth.config,http,ResendOTP,ResendOTPPasswordReset,authMigration}.ts`
+  written (inert, NOT deployed). `schema.ts` uses `schemaValidation:false` (the 60
+  mirror tables are never validated). The cutover (A2 keys, A3 client/server wiring,
+  A5 testing, deploy) is the **operator runbook**:
+  `docs/IMPORTANT/CONVEX-AUTH-CUTOVER-RUNBOOK.md`.
+
+### Still on Supabase after this session
+- Auth at runtime (Convex Auth scaffolded but not cut over — operator-gated).
+- `process_recurring_expenses` / booking RPC fire on Supabase unless the per-domain
+  write/read flag is `convex`.
+- Pre-mirror storage blobs until the import script runs.
+- `clinic/[id]/export` + `snapshots/discover` export edge (information_schema export path).
+- **Phase F** (per-domain `DATA_WRITE_MODE=convex` flips + mirror decommission +
+  Supabase deletion) — operator, last, after per-domain parity is verified.

@@ -148,7 +148,7 @@ export const consumePasswordResetToken = mutation({
 
     await ctx.db.patch(token._id, {
       usedAt: new Date().toISOString(),
-    })
+    } as any)
 
     return {
       ...credential,

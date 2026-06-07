@@ -2,6 +2,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { getAuthBackend, getConvexSessionFromCookieStore } from '@/lib/auth/convex-session'
 import { createMirroredSupabaseClient } from '@/lib/convex/supabase-runtime-mirror'
+import { getConvexAuthUserLegacyId } from '@/lib/convex/server'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -47,37 +48,36 @@ export function createClient() {
 }
 
 function createConvexOnlyServerClient(cookieStore: ReturnType<typeof cookies>) {
+  // Resolve the current user from the hand-rolled HMAC session first; if absent and
+  // running @convex-dev/auth, fall back to the Convex Auth token (mapped to the
+  // Supabase UUID via legacyId).
+  async function resolveUser() {
+    const session = await getConvexSessionFromCookieStore(cookieStore)
+    if (session) {
+      return { id: session.sub, email: session.email, user_metadata: session.userMetadata ?? {} }
+    }
+    if (getAuthBackend() === 'convex') {
+      const identity = await getConvexAuthUserLegacyId()
+      if (identity?.legacyId) {
+        return { id: identity.legacyId, email: identity.email ?? '', user_metadata: {} as Record<string, unknown> }
+      }
+    }
+    return null
+  }
+
   return {
     auth: {
       async getUser() {
-        const session = await getConvexSessionFromCookieStore(cookieStore)
+        const user = await resolveUser()
         return {
-          data: {
-            user: session
-              ? {
-                  id: session.sub,
-                  email: session.email,
-                  user_metadata: session.userMetadata ?? {},
-                }
-              : null,
-          },
-          error: session ? null : new Error('Auth session missing'),
+          data: { user },
+          error: user ? null : new Error('Auth session missing'),
         }
       },
       async getSession() {
-        const session = await getConvexSessionFromCookieStore(cookieStore)
+        const user = await resolveUser()
         return {
-          data: {
-            session: session
-              ? {
-                  user: {
-                    id: session.sub,
-                    email: session.email,
-                    user_metadata: session.userMetadata ?? {},
-                  },
-                }
-              : null,
-          },
+          data: { session: user ? { user } : null },
           error: null,
         }
       },

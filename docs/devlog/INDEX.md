@@ -17,6 +17,10 @@ Cada entrada sigue la estructura:
 
 ## Entradas
 
+### 2026-06-06
+
+- **[2026-06-06-convex-decommission-phases-bcde-a.md](2026-06-06-convex-decommission-phases-bcde-a.md)** - Decomisión Supabase→Convex: Fases B (RPCs `process_recurring_expenses` + `check_booking_slot_availability` portados, con math de fechas PG-fiel y tests), C (lectura Convex de blobs de snapshot), D (schema discovery sin `information_schema`), E (triggers de seed de clínica / `is_paid` / recordatorios al write-path convex) y scaffold de **Convex Auth** (A1 + seed reset-on-cutover + runbook del operador). Todo flag-gated, default Supabase, typecheck en baseline (cero errores nuevos), 19 tests nuevos. Verificación adversarial multi-agente (ultracode): 2 bugs de paridad corregidos.
+
 ### 2026-05-12
 
 - **[2026-05-12-fix-dashboard-patients-seen-vs-new.md](2026-05-12-fix-dashboard-patients-seen-vs-new.md)** - Fix P0: el card "Pacientes Actuales" del dashboard mostraba la tasa de adquisición (nuevos pacientes/día) en vez de pacientes atendidos/día, generando alarmas falsas contra la meta de break-even en clínicas con pacientes recurrentes. Cálculo corregido + nuevo card separado "Nuevos Pacientes" + oracle Cypress en spec 19 para detectar regresión.

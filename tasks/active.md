@@ -2,6 +2,25 @@
 
 ## En Progreso
 
+- [~] TASK-20260606-convex-decommission-bcde-a - Decomisión Supabase→Convex (Fases B/C/D/E + scaffold A)
+  - **Priority**: P1
+  - **Estimate**: XL
+  - **Area**: infra/data
+  - **Status**: ✅ B/C/D/E implementadas y verificadas (adversarial multi-agente); A scaffolded
+    - ✅ D: discovery estática sin `information_schema`
+    - ✅ B: `process_recurring_expenses` + `check_booking_slot_availability` portados (13 tests)
+    - ✅ E: seed de clínica + `is_paid` (trigger 73) + recordatorios (trigger 61) en write-path convex (6 tests)
+    - ✅ C: lectura Convex de blobs de snapshot (Convex-first + fallback Supabase)
+    - ✅ A1: scaffold `@convex-dev/auth` (inerte, no desplegado) + seed reset-on-cutover
+    - ✅ A3 wiring client/server: provider + layout + use-auth (login/logout) + identidad server (build-verified, 3/3 adversarial clean)
+    - ✅ Gap convex-only cerrado: `treatments/[id]` PUT re-deriva is_paid + cancela recordatorios
+    - ✅ Verificación adversarial (ultracode): 2 bugs de paridad corregidos (B/C/D/E) + A3 clean
+  - **Todo flag-gated, default Supabase. Typecheck baseline (189, cero nuevos). `build:dental` exit 0.**
+  - **Follow-ups (operador / Fase F)**:
+    - [ ] TASK-20260606-convex-auth-cutover - A2 llaves JWT + middleware/matcher + OTP register/reset/verify + páginas + A5 testing (ver `docs/IMPORTANT/CONVEX-AUTH-CUTOVER-RUNBOOK.md`)
+    - [ ] TASK-20260606-storage-blob-import - correr `import-convex-storage.mjs` antes de `DATA_READ_BACKEND_STORAGE=convex`
+    - [ ] TASK-20260606-phase-F-write-cutover - flips `DATA_WRITE_MODE=convex` por dominio + decomisión del mirror + borrado de Supabase
+
 - [ ] TASK-20260205-refactor-cleanup-phase-1 - Baseline + guardrails + normalización inicial API
   - **Priority**: P1
   - **Estimate**: M

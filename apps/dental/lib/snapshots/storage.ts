@@ -6,8 +6,13 @@
  */
 
 import { SupabaseClient } from '@supabase/supabase-js'
-import { deleteConvexStorageObject, uploadConvexStorageObject } from '@/lib/convex/server'
-import { shouldWriteConvexData } from '@/lib/data-backend'
+import {
+  deleteConvexStorageObject,
+  downloadConvexStorageObject,
+  getConvexStorageObjectUrl,
+  uploadConvexStorageObject,
+} from '@/lib/convex/server'
+import { shouldReturnConvexData, shouldWriteConvexData } from '@/lib/data-backend'
 import { createMirroredSupabaseClient } from '@/lib/convex/supabase-runtime-mirror'
 import {
   SnapshotMetadata,
@@ -92,6 +97,26 @@ export class SnapshotStorageService {
    */
   async download(clinicId: string, snapshotId: string): Promise<Uint8Array> {
     const path = this.getSnapshotPath(clinicId, snapshotId)
+
+    // Convex-first read (symmetric with the existing mirrorUploadToConvex write).
+    // Falls back to Supabase when the blob is not mirrored (pre-mirror snapshots),
+    // so production stays safe. Default Supabase => this branch is skipped.
+    if (shouldReturnConvexData('storage')) {
+      try {
+        const bytes = await downloadConvexStorageObject(this.config.bucketName, path)
+        if (bytes) return bytes
+        // Not in Convex -> fall through to Supabase (do NOT throw).
+      } catch (convexError) {
+        if (process.env.CONVEX_STORAGE_MIRROR_STRICT === '1') {
+          throw new SnapshotError(
+            `Convex storage download failed: ${convexError instanceof Error ? convexError.message : 'unknown'}`,
+            'STORAGE_DOWNLOAD_FAILED',
+            convexError
+          )
+        }
+        console.error(`Failed to read ${path} from Convex Storage, falling back to Supabase:`, convexError)
+      }
+    }
 
     const { data, error } = await this.supabase.storage
       .from(this.config.bucketName)
@@ -313,6 +338,24 @@ export class SnapshotStorageService {
     expiresIn = 3600
   ): Promise<string> {
     const path = this.getSnapshotPath(clinicId, snapshotId)
+
+    // Convex-first: Convex serves blobs via a short-lived signed URL. Falls back
+    // to Supabase when not mirrored. Default Supabase => branch skipped.
+    if (shouldReturnConvexData('storage')) {
+      try {
+        const convexUrl = await getConvexStorageObjectUrl(this.config.bucketName, path)
+        if (convexUrl) return convexUrl
+      } catch (convexError) {
+        if (process.env.CONVEX_STORAGE_MIRROR_STRICT === '1') {
+          throw new SnapshotError(
+            `Convex signed URL failed: ${convexError instanceof Error ? convexError.message : 'unknown'}`,
+            'STORAGE_DOWNLOAD_FAILED',
+            convexError
+          )
+        }
+        console.error(`Failed to get Convex signed URL for ${path}, falling back to Supabase:`, convexError)
+      }
+    }
 
     const { data, error } = await this.supabase.storage
       .from(this.config.bucketName)

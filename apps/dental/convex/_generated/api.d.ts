@@ -8,8 +8,17 @@
  * @module
  */
 
+import type * as ResendOTP from "../ResendOTP.js";
+import type * as ResendOTPPasswordReset from "../ResendOTPPasswordReset.js";
+import type * as auth from "../auth.js";
 import type * as authBridge from "../authBridge.js";
+import type * as authMigration from "../authMigration.js";
+import type * as bookingAvailability from "../bookingAvailability.js";
+import type * as http from "../http.js";
+import type * as lib_recurringDates from "../lib/recurringDates.js";
 import type * as migration from "../migration.js";
+import type * as recurringExpenses from "../recurringExpenses.js";
+import type * as testHelpers from "../testHelpers.js";
 
 import type {
   ApiFromModules,
@@ -18,8 +27,17 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  ResendOTP: typeof ResendOTP;
+  ResendOTPPasswordReset: typeof ResendOTPPasswordReset;
+  auth: typeof auth;
   authBridge: typeof authBridge;
+  authMigration: typeof authMigration;
+  bookingAvailability: typeof bookingAvailability;
+  http: typeof http;
+  "lib/recurringDates": typeof lib_recurringDates;
   migration: typeof migration;
+  recurringExpenses: typeof recurringExpenses;
+  testHelpers: typeof testHelpers;
 }>;
 
 /**

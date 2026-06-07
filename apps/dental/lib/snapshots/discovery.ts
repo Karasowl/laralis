@@ -18,6 +18,26 @@ import {
   ForeignKeyInfo,
   SnapshotError,
 } from './types'
+import { shouldReturnConvexData } from '@/lib/data-backend'
+import { listConvexTable } from '@/lib/convex/server'
+import { decodeConvexFieldName } from '@/lib/convex/legacy'
+import { STATIC_DISCOVERED_TABLES } from './static-schema'
+
+// Domain flag for the snapshot discovery backend. Default (unset) -> Supabase /
+// information_schema; set DATA_READ_BACKEND_SNAPSHOTS=convex to use the static
+// Convex-backed path (no Postgres catalog dependency).
+const SNAPSHOT_DISCOVERY_DOMAIN = 'snapshots'
+
+// Convex bookkeeping fields stamped on every mirrored row; never real Supabase columns.
+const CONVEX_META_FIELDS = new Set([
+  '_id',
+  '_creationTime',
+  'legacyId',
+  'legacyTable',
+  'convex_created_at',
+  'convex_updated_at',
+  'convex_snapshot_source',
+])
 
 // Tablas conocidas que son indirectas (no tienen clinic_id pero pertenecen a una clínica vía FK)
 // Estas se validan dinámicamente pero se mantiene la lista para el orden FK
@@ -55,6 +75,11 @@ export class TableDiscoveryService {
    * Usa information_schema para garantizar completitud.
    */
   async discoverClinicTables(): Promise<DiscoveryResult> {
+    // Convex path: enumerate the static canonical table list (no information_schema).
+    if (shouldReturnConvexData(SNAPSHOT_DISCOVERY_DOMAIN)) {
+      return this.discoverStaticTables()
+    }
+
     const startTime = Date.now()
 
     try {
@@ -83,6 +108,25 @@ export class TableDiscoveryService {
         'DISCOVERY_FAILED',
         error
       )
+    }
+  }
+
+  /**
+   * Convex / static path: descubre las tablas desde la lista canónica estática
+   * (sin information_schema). Reusa calculateInsertionOrder para mantener el mismo
+   * orden de FKs que el path dinámico, garantizando snapshots byte-idénticos.
+   */
+  private discoverStaticTables(): DiscoveryResult {
+    const tables: DiscoveredTable[] = STATIC_DISCOVERED_TABLES.map((t) => ({ ...t }))
+    const foreignKeyOrder = this.calculateInsertionOrder(tables)
+
+    return {
+      tables,
+      foreignKeyOrder,
+      discoveredAt: new Date().toISOString(),
+      // Mantener el literal 'dynamic' por compatibilidad de tipo/shape con el
+      // manifest (DiscoveryResult.method y SnapshotManifest.discoveryMethod).
+      method: 'dynamic',
     }
   }
 
@@ -395,6 +439,11 @@ export class TableDiscoveryService {
    * Obtiene información de columnas de una tabla.
    */
   async getTableColumns(tableName: string): Promise<string[]> {
+    // Convex path: derive columns from a single mirrored sample row (no information_schema).
+    if (shouldReturnConvexData(SNAPSHOT_DISCOVERY_DOMAIN)) {
+      return this.getTableColumnsFromConvex(tableName)
+    }
+
     const { data, error } = await this.supabase.rpc('get_table_columns', {
       p_table_name: tableName,
     })
@@ -413,6 +462,28 @@ export class TableDiscoveryService {
     }
 
     return data.map((col: { column_name: string }) => col.column_name)
+  }
+
+  /**
+   * Deriva las columnas de una tabla desde una fila de muestra mirrored en Convex.
+   * Quita los 7 campos de bookkeeping de Convex y decodifica los nombres de campo
+   * (`patients_u2e_view` -> `patients.view`) para que el manifest no se corrompa.
+   */
+  private async getTableColumnsFromConvex(tableName: string): Promise<string[]> {
+    try {
+      const rows = (await listConvexTable(tableName, 1)) as Array<Record<string, unknown>>
+      const sample = Array.isArray(rows) ? rows[0] : null
+      if (!sample) return []
+
+      const columns: string[] = []
+      for (const key of Object.keys(sample)) {
+        if (CONVEX_META_FIELDS.has(key)) continue
+        columns.push(decodeConvexFieldName(key))
+      }
+      return columns
+    } catch {
+      return []
+    }
   }
 
   /**

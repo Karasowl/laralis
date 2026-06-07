@@ -13,6 +13,8 @@ import { resolveClinicContext } from '@/lib/clinic'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { TableDiscoveryService, DiscoverTablesResponse } from '@/lib/snapshots'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
+import { shouldReturnConvexData } from '@/lib/data-backend'
+import { listConvexDocumentsByClinic, listConvexTable } from '@/lib/convex/server'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -50,34 +52,66 @@ export async function GET(request: NextRequest) {
     let tablesWithCounts = result.tables
 
     if (includeCounts) {
-      tablesWithCounts = await Promise.all(
-        result.tables.map(async (table) => {
-          try {
-            let query = supabaseAdmin
-              .from(table.name as 'treatments')
-              .select('*', { count: 'exact', head: true })
+      if (shouldReturnConvexData('snapshots')) {
+        // Convex path: derive counts from mirrored rows (no Supabase head-count).
+        // Parity with the Supabase branch: direct -> clinic-scoped; hybrid ->
+        // clinic_id===X OR null; indirect -> whole-table count (legacy ran the
+        // count query without a clinic filter for indirect).
+        tablesWithCounts = await Promise.all(
+          result.tables.map(async (table) => {
+            try {
+              if (table.category === 'direct') {
+                const rows = await listConvexDocumentsByClinic(table.name, clinicId)
+                return { ...table, recordCount: Array.isArray(rows) ? rows.length : 0 }
+              }
 
-            if (table.category === 'direct') {
-              query = query.eq('clinic_id', clinicId)
-            } else if (table.category === 'hybrid') {
-              query = query.or(`clinic_id.eq.${clinicId},clinic_id.is.null`)
-            }
-            // For indirect tables, we'd need to join - skip count for now
+              const rows = await listConvexTable(table.name)
+              const list = Array.isArray(rows) ? (rows as Array<Record<string, unknown>>) : []
 
-            const { count } = await query
+              if (table.category === 'hybrid') {
+                const filtered = list.filter(
+                  (r) => r?.clinic_id === clinicId || r?.clinic_id == null
+                )
+                return { ...table, recordCount: filtered.length }
+              }
 
-            return {
-              ...table,
-              recordCount: count || 0,
+              // indirect
+              return { ...table, recordCount: list.length }
+            } catch {
+              return { ...table, recordCount: -1 }
             }
-          } catch {
-            return {
-              ...table,
-              recordCount: -1, // Error getting count
+          })
+        )
+      } else {
+        tablesWithCounts = await Promise.all(
+          result.tables.map(async (table) => {
+            try {
+              let query = supabaseAdmin
+                .from(table.name as 'treatments')
+                .select('*', { count: 'exact', head: true })
+
+              if (table.category === 'direct') {
+                query = query.eq('clinic_id', clinicId)
+              } else if (table.category === 'hybrid') {
+                query = query.or(`clinic_id.eq.${clinicId},clinic_id.is.null`)
+              }
+              // For indirect tables, we'd need to join - skip count for now
+
+              const { count } = await query
+
+              return {
+                ...table,
+                recordCount: count || 0,
+              }
+            } catch {
+              return {
+                ...table,
+                recordCount: -1, // Error getting count
+              }
             }
-          }
-        })
-      )
+          })
+        )
+      }
     }
 
     const response: DiscoverTablesResponse & { recordCounts?: Record<string, number> } = {

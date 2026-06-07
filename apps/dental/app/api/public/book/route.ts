@@ -6,6 +6,8 @@ import { sendBookingReceivedSMS } from '@/lib/sms'
 import { sendBookingReceivedWhatsApp } from '@/lib/whatsapp'
 import { readJson } from '@/lib/validation'
 import { getPushNotificationServiceForRequest } from '@/lib/notifications/qa'
+import { shouldReturnConvexData } from '@/lib/data-backend'
+import { convexCheckSlotAvailable } from '@/lib/convex/server'
 import {
   buildEmailRetryMetadata,
   isRetryableNotificationError,
@@ -362,21 +364,42 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       )
     }
 
-    // Check slot availability using the database function
-    const { data: isAvailable, error: availError } = await supabaseAdmin
-      .rpc('check_booking_slot_availability', {
-        p_clinic_id: data.clinic_id,
-        p_date: data.requested_date,
-        p_time: data.requested_time,
-        p_duration_minutes: serviceDurationMinutes
-      })
+    // Check slot availability. Convex path mirrors the SQL check_booking_slot_availability
+    // exactly (blocked slots / scheduled+in_progress treatments / pending bookings);
+    // default path keeps the Postgres RPC. Flag-gated, default Supabase.
+    let isAvailable: boolean
+    if (shouldReturnConvexData('clinics')) {
+      try {
+        isAvailable = await convexCheckSlotAvailable({
+          clinicId: data.clinic_id,
+          date: data.requested_date,
+          time: data.requested_time,
+          durationMinutes: serviceDurationMinutes,
+        })
+      } catch (convexError) {
+        console.error('Error checking availability (convex):', convexError)
+        return NextResponse.json(
+          { error: 'Failed to check availability' },
+          { status: 500 }
+        )
+      }
+    } else {
+      const { data: rpcAvailable, error: availError } = await supabaseAdmin
+        .rpc('check_booking_slot_availability', {
+          p_clinic_id: data.clinic_id,
+          p_date: data.requested_date,
+          p_time: data.requested_time,
+          p_duration_minutes: serviceDurationMinutes
+        })
 
-    if (availError) {
-      console.error('Error checking availability:', availError)
-      return NextResponse.json(
-        { error: 'Failed to check availability' },
-        { status: 500 }
-      )
+      if (availError) {
+        console.error('Error checking availability:', availError)
+        return NextResponse.json(
+          { error: 'Failed to check availability' },
+          { status: 500 }
+        )
+      }
+      isAvailable = Boolean(rpcAvailable)
     }
 
     if (!isAvailable) {

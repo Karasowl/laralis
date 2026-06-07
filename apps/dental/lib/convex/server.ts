@@ -1,7 +1,12 @@
 import { ConvexHttpClient } from 'convex/browser'
+import { makeFunctionReference } from 'convex/server'
 import { createHash } from 'crypto'
 import { api } from '@/convex/_generated/api'
 import { encodeConvexValue, prepareConvexRow } from './legacy'
+
+// String-based reference so this typechecks before `convex/_generated/api` includes
+// the authMigration module (the operator deploys it with the Convex Auth schema).
+const currentUserLegacyIdRef = makeFunctionReference<'query'>('authMigration:currentUserLegacyId')
 
 export { getLegacyIdForTable, prepareConvexRow, decodeConvexValue } from './legacy'
 
@@ -57,6 +62,23 @@ function headersToObject(headers: HeadersInit | undefined) {
 
 export async function getConvexTableCounts(tables?: string[]) {
   return getConvexHttpClient().query(api.migration.tableCounts, { tables })
+}
+
+/**
+ * Convex port of the Postgres RPC process_recurring_expenses. Generates due
+ * recurring expenses and advances templates. Only call this on the Convex-only
+ * write path (DATA_WRITE_MODE_EXPENSES=convex); in 'dual' the Supabase RPC +
+ * runtime mirror already do the work.
+ */
+export async function processConvexRecurringExpenses(
+  clinicId: string | null,
+  today?: string
+): Promise<{ generated_count: number; clinic_id: string | null; expense_ids: string[] }> {
+  return getConvexHttpClient().mutation(api.recurringExpenses.processDue, {
+    secret: getConvexMutationSecret(),
+    clinicId,
+    today,
+  })
 }
 
 export async function checkConvexMutationSecret() {
@@ -149,6 +171,51 @@ export async function convexUserHasClinicAccess(userId: string, clinicId: string
   })
 }
 
+/**
+ * Resolve the Supabase UUID (legacyId) of the currently-authenticated Convex Auth
+ * user by reading the @convex-dev/auth token and querying
+ * authMigration:currentUserLegacyId. Returns null when not signed in via Convex Auth.
+ * Only meaningful under AUTH_BACKEND=convex; callers gate on that. The dynamic import
+ * keeps @convex-dev/auth out of the Supabase-mode module graph.
+ */
+export async function getConvexAuthUserLegacyId(): Promise<{
+  legacyId: string | null
+  email: string | null
+} | null> {
+  const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL
+  if (!convexUrl) return null
+  const { convexAuthNextjsToken } = await import('@convex-dev/auth/nextjs/server')
+  const token = await convexAuthNextjsToken()
+  if (!token) return null
+  const client = new ConvexHttpClient(convexUrl, { fetch: noStoreFetch, logger: false })
+  client.setAuth(token)
+  const result = (await client.query(currentUserLegacyIdRef, {})) as {
+    legacyId: string | null
+    email: string | null
+  } | null
+  return result ?? null
+}
+
+/**
+ * Convex port of the Postgres RPC check_booking_slot_availability. PUBLIC query
+ * (no secret) matching the SQL function's anon GRANT — public booking is
+ * unauthenticated. Returns true when the candidate slot is free.
+ */
+export async function convexCheckSlotAvailable(params: {
+  clinicId: string
+  date: string
+  time: string
+  durationMinutes: number
+}): Promise<boolean> {
+  const result = await getConvexHttpClient().query(api.bookingAvailability.checkSlotAvailable, {
+    clinicId: params.clinicId,
+    date: params.date,
+    time: params.time,
+    durationMinutes: params.durationMinutes,
+  })
+  return Boolean(result)
+}
+
 function getConvexMutationSecret() {
   const secret = process.env.CONVEX_AUTH_BRIDGE_SECRET
   if (!secret) throw new Error('CONVEX_AUTH_BRIDGE_SECRET is required')
@@ -235,4 +302,41 @@ export async function deleteConvexStorageObject(bucket: string, path: string) {
     bucket,
     path,
   })
+}
+
+/**
+ * Resolve the short-lived download URL for a mirrored blob and return its bytes.
+ * Returns null when the object is not in Convex storage (so the caller can fall
+ * back to Supabase). Throws only when an EXISTING object's URL fetch fails.
+ */
+export async function downloadConvexStorageObject(
+  bucket: string,
+  path: string
+): Promise<Uint8Array | null> {
+  const result = await getConvexHttpClient().query(api.migration.getStorageObjectUrl, {
+    bucket,
+    path,
+  })
+  if (!result?.url) return null
+  const response = await fetch(result.url, { cache: 'no-store' })
+  if (!response.ok) {
+    throw new Error(`Convex storage download failed: ${response.status} ${response.statusText}`)
+  }
+  const buffer = await response.arrayBuffer()
+  return new Uint8Array(buffer)
+}
+
+/**
+ * Resolve the short-lived download URL for a mirrored blob (without fetching bytes).
+ * Returns null when the object is not in Convex storage.
+ */
+export async function getConvexStorageObjectUrl(
+  bucket: string,
+  path: string
+): Promise<string | null> {
+  const result = await getConvexHttpClient().query(api.migration.getStorageObjectUrl, {
+    bucket,
+    path,
+  })
+  return result?.url ?? null
 }

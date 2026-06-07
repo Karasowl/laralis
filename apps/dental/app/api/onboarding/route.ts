@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
+import { shouldWriteConvexData } from '@/lib/data-backend';
+import { seedClinicDefaultsInConvex } from '@/lib/convex/clinic-seed';
 
 export const dynamic = 'force-dynamic'
 
@@ -179,6 +181,14 @@ export async function POST(request: NextRequest) {
         },
         { status: 500 }
       );
+    }
+
+    // Seed clinic defaults into Convex (port of the after_clinic_insert triggers) so
+    // dual/convex write mode gets the patient_sources / custom_categories /
+    // whatsapp_templates the Postgres triggers create. Idempotent + best-effort;
+    // default Supabase => no-op (the clinic row itself mirrors via the wrapped client).
+    if (shouldWriteConvexData('clinics')) {
+      await seedClinicDefaultsInConvex(clinicData.id);
     }
 
     const rollbackOnMembershipError = async (message: string, details: string) => {

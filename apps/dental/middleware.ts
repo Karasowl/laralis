@@ -1,14 +1,33 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import type { NextRequest, NextFetchEvent } from 'next/server';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
+import {
+  convexAuthNextjsMiddleware,
+  nextjsMiddlewareRedirect,
+} from '@convex-dev/auth/nextjs/server';
 import {
   CONVEX_SESSION_COOKIE_NAME,
   getAuthBackend,
   isConvexAuthEnabled,
   verifyConvexSessionToken,
 } from './lib/auth/convex-session';
+
+// Shared public-path list (used by both the supabase and convex middleware paths).
+const PUBLIC_PATHS = [
+  '/auth/login',
+  '/auth/register',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+  '/auth/convex-reset-password',
+  '/auth/callback',
+  '/auth/logout',
+  '/auth/verify-email',
+  '/terms',
+  '/privacy',
+  '/book', // Public booking pages
+];
 
 type RateLimitResult = Awaited<ReturnType<Ratelimit['limit']>>;
 
@@ -56,8 +75,15 @@ function setRateLimitHeaders(
   }
 }
 
-export async function middleware(request: NextRequest) {
+async function supabaseMiddleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // /api is matched only for /api/auth (the convex auth proxy). In supabase mode that
+  // route must pass through untouched — early-return preserves the prior behavior
+  // (where /api was not matched at all).
+  if (pathname.startsWith('/api')) {
+    return NextResponse.next();
+  }
 
   const isStaticAsset = pathname.startsWith('/_next') || pathname.includes('.') || pathname === '/test-auth';
 
@@ -182,21 +208,7 @@ export async function middleware(request: NextRequest) {
   // }
 
   // Public paths that don't require authentication
-  const publicPaths = [
-    '/auth/login',
-    '/auth/register',
-    '/auth/forgot-password',
-    '/auth/reset-password',
-    '/auth/convex-reset-password',
-    '/auth/callback',
-    '/auth/logout',
-    '/auth/verify-email',
-    '/terms',
-    '/privacy',
-    '/book', // Public booking pages
-  ];
-
-  const isPublicPath = publicPaths.some(path => pathname.startsWith(path));
+  const isPublicPath = PUBLIC_PATHS.some(path => pathname.startsWith(path));
   const isOnboarding = pathname === '/onboarding';
   const isSetup = pathname.startsWith('/setup');
   const workspaceLifecycleSelect = 'id, status, onboarding_completed';
@@ -353,16 +365,56 @@ export async function middleware(request: NextRequest) {
   return response;
 }
 
+// Convex Auth path: convexAuthNextjsMiddleware owns the request (refreshes tokens,
+// proxies the /api/auth auth route) and our handler does the route gating. Workspace
+// destination redirects are deferred to the page layer in convex mode (follow-up).
+const convexMiddleware = convexAuthNextjsMiddleware(async (request, { convexAuth }) => {
+  const { pathname } = request.nextUrl;
+  // Let the auth proxy + API/asset routes through.
+  if (pathname.startsWith('/api') || pathname.startsWith('/_next') || pathname.includes('.')) {
+    return;
+  }
+  const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+  const authed = await convexAuth.isAuthenticated();
+
+  if (!authed && !isPublic) {
+    return nextjsMiddlewareRedirect(request, '/auth/login');
+  }
+
+  if (
+    authed &&
+    isPublic &&
+    !pathname.includes('/logout') &&
+    !pathname.includes('/callback') &&
+    !pathname.includes('/reset-password') &&
+    !pathname.includes('/verify-email') &&
+    !pathname.startsWith('/book')
+  ) {
+    return nextjsMiddlewareRedirect(request, '/');
+  }
+});
+
+export default function middleware(request: NextRequest, event: NextFetchEvent) {
+  return getAuthBackend() === 'convex'
+    ? convexMiddleware(request, event)
+    : supabaseMiddleware(request);
+}
+
 export const config = {
   matcher: [
     /*
      * Match all request paths except:
-     * - api (API routes)
+     * - api (API routes) — EXCEPT /api/auth (the convex auth proxy, below)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public files with extensions
      */
     '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // The convex auth proxy endpoint (default apiRoute '/api/auth'). In supabase
+    // mode supabaseMiddleware early-returns NextResponse.next() for any /api path,
+    // so this match is a no-op there.
+    '/api/auth',
+    '/api/auth/:path*',
   ],
 };
