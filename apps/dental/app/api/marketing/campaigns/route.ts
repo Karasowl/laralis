@@ -5,8 +5,8 @@ import { resolveClinicContext } from '@/lib/clinic';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
 import { forbiddenIfMissingPermission } from '@/lib/permissions';
-import { listConvexDocumentsByClinic, listConvexTable } from '@/lib/convex/server';
-import { shouldReturnConvexData } from '@/lib/data-backend';
+import { listConvexDocumentsByClinic, listConvexTable, getConvexDocumentByLegacyId, upsertConvexDocumentByLegacyId, patchConvexDocumentByLegacyId } from '@/lib/convex/server';
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
 
@@ -247,6 +247,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (shouldUseConvexOnlyWritePath('marketing_campaigns')) {
+      // Replicate the Supabase platform existence check against Convex.
+      // categories are system rows (clinic_id null), resolved by id with no clinic filter.
+      const platformRow = await getConvexDocumentByLegacyId('categories', validation.data.platform_id) as ImportedRecord | null;
+      if (!platformRow || platformRow.entity_type !== 'marketing_platform') {
+        return NextResponse.json(
+          {
+            error: 'Invalid platform_id',
+            message: `Platform with ID ${validation.data.platform_id} not found`,
+            hint: 'Please ensure the platform exists in the categories table'
+          },
+          { status: 400 }
+        );
+      }
+
+      const id = crypto.randomUUID();
+      const nowIso = new Date().toISOString();
+      const row = {
+        id,
+        clinic_id: clinicId,
+        platform_id: validation.data.platform_id,
+        name: validation.data.name,
+        code: validation.data.code || null,
+        is_active: true,
+        is_archived: false,
+        created_at: nowIso,
+        updated_at: nowIso,
+      };
+      await upsertConvexDocumentByLegacyId('marketing_campaigns', id, row);
+      return NextResponse.json({ data: row });
+    }
+
     // Verificar que el platform_id existe antes de insertar
     console.info('[POST /api/marketing/campaigns] Checking platform_id:', validation.data.platform_id);
     const { data: platformCheck, error: platformError } = await supabaseAdmin
@@ -259,8 +291,8 @@ export async function POST(request: NextRequest) {
     if (platformError || !platformCheck) {
       console.error('[POST /api/marketing/campaigns] Platform not found:', platformError);
       return NextResponse.json(
-        { 
-          error: 'Invalid platform_id', 
+        {
+          error: 'Invalid platform_id',
           message: `Platform with ID ${validation.data.platform_id} not found`,
           hint: 'Please ensure the platform exists in the categories table'
         },
@@ -338,6 +370,27 @@ export async function PUT(request: NextRequest) {
     const { clinicId, userId } = clinicContext;
     const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'campaigns.edit');
     if (forbidden) return forbidden;
+
+    if (shouldUseConvexOnlyWritePath('marketing_campaigns')) {
+      const existingDoc = await getConvexDocumentByLegacyId('marketing_campaigns', id) as ImportedRecord | null;
+      if (!existingDoc) {
+        return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
+      }
+      if (existingDoc.clinic_id !== clinicId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+
+      const convexPatch: Record<string, unknown> = {};
+      if (body.name) convexPatch.name = body.name;
+      if (body.code !== undefined) convexPatch.code = body.code;
+      if (body.is_active !== undefined) convexPatch.is_active = body.is_active;
+      if (body.is_archived !== undefined) convexPatch.is_archived = body.is_archived;
+      convexPatch.updated_at = new Date().toISOString();
+
+      await patchConvexDocumentByLegacyId('marketing_campaigns', id, convexPatch);
+      const merged = { ...normalizeConvexRecord(existingDoc), ...convexPatch };
+      return NextResponse.json({ data: merged });
+    }
 
     // Ensure the campaign belongs to this clinic
     const { data: existing, error: fetchErr } = await supabaseAdmin

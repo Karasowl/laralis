@@ -5,8 +5,8 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { resolveClinicContext } from '@/lib/clinic'
 import { readJson } from '@/lib/validation'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
-import { getConvexDocumentByLegacyId } from '@/lib/convex/server'
-import { shouldReturnConvexData } from '@/lib/data-backend'
+import { getConvexDocumentByLegacyId, patchConvexDocumentByLegacyId } from '@/lib/convex/server'
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend'
 
 export const dynamic = 'force-dynamic'
 
@@ -130,6 +130,22 @@ export async function PUT(request: NextRequest) {
     if (forbidden) return forbidden
 
     const discountConfig = parsed.data
+
+    // Convex-only write branch. Gated behind auth (resolveClinicContext) +
+    // authorization (forbiddenIfMissingPermission) above, since the Convex bridge
+    // has no RLS. clinics is keyed by `id`, so patch by legacyId === clinicId.
+    // global_discount_config is a simple settings object (no dotted keys), written
+    // as-is. Matches the Supabase response shape exactly.
+    if (shouldUseConvexOnlyWritePath('clinics')) {
+      await patchConvexDocumentByLegacyId('clinics', clinicContext.clinicId, {
+        global_discount_config: discountConfig,
+        updated_at: new Date().toISOString(),
+      })
+      return NextResponse.json({
+        message: 'Global discount configuration updated successfully',
+        data: discountConfig
+      })
+    }
 
     const { error } = await supabaseAdmin
       .from('clinics')

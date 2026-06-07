@@ -11,8 +11,8 @@ import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { readJson } from '@/lib/validation';
 import { forbiddenIfMissingPermission } from '@/lib/permissions';
-import { getConvexDocumentByLegacyId, decodeConvexValue } from '@/lib/convex/server';
-import { shouldReturnConvexData } from '@/lib/data-backend';
+import { getConvexDocumentByLegacyId, patchConvexDocumentByLegacyId, decodeConvexValue } from '@/lib/convex/server';
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic';
 
@@ -224,6 +224,29 @@ export async function PUT(request: NextRequest) {
       settings.whatsapp.provider = '360dialog';
     }
     console.info('[settings/notifications][PUT] Parsed settings:', JSON.stringify(settings, null, 2));
+
+    // Convex-only write branch (flag-gated, default Supabase). Auth + clinic
+    // scoping already enforced (resolveClinicContext + settings.edit guard).
+    // clinics has no clinic_id column (keyed by id), so we patch by legacy id.
+    // notification_settings is a simple JSONB object with no dotted keys, so we
+    // write it as-is (matching the Supabase update payload exactly).
+    if (shouldUseConvexOnlyWritePath('clinics')) {
+      const doc = (await getConvexDocumentByLegacyId('clinics', clinicId)) as ImportedRecord | null;
+      if (!doc) {
+        console.error('[settings/notifications][PUT] Clinic not found in Convex');
+        return NextResponse.json(
+          { error: 'Failed to save notification settings' },
+          { status: 500 }
+        );
+      }
+
+      await patchConvexDocumentByLegacyId('clinics', clinicId, {
+        notification_settings: settings,
+        updated_at: new Date().toISOString(),
+      });
+
+      return NextResponse.json({ success: true });
+    }
 
     const { error } = await supabaseAdmin
       .from('clinics')

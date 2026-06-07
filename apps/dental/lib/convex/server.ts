@@ -172,6 +172,32 @@ export async function convexUserHasClinicAccess(userId: string, clinicId: string
 }
 
 /**
+ * Convex parity for the Supabase active-workspace-membership access check:
+ *   supabaseAdmin.from('workspace_users')
+ *     .eq('workspace_id', workspaceId).eq('user_id', userId).eq('is_active', true).single()
+ * Returns true when the user holds an active workspace_users membership in the workspace.
+ * Used by the convex-only authorization branches of team/clinic-members,
+ * team/workspace-members and invitations, where the Convex bridge has no RLS so the
+ * caller's access check must be replicated before the data read. The predicate is strict
+ * `is_active === true` to match the Supabase access gate `.eq('is_active', true)` exactly —
+ * an authorization gate must not grant access the Supabase path would deny.
+ */
+export async function userHasActiveWorkspaceMembershipFromConvex(
+  workspaceId: string,
+  userId: string
+): Promise<boolean> {
+  const rows = (await listConvexDocumentsByWorkspace('workspace_users', workspaceId)) as Array<
+    Record<string, any>
+  >
+  return rows.some(
+    (row) =>
+      String(row.workspace_id) === String(workspaceId) &&
+      String(row.user_id) === String(userId) &&
+      row.is_active === true
+  )
+}
+
+/**
  * Resolve the Supabase UUID (legacyId) of the currently-authenticated Convex Auth
  * user by reading the @convex-dev/auth token and querying
  * authMigration:currentUserLegacyId. Returns null when not signed in via Convex Auth.

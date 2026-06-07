@@ -11,9 +11,11 @@ import {
   getAuthUserProfilesByIds,
 } from '@/lib/auth-user-profiles';
 import {
+  getConvexDocumentByLegacyId,
   listConvexDocumentsByWorkspace,
   listConvexTable,
   decodeConvexValue,
+  userHasActiveWorkspaceMembershipFromConvex,
 } from '@/lib/convex/server';
 import { shouldReturnConvexData } from '@/lib/data-backend';
 import { getAuthBackend } from '@/lib/auth/convex-session';
@@ -43,6 +45,51 @@ export async function GET(request: NextRequest) {
   try {
     const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'team.view');
     if (forbidden) return forbidden;
+
+    // Flag-gated Convex read branch. Reached only AFTER:
+    //   1. resolveClinicContext (auth) succeeded,
+    //   2. forbiddenIfMissingPermission(userId, clinicId, 'team.view') passed.
+    // This branch MUST run BEFORE any supabaseAdmin call: in convex-only mode
+    // Supabase is unreachable, so the workspace resolution and access check
+    // below would 500. It mirrors the same workspace resolution (param ->
+    // clinic.workspace_id), the same active-membership access check, and the
+    // same member-list query — all against Convex.
+    // The Convex bridge has NO RLS, so the active-membership access check is
+    // replicated here before the data read. Default backend is Supabase; only
+    // flips when the permissions/auth domain ('role_permissions') is routed to
+    // Convex.
+    if (getAuthBackend() === 'convex' || shouldReturnConvexData('role_permissions')) {
+      // Resolve workspace ID from param or from clinic.workspace_id (Convex).
+      let convexWorkspaceId = workspaceIdParam;
+      if (!convexWorkspaceId) {
+        const clinic = (await getConvexDocumentByLegacyId('clinics', clinicId)) as
+          | { workspace_id?: string | null }
+          | null;
+        if (!clinic) {
+          return NextResponse.json({ error: 'Clinic not found' }, { status: 404 });
+        }
+        convexWorkspaceId = clinic.workspace_id ?? null;
+      }
+
+      if (!convexWorkspaceId) {
+        return NextResponse.json({ error: 'Clinic not found' }, { status: 404 });
+      }
+
+      // Replicate the active-membership access check (no RLS on the bridge).
+      const hasActiveMembership = await userHasActiveWorkspaceMembershipFromConvex(
+        convexWorkspaceId,
+        userId
+      );
+      if (!hasActiveMembership) {
+        return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+      }
+
+      const transformedMembers = await getWorkspaceMembersFromConvex(convexWorkspaceId);
+      return NextResponse.json({
+        members: transformedMembers,
+        workspaceId: convexWorkspaceId,
+      });
+    }
 
     // Get workspace ID from clinic or param
     let workspaceId = workspaceIdParam;
@@ -78,24 +125,6 @@ export async function GET(request: NextRequest) {
         { error: 'Access denied' },
         { status: 403 }
       );
-    }
-
-    // Flag-gated Convex read branch. Reached only AFTER:
-    //   1. resolveClinicContext (auth) succeeded,
-    //   2. forbiddenIfMissingPermission(userId, clinicId, 'team.view') passed,
-    //   3. the explicit workspace_users active-membership access check above passed.
-    // The Convex bridge has NO RLS, so the caller authorization above MUST stay
-    // before this branch. Default backend is Supabase; only flips when the
-    // permissions/auth domain ('role_permissions') is routed to Convex.
-    if (getAuthBackend() === 'convex' || shouldReturnConvexData('role_permissions')) {
-      // workspaceId is guaranteed non-null here: an active membership row was
-      // just resolved for it (the access check above). Same value the Supabase
-      // path uses below.
-      const transformedMembers = await getWorkspaceMembersFromConvex(workspaceId!);
-      return NextResponse.json({
-        members: transformedMembers,
-        workspaceId,
-      });
     }
 
     // Fetch all workspace members

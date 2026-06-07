@@ -5,8 +5,12 @@ import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
 import { resolveClinicContext } from '@/lib/clinic'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
-import { listConvexDocumentsByClinic } from '@/lib/convex/server'
-import { shouldReturnConvexData } from '@/lib/data-backend'
+import {
+  listConvexDocumentsByClinic,
+  patchConvexDocumentByLegacyId,
+  deleteConvexDocumentByLegacyId,
+} from '@/lib/convex/server'
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend'
 
 export const dynamic = 'force-dynamic'
 
@@ -129,6 +133,18 @@ export async function PATCH(
       }
     }
 
+    if (shouldUseConvexOnlyWritePath('marketing_campaigns')) {
+      const current = await getCampaignFromConvex(clinicId, params.id)
+      if (!current) {
+        return NextResponse.json(
+          { error: 'Failed to update campaign' },
+          { status: 400 }
+        )
+      }
+      await patchConvexDocumentByLegacyId('marketing_campaigns', params.id, patch)
+      return NextResponse.json({ data: { ...current, ...patch } })
+    }
+
     // Update the campaign
     const { data, error } = await supabaseAdmin
       .from('marketing_campaigns')
@@ -171,6 +187,23 @@ export async function DELETE(
     const { clinicId, userId } = clinicContext
     const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'campaigns.delete')
     if (forbidden) return forbidden
+
+    if (shouldUseConvexOnlyWritePath('marketing_campaigns')) {
+      // Mirror the Supabase guard: block deletion when patients reference this campaign
+      const convexPatients = await listConvexDocumentsByClinic('patients', clinicId, 10000) as ImportedRecord[]
+      const hasAssociatedPatients = convexPatients.some(
+        (row) => String(row.campaign_id ?? '') === params.id
+      )
+      if (hasAssociatedPatients) {
+        return NextResponse.json(
+          { error: 'Cannot delete campaign with associated patients' },
+          { status: 400 }
+        )
+      }
+
+      await deleteConvexDocumentByLegacyId('marketing_campaigns', params.id)
+      return NextResponse.json({ success: true })
+    }
 
     // Check if campaign has any associated patients
     const { data: patients } = await supabaseAdmin

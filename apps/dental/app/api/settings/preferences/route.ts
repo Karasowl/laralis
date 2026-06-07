@@ -2,8 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { readJson } from '@/lib/validation';
-import { listConvexTable, decodeConvexValue } from '@/lib/convex/server';
-import { shouldReturnConvexData } from '@/lib/data-backend';
+import {
+  listConvexTable,
+  decodeConvexValue,
+  getLegacyIdForTable,
+  upsertConvexDocumentByLegacyId,
+} from '@/lib/convex/server';
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
 
@@ -162,6 +167,33 @@ export async function PUT(request: NextRequest) {
     }
 
     const payload = parseResult.data;
+
+    // Convex-only write branch (flag-gated, default Supabase). Mirrors the Supabase
+    // upsert into user_settings keyed by (user_id, key). The legacyId uses the same
+    // composite-key format the migration seeds (user_settings:<user_id>:preferences)
+    // so this lands on the exact doc the GET read branch resolves. The `value` JSONB
+    // (locale/timezone/theme/notifications) has only simple identifier keys, so
+    // prepareConvexRow/encodeConvexValue (applied inside the helper) write it as-is.
+    // The auth-metadata sync below is a Supabase-only side effect with no Convex
+    // equivalent and is skipped here (Supabase is unreachable in convex-only mode).
+    if (shouldUseConvexOnlyWritePath('user_settings')) {
+      const nowIso = new Date().toISOString();
+      const row = {
+        user_id: user.id,
+        key: 'preferences',
+        value: payload,
+        updated_at: nowIso,
+      };
+      const legacyId = getLegacyIdForTable('user_settings', row);
+      if (!legacyId) {
+        return NextResponse.json(
+          { error: 'Failed to update preferences' },
+          { status: 500 },
+        );
+      }
+      await upsertConvexDocumentByLegacyId('user_settings', legacyId, row);
+      return NextResponse.json({ success: true });
+    }
 
     const { error: upsertError } = await supabase
       .from('user_settings')

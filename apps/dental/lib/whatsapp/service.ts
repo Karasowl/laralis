@@ -1,4 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { getConvexDocumentByLegacyId } from '@/lib/convex/server'
+import { shouldReturnConvexData } from '@/lib/data-backend'
 import { getProviderFromConfig } from './providers'
 import type {
   WhatsAppConfig,
@@ -164,6 +166,28 @@ async function ensureDefaultTemplates(clinicId: string): Promise<void> {
 export async function getWhatsAppConfig(
   clinicId: string
 ): Promise<WhatsAppConfig | null> {
+  // Convex-only read path: the clinic's notification_settings live on the mirrored
+  // clinics doc. In convex-only mode Supabase is unreachable, so this MUST precede the
+  // supabaseAdmin query. notification_settings.whatsapp has only simple (dot-free) keys,
+  // so no key-decoding is needed.
+  if (shouldReturnConvexData('clinics')) {
+    const clinicDoc = (await getConvexDocumentByLegacyId('clinics', clinicId)) as
+      | { notification_settings?: Record<string, unknown> | null }
+      | null
+    if (!clinicDoc) {
+      console.error('[whatsapp] Failed to get clinic config from Convex for', clinicId)
+      return null
+    }
+    const convexSettings = (clinicDoc.notification_settings as Record<string, unknown> | null) ?? null
+    if (!convexSettings?.whatsapp) {
+      return DEFAULT_WHATSAPP_CONFIG
+    }
+    return {
+      ...DEFAULT_WHATSAPP_CONFIG,
+      ...(convexSettings.whatsapp as Partial<WhatsAppConfig>),
+    }
+  }
+
   const { data: clinic, error } = await supabaseAdmin
     .from('clinics')
     .select('notification_settings')

@@ -5,8 +5,13 @@ import { resolveClinicContext } from '@/lib/clinic'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
 import { z } from 'zod'
 import { readJson } from '@/lib/validation'
-import { listConvexDocumentsByClinic, listConvexTable } from '@/lib/convex/server'
-import { shouldReturnConvexData } from '@/lib/data-backend'
+import {
+  listConvexDocumentsByClinic,
+  listConvexTable,
+  getConvexDocumentByLegacyId,
+  upsertConvexDocumentByLegacyId,
+} from '@/lib/convex/server'
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend'
 
 export const dynamic = 'force-dynamic'
 
@@ -90,6 +95,35 @@ async function getPrescriptionsFromConvex(clinicId: string, filters: Prescriptio
         items: relatedItems.map(normalizeConvexRecord),
       }
     })
+}
+
+/**
+ * Convex parity for the Postgres BEFORE INSERT trigger
+ * `generate_prescription_number` (migration 64): produces a per-clinic, per-year
+ * sequential number formatted `YYYY-XXXXX` (e.g. 2025-00001). Mirrors the SQL:
+ *   next = COALESCE(MAX(CAST(SUBSTRING(prescription_number FROM 6) AS int)), 0) + 1
+ *   WHERE clinic_id = NEW.clinic_id AND prescription_number LIKE 'YYYY-%'
+ * In Convex-only mode there is no trigger, so we compute the next number from the
+ * existing clinic prescriptions before writing.
+ */
+async function generateConvexPrescriptionNumber(clinicId: string): Promise<string> {
+  const yearPrefix = String(new Date().getFullYear())
+  const existing = (await listConvexDocumentsByClinic(
+    'prescriptions',
+    clinicId,
+    10000
+  )) as ImportedRecord[]
+
+  let maxSeq = 0
+  for (const row of existing) {
+    const number = typeof row.prescription_number === 'string' ? row.prescription_number : null
+    if (!number || !number.startsWith(`${yearPrefix}-`)) continue
+    // SUBSTRING(... FROM 6) -> everything after the `YYYY-` prefix (5 chars).
+    const seq = Number.parseInt(number.slice(5), 10)
+    if (Number.isFinite(seq) && seq > maxSeq) maxSeq = seq
+  }
+
+  return `${yearPrefix}-${String(maxSeq + 1).padStart(5, '0')}`
 }
 
 // Helper to transform empty strings to undefined
@@ -257,6 +291,95 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const { items, ...prescriptionData } = validation.data
+
+    // Convex-only write branch: auth/permission already enforced above
+    // (resolveClinicContext + prescriptions.create). Supabase is unreachable in
+    // this mode, so the patient verification, prescription insert, prescription
+    // number generation (Postgres trigger), and child item inserts are all
+    // replicated against Convex before the Supabase write path.
+    if (shouldUseConvexOnlyWritePath('prescriptions')) {
+      // Verify patient belongs to clinic (mirror .eq('id').eq('clinic_id').single()).
+      const patientRow = (await getConvexDocumentByLegacyId(
+        'patients',
+        prescriptionData.patient_id
+      )) as ImportedRecord | null
+      if (!patientRow || String(patientRow.clinic_id) !== String(clinicId)) {
+        return NextResponse.json({ error: 'Patient not found' }, { status: 404 })
+      }
+
+      const nowIso = new Date().toISOString()
+      const prescriptionId = crypto.randomUUID()
+      const prescriptionNumber = await generateConvexPrescriptionNumber(clinicId)
+
+      // Build the prescription row exactly like the Supabase insert: explicit
+      // columns (clinic_id, created_by, status:'active', ...prescriptionData) plus
+      // the values Postgres defaults/trigger would have supplied (id,
+      // prescription_number, created_at/updated_at, and NULL for absent optional
+      // columns so the response shape matches a fresh Supabase row).
+      const prescriptionRow = {
+        id: prescriptionId,
+        clinic_id: clinicId,
+        patient_id: prescriptionData.patient_id,
+        treatment_id: prescriptionData.treatment_id ?? null,
+        prescription_number: prescriptionNumber,
+        prescription_date: prescriptionData.prescription_date,
+        prescriber_name: prescriptionData.prescriber_name,
+        prescriber_license: prescriptionData.prescriber_license ?? null,
+        prescriber_specialty: prescriptionData.prescriber_specialty ?? null,
+        diagnosis: prescriptionData.diagnosis ?? null,
+        status: 'active',
+        valid_until: prescriptionData.valid_until ?? null,
+        notes: prescriptionData.notes ?? null,
+        pharmacy_notes: prescriptionData.pharmacy_notes ?? null,
+        pdf_generated_at: null,
+        pdf_url: null,
+        created_at: nowIso,
+        updated_at: nowIso,
+        created_by: userId,
+      }
+
+      await upsertConvexDocumentByLegacyId('prescriptions', prescriptionId, prescriptionRow)
+
+      // Child rows: prescription_items has its own uuid PK, an FK prescription_id,
+      // and no clinic_id (scoped via the parent). Mirror the Supabase insert
+      // columns + created_at default.
+      const itemRows = items.map((item, index) => ({
+        id: crypto.randomUUID(),
+        prescription_id: prescriptionId,
+        medication_id: item.medication_id ?? null,
+        medication_name: item.medication_name,
+        medication_strength: item.medication_strength ?? null,
+        medication_form: item.medication_form ?? null,
+        dosage: item.dosage,
+        frequency: item.frequency,
+        duration: item.duration ?? null,
+        quantity: item.quantity ?? null,
+        instructions: item.instructions ?? null,
+        sort_order: item.sort_order ?? index,
+        created_at: nowIso,
+      }))
+
+      for (const itemRow of itemRows) {
+        await upsertConvexDocumentByLegacyId('prescription_items', itemRow.id, itemRow)
+      }
+
+      // Mirror the final Supabase select shape:
+      //   *, patient:patients(id, first_name, last_name, email, phone),
+      //      items:prescription_items(*)
+      const completePrescription = {
+        ...prescriptionRow,
+        patient: {
+          id: patientRow.id ?? patientRow.legacyId ?? prescriptionData.patient_id,
+          first_name: patientRow.first_name ?? null,
+          last_name: patientRow.last_name ?? null,
+          email: patientRow.email ?? null,
+          phone: patientRow.phone ?? null,
+        },
+        items: itemRows,
+      }
+
+      return NextResponse.json({ data: completePrescription }, { status: 201 })
+    }
 
     // Verify patient belongs to clinic
     const { data: patient, error: patientError } = await supabaseAdmin

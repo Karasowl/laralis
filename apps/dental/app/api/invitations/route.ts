@@ -9,7 +9,12 @@ import {
   findAuthUserIdByEmail,
   getAuthUserProfileById,
 } from '@/lib/auth-user-profiles';
-import { listConvexDocumentsByWorkspace, decodeConvexValue } from '@/lib/convex/server';
+import {
+  getConvexDocumentByLegacyId,
+  listConvexDocumentsByWorkspace,
+  decodeConvexValue,
+  userHasActiveWorkspaceMembershipFromConvex,
+} from '@/lib/convex/server';
 import { shouldReturnConvexData } from '@/lib/data-backend';
 
 type ImportedRecord = Record<string, any>;
@@ -73,43 +78,64 @@ export async function GET(request: NextRequest) {
     // Get workspace ID
     let workspaceId = workspaceIdParam;
 
-    if (!workspaceId) {
-      const { data: clinic } = await supabaseAdmin
-        .from('clinics')
-        .select('workspace_id')
-        .eq('id', clinicId)
-        .single();
-
-      if (!clinic) {
-        return NextResponse.json(
-          { error: 'Clinic not found' },
-          { status: 404 }
-        );
+    if (shouldReturnConvexData('invitations')) {
+      // Convex authorization parity (the bridge has no RLS): resolve the workspace from
+      // the clinic and require an active workspace membership BEFORE any data read. In
+      // convex-only mode Supabase is unreachable, so this MUST precede any supabaseAdmin
+      // call. Gated on the SAME condition as the data branch below for consistency.
+      if (!workspaceId) {
+        const clinicDoc = (await getConvexDocumentByLegacyId('clinics', clinicId)) as
+          | { workspace_id?: string | null }
+          | null;
+        if (!clinicDoc) {
+          return NextResponse.json({ error: 'Clinic not found' }, { status: 404 });
+        }
+        workspaceId = clinicDoc.workspace_id ? String(clinicDoc.workspace_id) : null;
       }
 
-      workspaceId = clinic.workspace_id;
-    }
+      if (!workspaceId || !(await userHasActiveWorkspaceMembershipFromConvex(workspaceId, userId))) {
+        return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+      }
+    } else {
+      if (!workspaceId) {
+        const { data: clinic } = await supabaseAdmin
+          .from('clinics')
+          .select('workspace_id')
+          .eq('id', clinicId)
+          .single();
 
-    // Verify user has access
-    const { data: membership } = await supabaseAdmin
-      .from('workspace_users')
-      .select('role')
-      .eq('workspace_id', workspaceId)
-      .eq('user_id', userId)
-      .eq('is_active', true)
-      .single();
+        if (!clinic) {
+          return NextResponse.json(
+            { error: 'Clinic not found' },
+            { status: 404 }
+          );
+        }
 
-    if (!membership) {
-      return NextResponse.json(
-        { error: 'Access denied' },
-        { status: 403 }
-      );
+        workspaceId = clinic.workspace_id;
+      }
+
+      // Verify user has access
+      const { data: membership } = await supabaseAdmin
+        .from('workspace_users')
+        .select('role')
+        .eq('workspace_id', workspaceId)
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .single();
+
+      if (!membership) {
+        return NextResponse.json(
+          { error: 'Access denied' },
+          { status: 403 }
+        );
+      }
     }
 
     // Flag-gated Convex read branch. Reached only AFTER auth (resolveClinicContext),
-    // the team.view permission guard, and the active workspace_users membership
-    // check above. The Convex bridge has NO RLS, so that authorization MUST stay in
-    // front. Replicates the workspace-scoped select + status filters + ordering.
+    // the team.view permission guard, and the active workspace membership check above
+    // (Supabase or Convex per the same flag). The Convex bridge has NO RLS, so that
+    // authorization MUST stay in front. Replicates the workspace-scoped select + status
+    // filters + ordering.
     let invitations: ImportedRecord[] | null;
     if (shouldReturnConvexData('invitations')) {
       const now = new Date();

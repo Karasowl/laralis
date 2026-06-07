@@ -9,8 +9,11 @@ import {
   getConvexDocumentByLegacyId,
   listConvexDocumentsByClinic,
   decodeConvexValue,
+  patchConvexDocumentByLegacyId,
+  deleteConvexDocumentByLegacyId,
+  upsertConvexDocumentByLegacyId,
 } from '@/lib/convex/server';
-import { shouldReturnConvexData } from '@/lib/data-backend';
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic';
 
@@ -252,6 +255,54 @@ export async function PUT(request: NextRequest) {
 
     if (parsed.data.slug !== undefined) {
       updatePayload.slug = slug;
+    }
+
+    // Convex-only write branch (flag-gated, default Supabase). Auth + clinic
+    // scoping already enforced (resolveClinicContext + settings.edit guard).
+    // Mirrors the Supabase semantics: patch clinics.booking_config (+ slug when
+    // provided), then, when service_ids is present, REPLACE the clinic's
+    // public_booking_services whitelist (delete-all-by-clinic then re-insert in
+    // order). booking_config is a JSONB settings object whose keys are all
+    // [A-Za-z0-9_] (config flags + day names), so it round-trips cleanly through
+    // the encode/decode helpers. NOTE: the Supabase BEFORE UPDATE trigger
+    // auto_generate_clinic_slug (auto-fills slug when null + booking enabled) has
+    // no Convex equivalent and is intentionally NOT replicated here.
+    if (shouldUseConvexOnlyWritePath('clinics')) {
+      await patchConvexDocumentByLegacyId('clinics', clinicContext.clinicId, updatePayload);
+
+      if (service_ids) {
+        // Delete-all-by-clinic: list current whitelist rows and remove each by
+        // its legacy id (matches Supabase `.delete().eq('clinic_id', ...)`).
+        const existingRows = (await listConvexDocumentsByClinic(
+          'public_booking_services',
+          clinicContext.clinicId,
+          10000
+        )) as ImportedRecord[];
+        for (const row of existingRows) {
+          const legacyId = row.legacyId ?? row.id;
+          if (legacyId != null) {
+            await deleteConvexDocumentByLegacyId('public_booking_services', String(legacyId));
+          }
+        }
+
+        if (service_ids.length > 0) {
+          const nowIso = new Date().toISOString();
+          for (let index = 0; index < service_ids.length; index++) {
+            const id = crypto.randomUUID();
+            const insertRow = {
+              id,
+              clinic_id: clinicContext.clinicId,
+              service_id: service_ids[index],
+              display_order: index,
+              is_active: true,
+              created_at: nowIso,
+            };
+            await upsertConvexDocumentByLegacyId('public_booking_services', id, insertRow);
+          }
+        }
+      }
+
+      return NextResponse.json({ success: true });
     }
 
     const { error: updateError } = await supabaseAdmin

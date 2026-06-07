@@ -10,10 +10,13 @@ import { getAuthUserProfilesByIds, type AuthUserProfile } from '@/lib/auth-user-
 import { shouldReturnConvexData } from '@/lib/data-backend';
 import { getAuthBackend } from '@/lib/auth/convex-session';
 import {
+  getConvexDocumentByLegacyId,
   listConvexDocumentsByClinic,
   listConvexDocumentsByWorkspace,
   listConvexTable,
   decodeConvexValue,
+  convexUserHasClinicAccess,
+  userHasActiveWorkspaceMembershipFromConvex,
 } from '@/lib/convex/server';
 
 /**
@@ -45,6 +48,37 @@ export async function GET(request: NextRequest) {
   try {
     const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'team.view');
     if (forbidden) return forbidden;
+
+    // Flag-gated Convex authorization + read branch. Runs ONLY after auth
+    // (resolveClinicContext) and the team.view permission guard. The Convex bridge has
+    // NO RLS, so the caller access check (is_clinic_member OR active workspace
+    // membership) is replicated here against Convex BEFORE the member-list read. In
+    // convex-only mode Supabase is unreachable, so this MUST precede the supabaseAdmin
+    // calls below (which would otherwise 500).
+    if (getAuthBackend() === 'convex' || shouldReturnConvexData('role_permissions')) {
+      const clinicDoc = (await getConvexDocumentByLegacyId('clinics', clinicId)) as
+        | { workspace_id?: string | null }
+        | null;
+      if (!clinicDoc) {
+        return NextResponse.json({ error: 'Clinic not found' }, { status: 404 });
+      }
+      const workspaceId = clinicDoc.workspace_id ? String(clinicDoc.workspace_id) : '';
+
+      // Parity with the Supabase access gate: is_clinic_member OR active workspace member.
+      const isClinicMember = await convexUserHasClinicAccess(userId, clinicId);
+      const isWorkspaceMember = workspaceId
+        ? await userHasActiveWorkspaceMembershipFromConvex(workspaceId, userId)
+        : false;
+      if (!isClinicMember && !isWorkspaceMember) {
+        return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+      }
+
+      const transformedMembers = await getClinicMembersFromConvex(clinicId, workspaceId);
+      return NextResponse.json({
+        members: transformedMembers,
+        clinicId,
+      });
+    }
 
     // Verify user has access to this clinic
     const { data: accessCheck } = await supabaseAdmin.rpc(
@@ -79,20 +113,6 @@ export async function GET(request: NextRequest) {
         { error: 'Access denied' },
         { status: 403 }
       );
-    }
-
-    // Flag-gated Convex read branch. Runs ONLY after getUser (resolveClinicContext),
-    // the team.view permission guard, and the caller membership/access check above.
-    // The Convex bridge has no RLS, so the authorization MUST remain in front of it.
-    if (getAuthBackend() === 'convex' || shouldReturnConvexData('role_permissions')) {
-      const transformedMembers = await getClinicMembersFromConvex(
-        clinicId,
-        clinic.workspace_id as string
-      );
-      return NextResponse.json({
-        members: transformedMembers,
-        clinicId,
-      });
     }
 
     // Fetch all clinic members

@@ -5,8 +5,8 @@ import { resolveClinicContext } from '@/lib/clinic'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
 import { z } from 'zod'
 import { readJson } from '@/lib/validation'
-import { listConvexTable } from '@/lib/convex/server'
-import { shouldReturnConvexData } from '@/lib/data-backend'
+import { listConvexTable, upsertConvexDocumentByLegacyId } from '@/lib/convex/server'
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend'
 
 export const dynamic = 'force-dynamic'
 
@@ -188,6 +188,24 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const data = validation.data
+
+    // Convex-only write branch (flag-gated, default Supabase). Auth + clinic scoping
+    // already enforced above (resolveClinicContext + prescriptions.create guard).
+    // Mirror the Supabase insert: generate the uuid + timestamps Postgres would have
+    // defaulted, and spread the same validated columns (always clinic-specific).
+    if (shouldUseConvexOnlyWritePath('medications')) {
+      const id = crypto.randomUUID()
+      const nowIso = new Date().toISOString()
+      const row = {
+        id,
+        clinic_id: clinicId,
+        ...data,
+        created_at: nowIso,
+        updated_at: nowIso,
+      }
+      await upsertConvexDocumentByLegacyId('medications', id, row)
+      return NextResponse.json({ data: row }, { status: 201 })
+    }
 
     // Create medication (always clinic-specific for user-created)
     const { data: medication, error } = await supabaseAdmin

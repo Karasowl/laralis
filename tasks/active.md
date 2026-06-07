@@ -2,6 +2,23 @@
 
 ## En Progreso
 
+- [x] TASK-20260607-convex-only-api-smoke-fixes - Smoke convex-only de los 58 GET: arreglar todo lo que aún apuntaba a Supabase ✅ COMPLETADO 2026-06-07
+  - **Priority**: P1 | **Estimate**: M | **Area**: infra/data
+  - **Status**: ✅ Smoke `convex-all-apis-smoke.cy.ts` pasa: 58/58 sin 5xx (51× 200, 7× 400 por params requeridos)
+    - ✅ Auditoría multi-agente (ultracode) de los 58 GET; resuelta la contradicción del shim `createClient` → 10 hallazgos "auth_not_convex_aware" eran **falsos positivos**
+    - ✅ 3 bugs reales (access-check `supabaseAdmin` inline antes de la rama Convex): `team/clinic-members`, `team/workspace-members`, `invitations` + helper compartido `userHasActiveWorkspaceMembershipFromConvex`
+    - ✅ 2 falsos negativos cazados por el smoke real: `dashboard/supplies` (`createRouteHandlerClient` lanzaba) y `whatsapp-readiness` (`getWhatsAppConfig` leía `clinics`)
+    - ✅ Verificación adversarial (4 agentes): parity `is_active === true` corregida; typecheck baseline (197), cero nuevos
+  - Ver: `docs/devlog/2026-06-07-convex-only-api-smoke-fixes.md`
+
+- [x] TASK-20260607-convex-write-lifecycle-core - Validar escrituras convex-only de las 10 entidades CRUD core ✅ COMPLETADO 2026-06-07
+  - **Priority**: P1 | **Estimate**: M | **Area**: infra/data
+  - **Status**: ✅ `convex-write-lifecycle.cy.ts` pasa 9/9 (crear→borrar end-to-end, footprint cero)
+    - ✅ Auditoría (ultracode, 10 agentes): `brokenWritePaths: []` — las 10 entidades (patients, services, treatments, expenses, fixed_costs, supplies, assets, categories, patient_sources, settings_time) ya tienen ruta de escritura convex-only correcta (POST/PUT/DELETE escriben directo a Convex, sin Supabase)
+    - ✅ Lifecycle ejecutado convex-only: fixed_costs/supplies/assets/categories/services/patients/expenses/treatments (FK real patient+service) crean y borran; patient_sources crea (POST-only); settings_time verificado estáticamente (su upsert mutaría config real)
+    - ✅ El mirror NO salva escrituras (mirror post-write tras un write Supabase que falla primero) — solo la rama `shouldUseConvexOnlyWritePath` funciona convex-only
+  - **Follow-up**: ~43 rutas de escritura secundarias (onboarding, clinics, team, invitations, marketing, prescriptions, settings, AI, actions) — en auditoría
+
 - [~] TASK-20260606-convex-decommission-bcde-a - Decomisión Supabase→Convex (Fases B/C/D/E + scaffold A)
   - **Priority**: P1
   - **Estimate**: XL

@@ -11,7 +11,6 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = await cookies()
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
     const searchParams = request.nextUrl.searchParams
     const ctx = await resolveClinicContext({ requestedClinicId: searchParams.get('clinicId'), cookieStore })
     if ('error' in ctx) {
@@ -42,7 +41,10 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Get supplies count and low stock items
+    // Get supplies count and low stock items (Supabase path only — the client is
+    // created here, never in convex mode, since createRouteHandlerClient throws when
+    // the Supabase URL/key env vars are absent in a convex-only deployment).
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
     const { data: supplies, error } = await supabase
       .from('supplies')
       .select('*')
