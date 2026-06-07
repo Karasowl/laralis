@@ -71,6 +71,13 @@ export class SnapshotStorageService {
   ): Promise<string> {
     const path = this.getSnapshotPath(clinicId, snapshotId)
 
+    // Convex-only: the Supabase storage bucket is unreachable; the blob lives in Convex
+    // storage via the mirror. Symmetric with the download() convex branch.
+    if (shouldReturnConvexData('storage')) {
+      await this.mirrorUploadToConvex(path, data, 'application/gzip', 'snapshot-upload')
+      return path
+    }
+
     const { error } = await this.supabase.storage
       .from(this.config.bucketName)
       .upload(path, data, {
@@ -250,6 +257,12 @@ export class SnapshotStorageService {
 
     // Subir manifest actualizado
     const manifestPayload = JSON.stringify(manifest, null, 2)
+    if (shouldReturnConvexData('storage')) {
+      // Convex-only: write the manifest blob to Convex storage only.
+      await this.mirrorUploadToConvex(manifestPath, manifestPayload, 'application/json', 'snapshot-manifest')
+      return
+    }
+
     const { error } = await this.supabase.storage
       .from(this.config.bucketName)
       .upload(manifestPath, manifestPayload, {
