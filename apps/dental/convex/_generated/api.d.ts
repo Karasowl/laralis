@@ -17,6 +17,7 @@ import type * as bookingAvailability from "../bookingAvailability.js";
 import type * as http from "../http.js";
 import type * as lib_recurringDates from "../lib/recurringDates.js";
 import type * as migration from "../migration.js";
+import type * as mirroredTables from "../mirroredTables.js";
 import type * as recurringExpenses from "../recurringExpenses.js";
 import type * as testHelpers from "../testHelpers.js";
 
@@ -36,6 +37,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   "lib/recurringDates": typeof lib_recurringDates;
   migration: typeof migration;
+  mirroredTables: typeof mirroredTables;
   recurringExpenses: typeof recurringExpenses;
   testHelpers: typeof testHelpers;
 }>;
