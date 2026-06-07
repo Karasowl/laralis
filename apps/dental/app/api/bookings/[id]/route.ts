@@ -6,8 +6,25 @@ import { forbiddenIfMissingPermission } from '@/lib/permissions'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { readJson } from '@/lib/validation'
 import { checkScheduleConflicts } from '@/lib/calendar/server-conflicts'
+import { checkConflicts, type Appointment } from '@/lib/calendar/conflict-detection'
+import { deriveTreatmentPaymentState } from '@/lib/calc/treatment-payment'
+import {
+  getConvexDocumentByLegacyId,
+  listConvexDocumentsByClinic,
+  patchConvexDocumentByLegacyId,
+  upsertConvexDocumentByLegacyId,
+} from '@/lib/convex/server'
+import { shouldUseConvexOnlyWritePath } from '@/lib/data-backend'
 
 export const dynamic = 'force-dynamic'
+
+type ImportedRecord = Record<string, any>
+
+function normalizeConvexRecord(row: ImportedRecord | null | undefined) {
+  if (!row) return null
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row
+  return rest
+}
 
 const bookingActionSchema = z.object({
   clinic_id: z.string().uuid().optional(),
@@ -217,6 +234,244 @@ async function rejectBooking(params: {
   return NextResponse.json({ data })
 }
 
+/**
+ * Convex port of checkScheduleConflicts for the public-booking confirm path.
+ * Supabase is unreachable in convex-only mode, so we read the same two sources
+ * (treatments + public_bookings on the requested date) from Convex and run the
+ * identical pure checkConflicts() the Supabase path uses via server-conflicts.
+ * Mirrors fetchExistingScheduleAppointments():
+ *  - treatments: status in ('pending','scheduled','in_progress') AND treatment_time not null
+ *  - public_bookings: status in ('pending','confirmed') AND treatment_id is null
+ *    (booking id prefixed `public_booking:` so excludeId can drop the booking itself)
+ */
+async function convexScheduleConflicts(params: {
+  clinicId: string
+  date: string
+  time: string
+  durationMinutes: number
+  excludeId?: string
+}) {
+  const [treatments, bookings, services] = await Promise.all([
+    listConvexDocumentsByClinic('treatments', params.clinicId, 5000) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('public_bookings', params.clinicId, 5000) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('services', params.clinicId, 1000) as Promise<ImportedRecord[]>,
+  ])
+
+  const servicesById = new Map(
+    services.flatMap((row) => {
+      const ids = [row.id, row.legacyId].filter(Boolean).map((id) => String(id))
+      return ids.map((id) => [id, row] as const)
+    })
+  )
+
+  const treatmentAppointments: Appointment[] = treatments
+    .filter((t) =>
+      t.treatment_date === params.date &&
+      normalizeTime(t.treatment_time) != null &&
+      ['pending', 'scheduled', 'in_progress'].includes(String(t.status))
+    )
+    .map((t) => ({
+      id: String(t.id ?? t.legacyId),
+      treatment_date: t.treatment_date,
+      treatment_time: normalizeTime(t.treatment_time),
+      duration_minutes: Number(t.duration_minutes || t.minutes || 30),
+      patient_name: undefined,
+      service_name: undefined,
+    }))
+
+  const bookingAppointments: Appointment[] = bookings
+    .filter((b) =>
+      b.requested_date === params.date &&
+      ['pending', 'confirmed'].includes(String(b.status)) &&
+      (b.treatment_id === null || b.treatment_id === undefined)
+    )
+    .map((b) => {
+      const service = b.service_id ? servicesById.get(String(b.service_id)) : null
+      return {
+        id: `public_booking:${b.id ?? b.legacyId}`,
+        treatment_date: b.requested_date,
+        treatment_time: normalizeTime(b.requested_time),
+        duration_minutes: Number(service?.est_minutes || 30),
+        patient_name: b.patient_name,
+        service_name: service?.name,
+      }
+    })
+
+  return checkConflicts(
+    { date: params.date, time: params.time, duration_minutes: params.durationMinutes },
+    [...treatmentAppointments, ...bookingAppointments],
+    params.excludeId
+  )
+}
+
+/**
+ * Convex port of resolveBookingPatient: reuse the booking's linked patient,
+ * else match an existing patient by email (preferred) or phone, else insert a
+ * new patients row replicating the exact Supabase insert payload.
+ */
+async function resolveBookingPatientInConvex(booking: any, clinicId: string, now: string) {
+  if (booking.patient_id) return booking.patient_id as string
+
+  if (booking.patient_email || booking.patient_phone) {
+    const patients = (await listConvexDocumentsByClinic('patients', clinicId, 5000)) as ImportedRecord[]
+    const existing = patients.find((p) => {
+      if (String(p.clinic_id) !== String(clinicId)) return false
+      return booking.patient_email
+        ? p.email === booking.patient_email
+        : p.phone === booking.patient_phone
+    })
+    if (existing?.id || existing?.legacyId) return String(existing.id ?? existing.legacyId)
+  }
+
+  const { firstName, lastName } = splitPatientName(booking.patient_name)
+  const patientId = crypto.randomUUID()
+  await upsertConvexDocumentByLegacyId('patients', patientId, {
+    id: patientId,
+    clinic_id: clinicId,
+    first_name: firstName,
+    last_name: lastName,
+    email: booking.patient_email || null,
+    phone: booking.patient_phone || null,
+    notes: booking.patient_notes || null,
+    first_visit_date: booking.requested_date,
+    acquisition_date: booking.requested_date,
+    created_at: now,
+    updated_at: now,
+  })
+
+  return patientId
+}
+
+/**
+ * Convex-only port of confirmBooking. Replicates EVERY Supabase write the
+ * Supabase confirm path performs: (1) read service, (2) conflict check,
+ * (3) resolve/insert patient, (4) insert treatment, (5) update public_bookings.
+ * Money stays in integer cents. is_paid is stamped here because Convex has no
+ * calculate_treatment_is_paid trigger.
+ */
+async function confirmBookingInConvex(params: {
+  booking: any
+  clinicId: string
+  userId: string
+}) {
+  const { booking, clinicId, userId } = params
+  if (booking.status !== 'pending') {
+    return NextResponse.json({ error: 'Only pending booking requests can be confirmed' }, { status: 409 })
+  }
+
+  const services = (await listConvexDocumentsByClinic('services', clinicId, 1000)) as ImportedRecord[]
+  const service = services.find(
+    (s) =>
+      (String(s.id) === String(booking.service_id) || String(s.legacyId) === String(booking.service_id)) &&
+      String(s.clinic_id) === String(clinicId)
+  )
+  if (!service || (!service.id && !service.legacyId)) {
+    return NextResponse.json({ error: 'Booking service was not found' }, { status: 404 })
+  }
+  const serviceId = String(service.id ?? service.legacyId)
+
+  const durationMinutes = Number(service.est_minutes || 30)
+  const priceCents = Number(service.price_cents || 0)
+  const conflictResult = await convexScheduleConflicts({
+    clinicId,
+    date: booking.requested_date,
+    time: normalizeTime(booking.requested_time) || '12:00',
+    durationMinutes,
+    excludeId: `public_booking:${booking.id}`,
+  })
+
+  if (conflictResult.hasConflict) {
+    return NextResponse.json(
+      {
+        error: 'appointment_conflict',
+        message: 'This booking request conflicts with an existing appointment or booking request.',
+        conflicts: conflictResult.conflicts,
+      },
+      { status: 409 }
+    )
+  }
+
+  const now = new Date().toISOString()
+  const patientId = await resolveBookingPatientInConvex(booking, clinicId, now)
+
+  const treatmentId = crypto.randomUUID()
+  // Mirror the Supabase insert payload exactly (fixed cost per minute is
+  // hardcoded to 0 on this booking path, NOT derived). is_paid follows the
+  // calculate_treatment_is_paid trigger: pending == priceCents (>0 when priced)
+  // and status 'scheduled' => not paid.
+  const { pendingBalanceCents, isPaid } = deriveTreatmentPaymentState({
+    pendingBalanceCents: priceCents,
+    status: 'scheduled',
+  })
+  const treatment = {
+    id: treatmentId,
+    clinic_id: clinicId,
+    patient_id: patientId,
+    service_id: serviceId,
+    treatment_date: booking.requested_date,
+    treatment_time: normalizeTime(booking.requested_time),
+    duration_minutes: durationMinutes,
+    minutes: durationMinutes,
+    fixed_cost_per_minute_cents: 0,
+    fixed_per_minute_cents: 0,
+    variable_cost_cents: Number(service.variable_cost_cents || 0),
+    margin_pct: Number(service.margin_pct || 60),
+    price_cents: priceCents,
+    amount_paid_cents: 0,
+    pending_balance_cents: pendingBalanceCents,
+    is_paid: isPaid,
+    status: 'scheduled',
+    notes: `Created from public booking ${booking.id} for ${booking.patient_name}`,
+    snapshot_costs: {
+      source: 'public_booking',
+      public_booking_id: booking.id,
+      service_name: service.name,
+    },
+    created_at: now,
+    updated_at: now,
+  }
+  await upsertConvexDocumentByLegacyId('treatments', treatmentId, treatment)
+
+  const bookingPatch = {
+    status: 'confirmed',
+    patient_id: patientId,
+    treatment_id: treatmentId,
+    confirmed_at: now,
+    confirmed_by: userId,
+    updated_at: now,
+  }
+  await patchConvexDocumentByLegacyId('public_bookings', String(booking.id), bookingPatch)
+
+  return NextResponse.json({
+    data: { ...normalizeConvexRecord(booking), ...bookingPatch },
+    treatment,
+    patient_id: patientId,
+  })
+}
+
+/**
+ * Convex-only port of rejectBooking: single-table patch on public_bookings.
+ */
+async function rejectBookingInConvex(params: {
+  booking: any
+  clinicId: string
+  rejectionReason?: string | null
+}) {
+  const { booking, rejectionReason } = params
+  if (booking.status !== 'pending') {
+    return NextResponse.json({ error: 'Only pending booking requests can be rejected' }, { status: 409 })
+  }
+
+  const patch = {
+    status: 'rejected',
+    rejection_reason: rejectionReason || null,
+    updated_at: new Date().toISOString(),
+  }
+  await patchConvexDocumentByLegacyId('public_bookings', String(booking.id), patch)
+
+  return NextResponse.json({ data: { ...normalizeConvexRecord(booking), ...patch } })
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -248,6 +503,23 @@ export async function PATCH(
     const requiredPermission = parsed.data.action === 'confirm' ? 'treatments.create' : 'treatments.edit'
     const forbidden = await forbiddenIfMissingPermission(userId, clinicId, requiredPermission)
     if (forbidden) return forbidden
+
+    if (shouldUseConvexOnlyWritePath('public_bookings')) {
+      const convexBooking = (await getConvexDocumentByLegacyId('public_bookings', params.id)) as ImportedRecord | null
+      if (!convexBooking || convexBooking.clinic_id !== clinicId) {
+        return NextResponse.json({ error: 'Booking request not found' }, { status: 404 })
+      }
+
+      if (parsed.data.action === 'confirm') {
+        return confirmBookingInConvex({ booking: convexBooking, clinicId, userId })
+      }
+
+      return rejectBookingInConvex({
+        booking: convexBooking,
+        clinicId,
+        rejectionReason: parsed.data.rejection_reason,
+      })
+    }
 
     const { data: booking, error: bookingError } = await supabaseAdmin
       .from('public_bookings')
