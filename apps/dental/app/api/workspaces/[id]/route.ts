@@ -102,6 +102,28 @@ async function deleteWorkspaceTreeInConvex(workspaceId: string) {
     if (!clinicId) continue
     const clinicIdStr = String(clinicId)
     await deleteConvexServiceSuppliesForClinic(clinicIdStr)
+    // marketing_campaign_status_history is keyed by campaign_id (not clinic_id), so
+    // deleteConvexRowsByClinic would miss it. Resolve this clinic's campaigns, then
+    // delete their status-history rows (parity with lib/clinic-tables.ts deleteClinicData
+    // and the lifecycle route's cascade).
+    const campaigns = (await listConvexDocumentsByClinic('marketing_campaigns', clinicIdStr)) as AnyRow[]
+    const campaignIds = new Set(
+      campaigns.map((row) => row?.id).filter((id: unknown): id is string => typeof id === 'string' && id.length > 0)
+    )
+    if (campaignIds.size > 0) {
+      const history = (await listConvexDocumentsByClinic('marketing_campaign_status_history', clinicIdStr)) as AnyRow[]
+      const historyByWorkspace = (await listConvexDocumentsByWorkspace('marketing_campaign_status_history', workspaceId)) as AnyRow[]
+      const seen = new Set<string>()
+      for (const row of [...history, ...historyByWorkspace]) {
+        const legacyId = row?.id ?? row?.legacyId
+        if (!legacyId) continue
+        if (row?.campaign_id != null && !campaignIds.has(String(row.campaign_id))) continue
+        const key = String(legacyId)
+        if (seen.has(key)) continue
+        seen.add(key)
+        await deleteConvexDocumentByLegacyId('marketing_campaign_status_history', key)
+      }
+    }
     for (const table of CONVEX_CLINIC_CHILD_TABLES) {
       if (table === 'service_supplies') continue
       await deleteConvexRowsByClinic(table, clinicIdStr)

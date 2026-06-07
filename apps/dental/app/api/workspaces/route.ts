@@ -144,6 +144,11 @@ async function createWorkspaceInConvex(params: {
     setup_started_at: now,
     setup_last_seen_at: now,
     setup_completed_at: onboardingCompleted ? now : null,
+    // Postgres column defaults Convex does not fill (the Supabase insert relies on
+    // them). created_at drives readWorkspacesByIds' sort; is_active mirrors the default.
+    is_active: true,
+    created_at: now,
+    updated_at: now,
   };
   await upsertConvexDocumentByLegacyId('workspaces', workspaceId, workspace);
 
@@ -156,6 +161,7 @@ async function createWorkspaceInConvex(params: {
       name: clinicName,
       address: clinicAddress || null,
       is_active: true,
+      created_at: now,
     };
     await upsertConvexDocumentByLegacyId('clinics', clinicId, clinic);
 
