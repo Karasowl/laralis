@@ -4,6 +4,7 @@ import { resolveClinicContext, type ClinicContextSuccess } from '@/lib/clinic';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { getAuthBackend } from '@/lib/auth/convex-session';
 import { getConvexDocumentByLegacyId } from '@/lib/convex/server';
+import { shouldReturnConvexData } from '@/lib/data-backend';
 import { userHasPermission } from '@/lib/permissions/check';
 import type { Permission } from '@/lib/permissions';
 
@@ -23,7 +24,12 @@ type PermissionHandler = (
 ) => Promise<NextResponse>;
 
 async function getClinicWorkspaceId(clinicId: string) {
-  if (getAuthBackend() === 'convex') {
+  // Convex-only branch: gate on either Convex Auth OR convex-only DATA mode for the
+  // clinics domain. The latter is independent of AUTH_BACKEND, so when
+  // DATA_READ_BACKEND_CLINICS=convex (Supabase unreachable) we MUST read the clinic's
+  // workspace_id from Convex; otherwise the supabaseAdmin.from('clinics') read below
+  // throws and breaks every route that uses this permission middleware.
+  if (getAuthBackend() === 'convex' || shouldReturnConvexData('clinics')) {
     const clinic = await getConvexDocumentByLegacyId('clinics', clinicId) as { workspace_id?: string; workspaceId?: string } | null;
     return clinic?.workspace_id || clinic?.workspaceId || null;
   }

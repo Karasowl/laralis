@@ -30,6 +30,8 @@ import { ClinicSnapshotService } from './ClinicSnapshotService'
 import { ACTION_FUNCTIONS, isActionFunction } from './actions-functions'
 import { snapshotCache } from './cache/snapshot-cache'
 import { createMirroredSupabaseClient } from '@/lib/convex/supabase-runtime-mirror'
+import { upsertConvexDocumentByLegacyId } from '@/lib/convex/server'
+import { shouldUseConvexOnlyWritePath } from '@/lib/data-backend'
 
 // Prompts
 import { buildEntrySystemPrompt } from './prompts/entry-prompt'
@@ -874,6 +876,38 @@ export class AIService implements ActionExecutor {
    */
   private async logAction(result: ActionResult, context: ActionContext): Promise<void> {
     const { clinicId, userId, dryRun } = context
+
+    // Convex-only write path: Supabase is unreachable (supabaseAdmin.from() fails at
+    // use-time against the placeholder client), so the insert below would be lost.
+    // Replicate the SAME action_logs row directly against Convex. Postgres-default
+    // columns (id, dry_run, created_at) are set explicitly since Convex has no defaults.
+    // Best-effort: a logging failure must not break action execution (matches the
+    // Supabase path swallowing it). This mirrors the inline port in
+    // app/api/actions/update-service-price/route.ts (executeUpdateServicePriceInConvex).
+    if (shouldUseConvexOnlyWritePath('action_logs')) {
+      try {
+        const logId = crypto.randomUUID()
+        await upsertConvexDocumentByLegacyId('action_logs', logId, {
+          id: logId,
+          clinic_id: clinicId,
+          user_id: userId,
+          action_type: result.action,
+          success: result.success,
+          params: result.params,
+          result: result.result ?? null,
+          error_code: result.error?.code ?? null,
+          error_message: result.error?.message ?? null,
+          error_details: result.error?.details ?? null,
+          dry_run: dryRun || false,
+          executed_at: result.executed_at,
+          created_at: new Date().toISOString(),
+        })
+      } catch (error) {
+        console.error('[AIService] Failed to log action to Convex:', error)
+      }
+      return
+    }
+
     const supabase = createMirroredSupabaseClient(context.supabase)
 
     try {
