@@ -17,8 +17,8 @@ import {
   userHasPermission,
   type Permission,
 } from '@/lib/permissions'
-import { listConvexDocumentsByClinic } from '@/lib/convex/server'
-import { shouldReturnConvexData } from '@/lib/data-backend'
+import { listConvexDocumentsByClinic, upsertConvexDocumentByLegacyId } from '@/lib/convex/server'
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend'
 
 export const dynamic = 'force-dynamic'
 
@@ -64,6 +64,39 @@ async function getSessionsFromConvex(clinicId: string, filters: SessionListFilte
       hasMore: total > filters.offset + filters.limit,
     },
   }
+}
+
+/**
+ * Convex-only write path for POST. Reproduces the single Supabase insert into
+ * chat_sessions, stamping every Postgres-default column explicitly (Convex has no
+ * defaults): id (gen_random_uuid), started_at/last_message_at/created_at/updated_at
+ * (NOW()), ended_at (NULL), message_count (0), is_archived (FALSE). Returns the full
+ * row to mirror the Supabase `.select().single()` response shape.
+ */
+async function createSessionInConvex(
+  clinicId: string,
+  userId: string,
+  mode: 'entry' | 'query',
+  title: string | undefined
+) {
+  const now = new Date().toISOString()
+  const id = crypto.randomUUID()
+  const row = {
+    id,
+    clinic_id: clinicId,
+    user_id: userId,
+    mode,
+    title: title ?? null,
+    started_at: now,
+    ended_at: null,
+    last_message_at: now,
+    message_count: 0,
+    is_archived: false,
+    created_at: now,
+    updated_at: now,
+  }
+  await upsertConvexDocumentByLegacyId('chat_sessions', id, row)
+  return row
 }
 
 // Schema for creating a session
@@ -243,6 +276,20 @@ export async function POST(request: NextRequest) {
       laraPermissionForMode(validation.data.mode)
     )
     if (forbidden) return forbidden
+
+    // Convex-only write branch (flag-gated). Auth + clinic access verified by
+    // resolveClinicContext and the Lara permission gate above, so this is safe
+    // despite the Convex bridge lacking RLS. Replicates the single chat_sessions
+    // insert below before any Supabase write is attempted.
+    if (shouldUseConvexOnlyWritePath('chat_sessions')) {
+      const newSession = await createSessionInConvex(
+        clinicContext.clinicId,
+        session.user.id,
+        validation.data.mode,
+        validation.data.title
+      )
+      return NextResponse.json({ data: newSession }, { status: 201 })
+    }
 
     // Create session
     const { data: newSession, error } = await supabaseAdmin

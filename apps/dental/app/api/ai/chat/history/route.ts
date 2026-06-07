@@ -3,8 +3,14 @@ import { createClient } from '@/lib/supabase/server';
 import { aiService } from '@/lib/ai/service';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
-import { listConvexDocumentsByClinic, listConvexTable } from '@/lib/convex/server';
-import { shouldReturnConvexData } from '@/lib/data-backend';
+import {
+    listConvexDocumentsByClinic,
+    listConvexTable,
+    upsertConvexDocumentByLegacyId,
+    patchConvexDocumentByLegacyId,
+    deleteConvexDocumentByLegacyId,
+} from '@/lib/convex/server';
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend';
 import { assertClinicAccess } from '@/lib/auth/verify-clinic-access';
 
 export const runtime = 'nodejs';
@@ -218,6 +224,25 @@ export async function POST(request: NextRequest) {
         const payload = parsed.data;
 
         if (payload.action === 'create_session') {
+            // Convex-only write path (flag-gated). Replicates the Supabase insert:
+            // id/created_at/updated_at are Postgres defaults (uuid + now), so we set
+            // them explicitly because Convex has no column defaults. Same row shape
+            // the Supabase .select().single() would return.
+            if (shouldUseConvexOnlyWritePath('ai_chat_sessions')) {
+                const now = new Date().toISOString();
+                const id = crypto.randomUUID();
+                const session = {
+                    id,
+                    user_id: user.id,
+                    clinic_id: payload.clinicId,
+                    title: 'Nueva conversación',
+                    created_at: now,
+                    updated_at: now,
+                };
+                await upsertConvexDocumentByLegacyId('ai_chat_sessions', id, session);
+                return NextResponse.json({ session });
+            }
+
             const { data, error } = await supabase
                 .from('ai_chat_sessions')
                 .insert({
@@ -233,6 +258,36 @@ export async function POST(request: NextRequest) {
         }
 
         if (payload.action === 'add_message') {
+            // Convex-only write path (flag-gated). Verify session ownership (scoped to
+            // the authenticated user, exactly like the Supabase id+user_id check),
+            // insert the message (id/created_at are Postgres defaults; metadata default
+            // '{}'), then bump the session's updated_at. Matches the Supabase response.
+            if (shouldUseConvexOnlyWritePath('ai_chat_sessions')) {
+                const session = await findUserSessionFromConvex(user.id, payload.sessionId);
+                if (!session) {
+                    return NextResponse.json({ error: 'Session not found or unauthorized' }, { status: 404 });
+                }
+
+                const now = new Date().toISOString();
+                const id = crypto.randomUUID();
+                const message = {
+                    id,
+                    session_id: payload.sessionId,
+                    role: payload.role,
+                    content: payload.message,
+                    metadata: payload.metadata || {},
+                    created_at: now,
+                };
+                await upsertConvexDocumentByLegacyId('ai_chat_messages', id, message);
+
+                // Update session timestamp (mirrors the Supabase .update({ updated_at }))
+                await patchConvexDocumentByLegacyId('ai_chat_sessions', payload.sessionId, {
+                    updated_at: new Date().toISOString(),
+                });
+
+                return NextResponse.json({ message });
+            }
+
             // Verify session ownership
             const { data: session, error: sessionError } = await supabase
                 .from('ai_chat_sessions')
@@ -282,6 +337,21 @@ export async function POST(request: NextRequest) {
 
             const cleanTitle = title.replace(/^["']|["']$/g, '').trim();
 
+            // Convex-only write path (flag-gated). The Supabase update only sets `title`
+            // (no updated_at here), scoped by id + user_id, and reads the row back via
+            // .single(). A missing/unauthorized row makes .single() error -> 500; we
+            // mirror that by throwing when the user-owned session is not found.
+            if (shouldUseConvexOnlyWritePath('ai_chat_sessions')) {
+                const session = await findUserSessionFromConvex(user.id, payload.sessionId);
+                if (!session) {
+                    throw new Error('Session not found');
+                }
+                await patchConvexDocumentByLegacyId('ai_chat_sessions', payload.sessionId, {
+                    title: cleanTitle,
+                });
+                return NextResponse.json({ session: { ...session, title: cleanTitle } });
+            }
+
             // Update session title
             const { data, error } = await supabase
                 .from('ai_chat_sessions')
@@ -324,6 +394,22 @@ export async function PATCH(request: NextRequest) {
         }
         const { sessionId, title } = parsed.data;
 
+        // Convex-only write path (flag-gated). Mirrors the Supabase update of
+        // { title, updated_at } scoped by id + user_id with a .single() read-back: a
+        // missing/unauthorized row makes .single() error -> 500, replicated by throwing.
+        if (shouldUseConvexOnlyWritePath('ai_chat_sessions')) {
+            const session = await findUserSessionFromConvex(user.id, sessionId);
+            if (!session) {
+                throw new Error('Session not found');
+            }
+            const updatedAt = new Date().toISOString();
+            await patchConvexDocumentByLegacyId('ai_chat_sessions', sessionId, {
+                title,
+                updated_at: updatedAt,
+            });
+            return NextResponse.json({ session: { ...session, title, updated_at: updatedAt } });
+        }
+
         const { data, error } = await supabase
             .from('ai_chat_sessions')
             .update({ title, updated_at: new Date().toISOString() })
@@ -357,6 +443,18 @@ export async function DELETE(request: NextRequest) {
         const parsed = validateSchema(deleteSessionSchema, { sessionId });
         if ('error' in parsed) {
             return parsed.error;
+        }
+
+        // Convex-only write path (flag-gated). The Supabase delete is scoped by
+        // id + user_id and returns success even when zero rows match. We only delete a
+        // session the authenticated user owns (matching the user_id filter) and always
+        // return { success: true } to mirror Supabase's idempotent delete semantics.
+        if (shouldUseConvexOnlyWritePath('ai_chat_sessions')) {
+            const session = await findUserSessionFromConvex(user.id, parsed.data.sessionId);
+            if (session) {
+                await deleteConvexDocumentByLegacyId('ai_chat_sessions', parsed.data.sessionId);
+            }
+            return NextResponse.json({ success: true });
         }
 
         const { error } = await supabase

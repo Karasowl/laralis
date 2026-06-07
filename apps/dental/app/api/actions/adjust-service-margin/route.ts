@@ -38,6 +38,41 @@ function normalizeConvexRecord(row: ConvexRecord | null | undefined): ConvexReco
 }
 
 /**
+ * Mirror AIService.logAction against Convex. The Supabase path runs logAction on
+ * EVERY non-dry-run success (service.ts: `if (!dryRun && result.success)`), which
+ * does NOT depend on adjust_price — so the calc-only run (adjust_price=false,
+ * dry_run=false) ALSO writes an action_logs row. Best-effort, exactly like the
+ * Supabase path which swallows log failures.
+ */
+async function logActionToConvex(
+  result: ActionResult,
+  clinicId: string,
+  userId: string,
+  createdAt: string
+): Promise<void> {
+  try {
+    const logId = crypto.randomUUID()
+    await upsertConvexDocumentByLegacyId('action_logs', logId, {
+      id: logId,
+      clinic_id: clinicId,
+      user_id: userId,
+      action_type: result.action,
+      success: result.success,
+      params: result.params,
+      result: result.result || null,
+      error_code: result.error?.code || null,
+      error_message: result.error?.message || null,
+      error_details: result.error?.details || null,
+      dry_run: false,
+      executed_at: result.executed_at,
+      created_at: createdAt,
+    })
+  } catch (logError) {
+    console.error('[adjust-service-margin] Convex action_logs write failed:', logError)
+  }
+}
+
+/**
  * Convex-only replication of aiService.execute('adjust_service_margin', ...).
  * In DATA_WRITE_MODE_SERVICES=convex (Supabase unreachable) the AIService path
  * throws on the very first supabaseAdmin.from('services') read, so we replicate
@@ -132,7 +167,8 @@ async function adjustServiceMarginInConvex(args: {
     `Price change: ${(((newPriceCents - currentPriceCents) / currentPriceCents) * 100).toFixed(1)}%`,
   ]
 
-  // Calculation-only / dry-run path: no write, matching executeAdjustServiceMargin.
+  // Calculation-only / dry-run path: no services write, matching
+  // executeAdjustServiceMargin which only patches services when adjust_price && !dryRun.
   if (!adjustPrice || dryRun) {
     changes.push(
       adjustPrice
@@ -140,6 +176,7 @@ async function adjustServiceMarginInConvex(args: {
         : 'Calculation only - use adjust_price=true to update'
     )
 
+    const executedAt = new Date().toISOString()
     const result: ActionResult = {
       success: true,
       action: 'adjust_service_margin',
@@ -157,10 +194,15 @@ async function adjustServiceMarginInConvex(args: {
         },
         changes,
       },
-      executed_at: new Date().toISOString(),
+      executed_at: executedAt,
       executed_by: userId,
     }
-    // dryRun (or adjust_price=false) => AIService skips logAction. No audit write here.
+    // AIService.execute calls logAction on every non-dry-run success regardless of
+    // adjust_price, so adjust_price=false (dry_run=false) STILL writes action_logs.
+    // Only a genuine dry_run skips the audit row.
+    if (!dryRun) {
+      await logActionToConvex(result, clinicId, userId, executedAt)
+    }
     return NextResponse.json({ success: true, data: result }, { status: 200 })
   }
 
@@ -198,28 +240,8 @@ async function adjustServiceMarginInConvex(args: {
     executed_by: userId,
   }
 
-  // Mirror AIService.logAction (non-dry-run success only): insert the audit row.
-  // Best-effort, exactly like the Supabase path which swallows log failures.
-  try {
-    const logId = crypto.randomUUID()
-    await upsertConvexDocumentByLegacyId('action_logs', logId, {
-      id: logId,
-      clinic_id: clinicId,
-      user_id: userId,
-      action_type: result.action,
-      success: result.success,
-      params: result.params,
-      result: result.result || null,
-      error_code: result.error?.code || null,
-      error_message: result.error?.message || null,
-      error_details: result.error?.details || null,
-      dry_run: false,
-      executed_at: result.executed_at,
-      created_at: updatedAt,
-    })
-  } catch (logError) {
-    console.error('[adjust-service-margin] Convex action_logs write failed:', logError)
-  }
+  // Mirror AIService.logAction (non-dry-run success): insert the audit row.
+  await logActionToConvex(result, clinicId, userId, updatedAt)
 
   return NextResponse.json({ success: true, data: result }, { status: 200 })
 }

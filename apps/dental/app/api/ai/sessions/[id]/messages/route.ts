@@ -10,8 +10,38 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { z } from 'zod'
 import { readJson } from '@/lib/validation'
 import { forbiddenIfMissingPermission, type Permission } from '@/lib/permissions'
+import {
+  getConvexDocumentByLegacyId,
+  upsertConvexDocumentByLegacyId,
+  patchConvexDocumentByLegacyId,
+} from '@/lib/convex/server'
+import { shouldUseConvexOnlyWritePath } from '@/lib/data-backend'
 
 export const dynamic = 'force-dynamic'
+
+type ImportedRecord = Record<string, any>
+
+function normalizeConvexRecord(row: ImportedRecord | null | undefined) {
+  if (!row) return null
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row
+  return rest
+}
+
+/**
+ * Convex ownership read mirroring the Supabase gate
+ * `chat_sessions WHERE id = sessionId AND user_id = userId`. Returns the raw row
+ * so the caller can read clinic_id/mode for the permission guard and replicate
+ * the auto_generate_session_title trigger. Returns null when the session is
+ * missing OR not owned by the user, matching the Supabase `.single()` 404.
+ */
+async function getOwnedSessionFromConvex(
+  sessionId: string,
+  userId: string
+): Promise<ImportedRecord | null> {
+  const row = (await getConvexDocumentByLegacyId('chat_sessions', sessionId)) as ImportedRecord | null
+  if (!row || String(row.user_id || '') !== userId) return null
+  return row
+}
 
 // Schema for creating a message
 const createMessageSchema = z.object({
@@ -68,6 +98,58 @@ export async function POST(
     }
 
     const sessionId = params.id
+
+    // Convex-only write branch (flag-gated). Supabase is unreachable, so the
+    // ownership read + message insert must go through Convex. Runs AFTER auth +
+    // body validation; ownership and the Lara permission guard are enforced
+    // exactly like the Supabase path before any write.
+    if (shouldUseConvexOnlyWritePath('chat_messages')) {
+      const ownedSession = await getOwnedSessionFromConvex(sessionId, session.user.id)
+      if (!ownedSession) {
+        return NextResponse.json(
+          { error: 'Session not found' },
+          { status: 404 }
+        )
+      }
+
+      const forbidden = await forbiddenIfMissingPermission(
+        session.user.id,
+        ownedSession.clinic_id,
+        laraPermissionForMode(ownedSession.mode)
+      )
+      if (forbidden) return forbidden
+
+      // gen_random_uuid() + created_at DEFAULT NOW(): Convex has no column
+      // defaults, so id/created_at/action_executed (DEFAULT FALSE) are stamped
+      // explicitly to mirror the row Supabase's INSERT ... .select() returns.
+      const id = crypto.randomUUID()
+      const createdAt = new Date().toISOString()
+      const message = {
+        id,
+        session_id: sessionId,
+        ...validation.data,
+        action_executed: validation.data.action_executed ?? false,
+        created_at: createdAt,
+      }
+      await upsertConvexDocumentByLegacyId('chat_messages', id, message)
+
+      // Replicate the two AFTER INSERT ON chat_messages triggers (migration 54):
+      // 1) update_chat_session_stats: bump message_count, set last_message_at to
+      //    the new message's created_at and updated_at to NOW().
+      // 2) auto_generate_session_title: for a user message, set the session title
+      //    to LEFT(content, 100) only when the session currently has no title.
+      const sessionPatch: Record<string, unknown> = {
+        message_count: Number(ownedSession.message_count || 0) + 1,
+        last_message_at: createdAt,
+        updated_at: new Date().toISOString(),
+      }
+      if (validation.data.role === 'user' && ownedSession.title == null) {
+        sessionPatch.title = validation.data.content.slice(0, 100)
+      }
+      await patchConvexDocumentByLegacyId('chat_sessions', sessionId, sessionPatch)
+
+      return NextResponse.json({ data: normalizeConvexRecord(message) }, { status: 201 })
+    }
 
     // Verify session ownership
     const { data: chatSession, error: fetchError } = await supabaseAdmin
