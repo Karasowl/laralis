@@ -103,14 +103,35 @@ porque el snapshot CREATE smoke pasó usando esa misma discovery).
   restore ahora corren convex-only. **`convex-write-snapshots.cy.ts` 1/1** (create→delete, el
   export real lee ~30 tablas de Convex, sube blob, escribe row, borra row+blob).
 
-**Estado: todas las rutas de escritura de datos de negocio están portadas a convex-only.**
 Commits wave 3: `dcd558d`, `5a7a3d7`, `96c3f69`, `f022418`.
 
-## Fuera de alcance (no son datos de negocio — integraciones externas)
+## Wave 4 — cobertura TOTAL (externos/infra + módulos compartidos)
 
-webhooks (resend/twilio/whatsapp — ingestan eventos externos), google-calendar OAuth,
-export/import (otro formato), MFA, push subscriptions, account-delete. Estas no son parte del
-cutover convex-only de la capa de datos.
+Barrido sistemático de `lib/` + `app/api`: porté **todo** el código restante que toca datos.
+- **Rutas** (9 fixed + 2 already_safe): push (subscribe/track-click/unsubscribe), notifications/
+  send-confirmation, whatsapp/webhook, settings/user, cron/snapshots, tariffs, clinics; reads de
+  análisis IA (compare-periods); clinics + cron/recurring-expenses ya safe.
+- **Módulos compartidos** (`ClinicSnapshotService` 13 loaders → Lara query mode; `lib/ai/actions/
+  {analytics,operational,pricing}` 16 acciones; `lib/export/{exporter,importer}` 69 métodos;
+  `with-permission` middleware 31 rutas — gap real: gateaba solo en AUTH_BACKEND; `auth-user-profiles`
+  → mirror `supabase_auth_users`; `ai/service` logAction; `calendar/server-conflicts`; `push`/`sms`
+  services; `workspace-lifecycle`). `ai/query/functions`, `calc/patient-acquisition`, `clinic-tables`
+  confirmados no-alcanzables en modo convex (solo path Supabase).
+- **Barrido final: 0 gaps.** typecheck 193 (baseline). Regresión: read 58/58, write-lifecycle 9/9, verde.
 
-Nota menor: barrer columnas DEFAULT de Postgres (created_at/is_active) en cada `createXInConvex`
-restante (revisado para workspaces; los agentes las setearon explícitamente en wave 3).
+Commits wave 4: `6deee9b`, `40a436a`, `60d4f4e`, `fb569f0`.
+
+## Estado final del CÓDIGO: completo
+
+**TODO el código que toca datos (rutas + módulos compartidos) es convex-only-capable**, flag-gated,
+default Supabase. Lo único que queda en Supabase son integraciones genuinamente externas que NO son
+la capa de datos: webhooks (ingesta de eventos externos), Google Calendar OAuth, MFA (auth factors),
+`account-delete` (auth-admin), `reset` (dev), `settings/notifications/test*` (envío de prueba),
+`migration/convex-*` (la herramienta de migración misma). Email (Resend) entra aquí.
+
+## Lo único que falta NO es código — es operación (Fase F, tus manos)
+
+Backup en frío → flips de flags por dominio en PROD con monitoreo → import de blobs de storage →
+`CONVEX_RUNTIME_MIRROR_ENABLED=0` → borrar código Supabase + deps → borrar el proyecto Supabase
+(tras soak). Ver `docs/IMPORTANT/PHASE-F-WRITE-CUTOVER-RUNBOOK.md`. Reversible por flag hasta el
+borrado final. Supabase intacto.

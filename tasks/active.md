@@ -2,6 +2,14 @@
 
 ## En Progreso
 
+- [x] TASK-20260607-convex-only-CODE-COMPLETE - Cutover convex-only: TODO el código que toca datos ✅ COMPLETADO 2026-06-07
+  - **Priority**: P0 | **Estimate**: XL | **Area**: infra/data
+  - **Status**: ✅ Barrido final 0 gaps. Todas las rutas (lecturas 58 GET + escrituras de negocio) y TODOS los módulos compartidos (`ClinicSnapshotService`/Lara, `lib/ai/actions/*`, `lib/export/*`, `lib/snapshots/*`, `with-permission`, `auth-user-profiles`, `ai/service`, `calendar`, `push`, `sms`, `workspace-lifecycle`) son convex-only-capable, flag-gated, default Supabase.
+  - **Verificado**: read 58/58 sin 5xx, write-lifecycle 9/9, write-features 4/4, snapshot 1/1, adversarial multi-agente. typecheck 193 (baseline), cero nuevos. Regresión verde tras los cambios en módulos compartidos.
+  - **Fuera de alcance** (no son capa de datos): webhooks, google-calendar OAuth, MFA, account-delete, reset, settings/notifications/test, migration/convex-* (la herramienta de migración).
+  - **Falta SOLO operación** (Fase F, manos del operador): backup → flips de flags en prod → import de blobs → decomisión del mirror → borrar Supabase. Ver `docs/IMPORTANT/PHASE-F-WRITE-CUTOVER-RUNBOOK.md`.
+  - Ver: `docs/devlog/2026-06-07-convex-only-write-cutover.md`
+
 - [x] TASK-20260607-convex-only-api-smoke-fixes - Smoke convex-only de los 58 GET: arreglar todo lo que aún apuntaba a Supabase ✅ COMPLETADO 2026-06-07
   - **Priority**: P1 | **Estimate**: M | **Area**: infra/data
   - **Status**: ✅ Smoke `convex-all-apis-smoke.cy.ts` pasa: 58/58 sin 5xx (51× 200, 7× 400 por params requeridos)
