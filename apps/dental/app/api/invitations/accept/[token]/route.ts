@@ -3,8 +3,15 @@ import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { getAuthUserProfileById } from '@/lib/auth-user-profiles';
-import { listConvexTable, getConvexDocumentByLegacyId } from '@/lib/convex/server';
-import { shouldReturnConvexData } from '@/lib/data-backend';
+import {
+  listConvexTable,
+  getConvexDocumentByLegacyId,
+  listConvexDocumentsByWorkspace,
+  listConvexDocumentsByClinic,
+  upsertConvexDocumentByLegacyId,
+  patchConvexDocumentByLegacyId,
+} from '@/lib/convex/server';
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend';
 
 type ImportedRecord = Record<string, any>;
 
@@ -151,6 +158,220 @@ export async function GET(
 }
 
 /**
+ * Convex-only port of POST accept. Replicates EVERY Supabase write the Supabase
+ * path performs (workspace_users insert/reactivate, clinic_users insert/reactivate
+ * for the primary clinic and each additional clinic in clinic_ids, and the
+ * invitation accepted_at patch), reading prerequisites from Convex instead of
+ * Supabase. Lookups use listConvex* + normalize because the migration bridge has
+ * no RLS and rows carry legacy metadata. JSONB custom_permissions maps are encoded
+ * by upsert/patch helpers (prepareConvexRow / encodeConvexValue), so we pass them
+ * through unchanged. This runs only behind shouldUseConvexOnlyWritePath('invitations'),
+ * after the auth + email-match guards in POST, so it inherits the same authorization.
+ */
+async function acceptInvitationInConvex(
+  invitation: ImportedRecord,
+  user: { id: string }
+) {
+  // Resolve custom role scope (if provided) — mirrors the Supabase
+  // custom_role_templates lookup that decides workspace vs clinic placement.
+  let customRoleScope: 'workspace' | 'clinic' | null = null;
+
+  if (invitation.custom_role_id) {
+    const roleTemplate = normalizeConvexRecord(
+      (await getConvexDocumentByLegacyId(
+        'custom_role_templates',
+        String(invitation.custom_role_id)
+      )) as ImportedRecord | null
+    );
+
+    if (roleTemplate && roleTemplate.workspace_id === invitation.workspace_id) {
+      customRoleScope = roleTemplate.scope as 'workspace' | 'clinic';
+    }
+  }
+
+  const workspaceCustomRoleId =
+    customRoleScope === 'workspace' ? invitation.custom_role_id : null;
+  const clinicCustomRoleId =
+    customRoleScope === 'clinic' ? invitation.custom_role_id : null;
+
+  const isClinicInvite = Boolean(invitation.clinic_id);
+
+  // Check if already a workspace member (Convex parity of the
+  // workspace_users .eq(workspace_id).eq(user_id).single() lookup).
+  const workspaceMembers = (
+    (await listConvexDocumentsByWorkspace(
+      'workspace_users',
+      String(invitation.workspace_id)
+    )) as ImportedRecord[]
+  ).map(normalizeConvexRecord);
+  const existingMember =
+    workspaceMembers.find(
+      (m) =>
+        m &&
+        String(m.workspace_id) === String(invitation.workspace_id) &&
+        String(m.user_id) === String(user.id)
+    ) ?? null;
+
+  // Determine workspace role (clinic invites map to editor by default)
+  const workspaceRole = isClinicInvite
+    ? invitation.role === 'viewer'
+      ? 'viewer'
+      : 'editor'
+    : invitation.role;
+  const workspaceCustomPermissions = isClinicInvite
+    ? null
+    : invitation.custom_permissions;
+  const clinicCustomPermissions = isClinicInvite
+    ? invitation.custom_permissions
+    : null;
+
+  if (!existingMember) {
+    // Create workspace membership (mirror the Supabase insert columns exactly).
+    const id = crypto.randomUUID();
+    try {
+      await upsertConvexDocumentByLegacyId('workspace_users', id, {
+        id,
+        workspace_id: invitation.workspace_id,
+        user_id: user.id,
+        role: workspaceRole,
+        allowed_clinics: invitation.clinic_ids || [],
+        custom_permissions: workspaceCustomPermissions,
+        custom_role_id: workspaceCustomRoleId,
+        is_active: true,
+        joined_at: new Date().toISOString(),
+      });
+    } catch (wsError) {
+      console.error('[invitations] Error creating workspace membership:', wsError);
+      return NextResponse.json(
+        { error: 'Failed to create workspace membership' },
+        { status: 500 }
+      );
+    }
+  } else {
+    // Reactivate if inactive (mirror the conditional Supabase update payload).
+    const workspaceUpdate: Record<string, unknown> = { is_active: true };
+
+    if (!isClinicInvite) {
+      workspaceUpdate.custom_permissions = workspaceCustomPermissions;
+      workspaceUpdate.custom_role_id = workspaceCustomRoleId;
+    } else if (workspaceCustomRoleId) {
+      workspaceUpdate.custom_role_id = workspaceCustomRoleId;
+    }
+
+    await patchConvexDocumentByLegacyId(
+      'workspace_users',
+      String(existingMember.id),
+      workspaceUpdate
+    );
+  }
+
+  // Create clinic membership if this is a clinic-specific role.
+  if (isClinicInvite && invitation.clinic_id) {
+    const primaryClinicMembers = (
+      (await listConvexDocumentsByClinic(
+        'clinic_users',
+        String(invitation.clinic_id)
+      )) as ImportedRecord[]
+    ).map(normalizeConvexRecord);
+    const existingClinicMember =
+      primaryClinicMembers.find(
+        (m) =>
+          m &&
+          String(m.clinic_id) === String(invitation.clinic_id) &&
+          String(m.user_id) === String(user.id)
+      ) ?? null;
+
+    if (!existingClinicMember) {
+      const id = crypto.randomUUID();
+      try {
+        await upsertConvexDocumentByLegacyId('clinic_users', id, {
+          id,
+          clinic_id: invitation.clinic_id,
+          user_id: user.id,
+          role: invitation.role,
+          custom_permissions: clinicCustomPermissions,
+          custom_role_id: clinicCustomRoleId,
+          is_active: true,
+          can_access_all_patients: invitation.role === 'doctor',
+          joined_at: new Date().toISOString(),
+        });
+      } catch (clinicError) {
+        console.error('[invitations] Error creating clinic membership:', clinicError);
+        return NextResponse.json(
+          { error: 'Failed to create clinic membership' },
+          { status: 500 }
+        );
+      }
+    } else {
+      await patchConvexDocumentByLegacyId(
+        'clinic_users',
+        String(existingClinicMember.id),
+        {
+          is_active: true,
+          role: invitation.role,
+          custom_permissions: clinicCustomPermissions,
+          custom_role_id: clinicCustomRoleId,
+        }
+      );
+    }
+  }
+
+  // Also add to any additional clinics specified.
+  if (invitation.clinic_ids && invitation.clinic_ids.length > 0) {
+    for (const clinicId of invitation.clinic_ids) {
+      if (clinicId === invitation.clinic_id) continue; // Skip primary clinic
+
+      const clinicMembers = (
+        (await listConvexDocumentsByClinic(
+          'clinic_users',
+          String(clinicId)
+        )) as ImportedRecord[]
+      ).map(normalizeConvexRecord);
+      const existingClinicMember =
+        clinicMembers.find(
+          (m) =>
+            m &&
+            String(m.clinic_id) === String(clinicId) &&
+            String(m.user_id) === String(user.id)
+        ) ?? null;
+
+      if (!existingClinicMember) {
+        const id = crypto.randomUUID();
+        await upsertConvexDocumentByLegacyId('clinic_users', id, {
+          id,
+          clinic_id: clinicId,
+          user_id: user.id,
+          role: invitation.role,
+          custom_permissions: clinicCustomPermissions,
+          custom_role_id: clinicCustomRoleId,
+          is_active: true,
+          can_access_all_patients: invitation.role === 'doctor',
+          joined_at: new Date().toISOString(),
+        });
+      }
+    }
+  }
+
+  // Mark invitation as accepted (mirror the Supabase accepted_at update;
+  // best-effort, matching the Supabase path which does not fail on update error).
+  try {
+    await patchConvexDocumentByLegacyId('invitations', String(invitation.id), {
+      accepted_at: new Date().toISOString(),
+    });
+  } catch (updateError) {
+    console.error('[invitations] Error updating invitation:', updateError);
+    // Don't fail - membership was created
+  }
+
+  return NextResponse.json({
+    success: true,
+    message: 'Invitation accepted successfully',
+    workspace_id: invitation.workspace_id,
+    clinic_id: invitation.clinic_id,
+  });
+}
+
+/**
  * POST /api/invitations/accept/[token]
  *
  * Accept an invitation. User must be authenticated.
@@ -173,15 +394,29 @@ export async function POST(
     );
   }
 
+  // In convex-only write mode Supabase is unreachable, so the invitation must be
+  // read from Convex too (the by-token lookup mirrors the GET branch).
+  const convexOnly = shouldUseConvexOnlyWritePath('invitations');
+
   try {
     // Get invitation
-    const { data: invitation, error: invError } = await supabaseAdmin
-      .from('invitations')
-      .select('*')
-      .eq('token', token)
-      .single();
+    let invitation: ImportedRecord | null;
+    if (convexOnly) {
+      const rows = (await listConvexTable('invitations', 10000) as ImportedRecord[]).map(normalizeConvexRecord);
+      invitation = rows.find((r) => r && r.token === token) ?? null;
+    } else {
+      const { data, error: invError } = await supabaseAdmin
+        .from('invitations')
+        .select('*')
+        .eq('token', token)
+        .single();
+      if (invError) {
+        console.error('[invitations] Invitation lookup failed:', invError);
+      }
+      invitation = data ?? null;
+    }
 
-    if (invError || !invitation) {
+    if (!invitation) {
       return NextResponse.json(
         { error: 'Invitation not found' },
         { status: 404 }
@@ -220,6 +455,13 @@ export async function POST(
         },
         { status: 403 }
       );
+    }
+
+    // Convex-only write path: replicate every membership write + invitation patch
+    // against Convex. The auth + email-match guards above already ran, so the
+    // helper inherits the same authorization the Supabase path enforces.
+    if (convexOnly) {
+      return acceptInvitationInConvex(invitation, user);
     }
 
     // Resolve custom role scope (if provided)

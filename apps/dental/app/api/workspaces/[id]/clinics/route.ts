@@ -8,8 +8,16 @@ import {
   forbiddenIfMissingWorkspacePermission,
   userCanAccessWorkspace,
 } from '@/lib/workspace-access'
-import { listConvexDocumentsByWorkspace } from '@/lib/convex/server'
-import { shouldReturnConvexData, shouldWriteConvexData } from '@/lib/data-backend'
+import {
+  listConvexDocumentsByWorkspace,
+  upsertConvexDocumentByLegacyId,
+  patchConvexDocumentByLegacyId,
+} from '@/lib/convex/server'
+import {
+  shouldReturnConvexData,
+  shouldUseConvexOnlyWritePath,
+  shouldWriteConvexData,
+} from '@/lib/data-backend'
 import { seedClinicDefaultsInConvex } from '@/lib/convex/clinic-seed'
 
 export const dynamic = 'force-dynamic'
@@ -36,6 +44,98 @@ function nextAllowedClinics(current: unknown, clinicId: string) {
   if (!Array.isArray(current) || current.length === 0) return null
   const ids = current.filter((value): value is string => typeof value === 'string')
   return ids.includes(clinicId) ? ids : [...ids, clinicId]
+}
+
+/**
+ * Convex-only port of the POST handler's multi-table write. Replicates every
+ * Supabase write the Supabase path performs, in the same order:
+ *   1. INSERT clinics            -> upsert clinics
+ *   2. seedClinicDefaultsInConvex (after_clinic_insert triggers)
+ *   3. read privileged workspace_users -> UPDATE allowed_clinics + INSERT clinic_users
+ *   4. read privileged workspace_members -> UPDATE allowed_clinics / clinic_ids
+ * The DB-generated columns (id, created_at, updated_at) are stamped here since
+ * Postgres is unreachable on this path. Returns the same `{ data }` shape/status
+ * the Supabase branch returns (the inserted clinic row).
+ */
+async function createClinicInConvex(
+  workspaceId: string,
+  input: { name: string; address?: string; phone?: string; email?: string }
+) {
+  const now = new Date().toISOString()
+  const clinicId = crypto.randomUUID()
+
+  // 1. clinics insert — mirror EXACTLY the Supabase insert columns + DB defaults.
+  const clinicRow = {
+    id: clinicId,
+    workspace_id: workspaceId,
+    name: input.name,
+    address: input.address || null,
+    phone: input.phone || null,
+    email: input.email || null,
+    is_active: true,
+    created_at: now,
+    updated_at: now,
+  }
+  await upsertConvexDocumentByLegacyId('clinics', clinicId, clinicRow)
+
+  // 2. Seed clinic defaults (patient_sources / custom_categories / whatsapp_templates).
+  await seedClinicDefaultsInConvex(clinicId)
+
+  // 3. workspace_users: grant privileged members access + admin clinic membership.
+  const workspaceUsers = (await listConvexDocumentsByWorkspace(
+    'workspace_users',
+    workspaceId
+  )) as ConvexRecord[]
+  const privilegedUsers = workspaceUsers.filter(
+    (member) =>
+      member?.is_active === true && PRIVILEGED_WORKSPACE_ROLES.has(String(member.role))
+  )
+
+  for (const member of privilegedUsers) {
+    const allowedClinics = nextAllowedClinics(member.allowed_clinics, clinicId)
+    if (allowedClinics) {
+      await patchConvexDocumentByLegacyId('workspace_users', String(member.id), {
+        allowed_clinics: allowedClinics,
+      })
+    }
+
+    const clinicUserId = crypto.randomUUID()
+    await upsertConvexDocumentByLegacyId('clinic_users', clinicUserId, {
+      id: clinicUserId,
+      clinic_id: clinicId,
+      user_id: member.user_id,
+      role: 'admin',
+      custom_permissions: {},
+      custom_role_id: null,
+      is_active: true,
+      joined_at: now,
+      can_access_all_patients: true,
+      assigned_chair: null,
+      schedule: {},
+    })
+  }
+
+  // 4. workspace_members: grant privileged members access (legacy membership table).
+  const workspaceMembers = (await listConvexDocumentsByWorkspace(
+    'workspace_members',
+    workspaceId
+  )) as ConvexRecord[]
+
+  for (const member of workspaceMembers) {
+    if (member?.is_active !== true) continue
+    if (!PRIVILEGED_WORKSPACE_ROLES.has(String(member.role))) continue
+
+    const patch: Record<string, string[]> = {}
+    const allowedClinics = nextAllowedClinics(member.allowed_clinics, clinicId)
+    const clinicIds = nextAllowedClinics(member.clinic_ids, clinicId)
+    if (allowedClinics) patch.allowed_clinics = allowedClinics
+    if (clinicIds) patch.clinic_ids = clinicIds
+    if (Object.keys(patch).length === 0) continue
+
+    await patchConvexDocumentByLegacyId('workspace_members', String(member.id), patch)
+  }
+
+  return NextResponse.json({ data: clinicRow })
 }
 
 // GET /api/workspaces/[id]/clinics - list clinics for a workspace owned by the user
@@ -136,6 +236,13 @@ export async function POST(
       return parsed.error
     }
     const { name, address, phone, email } = parsed.data
+
+    // Convex-only write path (DATA_WRITE_MODE=convex): Supabase is unreachable, so
+    // replicate every Supabase write of this multi-table handler against Convex
+    // BEFORE touching supabaseAdmin. Auth/permission guards above are convex-aware.
+    if (shouldUseConvexOnlyWritePath('clinics')) {
+      return await createClinicInConvex(params.id, { name, address, phone, email })
+    }
 
     const { data, error } = await supabaseAdmin
       .from('clinics')

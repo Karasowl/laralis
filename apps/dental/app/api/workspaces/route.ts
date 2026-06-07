@@ -4,8 +4,9 @@ import { cookies } from 'next/headers';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
 import { getCurrentUser } from '@/lib/auth/current-user';
-import { getConvexDocumentByLegacyId, listConvexTable } from '@/lib/convex/server';
-import { shouldReturnConvexData } from '@/lib/data-backend';
+import { getConvexDocumentByLegacyId, listConvexTable, upsertConvexDocumentByLegacyId } from '@/lib/convex/server';
+import { seedClinicDefaultsInConvex } from '@/lib/convex/clinic-seed';
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend';
 import {
   forbiddenIfMissingWorkspacePermission,
   getAccessibleWorkspaceIds,
@@ -95,6 +96,117 @@ function compareCreatedAt(left: any, right: any, ascending: boolean) {
 function stripConvexMetadata(row: Record<string, any>) {
   const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row;
   return rest;
+}
+
+/**
+ * Convex-only write path for POST (DATA_WRITE_MODE_WORKSPACES=convex). Replicates the
+ * three Supabase inserts the handler performs — workspaces, optional clinics,
+ * workspace_members owner — generating uuid legacyIds and ISO-8601 timestamps that
+ * mirror exactly what the Postgres path writes (status/onboarding flags, setup_*
+ * timestamps). When a clinic is created, seedClinicDefaultsInConvex reproduces the
+ * after_clinic_insert trigger (patient_sources / custom_categories / whatsapp_templates),
+ * since the runtime mirror never sees those trigger-generated rows. The returned
+ * NextResponse matches the Supabase response shape/cookies exactly.
+ */
+async function createWorkspaceInConvex(params: {
+  userId: string;
+  workspaceName: string;
+  workspaceSlug: string;
+  description?: string;
+  clinicName?: string;
+  clinicAddress?: string;
+  onboardingCompleted: boolean;
+  onboardingStep: number;
+  now: string;
+}) {
+  const {
+    userId,
+    workspaceName,
+    workspaceSlug,
+    description,
+    clinicName,
+    clinicAddress,
+    onboardingCompleted,
+    onboardingStep,
+    now,
+  } = params;
+
+  const workspaceId = crypto.randomUUID();
+  const workspace: Record<string, any> = {
+    id: workspaceId,
+    name: workspaceName,
+    slug: workspaceSlug,
+    description: description || `Workspace de ${workspaceName}`,
+    owner_id: userId,
+    onboarding_completed: onboardingCompleted,
+    onboarding_step: onboardingStep,
+    status: onboardingCompleted ? 'active' : 'draft',
+    setup_started_at: now,
+    setup_last_seen_at: now,
+    setup_completed_at: onboardingCompleted ? now : null,
+  };
+  await upsertConvexDocumentByLegacyId('workspaces', workspaceId, workspace);
+
+  let clinic: Record<string, any> | null = null;
+  if (clinicName) {
+    const clinicId = crypto.randomUUID();
+    clinic = {
+      id: clinicId,
+      workspace_id: workspaceId,
+      name: clinicName,
+      address: clinicAddress || null,
+      is_active: true,
+    };
+    await upsertConvexDocumentByLegacyId('clinics', clinicId, clinic);
+
+    // Port of after_clinic_insert (patient_sources / custom_categories /
+    // whatsapp_templates). Best-effort; never throws.
+    await seedClinicDefaultsInConvex(clinicId);
+  }
+
+  // Owner membership (best-effort in the Supabase path: a failure there is logged but
+  // not fatal because owner_id already grants access). Mirror that leniency here.
+  const memberId = crypto.randomUUID();
+  try {
+    await upsertConvexDocumentByLegacyId('workspace_members', memberId, {
+      id: memberId,
+      workspace_id: workspaceId,
+      user_id: userId,
+      role: 'owner',
+      clinic_ids: clinic?.id ? [clinic.id] : [],
+    });
+  } catch (memberError) {
+    console.error('Error creating workspace member (convex):', memberError);
+  }
+
+  const responseData: any = {
+    workspace,
+    success: true,
+  };
+
+  if (clinic) {
+    responseData.clinic = clinic;
+  }
+
+  const response = NextResponse.json(responseData);
+
+  response.cookies.set('workspaceId', workspaceId, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 60 * 60 * 24 * 30, // 30 días
+  });
+
+  if (clinic) {
+    response.cookies.set('clinicId', clinic.id, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 30, // 30 días
+    });
+  }
+
+  return response;
 }
 
 export async function GET(request: NextRequest) {
@@ -256,6 +368,20 @@ export async function POST(request: NextRequest) {
         { error: 'Missing required fields', details: { workspaceName: !!workspaceName, workspaceSlug: !!workspaceSlug } },
         { status: 400 }
       );
+    }
+
+    if (shouldUseConvexOnlyWritePath('workspaces')) {
+      return createWorkspaceInConvex({
+        userId: user.id,
+        workspaceName,
+        workspaceSlug,
+        description,
+        clinicName,
+        clinicAddress,
+        onboardingCompleted,
+        onboardingStep,
+        now,
+      });
     }
 
     // Crear el workspace asociado al usuario autenticado

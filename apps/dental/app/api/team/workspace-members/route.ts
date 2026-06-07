@@ -15,9 +15,10 @@ import {
   listConvexDocumentsByWorkspace,
   listConvexTable,
   decodeConvexValue,
+  upsertConvexDocumentByLegacyId,
   userHasActiveWorkspaceMembershipFromConvex,
 } from '@/lib/convex/server';
-import { shouldReturnConvexData } from '@/lib/data-backend';
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend';
 import { getAuthBackend } from '@/lib/auth/convex-session';
 
 /**
@@ -318,6 +319,20 @@ export async function POST(request: NextRequest) {
     const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'team.invite');
     if (forbidden) return forbidden;
 
+    // Flag-gated Convex-only write branch. Reached only AFTER:
+    //   1. resolveClinicContext (auth) succeeded,
+    //   2. forbiddenIfMissingPermission(userId, clinicId, 'team.invite') passed.
+    // In convex-only write mode Supabase is unreachable, so EVERY supabaseAdmin
+    // read/write below (clinic resolution, role check, duplicate checks, and the
+    // invitations insert) would throw. This branch replicates them all against
+    // Convex BEFORE the first Supabase call and mirrors the SINGLE Supabase write
+    // (insert one `invitations` row). It keeps the Supabase path intact for the
+    // default backend. The bridge has no RLS, so the same role-based access gate
+    // is replicated here before the write.
+    if (shouldUseConvexOnlyWritePath('role_permissions')) {
+      return createWorkspaceInvitationInConvex(request, clinicId, userId);
+    }
+
     // Get workspace ID from clinic
     const { data: clinic } = await supabaseAdmin
       .from('clinics')
@@ -450,4 +465,166 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+/**
+ * Convex-only write port of the POST handler. Replicates EVERY Supabase
+ * operation the Supabase path performs, in the same order, against Convex:
+ *
+ *   1. clinic.workspace_id            -> getConvexDocumentByLegacyId('clinics')
+ *   2. caller's active membership+role-> listConvexDocumentsByWorkspace('workspace_users')
+ *   3. existing-member duplicate check-> resolve email via mirrored
+ *                                        supabase_auth_users + workspace_users scan
+ *   4. existing-invitation duplicate  -> listConvexDocumentsByWorkspace('invitations')
+ *   5. INSERT one `invitations` row   -> upsertConvexDocumentByLegacyId('invitations')
+ *
+ * Matches the Supabase response shape/status exactly. crypto.randomUUID() for the
+ * id, ISO-8601 strings for expires_at (mirroring expiresAt.toISOString()). The
+ * `custom_permissions` JSONB map is encoded automatically by
+ * upsertConvexDocumentByLegacyId -> prepareConvexRow -> encodeConvexValue, matching
+ * the decodeConvexValue applied by the convex read branches.
+ */
+async function createWorkspaceInvitationInConvex(
+  request: NextRequest,
+  clinicId: string,
+  userId: string
+): Promise<NextResponse> {
+  // 1. Resolve workspace ID from clinic.
+  const clinic = (await getConvexDocumentByLegacyId('clinics', clinicId)) as
+    | { workspace_id?: string | null }
+    | null;
+  if (!clinic) {
+    return NextResponse.json({ error: 'Clinic not found' }, { status: 404 });
+  }
+  const workspaceId = clinic.workspace_id ?? null;
+  if (!workspaceId) {
+    return NextResponse.json({ error: 'Clinic not found' }, { status: 404 });
+  }
+
+  // 2. Verify the caller has an active membership with an invite-capable role.
+  //    Mirrors: workspace_users.eq(workspace_id).eq(user_id).eq(is_active,true)
+  //    + role in ['owner','super_admin','admin'].
+  const workspaceUserRows = (await listConvexDocumentsByWorkspace(
+    'workspace_users',
+    workspaceId,
+    10000
+  )) as ImportedRecord[];
+
+  const membership = workspaceUserRows.find(
+    (row) =>
+      String(row.workspace_id) === String(workspaceId) &&
+      String(row.user_id) === String(userId) &&
+      row.is_active === true
+  );
+
+  if (!membership || !['owner', 'super_admin', 'admin'].includes(String(membership.role))) {
+    return NextResponse.json(
+      { error: 'Insufficient permissions to invite users' },
+      { status: 403 }
+    );
+  }
+
+  // 3. Parse and validate request body (same as the Supabase path).
+  const bodyResult = await readJson(request);
+  if ('error' in bodyResult) {
+    return bodyResult.error;
+  }
+  const validatedData = createInvitationSchema.parse(bodyResult.data);
+
+  // 4. Reject if the user is already a workspace member.
+  //    Resolve the auth user id by email from the mirrored supabase_auth_users
+  //    table (findAuthUserIdByEmail uses supabaseAdmin.auth.admin and is
+  //    unreachable in convex-only mode), then scan workspace_users.
+  const existingUserId = await findConvexAuthUserIdByEmail(validatedData.email);
+  if (existingUserId) {
+    const alreadyMember = workspaceUserRows.some(
+      (row) =>
+        String(row.workspace_id) === String(workspaceId) &&
+        String(row.user_id) === String(existingUserId)
+    );
+    if (alreadyMember) {
+      return NextResponse.json(
+        { error: 'User is already a member of this workspace' },
+        { status: 400 }
+      );
+    }
+  }
+
+  // 5. Reject if there is already a pending (non-accepted, non-rejected,
+  //    non-expired) invitation for this email.
+  const nowIso = new Date().toISOString();
+  const invitationRows = (await listConvexDocumentsByWorkspace(
+    'invitations',
+    workspaceId,
+    10000
+  )) as ImportedRecord[];
+
+  const existingInvitation = invitationRows.find(
+    (row) =>
+      String(row.workspace_id) === String(workspaceId) &&
+      String(row.email) === String(validatedData.email) &&
+      (row.accepted_at === null || row.accepted_at === undefined) &&
+      (row.rejected_at === null || row.rejected_at === undefined) &&
+      typeof row.expires_at === 'string' &&
+      row.expires_at > nowIso
+  );
+
+  if (existingInvitation) {
+    return NextResponse.json(
+      { error: 'An invitation already exists for this email' },
+      { status: 400 }
+    );
+  }
+
+  // 6. Generate token (matches the Supabase path) and a 7-day expiry.
+  const token = crypto.randomUUID() + crypto.randomUUID().replace(/-/g, '');
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 7);
+
+  // 7. INSERT one invitations row. Same columns the Supabase insert writes.
+  const id = crypto.randomUUID();
+  const expiresAtIso = expiresAt.toISOString();
+  await upsertConvexDocumentByLegacyId('invitations', id, {
+    id,
+    workspace_id: workspaceId,
+    email: validatedData.email,
+    role: validatedData.role,
+    clinic_ids: validatedData.allowed_clinics || [],
+    custom_role_id: validatedData.custom_role_id || null,
+    token,
+    expires_at: expiresAtIso,
+    invited_by: userId,
+    custom_permissions: validatedData.custom_permissions || null,
+    message: validatedData.message || null,
+  });
+
+  return NextResponse.json({
+    success: true,
+    invitation: {
+      id,
+      email: validatedData.email,
+      role: validatedData.role,
+      expires_at: expiresAtIso,
+    },
+  });
+}
+
+/**
+ * Convex equivalent of findAuthUserIdByEmail: resolve the auth user id by email
+ * from the mirrored supabase_auth_users table (the GET read branch uses the same
+ * source). Case-insensitive match, mirroring findAuthUserIdByEmail's normalize.
+ * Returns null when no auth user matches.
+ */
+async function findConvexAuthUserIdByEmail(email: string): Promise<string | null> {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized) return null;
+
+  const authUserRows = (await listConvexTable('supabase_auth_users', 10000)) as ImportedRecord[];
+  const match = authUserRows.find(
+    (row) => typeof row.email === 'string' && row.email.toLowerCase() === normalized
+  );
+  if (!match) return null;
+
+  const resolvedId = match.id ?? match.legacyId ?? null;
+  return resolvedId !== null && resolvedId !== undefined ? String(resolvedId) : null;
 }
