@@ -121,15 +121,28 @@ async function restoreSnapshotConvexOnly(
     )
   }
 
-  // The restore engine (clinic-scoped delete + bulk upsert per discovered table + pre-restore
-  // backup) has no safe Convex path. Return the standard RestoreSnapshotResponse shape with a
-  // fatal error instead of mutating, so callers see an explicit failure rather than silent loss.
-  const sharedChangeMessage =
-    'Convex-only restore is not supported: the table-by-table restore (clinic-scoped delete + ' +
-    'bulk upsert + pre-restore backup) requires a dedicated clinic-scoped Convex restore mutation. ' +
-    'migration.replaceTableSnapshot replaces tables globally and would delete other clinics’ rows.'
+  // Resolve the user email (best-effort) for the pre-restore backup metadata.
+  let userEmail = ''
+  try {
+    const authUser = (await getConvexDocumentByLegacyId('supabase_auth_users', userId)) as ConvexRecord | null
+    userEmail = (authUser?.email as string) || ''
+  } catch {
+    /* non-fatal — backup metadata email is optional */
+  }
 
-  // Log the attempt to action_logs via the Convex mirror.
+  // Restore via the importer. In convex-only mode the importer deletes ONLY this clinic's
+  // rows (listConvexDocumentsByClinic + deleteConvexDocumentByLegacyId — never the global
+  // replaceTableSnapshot) and upserts each row by id, so it is multi-tenant-safe. The
+  // pre-restore backup runs through the now-convex-aware exporter.
+  const importer = createSnapshotImporter(supabaseAdmin, clinicId, {
+    mode: body.mode || 'replace',
+    createBackupFirst: body.createBackupFirst ?? true,
+    tables: body.tables,
+    dryRun: body.dryRun ?? false,
+  })
+  const result = await importer.restore(snapshotData, userId, userEmail)
+
+  // Log the restore action via the Convex mirror.
   try {
     const logId = crypto.randomUUID()
     const nowIso = new Date().toISOString()
@@ -144,9 +157,9 @@ async function restoreSnapshotConvexOnly(
         snapshotId,
         mode: body.mode || 'replace',
         dryRun: body.dryRun ?? false,
-        success: false,
+        success: result.success,
         convexOnly: true,
-        reason: 'needs_shared_change',
+        restoredRecords: result.restoredRecords,
       },
       created_at: nowIso,
     })
@@ -155,20 +168,15 @@ async function restoreSnapshotConvexOnly(
   }
 
   const response: RestoreSnapshotResponse = {
-    success: false,
-    restoredRecords: {},
-    skippedRecords: {},
-    errors: [
-      {
-        table: '',
-        message: sharedChangeMessage,
-        fatal: true,
-      },
-    ],
+    success: result.success,
+    preRestoreSnapshotId: result.preRestoreSnapshotId,
+    restoredRecords: result.restoredRecords,
+    skippedRecords: result.skippedRecords,
+    errors: result.errors,
     durationMs: Date.now() - startTime,
   }
 
-  return NextResponse.json(response, { status: 500 })
+  return NextResponse.json(response, { status: result.success ? 200 : 500 })
 }
 
 /**
