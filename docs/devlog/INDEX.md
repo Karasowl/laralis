@@ -17,6 +17,10 @@ Cada entrada sigue la estructura:
 
 ## Entradas
 
+### 2026-06-08
+
+- **[2026-06-08-prod-convex-live-verification.md](2026-06-08-prod-convex-live-verification.md)** - Verificación automatizada contra el sitio vivo (`https://laralis.vercel.app`) de que producción lee y escribe en **Convex**, no a mano: read smoke **58/58** sin 5xx, write-lifecycle **9/9** (incl. cadena insumo→servicio→receta→paciente→tratamiento), features **4/4**. Sin tocar la cuenta real de la doctora — se usó la cuenta de prueba `adventismael` (password reseteado vía admin API; prod login sigue Supabase `dual` por diseño). Tres specs parametrizados por env (`prod-convex-{read-smoke,write-lifecycle,write-features}.cy.ts`) + runbook reusable `docs/IMPORTANT/PROD-CONVEX-VERIFICATION-RUNBOOK.md`. Alcance: capa de datos (API routes) en el deploy real; no render React ni login convex-auth.
+
 ### 2026-06-07
 
 - **[2026-06-07-convex-only-write-cutover.md](2026-06-07-convex-only-write-cutover.md)** - Cutover de ESCRITURAS convex-only. El runtime mirror no salva escrituras → cada ruta necesita rama `shouldUseConvexOnlyWritePath`. 10 entidades CRUD core (lifecycle 9/9) + 26 rutas secundarias (settings/features feature-smoke 4/4; onboarding/team/invitations multi-tabla). Verificación adversarial 22/24 PASS + 2 bugs reales corregidos. Incidente: `git reset --hard` repetido por el dev server — mitigado commiteando por oleada.
