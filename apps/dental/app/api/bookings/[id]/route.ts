@@ -8,6 +8,7 @@ import { readJson } from '@/lib/validation'
 import { checkScheduleConflicts } from '@/lib/calendar/server-conflicts'
 import { checkConflicts, type Appointment } from '@/lib/calendar/conflict-detection'
 import { deriveTreatmentPaymentState } from '@/lib/calc/treatment-payment'
+import { sendAllTreatmentCreatedNotifications } from '@/lib/sms/service'
 import {
   getConvexDocumentByLegacyId,
   listConvexDocumentsByClinic,
@@ -200,10 +201,51 @@ async function confirmBooking(params: {
 
   if (updateError || !updatedBooking) throw updateError
 
+  // Notify the patient now, not when the request came in. The public booking
+  // endpoint deliberately does not message the contact details it was handed
+  // (they are unauthenticated input, see shouldDispatchToRequester in
+  // app/api/public/book/route.ts), so confirmation is the first point where a
+  // human has vetted the request. This also brings the flow in line with
+  // POST /api/treatments, which already notifies on appointment creation while
+  // confirming a public booking silently created one.
+  let notificationSent = false
+  try {
+    const { data: clinic } = await supabaseAdmin
+      .from('clinics')
+      .select('name')
+      .eq('id', clinicId)
+      .single()
+
+    const { data: patient } = await supabaseAdmin
+      .from('patients')
+      .select('first_name, last_name, phone')
+      .eq('id', patientId)
+      .single()
+
+    if (clinic && patient?.phone) {
+      const results = await sendAllTreatmentCreatedNotifications({
+        clinicId,
+        clinicName: clinic.name,
+        patientName: `${patient.first_name} ${patient.last_name}`.trim(),
+        patientPhone: patient.phone,
+        patientId,
+        treatmentId: treatment.id,
+        serviceName: service.name,
+        appointmentDate: booking.requested_date,
+        appointmentTime: normalizeTime(booking.requested_time) || '12:00',
+      })
+      notificationSent = results.patient.success || results.staff.primary.success
+    }
+  } catch (notificationError) {
+    // Best-effort: a failed notification must not roll back a confirmed appointment.
+    console.warn('[bookings confirm] Failed to send notifications:', notificationError)
+  }
+
   return NextResponse.json({
     data: updatedBooking,
     treatment,
     patient_id: patientId,
+    notification_sent: notificationSent,
   })
 }
 

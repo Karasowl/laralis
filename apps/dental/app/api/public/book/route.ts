@@ -67,6 +67,29 @@ function qaNotificationMode(request: NextRequest): QaNotificationMode {
   return mode === 'mock' || mode === 'fail' ? mode : null
 }
 
+/**
+ * Whether the public booking endpoint may send messages to the contact details
+ * supplied in the request body. Defaults to false: those details are attacker
+ * controlled on an unauthenticated endpoint. Set
+ * PUBLIC_BOOKING_DISPATCH_TO_REQUESTER=1 only if the abuse vector is mitigated
+ * some other way (captcha, verified contact) and the immediate acknowledgement
+ * is worth it.
+ */
+function shouldDispatchToRequester(): boolean {
+  return process.env.PUBLIC_BOOKING_DISPATCH_TO_REQUESTER === '1'
+}
+
+/** Result row for a notification recorded but intentionally not dispatched. */
+function deferredNotificationResult(channel: NotificationResult['channel']): NotificationResult {
+  return {
+    channel,
+    attempted: false,
+    mocked: false,
+    success: false,
+    error: 'deferred_until_confirmation',
+  }
+}
+
 function isSmsBookingEnabled(notificationSettings: Record<string, any> | null): boolean {
   return notificationSettings?.sms?.enabled === true
 }
@@ -721,6 +744,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const notificationSettings = (clinic.notification_settings || null) as Record<string, any> | null
     const notificationResults: NotificationResult[] = []
+    // The requester's email/phone arrive straight from an unauthenticated public
+    // form, so dispatching to them here turns this endpoint into an open relay:
+    // anyone can make the clinic's Twilio/Resend account message arbitrary
+    // destinations, burning credit and risking the WhatsApp number and the sending
+    // domain's reputation. The notification row is still written for traceability,
+    // and the real message goes out when staff confirms the request
+    // (confirmBooking in app/api/bookings/[id]/route.ts).
+    const dispatchToRequester = shouldDispatchToRequester()
     const message = bookingNotificationMessage({
       clinicName: clinic.name,
       patientName: data.patient_name,
@@ -742,6 +773,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             success: false,
             error: 'QA forced email failure'
           }
+        } else if (!mockNotifications && !dispatchToRequester) {
+          emailOutcome = deferredNotificationResult('email')
         } else if (!mockNotifications) {
           const result = await sendBookingConfirmation({
             clinicId: data.clinic_id,
@@ -831,6 +864,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             success: !forceFailedNotifications,
             error: forceFailedNotifications ? 'QA forced SMS failure' : undefined
           }))
+        } else if (!dispatchToRequester) {
+          notificationResults.push(deferredNotificationResult('sms'))
         } else {
           const result = await sendBookingReceivedSMS({
             clinicId: data.clinic_id,
@@ -878,6 +913,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             success: !forceFailedNotifications,
             error: forceFailedNotifications ? 'QA forced WhatsApp failure' : undefined
           }))
+        } else if (!dispatchToRequester) {
+          notificationResults.push(deferredNotificationResult('whatsapp'))
         } else {
           const result = await sendBookingReceivedWhatsApp({
             clinicId: data.clinic_id,
