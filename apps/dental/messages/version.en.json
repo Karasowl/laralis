@@ -15,6 +15,22 @@
       "documentation": "Documentation"
     },
     "releases": {
+      "v0_7_0": {
+        "date": "2026-07-28",
+        "title": "Closing unauthenticated access",
+        "security": [
+          "The Convex database exposed nine public queries with no authentication that let anyone who knew the backend URL dump any table, including patients, treatments and prescriptions. They now require the server secret and are unreachable from outside.",
+          "Lara's speech-to-text and text-to-speech endpoints required no session, so anyone could use them as a free voice service billed to the clinic. They now require a session and a Lara permission, and transcription caps audio at 25MB.",
+          "Public booking sent email, SMS and WhatsApp to whatever contact details arrived in the request, which allowed using the clinic's account to message arbitrary destinations. The patient is now notified when staff confirms the appointment.",
+          "Rate limits are now enforced at the firewall for public booking, the AI endpoints, login and the rest of the API."
+        ],
+        "fixed": [
+          "Confirming a booking request created the appointment silently, notifying neither the patient nor staff, unlike creating one from the panel. Both paths now notify the same way."
+        ],
+        "removed": [
+          "Rate-limiting code that was never actually active, along with its two dependencies."
+        ]
+      },
       "v0_6_1": {
         "date": "2026-05-12",
         "title": "Dashboard: 'Patients Seen' vs 'New Patients' per day",

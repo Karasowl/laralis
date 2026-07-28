@@ -2,6 +2,25 @@
 
 ## En Progreso
 
+- [x] TASK-20260728-close-public-convex-queries - Cerrar las 9 queries publicas de Convex ✅ COMPLETADO 2026-07-28
+  - **Priority**: P0 | **Estimate**: M | **Area**: infra/seguridad
+  - **Status**: ✅ Desplegado y verificado en prod. `convex/migration.ts` exportaba 9 `query` sin secreto ni `ctx.auth`; con la URL del bundle cualquiera volcaba cualquiera de las 67 tablas espejo. Verificado en vivo antes del fix: 251 pacientes y 442 tratamientos sin credenciales.
+  - Rollout expand-and-contract con `CONVEX_QUERY_SECRET_ENFORCED`, sin downtime y con reversión instantánea. `testHelpers.ts` con doble guarda.
+  - Ver: `docs/devlog/2026-07-28-close-unauthenticated-access.md`
+
+- [x] TASK-20260728-auth-ai-routes - Autenticar /api/ai/transcribe y /api/ai/synthesize ✅ COMPLETADO 2026-07-28
+  - **Priority**: P0 | **Estimate**: S | **Area**: seguridad
+  - **Status**: ✅ `withAnyPermission` con los permisos de Lara, límite de 25MB en el audio, `Cache-Control: private`. Nuevo `lib/ai/route-guards.ts` consolidando 3 copias de `laraPermissionForMode`.
+
+- [x] TASK-20260728-booking-notification-deferral - El booking público ya no mensajea a contactos arbitrarios ✅ COMPLETADO 2026-07-28
+  - **Priority**: P0 | **Estimate**: M | **Area**: seguridad/producto
+  - **Status**: ✅ Despacho al solicitante desactivado por defecto; el aviso sale al confirmar. Cierra además un hueco previo: confirmar una reserva creaba la cita sin notificar a nadie, a diferencia de `POST /api/treatments`.
+
+- [x] TASK-20260728-firewall-rate-limits - Rate limiting real en el Firewall de Vercel ✅ COMPLETADO 2026-07-28
+  - **Priority**: P0 | **Estimate**: S | **Area**: infra/seguridad
+  - **Status**: ✅ 4 reglas activas (config v2), verificadas contra prod: 10 de 14 POST a `/api/public/book` pasan, el resto 403. Eliminado el código muerto de Upstash (nunca estuvo activo) y sus 2 dependencias. `middleware.ts` 420 → 357 líneas.
+  - Definición reproducible en `apps/dental/scripts/firewall/rules.sh`.
+
 - [x] TASK-20260607-convex-only-CODE-COMPLETE - Cutover convex-only: TODO el código que toca datos ✅ COMPLETADO 2026-06-07
   - **Priority**: P0 | **Estimate**: XL | **Area**: infra/data
   - **Status**: ✅ Barrido final 0 gaps. Todas las rutas (lecturas 58 GET + escrituras de negocio) y TODOS los módulos compartidos (`ClinicSnapshotService`/Lara, `lib/ai/actions/*`, `lib/export/*`, `lib/snapshots/*`, `with-permission`, `auth-user-profiles`, `ai/service`, `calendar`, `push`, `sms`, `workspace-lifecycle`) son convex-only-capable, flag-gated, default Supabase.

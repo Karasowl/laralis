@@ -17,6 +17,10 @@ Cada entrada sigue la estructura:
 
 ## Entradas
 
+### 2026-07-28
+
+- **[2026-07-28-close-unauthenticated-access.md](2026-07-28-close-unauthenticated-access.md)** - Seguridad P0: la base de Convex exponía nueve queries públicas sin auth que permitían volcar cualquier tabla (verificado en vivo: 251 pacientes y 442 tratamientos sin credenciales); los endpoints de voz de Lara no pedían sesión; el booking público despachaba WhatsApp y SMS a destinos arbitrarios con la cuenta de la clínica; y el rate limiting nunca estuvo activo. Cierre con secreto de servidor y rollout expand-and-contract sin downtime, permisos en las rutas de IA, notificación diferida a la confirmación (que además ya no era silenciosa) y cuatro reglas de rate limit en el Firewall de Vercel. Bump 0.7.0.
+
 ### 2026-06-08
 
 - **[2026-06-08-prod-convex-live-verification.md](2026-06-08-prod-convex-live-verification.md)** - Verificación automatizada contra el sitio vivo (`https://laralis.vercel.app`) de que producción lee y escribe en **Convex**, no a mano: read smoke **58/58** sin 5xx, write-lifecycle **9/9** (incl. cadena insumo→servicio→receta→paciente→tratamiento), features **4/4**. Sin tocar la cuenta real de la doctora — se usó la cuenta de prueba `adventismael` (password reseteado vía admin API; prod login sigue Supabase `dual` por diseño). Tres specs parametrizados por env (`prod-convex-{read-smoke,write-lifecycle,write-features}.cy.ts`) + runbook reusable `docs/IMPORTANT/PROD-CONVEX-VERIFICATION-RUNBOOK.md`. Alcance: capa de datos (API routes) en el deploy real; no render React ni login convex-auth.
@@ -160,6 +164,6 @@ Cada entrada sigue la estructura:
 
 ## Stats
 
-- **Total entradas**: 27
-- **Ultima actualizacion**: 2026-02-05
+- **Total entradas**: 28
+- **Ultima actualizacion**: 2026-07-28
 - **Archivos documentados**: 235+
