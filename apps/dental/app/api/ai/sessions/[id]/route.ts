@@ -20,6 +20,7 @@ import {
   deleteConvexDocumentByLegacyId,
 } from '@/lib/convex/server'
 import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend'
+import { laraPermissionForMode } from '@/lib/ai/route-guards'
 
 export const dynamic = 'force-dynamic'
 
@@ -96,9 +97,6 @@ const updateSessionSchema = z.object({
 interface RouteContext {
   params: { id: string }
 }
-
-const laraPermissionForMode = (mode: string | null | undefined): Permission =>
-  mode === 'query' ? 'lara.use_query_mode' : 'lara.use_entry_mode'
 
 /**
  * GET /api/ai/sessions/[id]

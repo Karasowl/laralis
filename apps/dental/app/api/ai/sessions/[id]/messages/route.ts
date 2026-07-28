@@ -16,6 +16,7 @@ import {
   patchConvexDocumentByLegacyId,
 } from '@/lib/convex/server'
 import { shouldUseConvexOnlyWritePath } from '@/lib/data-backend'
+import { laraPermissionForMode } from '@/lib/ai/route-guards'
 
 export const dynamic = 'force-dynamic'
 
@@ -61,9 +62,6 @@ const createMessageSchema = z.object({
 interface RouteContext {
   params: { id: string }
 }
-
-const laraPermissionForMode = (mode: string | null | undefined): Permission =>
-  mode === 'query' ? 'lara.use_query_mode' : 'lara.use_entry_mode'
 
 /**
  * POST /api/ai/sessions/[id]/messages

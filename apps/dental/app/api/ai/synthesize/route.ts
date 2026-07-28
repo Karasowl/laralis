@@ -10,12 +10,17 @@ import { aiService } from '@/lib/ai'
 import { hasAIConfig, validateAIConfig } from '@/lib/ai/config'
 import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
+import { withAnyPermission } from '@/lib/middleware/with-permission'
+import { LARA_ANY_MODE_PERMISSIONS, MAX_SYNTHESIZE_TEXT_CHARS } from '@/lib/ai/route-guards'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
 
 const synthesizeRequestSchema = z.object({
-  text: z.string().min(1, 'No text provided').max(500, 'Text too long (max 500 characters)'),
+  text: z
+    .string()
+    .min(1, 'No text provided')
+    .max(MAX_SYNTHESIZE_TEXT_CHARS, `Text too long (max ${MAX_SYNTHESIZE_TEXT_CHARS} characters)`),
   voice: z.string().min(1).optional(),
   language: z.string().min(1).optional(),
 })
@@ -33,7 +38,12 @@ function isQaStage() {
   return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL?.includes(QA_STAGE_SUPABASE_REF))
 }
 
-export async function POST(request: NextRequest) {
+/**
+ * Auth gate: see lib/ai/route-guards.ts. This route was fully public and calls the
+ * paid TTS provider on the project's own key. Its only caller is
+ * components/ai-assistant/AudioPlayer.tsx, inside the authenticated Lara assistant.
+ */
+export const POST = withAnyPermission(LARA_ANY_MODE_PERMISSIONS, async (request) => {
   try {
     const qaMode = qaAiMode(request)
     const qaMockRequested = qaMode === 'mock'
@@ -105,7 +115,9 @@ export async function POST(request: NextRequest) {
       headers: {
         'Content-Type': 'audio/mpeg',
         'Content-Length': audioBuffer.byteLength.toString(),
-        'Cache-Control': 'public, max-age=3600', // Cache for 1 hour
+        // `private`, not `public`: the response is now behind a session and can
+        // contain clinic-specific text read aloud, so it must not sit in a shared cache.
+        'Cache-Control': 'private, max-age=3600',
       },
     })
   } catch (error) {
@@ -118,4 +130,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
-}
+})

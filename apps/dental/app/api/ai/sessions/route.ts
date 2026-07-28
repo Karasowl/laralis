@@ -19,6 +19,7 @@ import {
 } from '@/lib/permissions'
 import { listConvexDocumentsByClinic, upsertConvexDocumentByLegacyId } from '@/lib/convex/server'
 import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend'
+import { laraPermissionForMode } from '@/lib/ai/route-guards'
 
 export const dynamic = 'force-dynamic'
 
@@ -104,9 +105,6 @@ const createSessionSchema = z.object({
   mode: z.enum(['entry', 'query']),
   title: z.string().max(255).optional(),
 })
-
-const laraPermissionForMode = (mode: 'entry' | 'query'): Permission =>
-  mode === 'query' ? 'lara.use_query_mode' : 'lara.use_entry_mode'
 
 async function forbiddenIfMissingAnyLaraAccess(userId: string, clinicId: string) {
   const [canEntry, canQuery] = await Promise.all([
