@@ -14,7 +14,7 @@
 # code in middleware.ts covered none of that (see the comment at the top of that file).
 #
 # Status: these four rules are ALREADY applied to the `laralis` project (firewall
-# config version 2, all active). They were created through the REST API because the
+# config version 3, all active). They were created through the REST API because the
 # CLI was not authenticated on the machine at the time. This script is the
 # reproducible definition — re-run it to recreate them on a fresh project.
 #
@@ -66,14 +66,18 @@ vercel firewall rules add "rate-limit-auth" \
   --yes
 
 # Evaluation stops at the first matching rule, so the broad /api ceiling goes LAST.
+# 600/min, not 120: a dashboard load fires ~14 data hooks (~20-25 requests) and a
+# whole clinic shares one public IP, so a tighter general limit throttles real staff
+# before it ever inconveniences an attacker. The limits that actually carry the
+# security weight are the three specific ones above.
 vercel firewall rules add "rate-limit-api" \
   --condition '{"type":"path","op":"pre","value":"/api"}' \
   --action rate_limit \
   --rate-limit-window 60 \
-  --rate-limit-requests 120 \
+  --rate-limit-requests 600 \
   --rate-limit-keys ip \
   --rate-limit-action deny \
-  --description "General ceiling on the API surface" \
+  --description "General ceiling: 600/min per IP (clinic shares one IP)" \
   --yes
 
 echo
