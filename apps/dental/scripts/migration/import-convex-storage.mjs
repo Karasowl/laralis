@@ -98,6 +98,7 @@ for (const bucket of buckets) {
 
       if (!args.replace) {
         const existing = await client.query(api.migration.findStorageObject, {
+          secret,
           bucket: bucket.bucket,
           path: objectPath,
         })

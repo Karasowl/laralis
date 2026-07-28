@@ -21,6 +21,10 @@ if (args.envFile) loadEnv(path.resolve(process.cwd(), args.envFile))
 const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL
 if (!convexUrl) throw new Error('Missing NEXT_PUBLIC_CONVEX_URL.')
 
+// The mirror queries are secret-gated (see convex/migration.ts assertQueryAuth).
+const secret = process.env.CONVEX_AUTH_BRIDGE_SECRET
+if (!secret) throw new Error('Missing CONVEX_AUTH_BRIDGE_SECRET.')
+
 const manifestPath = path.resolve(process.cwd(), args.manifest)
 const exportDir = path.dirname(manifestPath)
 const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
@@ -47,6 +51,7 @@ const actualRows = []
 const bucketNames = [...new Set(expected.map((row) => row.bucket))]
 for (const bucket of bucketNames) {
   const rows = await client.query(api.migration.listStorageObjects, {
+    secret,
     bucket,
     limit: Math.max(1000, expected.length + 10),
   })

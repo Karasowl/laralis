@@ -22,6 +22,10 @@ if (!convexUrl) {
   throw new Error('Missing NEXT_PUBLIC_CONVEX_URL. Run npx convex dev --once or pass --env-file.')
 }
 
+// The mirror queries are secret-gated (see convex/migration.ts assertQueryAuth).
+const secret = process.env.CONVEX_AUTH_BRIDGE_SECRET
+if (!secret) throw new Error('Missing CONVEX_AUTH_BRIDGE_SECRET.')
+
 const manifestPath = path.resolve(process.cwd(), args.manifest)
 const prepared = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
 const expected = {}
@@ -37,7 +41,7 @@ if (prepared.authUsers) {
 const { api } = await import(pathToFileURL(path.join(appRoot, 'convex', '_generated', 'api.js')).href)
 const client = new ConvexHttpClient(convexUrl)
 const tables = Object.keys(expected).sort()
-const actual = await client.query(api.migration.tableCounts, { tables })
+const actual = await client.query(api.migration.tableCounts, { secret, tables })
 const mismatches = []
 
 for (const table of tables) {

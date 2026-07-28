@@ -61,7 +61,10 @@ function headersToObject(headers: HeadersInit | undefined) {
 }
 
 export async function getConvexTableCounts(tables?: string[]) {
-  return getConvexHttpClient().query(api.migration.tableCounts, { tables })
+  return getConvexHttpClient().query(api.migration.tableCounts, {
+    secret: getConvexBridgeSecret(),
+    tables,
+  })
 }
 
 /**
@@ -75,7 +78,7 @@ export async function processConvexRecurringExpenses(
   today?: string
 ): Promise<{ generated_count: number; clinic_id: string | null; expense_ids: string[] }> {
   return getConvexHttpClient().mutation(api.recurringExpenses.processDue, {
-    secret: getConvexMutationSecret(),
+    secret: getConvexBridgeSecret(),
     clinicId,
     today,
   })
@@ -83,24 +86,42 @@ export async function processConvexRecurringExpenses(
 
 export async function checkConvexMutationSecret() {
   return getConvexHttpClient().mutation(api.migration.checkSecret, {
-    secret: getConvexMutationSecret(),
+    secret: getConvexBridgeSecret(),
   })
 }
 
 export async function getConvexDocumentByLegacyId(table: string, legacyId: string) {
-  return getConvexHttpClient().query(api.migration.findByLegacyId, { table, legacyId })
+  return getConvexHttpClient().query(api.migration.findByLegacyId, {
+    secret: getConvexBridgeSecret(),
+    table,
+    legacyId,
+  })
 }
 
 export async function listConvexDocumentsByClinic(table: string, clinicId: string, limit = 10000) {
-  return getConvexHttpClient().query(api.migration.listByClinic, { table, clinicId, limit })
+  return getConvexHttpClient().query(api.migration.listByClinic, {
+    secret: getConvexBridgeSecret(),
+    table,
+    clinicId,
+    limit,
+  })
 }
 
 export async function listConvexTable(table: string, limit = 10000) {
-  return getConvexHttpClient().query(api.migration.listTable, { table, limit })
+  return getConvexHttpClient().query(api.migration.listTable, {
+    secret: getConvexBridgeSecret(),
+    table,
+    limit,
+  })
 }
 
 export async function listConvexDocumentsByWorkspace(table: string, workspaceId: string, limit = 10000) {
-  return getConvexHttpClient().query(api.migration.listByWorkspace, { table, workspaceId, limit })
+  return getConvexHttpClient().query(api.migration.listByWorkspace, {
+    secret: getConvexBridgeSecret(),
+    table,
+    workspaceId,
+    limit,
+  })
 }
 
 export async function getConvexAuthContext(userId: string) {
@@ -124,14 +145,14 @@ export async function createConvexPasswordReset(params: {
   createdBy?: string
 }) {
   return getConvexHttpClient().mutation(api.authBridge.createPasswordResetToken, {
-    secret: getConvexMutationSecret(),
+    secret: getConvexBridgeSecret(),
     ...params,
   })
 }
 
 export async function verifyConvexPasswordReset(tokenHash: string) {
   return getConvexHttpClient().query(api.authBridge.verifyPasswordResetToken, {
-    secret: getConvexMutationSecret(),
+    secret: getConvexBridgeSecret(),
     tokenHash,
   })
 }
@@ -143,7 +164,7 @@ export async function consumeConvexPasswordReset(params: {
   algorithm: string
 }) {
   return getConvexHttpClient().mutation(api.authBridge.consumePasswordResetToken, {
-    secret: getConvexMutationSecret(),
+    secret: getConvexBridgeSecret(),
     ...params,
   })
 }
@@ -242,7 +263,12 @@ export async function convexCheckSlotAvailable(params: {
   return Boolean(result)
 }
 
-function getConvexMutationSecret() {
+/**
+ * The shared Next.js <-> Convex server secret. Server-only: the variable has no
+ * NEXT_PUBLIC_ prefix, so it never reaches the browser bundle. Reads use it too
+ * (not just writes) since the mirror queries became secret-gated, hence the name.
+ */
+function getConvexBridgeSecret() {
   const secret = process.env.CONVEX_AUTH_BRIDGE_SECRET
   if (!secret) throw new Error('CONVEX_AUTH_BRIDGE_SECRET is required')
   return secret
@@ -250,7 +276,7 @@ function getConvexMutationSecret() {
 
 export async function upsertConvexDocumentByLegacyId(table: string, legacyId: string, row: Record<string, unknown>) {
   return getConvexHttpClient().mutation(api.migration.upsertByLegacyId, {
-    secret: getConvexMutationSecret(),
+    secret: getConvexBridgeSecret(),
     table,
     legacyId,
     row: prepareConvexRow(row, table, legacyId),
@@ -259,7 +285,7 @@ export async function upsertConvexDocumentByLegacyId(table: string, legacyId: st
 
 export async function replaceConvexTableSnapshot(table: string, rows: Array<Record<string, unknown>>, source?: string) {
   return getConvexHttpClient().mutation(api.migration.replaceTableSnapshot, {
-    secret: getConvexMutationSecret(),
+    secret: getConvexBridgeSecret(),
     table,
     rows: rows.map((row) => prepareConvexRow(row, table)),
     source,
@@ -268,7 +294,7 @@ export async function replaceConvexTableSnapshot(table: string, rows: Array<Reco
 
 export async function patchConvexDocumentByLegacyId(table: string, legacyId: string, patch: Record<string, unknown>) {
   return getConvexHttpClient().mutation(api.migration.patchByLegacyId, {
-    secret: getConvexMutationSecret(),
+    secret: getConvexBridgeSecret(),
     table,
     legacyId,
     patch: encodeConvexValue(patch) as Record<string, unknown>,
@@ -277,7 +303,7 @@ export async function patchConvexDocumentByLegacyId(table: string, legacyId: str
 
 export async function deleteConvexDocumentByLegacyId(table: string, legacyId: string) {
   return getConvexHttpClient().mutation(api.migration.deleteByLegacyId, {
-    secret: getConvexMutationSecret(),
+    secret: getConvexBridgeSecret(),
     table,
     legacyId,
   })
@@ -292,7 +318,7 @@ export async function uploadConvexStorageObject(params: {
 }) {
   const bytes = typeof params.data === 'string' ? new TextEncoder().encode(params.data) : params.data
   const uploadUrl = await getConvexHttpClient().mutation(api.migration.generateStorageUploadUrl, {
-    secret: getConvexMutationSecret(),
+    secret: getConvexBridgeSecret(),
   })
 
   const response = await fetch(uploadUrl, {
@@ -311,7 +337,7 @@ export async function uploadConvexStorageObject(params: {
   }
 
   return getConvexHttpClient().mutation(api.migration.recordStorageObject, {
-    secret: getConvexMutationSecret(),
+    secret: getConvexBridgeSecret(),
     bucket: params.bucket,
     path: params.path,
     storageId,
@@ -324,7 +350,7 @@ export async function uploadConvexStorageObject(params: {
 
 export async function deleteConvexStorageObject(bucket: string, path: string) {
   return getConvexHttpClient().mutation(api.migration.deleteStorageObject, {
-    secret: getConvexMutationSecret(),
+    secret: getConvexBridgeSecret(),
     bucket,
     path,
   })
@@ -340,6 +366,7 @@ export async function downloadConvexStorageObject(
   path: string
 ): Promise<Uint8Array | null> {
   const result = await getConvexHttpClient().query(api.migration.getStorageObjectUrl, {
+    secret: getConvexBridgeSecret(),
     bucket,
     path,
   })
@@ -361,6 +388,7 @@ export async function getConvexStorageObjectUrl(
   path: string
 ): Promise<string | null> {
   const result = await getConvexHttpClient().query(api.migration.getStorageObjectUrl, {
+    secret: getConvexBridgeSecret(),
     bucket,
     path,
   })

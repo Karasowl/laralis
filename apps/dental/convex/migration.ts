@@ -10,11 +10,39 @@ const INDEXED_TABLES = new Set<string>(MIRRORED_TABLE_NAMES)
 
 type ImportedDocument = Record<string, unknown>
 
-function assertMigrationSecret(secret: string) {
+function assertMigrationSecret(secret: string | undefined) {
   const expected = process.env.CONVEX_AUTH_BRIDGE_SECRET
   if (!expected || secret !== expected) {
     throw new Error('Unauthorized Convex migration request')
   }
+}
+
+/**
+ * Read-path authorization for the mirror queries.
+ *
+ * These queries used to be fully public. A Convex `query` export is callable by
+ * ANYONE who knows the deployment URL, and that URL ships to the browser as
+ * NEXT_PUBLIC_CONVEX_URL, so `listTable({table:'patients'})` was an unauthenticated
+ * dump of every mirrored table. All app reads go through the Next.js server
+ * (lib/convex/server.ts), never from the browser, so requiring the shared
+ * server secret closes that hole without touching the UI.
+ *
+ * `secret` stays OPTIONAL in the args validator on purpose: Convex rejects
+ * undeclared arguments, so a required arg would break every in-flight request
+ * from the previous Next.js build the instant this deploys. Enforcement is
+ * gated on CONVEX_QUERY_SECRET_ENFORCED instead, which lets the rollout be:
+ *
+ *   1. deploy Convex (open, nothing breaks)
+ *   2. deploy Next.js (now sends the secret, nothing breaks)
+ *   3. `npx convex env set CONVEX_QUERY_SECRET_ENFORCED 1` (hole closed, no redeploy)
+ *
+ * Step 3 is instant and reversible with `npx convex env remove ...`, which is the
+ * emergency rollback if a caller was missed. Once this has been enforced in
+ * production for a while, drop the flag and call assertMigrationSecret directly.
+ */
+function assertQueryAuth(secret: string | undefined) {
+  if (process.env.CONVEX_QUERY_SECRET_ENFORCED !== '1') return
+  assertMigrationSecret(secret)
 }
 
 function assertMigratedTable(table: string) {
@@ -85,9 +113,11 @@ async function findDocumentByLegacyId(ctx: any, table: string, legacyId: string)
 
 export const tableCounts = query({
   args: {
+    secret: v.optional(v.string()),
     tables: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
+    assertQueryAuth(args.secret)
     const tables = args.tables ?? [...MIGRATED_TABLES]
     const entries: Array<[string, number]> = []
 
@@ -133,21 +163,25 @@ export const clearTable = mutation({
 
 export const findByLegacyId = query({
   args: {
+    secret: v.optional(v.string()),
     table: v.string(),
     legacyId: v.string(),
   },
   handler: async (ctx, args) => {
+    assertQueryAuth(args.secret)
     return findDocumentByLegacyId(ctx, args.table, args.legacyId)
   },
 })
 
 export const listByClinic = query({
   args: {
+    secret: v.optional(v.string()),
     table: v.string(),
     clinicId: v.string(),
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    assertQueryAuth(args.secret)
     const limit = Math.max(1, Math.min(args.limit ?? 1000, 10000))
 
     if (INDEXED_TABLES.has(args.table)) {
@@ -168,10 +202,12 @@ export const listByClinic = query({
 
 export const listTable = query({
   args: {
+    secret: v.optional(v.string()),
     table: v.string(),
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    assertQueryAuth(args.secret)
     const limit = Math.max(1, Math.min(args.limit ?? 1000, 10000))
     const docs = (await ctx.db.query(args.table as any).collect()) as ImportedDocument[]
 
@@ -181,11 +217,13 @@ export const listTable = query({
 
 export const listByWorkspace = query({
   args: {
+    secret: v.optional(v.string()),
     table: v.string(),
     workspaceId: v.string(),
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    assertQueryAuth(args.secret)
     const limit = Math.max(1, Math.min(args.limit ?? 1000, 10000))
 
     if (INDEXED_TABLES.has(args.table)) {
@@ -368,24 +406,30 @@ export const deleteByLegacyId = mutation({
 
 export const findStorageObject = query({
   args: {
+    secret: v.optional(v.string()),
     bucket: v.string(),
     path: v.string(),
   },
   handler: async (ctx, args) => {
+    assertQueryAuth(args.secret)
     const docs = (await ctx.db.query('storage_objects' as any).collect()) as ImportedDocument[]
     return docs.find((doc) => doc.bucket === args.bucket && doc.path === args.path) ?? null
   },
 })
 
-// Resolve a stored blob's short-lived download URL by (bucket, path). Read-only
-// and secret-less, mirroring findStorageObject. Returns null when the object is
-// not mirrored so the Next.js caller can fall back to Supabase Storage.
+// Resolve a stored blob's short-lived download URL by (bucket, path), mirroring
+// findStorageObject. Returns null when the object is not mirrored so the Next.js
+// caller can fall back to Supabase Storage. Secret-gated: this hands out a signed
+// download URL, so leaving it open exposed every stored blob (snapshots, exports)
+// to anyone who could guess a bucket/path pair.
 export const getStorageObjectUrl = query({
   args: {
+    secret: v.optional(v.string()),
     bucket: v.string(),
     path: v.string(),
   },
   handler: async (ctx, args) => {
+    assertQueryAuth(args.secret)
     const docs = (await ctx.db.query('storage_objects' as any).collect()) as ImportedDocument[]
     const existing = docs.find((doc) => doc.bucket === args.bucket && doc.path === args.path)
     if (!existing || typeof existing.storageId !== 'string') return null
@@ -402,9 +446,11 @@ export const getStorageObjectUrl = query({
 
 export const storageObjectStats = query({
   args: {
+    secret: v.optional(v.string()),
     bucket: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    assertQueryAuth(args.secret)
     const docs = (await ctx.db.query('storage_objects' as any).collect()) as ImportedDocument[]
     const filtered = args.bucket ? docs.filter((doc) => doc.bucket === args.bucket) : docs
     const bytes = filtered.reduce((sum, doc) => sum + Number(doc.size ?? 0), 0)
@@ -419,10 +465,12 @@ export const storageObjectStats = query({
 
 export const listStorageObjects = query({
   args: {
+    secret: v.optional(v.string()),
     bucket: v.optional(v.string()),
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    assertQueryAuth(args.secret)
     const limit = Math.max(1, Math.min(args.limit ?? 1000, 10000))
     const docs = (await ctx.db.query('storage_objects' as any).collect()) as ImportedDocument[]
     const filtered = args.bucket ? docs.filter((doc) => doc.bucket === args.bucket) : docs
