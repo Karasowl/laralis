@@ -1,5 +1,33 @@
 import webpush from 'web-push'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import {
+  listConvexDocumentsByClinic,
+  upsertConvexDocumentByLegacyId,
+  patchConvexDocumentByLegacyId,
+  decodeConvexValue,
+} from '@/lib/convex/server'
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend'
+
+// Convex bookkeeping fields stripped from rows read back from Convex so the shape
+// mirrors what Supabase would return (see lib/snapshots/exporter.ts:stripConvexRow).
+const CONVEX_META_FIELDS = [
+  '_id',
+  '_creationTime',
+  'legacyId',
+  'legacyTable',
+  'convex_created_at',
+  'convex_updated_at',
+  'convex_snapshot_source',
+]
+
+function stripConvexRow(row: Record<string, any>): Record<string, any> {
+  const clean: Record<string, any> = {}
+  for (const [k, v] of Object.entries(row)) {
+    if (CONVEX_META_FIELDS.includes(k)) continue
+    clean[k] = v
+  }
+  return decodeConvexValue(clean) as Record<string, any>
+}
 
 export interface PushNotificationPayload {
   title: string
@@ -166,8 +194,35 @@ export function classifyWebPushError(error: unknown): {
   }
 }
 
+// Flag-gated backend selection. push_subscriptions reads and push_notifications /
+// push_subscriptions writes must survive convex-only mode (the runtime routes that
+// fire push notifications — treatments, cron/send-reminders, public/book — run
+// regardless of backend, so this store is reachable when Supabase is unreachable).
+const PUSH_DOMAIN = 'push_notifications'
+
 export class SupabasePushNotificationStore implements PushNotificationStore {
+  private readConvex(): boolean {
+    return shouldReturnConvexData(PUSH_DOMAIN)
+  }
+
+  private writeConvex(): boolean {
+    return shouldUseConvexOnlyWritePath(PUSH_DOMAIN)
+  }
+
   async listActiveSubscriptionsForUser(userId: string, clinicId: string): Promise<PushSubscriptionRow[]> {
+    if (this.readConvex()) {
+      const rows = (await listConvexDocumentsByClinic('push_subscriptions', clinicId)) as Record<string, any>[]
+      return rows
+        .map((r) => stripConvexRow(r))
+        .filter(
+          (r) =>
+            String(r.user_id) === String(userId) &&
+            String(r.clinic_id) === String(clinicId) &&
+            r.is_active === true
+        )
+        .map((r) => this.toSubscriptionRow(r))
+    }
+
     const { data, error } = await supabaseAdmin
       .from('push_subscriptions')
       .select('id, clinic_id, user_id, endpoint, keys_p256dh, keys_auth')
@@ -183,6 +238,14 @@ export class SupabasePushNotificationStore implements PushNotificationStore {
   }
 
   async listActiveSubscriptionsForClinic(clinicId: string): Promise<PushSubscriptionRow[]> {
+    if (this.readConvex()) {
+      const rows = (await listConvexDocumentsByClinic('push_subscriptions', clinicId)) as Record<string, any>[]
+      return rows
+        .map((r) => stripConvexRow(r))
+        .filter((r) => String(r.clinic_id) === String(clinicId) && r.is_active === true)
+        .map((r) => this.toSubscriptionRow(r))
+    }
+
     const { data, error } = await supabaseAdmin
       .from('push_subscriptions')
       .select('id, clinic_id, user_id, endpoint, keys_p256dh, keys_auth')
@@ -202,6 +265,27 @@ export class SupabasePushNotificationStore implements PushNotificationStore {
     notificationType: string
     payload: PushNotificationPayload
   }): Promise<string> {
+    if (this.writeConvex()) {
+      const id = crypto.randomUUID()
+      const nowIso = new Date().toISOString()
+      await upsertConvexDocumentByLegacyId('push_notifications', id, {
+        id,
+        clinic_id: input.clinicId,
+        subscription_id: input.subscriptionId,
+        notification_type: input.notificationType,
+        title: input.payload.title,
+        body: input.payload.body,
+        icon_url: input.payload.icon || null,
+        action_url: input.payload.url || null,
+        status: 'pending',
+        sent_at: null,
+        clicked_at: null,
+        error_message: null,
+        created_at: nowIso,
+      })
+      return id
+    }
+
     const { data, error } = await supabaseAdmin
       .from('push_notifications')
       .insert({
@@ -229,6 +313,15 @@ export class SupabasePushNotificationStore implements PushNotificationStore {
   }
 
   async markNotificationSent(notificationId: string): Promise<void> {
+    if (this.writeConvex()) {
+      await patchConvexDocumentByLegacyId('push_notifications', notificationId, {
+        status: 'sent',
+        sent_at: new Date().toISOString(),
+        error_message: null,
+      })
+      return
+    }
+
     const { error } = await supabaseAdmin
       .from('push_notifications')
       .update({
@@ -244,6 +337,14 @@ export class SupabasePushNotificationStore implements PushNotificationStore {
   }
 
   async markNotificationFailed(notificationId: string, errorMessage: string): Promise<void> {
+    if (this.writeConvex()) {
+      await patchConvexDocumentByLegacyId('push_notifications', notificationId, {
+        status: 'failed',
+        error_message: errorMessage,
+      })
+      return
+    }
+
     const { error } = await supabaseAdmin
       .from('push_notifications')
       .update({
@@ -258,6 +359,13 @@ export class SupabasePushNotificationStore implements PushNotificationStore {
   }
 
   async deactivateSubscription(subscriptionId: string): Promise<void> {
+    if (this.writeConvex()) {
+      await patchConvexDocumentByLegacyId('push_subscriptions', subscriptionId, {
+        is_active: false,
+      })
+      return
+    }
+
     const { error } = await supabaseAdmin
       .from('push_subscriptions')
       .update({ is_active: false })
@@ -265,6 +373,17 @@ export class SupabasePushNotificationStore implements PushNotificationStore {
 
     if (error) {
       throw new Error(`Failed to deactivate push subscription: ${error.message}`)
+    }
+  }
+
+  private toSubscriptionRow(row: Record<string, any>): PushSubscriptionRow {
+    return {
+      id: String(row.id),
+      clinic_id: String(row.clinic_id),
+      user_id: String(row.user_id),
+      endpoint: String(row.endpoint),
+      keys_p256dh: String(row.keys_p256dh),
+      keys_auth: String(row.keys_auth),
     }
   }
 }

@@ -18,6 +18,9 @@ import { readJson } from '@/lib/validation';
 import { forbiddenIfMissingPermission } from '@/lib/permissions';
 import { checkScheduleConflicts } from '@/lib/calendar/server-conflicts';
 import { getPushNotificationServiceForRequest } from '@/lib/notifications/qa';
+import { listConvexDocumentsByClinic, listConvexTable, upsertConvexDocumentByLegacyId, patchConvexDocumentByLegacyId, getConvexDocumentByLegacyId } from '@/lib/convex/server';
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath, shouldWriteConvexData } from '@/lib/data-backend';
+import { deriveTreatmentPaymentState } from '@/lib/calc/treatment-payment';
 
 export const dynamic = 'force-dynamic'
 
@@ -44,6 +47,309 @@ const treatmentSchema = z.object({
   snapshot_costs: z.record(z.any()).optional(),
 });
 
+type ImportedRecord = Record<string, any>
+
+function normalizeConvexRecord(row: ImportedRecord | null | undefined) {
+  if (!row) return null;
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row;
+  return rest;
+}
+
+function byId(rows: ImportedRecord[]) {
+  return new Map(
+    rows.flatMap((row) => {
+      const ids = [row.id, row.legacyId].filter(Boolean).map((id) => String(id));
+      return ids.map((id) => [id, row] as const);
+    })
+  );
+}
+
+function calculateFixedCostPerMinute(
+  timeSettings: ImportedRecord | null | undefined,
+  fixedCosts: ImportedRecord[],
+  assets: ImportedRecord[]
+) {
+  const fixedSum = fixedCosts.reduce((sum, row) => sum + (Number(row.amount_cents) || 0), 0);
+  const depreciation = assets.reduce((sum, asset) => {
+    const months = Number(asset.depreciation_months) || 1;
+    return sum + Math.round((Number(asset.purchase_price_cents) || 0) / months);
+  }, 0);
+  const workDays = Number(timeSettings?.work_days || 0);
+  const hoursPerDay = Number(timeSettings?.hours_per_day || 0);
+  const rawRealPct = Number(timeSettings?.real_pct || 0);
+  const realPct = rawRealPct > 1 ? rawRealPct / 100 : rawRealPct;
+  const effectiveMinutes = Math.round(workDays * hoursPerDay * 60 * Math.max(0, Math.min(1, realPct)));
+  const totalFixed = fixedSum + depreciation;
+  return effectiveMinutes > 0 && totalFixed > 0 ? Math.round(totalFixed / effectiveMinutes) : 0;
+}
+
+async function getTreatmentsFromConvex(
+  clinicId: string,
+  filters: {
+    patientId?: string | null
+    hasBalance?: boolean
+    dateFrom?: string | null
+    dateTo?: string | null
+  }
+) {
+  const [treatments, patients, services] = await Promise.all([
+    listConvexDocumentsByClinic('treatments', clinicId, 2000) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('patients', clinicId, 1000) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('services', clinicId, 1000) as Promise<ImportedRecord[]>,
+  ]);
+  const patientsById = byId(patients);
+  const servicesById = byId(services);
+
+  return treatments
+    .filter((row) => {
+      if (filters.patientId && row.patient_id !== filters.patientId) return false;
+      if (filters.hasBalance && Number(row.pending_balance_cents || 0) <= 0) return false;
+      if (filters.dateFrom && String(row.treatment_date || '') < filters.dateFrom) return false;
+      if (filters.dateTo && String(row.treatment_date || '') > filters.dateTo) return false;
+      return true;
+    })
+    .sort((a, b) => String(b.treatment_date || '').localeCompare(String(a.treatment_date || '')))
+    .map((row) => {
+      const patient = row.patient_id ? patientsById.get(String(row.patient_id)) : null;
+      const service = row.service_id ? servicesById.get(String(row.service_id)) : null;
+      return {
+        ...normalizeConvexRecord(row),
+        patient: patient
+          ? {
+              id: patient.id,
+              first_name: patient.first_name,
+              last_name: patient.last_name,
+            }
+          : null,
+        service: service
+          ? {
+              id: service.id,
+              name: service.name,
+              variable_cost_cents: service.variable_cost_cents,
+            }
+          : null,
+        minutes: (row.duration_minutes ?? row.minutes) ?? 0,
+        fixed_per_minute_cents: (row.fixed_cost_per_minute_cents ?? row.fixed_per_minute_cents) ?? 0,
+        amount_paid_cents: row.amount_paid_cents ?? 0,
+        is_paid: row.is_paid ?? false,
+        status: (row.status === 'scheduled' || row.status === 'in_progress') ? 'pending' : (row.status || 'pending'),
+      };
+    });
+}
+
+/**
+ * Convex port of create_treatment_reminder() (migration 61). For each newly created
+ * scheduled treatment whose date is today or later, insert a scheduled_reminders row
+ * based on the clinic's notification_settings (reminder_enabled / reminder_hours_before).
+ * Best-effort: a failure logs and never fails treatment creation. Fresh treatment ids
+ * mean no ON CONFLICT (treatment_id, reminder_type) collision on the create path.
+ */
+async function scheduleConvexTreatmentReminders(
+  createdRows: Array<Record<string, any>>,
+  clinicId: string,
+  now: string
+): Promise<void> {
+  try {
+    const todayStr = now.slice(0, 10);
+    const scheduledRows = createdRows.filter(
+      (r) => r.status === 'scheduled' && String(r.treatment_date).slice(0, 10) >= todayStr
+    );
+    if (scheduledRows.length === 0) return;
+
+    const clinic = (await getConvexDocumentByLegacyId('clinics', clinicId)) as Record<string, any> | null;
+    const settings = (clinic?.notification_settings ?? null) as Record<string, any> | null;
+    if (!settings || settings.reminder_enabled !== true) return;
+
+    // COALESCE(reminder_hours_before, 24): only NULL/undefined defaults to 24, an
+    // explicit 0 stays 0 (reminder at treatment time). `Number(x) || 24` would wrongly
+    // turn 0 into 24.
+    const rawReminderHours = settings.reminder_hours_before;
+    const reminderHours =
+      rawReminderHours != null && !Number.isNaN(Number(rawReminderHours))
+        ? Number(rawReminderHours)
+        : 24;
+    const reminderType =
+      reminderHours === 24 ? '24h' : reminderHours === 48 ? '48h' : reminderHours === 1 ? '1h' : 'custom';
+    const nowMs = new Date(now).getTime();
+
+    for (const r of scheduledRows) {
+      const time = r.treatment_time || '12:00:00';
+      const treatmentDateTime = new Date(`${String(r.treatment_date).slice(0, 10)}T${time}`);
+      const reminderDateTime = new Date(treatmentDateTime.getTime() - reminderHours * 3600 * 1000);
+      if (reminderDateTime.getTime() <= nowMs) continue;
+      const id = crypto.randomUUID();
+      await upsertConvexDocumentByLegacyId('scheduled_reminders', id, {
+        id,
+        clinic_id: clinicId,
+        treatment_id: r.id,
+        patient_id: r.patient_id,
+        scheduled_for: reminderDateTime.toISOString(),
+        reminder_type: reminderType,
+        status: 'pending',
+        created_at: now,
+      });
+    }
+  } catch (error) {
+    console.warn('[treatments] convex reminder scheduling failed', { clinicId, error });
+  }
+}
+
+async function createTreatmentsInConvex(
+  clinicId: string,
+  payloadBody: z.infer<typeof treatmentSchema>,
+  treatmentCount: number,
+  normalizedStatus: string,
+  minutesVal: number,
+  priceVal: number,
+  amountPaidVal: number,
+  pendingBalanceVal: number,
+  marginVal: number
+) {
+  const [
+    timeRows,
+    fixedCosts,
+    assets,
+    serviceSupplies,
+    existingTreatments,
+    patients,
+    services,
+  ] = await Promise.all([
+    listConvexDocumentsByClinic('settings_time', clinicId, 10) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('fixed_costs', clinicId, 1000) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('assets', clinicId, 1000) as Promise<ImportedRecord[]>,
+    listConvexTable('service_supplies', 5000) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('treatments', clinicId, 2000) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('patients', clinicId, 1000) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('services', clinicId, 1000) as Promise<ImportedRecord[]>,
+  ]);
+
+  const calculatedCostPerMinute = calculateFixedCostPerMinute(timeRows[0], fixedCosts, assets);
+  if (calculatedCostPerMinute <= 0) {
+    return NextResponse.json({ error: 'precondition_failed', message: 'Cost per minute is not configured. Complete time and fixed costs.' }, { status: 412 });
+  }
+
+  const serviceRecipeCount = serviceSupplies.filter((row) => row.service_id === payloadBody.service_id).length;
+  if (serviceRecipeCount <= 0) {
+    return NextResponse.json({ error: 'precondition_failed', message: 'Service has no recipe. Define supplies for the service.' }, { status: 412 });
+  }
+
+  if (
+    payloadBody.treatment_time &&
+    ['scheduled', 'in_progress'].includes(normalizedStatus)
+  ) {
+    if (treatmentCount > 1) {
+      return NextResponse.json(
+        {
+          error: 'appointment_conflict',
+          message: 'Multiple scheduled appointments cannot share the same time slot.',
+          conflicts: [],
+        },
+        { status: 409 }
+      );
+    }
+
+    const conflict = existingTreatments.find((row) => {
+      return (
+        row.treatment_date === (payloadBody.treatment_date || new Date().toISOString().split('T')[0]) &&
+        row.treatment_time === payloadBody.treatment_time &&
+        ['scheduled', 'in_progress'].includes(row.status)
+      );
+    });
+    if (conflict) {
+      return NextResponse.json(
+        {
+          error: 'appointment_conflict',
+          message: 'The selected appointment time conflicts with an existing appointment or public booking request.',
+          conflicts: [normalizeConvexRecord(conflict)],
+        },
+        { status: 409 }
+      );
+    }
+  }
+
+  const now = new Date().toISOString();
+  const treatmentDate = payloadBody.treatment_date || new Date().toISOString().split('T')[0];
+  // Reproduce the calculate_treatment_is_paid trigger (migration 73): clamp pending >= 0,
+  // is_paid = pending==0 OR status=='cancelled'. In Supabase mode the DB trigger fills
+  // is_paid; in convex-only mode we must stamp it or completed+paid treatments read unpaid.
+  const { pendingBalanceCents: clampedPending, isPaid } = deriveTreatmentPaymentState({
+    pendingBalanceCents: pendingBalanceVal,
+    status: normalizedStatus,
+  });
+  const basePayload = {
+    clinic_id: clinicId,
+    patient_id: payloadBody.patient_id,
+    service_id: payloadBody.service_id,
+    treatment_date: treatmentDate,
+    treatment_time: payloadBody.treatment_time || null,
+    duration_minutes: minutesVal || 30,
+    fixed_cost_per_minute_cents: calculatedCostPerMinute,
+    variable_cost_cents: payloadBody.variable_cost_cents ?? 0,
+    margin_pct: marginVal || 60,
+    price_cents: priceVal || 0,
+    amount_paid_cents: amountPaidVal,
+    pending_balance_cents: clampedPending,
+    is_paid: isPaid,
+    status: normalizedStatus,
+    notes: payloadBody.notes?.trim() ? payloadBody.notes.trim() : null,
+    snapshot_costs: payloadBody.snapshot_costs || {},
+    minutes: minutesVal || 30,
+    fixed_per_minute_cents: calculatedCostPerMinute,
+    created_at: now,
+    updated_at: now,
+  };
+
+  const createdRows = [];
+  for (let index = 0; index < treatmentCount; index++) {
+    const id = crypto.randomUUID();
+    const row = {
+      ...basePayload,
+      id,
+    };
+    await upsertConvexDocumentByLegacyId('treatments', id, row);
+    createdRows.push(row);
+  }
+
+  // Reproduce create_treatment_reminder() (trigger, migration 61): schedule a
+  // reminder row for each future scheduled treatment per the clinic's notification
+  // settings. In Supabase mode the DB trigger does this; the inline confirmation
+  // email/SMS/push is separate.
+  await scheduleConvexTreatmentReminders(createdRows, clinicId, now);
+
+  if (normalizedStatus === 'completed') {
+    const patient = patients.find((row) => row.id === payloadBody.patient_id || row.legacyId === payloadBody.patient_id);
+    const current = patient?.first_visit_date as string | null | undefined;
+    if (patient && (!current || current > treatmentDate)) {
+      await patchConvexDocumentByLegacyId('patients', String(patient.id || patient.legacyId), {
+        first_visit_date: treatmentDate,
+        updated_at: now,
+      });
+    }
+  }
+
+  const patientsById = byId(patients);
+  const servicesById = byId(services);
+  const mappedRows = createdRows.map((row) => {
+    const patient = patientsById.get(row.patient_id);
+    const service = servicesById.get(row.service_id);
+    return {
+      ...row,
+      patient: patient ? { id: patient.id, first_name: patient.first_name, last_name: patient.last_name } : null,
+      service: service ? { id: service.id, name: service.name, variable_cost_cents: service.variable_cost_cents } : null,
+    };
+  });
+
+  return NextResponse.json({
+    data: mappedRows.length === 1 ? mappedRows[0] : mappedRows,
+    created_count: mappedRows.length,
+    message: mappedRows.length === 1 ? 'Treatment created successfully' : `${mappedRows.length} treatments created successfully`,
+    calendarSync: undefined,
+    emailSent: false,
+    smsSent: false,
+    pushSent: false,
+  });
+}
+
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = cookies();
@@ -60,6 +366,16 @@ export async function GET(request: NextRequest) {
     const hasBalance = searchParams.get('has_balance') === 'true';
     const dateFrom = searchParams.get('start_date') || searchParams.get('date_from') || searchParams.get('from');
     const dateTo = searchParams.get('end_date') || searchParams.get('date_to') || searchParams.get('to');
+
+    if (shouldReturnConvexData('treatments')) {
+      const data = await getTreatmentsFromConvex(clinicId, {
+        patientId,
+        hasBalance,
+        dateFrom,
+        dateTo,
+      });
+      return NextResponse.json({ data });
+    }
 
     let query = supabaseAdmin
       .from('treatments')
@@ -126,7 +442,7 @@ export async function POST(request: NextRequest) {
     if ('error' in bodyResult) {
       return bodyResult.error;
     }
-    const rawBody = bodyResult.data;
+    const rawBody = bodyResult.data as Record<string, any>;
     const parsed = treatmentSchema.safeParse(rawBody);
     if (!parsed.success) {
       const message = parsed.error.errors.map(err => err.message).join(', ');
@@ -153,6 +469,49 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Patient and service are required' },
         { status: 400 }
+      );
+    }
+
+    const minutesVal = Number(
+      (payloadBody.duration_minutes ?? payloadBody.minutes) || 0
+    );
+    const priceVal = Number(payloadBody.price_cents ?? 0);
+    const marginVal = Number(payloadBody.margin_pct ?? 60);
+    const normalizedStatus = (() => {
+      const status = payloadBody.status;
+      if (!status) return 'scheduled';
+      return status === 'pending' ? 'scheduled' : status;
+    })();
+    const amountPaidVal = Number(payloadBody.amount_paid_cents ?? 0);
+    const pendingBalanceVal = payloadBody.pending_balance_cents ?? Math.max(0, (priceVal || 0) - amountPaidVal);
+    const quantityRaw = payloadBody.quantity ?? payloadBody.multiplier ?? 1;
+    const quantity = Number(quantityRaw);
+    if (!Number.isFinite(quantity) || quantity < 1 || quantity > 100) {
+      return NextResponse.json({ error: 'validation_error', message: 'quantity must be between 1 and 100.' }, { status: 400 });
+    }
+    const treatmentCount = Math.floor(quantity);
+
+    if (!minutesVal || minutesVal <= 0) {
+      return NextResponse.json({ error: 'precondition_failed', message: 'Minutes must be greater than zero.' }, { status: 412 });
+    }
+    if (marginVal < 0) {
+      return NextResponse.json({ error: 'precondition_failed', message: 'Margin percentage must be non-negative.' }, { status: 412 });
+    }
+    if (normalizedStatus === 'completed' && (!priceVal || priceVal <= 0)) {
+      return NextResponse.json({ error: 'precondition_failed', message: 'Tariff/price is required to complete a treatment.' }, { status: 412 });
+    }
+
+    if (shouldUseConvexOnlyWritePath('treatments')) {
+      return createTreatmentsInConvex(
+        clinicId,
+        payloadBody,
+        treatmentCount,
+        normalizedStatus,
+        minutesVal,
+        priceVal,
+        amountPaidVal,
+        pendingBalanceVal,
+        marginVal
       );
     }
 
@@ -204,36 +563,6 @@ export async function POST(request: NextRequest) {
       // If any check fails unexpectedly, do not mask as 500; surface as precondition
       return NextResponse.json({ error: 'precondition_failed', message: 'Unable to verify prerequisites for treatment creation.' }, { status: 412 });
     }
-
-    // Validate pricing snapshot presence
-    const minutesVal = Number(
-      (payloadBody.duration_minutes ?? payloadBody.minutes) || 0
-    );
-    const priceVal = Number(payloadBody.price_cents ?? 0);
-    const marginVal = Number(payloadBody.margin_pct ?? 60);
-    if (!minutesVal || minutesVal <= 0) {
-      return NextResponse.json({ error: 'precondition_failed', message: 'Minutes must be greater than zero.' }, { status: 412 });
-    }
-    if (marginVal < 0) {
-      return NextResponse.json({ error: 'precondition_failed', message: 'Margin percentage must be non-negative.' }, { status: 412 });
-    }
-    // If status is completed, require a positive price snapshot
-    const normalizedStatus = (() => {
-      const status = payloadBody.status;
-      if (!status) return 'scheduled';
-      return status === 'pending' ? 'scheduled' : status;
-    })();
-    if (normalizedStatus === 'completed' && (!priceVal || priceVal <= 0)) {
-      return NextResponse.json({ error: 'precondition_failed', message: 'Tariff/price is required to complete a treatment.' }, { status: 412 });
-    }
-    const amountPaidVal = Number(payloadBody.amount_paid_cents ?? 0);
-    const pendingBalanceVal = payloadBody.pending_balance_cents ?? Math.max(0, (priceVal || 0) - amountPaidVal);
-    const quantityRaw = payloadBody.quantity ?? payloadBody.multiplier ?? 1;
-    const quantity = Number(quantityRaw);
-    if (!Number.isFinite(quantity) || quantity < 1 || quantity > 100) {
-      return NextResponse.json({ error: 'validation_error', message: 'quantity must be between 1 and 100.' }, { status: 400 });
-    }
-    const treatmentCount = Math.floor(quantity);
 
     // Map UI payload to DB column names and allowed values
     const treatmentData = {
@@ -417,6 +746,7 @@ export async function POST(request: NextRequest) {
             .from('treatments')
             .update({ google_event_id: calendarSync.eventId })
             .eq('id', created.id);
+          created.google_event_id = calendarSync.eventId;
         }
       }
     } catch (e) {
@@ -601,6 +931,18 @@ export async function POST(request: NextRequest) {
       }
     } catch (e) {
       console.warn('[treatments POST] Failed to send push notifications:', e);
+    }
+
+    if (shouldWriteConvexData('treatments')) {
+      for (const row of createdRows) {
+        if (row?.id) {
+          try {
+            await upsertConvexDocumentByLegacyId('treatments', row.id, row);
+          } catch (convexError) {
+            console.error('[treatments POST] Convex dual-write failed:', convexError);
+          }
+        }
+      }
     }
 
     const createdCount = createdRows.length;

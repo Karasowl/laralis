@@ -3,6 +3,8 @@ import { cookies } from 'next/headers'
 import { resolveClinicContext } from '@/lib/clinic'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { listConvexDocumentsByClinic } from '@/lib/convex/server';
+import { shouldReturnConvexData } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
 
@@ -42,36 +44,53 @@ export async function GET(request: NextRequest) {
     const startISO = start && !Number.isNaN(start.getTime()) ? start.toISOString().split('T')[0] : null
     const endISO = end && !Number.isNaN(end.getTime()) ? end.toISOString().split('T')[0] : null
 
-    // Get treatments first, then resolve service names explicitly. This avoids
-    // silently empty embedded relation results in chart/report contexts.
-    let query = supabaseAdmin
-      .from('treatments')
-      .select('service_id, treatment_date')
-      .eq('clinic_id', clinicId)
-
-    if (startISO) query = query.gte('treatment_date', startISO)
-    if (endISO) query = query.lte('treatment_date', endISO)
-
-    const { data: treatments, error } = await query
-
-    if (error) throw error
-
-    const serviceIds = Array.from(new Set((treatments || []).map((treatment) => treatment.service_id).filter(Boolean)))
+    let treatments: any[] = []
     const serviceNames = new Map<string, string>()
-    if (serviceIds.length > 0) {
-      const { data: services, error: serviceError } = await supabaseAdmin
-        .from('services')
-        .select('id, name')
-        .in('id', serviceIds)
-      if (serviceError) throw serviceError
 
-      for (const service of services || []) {
+    if (shouldReturnConvexData('dashboard')) {
+      const [convexTreatments, convexServices] = await Promise.all([
+        listConvexDocumentsByClinic('treatments', clinicId),
+        listConvexDocumentsByClinic('services', clinicId),
+      ])
+      treatments = convexTreatments.filter((treatment: any) => {
+        const treatmentDate = String(treatment.treatment_date || '')
+        return (!startISO || treatmentDate >= startISO) && (!endISO || treatmentDate <= endISO)
+      })
+      for (const service of convexServices as any[]) {
         serviceNames.set(service.id, service.name || 'Servicio sin nombre')
+      }
+    } else {
+      // Get treatments first, then resolve service names explicitly. This avoids
+      // silently empty embedded relation results in chart/report contexts.
+      let query = supabaseAdmin
+        .from('treatments')
+        .select('service_id, treatment_date')
+        .eq('clinic_id', clinicId)
+
+      if (startISO) query = query.gte('treatment_date', startISO)
+      if (endISO) query = query.lte('treatment_date', endISO)
+
+      const { data, error } = await query
+
+      if (error) throw error
+      treatments = data || []
+
+      const serviceIds = Array.from(new Set(treatments.map((treatment) => treatment.service_id).filter(Boolean)))
+      if (serviceIds.length > 0) {
+        const { data: services, error: serviceError } = await supabaseAdmin
+          .from('services')
+          .select('id, name')
+          .in('id', serviceIds)
+        if (serviceError) throw serviceError
+
+        for (const service of services || []) {
+          serviceNames.set(service.id, service.name || 'Servicio sin nombre')
+        }
       }
     }
 
     const serviceCounts: Record<string, number> = {}
-    treatments?.forEach(treatment => {
+    treatments.forEach(treatment => {
       const serviceName = treatment.service_id ? serviceNames.get(treatment.service_id) || 'Servicio sin nombre' : 'Sin servicio'
       serviceCounts[serviceName] = (serviceCounts[serviceName] || 0) + 1
     })

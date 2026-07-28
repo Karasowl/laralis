@@ -20,6 +20,35 @@ import type {
 } from './types';
 import { addChecksum, validateMoneyFields } from './checksum';
 import { CURRENT_SCHEMA_VERSION, EXPORT_FORMAT_VERSION } from './migrations';
+import {
+  getConvexDocumentByLegacyId,
+  listConvexDocumentsByClinic,
+  listConvexDocumentsByWorkspace,
+  listConvexTable,
+  decodeConvexValue,
+} from '@/lib/convex/server';
+import { shouldReturnConvexData } from '@/lib/data-backend';
+
+// Convex bookkeeping fields stripped from exported rows so the bundle mirrors the
+// shape Supabase would produce (the importer re-encodes on restore).
+const CONVEX_META_FIELDS = [
+  '_id',
+  '_creationTime',
+  'legacyId',
+  'legacyTable',
+  'convex_created_at',
+  'convex_updated_at',
+  'convex_snapshot_source',
+];
+
+function stripConvexRow(row: Record<string, unknown>): Record<string, unknown> {
+  const clean: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(row)) {
+    if (CONVEX_META_FIELDS.includes(k)) continue;
+    clean[k] = v;
+  }
+  return decodeConvexValue(clean) as Record<string, unknown>;
+}
 
 type ExportRow = Record<string, unknown> & {
   id?: string;
@@ -90,6 +119,9 @@ export class WorkspaceExporter {
   private workspaceId: string;
   private options: ExporterOptions;
   private stats: ExportStats;
+  // In convex-only mode the Supabase client is unreachable (.from() throws). Read every
+  // table from Convex instead. Default mode stays supabase (flag resolves to false).
+  private convexRead: boolean = shouldReturnConvexData('export');
 
   constructor(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -196,6 +228,20 @@ export class WorkspaceExporter {
    * Fetch workspace
    */
   private async fetchWorkspace(): Promise<Workspace> {
+    if (this.convexRead) {
+      const doc = (await getConvexDocumentByLegacyId('workspaces', this.workspaceId)) as Record<
+        string,
+        unknown
+      > | null;
+      if (!doc) {
+        throw new ExportError('Workspace not found', 'WORKSPACE_NOT_FOUND', {
+          workspaceId: this.workspaceId,
+        });
+      }
+      this.recordCount('workspaces', 1);
+      return stripConvexRow(doc) as unknown as Workspace;
+    }
+
     const { data, error } = await this.supabase
       .from('workspaces')
       .select('*')
@@ -220,6 +266,13 @@ export class WorkspaceExporter {
    * Fetch organizations (legacy)
    */
   private async fetchOrganizations(): Promise<Organization[]> {
+    if (this.convexRead) {
+      const rows = (await listConvexTable('organizations')) as Record<string, unknown>[];
+      const cleaned = rows.map((r) => stripConvexRow(r));
+      this.recordCount('organizations', cleaned.length);
+      return cleaned as unknown as Organization[];
+    }
+
     const { data, error } = await this.supabase.from('organizations').select('*');
 
     if (error) {
@@ -236,6 +289,13 @@ export class WorkspaceExporter {
    * Fetch category types
    */
   private async fetchCategoryTypes(): Promise<CategoryType[]> {
+    if (this.convexRead) {
+      const rows = (await listConvexTable('category_types')) as Record<string, unknown>[];
+      const cleaned = rows.map((r) => stripConvexRow(r));
+      this.recordCount('category_types', cleaned.length);
+      return cleaned as unknown as CategoryType[];
+    }
+
     const { data, error } = await this.supabase.from('category_types').select('*');
 
     if (error) {
@@ -252,6 +312,13 @@ export class WorkspaceExporter {
    * Fetch role permissions
    */
   private async fetchRolePermissions(): Promise<RolePermission[]> {
+    if (this.convexRead) {
+      const rows = (await listConvexTable('role_permissions')) as Record<string, unknown>[];
+      const cleaned = rows.map((r) => stripConvexRow(r));
+      this.recordCount('role_permissions', cleaned.length);
+      return cleaned as unknown as RolePermission[];
+    }
+
     const { data, error } = await this.supabase.from('role_permissions').select('*');
 
     if (error) {
@@ -270,6 +337,16 @@ export class WorkspaceExporter {
    * Fetch workspace users
    */
   private async fetchWorkspaceUsers(): Promise<WorkspaceUser[]> {
+    if (this.convexRead) {
+      const rows = (await listConvexDocumentsByWorkspace(
+        'workspace_users',
+        this.workspaceId
+      )) as Record<string, unknown>[];
+      const cleaned = rows.map((r) => stripConvexRow(r));
+      this.recordCount('workspace_users', cleaned.length);
+      return cleaned as unknown as WorkspaceUser[];
+    }
+
     const { data, error } = await this.supabase
       .from('workspace_users')
       .select('*')
@@ -289,6 +366,16 @@ export class WorkspaceExporter {
    * Fetch workspace members
    */
   private async fetchWorkspaceMembers(): Promise<WorkspaceMember[]> {
+    if (this.convexRead) {
+      const rows = (await listConvexDocumentsByWorkspace(
+        'workspace_members',
+        this.workspaceId
+      )) as Record<string, unknown>[];
+      const cleaned = rows.map((r) => stripConvexRow(r));
+      this.recordCount('workspace_members', cleaned.length);
+      return cleaned as unknown as WorkspaceMember[];
+    }
+
     const { data, error } = await this.supabase
       .from('workspace_members')
       .select('*')
@@ -314,13 +401,24 @@ export class WorkspaceExporter {
    * Fetch all clinics with nested data
    */
   private async fetchClinics(): Promise<ClinicDataBundle[]> {
-    const { data: clinicsData, error } = await this.supabase
-      .from('clinics')
-      .select('*')
-      .eq('workspace_id', this.workspaceId);
+    let clinicsData: Clinic[] | null;
 
-    if (error) {
-      throw new ExportError('Failed to fetch clinics', 'FETCH_CLINICS_FAILED', { error });
+    if (this.convexRead) {
+      const rows = (await listConvexDocumentsByWorkspace(
+        'clinics',
+        this.workspaceId
+      )) as Record<string, unknown>[];
+      clinicsData = rows.map((r) => stripConvexRow(r)) as unknown as Clinic[];
+    } else {
+      const { data, error } = await this.supabase
+        .from('clinics')
+        .select('*')
+        .eq('workspace_id', this.workspaceId);
+
+      if (error) {
+        throw new ExportError('Failed to fetch clinics', 'FETCH_CLINICS_FAILED', { error });
+      }
+      clinicsData = data as Clinic[] | null;
     }
 
     this.recordCount('clinics', clinicsData?.length || 0);
@@ -569,6 +667,15 @@ export class WorkspaceExporter {
   // These methods follow the same pattern and respect RLS
 
   private async fetchSettingsTime(clinicId: string) {
+    if (this.convexRead) {
+      const rows = (await listConvexDocumentsByClinic('settings_time', clinicId)) as Record<
+        string,
+        unknown
+      >[];
+      const data = rows.length > 0 ? stripConvexRow(rows[0]) : null;
+      if (data) this.recordCount('settings_time', 1);
+      return data || null;
+    }
     const { data } = await this.supabase
       .from('settings_time')
       .select('*')
@@ -579,6 +686,7 @@ export class WorkspaceExporter {
   }
 
   private async fetchCustomCategories(clinicId: string) {
+    if (this.convexRead) return this.fetchConvexRowsByClinic('custom_categories', clinicId);
     const { data } = await this.supabase
       .from('custom_categories')
       .select('*')
@@ -588,12 +696,14 @@ export class WorkspaceExporter {
   }
 
   private async fetchCategories(clinicId: string) {
+    if (this.convexRead) return this.fetchConvexRowsByClinic('categories', clinicId);
     const { data } = await this.supabase.from('categories').select('*').eq('clinic_id', clinicId);
     this.recordCount('categories', data?.length || 0);
     return data || [];
   }
 
   private async fetchPatientSources(clinicId: string) {
+    if (this.convexRead) return this.fetchConvexRowsByClinic('patient_sources', clinicId);
     const { data } = await this.supabase
       .from('patient_sources')
       .select('*')
@@ -603,18 +713,21 @@ export class WorkspaceExporter {
   }
 
   private async fetchInvitations(clinicId: string) {
+    if (this.convexRead) return this.fetchConvexRowsByClinic('invitations', clinicId);
     const { data } = await this.supabase.from('invitations').select('*').eq('clinic_id', clinicId);
     this.recordCount('invitations', data?.length || 0);
     return data || [];
   }
 
   private async fetchClinicUsers(clinicId: string) {
+    if (this.convexRead) return this.fetchConvexRowsByClinic('clinic_users', clinicId);
     const { data } = await this.supabase.from('clinic_users').select('*').eq('clinic_id', clinicId);
     this.recordCount('clinic_users', data?.length || 0);
     return data || [];
   }
 
   private async fetchAssets(clinicId: string) {
+    if (this.convexRead) return this.fetchConvexRowsByClinic('assets', clinicId);
     const { data, error } = await this.supabase.from('assets').select('*').eq('clinic_id', clinicId);
     if (error) console.error('[Regular Export] Assets error:', error);
     this.recordCount('assets', data?.length || 0);
@@ -622,6 +735,7 @@ export class WorkspaceExporter {
   }
 
   private async fetchSupplies(clinicId: string) {
+    if (this.convexRead) return this.fetchConvexRowsByClinic('supplies', clinicId);
     const { data, error } = await this.supabase.from('supplies').select('*').eq('clinic_id', clinicId);
     if (error) console.error('[Regular Export] Supplies error:', error);
     this.recordCount('supplies', data?.length || 0);
@@ -629,6 +743,7 @@ export class WorkspaceExporter {
   }
 
   private async fetchFixedCosts(clinicId: string) {
+    if (this.convexRead) return this.fetchConvexRowsByClinic('fixed_costs', clinicId);
     const { data, error } = await this.supabase.from('fixed_costs').select('*').eq('clinic_id', clinicId);
     if (error) console.error('[Regular Export] Fixed costs error:', error);
     this.recordCount('fixed_costs', data?.length || 0);
@@ -636,6 +751,7 @@ export class WorkspaceExporter {
   }
 
   private async fetchServices(clinicId: string) {
+    if (this.convexRead) return this.fetchConvexRowsByClinic('services', clinicId);
     const { data, error } = await this.supabase.from('services').select('*').eq('clinic_id', clinicId);
     if (error) console.error('[Regular Export] Services error:', error);
     this.recordCount('services', data?.length || 0);
@@ -643,6 +759,25 @@ export class WorkspaceExporter {
   }
 
   private async fetchServiceSupplies(clinicId: string) {
+    if (this.convexRead) {
+      // Indirect: resolve this clinic's service ids, then filter service_supplies by service_id.
+      const serviceRows = (await listConvexDocumentsByClinic('services', clinicId)) as Record<
+        string,
+        unknown
+      >[];
+      const serviceIds = new Set(rowIds(serviceRows));
+      if (serviceIds.size === 0) {
+        this.recordCount('service_supplies', 0);
+        return [];
+      }
+      const rows = ((await listConvexTable('service_supplies')) as Record<string, unknown>[]).filter(
+        (r) => typeof r.service_id === 'string' && serviceIds.has(r.service_id)
+      );
+      const cleaned = rows.map((r) => stripConvexRow(r));
+      this.recordCount('service_supplies', cleaned.length);
+      return cleaned;
+    }
+
     const { data: services, error: servicesError } = await this.supabase
       .from('services')
       .select('id')
@@ -677,6 +812,7 @@ export class WorkspaceExporter {
   // }
 
   private async fetchMarketingCampaigns(clinicId: string) {
+    if (this.convexRead) return this.fetchConvexRowsByClinic('marketing_campaigns', clinicId);
     const { data } = await this.supabase
       .from('marketing_campaigns')
       .select('*')
@@ -686,6 +822,25 @@ export class WorkspaceExporter {
   }
 
   private async fetchMarketingCampaignStatusHistory(clinicId: string) {
+    if (this.convexRead) {
+      // Indirect: resolve this clinic's campaign ids, then filter status history by campaign_id.
+      const campaignRows = (await listConvexDocumentsByClinic(
+        'marketing_campaigns',
+        clinicId
+      )) as Record<string, unknown>[];
+      const campaignIds = new Set(rowIds(campaignRows));
+      if (campaignIds.size === 0) {
+        this.recordCount('marketing_campaign_status_history', 0);
+        return [];
+      }
+      const rows = (
+        (await listConvexTable('marketing_campaign_status_history')) as Record<string, unknown>[]
+      ).filter((r) => typeof r.campaign_id === 'string' && campaignIds.has(r.campaign_id));
+      const cleaned = rows.map((r) => stripConvexRow(r));
+      this.recordCount('marketing_campaign_status_history', cleaned.length);
+      return cleaned;
+    }
+
     // Join with campaigns to filter by clinic
     const { data } = await this.supabase
       .from('marketing_campaign_status_history')
@@ -696,6 +851,7 @@ export class WorkspaceExporter {
   }
 
   private async fetchPatients(clinicId: string) {
+    if (this.convexRead) return this.fetchConvexRowsByClinic('patients', clinicId);
     const { data, error } = await this.supabase.from('patients').select('*').eq('clinic_id', clinicId);
     if (error) console.error('[Regular Export] Patients error:', error);
     this.recordCount('patients', data?.length || 0);
@@ -703,6 +859,7 @@ export class WorkspaceExporter {
   }
 
   private async fetchTreatments(clinicId: string) {
+    if (this.convexRead) return this.fetchConvexRowsByClinic('treatments', clinicId);
     const { data, error } = await this.supabase.from('treatments').select('*').eq('clinic_id', clinicId);
     if (error) console.error('[Regular Export] Treatments error:', error);
     this.recordCount('treatments', data?.length || 0);
@@ -710,6 +867,7 @@ export class WorkspaceExporter {
   }
 
   private async fetchExpenses(clinicId: string) {
+    if (this.convexRead) return this.fetchConvexRowsByClinic('expenses', clinicId);
     const { data, error } = await this.supabase.from('expenses').select('*').eq('clinic_id', clinicId);
     if (error) console.error('[Regular Export] Expenses error:', error);
     this.recordCount('expenses', data?.length || 0);
@@ -717,6 +875,7 @@ export class WorkspaceExporter {
   }
 
   private async fetchWorkspaceActivity(clinicId: string) {
+    if (this.convexRead) return this.fetchConvexRowsByClinic('workspace_activity', clinicId);
     const { data } = await this.supabase
       .from('workspace_activity')
       .select('*')
@@ -730,6 +889,7 @@ export class WorkspaceExporter {
   // =========================================================================
 
   private async fetchActionLogs(clinicId: string) {
+    if (this.convexRead) return this.fetchConvexRowsByClinic('action_logs', clinicId);
     const { data } = await this.supabase
       .from('action_logs')
       .select('*')
@@ -739,6 +899,15 @@ export class WorkspaceExporter {
   }
 
   private async fetchClinicGoogleCalendar(clinicId: string) {
+    if (this.convexRead) {
+      const rows = (await listConvexDocumentsByClinic('clinic_google_calendar', clinicId)) as Record<
+        string,
+        unknown
+      >[];
+      const data = rows.length > 0 ? stripConvexRow(rows[0]) : null;
+      if (data) this.recordCount('clinic_google_calendar', 1);
+      return data || null;
+    }
     const { data } = await this.supabase
       .from('clinic_google_calendar')
       .select('*')
@@ -749,6 +918,7 @@ export class WorkspaceExporter {
   }
 
   private async fetchChatSessions(clinicId: string) {
+    if (this.convexRead) return this.fetchConvexRowsByClinic('chat_sessions', clinicId);
     const { data } = await this.supabase
       .from('chat_sessions')
       .select('*')
@@ -759,6 +929,9 @@ export class WorkspaceExporter {
 
   private async fetchChatMessages(clinicId: string, sessionIds: string[]) {
     if (sessionIds.length === 0) return [];
+    if (this.convexRead) {
+      return this.fetchConvexRowsByIds('chat_messages', 'session_id', sessionIds);
+    }
     const { data } = await this.supabase
       .from('chat_messages')
       .select('*')
@@ -769,6 +942,9 @@ export class WorkspaceExporter {
 
   private async fetchAiFeedback(clinicId: string, messageIds: string[]) {
     if (messageIds.length === 0) return [];
+    if (this.convexRead) {
+      return this.fetchConvexRowsByIds('ai_feedback', 'message_id', messageIds);
+    }
     const { data } = await this.supabase
       .from('ai_feedback')
       .select('*')
@@ -782,6 +958,7 @@ export class WorkspaceExporter {
   // =========================================================================
 
   private async fetchEmailNotifications(clinicId: string) {
+    if (this.convexRead) return this.fetchConvexRowsByClinic('email_notifications', clinicId);
     const { data } = await this.supabase
       .from('email_notifications')
       .select('*')
@@ -791,6 +968,7 @@ export class WorkspaceExporter {
   }
 
   private async fetchSmsNotifications(clinicId: string) {
+    if (this.convexRead) return this.fetchConvexRowsByClinic('sms_notifications', clinicId);
     const { data } = await this.supabase
       .from('sms_notifications')
       .select('*')
@@ -800,6 +978,7 @@ export class WorkspaceExporter {
   }
 
   private async fetchScheduledReminders(clinicId: string) {
+    if (this.convexRead) return this.fetchConvexRowsByClinic('scheduled_reminders', clinicId);
     const { data } = await this.supabase
       .from('scheduled_reminders')
       .select('*')
@@ -809,6 +988,7 @@ export class WorkspaceExporter {
   }
 
   private async fetchPushSubscriptions(clinicId: string) {
+    if (this.convexRead) return this.fetchConvexRowsByClinic('push_subscriptions', clinicId);
     const { data } = await this.supabase
       .from('push_subscriptions')
       .select('*')
@@ -818,6 +998,7 @@ export class WorkspaceExporter {
   }
 
   private async fetchPushNotifications(clinicId: string) {
+    if (this.convexRead) return this.fetchConvexRowsByClinic('push_notifications', clinicId);
     const { data } = await this.supabase
       .from('push_notifications')
       .select('*')
@@ -831,6 +1012,15 @@ export class WorkspaceExporter {
   // =========================================================================
 
   private async fetchMedications(clinicId: string) {
+    if (this.convexRead) {
+      // Hybrid: global medications (clinic_id NULL) + this clinic's rows.
+      const rows = ((await listConvexTable('medications')) as Record<string, unknown>[]).filter(
+        (r) => r.clinic_id == null || String(r.clinic_id) === String(clinicId)
+      );
+      const cleaned = rows.map((r) => stripConvexRow(r));
+      this.recordCount('medications', cleaned.length);
+      return cleaned;
+    }
     const { data } = await this.supabase
       .from('medications')
       .select('*')
@@ -840,6 +1030,7 @@ export class WorkspaceExporter {
   }
 
   private async fetchPrescriptions(clinicId: string) {
+    if (this.convexRead) return this.fetchConvexRowsByClinic('prescriptions', clinicId);
     const { data } = await this.supabase
       .from('prescriptions')
       .select('*')
@@ -850,6 +1041,9 @@ export class WorkspaceExporter {
 
   private async fetchPrescriptionItems(prescriptionIds: string[]) {
     if (prescriptionIds.length === 0) return [];
+    if (this.convexRead) {
+      return this.fetchConvexRowsByIds('prescription_items', 'prescription_id', prescriptionIds);
+    }
     const { data } = await this.supabase
       .from('prescription_items')
       .select('*')
@@ -863,6 +1057,7 @@ export class WorkspaceExporter {
   // =========================================================================
 
   private async fetchQuotes(clinicId: string) {
+    if (this.convexRead) return this.fetchConvexRowsByClinic('quotes', clinicId);
     const { data } = await this.supabase
       .from('quotes')
       .select('*')
@@ -873,6 +1068,9 @@ export class WorkspaceExporter {
 
   private async fetchQuoteItems(quoteIds: string[]) {
     if (quoteIds.length === 0) return [];
+    if (this.convexRead) {
+      return this.fetchConvexRowsByIds('quote_items', 'quote_id', quoteIds);
+    }
     const { data } = await this.supabase
       .from('quote_items')
       .select('*')
@@ -882,6 +1080,8 @@ export class WorkspaceExporter {
   }
 
   private async fetchRowsByClinic(table: string, clinicId: string) {
+    if (this.convexRead) return this.fetchConvexRowsByClinic(table, clinicId);
+
     const supabase = this.supabase as unknown as DynamicSupabaseClient;
     const { data, error } = await supabase
       .from(table)
@@ -898,6 +1098,16 @@ export class WorkspaceExporter {
   }
 
   private async fetchRowsByWorkspace(table: string, workspaceId: string) {
+    if (this.convexRead) {
+      const rows = (await listConvexDocumentsByWorkspace(table, workspaceId)) as Record<
+        string,
+        unknown
+      >[];
+      const cleaned = rows.map((r) => stripConvexRow(r));
+      this.recordCount(table, cleaned.length);
+      return cleaned;
+    }
+
     const supabase = this.supabase as unknown as DynamicSupabaseClient;
     const { data, error } = await supabase
       .from(table)
@@ -917,6 +1127,8 @@ export class WorkspaceExporter {
     const filteredIds = Array.from(new Set(ids.filter(Boolean)));
     if (filteredIds.length === 0) return [];
 
+    if (this.convexRead) return this.fetchConvexRowsByIds(table, column, filteredIds);
+
     const supabase = this.supabase as unknown as DynamicSupabaseClient;
     const { data, error } = await supabase
       .from(table)
@@ -930,6 +1142,30 @@ export class WorkspaceExporter {
 
     this.recordCount(table, data?.length || 0);
     return data || [];
+  }
+
+  // =========================================================================
+  // CONVEX-ONLY READ HELPERS
+  // Mirror the Supabase shape: list from Convex, strip bookkeeping fields, decode.
+  // =========================================================================
+
+  /** Direct clinic-scoped read: convex parity for `.eq('clinic_id', clinicId)`. */
+  private async fetchConvexRowsByClinic(table: string, clinicId: string) {
+    const rows = (await listConvexDocumentsByClinic(table, clinicId)) as Record<string, unknown>[];
+    const cleaned = rows.map((r) => stripConvexRow(r));
+    this.recordCount(table, cleaned.length);
+    return cleaned;
+  }
+
+  /** By-FK read: convex parity for `.in(column, ids)` (resolve via full-table scan + filter). */
+  private async fetchConvexRowsByIds(table: string, column: string, ids: string[]) {
+    const idSet = new Set(ids.map(String));
+    const rows = ((await listConvexTable(table)) as Record<string, unknown>[]).filter(
+      (r) => r[column] != null && idSet.has(String(r[column]))
+    );
+    const cleaned = rows.map((r) => stripConvexRow(r));
+    this.recordCount(table, cleaned.length);
+    return cleaned;
   }
 
   /**

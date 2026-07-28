@@ -3,6 +3,8 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { cookies } from 'next/headers'
 import { resolveClinicContext } from '@/lib/clinic'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
+import { listConvexDocumentsByClinic } from '@/lib/convex/server';
+import { shouldReturnConvexData } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
 
@@ -35,6 +37,48 @@ export async function GET(request: NextRequest) {
     } else {
       start = new Date(now.getFullYear(), now.getMonth(), 1)
       end = new Date(now)
+    }
+
+    if (shouldReturnConvexData('dashboard')) {
+      const patients = await listConvexDocumentsByClinic('patients', clinicId)
+      const treatments = await listConvexDocumentsByClinic('treatments', clinicId)
+
+      const newly = patients.filter((patient: any) => {
+        const createdAt = typeof patient.created_at === 'string' ? patient.created_at : ''
+        return createdAt >= start.toISOString() && createdAt <= end.toISOString()
+      }).length
+
+      const startDate = start.toISOString().split('T')[0]
+      const endDate = end.toISOString().split('T')[0]
+      const activeStart = new Date()
+      activeStart.setDate(activeStart.getDate() - 90)
+      const activeStartDate = activeStart.toISOString().split('T')[0]
+
+      const attendedCount = new Set(
+        treatments
+          .filter((treatment: any) => {
+            const treatmentDate = String(treatment.treatment_date || '')
+            return treatmentDate >= startDate && treatmentDate <= endDate
+          })
+          .map((treatment: any) => treatment.patient_id)
+          .filter(Boolean)
+      ).size
+
+      const activeCount = new Set(
+        treatments
+          .filter((treatment: any) => String(treatment.treatment_date || '') >= activeStartDate)
+          .map((treatment: any) => treatment.patient_id)
+          .filter(Boolean)
+      ).size
+
+      return NextResponse.json({
+        patients: {
+          total: patients.length,
+          new: newly,
+          attended: attendedCount,
+          active: activeCount,
+        }
+      })
     }
 
     const { count: total, error: totalErr } = await supabaseAdmin

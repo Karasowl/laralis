@@ -6,9 +6,39 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { randomUUID } from 'crypto';
 import type { ExportBundle, ImportOptions, ImportResult, ImportProgress } from './types';
 import { migrateBundle } from './migrator';
 import { validateBundle } from './validator';
+import { createMirroredSupabaseClient } from '@/lib/convex/supabase-runtime-mirror';
+import {
+  deleteConvexDocumentByLegacyId,
+  listConvexDocumentsByClinic,
+  listConvexTable,
+  upsertConvexDocumentByLegacyId,
+  decodeConvexValue,
+} from '@/lib/convex/server';
+import { shouldUseConvexOnlyWritePath } from '@/lib/data-backend';
+
+// Convex bookkeeping fields stripped from rows read back from Convex so they match the
+// shape Supabase .select() would return (the only Convex READ here is the "otros" lookup).
+const CONVEX_META_FIELDS = [
+  '_id',
+  '_creationTime',
+  'legacyId',
+  'legacyTable',
+  'convex_created_at',
+  'convex_updated_at',
+  'convex_snapshot_source',
+];
+function stripConvexRow(row: Record<string, any>): Record<string, any> {
+  const clean: Record<string, any> = {};
+  for (const [k, v] of Object.entries(row)) {
+    if (CONVEX_META_FIELDS.includes(k)) continue;
+    clean[k] = v;
+  }
+  return decodeConvexValue(clean) as Record<string, any>;
+}
 
 /**
  * Import Error
@@ -52,6 +82,11 @@ export class WorkspaceBundleImporter {
     clinics: IdMapping;
     [key: string]: IdMapping | undefined;
   };
+  // In convex-only mode (DATA_WRITE_MODE=convex) the wrapped Supabase client throws on
+  // .from()/.insert(): Supabase is unreachable. Write every record straight to Convex via
+  // upsertConvexDocumentByLegacyId with a client-generated UUID (Convex cannot auto-gen the
+  // legacy id). Default (supabase / dual) keeps the Supabase path + runtime mirror untouched.
+  private convexWrite: boolean = shouldUseConvexOnlyWritePath('export_import');
 
   constructor(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -59,7 +94,7 @@ export class WorkspaceBundleImporter {
     bundle: ExportBundle,
     options: ImportOptions
   ) {
-    this.supabase = supabase;
+    this.supabase = createMirroredSupabaseClient(supabase);
     this.bundle = bundle;
     this.options = options;
     this.insertedIds = { clinicIds: [] };
@@ -73,6 +108,32 @@ export class WorkspaceBundleImporter {
       errors: [],
       startedAt: new Date().toISOString(),
     };
+  }
+
+  /**
+   * Convex-only INSERT: assigns a fresh UUID to each row (Convex cannot auto-generate the
+   * legacy id like Postgres would) and upserts each into Convex. Returns the rows including
+   * their new `id`, mirroring the `{ data, error }` shape of a Supabase `.insert().select()`
+   * so the downstream old->new id mapping logic stays unchanged. Never throws on a single row
+   * failure beyond surfacing it as `error`, matching Supabase batch semantics (all-or-nothing
+   * is not attempted here; the outer import()/rollback already handles failures).
+   */
+  private async convexInsert(
+    table: string,
+    records: Array<Record<string, any>>
+  ): Promise<{ data: Array<Record<string, any>> | null; error: { message: string } | null }> {
+    const inserted: Array<Record<string, any>> = [];
+    try {
+      for (const record of records) {
+        const id = randomUUID();
+        const row = { ...record, id };
+        await upsertConvexDocumentByLegacyId(table, id, row);
+        inserted.push(row);
+      }
+      return { data: inserted, error: null };
+    } catch (error) {
+      return { data: null, error: { message: error instanceof Error ? error.message : String(error) } };
+    }
   }
 
   /**
@@ -190,23 +251,26 @@ export class WorkspaceBundleImporter {
     const workspace = this.bundle.data.workspace;
 
     // Create new workspace with new ID
-    const { data, error } = await this.supabase
-      .from('workspaces')
-      .insert({
-        name: workspace.name + ' (Imported)',
-        slug: workspace.slug + '-import-' + Date.now(),
-        description: workspace.description,
-        owner_id: this.options.userId, // Set the importing user as owner
-        logo_url: workspace.logo_url,
-        settings: workspace.settings,
-        max_clinics: workspace.max_clinics,
-        max_users: workspace.max_users,
-        is_active: workspace.is_active,
-        onboarding_completed: workspace.onboarding_completed,
-        subscription_status: workspace.subscription_status,
-      })
-      .select()
-      .single();
+    const newWorkspace = {
+      name: workspace.name + ' (Imported)',
+      slug: workspace.slug + '-import-' + Date.now(),
+      description: workspace.description,
+      owner_id: this.options.userId, // Set the importing user as owner
+      logo_url: workspace.logo_url,
+      settings: workspace.settings,
+      max_clinics: workspace.max_clinics,
+      max_users: workspace.max_users,
+      is_active: workspace.is_active,
+      onboarding_completed: workspace.onboarding_completed,
+      subscription_status: workspace.subscription_status,
+    };
+
+    const { data, error } = this.convexWrite
+      ? await this.convexInsert('workspaces', [newWorkspace]).then((res) => ({
+          data: res.data?.[0] ?? null,
+          error: res.error,
+        }))
+      : await this.supabase.from('workspaces').insert(newWorkspace).select().single();
 
     if (error || !data) {
       throw new ImportError('Failed to create workspace', 'IMPORT_WORKSPACE_FAILED', { error });
@@ -237,18 +301,21 @@ export class WorkspaceBundleImporter {
     for (const clinicBundle of this.bundle.data.clinics) {
       const clinic = clinicBundle.clinic;
 
-      const { data, error } = await this.supabase
-        .from('clinics')
-        .insert({
-          workspace_id: newWorkspaceId,
-          name: clinic.name,
-          address: clinic.address,
-          phone: clinic.phone,
-          email: clinic.email,
-          is_active: clinic.is_active,
-        })
-        .select()
-        .single();
+      const newClinic = {
+        workspace_id: newWorkspaceId,
+        name: clinic.name,
+        address: clinic.address,
+        phone: clinic.phone,
+        email: clinic.email,
+        is_active: clinic.is_active,
+      };
+
+      const { data, error } = this.convexWrite
+        ? await this.convexInsert('clinics', [newClinic]).then((res) => ({
+            data: res.data?.[0] ?? null,
+            error: res.error,
+          }))
+        : await this.supabase.from('clinics').insert(newClinic).select().single();
 
       if (error || !data) {
         throw new ImportError('Failed to create clinic', 'IMPORT_CLINIC_FAILED', {
@@ -320,14 +387,18 @@ export class WorkspaceBundleImporter {
   private async importSettingsTime(clinicBundle: any, newClinicId: string) {
     if (!clinicBundle.settingsTime) return;
 
-    const { error } = await this.supabase.from('settings_time').insert({
+    const record = {
       clinic_id: newClinicId,
       work_days: clinicBundle.settingsTime.work_days,
       hours_per_day: clinicBundle.settingsTime.hours_per_day,
       real_pct: clinicBundle.settingsTime.real_pct,
       working_days_config: clinicBundle.settingsTime.working_days_config,
       monthly_goal_cents: clinicBundle.settingsTime.monthly_goal_cents ?? null,
-    });
+    };
+
+    const { error } = this.convexWrite
+      ? await this.convexInsert('settings_time', [record])
+      : await this.supabase.from('settings_time').insert(record);
 
     if (error) {
       throw new ImportError('Failed to import settings_time', 'IMPORT_FAILED', { error });
@@ -348,13 +419,16 @@ export class WorkspaceBundleImporter {
       icon: source.icon,
     }));
 
-    // Use upsert to handle auto-created patient_sources from clinic trigger
-    const { error } = await this.supabase
-      .from('patient_sources')
-      .upsert(records, {
-        onConflict: 'clinic_id,name',
-        ignoreDuplicates: false, // Update existing records with backup data
-      });
+    // Use upsert to handle auto-created patient_sources from clinic trigger.
+    // In convex-only mode no trigger runs, so a plain insert (new ids) is sufficient.
+    const { error } = this.convexWrite
+      ? await this.convexInsert('patient_sources', records)
+      : await this.supabase
+          .from('patient_sources')
+          .upsert(records, {
+            onConflict: 'clinic_id,name',
+            ignoreDuplicates: false, // Update existing records with backup data
+          });
 
     if (error) {
       throw new ImportError('Failed to import patient_sources', 'IMPORT_FAILED', { error });
@@ -378,14 +452,17 @@ export class WorkspaceBundleImporter {
       is_system: category.is_system,
     }));
 
-    // Use upsert to handle auto-created categories from clinic trigger
-    const { data, error } = await this.supabase
-      .from('custom_categories')
-      .upsert(records, {
-        onConflict: 'clinic_id,category_type_id,name',
-        ignoreDuplicates: false,
-      })
-      .select();
+    // Use upsert to handle auto-created categories from clinic trigger.
+    // In convex-only mode no trigger runs, so a plain insert (new ids) is sufficient.
+    const { data, error } = this.convexWrite
+      ? await this.convexInsert('custom_categories', records)
+      : await this.supabase
+          .from('custom_categories')
+          .upsert(records, {
+            onConflict: 'clinic_id,category_type_id,name',
+            ignoreDuplicates: false,
+          })
+          .select();
 
     if (error) {
       throw new ImportError('Failed to import custom_categories', 'IMPORT_FAILED', { error });
@@ -415,7 +492,9 @@ export class WorkspaceBundleImporter {
       is_active: asset.is_active,
     }));
 
-    const { error } = await this.supabase.from('assets').insert(records);
+    const { error } = this.convexWrite
+      ? await this.convexInsert('assets', records)
+      : await this.supabase.from('assets').insert(records);
 
     if (error) {
       throw new ImportError('Failed to import assets', 'IMPORT_FAILED', { error });
@@ -437,7 +516,9 @@ export class WorkspaceBundleImporter {
       stock_quantity: supply.stock_quantity,
     }));
 
-    const { data, error } = await this.supabase.from('supplies').insert(records).select();
+    const { data, error } = this.convexWrite
+      ? await this.convexInsert('supplies', records)
+      : await this.supabase.from('supplies').insert(records).select();
 
     if (error) {
       throw new ImportError('Failed to import supplies', 'IMPORT_FAILED', { error });
@@ -465,7 +546,9 @@ export class WorkspaceBundleImporter {
       is_active: cost.is_active,
     }));
 
-    const { error } = await this.supabase.from('fixed_costs').insert(records);
+    const { error } = this.convexWrite
+      ? await this.convexInsert('fixed_costs', records)
+      : await this.supabase.from('fixed_costs').insert(records);
 
     if (error) {
       throw new ImportError('Failed to import fixed_costs', 'IMPORT_FAILED', { error });
@@ -494,7 +577,9 @@ export class WorkspaceBundleImporter {
       final_price_with_discount_cents: service.final_price_with_discount_cents ?? null,
     }));
 
-    const { data, error } = await this.supabase.from('services').insert(records).select();
+    const { data, error } = this.convexWrite
+      ? await this.convexInsert('services', records)
+      : await this.supabase.from('services').insert(records).select();
 
     if (error) {
       throw new ImportError('Failed to import services', 'IMPORT_FAILED', { error });
@@ -533,7 +618,9 @@ export class WorkspaceBundleImporter {
 
     if (records.length === 0) return;
 
-    const { error } = await this.supabase.from('service_supplies').insert(records);
+    const { error } = this.convexWrite
+      ? await this.convexInsert('service_supplies', records as Array<Record<string, any>>)
+      : await this.supabase.from('service_supplies').insert(records);
 
     if (error) {
       throw new ImportError('Failed to import service_supplies', 'IMPORT_FAILED', { error });
@@ -567,7 +654,9 @@ export class WorkspaceBundleImporter {
 
     if (records.length === 0) return;
 
-    const { error } = await this.supabase.from('marketing_campaigns').insert(records);
+    const { error } = this.convexWrite
+      ? await this.convexInsert('marketing_campaigns', records as Array<Record<string, any>>)
+      : await this.supabase.from('marketing_campaigns').insert(records);
 
     if (error) {
       throw new ImportError('Failed to import marketing_campaigns', 'IMPORT_FAILED', { error });
@@ -609,7 +698,9 @@ export class WorkspaceBundleImporter {
       profile_image_url: patient.profile_image_url || null,
     }));
 
-    const { data, error } = await this.supabase.from('patients').insert(records).select();
+    const { data, error } = this.convexWrite
+      ? await this.convexInsert('patients', records)
+      : await this.supabase.from('patients').insert(records).select();
 
     if (error) {
       throw new ImportError('Failed to import patients', 'IMPORT_FAILED', { error });
@@ -664,7 +755,9 @@ export class WorkspaceBundleImporter {
 
     if (records.length === 0) return;
 
-    const { data, error } = await this.supabase.from('treatments').insert(records).select();
+    const { data, error } = this.convexWrite
+      ? await this.convexInsert('treatments', records as Array<Record<string, any>>)
+      : await this.supabase.from('treatments').insert(records).select();
 
     if (error) {
       throw new ImportError('Failed to import treatments', 'IMPORT_FAILED', { error });
@@ -692,15 +785,32 @@ export class WorkspaceBundleImporter {
     if (!clinicBundle.expenses || clinicBundle.expenses.length === 0) return;
 
     // Find "Otros" (Others) system category as fallback for unmapped categories
-    const { data: otrosCategory } = await this.supabase
-      .from('categories')
-      .select('id')
-      .eq('entity_type', 'expense')
-      .eq('is_system', true)
-      .eq('name', 'otros')
-      .is('clinic_id', null)
-      .is('parent_id', null)
-      .single();
+    let otrosCategory: { id?: string } | null = null;
+    if (this.convexWrite) {
+      // categories is a global/hybrid table; the "otros" system row has clinic_id NULL.
+      const rows = ((await listConvexTable('categories')) as Array<Record<string, any>>)
+        .map((r) => stripConvexRow(r))
+        .filter(
+          (r) =>
+            r.entity_type === 'expense' &&
+            r.is_system === true &&
+            r.name === 'otros' &&
+            (r.clinic_id === null || r.clinic_id === undefined) &&
+            (r.parent_id === null || r.parent_id === undefined)
+        );
+      otrosCategory = rows[0] ? { id: rows[0].id as string } : null;
+    } else {
+      const { data } = await this.supabase
+        .from('categories')
+        .select('id')
+        .eq('entity_type', 'expense')
+        .eq('is_system', true)
+        .eq('name', 'otros')
+        .is('clinic_id', null)
+        .is('parent_id', null)
+        .single();
+      otrosCategory = data;
+    }
 
     const fallbackCategoryId = otrosCategory?.id;
 
@@ -762,7 +872,9 @@ export class WorkspaceBundleImporter {
 
     if (records.length === 0) return;
 
-    const { error } = await this.supabase.from('expenses').insert(records);
+    const { error } = this.convexWrite
+      ? await this.convexInsert('expenses', records)
+      : await this.supabase.from('expenses').insert(records);
 
     if (error) {
       throw new ImportError('Failed to import expenses', 'IMPORT_FAILED', { error });
@@ -801,7 +913,9 @@ export class WorkspaceBundleImporter {
       completed_at: log.completed_at,
     }));
 
-    const { error } = await this.supabase.from('action_logs').insert(records);
+    const { error } = this.convexWrite
+      ? await this.convexInsert('action_logs', records)
+      : await this.supabase.from('action_logs').insert(records);
 
     if (error) {
       // Non-fatal: action_logs are optional historical data
@@ -820,7 +934,7 @@ export class WorkspaceBundleImporter {
     if (!clinicBundle.clinicGoogleCalendar) return;
 
     const cal = clinicBundle.clinicGoogleCalendar;
-    const { error } = await this.supabase.from('clinic_google_calendar').insert({
+    const calRecord = {
       clinic_id: newClinicId,
       calendar_id: cal.calendar_id,
       calendar_name: cal.calendar_name,
@@ -830,7 +944,10 @@ export class WorkspaceBundleImporter {
       sync_enabled: cal.sync_enabled,
       last_sync_at: cal.last_sync_at,
       sync_error: cal.sync_error,
-    });
+    };
+    const { error } = this.convexWrite
+      ? await this.convexInsert('clinic_google_calendar', [calRecord])
+      : await this.supabase.from('clinic_google_calendar').insert(calRecord);
 
     if (error) {
       // Non-fatal: Google Calendar integration is optional
@@ -859,10 +976,12 @@ export class WorkspaceBundleImporter {
       ended_at: session.ended_at,
     }));
 
-    const { data, error } = await this.supabase
-      .from('chat_sessions')
-      .insert(records)
-      .select();
+    const { data, error } = this.convexWrite
+      ? await this.convexInsert('chat_sessions', records)
+      : await this.supabase
+          .from('chat_sessions')
+          .insert(records)
+          .select();
 
     if (error) {
       // Non-fatal: chat history is optional
@@ -911,10 +1030,12 @@ export class WorkspaceBundleImporter {
 
     if (records.length === 0) return;
 
-    const { data, error } = await this.supabase
-      .from('chat_messages')
-      .insert(records)
-      .select();
+    const { data, error } = this.convexWrite
+      ? await this.convexInsert('chat_messages', records as Array<Record<string, any>>)
+      : await this.supabase
+          .from('chat_messages')
+          .insert(records)
+          .select();
 
     if (error) {
       console.warn('[importer] Failed to import chat_messages:', error);
@@ -966,7 +1087,9 @@ export class WorkspaceBundleImporter {
 
     if (records.length === 0) return;
 
-    const { error } = await this.supabase.from('ai_feedback').insert(records);
+    const { error } = this.convexWrite
+      ? await this.convexInsert('ai_feedback', records as Array<Record<string, any>>)
+      : await this.supabase.from('ai_feedback').insert(records);
 
     if (error) {
       console.warn('[importer] Failed to import ai_feedback:', error);
@@ -1013,7 +1136,9 @@ export class WorkspaceBundleImporter {
       };
     });
 
-    const { error } = await this.supabase.from('email_notifications').insert(records);
+    const { error } = this.convexWrite
+      ? await this.convexInsert('email_notifications', records)
+      : await this.supabase.from('email_notifications').insert(records);
 
     if (error) {
       console.warn('[importer] Failed to import email_notifications:', error);
@@ -1054,7 +1179,9 @@ export class WorkspaceBundleImporter {
       };
     });
 
-    const { error } = await this.supabase.from('sms_notifications').insert(records);
+    const { error } = this.convexWrite
+      ? await this.convexInsert('sms_notifications', records)
+      : await this.supabase.from('sms_notifications').insert(records);
 
     if (error) {
       console.warn('[importer] Failed to import sms_notifications:', error);
@@ -1092,7 +1219,9 @@ export class WorkspaceBundleImporter {
       };
     });
 
-    const { error } = await this.supabase.from('scheduled_reminders').insert(records);
+    const { error } = this.convexWrite
+      ? await this.convexInsert('scheduled_reminders', records)
+      : await this.supabase.from('scheduled_reminders').insert(records);
 
     if (error) {
       console.warn('[importer] Failed to import scheduled_reminders:', error);
@@ -1121,7 +1250,9 @@ export class WorkspaceBundleImporter {
       last_used_at: sub.last_used_at,
     }));
 
-    const { error } = await this.supabase.from('push_subscriptions').insert(records);
+    const { error } = this.convexWrite
+      ? await this.convexInsert('push_subscriptions', records)
+      : await this.supabase.from('push_subscriptions').insert(records);
 
     if (error) {
       console.warn('[importer] Failed to import push_subscriptions:', error);
@@ -1153,7 +1284,9 @@ export class WorkspaceBundleImporter {
       created_at: notif.created_at,
     }));
 
-    const { error } = await this.supabase.from('push_notifications').insert(records);
+    const { error } = this.convexWrite
+      ? await this.convexInsert('push_notifications', records)
+      : await this.supabase.from('push_notifications').insert(records);
 
     if (error) {
       console.warn('[importer] Failed to import push_notifications:', error);
@@ -1191,7 +1324,9 @@ export class WorkspaceBundleImporter {
       created_at: med.created_at,
     }));
 
-    const { data, error } = await this.supabase.from('medications').insert(records).select();
+    const { data, error } = this.convexWrite
+      ? await this.convexInsert('medications', records)
+      : await this.supabase.from('medications').insert(records).select();
 
     if (error) {
       console.warn('[importer] Failed to import medications:', error);
@@ -1246,7 +1381,9 @@ export class WorkspaceBundleImporter {
 
     if (records.length === 0) return;
 
-    const { data, error } = await this.supabase.from('prescriptions').insert(records).select();
+    const { data, error } = this.convexWrite
+      ? await this.convexInsert('prescriptions', records as Array<Record<string, any>>)
+      : await this.supabase.from('prescriptions').insert(records).select();
 
     if (error) {
       console.warn('[importer] Failed to import prescriptions:', error);
@@ -1304,7 +1441,9 @@ export class WorkspaceBundleImporter {
 
     if (records.length === 0) return;
 
-    const { error } = await this.supabase.from('prescription_items').insert(records);
+    const { error } = this.convexWrite
+      ? await this.convexInsert('prescription_items', records as Array<Record<string, any>>)
+      : await this.supabase.from('prescription_items').insert(records);
 
     if (error) {
       console.warn('[importer] Failed to import prescription_items:', error);
@@ -1360,7 +1499,9 @@ export class WorkspaceBundleImporter {
 
     if (records.length === 0) return;
 
-    const { data, error } = await this.supabase.from('quotes').insert(records).select();
+    const { data, error } = this.convexWrite
+      ? await this.convexInsert('quotes', records as Array<Record<string, any>>)
+      : await this.supabase.from('quotes').insert(records).select();
 
     if (error) {
       console.warn('[importer] Failed to import quotes:', error);
@@ -1419,7 +1560,9 @@ export class WorkspaceBundleImporter {
 
     if (records.length === 0) return;
 
-    const { error } = await this.supabase.from('quote_items').insert(records);
+    const { error } = this.convexWrite
+      ? await this.convexInsert('quote_items', records as Array<Record<string, any>>)
+      : await this.supabase.from('quote_items').insert(records);
 
     if (error) {
       console.warn('[importer] Failed to import quote_items:', error);
@@ -1439,6 +1582,19 @@ export class WorkspaceBundleImporter {
    */
   private async rollback() {
     try {
+      if (this.convexWrite) {
+        // Convex has no FK cascade. Best-effort cleanup: delete every clinic-scoped doc we
+        // touched (across the mirrored tables) plus the inserted clinics and workspace.
+        for (const clinicId of this.insertedIds.clinicIds) {
+          await this.rollbackConvexClinicData(clinicId);
+          await deleteConvexDocumentByLegacyId('clinics', clinicId);
+        }
+        if (this.insertedIds.workspaceId) {
+          await deleteConvexDocumentByLegacyId('workspaces', this.insertedIds.workspaceId);
+        }
+        return;
+      }
+
       // Delete in reverse order
       if (this.insertedIds.clinicIds.length > 0) {
         await this.supabase.from('clinics').delete().in('id', this.insertedIds.clinicIds);
@@ -1449,6 +1605,55 @@ export class WorkspaceBundleImporter {
       }
     } catch (error) {
       console.error('Rollback error:', error);
+    }
+  }
+
+  /**
+   * Convex-only rollback helper: removes every clinic-scoped doc inserted for a clinic.
+   * Supabase relies on ON DELETE CASCADE here; Convex has no cascade so we list each
+   * clinic-scoped table by clinic_id and delete the docs by their legacy id.
+   */
+  private async rollbackConvexClinicData(clinicId: string) {
+    // Clinic-scoped tables this importer writes (FK children covered via their clinic_id;
+    // grandchild rows like chat_messages/quote_items/prescription_items carry no clinic_id,
+    // so they are cleaned indirectly when their parent docs are removed below where possible).
+    const CLINIC_SCOPED_TABLES = [
+      'settings_time',
+      'patient_sources',
+      'custom_categories',
+      'assets',
+      'supplies',
+      'fixed_costs',
+      'services',
+      'marketing_campaigns',
+      'patients',
+      'treatments',
+      'expenses',
+      'action_logs',
+      'clinic_google_calendar',
+      'chat_sessions',
+      'email_notifications',
+      'sms_notifications',
+      'scheduled_reminders',
+      'push_subscriptions',
+      'push_notifications',
+      'medications',
+      'prescriptions',
+      'quotes',
+    ];
+
+    for (const table of CLINIC_SCOPED_TABLES) {
+      try {
+        const rows = (await listConvexDocumentsByClinic(table, clinicId)) as Array<Record<string, any>>;
+        for (const row of rows) {
+          const legacyId = row.legacyId ?? row.id;
+          if (legacyId != null) {
+            await deleteConvexDocumentByLegacyId(table, String(legacyId));
+          }
+        }
+      } catch (error) {
+        console.error(`[importer] Convex rollback failed for ${table}:`, error);
+      }
     }
   }
 

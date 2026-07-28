@@ -6,6 +6,8 @@ import { resolveClinicContext } from '@/lib/clinic';
 import type { Service, ServiceSupply, ApiResponse } from '@/lib/types';
 import { readJson } from '@/lib/validation';
 import { forbiddenIfMissingPermission } from '@/lib/permissions';
+import { getConvexDocumentByLegacyId, listConvexDocumentsByClinic, listConvexTable, upsertConvexDocumentByLegacyId, patchConvexDocumentByLegacyId, deleteConvexDocumentByLegacyId } from '@/lib/convex/server';
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath, shouldWriteConvexData } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
 
@@ -49,6 +51,38 @@ const normalizeSupplyList = (supplies?: Array<{ supply_id?: string; qty?: number
   return Array.from(merged.entries()).map(([supply_id, qty]) => ({ supply_id, qty }))
 }
 
+type ImportedRecord = Record<string, any>
+
+function normalizeConvexRecord(row: ImportedRecord | null | undefined) {
+  if (!row) return null
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row
+  return rest
+}
+
+function byId(rows: ImportedRecord[]) {
+  return new Map(
+    rows.flatMap((row) => {
+      const ids = [row.id, row.legacyId].filter(Boolean).map((id) => String(id))
+      return ids.map((id) => [id, row] as const)
+    })
+  )
+}
+
+function calculateDiscountedPriceCents(originalPriceCents: number, discountType: string, discountValue: number) {
+  if (discountType === 'percentage') {
+    return Math.max(0, Math.round(originalPriceCents * (1 - discountValue / 100)))
+  }
+  if (discountType === 'fixed') {
+    return Math.max(0, originalPriceCents - Math.round(discountValue * 100))
+  }
+  return originalPriceCents
+}
+
+async function listConvexServiceSupplies(serviceId: string) {
+  const rows = await listConvexTable('service_supplies')
+  return rows.filter((row: any) => row.service_id === serviceId || row.serviceId === serviceId)
+}
+
 interface RouteParams {
   params: {
     id: string;
@@ -58,7 +92,7 @@ interface RouteParams {
 export async function GET(
   request: NextRequest, 
   { params }: RouteParams
-): Promise<NextResponse<ApiResponse<Service & { supplies?: ServiceSupply[] }>>> {
+): Promise<NextResponse> {
   try {
     const cookieStore = cookies();
     const clinicContext = await resolveClinicContext({ cookieStore });
@@ -68,6 +102,30 @@ export async function GET(
     const { clinicId, userId } = clinicContext;
     const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'services.view');
     if (forbidden) return forbidden;
+
+    if (shouldReturnConvexData('services')) {
+      const service = await getConvexDocumentByLegacyId('services', params.id) as ImportedRecord | null
+      if (!service || service.clinic_id !== clinicId) {
+        return NextResponse.json({ error: 'Service not found' }, { status: 404 })
+      }
+
+      const [serviceSupplies, supplies] = await Promise.all([
+        listConvexServiceSupplies(params.id),
+        listConvexDocumentsByClinic('supplies', clinicId),
+      ])
+      const suppliesById = byId(supplies as ImportedRecord[])
+      const recipeRows = serviceSupplies.map((row: any) => ({
+        ...normalizeConvexRecord(row),
+        supplies: normalizeConvexRecord(row.supply_id ? suppliesById.get(String(row.supply_id)) : null),
+      }))
+
+      return NextResponse.json({
+        data: {
+          ...normalizeConvexRecord(service),
+          supplies: recipeRows,
+        }
+      })
+    }
 
     // Get service with its supplies
     const { data: service, error: serviceError } = await supabaseAdmin
@@ -120,13 +178,13 @@ export async function GET(
 export async function PUT(
   request: NextRequest, 
   { params }: RouteParams
-): Promise<NextResponse<ApiResponse<Service>>> {
+): Promise<NextResponse> {
   try {
     const bodyResult = await readJson(request);
     if ('error' in bodyResult) {
       return bodyResult.error;
     }
-    const body = bodyResult.data;
+    const body = bodyResult.data as Record<string, any>;
     const cookieStore = cookies();
     const clinicContext = await resolveClinicContext({ requestedClinicId: body?.clinic_id, cookieStore });
     if ('error' in clinicContext) {
@@ -229,11 +287,17 @@ export async function PUT(
       const hasDiscount = discount_type !== 'none';
       if (hasDiscount) {
         // Need to fetch current original_price_cents from DB
-        const { data: currentService } = await supabaseAdmin
-          .from('services')
-          .select('original_price_cents')
-          .eq('id', params.id)
-          .single();
+        let currentService: any = null
+        if (shouldUseConvexOnlyWritePath('services')) {
+          currentService = await getConvexDocumentByLegacyId('services', params.id)
+        } else {
+          const { data } = await supabaseAdmin
+            .from('services')
+            .select('original_price_cents')
+            .eq('id', params.id)
+            .single();
+          currentService = data
+        }
         original_price_cents = currentService?.original_price_cents || Math.round(body.price_cents || 0);
       } else {
         original_price_cents = Math.round(body.price_cents || 0);
@@ -251,6 +315,65 @@ export async function PUT(
         { error: 'Validation failed', message: 'Calculated original price is out of allowed range' },
         { status: 400 }
       );
+    }
+
+    const price_cents = calculateDiscountedPriceCents(original_price_cents, discount_type, discount_value);
+
+    if (shouldUseConvexOnlyWritePath('services')) {
+      const current = await getConvexDocumentByLegacyId('services', params.id) as ImportedRecord | null
+      if (!current || current.clinic_id !== clinicId) {
+        return NextResponse.json({ error: 'Service not found' }, { status: 404 })
+      }
+
+      const patch = {
+        name,
+        est_minutes,
+        category,
+        description,
+        original_price_cents,
+        price_cents,
+        final_price_with_discount_cents: price_cents,
+        margin_pct,
+        discount_type,
+        discount_value,
+        discount_reason: body.discount_reason !== undefined && body.discount_reason !== null ? body.discount_reason : null,
+        updated_at: new Date().toISOString()
+      }
+
+      await patchConvexDocumentByLegacyId('services', params.id, patch)
+
+      if (supplies !== undefined) {
+        const existingRows = await listConvexServiceSupplies(params.id)
+        await Promise.all(
+          existingRows.map((row: any) => {
+            const rowId = String(row.id || row.legacyId || '')
+            return rowId ? deleteConvexDocumentByLegacyId('service_supplies', rowId) : Promise.resolve()
+          })
+        )
+
+        const serviceSuppliesPayload = normalizeSupplyList(supplies)
+        await Promise.all(
+          serviceSuppliesPayload.map((supply) => {
+            const rowId = crypto.randomUUID()
+            return upsertConvexDocumentByLegacyId('service_supplies', rowId, {
+              id: rowId,
+              clinic_id: clinicId,
+              service_id: params.id,
+              supply_id: supply.supply_id,
+              qty: supply.qty,
+              created_at: new Date().toISOString(),
+            })
+          })
+        )
+      }
+
+      return NextResponse.json({
+        data: {
+          ...normalizeConvexRecord(current),
+          ...patch,
+        },
+        message: 'Service updated successfully'
+      })
     }
 
     // Note: price_cents will be calculated by the trigger from original_price_cents + discount
@@ -330,6 +453,14 @@ export async function PUT(
       }
     }
 
+    if (data && shouldWriteConvexData('services')) {
+      try {
+        await upsertConvexDocumentByLegacyId('services', data.id, data as Record<string, unknown>)
+      } catch (convexError) {
+        console.error('[services PUT] Convex mirror failed:', convexError)
+      }
+    }
+
     return NextResponse.json({ 
       data,
       message: 'Service updated successfully'
@@ -347,7 +478,7 @@ export async function PUT(
 export async function DELETE(
   request: NextRequest, 
   { params }: RouteParams
-): Promise<NextResponse<ApiResponse<null>>> {
+): Promise<NextResponse> {
   try {
     const cookieStore = cookies();
     const clinicContext = await resolveClinicContext({ cookieStore });
@@ -362,12 +493,24 @@ export async function DELETE(
     const dependencyMessages: string[] = []
 
     try {
-      const { data: treatmentUsage, error: treatmentError } = await supabaseAdmin
-        .from('treatments')
-        .select('id, patient_id')
-        .eq('clinic_id', clinicId)
-        .eq('service_id', params.id)
-        .limit(5)
+      let treatmentUsage: any[] | null = null
+      let treatmentError: { message?: string } | null = null
+
+      if (shouldUseConvexOnlyWritePath('services')) {
+        const treatments = await listConvexDocumentsByClinic('treatments', clinicId)
+        treatmentUsage = treatments
+          .filter((row: any) => row.service_id === params.id || row.serviceId === params.id)
+          .slice(0, 5)
+      } else {
+        const result = await supabaseAdmin
+          .from('treatments')
+          .select('id, patient_id')
+          .eq('clinic_id', clinicId)
+          .eq('service_id', params.id)
+          .limit(5)
+        treatmentUsage = result.data
+        treatmentError = result.error
+      }
 
       if (treatmentError) {
         console.error('[services DELETE] treatment usage lookup failed:', treatmentError)
@@ -378,11 +521,21 @@ export async function DELETE(
         const patientNamesById = new Map<string, string>()
 
         if (patientIds.length > 0) {
-          const { data: patients, error: patientError } = await supabaseAdmin
-            .from('patients')
-            .select('id, first_name, last_name')
-            .eq('clinic_id', clinicId)
-            .in('id', patientIds)
+          let patients: any[] | null = null
+          let patientError: { message?: string } | null = null
+
+          if (shouldUseConvexOnlyWritePath('services')) {
+            const allPatients = await listConvexDocumentsByClinic('patients', clinicId)
+            patients = allPatients.filter((patient: any) => patientIds.includes(String(patient.id || patient.legacyId || '')))
+          } else {
+            const result = await supabaseAdmin
+              .from('patients')
+              .select('id, first_name, last_name')
+              .eq('clinic_id', clinicId)
+              .in('id', patientIds)
+            patients = result.data
+            patientError = result.error
+          }
 
           if (patientError) {
             console.error('[services DELETE] patient usage lookup failed:', patientError)
@@ -423,6 +576,27 @@ export async function DELETE(
       )
     }
 
+    if (shouldUseConvexOnlyWritePath('services')) {
+      const current = await getConvexDocumentByLegacyId('services', params.id) as ImportedRecord | null
+      if (!current || current.clinic_id !== clinicId) {
+        return NextResponse.json({ error: 'Service not found' }, { status: 404 })
+      }
+
+      const recipeRows = await listConvexServiceSupplies(params.id)
+      await Promise.all(
+        recipeRows.map((row: any) => {
+          const rowId = String(row.id || row.legacyId || '')
+          return rowId ? deleteConvexDocumentByLegacyId('service_supplies', rowId) : Promise.resolve()
+        })
+      )
+      await deleteConvexDocumentByLegacyId('services', params.id)
+
+      return NextResponse.json({
+        data: null,
+        message: 'Service deleted successfully'
+      })
+    }
+
     // Hard delete - eliminar físicamente de la base de datos
     // (solo llega aquí si no tiene tratamientos ni tarifas asociadas)
     const { error: deleteError } = await supabaseAdmin
@@ -437,6 +611,21 @@ export async function DELETE(
         { error: 'Failed to delete service', message: deleteError.message },
         { status: 500 }
       );
+    }
+
+    if (shouldWriteConvexData('services')) {
+      try {
+        const recipeRows = await listConvexServiceSupplies(params.id)
+        await Promise.all(
+          recipeRows.map((row: any) => {
+            const rowId = String(row.id || row.legacyId || '')
+            return rowId ? deleteConvexDocumentByLegacyId('service_supplies', rowId) : Promise.resolve()
+          })
+        )
+        await deleteConvexDocumentByLegacyId('services', params.id)
+      } catch (convexError) {
+        console.error('[services DELETE] Convex mirror failed:', convexError)
+      }
     }
 
     return NextResponse.json({ 

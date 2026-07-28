@@ -10,6 +10,38 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { snapshotCache } from './cache/snapshot-cache'
+import {
+  getConvexDocumentByLegacyId,
+  listConvexDocumentsByClinic,
+  listConvexTable,
+  decodeConvexValue,
+} from '@/lib/convex/server'
+import { shouldReturnConvexData } from '@/lib/data-backend'
+
+// Convex bookkeeping fields stripped from rows so the result mirrors the shape the
+// Supabase query would return. Same set the snapshot exporter strips on read.
+const CONVEX_META_FIELDS = [
+  '_id',
+  '_creationTime',
+  'legacyId',
+  'legacyTable',
+  'convex_created_at',
+  'convex_updated_at',
+  'convex_snapshot_source',
+]
+
+function stripConvexRow(row: Record<string, any>): Record<string, any> {
+  const clean: Record<string, any> = {}
+  for (const [k, v] of Object.entries(row)) {
+    if (CONVEX_META_FIELDS.includes(k)) continue
+    clean[k] = v
+  }
+  return decodeConvexValue(clean) as Record<string, any>
+}
+
+function stripConvexRows(rows: Record<string, any>[]): Record<string, any>[] {
+  return rows.map((r) => stripConvexRow(r))
+}
 
 // ============================================================================
 // Types
@@ -262,17 +294,35 @@ export class ClinicSnapshotService {
   // ==========================================================================
 
   private async loadClinicInfo(supabase: SupabaseClient, clinicId: string) {
-    const { data: clinic } = await supabase
-      .from('clinics')
-      .select('id, name')
-      .eq('id', clinicId)
-      .single()
+    let clinic: { id?: string; name?: string } | null
+    let timeSettings: any
 
-    const { data: timeSettings } = await supabase
-      .from('settings_time')
-      .select('*')
-      .eq('clinic_id', clinicId)
-      .single()
+    if (shouldReturnConvexData('clinics')) {
+      const clinicRow = (await getConvexDocumentByLegacyId('clinics', clinicId)) as
+        | Record<string, any>
+        | null
+      clinic = clinicRow ? (stripConvexRow(clinicRow) as { id?: string; name?: string }) : null
+
+      const timeRows = (await listConvexDocumentsByClinic('settings_time', clinicId)) as Record<
+        string,
+        any
+      >[]
+      timeSettings = timeRows.length > 0 ? stripConvexRow(timeRows[0]) : null
+    } else {
+      const { data: clinicData } = await supabase
+        .from('clinics')
+        .select('id, name')
+        .eq('id', clinicId)
+        .single()
+      clinic = clinicData
+
+      const { data: timeData } = await supabase
+        .from('settings_time')
+        .select('*')
+        .eq('clinic_id', clinicId)
+        .single()
+      timeSettings = timeData
+    }
 
     // Calculate available treatment minutes
     // Use correct field names from settings_time table schema
@@ -303,25 +353,61 @@ export class ClinicSnapshotService {
     clinicId: string,
     startDate: Date
   ) {
-    // Total patients
-    const { count: totalPatients } = await supabase
-      .from('patients')
-      .select('*', { count: 'exact', head: true })
-      .eq('clinic_id', clinicId)
+    let totalPatients: number | null
+    let newPatients: any[] | null
+    let activeTreatments: { patient_id: string }[] | null
 
-    // New patients in period with source information
-    const { data: newPatients } = await supabase
-      .from('patients')
-      .select('id, created_at, source_id, patient_sources(name)')
-      .eq('clinic_id', clinicId)
-      .gte('created_at', startDate.toISOString())
+    if (shouldReturnConvexData('patients')) {
+      const startIso = startDate.toISOString()
+      const allPatients = stripConvexRows(
+        (await listConvexDocumentsByClinic('patients', clinicId)) as Record<string, any>[]
+      )
+      totalPatients = allPatients.length
 
-    // Active patients (with treatments in period)
-    const { data: activeTreatments } = await supabase
-      .from('treatments')
-      .select('patient_id')
-      .eq('clinic_id', clinicId)
-      .gte('treatment_date', startDate.toISOString())
+      // Resolve patient_sources(name) join manually via id -> name map
+      const sources = stripConvexRows(
+        (await listConvexDocumentsByClinic('patient_sources', clinicId)) as Record<string, any>[]
+      )
+      const sourceNameById = new Map(sources.map((s) => [String(s.id), s.name]))
+
+      newPatients = allPatients
+        .filter((p) => p.created_at && String(p.created_at) >= startIso)
+        .map((p) => ({
+          id: p.id,
+          created_at: p.created_at,
+          source_id: p.source_id,
+          patient_sources: p.source_id ? { name: sourceNameById.get(String(p.source_id)) } : null,
+        }))
+
+      activeTreatments = stripConvexRows(
+        (await listConvexDocumentsByClinic('treatments', clinicId)) as Record<string, any>[]
+      )
+        .filter((t) => t.treatment_date && String(t.treatment_date) >= startIso)
+        .map((t) => ({ patient_id: t.patient_id }))
+    } else {
+      // Total patients
+      const { count } = await supabase
+        .from('patients')
+        .select('*', { count: 'exact', head: true })
+        .eq('clinic_id', clinicId)
+      totalPatients = count ?? null
+
+      // New patients in period with source information
+      const { data: newData } = await supabase
+        .from('patients')
+        .select('id, created_at, source_id, patient_sources(name)')
+        .eq('clinic_id', clinicId)
+        .gte('created_at', startDate.toISOString())
+      newPatients = newData
+
+      // Active patients (with treatments in period)
+      const { data: activeData } = await supabase
+        .from('treatments')
+        .select('patient_id')
+        .eq('clinic_id', clinicId)
+        .gte('treatment_date', startDate.toISOString())
+      activeTreatments = activeData
+    }
 
     const activePatientIds = new Set(
       activeTreatments?.map((t) => t.patient_id) || []
@@ -350,20 +436,52 @@ export class ClinicSnapshotService {
     clinicId: string,
     startDate: Date
   ) {
-    const { data: treatments } = await supabase
-      .from('treatments')
-      .select(
-        `
+    let treatments: any[] | null
+
+    if (shouldReturnConvexData('treatments')) {
+      const startIso = startDate.toISOString()
+      // Resolve services!inner(name) join manually via id -> name map
+      const services = stripConvexRows(
+        (await listConvexDocumentsByClinic('services', clinicId)) as Record<string, any>[]
+      )
+      const serviceNameById = new Map(services.map((s) => [String(s.id), s.name]))
+
+      treatments = stripConvexRows(
+        (await listConvexDocumentsByClinic('treatments', clinicId)) as Record<string, any>[]
+      )
+        // services!inner => only treatments with a matching service
+        .filter(
+          (t) =>
+            t.treatment_date &&
+            String(t.treatment_date) >= startIso &&
+            t.service_id != null &&
+            serviceNameById.has(String(t.service_id))
+        )
+        .sort((a, b) => String(b.treatment_date).localeCompare(String(a.treatment_date)))
+        .map((t) => ({
+          id: t.id,
+          treatment_date: t.treatment_date,
+          price_cents: t.price_cents,
+          service_id: t.service_id,
+          services: { name: serviceNameById.get(String(t.service_id)) },
+        }))
+    } else {
+      const { data } = await supabase
+        .from('treatments')
+        .select(
+          `
         id,
         treatment_date,
         price_cents,
         service_id,
         services!inner(name)
       `
-      )
-      .eq('clinic_id', clinicId)
-      .gte('treatment_date', startDate.toISOString())
-      .order('treatment_date', { ascending: false })
+        )
+        .eq('clinic_id', clinicId)
+        .gte('treatment_date', startDate.toISOString())
+        .order('treatment_date', { ascending: false })
+      treatments = data
+    }
 
     const total = treatments?.length || 0
     const totalRevenue =
@@ -371,8 +489,10 @@ export class ClinicSnapshotService {
     const avgPrice = total > 0 ? totalRevenue / total : 0
 
     // Group by service
-    const byService = (treatments || []).reduce(
-      (acc, t) => {
+    const byService: Record<string, { count: number; revenue_cents: number }> = (
+      treatments || []
+    ).reduce(
+      (acc: Record<string, { count: number; revenue_cents: number }>, t: any) => {
         const serviceName = (t.services as any)?.name || 'Unknown'
         if (!acc[serviceName]) {
           acc[serviceName] = { count: 0, revenue_cents: 0 }
@@ -402,38 +522,61 @@ export class ClinicSnapshotService {
     fixedCosts: any,
     assets: any
   ) {
-    // Get all services with their direct price_cents field
-    // Services have pricing directly in the table (tariffs table is DEPRECATED)
-    const { data: services, error: servicesError } = await supabase
-      .from('services')
-      .select('id, name, est_minutes, price_cents, is_active')
-      .eq('clinic_id', clinicId)
-      .order('name')
+    let services: any[] | null
+    let supplies: any[] | null
+    let serviceSupplies: any[] | null
 
-    if (servicesError) {
-      console.error('[ClinicSnapshotService] Error loading services:', servicesError)
-      return {
-        total_configured: 0,
-        with_pricing: 0,
-        with_supplies: 0,
-        list: [],
-      }
-    }
+    if (shouldReturnConvexData('services')) {
+      services = stripConvexRows(
+        (await listConvexDocumentsByClinic('services', clinicId)) as Record<string, any>[]
+      ).sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? '')))
 
-    // Load all supplies for cost calculation
-    const { data: supplies } = await supabase
-      .from('supplies')
-      .select('id, price_cents, portions')
-      .eq('clinic_id', clinicId)
-
-    // Load service_supplies relationships
-    const { data: serviceSupplies } = await supabase
-      .from('service_supplies')
-      .select('service_id, supply_id, qty')
-      .in(
-        'service_id',
-        services?.map((s) => s.id) || []
+      supplies = stripConvexRows(
+        (await listConvexDocumentsByClinic('supplies', clinicId)) as Record<string, any>[]
       )
+
+      // service_supplies is indirect (FK service_id) -> resolve service ids then filter
+      const serviceIds = new Set((services || []).map((s) => String(s.id)))
+      serviceSupplies = stripConvexRows(
+        (await listConvexTable('service_supplies')) as Record<string, any>[]
+      ).filter((ss) => ss.service_id != null && serviceIds.has(String(ss.service_id)))
+    } else {
+      // Get all services with their direct price_cents field
+      // Services have pricing directly in the table (tariffs table is DEPRECATED)
+      const { data: servicesData, error: servicesError } = await supabase
+        .from('services')
+        .select('id, name, est_minutes, price_cents, is_active')
+        .eq('clinic_id', clinicId)
+        .order('name')
+
+      if (servicesError) {
+        console.error('[ClinicSnapshotService] Error loading services:', servicesError)
+        return {
+          total_configured: 0,
+          with_pricing: 0,
+          with_supplies: 0,
+          list: [],
+        }
+      }
+      services = servicesData
+
+      // Load all supplies for cost calculation
+      const { data: suppliesData } = await supabase
+        .from('supplies')
+        .select('id, price_cents, portions')
+        .eq('clinic_id', clinicId)
+      supplies = suppliesData
+
+      // Load service_supplies relationships
+      const { data: serviceSuppliesData } = await supabase
+        .from('service_supplies')
+        .select('service_id, supply_id, qty')
+        .in(
+          'service_id',
+          services?.map((s) => s.id) || []
+        )
+      serviceSupplies = serviceSuppliesData
+    }
 
     // Calculate fixed cost per minute (same as /api/services)
     const monthlyFixedCostsCents = fixedCosts.monthly_total_cents + assets.monthly_depreciation_cents
@@ -532,10 +675,36 @@ export class ClinicSnapshotService {
   }
 
   private async loadSupplies(supabase: SupabaseClient, clinicId: string) {
-    const { data: supplies } = await supabase
-      .from('supplies')
-      .select('id, name, price_cents, category')
-      .eq('clinic_id', clinicId)
+    let supplies: any[] | null
+    let linkedToServices: number | null
+
+    if (shouldReturnConvexData('supplies')) {
+      supplies = stripConvexRows(
+        (await listConvexDocumentsByClinic('supplies', clinicId)) as Record<string, any>[]
+      )
+
+      // Count service_supplies rows whose supply_id belongs to this clinic's supplies
+      const supplyIds = new Set((supplies || []).map((s) => String(s.id)))
+      linkedToServices = stripConvexRows(
+        (await listConvexTable('service_supplies')) as Record<string, any>[]
+      ).filter((ss) => ss.supply_id != null && supplyIds.has(String(ss.supply_id))).length
+    } else {
+      const { data: suppliesData } = await supabase
+        .from('supplies')
+        .select('id, name, price_cents, category')
+        .eq('clinic_id', clinicId)
+      supplies = suppliesData
+
+      // Count how many are linked to services
+      const { count } = await supabase
+        .from('service_supplies')
+        .select('supply_id', { count: 'exact', head: true })
+        .in(
+          'supply_id',
+          supplies?.map((s) => s.id) || []
+        )
+      linkedToServices = count ?? null
+    }
 
     const totalValue =
       supplies?.reduce((sum, s) => sum + (s.price_cents || 0), 0) || 0
@@ -550,15 +719,6 @@ export class ClinicSnapshotService {
       {} as Record<string, number>
     )
 
-    // Count how many are linked to services
-    const { count: linkedToServices } = await supabase
-      .from('service_supplies')
-      .select('supply_id', { count: 'exact', head: true })
-      .in(
-        'supply_id',
-        supplies?.map((s) => s.id) || []
-      )
-
     return {
       total_items: supplies?.length || 0,
       total_value_cents: totalValue,
@@ -568,10 +728,19 @@ export class ClinicSnapshotService {
   }
 
   private async loadAssets(supabase: SupabaseClient, clinicId: string) {
-    const { data: assets } = await supabase
-      .from('assets')
-      .select('id, name, purchase_price_cents, depreciation_months, purchase_date')
-      .eq('clinic_id', clinicId)
+    let assets: any[] | null
+
+    if (shouldReturnConvexData('assets')) {
+      assets = stripConvexRows(
+        (await listConvexDocumentsByClinic('assets', clinicId)) as Record<string, any>[]
+      )
+    } else {
+      const { data } = await supabase
+        .from('assets')
+        .select('id, name, purchase_price_cents, depreciation_months, purchase_date')
+        .eq('clinic_id', clinicId)
+      assets = data
+    }
 
     const totalPurchaseValue =
       assets?.reduce((sum, a) => sum + (a.purchase_price_cents || 0), 0) || 0
@@ -606,11 +775,21 @@ export class ClinicSnapshotService {
     clinicId: string,
     startDate: Date
   ) {
-    const { data: expenses } = await supabase
-      .from('expenses')
-      .select('id, amount_cents, expense_date, category, description')
-      .eq('clinic_id', clinicId)
-      .gte('expense_date', startDate.toISOString())
+    let expenses: any[] | null
+
+    if (shouldReturnConvexData('expenses')) {
+      const startIso = startDate.toISOString()
+      expenses = stripConvexRows(
+        (await listConvexDocumentsByClinic('expenses', clinicId)) as Record<string, any>[]
+      ).filter((e) => e.expense_date && String(e.expense_date) >= startIso)
+    } else {
+      const { data } = await supabase
+        .from('expenses')
+        .select('id, amount_cents, expense_date, category, description')
+        .eq('clinic_id', clinicId)
+        .gte('expense_date', startDate.toISOString())
+      expenses = data
+    }
 
     const total = expenses?.reduce((sum, e) => sum + (e.amount_cents || 0), 0) || 0
 
@@ -636,29 +815,71 @@ export class ClinicSnapshotService {
     clinicId: string,
     startDate: Date
   ) {
-    const { count: totalLeads } = await supabase
-      .from('leads')
-      .select('id', { count: 'exact', head: true })
-      .eq('clinic_id', clinicId)
+    let totalLeads: number | null
+    let convertedTotal: number | null
+    let leadsInPeriod: any[] | null
+    let recentLeads: any[] | null
 
-    const { count: convertedTotal } = await supabase
-      .from('leads')
-      .select('id', { count: 'exact', head: true })
-      .eq('clinic_id', clinicId)
-      .or('status.eq.converted,converted_patient_id.not.is.null')
+    if (shouldReturnConvexData('leads')) {
+      const startIso = startDate.toISOString()
+      const allLeads = stripConvexRows(
+        (await listConvexDocumentsByClinic('leads', clinicId)) as Record<string, any>[]
+      )
 
-    const { data: leadsInPeriod } = await supabase
-      .from('leads')
-      .select('id, status, campaign_id, converted_patient_id, converted_at, created_at, marketing_campaigns(id, name)')
-      .eq('clinic_id', clinicId)
-      .gte('created_at', startDate.toISOString())
+      // Resolve marketing_campaigns(id, name) join manually via id -> campaign map
+      const campaigns = stripConvexRows(
+        (await listConvexDocumentsByClinic('marketing_campaigns', clinicId)) as Record<string, any>[]
+      )
+      const campaignById = new Map(campaigns.map((c) => [String(c.id), { id: c.id, name: c.name }]))
+      const withCampaign = (lead: Record<string, any>) => ({
+        ...lead,
+        marketing_campaigns: lead.campaign_id ? campaignById.get(String(lead.campaign_id)) ?? null : null,
+      })
 
-    const { data: recentLeads } = await supabase
-      .from('leads')
-      .select('id, full_name, email, phone, status, created_at, converted_at, converted_patient_id, campaign_id, marketing_campaigns(id, name)')
-      .eq('clinic_id', clinicId)
-      .order('created_at', { ascending: false })
-      .limit(50)
+      totalLeads = allLeads.length
+
+      // .or('status.eq.converted,converted_patient_id.not.is.null')
+      convertedTotal = allLeads.filter(
+        (l) => l.status === 'converted' || (l.converted_patient_id != null)
+      ).length
+
+      leadsInPeriod = allLeads
+        .filter((l) => l.created_at && String(l.created_at) >= startIso)
+        .map(withCampaign)
+
+      recentLeads = [...allLeads]
+        .sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))
+        .slice(0, 50)
+        .map(withCampaign)
+    } else {
+      const { count: total } = await supabase
+        .from('leads')
+        .select('id', { count: 'exact', head: true })
+        .eq('clinic_id', clinicId)
+      totalLeads = total ?? null
+
+      const { count: converted } = await supabase
+        .from('leads')
+        .select('id', { count: 'exact', head: true })
+        .eq('clinic_id', clinicId)
+        .or('status.eq.converted,converted_patient_id.not.is.null')
+      convertedTotal = converted ?? null
+
+      const { data: periodData } = await supabase
+        .from('leads')
+        .select('id, status, campaign_id, converted_patient_id, converted_at, created_at, marketing_campaigns(id, name)')
+        .eq('clinic_id', clinicId)
+        .gte('created_at', startDate.toISOString())
+      leadsInPeriod = periodData
+
+      const { data: recentData } = await supabase
+        .from('leads')
+        .select('id, full_name, email, phone, status, created_at, converted_at, converted_patient_id, campaign_id, marketing_campaigns(id, name)')
+        .eq('clinic_id', clinicId)
+        .order('created_at', { ascending: false })
+        .limit(50)
+      recentLeads = recentData
+    }
 
     const byStatus = (leadsInPeriod || []).reduce(
       (acc, lead: any) => {
@@ -710,26 +931,54 @@ export class ClinicSnapshotService {
   }
 
   private async loadInboxConversations(supabase: SupabaseClient, clinicId: string) {
-    const { data: statusRows } = await supabase
-      .from('inbox_conversations')
-      .select('status')
-      .eq('clinic_id', clinicId)
+    let statusRows: any[] | null
+    let recent: any[] | null
 
-    const byStatus = (statusRows || []).reduce(
-      (acc, row: any) => {
-        const status = row.status || 'unknown'
-        acc[status] = (acc[status] || 0) + 1
-        return acc
-      },
-      {} as Record<string, number>
-    )
+    if (shouldReturnConvexData('inbox_conversations')) {
+      const conversations = stripConvexRows(
+        (await listConvexDocumentsByClinic('inbox_conversations', clinicId)) as Record<string, any>[]
+      )
+      statusRows = conversations.map((c) => ({ status: c.status }))
 
-    const openCount = (statusRows || []).filter((row: any) => row.status !== 'closed').length
-    const inProgressCount = (statusRows || []).filter((row: any) => row.status === 'in_progress').length
+      // ORDER BY last_message_at DESC NULLS LAST, created_at DESC; LIMIT 50
+      recent = [...conversations]
+        .sort((a, b) => {
+          const aHas = a.last_message_at != null
+          const bHas = b.last_message_at != null
+          if (aHas !== bHas) return aHas ? -1 : 1 // non-null first (NULLS LAST)
+          if (aHas && bHas) {
+            const cmp = String(b.last_message_at).localeCompare(String(a.last_message_at))
+            if (cmp !== 0) return cmp
+          }
+          return String(b.created_at ?? '').localeCompare(String(a.created_at ?? ''))
+        })
+        .slice(0, 50)
+        .map((c) => ({
+          id: c.id,
+          channel: c.channel,
+          contact_name: c.contact_name,
+          contact_address: c.contact_address,
+          status: c.status,
+          conversation_state: c.conversation_state,
+          assigned_user_id: c.assigned_user_id,
+          last_message_at: c.last_message_at,
+          last_message_preview: c.last_message_preview,
+          unread_count: c.unread_count,
+          campaign_id: c.campaign_id,
+          lead_id: c.lead_id,
+          patient_id: c.patient_id,
+          created_at: c.created_at,
+        }))
+    } else {
+      const { data: statusData } = await supabase
+        .from('inbox_conversations')
+        .select('status')
+        .eq('clinic_id', clinicId)
+      statusRows = statusData
 
-    const { data: recent } = await supabase
-      .from('inbox_conversations')
-      .select(`
+      const { data: recentData } = await supabase
+        .from('inbox_conversations')
+        .select(`
         id,
         channel,
         contact_name,
@@ -745,10 +994,24 @@ export class ClinicSnapshotService {
         patient_id,
         created_at
       `)
-      .eq('clinic_id', clinicId)
-      .order('last_message_at', { ascending: false, nullsFirst: false })
-      .order('created_at', { ascending: false })
-      .limit(50)
+        .eq('clinic_id', clinicId)
+        .order('last_message_at', { ascending: false, nullsFirst: false })
+        .order('created_at', { ascending: false })
+        .limit(50)
+      recent = recentData
+    }
+
+    const byStatus = (statusRows || []).reduce(
+      (acc, row: any) => {
+        const status = row.status || 'unknown'
+        acc[status] = (acc[status] || 0) + 1
+        return acc
+      },
+      {} as Record<string, number>
+    )
+
+    const openCount = (statusRows || []).filter((row: any) => row.status !== 'closed').length
+    const inProgressCount = (statusRows || []).filter((row: any) => row.status === 'in_progress').length
 
     return {
       total: statusRows?.length || 0,
@@ -764,9 +1027,42 @@ export class ClinicSnapshotService {
     clinicId: string,
     startDate: Date
   ) {
-    const { data: messages } = await supabase
-      .from('inbox_messages')
-      .select(`
+    let recent: any[]
+
+    if (shouldReturnConvexData('inbox_messages')) {
+      const startIso = startDate.toISOString()
+      // Indirect: inbox_messages joins inbox_conversations on clinic_id.
+      // Resolve this clinic's conversation ids, then filter messages by FK.
+      const conversations = stripConvexRows(
+        (await listConvexDocumentsByClinic('inbox_conversations', clinicId)) as Record<string, any>[]
+      )
+      const conversationIds = new Set(conversations.map((c) => String(c.id)))
+
+      recent = stripConvexRows(
+        (await listConvexTable('inbox_messages')) as Record<string, any>[]
+      )
+        .filter(
+          (m) =>
+            m.conversation_id != null &&
+            conversationIds.has(String(m.conversation_id)) &&
+            m.created_at &&
+            String(m.created_at) >= startIso
+        )
+        .sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))
+        .slice(0, 200)
+        .map((m) => ({
+          id: m.id,
+          conversation_id: m.conversation_id,
+          role: m.role,
+          direction: m.direction,
+          content: m.content,
+          message_type: m.message_type,
+          created_at: m.created_at,
+        }))
+    } else {
+      const { data: messages } = await supabase
+        .from('inbox_messages')
+        .select(`
         id,
         conversation_id,
         role,
@@ -776,15 +1072,16 @@ export class ClinicSnapshotService {
         created_at,
         inbox_conversations!inner(clinic_id)
       `)
-      .eq('inbox_conversations.clinic_id', clinicId)
-      .gte('created_at', startDate.toISOString())
-      .order('created_at', { ascending: false })
-      .limit(200)
+        .eq('inbox_conversations.clinic_id', clinicId)
+        .gte('created_at', startDate.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(200)
 
-    const recent = (messages || []).map((message: any) => {
-      const { inbox_conversations, ...rest } = message
-      return rest
-    })
+      recent = (messages || []).map((message: any) => {
+        const { inbox_conversations, ...rest } = message
+        return rest
+      })
+    }
 
     return {
       total_in_period: recent.length,
@@ -796,6 +1093,25 @@ export class ClinicSnapshotService {
     supabase: SupabaseClient,
     clinicId: string
   ) {
+    if (shouldReturnConvexData('patients')) {
+      // Load all patients with complete information including notes
+      return stripConvexRows(
+        (await listConvexDocumentsByClinic('patients', clinicId)) as Record<string, any>[]
+      )
+        .sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))
+        .slice(0, 100) // Limit to most recent 100 patients to avoid overwhelming the AI
+        .map((p) => ({
+          id: p.id,
+          first_name: p.first_name,
+          last_name: p.last_name,
+          phone: p.phone,
+          email: p.email,
+          notes: p.notes,
+          created_at: p.created_at,
+          first_visit_date: p.first_visit_date,
+        }))
+    }
+
     // Load all patients with complete information including notes
     const { data: patients } = await supabase
       .from('patients')
@@ -812,10 +1128,60 @@ export class ClinicSnapshotService {
     clinicId: string,
     startDate: Date
   ) {
-    // Load all treatments in period with complete information including notes and TIME
-    const { data: treatments } = await supabase
-      .from('treatments')
-      .select(`
+    let treatments: any[] | null
+
+    if (shouldReturnConvexData('treatments')) {
+      const startIso = startDate.toISOString()
+      // Resolve patients!inner + services!inner joins manually via id -> row maps
+      const patients = stripConvexRows(
+        (await listConvexDocumentsByClinic('patients', clinicId)) as Record<string, any>[]
+      )
+      const patientById = new Map(patients.map((p) => [String(p.id), p]))
+      const services = stripConvexRows(
+        (await listConvexDocumentsByClinic('services', clinicId)) as Record<string, any>[]
+      )
+      const serviceNameById = new Map(services.map((s) => [String(s.id), s.name]))
+
+      treatments = stripConvexRows(
+        (await listConvexDocumentsByClinic('treatments', clinicId)) as Record<string, any>[]
+      )
+        // !inner joins => require a matching patient AND service
+        .filter(
+          (t) =>
+            t.treatment_date &&
+            String(t.treatment_date) >= startIso &&
+            t.patient_id != null &&
+            patientById.has(String(t.patient_id)) &&
+            t.service_id != null &&
+            serviceNameById.has(String(t.service_id))
+        )
+        // ORDER BY treatment_date DESC, treatment_time ASC
+        .sort((a, b) => {
+          const dateCmp = String(b.treatment_date).localeCompare(String(a.treatment_date))
+          if (dateCmp !== 0) return dateCmp
+          return String(a.treatment_time ?? '').localeCompare(String(b.treatment_time ?? ''))
+        })
+        .map((t) => {
+          const patient = patientById.get(String(t.patient_id))
+          return {
+            id: t.id,
+            treatment_date: t.treatment_date,
+            treatment_time: t.treatment_time,
+            price_cents: t.price_cents,
+            status: t.status,
+            notes: t.notes,
+            duration_minutes: t.duration_minutes,
+            tooth_number: t.tooth_number,
+            is_paid: t.is_paid,
+            patients: { first_name: patient?.first_name, last_name: patient?.last_name },
+            services: { name: serviceNameById.get(String(t.service_id)) },
+          }
+        })
+    } else {
+      // Load all treatments in period with complete information including notes and TIME
+      const { data } = await supabase
+        .from('treatments')
+        .select(`
         id,
         treatment_date,
         treatment_time,
@@ -828,10 +1194,12 @@ export class ClinicSnapshotService {
         patients!inner(first_name, last_name),
         services!inner(name)
       `)
-      .eq('clinic_id', clinicId)
-      .gte('treatment_date', startDate.toISOString())
-      .order('treatment_date', { ascending: false })
-      .order('treatment_time', { ascending: true })
+        .eq('clinic_id', clinicId)
+        .gte('treatment_date', startDate.toISOString())
+        .order('treatment_date', { ascending: false })
+        .order('treatment_time', { ascending: true })
+      treatments = data
+    }
 
     return (treatments || []).map(t => ({
       id: t.id,
@@ -849,10 +1217,19 @@ export class ClinicSnapshotService {
   }
 
   private async loadFixedCosts(supabase: SupabaseClient, clinicId: string) {
-    const { data: fixedCosts } = await supabase
-      .from('fixed_costs')
-      .select('id, concept, amount_cents')
-      .eq('clinic_id', clinicId)
+    let fixedCosts: any[] | null
+
+    if (shouldReturnConvexData('fixed_costs')) {
+      fixedCosts = stripConvexRows(
+        (await listConvexDocumentsByClinic('fixed_costs', clinicId)) as Record<string, any>[]
+      )
+    } else {
+      const { data } = await supabase
+        .from('fixed_costs')
+        .select('id, concept, amount_cents')
+        .eq('clinic_id', clinicId)
+      fixedCosts = data
+    }
 
     const manualTotal =
       fixedCosts?.reduce((sum, fc) => sum + (fc.amount_cents || 0), 0) || 0

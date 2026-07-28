@@ -5,8 +5,55 @@ import { resolveClinicContext } from '@/lib/clinic';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
 import { forbiddenIfMissingPermission } from '@/lib/permissions';
+import {
+  listConvexTable,
+  getConvexDocumentByLegacyId,
+  upsertConvexDocumentByLegacyId,
+  patchConvexDocumentByLegacyId,
+  deleteConvexDocumentByLegacyId,
+} from '@/lib/convex/server';
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
+
+type ImportedRecord = Record<string, any>;
+
+function normalizeConvexRecord(row: ImportedRecord) {
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row;
+  return rest;
+}
+
+async function getMarketingPlatformsFromConvex(clinicId: string, activeOnly: boolean) {
+  const rows = await listConvexTable('categories', 10000) as ImportedRecord[];
+
+  const filtered = rows.filter((row) => {
+    if (row.entity_type !== 'marketing_platform') return false;
+    // Replicate `.or('clinic_id.is.null,clinic_id.eq.${clinicId}')`
+    const rowClinicId = row.clinic_id ?? null;
+    if (rowClinicId !== null && rowClinicId !== clinicId) return false;
+    if (activeOnly && row.is_active !== true) return false;
+    return true;
+  });
+
+  // Replicate ordering: is_system DESC, display_order ASC (NULLS LAST), display_name ASC
+  filtered.sort((a, b) => {
+    const aSystem = a.is_system === true ? 1 : 0;
+    const bSystem = b.is_system === true ? 1 : 0;
+    if (aSystem !== bSystem) return bSystem - aSystem;
+
+    const aOrder = a.display_order ?? null;
+    const bOrder = b.display_order ?? null;
+    if (aOrder === null && bOrder !== null) return 1;
+    if (aOrder !== null && bOrder === null) return -1;
+    if (aOrder !== null && bOrder !== null && Number(aOrder) !== Number(bOrder)) {
+      return Number(aOrder) - Number(bOrder);
+    }
+
+    return String(a.display_name ?? '').localeCompare(String(b.display_name ?? ''));
+  });
+
+  return filtered.map(normalizeConvexRecord);
+}
 
 
 const createPlatformSchema = z.object({
@@ -44,6 +91,11 @@ export async function GET(request: NextRequest) {
     const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'campaigns.view');
     if (forbidden) return forbidden;
     const activeOnly = searchParams.get('active') === 'true';
+
+    if (shouldReturnConvexData('categories')) {
+      const data = await getMarketingPlatformsFromConvex(clinicId, activeOnly);
+      return NextResponse.json({ data });
+    }
 
     let query = supabaseAdmin
       .from('categories')
@@ -109,16 +161,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const insertRow = {
+      clinic_id: clinicId,
+      entity_type: 'marketing_platform',
+      name: validation.data.name || validation.data.display_name.toLowerCase().replace(/\s+/g, '_'),
+      display_name: validation.data.display_name,
+      is_system: false,
+      is_active: true,
+    };
+
+    if (shouldUseConvexOnlyWritePath('categories')) {
+      const id = crypto.randomUUID();
+      const now = new Date().toISOString();
+      const row = { id, ...insertRow, created_at: now, updated_at: now };
+      await upsertConvexDocumentByLegacyId('categories', id, row);
+      return NextResponse.json({ data: row });
+    }
+
     const { data, error } = await supabaseAdmin
       .from('categories')
-      .insert({
-        clinic_id: clinicId,
-        entity_type: 'marketing_platform',
-        name: validation.data.name || validation.data.display_name.toLowerCase().replace(/\s+/g, '_'),
-        display_name: validation.data.display_name,
-        is_system: false,
-        is_active: true,
-      })
+      .insert(insertRow)
       .select()
       .single();
 
@@ -161,6 +223,28 @@ export async function PUT(request: NextRequest) {
     const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'campaigns.edit');
     if (forbidden) return forbidden;
 
+    const patch: Record<string, unknown> = {};
+    if (body.display_name) patch.display_name = body.display_name;
+    if (body.is_active !== undefined) patch.is_active = body.is_active;
+
+    if (shouldUseConvexOnlyWritePath('categories')) {
+      const existingConvex = await getConvexDocumentByLegacyId('categories', id) as ImportedRecord | null;
+      if (!existingConvex || existingConvex.entity_type !== 'marketing_platform') {
+        return NextResponse.json({ error: 'Platform not found' }, { status: 404 });
+      }
+      if (existingConvex.clinic_id && existingConvex.clinic_id !== clinicId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+      if (!existingConvex.clinic_id) {
+        return NextResponse.json({ error: 'System platforms are read-only' }, { status: 403 });
+      }
+
+      const convexPatch = { ...patch, updated_at: new Date().toISOString() };
+      await patchConvexDocumentByLegacyId('categories', id, convexPatch);
+      const merged = { ...normalizeConvexRecord(existingConvex), ...convexPatch };
+      return NextResponse.json({ data: merged });
+    }
+
     const { data: existing, error: fetchError } = await supabaseAdmin
       .from('categories')
       .select('id, clinic_id')
@@ -184,10 +268,6 @@ export async function PUT(request: NextRequest) {
     if (!existing.clinic_id) {
       return NextResponse.json({ error: 'System platforms are read-only' }, { status: 403 });
     }
-
-    const patch: Record<string, unknown> = {};
-    if (body.display_name) patch.display_name = body.display_name;
-    if (body.is_active !== undefined) patch.is_active = body.is_active;
 
     const { data, error } = await supabaseAdmin
       .from('categories')
@@ -235,6 +315,22 @@ export async function DELETE(request: NextRequest) {
     const { clinicId, userId } = clinicContext;
     const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'campaigns.delete');
     if (forbidden) return forbidden;
+
+    if (shouldUseConvexOnlyWritePath('categories')) {
+      const existingConvex = await getConvexDocumentByLegacyId('categories', id) as ImportedRecord | null;
+      if (!existingConvex || existingConvex.entity_type !== 'marketing_platform') {
+        return NextResponse.json({ error: 'Platform not found' }, { status: 404 });
+      }
+      if (existingConvex.clinic_id && existingConvex.clinic_id !== clinicId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+      if (!existingConvex.clinic_id) {
+        return NextResponse.json({ error: 'System platforms are read-only' }, { status: 403 });
+      }
+
+      await deleteConvexDocumentByLegacyId('categories', id);
+      return NextResponse.json({ success: true });
+    }
 
     const { data: existing, error: fetchError } = await supabaseAdmin
       .from('categories')

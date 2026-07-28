@@ -11,8 +11,17 @@ import { cookies } from 'next/headers';
 import { resolveClinicContext } from '@/lib/clinic';
 import { readJson } from '@/lib/validation';
 import { forbiddenIfMissingPermission } from '@/lib/permissions';
+import { getConvexDocumentByLegacyId, patchConvexDocumentByLegacyId, decodeConvexValue } from '@/lib/convex/server';
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic';
+
+type ImportedRecord = Record<string, any>;
+
+function normalizeConvexRecord(row: ImportedRecord) {
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row;
+  return rest;
+}
 
 const whatsappProviderSchema = z.enum(['twilio', '360dialog', 'dialog360']);
 
@@ -106,21 +115,39 @@ export async function GET() {
     const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'settings.view');
     if (forbidden) return forbidden;
 
-    const { data: clinic, error } = await supabaseAdmin
-      .from('clinics')
-      .select('notification_settings')
-      .eq('id', clinicId)
-      .single();
+    // Convex read branch (flag-gated, default Supabase). Auth + clinic scoping
+    // already enforced (resolveClinicContext + settings.view guard). clinics has
+    // no clinic_id column (keyed by id), so we fetch by legacy id.
+    let settings: NotificationSettings | null;
+    if (shouldReturnConvexData('clinics')) {
+      const doc = (await getConvexDocumentByLegacyId('clinics', clinicId)) as ImportedRecord | null;
+      if (!doc) {
+        console.error('[settings/notifications][GET] Clinic not found in Convex');
+        return NextResponse.json(
+          { error: 'Failed to load notification settings' },
+          { status: 500 }
+        );
+      }
+      const clinic = normalizeConvexRecord(doc);
+      // notification_settings is JSONB; decode nested keys to match Supabase.
+      settings = decodeConvexValue(clinic.notification_settings) as NotificationSettings | null;
+    } else {
+      const { data: clinic, error } = await supabaseAdmin
+        .from('clinics')
+        .select('notification_settings')
+        .eq('id', clinicId)
+        .single();
 
-    if (error) {
-      console.error('[settings/notifications][GET] Error fetching clinic:', error);
-      return NextResponse.json(
-        { error: 'Failed to load notification settings' },
-        { status: 500 }
-      );
+      if (error) {
+        console.error('[settings/notifications][GET] Error fetching clinic:', error);
+        return NextResponse.json(
+          { error: 'Failed to load notification settings' },
+          { status: 500 }
+        );
+      }
+
+      settings = clinic?.notification_settings as NotificationSettings | null;
     }
-
-    const settings = clinic?.notification_settings as NotificationSettings | null;
 
     const whatsapp = settings?.whatsapp ?? undefined;
     const normalizedWhatsapp =
@@ -197,6 +224,29 @@ export async function PUT(request: NextRequest) {
       settings.whatsapp.provider = '360dialog';
     }
     console.info('[settings/notifications][PUT] Parsed settings:', JSON.stringify(settings, null, 2));
+
+    // Convex-only write branch (flag-gated, default Supabase). Auth + clinic
+    // scoping already enforced (resolveClinicContext + settings.edit guard).
+    // clinics has no clinic_id column (keyed by id), so we patch by legacy id.
+    // notification_settings is a simple JSONB object with no dotted keys, so we
+    // write it as-is (matching the Supabase update payload exactly).
+    if (shouldUseConvexOnlyWritePath('clinics')) {
+      const doc = (await getConvexDocumentByLegacyId('clinics', clinicId)) as ImportedRecord | null;
+      if (!doc) {
+        console.error('[settings/notifications][PUT] Clinic not found in Convex');
+        return NextResponse.json(
+          { error: 'Failed to save notification settings' },
+          { status: 500 }
+        );
+      }
+
+      await patchConvexDocumentByLegacyId('clinics', clinicId, {
+        notification_settings: settings,
+        updated_at: new Date().toISOString(),
+      });
+
+      return NextResponse.json({ success: true });
+    }
 
     const { error } = await supabaseAdmin
       .from('clinics')

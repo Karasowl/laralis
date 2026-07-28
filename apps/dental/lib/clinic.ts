@@ -1,63 +1,66 @@
-import { cookies } from 'next/headers';
-import { supabaseAdmin } from './supabaseAdmin';
-import { createClient } from './supabase/server';
-
-const CLINIC_COOKIE_NAME = 'clinicId';
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-export interface ClinicContextSuccess {
-  clinicId: string;
-  userId: string;
-}
-
-export interface ClinicContextError {
-  status: number;
-  message: string;
-}
-
-export function getClinicIdFromCookies(cookieStore: ReturnType<typeof cookies>): string | null {
-  const cookie = cookieStore.get(CLINIC_COOKIE_NAME);
-  return cookie?.value || null;
-}
-
-export function setClinicIdCookie(
-  clinicId: string,
-  store: ReturnType<typeof cookies> | null = null
-) {
+import { cookies } from 'next/headers';
+import { supabaseAdmin } from './supabaseAdmin';
+import { createClient } from './supabase/server';
+import { getConvexSessionFromCookieStore, isConvexAuthEnabled, getAuthBackend, type ConvexSessionPayload } from './auth/convex-session';
+import { getConvexAuthContext, convexUserHasClinicAccess, getConvexAuthUserLegacyId } from './convex/server';
+import { shouldReturnConvexData } from './data-backend';
+
+const CLINIC_COOKIE_NAME = 'clinicId';
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export interface ClinicContextSuccess {
+  clinicId: string;
+  userId: string;
+}
+
+export interface ClinicContextError {
+  status: number;
+  message: string;
+}
+
+export function getClinicIdFromCookies(cookieStore: ReturnType<typeof cookies>): string | null {
+  const cookie = cookieStore.get(CLINIC_COOKIE_NAME);
+  return cookie?.value || null;
+}
+
+export function setClinicIdCookie(
+  clinicId: string,
+  store: ReturnType<typeof cookies> | null = null
+) {
   const cookieStore = store ?? cookies();
   cookieStore.set(CLINIC_COOKIE_NAME, clinicId, {
     httpOnly: false,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     maxAge: 60 * 60 * 24 * 30, // 30 days
-    path: '/',
-  });
-}
-
-export function clearClinicIdCookie(store: ReturnType<typeof cookies> | null = null) {
-  const cookieStore = store ?? cookies();
-  cookieStore.delete(CLINIC_COOKIE_NAME);
-}
-
-async function getFirstClinicIdForUser(userId: string): Promise<string | null> {
-  const { data: workspaces, error: wsErr } = await supabaseAdmin
-    .from('workspaces')
-    .select('id')
-    .eq('owner_id', userId);
-
-  if (wsErr || !workspaces || workspaces.length === 0) return null;
-
-  const { data: clinics, error } = await supabaseAdmin
-    .from('clinics')
-    .select('id, workspace_id')
-    .in('workspace_id', workspaces.map(w => w.id))
-    .order('created_at', { ascending: true })
-    .limit(1);
-
-  if (error || !clinics || clinics.length === 0) return null;
-  return clinics[0].id;
-}
-
+    path: '/',
+  });
+}
+
+export function clearClinicIdCookie(store: ReturnType<typeof cookies> | null = null) {
+  const cookieStore = store ?? cookies();
+  cookieStore.delete(CLINIC_COOKIE_NAME);
+}
+
+async function getFirstClinicIdForUser(userId: string): Promise<string | null> {
+  const { data: workspaces, error: wsErr } = await supabaseAdmin
+    .from('workspaces')
+    .select('id')
+    .eq('owner_id', userId);
+
+  if (wsErr || !workspaces || workspaces.length === 0) return null;
+
+  const { data: clinics, error } = await supabaseAdmin
+    .from('clinics')
+    .select('id, workspace_id')
+    .in('workspace_id', workspaces.map(w => w.id))
+    .order('created_at', { ascending: true })
+    .limit(1);
+
+  if (error || !clinics || clinics.length === 0) return null;
+  return clinics[0].id;
+}
+
 async function getFirstAccessibleClinicIdForUser(userId: string): Promise<string | null> {
 
   const workspaceIds = new Set<string>();
@@ -149,28 +152,42 @@ async function getFirstAccessibleClinicIdForUser(userId: string): Promise<string
 
 
 function isUuid(value: string | null | undefined): value is string {
-  return typeof value === 'string' && UUID_REGEX.test(value);
-}
-
-async function hasClinicAccess(
-  supabase: ReturnType<typeof createClient>,
+  return typeof value === 'string' && UUID_REGEX.test(value);
+}
+
+async function hasClinicAccess(
+  supabase: ReturnType<typeof createClient>,
   clinicId: string,
 
   userId?: string
-): Promise<boolean> {
-  if (!isUuid(clinicId)) return false;
-
-  const { data, error } = await supabase.rpc('user_has_clinic_access', {
-    clinic_id: clinicId,
-  });
-
-  if (error) {
-    console.error('[clinic] Failed verifying access to clinic', error.message);
+): Promise<boolean> {
+  if (!isUuid(clinicId)) return false;
+
+  // Convex authorization branch (flag-gated; default Supabase). The full
+  // Convex-auth path is handled by resolveConvexClinicContext above; this covers
+  // the Supabase-session path when the permission domain is routed to Convex.
+  if (getAuthBackend() === 'convex' || shouldReturnConvexData('role_permissions')) {
+    const resolvedUserId = userId || (await supabase.auth.getUser()).data.user?.id;
+    if (!resolvedUserId || !isUuid(resolvedUserId)) return false;
+    try {
+      return Boolean(await convexUserHasClinicAccess(resolvedUserId, clinicId));
+    } catch (convexError) {
+      console.error('[clinic] Convex clinic access error', convexError);
+      return false;
+    }
+  }
+
+  const { data, error } = await supabase.rpc('user_has_clinic_access', {
+    clinic_id: clinicId,
+  });
+
+  if (error) {
+    console.error('[clinic] Failed verifying access to clinic', error.message);
   } else if (data) {
 
     return true;
-  }
-
+  }
+
   const resolvedUserId = userId || (await supabase.auth.getUser()).data.user?.id;
   if (!resolvedUserId) return false;
 
@@ -200,30 +217,123 @@ async function hasClinicAccess(
   }
 
   return Boolean(ownedWorkspace);
-}
-
-export async function resolveClinicContext({
-  requestedClinicId,
-  cookieStore,
-}: {
-  requestedClinicId?: string | null;
-  cookieStore: ReturnType<typeof cookies>;
-}): Promise<ClinicContextSuccess | { error: ClinicContextError }> {
-  const supabase = createClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    return { error: { status: 401, message: 'Unauthorized' } };
-  }
-
-  const candidateClinicIds: string[] = [];
-  const normalizedRequested = requestedClinicId && isUuid(requestedClinicId)
-    ? requestedClinicId
-    : null;
-
+}
+
+async function resolveConvexClinicContext({
+  session,
+  requestedClinicId,
+  cookieStore,
+}: {
+  session: ConvexSessionPayload;
+  requestedClinicId?: string | null;
+  cookieStore: ReturnType<typeof cookies>;
+}): Promise<ClinicContextSuccess | { error: ClinicContextError }> {
+  try {
+    const context = await getConvexAuthContext(session.sub);
+    const accessibleClinicIds = new Set<string>(
+      (context.clinics || []).flatMap((clinic: any) => [clinic.id, clinic.legacyId].filter(Boolean))
+    );
+    const candidateClinicIds: string[] = [];
+    const normalizedRequested = requestedClinicId && isUuid(requestedClinicId)
+      ? requestedClinicId
+      : null;
+
+    if (normalizedRequested) candidateClinicIds.push(normalizedRequested);
+
+    const cookieClinicId = getClinicIdFromCookies(cookieStore);
+    if (isUuid(cookieClinicId) && !candidateClinicIds.includes(cookieClinicId)) {
+      candidateClinicIds.push(cookieClinicId);
+    }
+
+    if (session.clinicId && isUuid(session.clinicId) && !candidateClinicIds.includes(session.clinicId)) {
+      candidateClinicIds.push(session.clinicId);
+    }
+
+    const defaultClinicId = context.defaultClinic?.id;
+    if (defaultClinicId && isUuid(defaultClinicId) && !candidateClinicIds.includes(defaultClinicId)) {
+      candidateClinicIds.push(defaultClinicId);
+    }
+
+    for (const clinicId of candidateClinicIds) {
+      if (!accessibleClinicIds.has(clinicId)) continue;
+      if (!cookieClinicId || cookieClinicId !== clinicId) {
+        setClinicIdCookie(clinicId, cookieStore);
+      }
+      return { clinicId, userId: session.sub };
+    }
+
+    if (cookieClinicId) clearClinicIdCookie(cookieStore);
+    return { error: { status: 403, message: 'Clinic access denied' } };
+  } catch (error) {
+    console.error('[clinic] Failed resolving Convex clinic context', error);
+    return { error: { status: 401, message: 'Unauthorized' } };
+  }
+}
+
+export async function resolveClinicContext({
+  requestedClinicId,
+  cookieStore,
+}: {
+  requestedClinicId?: string | null;
+  cookieStore: ReturnType<typeof cookies>;
+}): Promise<ClinicContextSuccess | { error: ClinicContextError }> {
+  // Pure Convex Auth mode: resolve identity + clinic ENTIRELY via Convex. The
+  // createConvexOnlyServerClient shim now resolves a user from the @convex-dev/auth
+  // token, so we must NOT fall through to the Supabase membership path (which queries
+  // workspace_users/workspace_members via Supabase and fails once Supabase is gone).
+  if (getAuthBackend() === 'convex') {
+    const convexSession = await getConvexSessionFromCookieStore(cookieStore);
+    if (convexSession) {
+      return resolveConvexClinicContext({ session: convexSession, requestedClinicId, cookieStore });
+    }
+    const identity = await getConvexAuthUserLegacyId();
+    if (identity?.legacyId) {
+      return resolveConvexClinicContext({
+        session: { sub: identity.legacyId, email: identity.email ?? '', iat: 0, exp: 0 },
+        requestedClinicId,
+        cookieStore,
+      });
+    }
+    return { error: { status: 401, message: 'Unauthorized' } };
+  }
+
+  const supabase = createClient();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    if (isConvexAuthEnabled()) {
+      const convexSession = await getConvexSessionFromCookieStore(cookieStore);
+      if (convexSession) {
+        return resolveConvexClinicContext({ session: convexSession, requestedClinicId, cookieStore });
+      }
+
+      // @convex-dev/auth identity path: read the Convex Auth token, map the
+      // token-subject back to the Supabase UUID (legacyId) every membership join uses.
+      if (getAuthBackend() === 'convex') {
+        const identity = await getConvexAuthUserLegacyId();
+        if (identity?.legacyId) {
+          const syntheticSession: ConvexSessionPayload = {
+            sub: identity.legacyId,
+            email: identity.email ?? '',
+            iat: 0,
+            exp: 0,
+          };
+          return resolveConvexClinicContext({ session: syntheticSession, requestedClinicId, cookieStore });
+        }
+      }
+    }
+
+    return { error: { status: 401, message: 'Unauthorized' } };
+  }
+
+  const candidateClinicIds: string[] = [];
+  const normalizedRequested = requestedClinicId && isUuid(requestedClinicId)
+    ? requestedClinicId
+    : null;
+
   if (normalizedRequested) {
     const canAccessRequested = await hasClinicAccess(supabase, normalizedRequested, user.id);
     if (!canAccessRequested) {
@@ -231,42 +341,42 @@ export async function resolveClinicContext({
     }
     candidateClinicIds.push(normalizedRequested);
   }
-
-  const cookieClinicId = getClinicIdFromCookies(cookieStore);
-  if (isUuid(cookieClinicId) && !candidateClinicIds.includes(cookieClinicId)) {
-    candidateClinicIds.push(cookieClinicId);
-  }
-
-  if (candidateClinicIds.length === 0) {
+
+  const cookieClinicId = getClinicIdFromCookies(cookieStore);
+  if (isUuid(cookieClinicId) && !candidateClinicIds.includes(cookieClinicId)) {
+    candidateClinicIds.push(cookieClinicId);
+  }
+
+  if (candidateClinicIds.length === 0) {
     const fallbackClinicId = await getFirstAccessibleClinicIdForUser(user.id);
-    if (fallbackClinicId && !candidateClinicIds.includes(fallbackClinicId)) {
-      candidateClinicIds.push(fallbackClinicId);
-    }
-  }
-
-  for (const clinicId of candidateClinicIds) {
+    if (fallbackClinicId && !candidateClinicIds.includes(fallbackClinicId)) {
+      candidateClinicIds.push(fallbackClinicId);
+    }
+  }
+
+  for (const clinicId of candidateClinicIds) {
     const canAccess = await hasClinicAccess(supabase, clinicId, user.id);
-    if (canAccess) {
-      if (!cookieClinicId || cookieClinicId !== clinicId) {
-        setClinicIdCookie(clinicId, cookieStore);
-      }
-      return { clinicId, userId: user.id };
-    }
-  }
-
-  if (cookieClinicId) {
-    clearClinicIdCookie(cookieStore);
-  }
-
-  return { error: { status: 403, message: 'Clinic access denied' } };
-}
-
-export async function getClinicIdOrDefault(
-  cookieStore: ReturnType<typeof cookies>
-): Promise<string | null> {
-  const result = await resolveClinicContext({ cookieStore });
-  if ('error' in result) {
-    return null;
-  }
-  return result.clinicId;
-}
+    if (canAccess) {
+      if (!cookieClinicId || cookieClinicId !== clinicId) {
+        setClinicIdCookie(clinicId, cookieStore);
+      }
+      return { clinicId, userId: user.id };
+    }
+  }
+
+  if (cookieClinicId) {
+    clearClinicIdCookie(cookieStore);
+  }
+
+  return { error: { status: 403, message: 'Clinic access denied' } };
+}
+
+export async function getClinicIdOrDefault(
+  cookieStore: ReturnType<typeof cookies>
+): Promise<string | null> {
+  const result = await resolveClinicContext({ cookieStore });
+  if ('error' in result) {
+    return null;
+  }
+  return result.clinicId;
+}

@@ -8,6 +8,9 @@ import { IntlProvider } from '@/components/providers/intl-provider';
 import { SwrProvider } from '@/components/providers/swr-provider';
 import { FloatingAssistant } from '@/components/ai-assistant/FloatingAssistant';
 import { TawkChat } from '@/components/tawk-chat';
+import { getAuthBackend } from '@/lib/auth/convex-session';
+import { ConvexAuthNextjsServerProvider } from '@convex-dev/auth/nextjs/server';
+import { ConvexAuthClientProvider } from '@/components/providers/convex-auth-provider';
 
 export default async function RootLayout({
   children,
@@ -19,36 +22,46 @@ export default async function RootLayout({
     getLocale()
   ]);
 
-  return (
+  // Convex Auth is mounted only when AUTH_BACKEND is convex/dual (default supabase
+  // => the Convex client/provider are never constructed; behavior is unchanged).
+  const convexAuthOn = getAuthBackend() !== 'supabase';
+
+  const appStack = (
+    <IntlProvider messages={messages} locale={locale}>
+      <SwrProvider>
+        <WorkspaceProvider>
+          {children}
+          <FloatingAssistant />
+          <TawkChat />
+          <Toaster
+            richColors
+            position="top-right"
+            toastOptions={{
+              style: {
+                borderRadius: '12px',
+              },
+            }}
+          />
+        </WorkspaceProvider>
+      </SwrProvider>
+    </IntlProvider>
+  );
+
+  const tree = (
     <html lang={locale} suppressHydrationWarning>
       <body className="font-sans antialiased" suppressHydrationWarning data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false">
         <BrowserExtensionsCleanup />
-        <ThemeProvider 
+        <ThemeProvider
           attribute="class"
           defaultTheme="dark"
           enableSystem={false}
           storageKey="laralis-theme"
         >
-          <IntlProvider messages={messages} locale={locale}>
-            <SwrProvider>
-              <WorkspaceProvider>
-                {children}
-                <FloatingAssistant />
-                <TawkChat />
-                <Toaster
-                richColors
-                position="top-right"
-                toastOptions={{
-                  style: {
-                    borderRadius: '12px',
-                  },
-                }}
-              />
-              </WorkspaceProvider>
-            </SwrProvider>
-          </IntlProvider>
+          {convexAuthOn ? <ConvexAuthClientProvider>{appStack}</ConvexAuthClientProvider> : appStack}
         </ThemeProvider>
       </body>
     </html>
   );
+
+  return convexAuthOn ? <ConvexAuthNextjsServerProvider>{tree}</ConvexAuthNextjsServerProvider> : tree;
 }

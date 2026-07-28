@@ -70,6 +70,15 @@ export interface SendMessageResult {
   costCents?: number
 }
 
+export interface WhatsAppQuickReplyButton {
+  id: string
+  title: string
+}
+
+export interface SendMessageOptions {
+  quickReplyButtons?: WhatsAppQuickReplyButton[]
+}
+
 export interface WhatsAppNotification {
   id: string
   clinic_id: string

@@ -5,8 +5,26 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { resolveClinicContext } from '@/lib/clinic'
 import { readJson } from '@/lib/validation'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
+import { getConvexDocumentByLegacyId, patchConvexDocumentByLegacyId } from '@/lib/convex/server'
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend'
 
 export const dynamic = 'force-dynamic'
+
+const DEFAULT_DISCOUNT_CONFIG = {
+  enabled: false,
+  type: 'percentage',
+  value: 0,
+} as const
+
+type ImportedRecord = Record<string, any>
+
+// clinics is keyed by `id` and has NO clinic_id column, so a single-clinic
+// read must use getConvexDocumentByLegacyId('clinics', clinicId).
+// listConvexDocumentsByClinic('clinics', ...) would return zero rows.
+async function getClinicDiscountFromConvex(clinicId: string) {
+  const clinic = await getConvexDocumentByLegacyId('clinics', clinicId) as ImportedRecord | null
+  return clinic?.global_discount_config || DEFAULT_DISCOUNT_CONFIG
+}
 
 const globalDiscountSchema = z.object({
   enabled: z.boolean(),
@@ -45,6 +63,15 @@ export async function GET(request: NextRequest) {
       'services.view'
     )
     if (forbidden) return forbidden
+
+    // Convex read branch. Gated behind auth (resolveClinicContext verifies the
+    // user owns/belongs to the clinic) + authorization (forbiddenIfMissingPermission)
+    // above, since the Convex bridge has no RLS. Byte-identical shape to the
+    // Supabase path below.
+    if (shouldReturnConvexData('clinics')) {
+      const data = await getClinicDiscountFromConvex(clinicContext.clinicId)
+      return NextResponse.json({ data })
+    }
 
     const { data: clinic, error } = await supabaseAdmin
       .from('clinics')
@@ -103,6 +130,22 @@ export async function PUT(request: NextRequest) {
     if (forbidden) return forbidden
 
     const discountConfig = parsed.data
+
+    // Convex-only write branch. Gated behind auth (resolveClinicContext) +
+    // authorization (forbiddenIfMissingPermission) above, since the Convex bridge
+    // has no RLS. clinics is keyed by `id`, so patch by legacyId === clinicId.
+    // global_discount_config is a simple settings object (no dotted keys), written
+    // as-is. Matches the Supabase response shape exactly.
+    if (shouldUseConvexOnlyWritePath('clinics')) {
+      await patchConvexDocumentByLegacyId('clinics', clinicContext.clinicId, {
+        global_discount_config: discountConfig,
+        updated_at: new Date().toISOString(),
+      })
+      return NextResponse.json({
+        message: 'Global discount configuration updated successfully',
+        data: discountConfig
+      })
+    }
 
     const { error } = await supabaseAdmin
       .from('clinics')

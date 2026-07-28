@@ -1,5 +1,15 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import type { AppointmentEmailData, BookingConfirmationData } from '@/lib/email/service'
+import { listConvexTable, decodeConvexValue } from '@/lib/convex/server'
+import { shouldReturnConvexData } from '@/lib/data-backend'
+
+type ConvexImportedRecord = Record<string, any>
+
+function normalizeRetryConvexRecord(row: ConvexImportedRecord): ConvexImportedRecord {
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row
+  // metadata is JSONB; decode nested keys so retry_payload matches Supabase.
+  return { ...rest, metadata: decodeConvexValue(rest.metadata) }
+}
 
 export type NotificationRetryChannel = 'email' | 'sms'
 export type NotificationRetryStatus = 'pending' | 'processing' | 'succeeded' | 'abandoned' | 'cancelled'
@@ -216,6 +226,20 @@ export async function queueNotificationRetry(params: QueueNotificationRetryParam
 
 export async function listDueNotificationRetries(limit = 25, now: Date = new Date()): Promise<NotificationRetryRow[]> {
   const safeLimit = Math.max(1, Math.min(limit, 100))
+
+  // Convex read branch (flag-gated, default Supabase). notification_retry_queue is
+  // read across all clinics, so read the whole table and filter/sort/limit in JS,
+  // mirroring status='pending' AND next_retry_at <= now ORDER BY next_retry_at ASC.
+  if (shouldReturnConvexData('notification_retry_queue')) {
+    const nowISO = now.toISOString()
+    const rows = (await listConvexTable('notification_retry_queue', 10000) as ConvexImportedRecord[])
+      .map(normalizeRetryConvexRecord)
+      .filter((r) => r.status === 'pending' && String(r.next_retry_at ?? '') <= nowISO)
+      .sort((a, b) => String(a.next_retry_at ?? '').localeCompare(String(b.next_retry_at ?? '')))
+      .slice(0, safeLimit)
+    return rows as NotificationRetryRow[]
+  }
+
   const { data, error } = await supabaseAdmin
     .from('notification_retry_queue')
     .select('*')
@@ -225,10 +249,24 @@ export async function listDueNotificationRetries(limit = 25, now: Date = new Dat
     .limit(safeLimit)
 
   if (error) {
+    if (isMissingNotificationRetryQueueTable(error)) {
+      console.warn('[notification-retry] notification_retry_queue table is not installed; skipping retry processing')
+      return []
+    }
+
     throw new Error(`Failed to fetch notification retries: ${error.message}`)
   }
 
   return (data || []) as NotificationRetryRow[]
+}
+
+function isMissingNotificationRetryQueueTable(error: { code?: string; message?: string }) {
+  const message = error.message || ''
+  return (
+    error.code === '42P01' ||
+    error.code === 'PGRST205' ||
+    /notification_retry_queue|schema cache|relation .* does not exist|Could not find the table/i.test(message)
+  )
 }
 
 export async function markNotificationRetryProcessing(retryId: string): Promise<void> {

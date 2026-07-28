@@ -7,6 +7,8 @@ import { resolveClinicContext } from '@/lib/clinic';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { readJson } from '@/lib/validation';
 import { forbiddenIfMissingPermission } from '@/lib/permissions';
+import { listConvexDocumentsByClinic, upsertConvexDocumentByLegacyId, patchConvexDocumentByLegacyId } from '@/lib/convex/server';
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath, shouldWriteConvexData } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
 
@@ -56,7 +58,62 @@ const normalizePayload = (body: any) => {
   return { work_days, hours_per_day, real_pct, working_days_config, monthly_goal_cents };
 };
 
-export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<SettingsTime>>> {
+type ImportedRecord = Record<string, any>;
+
+function normalizeTimeSettingsRecord(row: ImportedRecord | null | undefined): SettingsTime | null {
+  if (!row) return null;
+  const rawRealPct = row.real_hours_percentage ?? row.real_pct ?? 0;
+  const normalizedRealPct = rawRealPct <= 1 ? rawRealPct * 100 : rawRealPct;
+
+  return {
+    id: row.id,
+    clinic_id: row.clinic_id,
+    work_days: row.working_days_per_month ?? row.work_days,
+    hours_per_day: row.hours_per_day,
+    real_pct: normalizedRealPct,
+    monthly_goal_cents: row.monthly_goal_cents ?? null,
+    updated_at: row.updated_at,
+  };
+}
+
+async function getTimeSettingsFromConvex(clinicId: string) {
+  const rows = await listConvexDocumentsByClinic('settings_time', clinicId, 10) as ImportedRecord[];
+  const sortedRows = rows.sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')));
+  return normalizeTimeSettingsRecord(sortedRows[0]);
+}
+
+async function saveTimeSettingsToConvex(
+  clinicId: string,
+  normalized: ReturnType<typeof normalizePayload>,
+  existingId?: string | null
+) {
+  const now = new Date().toISOString();
+  const id = existingId || crypto.randomUUID();
+  const dbRealPct = normalized.real_pct / 100;
+  const row = {
+    id,
+    clinic_id: clinicId,
+    work_days: normalized.work_days,
+    working_days_per_month: normalized.work_days,
+    hours_per_day: normalized.hours_per_day,
+    real_pct: dbRealPct,
+    real_hours_percentage: dbRealPct,
+    working_days_config: normalized.working_days_config,
+    monthly_goal_cents: normalized.monthly_goal_cents ?? null,
+    updated_at: now,
+    ...(existingId ? {} : { created_at: now }),
+  };
+
+  if (existingId) {
+    await patchConvexDocumentByLegacyId('settings_time', existingId, row);
+  } else {
+    await upsertConvexDocumentByLegacyId('settings_time', id, row);
+  }
+
+  return normalizeTimeSettingsRecord(row);
+}
+
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const cookieStore = cookies();
     const supabaseReady = isSupabaseConfigured();
@@ -85,6 +142,11 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
     if (!supabaseReady) {
       const localRecord = getLocalStore().get(clinicId) || null;
       return NextResponse.json({ data: localRecord });
+    }
+
+    if (shouldReturnConvexData('settings_time')) {
+      const data = await getTimeSettingsFromConvex(clinicId);
+      return NextResponse.json({ data });
     }
 
     const { data: dbData, error } = await supabaseAdmin
@@ -137,13 +199,13 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
   }
 }
 
-export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse<SettingsTime>>> {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const bodyResult = await readJson(request);
     if ('error' in bodyResult) {
       return bodyResult.error;
     }
-    const body = bodyResult.data;
+    const body = bodyResult.data as Record<string, any>;
     const cookieStore = cookies();
     const supabaseReady = isSupabaseConfigured();
 
@@ -195,6 +257,16 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
 
       return NextResponse.json({
         data: record,
+        message: existing ? 'Time settings updated' : 'Time settings created'
+      });
+    }
+
+    if (shouldUseConvexOnlyWritePath('settings_time')) {
+      const existing = await getTimeSettingsFromConvex(clinicId);
+      const data = await saveTimeSettingsToConvex(clinicId, normalized, existing?.id ?? null);
+
+      return NextResponse.json({
+        data,
         message: existing ? 'Time settings updated' : 'Time settings created'
       });
     }
@@ -299,6 +371,14 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       updated_at: result.data.updated_at,
     };
 
+    if (result.data && shouldWriteConvexData('settings_time')) {
+      try {
+        await saveTimeSettingsToConvex(clinicId, normalized, result.data.id);
+      } catch (convexError) {
+        console.error('[settings/time POST] Convex dual-write failed:', convexError);
+      }
+    }
+
     return NextResponse.json({
       data: transformedData,
       message: existing ? 'Time settings updated' : 'Time settings created'
@@ -315,6 +395,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
 }
 
 // PUT method for explicit updates
-export async function PUT(request: NextRequest): Promise<NextResponse<ApiResponse<SettingsTime>>> {
+export async function PUT(request: NextRequest): Promise<NextResponse> {
   return POST(request); // Same logic as POST for upsert
 }

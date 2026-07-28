@@ -584,6 +584,9 @@
       "resendSuccess": "¡Correo reenviado exitosamente!",
       "resendError": "Error al reenviar el correo. Intenta de nuevo.",
       "resendAttempts": "Correos reenviados: {count}",
+      "enterCode": "Ingresa el código que te enviamos por correo",
+      "codePlaceholder": "123456",
+      "verify": "Verificar",
       "backToLogin": "Volver al inicio de sesión",
       "needHelp": "¿Necesitas ayuda?",
       "commonIssues": "Problemas comunes:",
@@ -613,7 +616,11 @@
       "successMessage": "Contraseña actualizada correctamente",
       "redirecting": "Redirigiendo...",
       "updateError": "Error al actualizar la contraseña",
-      "linkExpiration": "Los enlaces de recuperacion expiran despues de 1 hora o al ser usados."
+      "linkExpiration": "Los enlaces de recuperacion expiran despues de 1 hora o al ser usados.",
+      "enterCodeAndPassword": "Ingresa el código que te enviamos y elige una nueva contraseña.",
+      "codePlaceholder": "123456",
+      "passwordTooShort": "La contraseña debe tener al menos 6 caracteres",
+      "passwordsDontMatch": "Las contraseñas no coinciden"
     },
     "errors": {
       "invalidCredentials": "Correo o contraseña inválidos",

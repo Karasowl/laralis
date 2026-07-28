@@ -47,6 +47,31 @@
 - [ ] TASK-20260425-marketing-attribution-dashboard - Dashboard /marketing con desglose CTWA → revenue (gasto en ads / lead / paciente / treatment.price_cents)
 - [ ] TASK-20260425-whatsapp-cloudapi-referral - Cuando una clínica use 360dialog raw passthrough, parsear `entry[0].changes[0].value.messages[0].referral` además de los campos `Referral*` de Twilio
 
+## Auditoría de seguridad y arquitectura (2026-07-28)
+
+Hallazgos que NO entraron en el cierre P0 del 2026-07-28. Ver
+`docs/devlog/2026-07-28-close-unauthenticated-access.md`.
+
+### P0 pendientes
+- [ ] TASK-20260728-convex-identity-validation - Validar identidad de usuario dentro de las funciones de Convex y filtrar por clínica ahí, recuperando la segunda capa que daba RLS. Bloqueado por el cutover de auth (prod sigue con login Supabase, `AUTH_BACKEND=dual`). Hacerlo antes de vender a la segunda clínica.
+- [ ] TASK-20260728-dependency-cves - `npm audit`: 1 crítica (`@auth/core`, dependencia directa de `@convex-dev/auth`) y 4 altas (`next`, `ws`, `postcss`). Activar Dependabot.
+
+### P1
+- [ ] TASK-20260728-convex-pagination - 92 lecturas usan `listConvexTable` con escaneo completo y techo de 10.000 filas: por encima truncan datos en silencio y por encima de ~16k Convex lanza excepción. Los índices `by_clinic`/`by_workspace` ya existen en el esquema, falta usarlos con cursor.
+- [ ] TASK-20260728-auth-context-scans - `contextForUser` hace 7 escaneos completos por petición y `userHasPermission` otros 5. Sin caché. Es el mismo techo que lo anterior aplicado a la autenticación.
+- [ ] TASK-20260728-supabase-raw-clients - 10 rutas siguen creando un cliente Supabase crudo sin rama Convex y se romperán al apagar Supabase, incluidas borrado de cuenta y export/import (derechos del usuario).
+- [ ] TASK-20260728-permissions-tests - El motor de permisos se reescribió de SQL a JS (11 pasos de precedencia) sin un solo test que compare la réplica con el original.
+- [ ] TASK-20260728-i18n-missing-keys - 137 claves usadas en código y ausentes de `en.json` y `es.json`. Afecta pantallas enteras: `billing.*`, `settings.reset.*`, `common.errors.*`.
+- [ ] TASK-20260728-data-backend-fail-fast - `DEFAULT_BACKEND='supabase'` sin validación de arranque: si falta una variable en prod, la app sirve datos de un Supabase congelado sin ningún error.
+
+### P2
+- [ ] TASK-20260728-restore-ci-gates - `next.config.mjs` tiene `ignoreBuildErrors` e `ignoreDuringBuilds`, y la CI no corre typecheck, lint ni `npm audit`. Por eso hay 194 errores de tipo acumulados.
+- [ ] TASK-20260728-csp-hardening - La CSP incluye `script-src 'unsafe-inline'`, lo que anula su protección contra XSS. Migrar a nonces.
+- [ ] TASK-20260728-file-size-rule - 90 archivos superan las 400 líneas que fija `docs/CODING-STANDARDS.md` (hasta 1.686).
+- [ ] TASK-20260728-repo-hygiene - 146 MB de volcados de grep versionados en la raíz, dos lockfiles con versiones divergentes de Next, 18 SQL sueltos en `apps/dental` y 14 en la raíz.
+- [ ] TASK-20260728-qa-bypass-flag - Los bypass de QA en webhooks y rutas de IA dependen de un substring de `NEXT_PUBLIC_SUPABASE_URL`. Cambiar a un flag explícito de servidor.
+- [ ] TASK-20260728-whisperall-build-cost - Fuera de Laralis pero puede tumbarlo: `whisperall-web` consumió 189 horas de CPU de build en un ciclo (39,22 USD de 40,33 del equipo), lo que pausó los 24 proyectos por Spend Management.
+
 ## P3 - Futuro
 
 ### Mejoras a Lara
@@ -79,4 +104,4 @@ Las siguientes tareas del backlog original ya fueron implementadas:
 - [Pricing Strategy](../docs/competencia/PRICING-STRATEGY.md)
 - [Análisis Dentalink](../docs/competencia/dentalink/ANALISIS.md)
 
-Última actualización: 2026-04-25
+Última actualización: 2026-07-28

@@ -11,6 +11,14 @@ import { createHash } from 'crypto'
 import { TableDiscoveryService } from './discovery'
 import { SnapshotStorageService } from './storage'
 import { createSnapshotExporter } from './exporter'
+import { createMirroredSupabaseClient } from '@/lib/convex/supabase-runtime-mirror'
+import {
+  upsertConvexDocumentByLegacyId,
+  deleteConvexDocumentByLegacyId,
+  listConvexDocumentsByClinic,
+  listConvexTable,
+} from '@/lib/convex/server'
+import { shouldUseConvexOnlyWritePath } from '@/lib/data-backend'
 import {
   ClinicSnapshot,
   RestoreOptions,
@@ -24,14 +32,19 @@ export class ClinicSnapshotImporter {
   private discovery: TableDiscoveryService
   private storage: SnapshotStorageService
   private errors: RestoreError[] = []
+  private supabase: SupabaseClient
+  // Convex-only mode: the wrapped Supabase client throws on .from(); upsert/delete the
+  // clinic tables through Convex instead.
+  private convexWrite: boolean = shouldUseConvexOnlyWritePath('clinic_snapshots')
 
   constructor(
-    private supabase: SupabaseClient,
+    supabase: SupabaseClient,
     private clinicId: string,
     private options: RestoreOptions
   ) {
-    this.discovery = new TableDiscoveryService(supabase)
-    this.storage = new SnapshotStorageService(supabase)
+    this.supabase = createMirroredSupabaseClient(supabase)
+    this.discovery = new TableDiscoveryService(this.supabase)
+    this.storage = new SnapshotStorageService(this.supabase)
   }
 
   /**
@@ -240,6 +253,18 @@ export class ClinicSnapshotImporter {
       // Limpiar datos para inserción
       const cleanedBatch = batch.map((row) => this.cleanRowForInsert(row as Record<string, unknown>))
 
+      if (this.convexWrite) {
+        // upsert-by-id parity (merge mode skips existing rows). prepareConvexRow inside
+        // the helper re-encodes JSONB keys the exporter decoded.
+        for (const row of cleanedBatch) {
+          const legacyId = row.id != null ? String(row.id) : ''
+          if (!legacyId) continue
+          await upsertConvexDocumentByLegacyId(tableName, legacyId, row as Record<string, unknown>)
+        }
+        restored += batch.length
+        continue
+      }
+
       const { error } = await this.supabase
         .from(tableName as 'treatments')
         .upsert(cleanedBatch, {
@@ -264,6 +289,29 @@ export class ClinicSnapshotImporter {
     tableName: string,
     tableInfo: DiscoveredTable
   ): Promise<void> {
+    if (this.convexWrite) {
+      if (tableInfo.category === 'direct' || tableInfo.category === 'hybrid') {
+        // .eq('clinic_id', clinicId): only this clinic's rows (globals stay).
+        const rows = (await listConvexDocumentsByClinic(tableName, this.clinicId)) as Record<string, any>[]
+        for (const row of rows) {
+          if (row.id != null) await deleteConvexDocumentByLegacyId(tableName, String(row.id))
+        }
+      } else if (tableInfo.category === 'indirect' && tableInfo.parentTable && tableInfo.parentColumn) {
+        const parents = (await listConvexDocumentsByClinic(tableInfo.parentTable, this.clinicId)) as Record<string, any>[]
+        const parentSet = new Set(parents.map((p) => String(p.id)).filter(Boolean))
+        if (parentSet.size > 0) {
+          const rows = (await listConvexTable(tableName)) as Record<string, any>[]
+          for (const row of rows) {
+            const fk = row[tableInfo.parentColumn as string]
+            if (row.id != null && fk != null && parentSet.has(String(fk))) {
+              await deleteConvexDocumentByLegacyId(tableName, String(row.id))
+            }
+          }
+        }
+      }
+      return
+    }
+
     if (tableInfo.category === 'direct' || tableInfo.category === 'hybrid') {
       const { error } = await this.supabase
         .from(tableName as 'treatments')

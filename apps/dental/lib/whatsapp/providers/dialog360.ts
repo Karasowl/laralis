@@ -1,12 +1,5 @@
-/**
- * 360dialog WhatsApp Provider
- *
- * Uses 360dialog's WhatsApp Business API (direct Meta integration)
- * Docs: https://docs.360dialog.com/
- */
-
 import { BaseWhatsAppProvider } from './base'
-import type { SendMessageResult, WhatsAppConfig, MessageStatus } from '../types'
+import type { SendMessageResult, WhatsAppConfig, MessageStatus, SendMessageOptions } from '../types'
 
 export class Dialog360WhatsAppProvider extends BaseWhatsAppProvider {
   private baseUrl = 'https://waba.360dialog.io/v1'
@@ -22,7 +15,8 @@ export class Dialog360WhatsAppProvider extends BaseWhatsAppProvider {
   async sendMessage(
     to: string,
     content: string,
-    config: WhatsAppConfig
+    config: WhatsAppConfig,
+    options?: SendMessageOptions
   ): Promise<SendMessageResult> {
     const validation = this.validateConfig(config)
     if (!validation.valid) {
@@ -35,14 +29,35 @@ export class Dialog360WhatsAppProvider extends BaseWhatsAppProvider {
       const phone = formattedTo.replace('+', '')
 
       const url = `${this.baseUrl}/messages`
+      const quickReplyButtons = this.normalizeQuickReplyButtons(options?.quickReplyButtons)
 
-      const body = {
-        to: phone,
-        type: 'text',
-        text: {
-          body: content,
-        },
-      }
+      const body = quickReplyButtons.length > 0
+        ? {
+            to: phone,
+            type: 'interactive',
+            interactive: {
+              type: 'button',
+              body: {
+                text: content,
+              },
+              action: {
+                buttons: quickReplyButtons.map((button) => ({
+                  type: 'reply',
+                  reply: {
+                    id: button.id,
+                    title: button.title,
+                  },
+                })),
+              },
+            },
+          }
+        : {
+            to: phone,
+            type: 'text',
+            text: {
+              body: content,
+            },
+          }
 
       const response = await fetch(url, {
         method: 'POST',

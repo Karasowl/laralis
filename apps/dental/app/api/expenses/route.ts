@@ -9,6 +9,8 @@ import {
 import { readJson } from '@/lib/validation'
 import { withRouteContext } from '@/lib/api/route-handler'
 import { createRouteLogger } from '@/lib/api/logger'
+import { getConvexDocumentByLegacyId, listConvexDocumentsByClinic, listConvexTable, upsertConvexDocumentByLegacyId, patchConvexDocumentByLegacyId } from '@/lib/convex/server';
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath, shouldWriteConvexData } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
 
@@ -16,6 +18,211 @@ type CategoryLookup = {
   id: string
   name: string | null
   display_name: string | null
+}
+
+type ImportedRecord = Record<string, any>
+
+function normalizeConvexRecord(row: ImportedRecord | null | undefined) {
+  if (!row) return null
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row
+  return rest
+}
+
+function byId(rows: ImportedRecord[]) {
+  return new Map(
+    rows.flatMap((row) => {
+      const ids = [row.id, row.legacyId].filter(Boolean).map((id) => String(id))
+      return ids.map((id) => [id, row] as const)
+    })
+  )
+}
+
+function calculateNextRecurrenceDate(expenseData: Record<string, any>) {
+  if (!expenseData.is_recurring || !expenseData.recurrence_interval) return null
+
+  const baseDate = new Date(expenseData.expense_date)
+  const recurrenceDay = expenseData.recurrence_day || baseDate.getDate()
+
+  switch (expenseData.recurrence_interval) {
+    case 'weekly':
+      baseDate.setDate(baseDate.getDate() + 7)
+      break
+    case 'monthly': {
+      baseDate.setMonth(baseDate.getMonth() + 1)
+      const lastDayOfMonth = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 0).getDate()
+      baseDate.setDate(Math.min(recurrenceDay, lastDayOfMonth))
+      break
+    }
+    case 'yearly':
+      baseDate.setFullYear(baseDate.getFullYear() + 1)
+      break
+    default:
+      return null
+  }
+
+  return baseDate.toISOString().split('T')[0]
+}
+
+async function resolveConvexExpenseCategory(categoryId: string | null | undefined, category: string | null | undefined) {
+  const categories = await listConvexTable('categories', 2000) as ImportedRecord[]
+
+  if (categoryId && !category) {
+    const found = categories.find((row) => row.id === categoryId || row.legacyId === categoryId)
+    return {
+      category_id: categoryId,
+      category: found?.display_name || found?.name || category || null,
+    }
+  }
+
+  if (!categoryId && category) {
+    const normalizedCategory = category.trim().toLowerCase()
+    const found = categories.find((row) => {
+      return (
+        row.entity_type === 'expense' &&
+        row.is_system === true &&
+        !row.clinic_id &&
+        !row.parent_id &&
+        [row.display_name, row.name].filter(Boolean).some((value) => String(value).trim().toLowerCase() === normalizedCategory)
+      )
+    })
+
+    if (!found) return null
+
+    return {
+      category_id: found.id || found.legacyId,
+      category: found.display_name || found.name || category,
+    }
+  }
+
+  return {
+    category_id: categoryId || null,
+    category: category || null,
+  }
+}
+
+async function getExpensesFromConvex(clinicId: string, filters: ExpenseFilters) {
+  const [expenses, supplies, assets] = await Promise.all([
+    listConvexDocumentsByClinic('expenses', clinicId, 3000) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('supplies', clinicId, 1000) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('assets', clinicId, 1000) as Promise<ImportedRecord[]>,
+  ])
+  const suppliesById = byId(supplies)
+  const assetsById = byId(assets)
+
+  return expenses
+    .filter((row) => {
+      if (filters.category && row.category !== filters.category) return false
+      if (filters.subcategory && row.subcategory !== filters.subcategory) return false
+      if (filters.vendor && !String(row.vendor || '').toLowerCase().includes(filters.vendor.toLowerCase())) return false
+      if (filters.start_date && String(row.expense_date || '') < filters.start_date) return false
+      if (filters.end_date && String(row.expense_date || '') > filters.end_date) return false
+      if (filters.min_amount && Number(row.amount_cents || 0) < filters.min_amount) return false
+      if (filters.max_amount && Number(row.amount_cents || 0) > filters.max_amount) return false
+      if (filters.is_recurring !== undefined && row.is_recurring !== filters.is_recurring) return false
+      if (filters.auto_processed !== undefined && row.auto_processed !== filters.auto_processed) return false
+      return true
+    })
+    .sort((a, b) => String(b.expense_date || '').localeCompare(String(a.expense_date || '')))
+    .map((row) => ({
+      ...normalizeConvexRecord(row),
+      supply: row.related_supply_id ? normalizeConvexRecord(suppliesById.get(String(row.related_supply_id))) : null,
+      asset: row.related_asset_id ? normalizeConvexRecord(assetsById.get(String(row.related_asset_id))) : null,
+    }))
+}
+
+async function createExpenseInConvex(clinicId: string, rawBody: Record<string, unknown>) {
+  const { amount_pesos, ...bodyWithoutPesos } = rawBody
+  let normalizedAmountCents = typeof rawBody.amount_cents === 'number' ? Math.round(rawBody.amount_cents) : undefined
+  if (typeof amount_pesos === 'number') {
+    normalizedAmountCents = Math.round(amount_pesos * 100)
+  }
+
+  const validationResult = expenseDbSchema.safeParse({ ...bodyWithoutPesos, amount_cents: normalizedAmountCents })
+  if (!validationResult.success) {
+    return NextResponse.json(
+      { error: 'Invalid input', details: validationResult.error.flatten() },
+      { status: 400 }
+    )
+  }
+
+  const {
+    create_asset,
+    asset_name,
+    asset_useful_life_years,
+    category_id,
+    amount_cents,
+    ...expenseData
+  } = validationResult.data
+
+  const categoryResolution = await resolveConvexExpenseCategory(category_id, expenseData.category)
+  if (!categoryResolution && expenseData.category) {
+    return NextResponse.json(
+      { error: 'Invalid category', details: `Category "${expenseData.category}" not found in system categories` },
+      { status: 400 }
+    )
+  }
+
+  const now = new Date().toISOString()
+  const amountCents = amount_cents || 0
+  const expenseId = crypto.randomUUID()
+  let expense = {
+    ...expenseData,
+    id: expenseId,
+    amount_cents: amountCents,
+    category: categoryResolution?.category || expenseData.category,
+    category_id: categoryResolution?.category_id || category_id || null,
+    clinic_id: clinicId,
+    next_recurrence_date: calculateNextRecurrenceDate(expenseData),
+    created_at: now,
+    updated_at: now,
+  } as ImportedRecord
+
+  await upsertConvexDocumentByLegacyId('expenses', expenseId, expense)
+
+  if (create_asset && asset_name && asset_useful_life_years) {
+    const assetId = crypto.randomUUID()
+    const asset = {
+      id: assetId,
+      clinic_id: clinicId,
+      name: asset_name,
+      category: expenseData.subcategory || expenseData.category,
+      acquisition_cost_cents: amountCents,
+      useful_life_years: asset_useful_life_years,
+      acquisition_date: expenseData.expense_date,
+      created_at: now,
+      updated_at: now,
+    }
+    await upsertConvexDocumentByLegacyId('assets', assetId, asset)
+    expense = {
+      ...expense,
+      related_asset_id: assetId,
+      auto_processed: true,
+      updated_at: now,
+    }
+    await patchConvexDocumentByLegacyId('expenses', expenseId, expense)
+  }
+
+  if (expenseData.related_supply_id && expenseData.quantity) {
+    const supply = await getConvexDocumentByLegacyId('supplies', expenseData.related_supply_id) as ImportedRecord | null
+    if (supply) {
+      const totalPortions = expenseData.quantity * portionsPerPresentation(supply)
+      const updatedSupply = {
+        stock_quantity: (Number(supply.stock_quantity) || 0) + totalPortions,
+        last_purchase_price_cents: Math.round(amountCents / expenseData.quantity),
+        last_purchase_date: expenseData.expense_date,
+        updated_at: now,
+      }
+      await patchConvexDocumentByLegacyId('supplies', expenseData.related_supply_id, updatedSupply)
+      expense = {
+        ...expense,
+        auto_processed: true,
+        updated_at: now,
+      }
+      await patchConvexDocumentByLegacyId('expenses', expenseId, expense)
+    }
+  }
+
+  return NextResponse.json({ data: expense }, { status: 201 })
 }
 
 const missingColumnFromSupabaseError = (error: { message?: string } | null | undefined) => {
@@ -69,6 +276,11 @@ export const GET = withPermission('expenses.view', async (request, context) =>
         max_amount: searchParams.get('max_amount') ? parseInt(searchParams.get('max_amount')!) : undefined,
         is_recurring: searchParams.get('is_recurring') ? searchParams.get('is_recurring') === 'true' : undefined,
         auto_processed: searchParams.get('auto_processed') ? searchParams.get('auto_processed') === 'true' : undefined
+      }
+
+      if (shouldReturnConvexData('expenses')) {
+        const data = await getExpensesFromConvex(clinicId, filters)
+        return NextResponse.json({ data })
       }
 
       // Build query
@@ -139,6 +351,10 @@ export const POST = withPermission('expenses.create', async (request, context) =
       }
       const rawBody = bodyResult.data as Record<string, unknown>
       const clinicId = context.clinicId
+
+      if (shouldUseConvexOnlyWritePath('expenses')) {
+        return createExpenseInConvex(clinicId, rawBody)
+      }
 
     // Convert amount_pesos to amount_cents BEFORE validation (same pattern as supplies)
     const { amount_pesos, ...bodyWithoutPesos } = rawBody
@@ -352,6 +568,14 @@ export const POST = withPermission('expenses.create', async (request, context) =
             .single()
 
           updatedExpense = linkedExpense || expense
+        }
+      }
+
+      if (updatedExpense && shouldWriteConvexData('expenses')) {
+        try {
+          await upsertConvexDocumentByLegacyId('expenses', updatedExpense.id, updatedExpense as Record<string, unknown>)
+        } catch (convexError) {
+          console.error('[expenses POST] Convex dual-write failed:', convexError)
         }
       }
 

@@ -9,7 +9,11 @@ import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Mail, CheckCircle, RefreshCw, ArrowLeft, Clock } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { Input } from '@/components/ui/input'
+import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
+
+const CONVEX_AUTH_MODE = process.env.NEXT_PUBLIC_AUTH_BACKEND === 'convex'
 
 export default function VerifyEmailPage() {
   const t = useTranslations('auth.verifyEmail')
@@ -20,6 +24,13 @@ export default function VerifyEmailPage() {
   const [resendCount, setResendCount] = useState(0)
   const [timeLeft, setTimeLeft] = useState(0)
   const supabase = useMemo(() => createClient(), [])
+  const { verifyEmailCode, loading: verifying } = useAuth()
+  const [code, setCode] = useState('')
+
+  const handleVerifyCode = async () => {
+    if (!email || !code.trim()) return
+    await verifyEmailCode(email, code.trim())
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -97,8 +108,38 @@ export default function VerifyEmailPage() {
           </CardHeader>
 
           <CardContent className="space-y-3 sm:space-y-4 px-4 sm:px-6 pb-4 sm:pb-6">
+            {/* Convex Auth: enter the emailed OTP code to finish sign-up */}
+            {CONVEX_AUTH_MODE && email && (
+              <div className="space-y-2">
+                <p className="text-xs sm:text-sm text-muted-foreground text-center">{t('enterCode')}</p>
+                <Input
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder={t('codePlaceholder')}
+                  className="text-center tracking-widest"
+                />
+                <Button
+                  onClick={handleVerifyCode}
+                  disabled={verifying || !code.trim()}
+                  variant="default"
+                  className="w-full justify-center"
+                  size="default"
+                >
+                  {verifying ? (
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                  )}
+                  {t('verify')}
+                </Button>
+              </div>
+            )}
+
             {/* Action buttons - Vertical stack always */}
             <div className="flex flex-col gap-3 w-full">
+              {!CONVEX_AUTH_MODE && (
               <Button
                 onClick={handleResend}
                 disabled={resending || timeLeft > 0}
@@ -123,6 +164,7 @@ export default function VerifyEmailPage() {
                   </>
                 )}
               </Button>
+              )}
 
               <Button
                 onClick={handleBackToLogin}

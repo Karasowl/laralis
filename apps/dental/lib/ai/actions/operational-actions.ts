@@ -6,12 +6,39 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ActionParams, ActionResult } from '../types'
+import { createMirroredSupabaseClient } from '@/lib/convex/supabase-runtime-mirror'
+import {
+  listConvexDocumentsByClinic,
+  listConvexTable,
+  patchConvexDocumentByLegacyId,
+  decodeConvexValue,
+} from '@/lib/convex/server'
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend'
 
 interface ActionContext {
   supabase: SupabaseClient
   clinicId: string
   userId: string
   dryRun?: boolean
+}
+
+// Convex bookkeeping fields stripped from rows so they mirror the shape Supabase
+// would produce. Replicated from lib/snapshots/exporter.ts.
+const CONVEX_META_FIELDS = ['_id', '_creationTime', 'legacyId', 'legacyTable', 'convex_created_at', 'convex_updated_at', 'convex_snapshot_source']
+function stripConvexRow(row: Record<string, any>): Record<string, any> {
+  const clean: Record<string, any> = {}
+  for (const [k, v] of Object.entries(row)) {
+    if (CONVEX_META_FIELDS.includes(k)) continue
+    clean[k] = v
+  }
+  return decodeConvexValue(clean) as Record<string, any>
+}
+
+function withMirroredSupabase(context: ActionContext): ActionContext {
+  return {
+    ...context,
+    supabase: createMirroredSupabaseClient(context.supabase),
+  }
 }
 
 // Helper to format cents as currency string
@@ -33,22 +60,39 @@ export async function executeBulkUpdatePrices(
   params: ActionParams['bulk_update_prices'],
   context: ActionContext
 ): Promise<ActionResult> {
+  context = withMirroredSupabase(context)
   const { supabase, clinicId, userId, dryRun } = context
   const { change_type, change_value, service_ids, category } = params
+  const convexRead = shouldReturnConvexData('services')
+  const convexWrite = shouldUseConvexOnlyWritePath('services')
 
   try {
     // Get services to update
-    let query = supabase.from('services').select('id, name, price_cents, category').eq('clinic_id', clinicId)
+    let services: Array<{ id: string; name: string; price_cents: number; category: string | null }> | null = null
+    let error: { message: string } | null = null
 
-    if (service_ids && service_ids.length > 0) {
-      query = query.in('id', service_ids)
+    if (convexRead) {
+      const serviceIdSet = service_ids && service_ids.length > 0 ? new Set(service_ids.map(String)) : null
+      services = ((await listConvexDocumentsByClinic('services', clinicId)) as Record<string, any>[])
+        .map((r) => stripConvexRow(r))
+        .filter((s) => (serviceIdSet ? serviceIdSet.has(String(s.id)) : true))
+        .filter((s) => (category ? s.category === category : true))
+        .map((s) => ({ id: s.id, name: s.name, price_cents: s.price_cents, category: s.category }))
+    } else {
+      let query = supabase.from('services').select('id, name, price_cents, category').eq('clinic_id', clinicId)
+
+      if (service_ids && service_ids.length > 0) {
+        query = query.in('id', service_ids)
+      }
+
+      if (category) {
+        query = query.eq('category', category)
+      }
+
+      const result = await query
+      services = result.data
+      error = result.error
     }
-
-    if (category) {
-      query = query.eq('category', category)
-    }
-
-    const { data: services, error } = await query
 
     if (error || !services || services.length === 0) {
       return {
@@ -108,10 +152,17 @@ export async function executeBulkUpdatePrices(
 
     // Execute updates
     for (const u of updates) {
-      await supabase
-        .from('services')
-        .update({ price_cents: u.new_price_cents, updated_at: new Date().toISOString() })
-        .eq('id', u.id)
+      if (convexWrite) {
+        await patchConvexDocumentByLegacyId('services', u.id, {
+          price_cents: u.new_price_cents,
+          updated_at: new Date().toISOString(),
+        })
+      } else {
+        await supabase
+          .from('services')
+          .update({ price_cents: u.new_price_cents, updated_at: new Date().toISOString() })
+          .eq('id', u.id)
+      }
     }
 
     changes.push('', '✅ Prices updated successfully')
@@ -143,20 +194,33 @@ export async function executeForecastRevenue(
   params: ActionParams['forecast_revenue'],
   context: ActionContext
 ): Promise<ActionResult> {
+  context = withMirroredSupabase(context)
   const { supabase, clinicId, userId } = context
   const days = params.days || 30
   const includeTrends = params.include_trends !== false
+  const convexRead = shouldReturnConvexData('treatments')
 
   try {
     // Get historical data (90 days for trend analysis)
     const startDate = getDateDaysAgo(90)
 
-    const { data: treatments } = await supabase
-      .from('treatments')
-      .select('price_cents, treatment_date')
-      .eq('clinic_id', clinicId)
-      .gte('treatment_date', startDate.toISOString())
-      .order('treatment_date', { ascending: true })
+    let treatments: Array<{ price_cents: number; treatment_date: string }> | null = null
+
+    if (convexRead) {
+      treatments = ((await listConvexDocumentsByClinic('treatments', clinicId)) as Record<string, any>[])
+        .map((r) => stripConvexRow(r))
+        .filter((t) => t.treatment_date != null && t.treatment_date >= startDate.toISOString())
+        .sort((a, b) => String(a.treatment_date).localeCompare(String(b.treatment_date)))
+        .map((t) => ({ price_cents: t.price_cents, treatment_date: t.treatment_date }))
+    } else {
+      const result = await supabase
+        .from('treatments')
+        .select('price_cents, treatment_date')
+        .eq('clinic_id', clinicId)
+        .gte('treatment_date', startDate.toISOString())
+        .order('treatment_date', { ascending: true })
+      treatments = result.data
+    }
 
     if (!treatments || treatments.length === 0) {
       return {
@@ -278,23 +342,41 @@ export async function executeAnalyzePatientRetention(
   params: ActionParams['analyze_patient_retention'],
   context: ActionContext
 ): Promise<ActionResult> {
+  context = withMirroredSupabase(context)
   const { supabase, clinicId, userId } = context
   const periodDays = params.period_days || 90
+  const convexRead = shouldReturnConvexData('patients')
 
   try {
     const startDate = getDateDaysAgo(periodDays)
 
     // Get all patients with their treatments
-    const { data: patients } = await supabase
-      .from('patients')
-      .select('id, created_at, first_name, last_name')
-      .eq('clinic_id', clinicId)
+    let patients: Array<{ id: string; created_at: string; first_name: string; last_name: string }> | null = null
+    let treatments: Array<{ patient_id: string; treatment_date: string }> | null = null
 
-    const { data: treatments } = await supabase
-      .from('treatments')
-      .select('patient_id, treatment_date')
-      .eq('clinic_id', clinicId)
-      .gte('treatment_date', startDate.toISOString())
+    if (convexRead) {
+      patients = ((await listConvexDocumentsByClinic('patients', clinicId)) as Record<string, any>[])
+        .map((r) => stripConvexRow(r))
+        .map((p) => ({ id: p.id, created_at: p.created_at, first_name: p.first_name, last_name: p.last_name }))
+
+      treatments = ((await listConvexDocumentsByClinic('treatments', clinicId)) as Record<string, any>[])
+        .map((r) => stripConvexRow(r))
+        .filter((t) => t.treatment_date != null && t.treatment_date >= startDate.toISOString())
+        .map((t) => ({ patient_id: t.patient_id, treatment_date: t.treatment_date }))
+    } else {
+      const patientsResult = await supabase
+        .from('patients')
+        .select('id, created_at, first_name, last_name')
+        .eq('clinic_id', clinicId)
+      patients = patientsResult.data
+
+      const treatmentsResult = await supabase
+        .from('treatments')
+        .select('patient_id, treatment_date')
+        .eq('clinic_id', clinicId)
+        .gte('treatment_date', startDate.toISOString())
+      treatments = treatmentsResult.data
+    }
 
     if (!patients || patients.length === 0) {
       return {
@@ -395,25 +477,60 @@ export async function executeOptimizeInventory(
   params: ActionParams['optimize_inventory'],
   context: ActionContext
 ): Promise<ActionResult> {
+  context = withMirroredSupabase(context)
   const { supabase, clinicId, userId } = context
   const daysAhead = params.days_ahead || 30
   const reorderThreshold = params.reorder_threshold_pct || 25
+  const convexRead = shouldReturnConvexData('supplies')
 
   try {
-    // Get supplies with their usage in service recipes
-    const [suppliesResult, serviceSuppliesResult, treatmentsResult] = await Promise.all([
-      supabase.from('supplies').select('id, name, stock_quantity, portions_per_presentation, price_cents').eq('clinic_id', clinicId),
-      supabase.from('service_supplies').select('supply_id, qty, service_id'),
-      supabase
-        .from('treatments')
-        .select('service_id')
-        .eq('clinic_id', clinicId)
-        .gte('treatment_date', getDateDaysAgo(30).toISOString()),
-    ])
+    const treatmentsStart = getDateDaysAgo(30).toISOString()
 
-    const supplies = suppliesResult.data || []
-    const serviceSupplies = serviceSuppliesResult.data || []
-    const treatments = treatmentsResult.data || []
+    let supplies: Array<{
+      id: string
+      name: string
+      stock_quantity: number
+      portions_per_presentation: number
+      price_cents: number
+    }> = []
+    let serviceSupplies: Array<{ supply_id: string; qty: number; service_id: string }> = []
+    let treatments: Array<{ service_id: string }> = []
+
+    if (convexRead) {
+      supplies = ((await listConvexDocumentsByClinic('supplies', clinicId)) as Record<string, any>[])
+        .map((r) => stripConvexRow(r))
+        .map((s) => ({
+          id: s.id,
+          name: s.name,
+          stock_quantity: s.stock_quantity,
+          portions_per_presentation: s.portions_per_presentation,
+          price_cents: s.price_cents,
+        }))
+
+      serviceSupplies = ((await listConvexTable('service_supplies')) as Record<string, any>[])
+        .map((r) => stripConvexRow(r))
+        .map((ss) => ({ supply_id: ss.supply_id, qty: ss.qty, service_id: ss.service_id }))
+
+      treatments = ((await listConvexDocumentsByClinic('treatments', clinicId)) as Record<string, any>[])
+        .map((r) => stripConvexRow(r))
+        .filter((t) => t.treatment_date != null && t.treatment_date >= treatmentsStart)
+        .map((t) => ({ service_id: t.service_id }))
+    } else {
+      // Get supplies with their usage in service recipes
+      const [suppliesResult, serviceSuppliesResult, treatmentsResult] = await Promise.all([
+        supabase.from('supplies').select('id, name, stock_quantity, portions_per_presentation, price_cents').eq('clinic_id', clinicId),
+        supabase.from('service_supplies').select('supply_id, qty, service_id'),
+        supabase
+          .from('treatments')
+          .select('service_id')
+          .eq('clinic_id', clinicId)
+          .gte('treatment_date', treatmentsStart),
+      ])
+
+      supplies = suppliesResult.data || []
+      serviceSupplies = serviceSuppliesResult.data || []
+      treatments = treatmentsResult.data || []
+    }
 
     if (supplies.length === 0) {
       return {

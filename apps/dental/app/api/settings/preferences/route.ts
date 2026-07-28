@@ -2,8 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { readJson } from '@/lib/validation';
+import {
+  listConvexTable,
+  decodeConvexValue,
+  getLegacyIdForTable,
+  upsertConvexDocumentByLegacyId,
+} from '@/lib/convex/server';
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
+
+type ImportedRecord = Record<string, any>;
+
+function normalizeConvexRecord(row: ImportedRecord) {
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row;
+  return rest;
+}
 
 
 const preferencesSchema = z.object({
@@ -48,15 +62,26 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data, error } = await supabase
-      .from('user_settings')
-      .select('value')
-      .eq('user_id', user.id)
-      .eq('key', 'preferences')
-      .maybeSingle();
+    // Convex read branch (flag-gated, default Supabase). Auth already enforced by
+    // supabase.auth.getUser() above; user_settings is scoped to user.id (no clinic_id).
+    let data: { value: unknown } | null = null;
+    if (shouldReturnConvexData('user_settings')) {
+      const rows = (await listConvexTable('user_settings', 10000) as ImportedRecord[]).map(normalizeConvexRecord);
+      const row = rows.find((r) => String(r.user_id) === user.id && r.key === 'preferences');
+      // value is JSONB; decode nested keys to mirror the Supabase row shape.
+      data = row ? { value: decodeConvexValue(row.value) } : null;
+    } else {
+      const result = await supabase
+        .from('user_settings')
+        .select('value')
+        .eq('user_id', user.id)
+        .eq('key', 'preferences')
+        .maybeSingle();
 
-    if (error) {
-      throw error;
+      if (result.error) {
+        throw result.error;
+      }
+      data = result.data;
     }
 
     const payload = {
@@ -142,6 +167,33 @@ export async function PUT(request: NextRequest) {
     }
 
     const payload = parseResult.data;
+
+    // Convex-only write branch (flag-gated, default Supabase). Mirrors the Supabase
+    // upsert into user_settings keyed by (user_id, key). The legacyId uses the same
+    // composite-key format the migration seeds (user_settings:<user_id>:preferences)
+    // so this lands on the exact doc the GET read branch resolves. The `value` JSONB
+    // (locale/timezone/theme/notifications) has only simple identifier keys, so
+    // prepareConvexRow/encodeConvexValue (applied inside the helper) write it as-is.
+    // The auth-metadata sync below is a Supabase-only side effect with no Convex
+    // equivalent and is skipped here (Supabase is unreachable in convex-only mode).
+    if (shouldUseConvexOnlyWritePath('user_settings')) {
+      const nowIso = new Date().toISOString();
+      const row = {
+        user_id: user.id,
+        key: 'preferences',
+        value: payload,
+        updated_at: nowIso,
+      };
+      const legacyId = getLegacyIdForTable('user_settings', row);
+      if (!legacyId) {
+        return NextResponse.json(
+          { error: 'Failed to update preferences' },
+          { status: 500 },
+        );
+      }
+      await upsertConvexDocumentByLegacyId('user_settings', legacyId, row);
+      return NextResponse.json({ success: true });
+    }
 
     const { error: upsertError } = await supabase
       .from('user_settings')

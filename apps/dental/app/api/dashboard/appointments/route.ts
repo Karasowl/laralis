@@ -4,6 +4,8 @@ import { resolveClinicContext } from '@/lib/clinic'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
 import { formatDateToISO, parseLocalDate } from '@/lib/date-utils'
+import { listConvexDocumentsByClinic } from '@/lib/convex/server';
+import { shouldReturnConvexData } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
 
@@ -69,6 +71,53 @@ export async function GET(request: NextRequest) {
     const weekEndDate = formatDateToISO(addDays(startOfWeekMonday(asOf), 6))
     const previousWeekStartDate = formatDateToISO(addDays(startOfWeekMonday(asOf), -7))
     const previousWeekEndDate = formatDateToISO(addDays(startOfWeekMonday(asOf), -1))
+
+    if (shouldReturnConvexData('dashboard')) {
+      const [convexTreatments, convexBookings] = await Promise.all([
+        listConvexDocumentsByClinic('treatments', clinicId),
+        listConvexDocumentsByClinic('public_bookings', clinicId).catch(() => []),
+      ])
+
+      const treatments = convexTreatments
+        .filter((row: any) => {
+          const treatmentDate = String(row.treatment_date || '')
+          return treatmentDate >= previousWeekStartDate &&
+            treatmentDate <= weekEndDate &&
+            ['pending', 'scheduled', 'in_progress'].includes(String(row.status || '')) &&
+            Boolean(row.treatment_date)
+        })
+        .map((row: any) => ({ appointment_date: row.treatment_date as string | null }))
+      const bookings = convexBookings
+        .filter((row: any) => {
+          const requestedDate = String(row.requested_date || '')
+          return requestedDate >= previousWeekStartDate &&
+            requestedDate <= weekEndDate &&
+            ['pending', 'confirmed'].includes(String(row.status || '')) &&
+            !row.treatment_id
+        })
+        .map((row: any) => ({ appointment_date: row.requested_date as string | null }))
+
+      const appointments = [...treatments, ...bookings]
+      const thisWeekAppointments = appointments.filter((row) => {
+        return Boolean(row.appointment_date) &&
+          row.appointment_date! >= weekStartDate &&
+          row.appointment_date! <= weekEndDate
+      }).length
+      const previousWeekAppointments = appointments.filter((row) => {
+        return Boolean(row.appointment_date) &&
+          row.appointment_date! >= previousWeekStartDate &&
+          row.appointment_date! <= previousWeekEndDate
+      }).length
+      const trend = trendFromCounts(thisWeekAppointments, previousWeekAppointments)
+
+      return NextResponse.json({
+        today: countByDate(appointments, todayDate),
+        tomorrow: countByDate(appointments, tomorrowDate),
+        thisWeek: thisWeekAppointments,
+        trend: trend.trend,
+        trendValue: trend.trendValue
+      })
+    }
 
     const { data: treatments, error: treatmentsError } = await supabaseAdmin
       .from('treatments')

@@ -6,6 +6,8 @@ import { startOfWeek, format, addDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { parseLocalDate } from '@/lib/date-utils'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
+import { listConvexDocumentsByClinic } from '@/lib/convex/server';
+import { shouldReturnConvexData } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
 
@@ -113,25 +115,44 @@ export async function GET(request: NextRequest) {
     const startISO = start.toISOString().split('T')[0]
     const endISO = end.toISOString().split('T')[0]
 
-    const { data: treatments, error: tErr } = await supabaseAdmin
-      .from('treatments')
-      .select('price_cents, treatment_date, status')
-      .eq('clinic_id', clinicId)
-      .eq('status', 'completed')
-      .gte('treatment_date', startISO)
-      .lte('treatment_date', endISO)
+    let treatments: any[] = []
+    let expenses: any[] = []
 
-    if (tErr) throw tErr
+    if (shouldReturnConvexData('dashboard')) {
+      const [convexTreatments, convexExpenses] = await Promise.all([
+        listConvexDocumentsByClinic('treatments', clinicId),
+        listConvexDocumentsByClinic('expenses', clinicId),
+      ])
+      treatments = convexTreatments.filter((row: any) => {
+        const treatmentDate = String(row.treatment_date || '')
+        return row.status === 'completed' && treatmentDate >= startISO && treatmentDate <= endISO
+      })
+      expenses = convexExpenses.filter((row: any) => {
+        const expenseDate = String(row.expense_date || '')
+        return expenseDate >= startISO && expenseDate <= endISO
+      })
+    } else {
+      const { data: treatmentRows, error: tErr } = await supabaseAdmin
+        .from('treatments')
+        .select('price_cents, treatment_date, status')
+        .eq('clinic_id', clinicId)
+        .eq('status', 'completed')
+        .gte('treatment_date', startISO)
+        .lte('treatment_date', endISO)
 
-    // Fetch expenses in range
-    const { data: expenses, error: eErr } = await supabaseAdmin
-      .from('expenses')
-      .select('amount_cents, expense_date')
-      .eq('clinic_id', clinicId)
-      .gte('expense_date', start.toISOString().split('T')[0])
-      .lte('expense_date', end.toISOString().split('T')[0])
+      if (tErr) throw tErr
 
-    if (eErr) throw eErr
+      const { data: expenseRows, error: eErr } = await supabaseAdmin
+        .from('expenses')
+        .select('amount_cents, expense_date')
+        .eq('clinic_id', clinicId)
+        .gte('expense_date', start.toISOString().split('T')[0])
+        .lte('expense_date', end.toISOString().split('T')[0])
+
+      if (eErr) throw eErr
+      treatments = treatmentRows || []
+      expenses = expenseRows || []
+    }
 
     // Build periods map based on granularity
     const getKeyForDate = (d: Date): string => {
@@ -177,7 +198,7 @@ export async function GET(request: NextRequest) {
     const revenueByPeriod: Record<string, number> = Object.fromEntries(periods.map(k => [k, 0]))
     const expensesByPeriod: Record<string, number> = Object.fromEntries(periods.map(k => [k, 0]))
 
-    for (const t of treatments || []) {
+    for (const t of treatments) {
       if (!t.treatment_date) continue
       const d = parseLocalDate(t.treatment_date as string)
       if (Number.isNaN(d.getTime())) continue
@@ -185,7 +206,7 @@ export async function GET(request: NextRequest) {
       if (k in revenueByPeriod) revenueByPeriod[k] += (t.price_cents || 0)
     }
 
-    for (const ex of expenses || []) {
+    for (const ex of expenses) {
       if (!ex.expense_date) continue
       const d = parseLocalDate(ex.expense_date as string)
       if (Number.isNaN(d.getTime())) continue

@@ -10,6 +10,39 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { resolveClinicContext } from '@/lib/clinic'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
 import { calcularPrecioConDescuento } from '@/lib/calc/tarifa'
+import {
+  listConvexDocumentsByClinic,
+  listConvexTable,
+  getConvexDocumentByLegacyId,
+  upsertConvexDocumentByLegacyId,
+} from '@/lib/convex/server'
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend'
+
+type ImportedRecord = Record<string, any>
+
+function normalizeConvexRecord(row: ImportedRecord | null | undefined) {
+  if (!row) return null
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row
+  return rest
+}
+
+// GET reads from the clinic-scoped `tariffs` table (clinic_id NOT NULL per mig 16)
+// with a flat `select('*')` — there are NO nested joins in the read path, so the
+// Convex branch mirrors that flat shape exactly. The per-service cost aggregation
+// (service + service_supplies + supplies recipe) lives in the POST helpers only.
+async function getTariffsFromConvex(clinicId: string) {
+  const rows = await listConvexDocumentsByClinic('tariffs', clinicId, 10000) as ImportedRecord[]
+
+  return rows
+    .map(normalizeConvexRecord)
+    .filter((row): row is ImportedRecord => row !== null)
+    // Codepoint compare (not localeCompare) to match Postgres UUID byte
+    // ordering of .order('service_id'); avoids locale-dependent drift.
+    .sort((a, b) => {
+      const x = String(a.service_id || ''), y = String(b.service_id || '')
+      return x < y ? -1 : x > y ? 1 : 0
+    })
+}
 
 const tariffItemSchema = z.object({
   service_id: z.string().min(1, 'service_id is required'),
@@ -137,6 +170,136 @@ async function getServiceCosts(serviceId: string, clinicId: string) {
   }
 }
 
+// ----------------------------------------------------------------------------
+// Convex-only write path (DATA_WRITE_MODE_TARIFFS=convex).
+//
+// In convex-only mode supabaseAdmin is unreachable, so getClinicCostContext +
+// getServiceCosts (both supabaseAdmin-backed) would throw on their first .from()
+// call. These helpers replicate that exact cost math against the Convex bridge,
+// mirroring the already-ported services/[id]/cost convex branch field-for-field:
+//   - clinic cost-per-minute from settings_time + fixed_costs + assets,
+//   - per-service variable cost from service_supplies x supplies recipe.
+// The bridge has no SQL joins, so service_supplies is read flat and linked to
+// supplies in JS (same pattern as services/[id]/cost). It also has no RLS, but
+// resolveClinicContext + forbiddenIfMissingPermission already gated the caller,
+// and the clinic_id === clinicContext.clinicId guard runs per-item before any
+// Convex read here.
+async function getClinicCostContextFromConvex(clinicId: string): Promise<ClinicCostContext> {
+  if (clinicCostCache.has(clinicId)) {
+    return clinicCostCache.get(clinicId) as ClinicCostContext
+  }
+
+  const [timeRows, fixedCosts, assets] = await Promise.all([
+    listConvexDocumentsByClinic('settings_time', clinicId, 10) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('fixed_costs', clinicId, 10000) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('assets', clinicId, 10000) as Promise<ImportedRecord[]>,
+  ])
+
+  const settings = timeRows[0] || null
+
+  const totalFixedCostsCents = fixedCosts.reduce((sum, row) => sum + Number(row.amount_cents || 0), 0)
+  const monthlyAssetDepCents = assets.reduce((sum, asset) => {
+    const months = Number(asset.depreciation_months || 0)
+    if (months <= 0) return sum
+    return sum + Math.round(Number(asset.purchase_price_cents || 0) / months)
+  }, 0)
+
+  const workDays = Number(settings?.work_days || 0)
+  const hoursPerDay = Number(settings?.hours_per_day || 0)
+  const realPct = Number(settings?.real_pct || 0)
+  const realPctDecimal = realPct > 1 ? realPct / 100 : realPct
+  const minutesPerMonth = workDays * hoursPerDay * 60
+  const effectiveMinutes = Math.round(minutesPerMonth * Math.max(0, Math.min(1, realPctDecimal)))
+
+  const totalFixed = totalFixedCostsCents + monthlyAssetDepCents
+  const costPerMinute = effectiveMinutes > 0 ? Math.round(totalFixed / effectiveMinutes) : 0
+
+  const context: ClinicCostContext = {
+    costPerMinuteCents: costPerMinute,
+    ready: Boolean(settings) && totalFixed > 0 && effectiveMinutes > 0
+  }
+
+  clinicCostCache.set(clinicId, context)
+  return context
+}
+
+async function getServiceCostsFromConvex(serviceId: string, clinicId: string) {
+  const service = (await getConvexDocumentByLegacyId('services', serviceId)) as ImportedRecord | null
+  if (!service || String(service.clinic_id) !== clinicId) {
+    return { error: NextResponse.json({ error: 'Service not found' }, { status: 404 }) }
+  }
+
+  // No SQL join on the bridge: read service_supplies flat + supplies for the
+  // clinic, then link by supply_id (mirrors services/[id]/cost convex branch).
+  const [serviceSupplies, supplies] = await Promise.all([
+    listConvexTable('service_supplies') as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('supplies', clinicId, 10000) as Promise<ImportedRecord[]>,
+  ])
+
+  const suppliesById = new Map<string, ImportedRecord>()
+  for (const row of supplies) {
+    for (const id of [row.id, row.legacyId].filter(Boolean)) {
+      suppliesById.set(String(id), row)
+    }
+  }
+
+  const variableCostCents = serviceSupplies.reduce((sum, item) => {
+    if (String(item.service_id) !== serviceId && String(item.serviceId) !== serviceId) return sum
+    const supply = item.supply_id ? suppliesById.get(String(item.supply_id)) : null
+    if (!supply) return sum
+    const portions = Number(supply.portions || 0)
+    if (portions <= 0) return sum
+    const qty = Number(item.qty || 0)
+    if (qty <= 0) return sum
+    const price = Number(supply.price_cents || 0)
+    const costPerPortion = price / portions
+    return sum + Math.round(costPerPortion * qty)
+  }, 0)
+
+  return {
+    service: { id: service.id, clinic_id: service.clinic_id, est_minutes: service.est_minutes },
+    variableCostCents
+  }
+}
+
+/**
+ * Replicate the Supabase upsert(rows, { onConflict: 'service_id,version' }) on the
+ * Convex bridge. The Postgres conflict target is (service_id, version) — NOT the
+ * `id` PK — so each (service_id, version) maps to a SINGLE tariff row: reuse the
+ * existing convex tariff's id when present so an edit patches in place (no
+ * duplicate), otherwise mint a fresh UUID for the insert. The clinic-scoped read
+ * + service_id index is exact because version is hard-coded to 1 in the rows.
+ */
+async function upsertTariffsInConvex(rows: ImportedRecord[], clinicId: string) {
+  const existing = (await listConvexDocumentsByClinic('tariffs', clinicId, 10000)) as ImportedRecord[]
+  const idByServiceVersion = new Map<string, string>()
+  for (const row of existing) {
+    const key = `${String(row.service_id)}:${Number(row.version ?? 1)}`
+    const legacyId = row.id ?? row.legacyId
+    if (legacyId !== undefined && legacyId !== null) {
+      idByServiceVersion.set(key, String(legacyId))
+    }
+  }
+
+  const now = new Date().toISOString()
+
+  for (const row of rows) {
+    const key = `${String(row.service_id)}:${Number(row.version ?? 1)}`
+    const tariffId = idByServiceVersion.get(key) ?? crypto.randomUUID()
+
+    // Postgres-default columns Convex does not fill automatically (id/created_at/
+    // updated_at). is_active is already set explicitly on the row by the caller.
+    const record: ImportedRecord = {
+      id: tariffId,
+      created_at: now,
+      updated_at: now,
+      ...row,
+    }
+
+    await upsertConvexDocumentByLegacyId('tariffs', tariffId, record)
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const bodyResult = await readJson(request)
@@ -166,6 +329,10 @@ export async function POST(request: NextRequest) {
     )
     if (forbidden) return forbidden
 
+    // Convex-only write path: supabaseAdmin is unreachable, so the cost-context
+    // reads and the final upsert must go through the Convex bridge instead.
+    const convexOnly = shouldUseConvexOnlyWritePath('tariffs')
+
     const today = new Date().toISOString().split('T')[0]
     const rows: any[] = []
 
@@ -174,7 +341,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'clinic_mismatch', message: 'Clinic mismatch detected' }, { status: 403 })
       }
 
-      const clinicCosts = await getClinicCostContext(item.clinic_id)
+      const clinicCosts = convexOnly
+        ? await getClinicCostContextFromConvex(item.clinic_id)
+        : await getClinicCostContext(item.clinic_id)
       if (!clinicCosts.ready) {
         return NextResponse.json({ error: 'precondition_failed', message: 'Time settings and fixed costs must be configured before saving tariffs.' }, { status: 412 })
       }
@@ -195,7 +364,9 @@ export async function POST(request: NextRequest) {
         console.warn(`[tariffs] Low cost per minute detected for clinic ${item.clinic_id}: ${clinicCosts.costPerMinuteCents} cents/min. This may result in unrealistic pricing.`)
       }
 
-      const serviceCosts = await getServiceCosts(item.service_id, item.clinic_id)
+      const serviceCosts = convexOnly
+        ? await getServiceCostsFromConvex(item.service_id, item.clinic_id)
+        : await getServiceCosts(item.service_id, item.clinic_id)
       if ('error' in serviceCosts) {
         return serviceCosts.error
       }
@@ -256,6 +427,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Nothing to update' }, { status: 200 })
     }
 
+    if (convexOnly) {
+      // Replicates upsert(rows, { onConflict: 'service_id,version' }) on the bridge.
+      await upsertTariffsInConvex(rows, clinicContext.clinicId)
+      return NextResponse.json({ message: 'Tariffs saved successfully' })
+    }
+
     const { error: upsertError } = await supabaseAdmin
       .from('tariffs')
       .upsert(rows, { onConflict: 'service_id,version' })
@@ -287,6 +464,14 @@ export async function GET(request: NextRequest) {
       'financial_reports.view'
     )
     if (forbidden) return forbidden
+
+    // Convex read branch (flag-gated). Auth + clinic access already enforced above
+    // via resolveClinicContext + forbiddenIfMissingPermission, so the Convex bridge
+    // (which has no RLS) is safe to query for this clinic here.
+    if (shouldReturnConvexData('tariffs')) {
+      const data = await getTariffsFromConvex(clinicContext.clinicId)
+      return NextResponse.json({ data })
+    }
 
     const { data, error } = await supabaseAdmin
       .from('tariffs')

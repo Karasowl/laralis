@@ -6,6 +6,15 @@ export const dynamic = 'force-dynamic'
 
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { withPermission } from '@/lib/middleware/with-permission'
+import { listConvexDocumentsByClinic } from '@/lib/convex/server'
+import { shouldReturnConvexData } from '@/lib/data-backend'
+
+type ImportedRecord = Record<string, any>
+
+function normalizeConvexRecord(row: ImportedRecord) {
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row
+  return rest
+}
 
 const querySchema = z.object({
   clinicId: z.string().optional(),
@@ -74,6 +83,43 @@ export const GET = withPermission('financial_reports.view', async (request, cont
     const startISO = formatISO(rangeStart)
     const endISO = formatISO(rangeEnd)
 
+    const millisecondsPerDay = 24 * 60 * 60 * 1000
+    const days = Math.max(1, Math.ceil((rangeEnd.getTime() - rangeStart.getTime() + millisecondsPerDay) / millisecondsPerDay))
+
+    if (shouldReturnConvexData('treatments')) {
+      const convexTreatments = (await listConvexDocumentsByClinic('treatments', clinicId, 10000))
+        .map((row: ImportedRecord) => normalizeConvexRecord(row))
+
+      // Replicate Supabase filters: status === 'completed' and treatment_date within [startISO, endISO]
+      // (treatment_date is YYYY-MM-DD so lexicographic comparison matches gte/lte semantics)
+      const completed = convexTreatments.filter((row: any) => {
+        const treatmentDate = String(row.treatment_date || '')
+        return row.status === 'completed' && treatmentDate >= startISO && treatmentDate <= endISO
+      })
+
+      const completedPaid = completed.filter((row: any) => {
+        const price = Number(row.price_cents || 0)
+        const paid = Number(row.amount_paid_cents || 0)
+        return price > 0 && (row.is_paid === true || paid >= price)
+      })
+
+      const totalCents = completedPaid.reduce((sum, row: any) => sum + Number(row.price_cents || 0), 0)
+      const count = completedPaid.length
+      const averageDailyCents = Math.round(totalCents / days)
+
+      return NextResponse.json({
+        data: {
+          clinicId,
+          period,
+          range: { from: startISO, to: endISO },
+          total_cents: totalCents,
+          completed_count: count,
+          average_daily_cents: averageDailyCents,
+          days,
+        },
+      })
+    }
+
     const { data: treatments, error } = await supabaseAdmin
       .from('treatments')
       .select('price_cents, amount_paid_cents, is_paid, treatment_date, status')
@@ -97,8 +143,6 @@ export const GET = withPermission('financial_reports.view', async (request, cont
     const totalCents = completedPaid.reduce((sum, row: any) => sum + Number(row.price_cents || 0), 0)
     const count = completedPaid.length
 
-    const millisecondsPerDay = 24 * 60 * 60 * 1000
-    const days = Math.max(1, Math.ceil((rangeEnd.getTime() - rangeStart.getTime() + millisecondsPerDay) / millisecondsPerDay))
     const averageDailyCents = Math.round(totalCents / days)
 
     return NextResponse.json({

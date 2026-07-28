@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/server';
 import { forbiddenIfMissingPermission, type Permission } from '@/lib/permissions';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
+import { listConvexDocumentsByClinic, listConvexTable, upsertConvexDocumentByLegacyId } from '@/lib/convex/server';
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath, shouldWriteConvexData } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
 
@@ -65,6 +67,11 @@ function categoryPermission(type: string | null, mode: 'read' | 'write'): Permis
   }
 }
 
+function normalizeConvexCategory(row: Record<string, any>) {
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row
+  return rest
+}
+
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = cookies();
@@ -95,6 +102,43 @@ export async function GET(request: NextRequest) {
       categoryPermission(typeCode || entityType, 'read')
     );
     if (forbidden) return forbidden;
+
+    if (shouldReturnConvexData('categories')) {
+      const [categoryRows, typeRows] = await Promise.all([
+        listConvexTable('categories'),
+        listConvexDocumentsByClinic('category_types', clinicId).catch(() => []),
+      ])
+      const typeId = typeCode
+        ? (typeRows as any[]).find((type) => type.code === typeCode)?.id
+        : null
+      const legacyTypeMap: Record<string, string> = {
+        services: 'service',
+        supplies: 'supply',
+        expenses: 'expense',
+        assets: 'asset',
+      }
+      const rows = (categoryRows as Record<string, any>[])
+        .filter((category) => category.clinic_id === clinicId || category.is_system === true)
+        .filter((category) => {
+          if (active === 'true') return category.is_active === true
+          if (active === 'false') return category.is_active === false
+          return category.is_active === true
+        })
+        .filter((category) => {
+          if (typeCode && typeId) return category.category_type_id === typeId
+          if (typeCode && legacyTypeMap[typeCode]) return category.entity_type === legacyTypeMap[typeCode]
+          if (entityType) return category.entity_type === entityType
+          return true
+        })
+        .sort((a, b) => {
+          const systemDelta = Number(Boolean(b.is_system)) - Number(Boolean(a.is_system))
+          if (systemDelta !== 0) return systemDelta
+          return Number(a.display_order || 0) - Number(b.display_order || 0)
+        })
+        .map(normalizeConvexCategory)
+
+      return NextResponse.json({ data: rows })
+    }
 
     let query = db
       .from(withType ? 'v_categories_with_type' : 'categories')
@@ -159,7 +203,7 @@ export async function POST(request: NextRequest) {
     if ('error' in bodyResult) {
       return bodyResult.error;
     }
-    const body = bodyResult.data;
+    const body = bodyResult.data as Record<string, any>;
     const cookieStore = cookies();
     const searchParams = request.nextUrl.searchParams;
 
@@ -187,18 +231,64 @@ export async function POST(request: NextRequest) {
         return parsed.error;
       }
       const payload = parsed.data;
+      const rawName = payload.name.trim();
+
+      const code = payload.code && String(payload.code).trim().length > 0
+        ? String(payload.code)
+        : buildCodeFromName(rawName);
+
+      if (shouldUseConvexOnlyWritePath('categories')) {
+        const typeRows = await listConvexDocumentsByClinic('category_types', clinicId).catch(() => [])
+        const typeData = (typeRows as any[]).find((type) => type.code === typeCode)
+        const entityTypeMap: Record<string, string> = {
+          services: 'service',
+          supplies: 'supply',
+          expenses: 'expense',
+          assets: 'asset',
+        };
+        const id = crypto.randomUUID()
+        const now = new Date().toISOString()
+        const document = typeData?.id
+          ? {
+              id,
+              clinic_id: clinicId,
+              category_type_id: typeData.id,
+              parent_id: payload.parent_id ?? null,
+              code,
+              name: rawName,
+              description: payload.description ?? null,
+              icon: payload.icon ?? null,
+              color: payload.color ?? null,
+              display_order: typeof payload.display_order === 'number' ? payload.display_order : 0,
+              is_system: false,
+              is_active: payload.is_active ?? true,
+              metadata: payload.metadata ?? {},
+              created_at: now,
+              updated_at: now,
+            }
+          : {
+              id,
+              clinic_id: clinicId,
+              entity_type: entityTypeMap[typeCode] || 'service',
+              name: code,
+              display_name: rawName,
+              is_system: false,
+              is_active: payload.is_active ?? true,
+              display_order: typeof payload.display_order === 'number' ? payload.display_order : 999,
+              created_at: now,
+              updated_at: now,
+            }
+
+        await upsertConvexDocumentByLegacyId('categories', id, document)
+        return NextResponse.json({ data: document })
+      }
+
       const { data: typeData } = await db
         .from('category_types')
         .select('id')
         .eq('clinic_id', clinicId)
         .eq('code', typeCode)
         .maybeSingle();
-
-      const rawName = payload.name.trim();
-
-      const code = payload.code && String(payload.code).trim().length > 0
-        ? String(payload.code)
-        : buildCodeFromName(rawName);
 
       if (typeData?.id) {
         const insertPayload = {
@@ -272,6 +362,21 @@ export async function POST(request: NextRequest) {
     }
     const validatedData = validated.data;
 
+    if (shouldUseConvexOnlyWritePath('categories')) {
+      const id = crypto.randomUUID()
+      const now = new Date().toISOString()
+      const document = {
+        ...validatedData,
+        id,
+        clinic_id: clinicId,
+        is_system: false,
+        created_at: now,
+        updated_at: now,
+      }
+      await upsertConvexDocumentByLegacyId('categories', id, document)
+      return NextResponse.json({ data: document })
+    }
+
     const { data, error } = await supabaseAdmin
       .from('categories')
       .insert({
@@ -285,6 +390,14 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('Error creating category:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    if (data && shouldWriteConvexData('categories')) {
+      try {
+        await upsertConvexDocumentByLegacyId('categories', data.id, data as Record<string, unknown>)
+      } catch (convexError) {
+        console.error('[categories] Convex mirror failed:', convexError)
+      }
     }
 
     return NextResponse.json({ data });

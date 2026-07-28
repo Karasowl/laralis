@@ -1,18 +1,86 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { AuthLayout } from '@/components/auth/AuthLayout'
 import { AuthForm } from '@/components/auth/AuthForm'
 import { InputField } from '@/components/ui/form-field'
+import { Input } from '@/components/ui/input'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 import { Lock, CheckCircle, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+
+const CONVEX_AUTH_MODE = process.env.NEXT_PUBLIC_AUTH_BACKEND === 'convex'
+
+// Convex Auth reset: enter the emailed OTP + a new password (reset-verification flow).
+function ConvexResetForm() {
+  const t = useTranslations('auth.resetPassword')
+  const searchParams = useSearchParams()
+  const email = searchParams.get('email') || ''
+  const { confirmPasswordReset, loading } = useAuth()
+  const [code, setCode] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [err, setErr] = useState<string | null>(null)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setErr(null)
+    if (password.length < 6) {
+      setErr(t('passwordTooShort'))
+      return
+    }
+    if (password !== confirm) {
+      setErr(t('passwordsDontMatch'))
+      return
+    }
+    if (!email || !code.trim()) return
+    await confirmPasswordReset(email, code.trim(), password)
+  }
+
+  return (
+    <AuthLayout showLogo={false}>
+      <form onSubmit={handleSubmit} className="w-full max-w-md mx-auto space-y-4">
+        <div className="text-center space-y-1">
+          <h2 className="text-xl sm:text-2xl font-bold">{t('title')}</h2>
+          <p className="text-xs sm:text-sm text-muted-foreground">{t('enterCodeAndPassword')}</p>
+        </div>
+        <Input
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          placeholder={t('codePlaceholder')}
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          className="text-center tracking-widest"
+        />
+        <Input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder={t('passwordPlaceholder')}
+          autoComplete="new-password"
+        />
+        <Input
+          type="password"
+          value={confirm}
+          onChange={(e) => setConfirm(e.target.value)}
+          placeholder={t('confirmPasswordPlaceholder')}
+          autoComplete="new-password"
+        />
+        {err && <p className="text-xs text-destructive">{err}</p>}
+        <Button type="submit" disabled={loading || !code.trim() || !password} className="w-full">
+          {t('submit')}
+        </Button>
+      </form>
+    </AuthLayout>
+  )
+}
 
 const resetPasswordSchema = z.object({
   password: z.string().min(6),
@@ -24,6 +92,13 @@ const resetPasswordSchema = z.object({
 type ResetPasswordForm = z.infer<typeof resetPasswordSchema>
 
 function ResetPasswordContent() {
+  if (CONVEX_AUTH_MODE) {
+    return <ConvexResetForm />
+  }
+  return <SupabaseResetPasswordContent />
+}
+
+function SupabaseResetPasswordContent() {
   const t = useTranslations('auth.resetPassword')
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -132,11 +207,24 @@ function ResetPasswordContent() {
         return
       }
 
-      setSuccess(true)
-      toast.success(t('successMessage'))
-      
       // Check if user has workspace to determine redirect
       const { data: { user } } = await supabase.auth.getUser()
+
+      if (user?.email && process.env.NEXT_PUBLIC_CONVEX_AUTH_BRIDGE === '1') {
+        await fetch('/api/auth/convex-bridge', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            email: user.email,
+            password: data.password,
+          }),
+        }).catch((error) => {
+          console.error('[reset-password] Convex auth bridge failed', error)
+        })
+      }
+
+      setSuccess(true)
+      toast.success(t('successMessage'))
       
       if (user) {
         const { data: workspaces } = await supabase

@@ -5,8 +5,24 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
+import { getConvexDocumentByLegacyId, patchConvexDocumentByLegacyId } from '@/lib/convex/server'
+import { shouldUseConvexOnlyWritePath } from '@/lib/data-backend'
 
 export const dynamic = 'force-dynamic'
+
+type ImportedRecord = Record<string, any>
+
+function normalizeConvexRecord(row: ImportedRecord | null | undefined) {
+  if (!row) return null
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row
+  return rest
+}
+
+async function ensureClinicExistsConvex(clinicId: string) {
+  const row = await getConvexDocumentByLegacyId('clinics', clinicId) as ImportedRecord | null
+  if (!row) return null
+  return { id: row.id ?? row.legacyId ?? clinicId, workspace_id: row.workspace_id ?? row.workspaceId }
+}
 
 const updateClinicSchema = z.object({
   name: z.string().min(1).optional(),
@@ -54,7 +70,9 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    if (!(await ensureClinicExists(params.id))) {
+    const convexOnly = shouldUseConvexOnlyWritePath('clinics')
+
+    if (!(convexOnly ? await ensureClinicExistsConvex(params.id) : await ensureClinicExists(params.id))) {
       return NextResponse.json({ error: 'Clinic not found' }, { status: 404 })
     }
 
@@ -80,6 +98,14 @@ export async function PUT(
     if (body.is_active !== undefined) patch.is_active = !!body.is_active
     if (body.auto_complete_appointments !== undefined) patch.auto_complete_appointments = !!body.auto_complete_appointments
     patch.updated_at = new Date().toISOString()
+
+    if (convexOnly) {
+      const current = normalizeConvexRecord(
+        await getConvexDocumentByLegacyId('clinics', params.id) as ImportedRecord | null
+      )
+      await patchConvexDocumentByLegacyId('clinics', params.id, patch)
+      return NextResponse.json({ data: { ...(current ?? {}), id: params.id, ...patch } })
+    }
 
     const { data, error } = await supabaseAdmin
       .from('clinics')
@@ -173,6 +199,16 @@ export async function DELETE(
       }, { status: 400 })
     }
 
+    // NOTE (convex decommission): DELETE intentionally has NO convex-only write branch.
+    // The Supabase delete below relies on Postgres ON DELETE CASCADE to remove every row
+    // related to the clinic across many tables (patients, treatments, services, supplies,
+    // expenses, fixed_costs, memberships, etc.). Convex has no FK cascade, so
+    // deleteConvexDocumentByLegacyId('clinics', id) would delete only the clinic document
+    // and orphan all related data. Replicating the full multi-table cascade safely is a
+    // shared change (a dedicated Convex mutation that enumerates and deletes every child
+    // table for the clinic), not something to inline here. Until that exists, clinic
+    // deletion must stay on the Supabase write path.
+
     // Delete the clinic (cascade will delete all related data)
     const { error } = await supabaseAdmin
       .from('clinics')
@@ -197,4 +233,3 @@ export async function DELETE(
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
-

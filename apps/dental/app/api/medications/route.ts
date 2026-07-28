@@ -5,8 +5,58 @@ import { resolveClinicContext } from '@/lib/clinic'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
 import { z } from 'zod'
 import { readJson } from '@/lib/validation'
+import { listConvexTable, upsertConvexDocumentByLegacyId } from '@/lib/convex/server'
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend'
 
 export const dynamic = 'force-dynamic'
+
+type ImportedRecord = Record<string, any>
+
+// Strip the full Convex metadata set so the row matches a flat Supabase row.
+function normalizeConvexRecord(row: ImportedRecord) {
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row
+  return rest
+}
+
+// Postgres text ordering tie-break: compare by code point (matches the C-style
+// ordering used across the other migrated routes), not locale.
+function byCodePoint(a: string, b: string) {
+  return a < b ? -1 : a > b ? 1 : 0
+}
+
+/**
+ * Convex equivalent of the medications GET query.
+ *
+ * The Supabase path is `.or('clinic_id.is.null,clinic_id.eq.<clinicId>')`, i.e.
+ * GLOBAL medications (clinic_id NULL) PLUS this clinic's own. listConvexDocumentsByClinic
+ * would drop the NULL-clinic_id globals, so we read the whole table and filter in JS.
+ */
+async function getMedicationsFromConvex(
+  clinicId: string,
+  opts: { activeOnly: boolean; category: string | null; search: string | null }
+) {
+  const rows = (await listConvexTable('medications', 10000) as ImportedRecord[]).map(normalizeConvexRecord)
+  const searchLower = opts.search ? opts.search.toLowerCase() : null
+
+  return rows
+    .filter((row) => {
+      // .or('clinic_id.is.null,clinic_id.eq.<clinicId>')
+      const cid = row.clinic_id
+      if (!(cid === null || cid === undefined || String(cid) === clinicId)) return false
+      // .eq('is_active', true) when activeOnly
+      if (opts.activeOnly && row.is_active !== true) return false
+      // .eq('category', category)
+      if (opts.category && row.category !== opts.category) return false
+      // .or('name.ilike.%search%,generic_name.ilike.%search%')
+      if (searchLower) {
+        const name = String(row.name ?? '').toLowerCase()
+        const generic = String(row.generic_name ?? '').toLowerCase()
+        if (!name.includes(searchLower) && !generic.includes(searchLower)) return false
+      }
+      return true
+    })
+    .sort((a, b) => byCodePoint(String(a.name ?? ''), String(b.name ?? '')))
+}
 
 const medicationSchema = z.object({
   name: z.string().min(1).max(255),
@@ -58,6 +108,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const category = searchParams.get('category')
     const search = searchParams.get('search')
     const activeOnly = searchParams.get('active') !== 'false'
+
+    // Convex read branch (flag-gated, default Supabase). Auth + clinic scoping
+    // already enforced above (resolveClinicContext + prescriptions.view guard).
+    if (shouldReturnConvexData('medications')) {
+      const data = await getMedicationsFromConvex(clinicId, { activeOnly, category, search })
+      return NextResponse.json({ data })
+    }
 
     // Build query - get global medications (clinic_id IS NULL) OR clinic-specific
     let query = supabaseAdmin
@@ -131,6 +188,24 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const data = validation.data
+
+    // Convex-only write branch (flag-gated, default Supabase). Auth + clinic scoping
+    // already enforced above (resolveClinicContext + prescriptions.create guard).
+    // Mirror the Supabase insert: generate the uuid + timestamps Postgres would have
+    // defaulted, and spread the same validated columns (always clinic-specific).
+    if (shouldUseConvexOnlyWritePath('medications')) {
+      const id = crypto.randomUUID()
+      const nowIso = new Date().toISOString()
+      const row = {
+        id,
+        clinic_id: clinicId,
+        ...data,
+        created_at: nowIso,
+        updated_at: nowIso,
+      }
+      await upsertConvexDocumentByLegacyId('medications', id, row)
+      return NextResponse.json({ data: row }, { status: 201 })
+    }
 
     // Create medication (always clinic-specific for user-created)
     const { data: medication, error } = await supabaseAdmin

@@ -5,8 +5,28 @@ import { z } from 'zod'
 import { readJson, validateSchema } from '@/lib/validation'
 import { resolveClinicContext } from '@/lib/clinic'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
+import {
+  listConvexDocumentsByClinic,
+  patchConvexDocumentByLegacyId,
+  deleteConvexDocumentByLegacyId,
+} from '@/lib/convex/server'
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend'
 
 export const dynamic = 'force-dynamic'
+
+type ImportedRecord = Record<string, any>
+
+function normalizeConvexRecord(row: ImportedRecord | null | undefined) {
+  if (!row) return null
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row
+  return rest
+}
+
+async function getCampaignFromConvex(clinicId: string, campaignId: string) {
+  const rows = await listConvexDocumentsByClinic('marketing_campaigns', clinicId, 10000) as ImportedRecord[]
+  const match = rows.find((row) => String(row.id ?? row.legacyId ?? '') === campaignId)
+  return normalizeConvexRecord(match)
+}
 
 const campaignPatchSchema = z
   .object({
@@ -37,6 +57,17 @@ export async function GET(
     const { clinicId, userId } = clinicContext
     const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'campaigns.view')
     if (forbidden) return forbidden
+
+    if (shouldReturnConvexData('marketing_campaigns')) {
+      const data = await getCampaignFromConvex(clinicId, params.id)
+      if (!data) {
+        return NextResponse.json(
+          { error: 'Campaign not found' },
+          { status: 404 }
+        )
+      }
+      return NextResponse.json({ data })
+    }
 
     const { data, error } = await supabaseAdmin
       .from('marketing_campaigns')
@@ -102,6 +133,18 @@ export async function PATCH(
       }
     }
 
+    if (shouldUseConvexOnlyWritePath('marketing_campaigns')) {
+      const current = await getCampaignFromConvex(clinicId, params.id)
+      if (!current) {
+        return NextResponse.json(
+          { error: 'Failed to update campaign' },
+          { status: 400 }
+        )
+      }
+      await patchConvexDocumentByLegacyId('marketing_campaigns', params.id, patch)
+      return NextResponse.json({ data: { ...current, ...patch } })
+    }
+
     // Update the campaign
     const { data, error } = await supabaseAdmin
       .from('marketing_campaigns')
@@ -144,6 +187,23 @@ export async function DELETE(
     const { clinicId, userId } = clinicContext
     const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'campaigns.delete')
     if (forbidden) return forbidden
+
+    if (shouldUseConvexOnlyWritePath('marketing_campaigns')) {
+      // Mirror the Supabase guard: block deletion when patients reference this campaign
+      const convexPatients = await listConvexDocumentsByClinic('patients', clinicId, 10000) as ImportedRecord[]
+      const hasAssociatedPatients = convexPatients.some(
+        (row) => String(row.campaign_id ?? '') === params.id
+      )
+      if (hasAssociatedPatients) {
+        return NextResponse.json(
+          { error: 'Cannot delete campaign with associated patients' },
+          { status: 400 }
+        )
+      }
+
+      await deleteConvexDocumentByLegacyId('marketing_campaigns', params.id)
+      return NextResponse.json({ success: true })
+    }
 
     // Check if campaign has any associated patients
     const { data: patients } = await supabaseAdmin

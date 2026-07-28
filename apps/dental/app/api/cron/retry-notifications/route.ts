@@ -15,9 +15,21 @@ import {
 import { getQaNotificationMode, type QaNotificationMode } from '@/lib/notifications/qa'
 import { sendBookingConfirmation, sendConfirmationEmail, sendReminderEmail, type EmailResult } from '@/lib/email/service'
 import { sendSMSDeliveryAttempt, type SendSMSResult } from '@/lib/sms'
+import { getConvexDocumentByLegacyId, decodeConvexValue } from '@/lib/convex/server'
+import { shouldReturnConvexData } from '@/lib/data-backend'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
+
+type ImportedRecord = Record<string, any>
+
+// Normalize a Convex notification row to the flat Supabase shape, decoding the
+// JSONB metadata (encoded keys) so readEmailRetryPayload sees retry_payload intact.
+function normalizeNotificationRecord(row: ImportedRecord | null | undefined): ImportedRecord | null {
+  if (!row) return null
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row
+  return { ...rest, metadata: decodeConvexValue(rest.metadata) }
+}
 
 type RetryAttemptResult = {
   success: boolean
@@ -151,16 +163,30 @@ async function processRetryAttempt(retry: NotificationRetryRow, mode: QaNotifica
 }
 
 async function processEmailRetry(retry: NotificationRetryRow, mode: QaNotificationMode): Promise<RetryAttemptResult> {
-  const { data: notification, error } = await supabaseAdmin
-    .from('email_notifications')
-    .select('*')
-    .eq('id', retry.notification_id)
-    .maybeSingle()
+  // Convex read branch (flag-gated, default Supabase). Lookup by id; email_notifications
+  // is keyed by id, so getConvexDocumentByLegacyId is the maybeSingle() equivalent.
+  let notification: ImportedRecord | null
+  if (shouldReturnConvexData('email_notifications')) {
+    notification = normalizeNotificationRecord(
+      await getConvexDocumentByLegacyId('email_notifications', retry.notification_id) as ImportedRecord | null
+    )
+  } else {
+    const { data, error } = await supabaseAdmin
+      .from('email_notifications')
+      .select('*')
+      .eq('id', retry.notification_id)
+      .maybeSingle()
 
-  if (error || !notification) {
+    if (error) {
+      return { success: false, error: error.message }
+    }
+    notification = data ?? null
+  }
+
+  if (!notification) {
     return {
       success: false,
-      error: error?.message || 'Email notification row not found',
+      error: 'Email notification row not found',
     }
   }
 
@@ -213,16 +239,29 @@ async function processEmailRetry(retry: NotificationRetryRow, mode: QaNotificati
 }
 
 async function processSmsRetry(retry: NotificationRetryRow, mode: QaNotificationMode): Promise<RetryAttemptResult> {
-  const { data: notification, error } = await supabaseAdmin
-    .from('sms_notifications')
-    .select('*')
-    .eq('id', retry.notification_id)
-    .maybeSingle()
+  // Convex read branch (flag-gated, default Supabase). Lookup by id.
+  let notification: ImportedRecord | null
+  if (shouldReturnConvexData('sms_notifications')) {
+    notification = normalizeNotificationRecord(
+      await getConvexDocumentByLegacyId('sms_notifications', retry.notification_id) as ImportedRecord | null
+    )
+  } else {
+    const { data, error } = await supabaseAdmin
+      .from('sms_notifications')
+      .select('*')
+      .eq('id', retry.notification_id)
+      .maybeSingle()
 
-  if (error || !notification) {
+    if (error) {
+      return { success: false, error: error.message }
+    }
+    notification = data ?? null
+  }
+
+  if (!notification) {
     return {
       success: false,
-      error: error?.message || 'SMS notification row not found',
+      error: 'SMS notification row not found',
     }
   }
 

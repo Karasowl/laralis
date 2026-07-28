@@ -15,6 +15,35 @@ import type {
 } from './types'
 import { DEFAULT_SMS_CONFIG } from './types'
 import { isRetryableNotificationError, queueNotificationRetry } from '@/lib/notifications/retry-queue'
+import {
+  decodeConvexValue,
+  getConvexDocumentByLegacyId,
+  listConvexTable,
+  patchConvexDocumentByLegacyId,
+  upsertConvexDocumentByLegacyId,
+} from '@/lib/convex/server'
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend'
+
+// Convex bookkeeping fields stripped from a mirrored row so it mirrors the shape
+// Supabase would return. decodeConvexValue restores any encoded JSONB object keys
+// (e.g. notification_settings), so downstream config parsing matches the Supabase path.
+const CONVEX_META_FIELDS = [
+  '_id',
+  '_creationTime',
+  'legacyId',
+  'legacyTable',
+  'convex_created_at',
+  'convex_updated_at',
+  'convex_snapshot_source',
+]
+function stripConvexRow<T extends Record<string, any>>(row: T): Record<string, any> {
+  const clean: Record<string, any> = {}
+  for (const [k, v] of Object.entries(row)) {
+    if (CONVEX_META_FIELDS.includes(k)) continue
+    clean[k] = v
+  }
+  return decodeConvexValue(clean) as Record<string, any>
+}
 
 /** Event types for SMS notifications */
 export type SMSEventType =
@@ -27,6 +56,24 @@ export type SMSEventType =
  * Get SMS config for a clinic with deep merge of nested objects
  */
 export async function getSMSConfig(clinicId: string): Promise<SMSConfig> {
+  // Convex read branch (flag-gated, default Supabase). In convex-only mode the
+  // Supabase client is unreachable; read the mirrored clinic doc by legacy id.
+  if (shouldReturnConvexData('clinics')) {
+    const clinic = (await getConvexDocumentByLegacyId('clinics', clinicId)) as
+      | Record<string, any>
+      | null
+    if (!clinic) {
+      console.error('[sms] Failed to get clinic config: clinic not found')
+      return DEFAULT_SMS_CONFIG
+    }
+    const settings = stripConvexRow(clinic).notification_settings as Record<string, unknown> | null
+    const smsSettings = settings?.sms as Partial<SMSConfig> | undefined
+    if (!smsSettings) {
+      return DEFAULT_SMS_CONFIG
+    }
+    return mergeSMSConfigWithDefaults(smsSettings)
+  }
+
   const { data: clinic, error } = await supabaseAdmin
     .from('clinics')
     .select('notification_settings')
@@ -319,8 +366,11 @@ export async function sendSMS(params: SendSMSParams): Promise<SendSMSResult> {
   // Send SMS
   const result = await sendViaTwilio(formattedPhone, message, config)
 
-  // Log the notification
-  const { data: logRow, error: logError } = await supabaseAdmin.from('sms_notifications').insert({
+  // Log the notification.
+  // Postgres-default columns are written explicitly on the convex-only path:
+  // id (gen_random_uuid -> randomUUID), created_at/updated_at (now()), cost_cents (2).
+  const now = new Date().toISOString()
+  const logRecord = {
     clinic_id: clinicId,
     treatment_id: treatmentId || null,
     patient_id: patientId || null,
@@ -330,14 +380,40 @@ export async function sendSMS(params: SendSMSParams): Promise<SendSMSResult> {
     recipient_name: recipientName,
     message_content: message,
     status: result.success ? (result.status || 'sent') : 'failed',
-    sent_at: result.success ? new Date().toISOString() : null,
+    sent_at: result.success ? now : null,
+    delivered_at: null,
     error_message: result.error || null,
     provider: 'twilio',
     provider_message_id: result.messageId || null,
     cost_cents: result.costCents || 2,
-  })
-    .select('id')
-    .single()
+  }
+
+  let logRow: { id: string } | null = null
+  let logError: { message?: string } | null = null
+
+  if (shouldUseConvexOnlyWritePath('sms_notifications')) {
+    // Convex-only write branch (flag-gated, default Supabase).
+    const newId = crypto.randomUUID()
+    try {
+      await upsertConvexDocumentByLegacyId('sms_notifications', newId, {
+        id: newId,
+        ...logRecord,
+        created_at: now,
+        updated_at: now,
+      })
+      logRow = { id: newId }
+    } catch (error) {
+      logError = { message: error instanceof Error ? error.message : 'Unknown error' }
+    }
+  } else {
+    const inserted = await supabaseAdmin
+      .from('sms_notifications')
+      .insert(logRecord)
+      .select('id')
+      .single()
+    logRow = inserted.data
+    logError = inserted.error
+  }
 
   if (logError) {
     console.error('[sms] Failed to log notification:', logError)
@@ -687,6 +763,20 @@ export async function updateSMSStatus(
   }
   if (errorMessage) {
     updateData.error_message = errorMessage
+  }
+
+  if (shouldUseConvexOnlyWritePath('sms_notifications')) {
+    // Convex-only write branch (flag-gated, default Supabase). There is no
+    // by-field lookup helper, so list the mirrored table and patch every row
+    // matching provider_message_id (the Supabase .eq() can match multiple rows).
+    const rows = (await listConvexTable('sms_notifications')) as Record<string, any>[]
+    const matched = rows.filter((row) => String(row.provider_message_id) === String(providerMessageId))
+    for (const row of matched) {
+      const legacyId = row.legacyId ?? row.id
+      if (legacyId == null) continue
+      await patchConvexDocumentByLegacyId('sms_notifications', String(legacyId), updateData)
+    }
+    return { updatedCount: matched.length }
   }
 
   const { data, error } = await supabaseAdmin

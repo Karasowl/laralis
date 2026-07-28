@@ -10,6 +10,27 @@ import { gzip } from 'pako'
 import { createHash } from 'crypto'
 import { TableDiscoveryService } from './discovery'
 import { SnapshotStorageService } from './storage'
+import { createMirroredSupabaseClient } from '@/lib/convex/supabase-runtime-mirror'
+import {
+  getConvexDocumentByLegacyId,
+  listConvexDocumentsByClinic,
+  listConvexTable,
+  upsertConvexDocumentByLegacyId,
+  decodeConvexValue,
+} from '@/lib/convex/server'
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend'
+
+// Convex bookkeeping fields stripped from exported rows so the snapshot mirrors the
+// shape Supabase would produce (the importer re-encodes on restore).
+const CONVEX_META_FIELDS = ['_id', '_creationTime', 'legacyId', 'legacyTable', 'convex_created_at', 'convex_updated_at', 'convex_snapshot_source']
+function stripConvexRow(row: Record<string, any>): Record<string, any> {
+  const clean: Record<string, any> = {}
+  for (const [k, v] of Object.entries(row)) {
+    if (CONVEX_META_FIELDS.includes(k)) continue
+    clean[k] = v
+  }
+  return decodeConvexValue(clean) as Record<string, any>
+}
 import {
   ClinicSnapshot,
   SnapshotMetadata,
@@ -31,14 +52,20 @@ export class ClinicSnapshotExporter {
   private storage: SnapshotStorageService
   private clinicName: string = ''
   private workspaceId: string = ''
+  private supabase: SupabaseClient
+  // In convex-only mode the wrapped Supabase client throws on .from(); read/write the
+  // clinic tables + snapshot record from Convex instead (discovery + storage already are).
+  private convexRead: boolean = shouldReturnConvexData('clinic_snapshots')
+  private convexWrite: boolean = shouldUseConvexOnlyWritePath('clinic_snapshots')
 
   constructor(
-    private supabase: SupabaseClient,
+    supabase: SupabaseClient,
     private clinicId: string,
     private options: ExportOptions
   ) {
-    this.discovery = new TableDiscoveryService(supabase)
-    this.storage = new SnapshotStorageService(supabase)
+    this.supabase = createMirroredSupabaseClient(supabase)
+    this.discovery = new TableDiscoveryService(this.supabase)
+    this.storage = new SnapshotStorageService(this.supabase)
   }
 
   /**
@@ -149,6 +176,18 @@ export class ClinicSnapshotExporter {
    * Carga información de la clínica.
    */
   private async loadClinicInfo(): Promise<void> {
+    if (this.convexRead) {
+      const clinic = (await getConvexDocumentByLegacyId('clinics', this.clinicId)) as
+        | { name?: string; workspace_id?: string }
+        | null
+      if (!clinic) {
+        throw new SnapshotError('Clinic not found', 'EXPORT_FAILED', null)
+      }
+      this.clinicName = clinic.name ?? ''
+      this.workspaceId = clinic.workspace_id ?? ''
+      return
+    }
+
     const { data, error } = await this.supabase
       .from('clinics')
       .select('name, workspace_id')
@@ -222,6 +261,27 @@ export class ClinicSnapshotExporter {
    * Exporta datos de una tabla específica.
    */
   private async exportTable(table: DiscoveredTable): Promise<unknown[]> {
+    if (this.convexRead) {
+      let rows: Record<string, any>[]
+      if (table.category === 'hybrid') {
+        // globals (clinic_id NULL) + this clinic's rows
+        rows = ((await listConvexTable(table.name)) as Record<string, any>[]).filter(
+          (r) => r.clinic_id == null || String(r.clinic_id) === String(this.clinicId)
+        )
+      } else if (table.category === 'indirect' && table.parentTable && table.parentColumn) {
+        const parentIds = await this.getParentIds(table)
+        if (parentIds.length === 0) return []
+        const parentSet = new Set(parentIds.map(String))
+        rows = ((await listConvexTable(table.name)) as Record<string, any>[]).filter(
+          (r) => r[table.parentColumn as string] != null && parentSet.has(String(r[table.parentColumn as string]))
+        )
+      } else {
+        // direct
+        rows = (await listConvexDocumentsByClinic(table.name, this.clinicId)) as Record<string, any>[]
+      }
+      return rows.map((r) => stripConvexRow(r))
+    }
+
     let query = this.supabase.from(table.name as 'treatments').select('*')
 
     if (table.category === 'direct' || table.category === 'hybrid') {
@@ -261,6 +321,11 @@ export class ClinicSnapshotExporter {
    */
   private async getParentIds(table: DiscoveredTable): Promise<string[]> {
     if (!table.parentTable) return []
+
+    if (this.convexRead) {
+      const rows = (await listConvexDocumentsByClinic(table.parentTable, this.clinicId)) as Record<string, any>[]
+      return rows.map((row) => String(row.id)).filter(Boolean)
+    }
 
     const { data, error } = await this.supabase
       .from(table.parentTable as 'treatments')
@@ -316,7 +381,7 @@ export class ClinicSnapshotExporter {
     metadata: SnapshotMetadata,
     storagePath: string
   ): Promise<void> {
-    const { error } = await this.supabase.from('clinic_snapshots').insert({
+    const record = {
       id: metadata.id,
       clinic_id: this.clinicId,
       created_by: metadata.createdBy.userId,
@@ -333,7 +398,21 @@ export class ClinicSnapshotExporter {
         clinicName: metadata.clinicName,
         workspaceId: metadata.workspaceId,
       },
-    })
+    }
+
+    if (this.convexWrite) {
+      try {
+        await upsertConvexDocumentByLegacyId('clinic_snapshots', metadata.id, {
+          ...record,
+          created_at: metadata.createdAt,
+        })
+      } catch (error) {
+        console.error('Failed to save snapshot record (convex):', error)
+      }
+      return
+    }
+
+    const { error } = await this.supabase.from('clinic_snapshots').insert(record)
 
     if (error) {
       console.error('Failed to save snapshot record:', error)

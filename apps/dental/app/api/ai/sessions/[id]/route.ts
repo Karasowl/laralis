@@ -12,8 +12,80 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { z } from 'zod'
 import { readJson } from '@/lib/validation'
 import { forbiddenIfMissingPermission, type Permission } from '@/lib/permissions'
+import {
+  listConvexDocumentsByClinic,
+  listConvexTable,
+  getConvexDocumentByLegacyId,
+  patchConvexDocumentByLegacyId,
+  deleteConvexDocumentByLegacyId,
+} from '@/lib/convex/server'
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend'
+import { laraPermissionForMode } from '@/lib/ai/route-guards'
 
 export const dynamic = 'force-dynamic'
+
+type ImportedRecord = Record<string, any>
+
+function normalizeConvexRecord(row: ImportedRecord | null | undefined) {
+  if (!row) return null
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row
+  return rest
+}
+
+/**
+ * Convex read replica of the GET payload. Convex has no joins: messages are
+ * reassembled from the `chat_messages` table by matching `session_id`,
+ * replicating the same order/range/count as the Supabase branch.
+ */
+async function getSessionMessagesFromConvex(
+  clinicId: string,
+  session: ImportedRecord,
+  sessionId: string,
+  limit: number,
+  offset: number
+) {
+  // chat_messages has NO clinic_id column (it's scoped via session_id ->
+  // chat_sessions -> clinic). listConvexDocumentsByClinic would match zero
+  // rows; fetch the table and filter by session_id, exactly like the
+  // Supabase query which scopes by session_id alone.
+  const allMessages = (await listConvexTable('chat_messages', 10000) as ImportedRecord[])
+    .filter((row) => String(row.session_id || '') === sessionId)
+    .sort((a, b) => String(a.created_at || '').localeCompare(String(b.created_at || '')))
+
+  const total = allMessages.length
+  const messages = allMessages
+    .slice(offset, offset + limit)
+    .map(normalizeConvexRecord)
+
+  return {
+    data: {
+      session: normalizeConvexRecord(session),
+      messages,
+    },
+    pagination: {
+      total,
+      limit,
+      offset,
+      hasMore: total > offset + limit,
+    },
+  }
+}
+
+/**
+ * Convex ownership read for the write paths. Mirrors the Supabase ownership
+ * gate `chat_sessions WHERE id = sessionId AND user_id = userId` (returns the
+ * raw row so callers can read clinic_id/mode for the permission guard and merge
+ * the response). Returns null when the session is missing OR not owned by the
+ * user, matching the Supabase `.single()` 404 behaviour.
+ */
+async function getOwnedSessionFromConvex(
+  sessionId: string,
+  userId: string
+): Promise<ImportedRecord | null> {
+  const row = (await getConvexDocumentByLegacyId('chat_sessions', sessionId)) as ImportedRecord | null
+  if (!row || String(row.user_id || '') !== userId) return null
+  return row
+}
 
 // Schema for updating a session
 const updateSessionSchema = z.object({
@@ -25,9 +97,6 @@ const updateSessionSchema = z.object({
 interface RouteContext {
   params: { id: string }
 }
-
-const laraPermissionForMode = (mode: string | null | undefined): Permission =>
-  mode === 'query' ? 'lara.use_query_mode' : 'lara.use_entry_mode'
 
 /**
  * GET /api/ai/sessions/[id]
@@ -74,6 +143,20 @@ export async function GET(
     // Get messages
     const limit = Math.min(parseInt(searchParams.get('limit') || '100'), 500)
     const offset = parseInt(searchParams.get('offset') || '0')
+
+    // Convex read branch (flag-gated). Runs only AFTER auth + ownership
+    // (chat_sessions row matched by user_id) + clinic permission guard, since
+    // the Convex bridge has no RLS. Byte-identical shape to the Supabase path.
+    if (shouldReturnConvexData('chat_sessions')) {
+      const payload = await getSessionMessagesFromConvex(
+        chatSession.clinic_id,
+        chatSession,
+        sessionId,
+        limit,
+        offset
+      )
+      return NextResponse.json(payload)
+    }
 
     const { data: messages, error: messagesError, count } = await supabaseAdmin
       .from('chat_messages')
@@ -144,6 +227,37 @@ export async function PATCH(
     }
 
     const sessionId = params.id
+
+    // Convex-only write branch (flag-gated). Supabase is unreachable, so the
+    // ownership read + update must go through Convex. Runs AFTER auth + body
+    // validation; ownership and the Lara permission guard are enforced exactly
+    // like the Supabase path before any write.
+    if (shouldUseConvexOnlyWritePath('chat_sessions')) {
+      const existing = await getOwnedSessionFromConvex(sessionId, session.user.id)
+      if (!existing) {
+        return NextResponse.json(
+          { error: 'Session not found' },
+          { status: 404 }
+        )
+      }
+
+      const forbidden = await forbiddenIfMissingPermission(
+        session.user.id,
+        existing.clinic_id,
+        laraPermissionForMode(existing.mode)
+      )
+      if (forbidden) return forbidden
+
+      const patch = {
+        ...validation.data,
+        updated_at: new Date().toISOString(),
+      }
+      await patchConvexDocumentByLegacyId('chat_sessions', sessionId, patch)
+
+      return NextResponse.json({
+        data: { ...normalizeConvexRecord(existing), ...patch },
+      })
+    }
 
     const { data: existingSession, error: existingError } = await supabaseAdmin
       .from('chat_sessions')
@@ -221,6 +335,42 @@ export async function DELETE(
     }
 
     const sessionId = params.id
+
+    // Convex-only write branch (flag-gated). Supabase is unreachable, so the
+    // ownership read + delete must go through Convex. Convex has no FK cascade,
+    // so the chat_messages of this session are deleted explicitly to replicate
+    // the Supabase ON DELETE CASCADE before removing the session row.
+    if (shouldUseConvexOnlyWritePath('chat_sessions')) {
+      const existing = await getOwnedSessionFromConvex(sessionId, session.user.id)
+      if (!existing) {
+        return NextResponse.json(
+          { error: 'Session not found' },
+          { status: 404 }
+        )
+      }
+
+      const forbidden = await forbiddenIfMissingPermission(
+        session.user.id,
+        existing.clinic_id,
+        laraPermissionForMode(existing.mode)
+      )
+      if (forbidden) return forbidden
+
+      // Replicate the FK cascade: chat_messages has no clinic_id (scoped via
+      // session_id -> chat_sessions), so the table is scanned and filtered by
+      // session_id, matching the GET branch's reassembly strategy.
+      const childMessages = (await listConvexTable('chat_messages', 10000) as ImportedRecord[])
+        .filter((row) => String(row.session_id || '') === sessionId)
+      for (const message of childMessages) {
+        if (message.id) {
+          await deleteConvexDocumentByLegacyId('chat_messages', String(message.id))
+        }
+      }
+
+      await deleteConvexDocumentByLegacyId('chat_sessions', sessionId)
+
+      return NextResponse.json({ success: true })
+    }
 
     const { data: existingSession, error: existingError } = await supabaseAdmin
       .from('chat_sessions')

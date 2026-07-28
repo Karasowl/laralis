@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server'
 
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { getConvexDocumentByLegacyId, listConvexDocumentsByWorkspace, listConvexTable } from '@/lib/convex/server'
+import { shouldReturnConvexData } from '@/lib/data-backend'
 import { userHasPermission, type Permission } from '@/lib/permissions'
 
 export async function getWorkspaceMembershipIds(userId: string): Promise<string[]> {
+  if (shouldReturnConvexData('workspace-access')) {
+    return getConvexWorkspaceMembershipIds(userId)
+  }
+
   const ids = new Set<string>()
 
   for (const table of ['workspace_users', 'workspace_members']) {
@@ -31,6 +37,21 @@ export async function getWorkspaceMembershipIds(userId: string): Promise<string[
 }
 
 export async function getAccessibleWorkspaceIds(userId: string): Promise<string[]> {
+  if (shouldReturnConvexData('workspace-access')) {
+    const ids = new Set<string>()
+    const workspaces = await listConvexTable('workspaces', 10000) as Array<Record<string, any>>
+
+    for (const workspace of workspaces) {
+      if (workspace.owner_id === userId && workspace.id) ids.add(String(workspace.id))
+    }
+
+    for (const workspaceId of await getConvexWorkspaceMembershipIds(userId)) {
+      ids.add(workspaceId)
+    }
+
+    return Array.from(ids)
+  }
+
   const ids = new Set<string>()
 
   const { data: ownedWorkspaces, error } = await supabaseAdmin
@@ -54,6 +75,14 @@ export async function getAccessibleWorkspaceIds(userId: string): Promise<string[
 }
 
 export async function userCanAccessWorkspace(userId: string, workspaceId: string): Promise<boolean> {
+  if (shouldReturnConvexData('workspace-access')) {
+    const workspace = await getConvexDocumentByLegacyId('workspaces', workspaceId) as Record<string, any> | null
+    if (workspace?.owner_id === userId) return true
+
+    const membershipIds = await getConvexWorkspaceMembershipIds(userId)
+    return membershipIds.includes(workspaceId)
+  }
+
   const { data: ownedWorkspace } = await supabaseAdmin
     .from('workspaces')
     .select('id')
@@ -72,6 +101,42 @@ export async function forbiddenIfMissingWorkspacePermission(
   workspaceId: string,
   permission: Permission
 ): Promise<NextResponse<any> | null> {
+  if (shouldReturnConvexData('workspace-access')) {
+    const workspace = await getConvexDocumentByLegacyId('workspaces', workspaceId) as Record<string, any> | null
+
+    if (!workspace) {
+      return NextResponse.json(
+        { error: 'Workspace not found or unauthorized' },
+        { status: 404 }
+      )
+    }
+
+    if (workspace.owner_id === userId) return null
+
+    const membershipIds = await getConvexWorkspaceMembershipIds(userId)
+    if (!membershipIds.includes(workspaceId)) {
+      return NextResponse.json(
+        { error: 'Workspace not found or unauthorized' },
+        { status: 404 }
+      )
+    }
+
+    const clinics = await listConvexDocumentsByWorkspace('clinics', workspaceId, 1000) as Array<Record<string, any>>
+    for (const clinic of clinics.filter((row) => row.is_active !== false)) {
+      if (clinic.id && await userHasPermission(userId, clinic.id, permission)) {
+        return null
+      }
+    }
+
+    return NextResponse.json(
+      {
+        error: 'Forbidden',
+        message: `You do not have permission: ${permission}`,
+      },
+      { status: 403 }
+    )
+  }
+
   const { data: workspace, error } = await supabaseAdmin
     .from('workspaces')
     .select('id, owner_id')
@@ -122,4 +187,20 @@ export async function forbiddenIfMissingWorkspacePermission(
     },
     { status: 403 }
   )
+}
+
+async function getConvexWorkspaceMembershipIds(userId: string) {
+  const ids = new Set<string>()
+  const [workspaceUsers, workspaceMembers] = await Promise.all([
+    listConvexTable('workspace_users', 10000) as Promise<Array<Record<string, any>>>,
+    listConvexTable('workspace_members', 10000) as Promise<Array<Record<string, any>>>,
+  ])
+
+  for (const membership of [...workspaceUsers, ...workspaceMembers]) {
+    if (membership.user_id === userId && membership.is_active !== false && membership.workspace_id) {
+      ids.add(String(membership.workspace_id))
+    }
+  }
+
+  return Array.from(ids)
 }

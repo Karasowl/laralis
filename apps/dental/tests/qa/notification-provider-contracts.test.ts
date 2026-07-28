@@ -4,7 +4,7 @@ import { parseResendEmailWebhook } from '@/lib/email/webhooks'
 import { formatPhoneNumber, getSMSConfigFromSettings, isEventEnabled, parseTwilioSMSStatusWebhook } from '@/lib/sms/service'
 import { TwilioWhatsAppProvider } from '@/lib/whatsapp/providers/twilio'
 import { Dialog360WhatsAppProvider } from '@/lib/whatsapp/providers/dialog360'
-import { interpolateTemplate } from '@/lib/whatsapp/service'
+import { getQuickReplyButtonsForTemplate, interpolateTemplate } from '@/lib/whatsapp/service'
 import type { WhatsAppConfig } from '@/lib/whatsapp/types'
 import {
   buildEmailRetryMetadata,
@@ -515,6 +515,26 @@ describe('Notification provider contracts', () => {
     expect(body.get('Body')).toBe('QA booking recibido')
   })
 
+  it('falls back to numbered quick replies for Twilio WhatsApp', async () => {
+    const fetchMock = mockJsonFetch({
+      sid: 'SMqaButtons',
+      status: 'queued',
+    })
+    const provider = new TwilioWhatsAppProvider()
+
+    const result = await provider.sendMessage('5555550123', 'QA confirma tu cita', twilioConfig, {
+      quickReplyButtons: getQuickReplyButtonsForTemplate('appointment_confirmation'),
+    })
+
+    expect(result.success).toBe(true)
+
+    const [, init] = fetchMock.mock.calls[0]
+    const body = new URLSearchParams(String(init.body))
+    expect(body.get('Body')).toBe(
+      'QA confirma tu cita\n\nResponde con una opcion:\n1. Confirmar\n2. Reagendar\n3. Cancelar'
+    )
+  })
+
   it('surfaces Twilio WhatsApp provider errors without treating them as sent', async () => {
     mockJsonFetch({ message: 'Invalid To phone number' }, 400)
     const provider = new TwilioWhatsAppProvider()
@@ -581,6 +601,62 @@ describe('Notification provider contracts', () => {
       type: 'text',
       text: {
         body: 'QA booking recibido',
+      },
+    })
+  })
+
+  it('builds 360dialog interactive button-message requests', async () => {
+    const fetchMock = mockJsonFetch({
+      messages: [{ id: 'wamid.qa.buttons' }],
+    })
+    const provider = new Dialog360WhatsAppProvider()
+
+    const result = await provider.sendMessage('5555550123', 'QA confirma tu cita', dialog360Config, {
+      quickReplyButtons: getQuickReplyButtonsForTemplate('appointment_confirmation'),
+    })
+
+    expect(result).toEqual({
+      success: true,
+      messageId: 'wamid.qa.buttons',
+      status: 'sent',
+      costCents: 0,
+    })
+
+    const [, init] = fetchMock.mock.calls[0]
+    const body = JSON.parse(String(init.body))
+    expect(body).toEqual({
+      to: '15555550123',
+      type: 'interactive',
+      interactive: {
+        type: 'button',
+        body: {
+          text: 'QA confirma tu cita',
+        },
+        action: {
+          buttons: [
+            {
+              type: 'reply',
+              reply: {
+                id: 'appointment_confirmation:confirm',
+                title: 'Confirmar',
+              },
+            },
+            {
+              type: 'reply',
+              reply: {
+                id: 'appointment_confirmation:reschedule',
+                title: 'Reagendar',
+              },
+            },
+            {
+              type: 'reply',
+              reply: {
+                id: 'appointment_confirmation:cancel',
+                title: 'Cancelar',
+              },
+            },
+          ],
+        },
       },
     })
   })

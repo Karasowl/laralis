@@ -5,8 +5,95 @@ import { resolveClinicContext } from '@/lib/clinic';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
 import { forbiddenIfMissingPermission } from '@/lib/permissions';
+import { listConvexDocumentsByClinic, listConvexTable, getConvexDocumentByLegacyId, upsertConvexDocumentByLegacyId, patchConvexDocumentByLegacyId } from '@/lib/convex/server';
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
+
+type ImportedRecord = Record<string, any>;
+
+function normalizeConvexRecord(row: ImportedRecord | null | undefined) {
+  if (!row) return null;
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row;
+  return rest;
+}
+
+async function getCampaignsFromConvex(
+  clinicId: string,
+  activeOnly: boolean,
+  includeArchived: boolean,
+  platformId: string | null
+) {
+  const [campaignRows, categoryRows, patientRows] = await Promise.all([
+    listConvexDocumentsByClinic('marketing_campaigns', clinicId, 10000) as Promise<ImportedRecord[]>,
+    // Marketing platforms are system categories (clinic_id null), so the FK
+    // join must scan the full categories table, not just clinic-scoped rows.
+    // Mirrors the Supabase `platform:platform_id (...)` join, which resolves by
+    // id with no clinic filter (see the POST platform_id existence check).
+    listConvexTable('categories', 10000) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('patients', clinicId, 10000) as Promise<ImportedRecord[]>,
+  ]);
+
+  // Build the platform lookup by id/legacyId to replicate the FK join.
+  const categoriesById = new Map<string, ImportedRecord>();
+  for (const row of categoryRows) {
+    for (const key of [row.id, row.legacyId].filter(Boolean)) {
+      categoriesById.set(String(key), row);
+    }
+  }
+
+  // Replicate the SAME JS filtering as the Supabase query builder.
+  let campaigns = campaignRows.filter((row) => {
+    if (activeOnly && row.is_active !== true) return false;
+    // Mirror Supabase .eq('is_archived', false): excludes BOTH true AND null/undefined.
+    if (!includeArchived && row.is_archived !== false) return false;
+    if (platformId && String(row.platform_id || '') !== platformId) return false;
+    return true;
+  });
+
+  // Order: is_active desc, is_archived asc, name asc (byte-identical to Supabase order chain).
+  campaigns = campaigns.sort((a, b) => {
+    const activeA = a.is_active === true ? 1 : 0;
+    const activeB = b.is_active === true ? 1 : 0;
+    if (activeA !== activeB) return activeB - activeA;
+    const archivedA = a.is_archived === true ? 1 : 0;
+    const archivedB = b.is_archived === true ? 1 : 0;
+    if (archivedA !== archivedB) return archivedA - archivedB;
+    return String(a.name || '').localeCompare(String(b.name || ''));
+  });
+
+  // Count patients per campaign (FK join by campaign_id).
+  const campaignIds = new Set(
+    campaigns.map((c) => c.id).filter(Boolean).map((id) => String(id))
+  );
+  const patientsCounts: Record<string, number> = {};
+  for (const row of patientRows) {
+    if (!row.campaign_id) continue;
+    const cid = String(row.campaign_id);
+    if (!campaignIds.has(cid)) continue;
+    patientsCounts[cid] = (patientsCounts[cid] || 0) + 1;
+  }
+
+  return campaigns.map((campaign) => {
+    const platformRow = campaign.platform_id
+      ? categoriesById.get(String(campaign.platform_id))
+      : null;
+    const platform = platformRow
+      ? {
+          id: platformRow.id,
+          display_name: platformRow.display_name ?? null,
+          name: platformRow.name ?? null,
+        }
+      : null;
+    const normalized = normalizeConvexRecord(campaign) as ImportedRecord;
+    return {
+      ...normalized,
+      platform,
+      platform_name: platform?.display_name || platform?.name || 'Unknown',
+      patients_count: patientsCounts[String(campaign.id)] || 0,
+    };
+  });
+}
 
 
 const createCampaignSchema = z.object({
@@ -45,6 +132,11 @@ export async function GET(request: NextRequest) {
         { error: 'No clinic context available' },
         { status: 400 }
       );
+    }
+
+    if (shouldReturnConvexData('marketing_campaigns')) {
+      const data = await getCampaignsFromConvex(clinicId, activeOnly, includeArchived, platformId);
+      return NextResponse.json({ data });
     }
 
     let query = supabaseAdmin
@@ -155,6 +247,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (shouldUseConvexOnlyWritePath('marketing_campaigns')) {
+      // Replicate the Supabase platform existence check against Convex.
+      // categories are system rows (clinic_id null), resolved by id with no clinic filter.
+      const platformRow = await getConvexDocumentByLegacyId('categories', validation.data.platform_id) as ImportedRecord | null;
+      if (!platformRow || platformRow.entity_type !== 'marketing_platform') {
+        return NextResponse.json(
+          {
+            error: 'Invalid platform_id',
+            message: `Platform with ID ${validation.data.platform_id} not found`,
+            hint: 'Please ensure the platform exists in the categories table'
+          },
+          { status: 400 }
+        );
+      }
+
+      const id = crypto.randomUUID();
+      const nowIso = new Date().toISOString();
+      const row = {
+        id,
+        clinic_id: clinicId,
+        platform_id: validation.data.platform_id,
+        name: validation.data.name,
+        code: validation.data.code || null,
+        is_active: true,
+        is_archived: false,
+        created_at: nowIso,
+        updated_at: nowIso,
+      };
+      await upsertConvexDocumentByLegacyId('marketing_campaigns', id, row);
+      return NextResponse.json({ data: row });
+    }
+
     // Verificar que el platform_id existe antes de insertar
     console.info('[POST /api/marketing/campaigns] Checking platform_id:', validation.data.platform_id);
     const { data: platformCheck, error: platformError } = await supabaseAdmin
@@ -167,8 +291,8 @@ export async function POST(request: NextRequest) {
     if (platformError || !platformCheck) {
       console.error('[POST /api/marketing/campaigns] Platform not found:', platformError);
       return NextResponse.json(
-        { 
-          error: 'Invalid platform_id', 
+        {
+          error: 'Invalid platform_id',
           message: `Platform with ID ${validation.data.platform_id} not found`,
           hint: 'Please ensure the platform exists in the categories table'
         },
@@ -246,6 +370,27 @@ export async function PUT(request: NextRequest) {
     const { clinicId, userId } = clinicContext;
     const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'campaigns.edit');
     if (forbidden) return forbidden;
+
+    if (shouldUseConvexOnlyWritePath('marketing_campaigns')) {
+      const existingDoc = await getConvexDocumentByLegacyId('marketing_campaigns', id) as ImportedRecord | null;
+      if (!existingDoc) {
+        return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
+      }
+      if (existingDoc.clinic_id !== clinicId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+
+      const convexPatch: Record<string, unknown> = {};
+      if (body.name) convexPatch.name = body.name;
+      if (body.code !== undefined) convexPatch.code = body.code;
+      if (body.is_active !== undefined) convexPatch.is_active = body.is_active;
+      if (body.is_archived !== undefined) convexPatch.is_archived = body.is_archived;
+      convexPatch.updated_at = new Date().toISOString();
+
+      await patchConvexDocumentByLegacyId('marketing_campaigns', id, convexPatch);
+      const merged = { ...normalizeConvexRecord(existingDoc), ...convexPatch };
+      return NextResponse.json({ data: merged });
+    }
 
     // Ensure the campaign belongs to this clinic
     const { data: existing, error: fetchErr } = await supabaseAdmin

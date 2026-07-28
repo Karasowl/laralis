@@ -5,8 +5,196 @@ import { resolveClinicContext } from '@/lib/clinic'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
 import { z } from 'zod'
 import { readJson } from '@/lib/validation'
+import {
+  getConvexDocumentByLegacyId,
+  listConvexDocumentsByClinic,
+  listConvexTable,
+  upsertConvexDocumentByLegacyId,
+  patchConvexDocumentByLegacyId,
+  deleteConvexDocumentByLegacyId,
+} from '@/lib/convex/server'
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend'
 
 export const dynamic = 'force-dynamic'
+
+type ImportedRecord = Record<string, any>
+
+/**
+ * Strip the full Convex metadata set so the response shape matches the
+ * Supabase row byte-for-byte (Supabase rows carry none of these fields).
+ */
+function normalizeConvexRecord(row: ImportedRecord | null | undefined) {
+  if (!row) return null
+  const {
+    _id,
+    _creationTime,
+    legacyId,
+    legacyTable,
+    convex_created_at,
+    convex_updated_at,
+    convex_snapshot_source,
+    ...rest
+  } = row
+  return rest
+}
+
+/** Index rows by both their business `id` and `legacyId` for FK lookups. */
+function byId(rows: ImportedRecord[]) {
+  return new Map(
+    rows.flatMap((row) => {
+      const ids = [row.id, row.legacyId].filter(Boolean).map((id) => String(id))
+      return ids.map((id) => [id, row] as const)
+    })
+  )
+}
+
+/**
+ * Mirror a Supabase nested `.select(col, col, ...)` projection: returns an
+ * object containing exactly `keys` (null for missing/orphaned FK), or null
+ * when the referenced row does not exist (left-join semantics).
+ */
+function pick(row: ImportedRecord | null | undefined, keys: string[]) {
+  if (!row) return null
+  const out: Record<string, any> = {}
+  for (const key of keys) out[key] = row[key] ?? null
+  return out
+}
+
+/**
+ * Convex has no relational joins / nested select, so we fetch each related
+ * table separately and reassemble the nested object graph exactly mirroring
+ * the Supabase GET query:
+ *   prescriptions
+ *     *,
+ *     patient:patients(id, first_name, last_name, email, phone, birth_date, address),
+ *     treatment:treatments(id, treatment_date, service:services(id, name)),
+ *     items:prescription_items(*, medication:medications(*))
+ *   .eq('id', id).eq('clinic_id', clinicId).single()
+ *
+ * Returns null when the prescription is missing or belongs to another clinic
+ * (parity with PGRST116 / the clinic_id filter -> 404 at the call site).
+ */
+async function getPrescriptionFromConvex(prescriptionId: string, clinicId: string) {
+  // prescriptions HAS clinic_id (NOT NULL) -> fetch single doc by id, then
+  // enforce the clinic_id filter to mirror .eq('clinic_id', clinicId).
+  const prescription = (await getConvexDocumentByLegacyId(
+    'prescriptions',
+    prescriptionId
+  )) as ImportedRecord | null
+
+  if (!prescription || String(prescription.clinic_id) !== String(clinicId)) {
+    return null
+  }
+
+  // patients/treatments/services HAVE clinic_id (NOT NULL) -> clinic-scoped accessor.
+  // prescription_items has NO clinic_id (child by prescription_id) -> full table + FK filter.
+  // medications has a NULLABLE clinic_id (global meds = NULL); listByClinic would
+  // silently drop global rows, so use the full table + FK lookup to match the
+  // Supabase medication:medications(*) join (resolves by medication_id regardless of scope).
+  const [patients, treatments, services, items, medications] = await Promise.all([
+    listConvexDocumentsByClinic('patients', clinicId, 10000) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('treatments', clinicId, 10000) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('services', clinicId, 10000) as Promise<ImportedRecord[]>,
+    listConvexTable('prescription_items', 10000) as Promise<ImportedRecord[]>,
+    listConvexTable('medications', 10000) as Promise<ImportedRecord[]>,
+  ])
+
+  const patientsById = byId(patients)
+  const treatmentsById = byId(treatments)
+  const servicesById = byId(services)
+  const medicationsById = byId(medications)
+
+  // items:prescription_items(*) -> child rows filtered by FK, count-checked.
+  const childItems = items.filter(
+    (row) => String(row.prescription_id) === String(prescriptionId)
+  )
+  const reassembledItems = childItems.map((item) => ({
+    ...normalizeConvexRecord(item),
+    // medication:medications(*) -> full medication row by medication_id, null when
+    // medication_id is null (custom/one-off) or the FK is orphaned (left join).
+    medication: item.medication_id
+      ? normalizeConvexRecord(medicationsById.get(String(item.medication_id)))
+      : null,
+  }))
+
+  // treatment:treatments(id, treatment_date, service:services(id, name))
+  const treatmentRow = prescription.treatment_id
+    ? treatmentsById.get(String(prescription.treatment_id))
+    : null
+  const treatment = treatmentRow
+    ? {
+        ...pick(treatmentRow, ['id', 'treatment_date']),
+        service: treatmentRow.service_id
+          ? pick(servicesById.get(String(treatmentRow.service_id)), ['id', 'name'])
+          : null,
+      }
+    : null
+
+  return {
+    ...normalizeConvexRecord(prescription),
+    // patient:patients(id, first_name, last_name, email, phone, birth_date, address)
+    patient: prescription.patient_id
+      ? pick(patientsById.get(String(prescription.patient_id)), [
+          'id',
+          'first_name',
+          'last_name',
+          'email',
+          'phone',
+          'birth_date',
+          'address',
+        ])
+      : null,
+    treatment,
+    items: reassembledItems,
+  }
+}
+
+/**
+ * Convex reassembly mirroring the PUT/POST re-fetch projection (narrower than
+ * the GET one — no treatment, no medication join):
+ *   prescriptions
+ *     *,
+ *     patient:patients(id, first_name, last_name, email, phone),
+ *     items:prescription_items(*)
+ *   .eq('id', id).single()
+ * Returns null when the prescription doc is missing (parity with PGRST116 ->
+ * the route's `{ data: { id } }` fallback).
+ */
+async function getUpdatedPrescriptionFromConvex(prescriptionId: string) {
+  const prescription = (await getConvexDocumentByLegacyId(
+    'prescriptions',
+    prescriptionId
+  )) as ImportedRecord | null
+
+  if (!prescription) return null
+
+  // patient:patients(id, ...) resolves regardless of clinic scope (it's a FK
+  // lookup); items:prescription_items(*) has no clinic_id so we scan the full
+  // table and filter by prescription_id (parity with the GET branch).
+  const [patients, items] = await Promise.all([
+    listConvexTable('patients', 10000) as Promise<ImportedRecord[]>,
+    listConvexTable('prescription_items', 10000) as Promise<ImportedRecord[]>,
+  ])
+
+  const patientsById = byId(patients)
+  const childItems = items.filter(
+    (row) => String(row.prescription_id) === String(prescriptionId)
+  )
+
+  return {
+    ...normalizeConvexRecord(prescription),
+    patient: prescription.patient_id
+      ? pick(patientsById.get(String(prescription.patient_id)), [
+          'id',
+          'first_name',
+          'last_name',
+          'email',
+          'phone',
+        ])
+      : null,
+    items: childItems.map(normalizeConvexRecord),
+  }
+}
 
 const prescriptionItemSchema = z.object({
   id: z.string().uuid().optional(),
@@ -66,6 +254,18 @@ export async function GET(
     const { clinicId, userId } = clinicContext
     const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'prescriptions.view')
     if (forbidden) return forbidden
+
+    // Convex read branch: auth-guarded by resolveClinicContext (getUser +
+    // hasClinicAccess -> 403) and the prescriptions.view permission above, since
+    // the Convex bridge has no RLS. Placed before the Supabase query so the read
+    // path is fully replaced when the flag is on.
+    if (shouldReturnConvexData('prescriptions')) {
+      const data = await getPrescriptionFromConvex(id, clinicId)
+      if (!data) {
+        return NextResponse.json({ error: 'Prescription not found' }, { status: 404 })
+      }
+      return NextResponse.json({ data })
+    }
 
     const { data, error } = await supabaseAdmin
       .from('prescriptions')
@@ -127,6 +327,90 @@ export async function PUT(
     const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'prescriptions.edit')
     if (forbidden) return forbidden
 
+    // Validate input
+    const validation = updatePrescriptionSchema.safeParse(body)
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: validation.error.errors },
+        { status: 400 }
+      )
+    }
+
+    const { items, ...prescriptionData } = validation.data
+
+    // Convex-only write branch: auth/clinic resolved above (resolveClinicContext
+    // + prescriptions.edit). Mirrors the Supabase semantics: verify the
+    // prescription exists in this clinic, patch the scalar columns, then replace
+    // the prescription_items child set (delete-all-by-FK + reinsert), and finally
+    // return the re-fetched prescription with patient + items. Placed before the
+    // first Supabase write so it fully replaces the write path when the flag is on.
+    if (shouldUseConvexOnlyWritePath('prescriptions')) {
+      const existing = (await getConvexDocumentByLegacyId(
+        'prescriptions',
+        id
+      )) as ImportedRecord | null
+
+      if (!existing || String(existing.clinic_id) !== String(clinicId)) {
+        return NextResponse.json({ error: 'Prescription not found' }, { status: 404 })
+      }
+
+      // Patch scalar columns (mirror the Supabase .update(prescriptionData)).
+      // The Supabase path relies on the update_prescriptions_timestamp trigger to
+      // bump updated_at; Convex has no trigger, so set it explicitly here.
+      if (Object.keys(prescriptionData).length > 0) {
+        await patchConvexDocumentByLegacyId('prescriptions', id, {
+          ...prescriptionData,
+          updated_at: new Date().toISOString(),
+        })
+      }
+
+      // Replace items: delete the existing child rows (by FK) then insert new
+      // ones. prescription_items has no clinic_id, so scan the full table and
+      // filter by prescription_id (parity with the Supabase delete .eq(...)).
+      if (items && items.length > 0) {
+        const allItems = (await listConvexTable(
+          'prescription_items',
+          10000
+        )) as ImportedRecord[]
+        const existingItems = allItems.filter(
+          (row) => String(row.prescription_id) === String(id)
+        )
+        for (const item of existingItems) {
+          const itemLegacyId = item.id ?? item.legacyId
+          if (itemLegacyId) {
+            await deleteConvexDocumentByLegacyId('prescription_items', String(itemLegacyId))
+          }
+        }
+
+        const nowIso = new Date().toISOString()
+        for (let index = 0; index < items.length; index++) {
+          const item = items[index]
+          const itemId = crypto.randomUUID()
+          await upsertConvexDocumentByLegacyId('prescription_items', itemId, {
+            id: itemId,
+            prescription_id: id,
+            medication_id: item.medication_id ?? null,
+            medication_name: item.medication_name,
+            medication_strength: item.medication_strength ?? null,
+            medication_form: item.medication_form ?? null,
+            dosage: item.dosage,
+            frequency: item.frequency,
+            duration: item.duration ?? null,
+            quantity: item.quantity ?? null,
+            instructions: item.instructions ?? null,
+            sort_order: item.sort_order ?? index,
+            created_at: nowIso,
+          })
+        }
+      }
+
+      const updated = await getUpdatedPrescriptionFromConvex(id)
+      if (!updated) {
+        return NextResponse.json({ data: { id } }, { status: 200 })
+      }
+      return NextResponse.json({ data: updated })
+    }
+
     // Verify prescription belongs to clinic
     const { data: existing, error: existingError } = await supabaseAdmin
       .from('prescriptions')
@@ -138,17 +422,6 @@ export async function PUT(
     if (existingError || !existing) {
       return NextResponse.json({ error: 'Prescription not found' }, { status: 404 })
     }
-
-    // Validate input
-    const validation = updatePrescriptionSchema.safeParse(body)
-    if (!validation.success) {
-      return NextResponse.json(
-        { error: 'Validation failed', details: validation.error.errors },
-        { status: 400 }
-      )
-    }
-
-    const { items, ...prescriptionData } = validation.data
 
     // Update prescription
     if (Object.keys(prescriptionData).length > 0) {
@@ -246,6 +519,26 @@ export async function DELETE(
     const { clinicId, userId } = clinicContext
     const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'prescriptions.delete')
     if (forbidden) return forbidden
+
+    // Convex-only write branch: matches the Supabase SOFT delete (status =
+    // 'cancelled', clinic-scoped). Auth/clinic guarded above. The clinic_id check
+    // mirrors .eq('clinic_id', clinicId); a missing/other-clinic doc is a no-op
+    // just like the Supabase update affecting zero rows (which returns no error).
+    if (shouldUseConvexOnlyWritePath('prescriptions')) {
+      const existing = (await getConvexDocumentByLegacyId(
+        'prescriptions',
+        id
+      )) as ImportedRecord | null
+
+      if (existing && String(existing.clinic_id) === String(clinicId)) {
+        await patchConvexDocumentByLegacyId('prescriptions', id, {
+          status: 'cancelled',
+          updated_at: new Date().toISOString(),
+        })
+      }
+
+      return NextResponse.json({ message: 'Prescription cancelled successfully' })
+    }
 
     // Soft delete by setting status to cancelled
     const { error } = await supabaseAdmin

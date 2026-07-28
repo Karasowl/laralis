@@ -3,6 +3,8 @@ import { resolveClinicContext } from '@/lib/clinic'
 import { cookies } from 'next/headers'
 import { buildBuckets, chooseGranularity, findBucketKey } from '@/lib/calc/buckets'
 import { getFirstTreatmentDateByPatient } from '@/lib/calc/patient-acquisition'
+import { listConvexDocumentsByClinic } from '@/lib/convex/server'
+import { shouldReturnConvexData } from '@/lib/data-backend'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,6 +12,50 @@ interface AcquisitionPoint {
   month: string // Kept as `month` for backward compatibility with the chart's dataKey.
   patients: number
   projection?: number
+}
+
+type ImportedRecord = Record<string, any>
+
+function normalizeConvexRecord(row: ImportedRecord) {
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row
+  return rest
+}
+
+/**
+ * Convex replica of getFirstTreatmentDateByPatient() for this route.
+ *
+ * Replicates the Supabase read path exactly:
+ *   .from('treatments')
+ *   .select('patient_id, treatment_date')
+ *   .eq('clinic_id', clinicId)
+ *   .not('treatment_date', 'is', null)
+ *   .neq('status', 'cancelled')
+ *
+ * then reduces to `patientId -> earliest ISO (YYYY-MM-DD)` using the SAME
+ * lexicographic min (`iso < existing`) the shared helper uses. The resulting
+ * Map is fed into the identical downstream bucketing/regression calc, so the
+ * numeric output is byte-identical to the Supabase branch.
+ */
+async function getFirstTreatmentDateByPatientFromConvex(
+  clinicId: string
+): Promise<Map<string, string>> {
+  const rows = await listConvexDocumentsByClinic('treatments', clinicId, 10000) as ImportedRecord[]
+
+  const firstDate = new Map<string, string>()
+  for (const raw of rows) {
+    const t = normalizeConvexRecord(raw)
+    // Supabase filters: treatment_date NOT NULL, status != 'cancelled'.
+    if (t.treatment_date == null) continue
+    if (t.status == null || t.status === 'cancelled') continue
+
+    const pid = t.patient_id
+    if (pid == null) continue
+    const iso = String(t.treatment_date || '').slice(0, 10)
+    if (!iso) continue
+    const existing = firstDate.get(String(pid))
+    if (!existing || iso < existing) firstDate.set(String(pid), iso)
+  }
+  return firstDate
 }
 
 export async function GET(request: NextRequest) {
@@ -52,7 +98,13 @@ export async function GET(request: NextRequest) {
     // "New patient" is defined by the date of the patient's FIRST treatment
     // (the moment they actually came in), NOT patients.created_at. This
     // matches the dashboard convention used across all marketing analytics.
-    const firstTreatmentDate = await getFirstTreatmentDateByPatient(clinicContext.clinicId)
+    //
+    // Flag-gated Convex read: swap ONLY the data source for the first-treatment
+    // map. The downstream bucketing/regression calc below is shared and
+    // untouched, so both branches produce identical numbers.
+    const firstTreatmentDate = shouldReturnConvexData('treatments')
+      ? await getFirstTreatmentDateByPatientFromConvex(clinicContext.clinicId)
+      : await getFirstTreatmentDateByPatient(clinicContext.clinicId)
 
     const counts = new Map<string, number>()
     buckets.forEach(b => counts.set(b.key, 0))

@@ -3,6 +3,8 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { cookies } from 'next/headers'
 import { resolveClinicContext } from '@/lib/clinic'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
+import { listConvexDocumentsByClinic } from '@/lib/convex/server';
+import { shouldReturnConvexData } from '@/lib/data-backend';
 
 export const dynamic = 'force-dynamic'
 
@@ -34,6 +36,67 @@ export async function GET(request: NextRequest) {
 
     // Fetch recent activities from different tables
     const activities: Activity[] = []
+
+    if (shouldReturnConvexData('dashboard')) {
+      const [treatments, services, patients, expenses] = await Promise.all([
+        listConvexDocumentsByClinic('treatments', clinicId),
+        listConvexDocumentsByClinic('services', clinicId),
+        listConvexDocumentsByClinic('patients', clinicId),
+        listConvexDocumentsByClinic('expenses', clinicId),
+      ])
+
+      const servicesMap = Object.fromEntries(services.map((s: any) => [s.id, s.name]))
+      const patientsMap = Object.fromEntries(
+        patients.map((p: any) => [p.id, `${p.first_name || ''} ${p.last_name || ''}`.trim()])
+      )
+
+      treatments
+        .sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+        .slice(0, 5)
+        .forEach((t: any) => {
+          const service = servicesMap[t.service_id] || 'Servicio'
+          const patient = patientsMap[t.patient_id] || 'Paciente'
+          const title = t.status === 'completed' ? 'Tratamiento completado' : 'Tratamiento registrado'
+          activities.push({
+            id: `treatment-${t.id}`,
+            type: 'treatment',
+            title,
+            description: `${service} - ${patient}`,
+            amount: t.price_cents,
+            timestamp: t.created_at,
+          })
+        })
+
+      patients
+        .sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+        .slice(0, 3)
+        .forEach((patient: any) => {
+          activities.push({
+            id: `patient-${patient.id}`,
+            type: 'patient',
+            title: 'Nuevo paciente',
+            description: `${patient.first_name || ''} ${patient.last_name || ''}`.trim(),
+            timestamp: patient.created_at,
+          })
+        })
+
+      expenses
+        .sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+        .slice(0, 3)
+        .forEach((expense: any) => {
+          activities.push({
+            id: `expense-${expense.id}`,
+            type: 'expense',
+            title: 'Gasto registrado',
+            description: expense.description,
+            amount: expense.amount_cents,
+            timestamp: expense.created_at,
+          })
+        })
+
+      activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      return NextResponse.json(activities.slice(0, limit))
+    }
     
     // Get recent treatments
     const { data: treatments } = await supabaseAdmin

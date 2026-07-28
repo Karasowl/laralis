@@ -6,6 +6,14 @@ import { sendBookingReceivedSMS } from '@/lib/sms'
 import { sendBookingReceivedWhatsApp } from '@/lib/whatsapp'
 import { readJson } from '@/lib/validation'
 import { getPushNotificationServiceForRequest } from '@/lib/notifications/qa'
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend'
+import {
+  convexCheckSlotAvailable,
+  getConvexDocumentByLegacyId,
+  listConvexDocumentsByClinic,
+  upsertConvexDocumentByLegacyId,
+  patchConvexDocumentByLegacyId,
+} from '@/lib/convex/server'
 import {
   buildEmailRetryMetadata,
   isRetryableNotificationError,
@@ -59,6 +67,29 @@ function qaNotificationMode(request: NextRequest): QaNotificationMode {
   return mode === 'mock' || mode === 'fail' ? mode : null
 }
 
+/**
+ * Whether the public booking endpoint may send messages to the contact details
+ * supplied in the request body. Defaults to false: those details are attacker
+ * controlled on an unauthenticated endpoint. Set
+ * PUBLIC_BOOKING_DISPATCH_TO_REQUESTER=1 only if the abuse vector is mitigated
+ * some other way (captcha, verified contact) and the immediate acknowledgement
+ * is worth it.
+ */
+function shouldDispatchToRequester(): boolean {
+  return process.env.PUBLIC_BOOKING_DISPATCH_TO_REQUESTER === '1'
+}
+
+/** Result row for a notification recorded but intentionally not dispatched. */
+function deferredNotificationResult(channel: NotificationResult['channel']): NotificationResult {
+  return {
+    channel,
+    attempted: false,
+    mocked: false,
+    success: false,
+    error: 'deferred_until_confirmation',
+  }
+}
+
 function isSmsBookingEnabled(notificationSettings: Record<string, any> | null): boolean {
   return notificationSettings?.sms?.enabled === true
 }
@@ -88,6 +119,7 @@ async function logBookingEmailNotification(params: {
   requestedTime: string
   success: boolean
   mocked: boolean
+  convexOnly: boolean
   messageId?: string
   error?: string
 }): Promise<string | null> {
@@ -108,6 +140,42 @@ async function logBookingEmailNotification(params: {
     public_booking_id: params.bookingId,
     mocked: params.mocked,
   })
+
+  // Convex-only write path mirrors the Supabase email_notifications insert. id and
+  // created_at/updated_at have Postgres defaults (gen_random_uuid()/now()) that Convex
+  // does not provide, so stamp them explicitly. metadata is JSONB and is encoded by
+  // prepareConvexRow inside upsertConvexDocumentByLegacyId.
+  if (params.convexOnly) {
+    const now = new Date().toISOString()
+    const id = crypto.randomUUID()
+    try {
+      await upsertConvexDocumentByLegacyId('email_notifications', id, {
+        id,
+        clinic_id: params.clinicId,
+        treatment_id: null,
+        patient_id: null,
+        notification_type: 'confirmation',
+        recipient_email: params.patientEmail,
+        recipient_name: params.patientName,
+        subject: `Solicitud de Cita Recibida - ${params.serviceName}`,
+        status: params.success ? 'sent' : 'failed',
+        sent_at: params.success ? now : null,
+        provider: 'resend',
+        provider_message_id: params.messageId || null,
+        error_message: params.error || null,
+        metadata: retryMetadata,
+        created_at: now,
+        updated_at: now,
+      })
+    } catch (convexError) {
+      console.error('Failed to log public booking email notification (convex):', convexError)
+      return null
+    }
+    // queueNotificationRetry writes notification_retry_queue via supabaseAdmin only
+    // (no Convex write path in the shared retry-queue lib); skip it on the convex-only
+    // path so the booking succeeds. The retry enqueue is a best-effort side-effect.
+    return id
+  }
 
   const { data, error } = await supabaseAdmin
     .from('email_notifications')
@@ -156,10 +224,50 @@ async function recordMockSmsNotification(params: {
   patientName: string
   patientPhone: string
   message: string
+  convexOnly: boolean
   success?: boolean
   error?: string
 }): Promise<NotificationResult> {
   const success = params.success ?? true
+
+  // Convex-only write path mirrors the Supabase sms_notifications insert. id and
+  // created_at/updated_at have Postgres defaults that Convex lacks, so stamp them.
+  if (params.convexOnly) {
+    const now = new Date().toISOString()
+    const id = crypto.randomUUID()
+    let insertErrorMessage: string | undefined
+    try {
+      await upsertConvexDocumentByLegacyId('sms_notifications', id, {
+        id,
+        clinic_id: params.clinicId,
+        treatment_id: null,
+        patient_id: null,
+        public_booking_id: params.bookingId,
+        notification_type: 'booking_received',
+        recipient_phone: params.patientPhone,
+        recipient_name: params.patientName,
+        message_content: params.message,
+        status: success ? 'sent' : 'failed',
+        sent_at: success ? now : null,
+        error_message: params.error || null,
+        provider: 'twilio',
+        provider_message_id: success ? `qa-sms-${params.bookingId}` : null,
+        cost_cents: 0,
+        created_at: now,
+        updated_at: now,
+      })
+    } catch (convexError) {
+      insertErrorMessage = convexError instanceof Error ? convexError.message : 'Unknown convex error'
+    }
+    return {
+      channel: 'sms',
+      attempted: true,
+      mocked: true,
+      success: success && !insertErrorMessage,
+      error: insertErrorMessage || params.error
+    }
+  }
+
   const { error: insertError } = await supabaseAdmin.from('sms_notifications').insert({
     clinic_id: params.clinicId,
     treatment_id: null,
@@ -192,10 +300,51 @@ async function recordMockWhatsAppNotification(params: {
   patientName: string
   patientPhone: string
   message: string
+  convexOnly: boolean
   success?: boolean
   error?: string
 }): Promise<NotificationResult> {
   const success = params.success ?? true
+
+  // Convex-only write path mirrors the Supabase whatsapp_notifications insert. id and
+  // created_at/updated_at have Postgres defaults that Convex lacks, so stamp them.
+  if (params.convexOnly) {
+    const now = new Date().toISOString()
+    const id = crypto.randomUUID()
+    let insertErrorMessage: string | undefined
+    try {
+      await upsertConvexDocumentByLegacyId('whatsapp_notifications', id, {
+        id,
+        clinic_id: params.clinicId,
+        treatment_id: null,
+        patient_id: null,
+        public_booking_id: params.bookingId,
+        notification_type: 'booking_received',
+        recipient_phone: params.patientPhone,
+        recipient_name: params.patientName,
+        message_content: params.message,
+        template_id: null,
+        status: success ? 'sent' : 'failed',
+        sent_at: success ? now : null,
+        error_message: params.error || null,
+        provider: 'twilio',
+        provider_message_id: success ? `qa-whatsapp-${params.bookingId}` : null,
+        cost_cents: 0,
+        created_at: now,
+        updated_at: now,
+      })
+    } catch (convexError) {
+      insertErrorMessage = convexError instanceof Error ? convexError.message : 'Unknown convex error'
+    }
+    return {
+      channel: 'whatsapp',
+      attempted: true,
+      mocked: true,
+      success: success && !insertErrorMessage,
+      error: insertErrorMessage || params.error
+    }
+  }
+
   const { error: insertError } = await supabaseAdmin.from('whatsapp_notifications').insert({
     clinic_id: params.clinicId,
     treatment_id: null,
@@ -253,14 +402,35 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const mockNotifications = qaNotifications === 'mock'
     const forceFailedNotifications = qaNotifications === 'fail'
 
-    // Get clinic config
-    const { data: clinic, error: clinicError } = await supabaseAdmin
-      .from('clinics')
-      .select('id, name, booking_config, notification_settings')
-      .eq('id', data.clinic_id)
-      .single()
+    // Convex-only write path (DATA_WRITE_MODE_PUBLIC_BOOKINGS=convex). When true,
+    // supabaseAdmin.from()/.rpc() throw (Supabase unreachable), so every read and write
+    // below routes through the Convex helpers instead. Flag-gated, default Supabase.
+    const useConvexOnly = shouldUseConvexOnlyWritePath('public_bookings')
 
-    if (clinicError || !clinic) {
+    // Get clinic config
+    let clinic: { id: string; name: string; booking_config: any; notification_settings: any } | null
+    if (useConvexOnly) {
+      const clinicRow = (await getConvexDocumentByLegacyId('clinics', data.clinic_id)) as
+        | Record<string, any>
+        | null
+      clinic = clinicRow
+        ? {
+            id: clinicRow.id,
+            name: clinicRow.name,
+            booking_config: clinicRow.booking_config,
+            notification_settings: clinicRow.notification_settings,
+          }
+        : null
+    } else {
+      const { data: clinicData, error: clinicError } = await supabaseAdmin
+        .from('clinics')
+        .select('id, name, booking_config, notification_settings')
+        .eq('id', data.clinic_id)
+        .single()
+      clinic = clinicError ? null : clinicData
+    }
+
+    if (!clinic) {
       return NextResponse.json(
         { error: 'Clinic not found' },
         { status: 404 }
@@ -291,20 +461,46 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Verify service exists and is bookable
-    const { data: publishedService, error: publishedServiceError } = await supabaseAdmin
-      .from('public_booking_services')
-      .select('service_id, custom_duration_minutes')
-      .eq('clinic_id', data.clinic_id)
-      .eq('service_id', data.service_id)
-      .eq('is_active', true)
-      .maybeSingle()
+    let publishedService: { service_id: string; custom_duration_minutes: number | null } | null
+    if (useConvexOnly) {
+      try {
+        const rows = (await listConvexDocumentsByClinic(
+          'public_booking_services',
+          data.clinic_id
+        )) as Array<Record<string, any>>
+        const match = rows.find(
+          (row) => String(row.service_id) === data.service_id && row.is_active === true
+        )
+        publishedService = match
+          ? {
+              service_id: match.service_id,
+              custom_duration_minutes: match.custom_duration_minutes ?? null,
+            }
+          : null
+      } catch (convexError) {
+        console.error('Error checking public booking service (convex):', convexError)
+        return NextResponse.json(
+          { error: 'Failed to check service availability' },
+          { status: 500 }
+        )
+      }
+    } else {
+      const { data: publishedServiceData, error: publishedServiceError } = await supabaseAdmin
+        .from('public_booking_services')
+        .select('service_id, custom_duration_minutes')
+        .eq('clinic_id', data.clinic_id)
+        .eq('service_id', data.service_id)
+        .eq('is_active', true)
+        .maybeSingle()
 
-    if (publishedServiceError) {
-      console.error('Error checking public booking service:', publishedServiceError)
-      return NextResponse.json(
-        { error: 'Failed to check service availability' },
-        { status: 500 }
-      )
+      if (publishedServiceError) {
+        console.error('Error checking public booking service:', publishedServiceError)
+        return NextResponse.json(
+          { error: 'Failed to check service availability' },
+          { status: 500 }
+        )
+      }
+      publishedService = publishedServiceData
     }
 
     if (!publishedService) {
@@ -314,14 +510,31 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       )
     }
 
-    const { data: service, error: serviceError } = await supabaseAdmin
-      .from('services')
-      .select('id, name, est_minutes, is_active')
-      .eq('id', data.service_id)
-      .eq('clinic_id', data.clinic_id)
-      .single()
+    let service: { id: string; name: string; est_minutes: number | null; is_active: boolean } | null
+    if (useConvexOnly) {
+      const serviceRow = (await getConvexDocumentByLegacyId('services', data.service_id)) as
+        | Record<string, any>
+        | null
+      service =
+        serviceRow && String(serviceRow.clinic_id) === data.clinic_id
+          ? {
+              id: serviceRow.id,
+              name: serviceRow.name,
+              est_minutes: serviceRow.est_minutes ?? null,
+              is_active: serviceRow.is_active,
+            }
+          : null
+    } else {
+      const { data: serviceData, error: serviceError } = await supabaseAdmin
+        .from('services')
+        .select('id, name, est_minutes, is_active')
+        .eq('id', data.service_id)
+        .eq('clinic_id', data.clinic_id)
+        .single()
+      service = serviceError ? null : serviceData
+    }
 
-    if (serviceError || !service) {
+    if (!service) {
       return NextResponse.json(
         { error: 'Service not found' },
         { status: 404 }
@@ -362,21 +575,43 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       )
     }
 
-    // Check slot availability using the database function
-    const { data: isAvailable, error: availError } = await supabaseAdmin
-      .rpc('check_booking_slot_availability', {
-        p_clinic_id: data.clinic_id,
-        p_date: data.requested_date,
-        p_time: data.requested_time,
-        p_duration_minutes: serviceDurationMinutes
-      })
+    // Check slot availability. Convex path mirrors the SQL check_booking_slot_availability
+    // exactly (blocked slots / scheduled+in_progress treatments / pending bookings);
+    // default path keeps the Postgres RPC. Flag-gated, default Supabase. The convex-only
+    // write path must also use the Convex query since the Supabase RPC would throw.
+    let isAvailable: boolean
+    if (shouldReturnConvexData('clinics') || useConvexOnly) {
+      try {
+        isAvailable = await convexCheckSlotAvailable({
+          clinicId: data.clinic_id,
+          date: data.requested_date,
+          time: data.requested_time,
+          durationMinutes: serviceDurationMinutes,
+        })
+      } catch (convexError) {
+        console.error('Error checking availability (convex):', convexError)
+        return NextResponse.json(
+          { error: 'Failed to check availability' },
+          { status: 500 }
+        )
+      }
+    } else {
+      const { data: rpcAvailable, error: availError } = await supabaseAdmin
+        .rpc('check_booking_slot_availability', {
+          p_clinic_id: data.clinic_id,
+          p_date: data.requested_date,
+          p_time: data.requested_time,
+          p_duration_minutes: serviceDurationMinutes
+        })
 
-    if (availError) {
-      console.error('Error checking availability:', availError)
-      return NextResponse.json(
-        { error: 'Failed to check availability' },
-        { status: 500 }
-      )
+      if (availError) {
+        console.error('Error checking availability:', availError)
+        return NextResponse.json(
+          { error: 'Failed to check availability' },
+          { status: 500 }
+        )
+      }
+      isAvailable = Boolean(rpcAvailable)
     }
 
     if (!isAvailable) {
@@ -389,20 +624,34 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Check for existing patient by email or phone
     let patientId: string | null = null
     if (data.patient_email || data.patient_phone) {
-      let patientQuery = supabaseAdmin
-        .from('patients')
-        .select('id')
-        .eq('clinic_id', data.clinic_id)
+      if (useConvexOnly) {
+        // Mirror the Supabase lookup: match on email first, else phone, scoped to clinic.
+        // .single() returns the first match; replicate by taking the first row found.
+        const patients = (await listConvexDocumentsByClinic('patients', data.clinic_id)) as Array<
+          Record<string, any>
+        >
+        const existingPatient = data.patient_email
+          ? patients.find((row) => row.email === data.patient_email)
+          : patients.find((row) => row.phone === data.patient_phone)
+        if (existingPatient) {
+          patientId = existingPatient.id
+        }
+      } else {
+        let patientQuery = supabaseAdmin
+          .from('patients')
+          .select('id')
+          .eq('clinic_id', data.clinic_id)
 
-      if (data.patient_email) {
-        patientQuery = patientQuery.eq('email', data.patient_email)
-      } else if (data.patient_phone) {
-        patientQuery = patientQuery.eq('phone', data.patient_phone)
-      }
+        if (data.patient_email) {
+          patientQuery = patientQuery.eq('email', data.patient_email)
+        } else if (data.patient_phone) {
+          patientQuery = patientQuery.eq('phone', data.patient_phone)
+        }
 
-      const { data: existingPatient } = await patientQuery.single()
-      if (existingPatient) {
-        patientId = existingPatient.id
+        const { data: existingPatient } = await patientQuery.single()
+        if (existingPatient) {
+          patientId = existingPatient.id
+        }
       }
     }
 
@@ -414,9 +663,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const referrer = request.headers.get('referer') || null
 
     // Create the booking
-    const { data: booking, error: bookingError } = await supabaseAdmin
-      .from('public_bookings')
-      .insert({
+    let booking: Record<string, any>
+    if (useConvexOnly) {
+      // Mirror the Supabase public_bookings insert. id, status, confirmation_email_sent,
+      // reminder_email_sent, created_at and updated_at have Postgres defaults that Convex
+      // does not provide, so set them explicitly (status is also set explicitly by the
+      // Supabase insert). requested_time mirrors the HH:MM string the schema stores.
+      const now = new Date().toISOString()
+      const id = crypto.randomUUID()
+      const bookingRow = {
+        id,
         clinic_id: data.clinic_id,
         service_id: data.service_id,
         patient_name: data.patient_name,
@@ -427,26 +683,75 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         requested_date: data.requested_date,
         requested_time: data.requested_time,
         status: 'pending',
+        treatment_id: null,
+        confirmed_at: null,
+        confirmed_by: null,
+        rejection_reason: null,
+        confirmation_email_sent: false,
+        reminder_email_sent: false,
         ip_address: ip,
         user_agent: userAgent,
         referrer: referrer,
         utm_source: data.utm_source || null,
         utm_medium: data.utm_medium || null,
-        utm_campaign: data.utm_campaign || null
-      })
-      .select()
-      .single()
+        utm_campaign: data.utm_campaign || null,
+        created_at: now,
+        updated_at: now,
+      }
+      try {
+        await upsertConvexDocumentByLegacyId('public_bookings', id, bookingRow)
+      } catch (convexError) {
+        console.error('Error creating booking (convex):', convexError)
+        return NextResponse.json(
+          { error: 'Failed to create booking' },
+          { status: 500 }
+        )
+      }
+      booking = bookingRow
+    } else {
+      const { data: bookingData, error: bookingError } = await supabaseAdmin
+        .from('public_bookings')
+        .insert({
+          clinic_id: data.clinic_id,
+          service_id: data.service_id,
+          patient_name: data.patient_name,
+          patient_email: data.patient_email || null,
+          patient_phone: data.patient_phone || null,
+          patient_notes: data.patient_notes || null,
+          patient_id: patientId,
+          requested_date: data.requested_date,
+          requested_time: data.requested_time,
+          status: 'pending',
+          ip_address: ip,
+          user_agent: userAgent,
+          referrer: referrer,
+          utm_source: data.utm_source || null,
+          utm_medium: data.utm_medium || null,
+          utm_campaign: data.utm_campaign || null
+        })
+        .select()
+        .single()
 
-    if (bookingError) {
-      console.error('Error creating booking:', bookingError)
-      return NextResponse.json(
-        { error: 'Failed to create booking' },
-        { status: 500 }
-      )
+      if (bookingError) {
+        console.error('Error creating booking:', bookingError)
+        return NextResponse.json(
+          { error: 'Failed to create booking' },
+          { status: 500 }
+        )
+      }
+      booking = bookingData
     }
 
     const notificationSettings = (clinic.notification_settings || null) as Record<string, any> | null
     const notificationResults: NotificationResult[] = []
+    // The requester's email/phone arrive straight from an unauthenticated public
+    // form, so dispatching to them here turns this endpoint into an open relay:
+    // anyone can make the clinic's Twilio/Resend account message arbitrary
+    // destinations, burning credit and risking the WhatsApp number and the sending
+    // domain's reputation. The notification row is still written for traceability,
+    // and the real message goes out when staff confirms the request
+    // (confirmBooking in app/api/bookings/[id]/route.ts).
+    const dispatchToRequester = shouldDispatchToRequester()
     const message = bookingNotificationMessage({
       clinicName: clinic.name,
       patientName: data.patient_name,
@@ -468,6 +773,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             success: false,
             error: 'QA forced email failure'
           }
+        } else if (!mockNotifications && !dispatchToRequester) {
+          emailOutcome = deferredNotificationResult('email')
         } else if (!mockNotifications) {
           const result = await sendBookingConfirmation({
             clinicId: data.clinic_id,
@@ -511,15 +818,24 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           requestedTime: data.requested_time,
           success: emailOutcome.success,
           mocked: emailOutcome.mocked,
+          convexOnly: useConvexOnly,
           messageId: emailOutcome.messageId,
           error: emailOutcome.error,
         })
 
         if (emailOutcome.success) {
-          await supabaseAdmin
-            .from('public_bookings')
-            .update({ confirmation_email_sent: true })
-            .eq('id', booking.id)
+          if (useConvexOnly) {
+            // Mirror the Supabase public_bookings.update({ confirmation_email_sent: true }).
+            await patchConvexDocumentByLegacyId('public_bookings', booking.id, {
+              confirmation_email_sent: true,
+              updated_at: new Date().toISOString(),
+            })
+          } else {
+            await supabaseAdmin
+              .from('public_bookings')
+              .update({ confirmation_email_sent: true })
+              .eq('id', booking.id)
+          }
         }
       } catch (emailError) {
         console.error('Failed to send confirmation email:', emailError)
@@ -544,9 +860,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             patientName: data.patient_name,
             patientPhone: data.patient_phone,
             message,
+            convexOnly: useConvexOnly,
             success: !forceFailedNotifications,
             error: forceFailedNotifications ? 'QA forced SMS failure' : undefined
           }))
+        } else if (!dispatchToRequester) {
+          notificationResults.push(deferredNotificationResult('sms'))
         } else {
           const result = await sendBookingReceivedSMS({
             clinicId: data.clinic_id,
@@ -590,9 +909,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             patientName: data.patient_name,
             patientPhone: data.patient_phone,
             message,
+            convexOnly: useConvexOnly,
             success: !forceFailedNotifications,
             error: forceFailedNotifications ? 'QA forced WhatsApp failure' : undefined
           }))
+        } else if (!dispatchToRequester) {
+          notificationResults.push(deferredNotificationResult('whatsapp'))
         } else {
           const result = await sendBookingReceivedWhatsApp({
             clinicId: data.clinic_id,

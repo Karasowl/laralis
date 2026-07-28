@@ -2,6 +2,88 @@
 
 ## En Progreso
 
+- [x] TASK-20260728-close-public-convex-queries - Cerrar las 9 queries publicas de Convex ✅ COMPLETADO 2026-07-28
+  - **Priority**: P0 | **Estimate**: M | **Area**: infra/seguridad
+  - **Status**: ✅ Desplegado y verificado en prod. `convex/migration.ts` exportaba 9 `query` sin secreto ni `ctx.auth`; con la URL del bundle cualquiera volcaba cualquiera de las 67 tablas espejo. Verificado en vivo antes del fix: 251 pacientes y 442 tratamientos sin credenciales.
+  - Rollout expand-and-contract con `CONVEX_QUERY_SECRET_ENFORCED`, sin downtime y con reversión instantánea. `testHelpers.ts` con doble guarda.
+  - Ver: `docs/devlog/2026-07-28-close-unauthenticated-access.md`
+
+- [x] TASK-20260728-auth-ai-routes - Autenticar /api/ai/transcribe y /api/ai/synthesize ✅ COMPLETADO 2026-07-28
+  - **Priority**: P0 | **Estimate**: S | **Area**: seguridad
+  - **Status**: ✅ `withAnyPermission` con los permisos de Lara, límite de 25MB en el audio, `Cache-Control: private`. Nuevo `lib/ai/route-guards.ts` consolidando 3 copias de `laraPermissionForMode`.
+
+- [x] TASK-20260728-booking-notification-deferral - El booking público ya no mensajea a contactos arbitrarios ✅ COMPLETADO 2026-07-28
+  - **Priority**: P0 | **Estimate**: M | **Area**: seguridad/producto
+  - **Status**: ✅ Despacho al solicitante desactivado por defecto; el aviso sale al confirmar. Cierra además un hueco previo: confirmar una reserva creaba la cita sin notificar a nadie, a diferencia de `POST /api/treatments`.
+
+- [x] TASK-20260728-firewall-rate-limits - Rate limiting real en el Firewall de Vercel ✅ COMPLETADO 2026-07-28
+  - **Priority**: P0 | **Estimate**: S | **Area**: infra/seguridad
+  - **Status**: ✅ 4 reglas activas (config v2), verificadas contra prod: 10 de 14 POST a `/api/public/book` pasan, el resto 403. Eliminado el código muerto de Upstash (nunca estuvo activo) y sus 2 dependencias. `middleware.ts` 420 → 357 líneas.
+  - Definición reproducible en `apps/dental/scripts/firewall/rules.sh`.
+
+- [x] TASK-20260607-convex-only-CODE-COMPLETE - Cutover convex-only: TODO el código que toca datos ✅ COMPLETADO 2026-06-07
+  - **Priority**: P0 | **Estimate**: XL | **Area**: infra/data
+  - **Status**: ✅ Barrido final 0 gaps. Todas las rutas (lecturas 58 GET + escrituras de negocio) y TODOS los módulos compartidos (`ClinicSnapshotService`/Lara, `lib/ai/actions/*`, `lib/export/*`, `lib/snapshots/*`, `with-permission`, `auth-user-profiles`, `ai/service`, `calendar`, `push`, `sms`, `workspace-lifecycle`) son convex-only-capable, flag-gated, default Supabase.
+  - **Verificado**: read 58/58 sin 5xx, write-lifecycle 9/9, write-features 4/4, snapshot 1/1, adversarial multi-agente. typecheck 193 (baseline), cero nuevos. Regresión verde tras los cambios en módulos compartidos.
+  - **Fuera de alcance** (no son capa de datos): webhooks, google-calendar OAuth, MFA, account-delete, reset, settings/notifications/test, migration/convex-* (la herramienta de migración).
+  - **Falta SOLO operación** (Fase F, manos del operador): backup → flips de flags en prod → import de blobs → decomisión del mirror → borrar Supabase. Ver `docs/IMPORTANT/PHASE-F-WRITE-CUTOVER-RUNBOOK.md`.
+  - Ver: `docs/devlog/2026-06-07-convex-only-write-cutover.md`
+
+- [x] TASK-20260607-convex-only-api-smoke-fixes - Smoke convex-only de los 58 GET: arreglar todo lo que aún apuntaba a Supabase ✅ COMPLETADO 2026-06-07
+  - **Priority**: P1 | **Estimate**: M | **Area**: infra/data
+  - **Status**: ✅ Smoke `convex-all-apis-smoke.cy.ts` pasa: 58/58 sin 5xx (51× 200, 7× 400 por params requeridos)
+    - ✅ Auditoría multi-agente (ultracode) de los 58 GET; resuelta la contradicción del shim `createClient` → 10 hallazgos "auth_not_convex_aware" eran **falsos positivos**
+    - ✅ 3 bugs reales (access-check `supabaseAdmin` inline antes de la rama Convex): `team/clinic-members`, `team/workspace-members`, `invitations` + helper compartido `userHasActiveWorkspaceMembershipFromConvex`
+    - ✅ 2 falsos negativos cazados por el smoke real: `dashboard/supplies` (`createRouteHandlerClient` lanzaba) y `whatsapp-readiness` (`getWhatsAppConfig` leía `clinics`)
+    - ✅ Verificación adversarial (4 agentes): parity `is_active === true` corregida; typecheck baseline (197), cero nuevos
+  - Ver: `docs/devlog/2026-06-07-convex-only-api-smoke-fixes.md`
+
+- [x] TASK-20260607-convex-write-lifecycle-core - Validar escrituras convex-only de las 10 entidades CRUD core ✅ COMPLETADO 2026-06-07
+  - **Priority**: P1 | **Estimate**: M | **Area**: infra/data
+  - **Status**: ✅ `convex-write-lifecycle.cy.ts` pasa 9/9 (crear→borrar end-to-end, footprint cero)
+    - ✅ Auditoría (ultracode, 10 agentes): `brokenWritePaths: []` — las 10 entidades (patients, services, treatments, expenses, fixed_costs, supplies, assets, categories, patient_sources, settings_time) ya tienen ruta de escritura convex-only correcta (POST/PUT/DELETE escriben directo a Convex, sin Supabase)
+    - ✅ Lifecycle ejecutado convex-only: fixed_costs/supplies/assets/categories/services/patients/expenses/treatments (FK real patient+service) crean y borran; patient_sources crea (POST-only); settings_time verificado estáticamente (su upsert mutaría config real)
+    - ✅ El mirror NO salva escrituras (mirror post-write tras un write Supabase que falla primero) — solo la rama `shouldUseConvexOnlyWritePath` funciona convex-only
+  - Ver: `docs/devlog/2026-06-07-convex-only-write-cutover.md`
+
+- [x] TASK-20260607-convex-write-secondary-onboarding-team - Escrituras convex-only del cluster secundario (settings/features + onboarding/team/invitations) ✅ COMPLETADO 2026-06-07
+  - **Priority**: P1 | **Estimate**: L | **Area**: infra/data
+  - **Status**: ✅ 26 rutas de escritura con rama convex-only añadida; verificadas (smoke vivo + adversarial)
+    - ✅ Auditoría (ultracode): 42/44 rutas secundarias rompían convex-only (el mirror no salva escrituras; falta rama `shouldUseConvexOnlyWritePath`)
+    - ✅ Settings/features (12 rutas): clinics/[id], clinics/discount, settings/booking|notifications|preferences, marketing campaigns+platforms, prescriptions, medications → **feature smoke 4/4** (marketing/platforms, medications, campaigns, prescriptions crean+borran convex-only)
+    - ✅ Onboarding/team/invitations (14 rutas): onboarding, workspaces (POST/PUT/DELETE + cascada), workspaces/[id]/clinics, workspaces/[id]/lifecycle, team/clinic-members(+[id]), team/workspace-members(+[id]), team/custom-roles/[id], invitations (POST/DELETE + resend/accept/reject) → multi-tabla replicado a Convex (workspace+clinic+membresías, seedClinicDefaultsInConvex, encoding de permission-maps)
+    - ✅ **Verificación adversarial (5 agentes): 22/24 hallazgos PASS**; 2 bugs reales corregidos: workspace-create columnas default de Postgres (created_at/is_active), workspaces/[id] DELETE cascada de `marketing_campaign_status_history`
+  - Ver: `docs/devlog/2026-06-07-convex-only-write-cutover.md`
+
+- [x] TASK-20260607-convex-write-remaining - Escrituras convex-only restantes (booking/snapshots/actions/ai) ✅ COMPLETADO 2026-06-07
+  - **Priority**: P1 | **Estimate**: L | **Area**: infra/data
+  - **Status**: ✅ 15 rutas + 3 módulos compartidos portados; **todas las rutas de escritura de datos de negocio son convex-only**
+    - ✅ `bookings/[id]`, `public/book`, los 5 `actions/*` (bypass de aiService.execute), los 5 `ai/*` (chat/sesiones/feedback)
+    - ✅ Snapshots end-to-end: `exporter.ts` (lee tablas de Convex), `importer.ts` (restore clinic-scoped multi-tenant-safe), `storage.ts` (upload blob+manifest a Convex) → `convex-write-snapshots.cy.ts` 1/1 (create→delete real)
+    - ✅ Verificación adversarial (5 agentes): 15/17 PASS; 2 "high" refutados (falsos positivos sobre `discoverClinicTables`, ya con rama Convex estática — el CREATE smoke lo prueba)
+    - ✅ Smokes en vivo acumulados: read 58/58, write-lifecycle 9/9, write-features 4/4, snapshot 1/1. typecheck 193 (≤ baseline), cero nuevos. Todo flag-gated, default supabase.
+  - **Fuera de alcance** (no son datos de negocio): webhooks, google-calendar OAuth, export/import, MFA, push, account-delete.
+  - Ver: `docs/devlog/2026-06-07-convex-only-write-cutover.md`
+
+- [~] TASK-20260606-convex-decommission-bcde-a - Decomisión Supabase→Convex (Fases B/C/D/E + scaffold A)
+  - **Priority**: P1
+  - **Estimate**: XL
+  - **Area**: infra/data
+  - **Status**: ✅ B/C/D/E implementadas y verificadas (adversarial multi-agente); A scaffolded
+    - ✅ D: discovery estática sin `information_schema`
+    - ✅ B: `process_recurring_expenses` + `check_booking_slot_availability` portados (13 tests)
+    - ✅ E: seed de clínica + `is_paid` (trigger 73) + recordatorios (trigger 61) en write-path convex (6 tests)
+    - ✅ C: lectura Convex de blobs de snapshot (Convex-first + fallback Supabase)
+    - ✅ A1: scaffold `@convex-dev/auth` (inerte, no desplegado) + seed reset-on-cutover
+    - ✅ A3 wiring client/server: provider + layout + use-auth (login/logout) + identidad server (build-verified, 3/3 adversarial clean)
+    - ✅ Gap convex-only cerrado: `treatments/[id]` PUT re-deriva is_paid + cancela recordatorios
+    - ✅ Verificación adversarial (ultracode): 2 bugs de paridad corregidos (B/C/D/E) + A3 clean
+  - **Todo flag-gated, default Supabase. Typecheck baseline (189, cero nuevos). `build:dental` exit 0.**
+  - **Follow-ups (operador / Fase F)**:
+    - [ ] TASK-20260606-convex-auth-cutover - A2 llaves JWT + middleware/matcher + OTP register/reset/verify + páginas + A5 testing (ver `docs/IMPORTANT/CONVEX-AUTH-CUTOVER-RUNBOOK.md`)
+    - [ ] TASK-20260606-storage-blob-import - correr `import-convex-storage.mjs` antes de `DATA_READ_BACKEND_STORAGE=convex`
+    - [ ] TASK-20260606-phase-F-write-cutover - flips `DATA_WRITE_MODE=convex` por dominio + decomisión del mirror + borrado de Supabase
+
 - [ ] TASK-20260205-refactor-cleanup-phase-1 - Baseline + guardrails + normalización inicial API
   - **Priority**: P1
   - **Estimate**: M

@@ -3060,6 +3060,9 @@
       "resendSuccess": "Email resent successfully!",
       "resendError": "Error resending email. Please try again.",
       "resendAttempts": "Emails resent: {count}",
+      "enterCode": "Enter the code we emailed you",
+      "codePlaceholder": "123456",
+      "verify": "Verify",
       "backToLogin": "Back to login",
       "needHelp": "Need help?",
       "commonIssues": "Common issues:",
@@ -3089,7 +3092,11 @@
       "successMessage": "Password updated successfully",
       "redirecting": "Redirecting...",
       "updateError": "Error updating password",
-      "linkExpiration": "Recovery links expire after 1 hour or when used."
+      "linkExpiration": "Recovery links expire after 1 hour or when used.",
+      "enterCodeAndPassword": "Enter the code we emailed you and choose a new password.",
+      "codePlaceholder": "123456",
+      "passwordTooShort": "Password must be at least 6 characters",
+      "passwordsDontMatch": "Passwords don't match"
     },
     "errors": {
       "invalidCredentials": "Invalid email or password",

@@ -3,9 +3,58 @@ import { createClient } from '@/lib/supabase/server';
 import { aiService } from '@/lib/ai/service';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
+import {
+    listConvexDocumentsByClinic,
+    listConvexTable,
+    upsertConvexDocumentByLegacyId,
+    patchConvexDocumentByLegacyId,
+    deleteConvexDocumentByLegacyId,
+} from '@/lib/convex/server';
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend';
+import { assertClinicAccess } from '@/lib/auth/verify-clinic-access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+type ImportedRecord = Record<string, any>;
+
+function normalizeConvexRecord(row: ImportedRecord | null | undefined) {
+    if (!row) return null;
+    const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row;
+    return rest;
+}
+
+// Convex has NO joins; reassemble sessions + messages from the mirrored tables.
+// Mirrors the exact filter/sort the Supabase GET branch applies.
+async function getSessionsFromConvex(userId: string, clinicId: string) {
+    const rows = await listConvexDocumentsByClinic('ai_chat_sessions', clinicId, 10000) as ImportedRecord[];
+    return rows
+        .filter((row) => String(row.user_id || '') === userId)
+        .sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')))
+        .map(normalizeConvexRecord);
+}
+
+async function getMessagesForSessionFromConvex(sessionId: string) {
+    // ai_chat_messages has NO clinic_id column (scoped via session_id).
+    // listConvexDocumentsByClinic would match zero rows; fetch the table and
+    // filter by session_id, mirroring the Supabase query (session_id only).
+    const rows = await listConvexTable('ai_chat_messages', 10000) as ImportedRecord[];
+    return rows
+        .filter((row) => String(row.session_id || '') === sessionId)
+        .sort((a, b) => String(a.created_at || '').localeCompare(String(b.created_at || '')))
+        .map(normalizeConvexRecord);
+}
+
+// sessionId lookup is user-scoped (no clinic in the query), exactly like the
+// Supabase branch which filters by id + user_id. listByClinic needs a clinicId,
+// so resolve the row from the full mirror and re-check ownership in JS.
+async function findUserSessionFromConvex(userId: string, sessionId: string) {
+    const rows = await listConvexTable('ai_chat_sessions', 10000) as ImportedRecord[];
+    const found = rows.find(
+        (row) => String(row.id || '') === sessionId && String(row.user_id || '') === userId
+    );
+    return found ? normalizeConvexRecord(found) : null;
+}
 
 const chatActionSchema = z.discriminatedUnion('action', [
     z.object({
@@ -49,6 +98,47 @@ export async function GET(request: NextRequest) {
         const clinicId = searchParams.get('clinicId');
         const sessionId = searchParams.get('sessionId');
         const mode = searchParams.get('mode'); // 'list' or 'single' (default)
+
+        // Convex read branch (flag-gated). The Convex bridge has NO RLS, so any
+        // clinicId-scoped read must be guarded by assertClinicAccess first. Reads
+        // are additionally scoped to the authenticated user (the same boundary the
+        // Supabase branch enforces via .eq('user_id', user.id)). Byte-identical shape.
+        if (shouldReturnConvexData('ai_chat_sessions')) {
+            if (mode === 'list' && clinicId) {
+                const denied = await assertClinicAccess(user.id, clinicId, supabase);
+                if (denied) return denied;
+                const sessions = await getSessionsFromConvex(user.id, clinicId);
+                return NextResponse.json({ sessions });
+            }
+
+            let sessionData: ImportedRecord | null = null;
+
+            if (sessionId) {
+                // Resolve the session (scoped to the authenticated user) so we can
+                // derive its clinic for the message fetch.
+                const session = await findUserSessionFromConvex(user.id, sessionId);
+                if (!session) {
+                    // Mirror Supabase .single() failure (no row -> error -> 500).
+                    throw new Error('Session not found');
+                }
+                sessionData = session;
+            } else if (clinicId) {
+                const denied = await assertClinicAccess(user.id, clinicId, supabase);
+                if (denied) return denied;
+                const sessions = await getSessionsFromConvex(user.id, clinicId);
+                sessionData = sessions[0] || null;
+            }
+
+            if (!sessionData) {
+                return NextResponse.json({ session: null, messages: [] });
+            }
+
+            const messages = await getMessagesForSessionFromConvex(
+                String(sessionData.id)
+            );
+
+            return NextResponse.json({ session: sessionData, messages });
+        }
 
         if (mode === 'list' && clinicId) {
             // List all sessions for this clinic
@@ -134,6 +224,25 @@ export async function POST(request: NextRequest) {
         const payload = parsed.data;
 
         if (payload.action === 'create_session') {
+            // Convex-only write path (flag-gated). Replicates the Supabase insert:
+            // id/created_at/updated_at are Postgres defaults (uuid + now), so we set
+            // them explicitly because Convex has no column defaults. Same row shape
+            // the Supabase .select().single() would return.
+            if (shouldUseConvexOnlyWritePath('ai_chat_sessions')) {
+                const now = new Date().toISOString();
+                const id = crypto.randomUUID();
+                const session = {
+                    id,
+                    user_id: user.id,
+                    clinic_id: payload.clinicId,
+                    title: 'Nueva conversación',
+                    created_at: now,
+                    updated_at: now,
+                };
+                await upsertConvexDocumentByLegacyId('ai_chat_sessions', id, session);
+                return NextResponse.json({ session });
+            }
+
             const { data, error } = await supabase
                 .from('ai_chat_sessions')
                 .insert({
@@ -149,6 +258,36 @@ export async function POST(request: NextRequest) {
         }
 
         if (payload.action === 'add_message') {
+            // Convex-only write path (flag-gated). Verify session ownership (scoped to
+            // the authenticated user, exactly like the Supabase id+user_id check),
+            // insert the message (id/created_at are Postgres defaults; metadata default
+            // '{}'), then bump the session's updated_at. Matches the Supabase response.
+            if (shouldUseConvexOnlyWritePath('ai_chat_sessions')) {
+                const session = await findUserSessionFromConvex(user.id, payload.sessionId);
+                if (!session) {
+                    return NextResponse.json({ error: 'Session not found or unauthorized' }, { status: 404 });
+                }
+
+                const now = new Date().toISOString();
+                const id = crypto.randomUUID();
+                const message = {
+                    id,
+                    session_id: payload.sessionId,
+                    role: payload.role,
+                    content: payload.message,
+                    metadata: payload.metadata || {},
+                    created_at: now,
+                };
+                await upsertConvexDocumentByLegacyId('ai_chat_messages', id, message);
+
+                // Update session timestamp (mirrors the Supabase .update({ updated_at }))
+                await patchConvexDocumentByLegacyId('ai_chat_sessions', payload.sessionId, {
+                    updated_at: new Date().toISOString(),
+                });
+
+                return NextResponse.json({ message });
+            }
+
             // Verify session ownership
             const { data: session, error: sessionError } = await supabase
                 .from('ai_chat_sessions')
@@ -198,6 +337,21 @@ export async function POST(request: NextRequest) {
 
             const cleanTitle = title.replace(/^["']|["']$/g, '').trim();
 
+            // Convex-only write path (flag-gated). The Supabase update only sets `title`
+            // (no updated_at here), scoped by id + user_id, and reads the row back via
+            // .single(). A missing/unauthorized row makes .single() error -> 500; we
+            // mirror that by throwing when the user-owned session is not found.
+            if (shouldUseConvexOnlyWritePath('ai_chat_sessions')) {
+                const session = await findUserSessionFromConvex(user.id, payload.sessionId);
+                if (!session) {
+                    throw new Error('Session not found');
+                }
+                await patchConvexDocumentByLegacyId('ai_chat_sessions', payload.sessionId, {
+                    title: cleanTitle,
+                });
+                return NextResponse.json({ session: { ...session, title: cleanTitle } });
+            }
+
             // Update session title
             const { data, error } = await supabase
                 .from('ai_chat_sessions')
@@ -240,6 +394,22 @@ export async function PATCH(request: NextRequest) {
         }
         const { sessionId, title } = parsed.data;
 
+        // Convex-only write path (flag-gated). Mirrors the Supabase update of
+        // { title, updated_at } scoped by id + user_id with a .single() read-back: a
+        // missing/unauthorized row makes .single() error -> 500, replicated by throwing.
+        if (shouldUseConvexOnlyWritePath('ai_chat_sessions')) {
+            const session = await findUserSessionFromConvex(user.id, sessionId);
+            if (!session) {
+                throw new Error('Session not found');
+            }
+            const updatedAt = new Date().toISOString();
+            await patchConvexDocumentByLegacyId('ai_chat_sessions', sessionId, {
+                title,
+                updated_at: updatedAt,
+            });
+            return NextResponse.json({ session: { ...session, title, updated_at: updatedAt } });
+        }
+
         const { data, error } = await supabase
             .from('ai_chat_sessions')
             .update({ title, updated_at: new Date().toISOString() })
@@ -273,6 +443,18 @@ export async function DELETE(request: NextRequest) {
         const parsed = validateSchema(deleteSessionSchema, { sessionId });
         if ('error' in parsed) {
             return parsed.error;
+        }
+
+        // Convex-only write path (flag-gated). The Supabase delete is scoped by
+        // id + user_id and returns success even when zero rows match. We only delete a
+        // session the authenticated user owns (matching the user_id filter) and always
+        // return { success: true } to mirror Supabase's idempotent delete semantics.
+        if (shouldUseConvexOnlyWritePath('ai_chat_sessions')) {
+            const session = await findUserSessionFromConvex(user.id, parsed.data.sessionId);
+            if (session) {
+                await deleteConvexDocumentByLegacyId('ai_chat_sessions', parsed.data.sessionId);
+            }
+            return NextResponse.json({ success: true });
         }
 
         const { error } = await supabase

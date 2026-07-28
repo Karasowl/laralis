@@ -17,17 +17,94 @@ import {
   userHasPermission,
   type Permission,
 } from '@/lib/permissions'
+import { listConvexDocumentsByClinic, upsertConvexDocumentByLegacyId } from '@/lib/convex/server'
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend'
+import { laraPermissionForMode } from '@/lib/ai/route-guards'
 
 export const dynamic = 'force-dynamic'
+
+type ImportedRecord = Record<string, any>
+
+function normalizeConvexRecord(row: ImportedRecord | null | undefined) {
+  if (!row) return null
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row
+  return rest
+}
+
+interface SessionListFilters {
+  userId: string
+  mode: 'entry' | 'query' | null
+  includeArchived: boolean
+  limit: number
+  offset: number
+}
+
+async function getSessionsFromConvex(clinicId: string, filters: SessionListFilters) {
+  const rows = await listConvexDocumentsByClinic('chat_sessions', clinicId, 10000) as ImportedRecord[]
+
+  const filtered = rows.filter((row) => {
+    if (row.user_id !== filters.userId) return false
+    if (filters.mode && row.mode !== filters.mode) return false
+    if (!filters.includeArchived && row.is_archived !== false) return false
+    return true
+  })
+
+  filtered.sort((a, b) => String(b.last_message_at || '').localeCompare(String(a.last_message_at || '')))
+
+  const total = filtered.length
+  const page = filtered
+    .slice(filters.offset, filters.offset + filters.limit)
+    .map(normalizeConvexRecord)
+
+  return {
+    data: page,
+    pagination: {
+      total,
+      limit: filters.limit,
+      offset: filters.offset,
+      hasMore: total > filters.offset + filters.limit,
+    },
+  }
+}
+
+/**
+ * Convex-only write path for POST. Reproduces the single Supabase insert into
+ * chat_sessions, stamping every Postgres-default column explicitly (Convex has no
+ * defaults): id (gen_random_uuid), started_at/last_message_at/created_at/updated_at
+ * (NOW()), ended_at (NULL), message_count (0), is_archived (FALSE). Returns the full
+ * row to mirror the Supabase `.select().single()` response shape.
+ */
+async function createSessionInConvex(
+  clinicId: string,
+  userId: string,
+  mode: 'entry' | 'query',
+  title: string | undefined
+) {
+  const now = new Date().toISOString()
+  const id = crypto.randomUUID()
+  const row = {
+    id,
+    clinic_id: clinicId,
+    user_id: userId,
+    mode,
+    title: title ?? null,
+    started_at: now,
+    ended_at: null,
+    last_message_at: now,
+    message_count: 0,
+    is_archived: false,
+    created_at: now,
+    updated_at: now,
+  }
+  await upsertConvexDocumentByLegacyId('chat_sessions', id, row)
+  return row
+}
 
 // Schema for creating a session
 const createSessionSchema = z.object({
   mode: z.enum(['entry', 'query']),
   title: z.string().max(255).optional(),
 })
-
-const laraPermissionForMode = (mode: 'entry' | 'query'): Permission =>
-  mode === 'query' ? 'lara.use_query_mode' : 'lara.use_entry_mode'
 
 async function forbiddenIfMissingAnyLaraAccess(userId: string, clinicId: string) {
   const [canEntry, canQuery] = await Promise.all([
@@ -88,6 +165,20 @@ export async function GET(request: NextRequest) {
       )
       : await forbiddenIfMissingAnyLaraAccess(clinicContext.userId, clinicContext.clinicId)
     if (forbidden) return forbidden
+
+    // Convex read branch (flag-gated). Auth + clinic access already verified by
+    // resolveClinicContext (getUser + user_has_clinic_access -> 403) and Lara
+    // permission gates above, so this is safe despite the Convex bridge lacking RLS.
+    if (shouldReturnConvexData('chat_sessions')) {
+      const result = await getSessionsFromConvex(clinicContext.clinicId, {
+        userId: session.user.id,
+        mode,
+        includeArchived,
+        limit,
+        offset,
+      })
+      return NextResponse.json(result)
+    }
 
     // Build query
     let query = supabaseAdmin
@@ -183,6 +274,20 @@ export async function POST(request: NextRequest) {
       laraPermissionForMode(validation.data.mode)
     )
     if (forbidden) return forbidden
+
+    // Convex-only write branch (flag-gated). Auth + clinic access verified by
+    // resolveClinicContext and the Lara permission gate above, so this is safe
+    // despite the Convex bridge lacking RLS. Replicates the single chat_sessions
+    // insert below before any Supabase write is attempted.
+    if (shouldUseConvexOnlyWritePath('chat_sessions')) {
+      const newSession = await createSessionInConvex(
+        clinicContext.clinicId,
+        session.user.id,
+        validation.data.mode,
+        validation.data.title
+      )
+      return NextResponse.json({ data: newSession }, { status: 201 })
+    }
 
     // Create session
     const { data: newSession, error } = await supabaseAdmin

@@ -13,6 +13,13 @@ import { resolveClinicContext } from '@/lib/clinic'
 import { z } from 'zod'
 import { readJson } from '@/lib/validation'
 import { forbiddenIfMissingPermission, userHasPermission } from '@/lib/permissions'
+import {
+  listConvexDocumentsByClinic,
+  getConvexDocumentByLegacyId,
+  upsertConvexDocumentByLegacyId,
+  patchConvexDocumentByLegacyId,
+} from '@/lib/convex/server'
+import { shouldReturnConvexData, shouldUseConvexOnlyWritePath } from '@/lib/data-backend'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,6 +30,119 @@ const feedbackSchema = z.object({
   comment: z.string().max(1000).optional(),
   query_type: z.string().max(50).optional(),
 })
+
+type ImportedRecord = Record<string, any>
+
+function normalizeConvexRecord(row: ImportedRecord) {
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row
+  return rest
+}
+
+/**
+ * Convex read replica of the GET feedback-stats aggregation.
+ * Convex has no joins; ai_feedback rows already carry clinic_id and the
+ * rating/query_type fields, so we fetch by clinic and replicate the SAME
+ * filter/aggregation the Supabase path performs (byte-identical shape).
+ */
+async function getFeedbackStatsFromConvex(clinicId: string) {
+  const rows = (await listConvexDocumentsByClinic('ai_feedback', clinicId, 10000) as ImportedRecord[])
+    .map(normalizeConvexRecord)
+
+  const total = rows.length || 0
+  const positive = rows.filter((f) => f.rating === 'positive').length || 0
+  const negative = rows.filter((f) => f.rating === 'negative').length || 0
+
+  const byQueryType: Record<string, { positive: number; negative: number }> = {}
+  rows.forEach((f) => {
+    const type = f.query_type || 'unknown'
+    if (!byQueryType[type]) {
+      byQueryType[type] = { positive: 0, negative: 0 }
+    }
+    byQueryType[type][f.rating as 'positive' | 'negative']++
+  })
+
+  return {
+    total,
+    positive,
+    negative,
+    satisfaction_rate: total > 0 ? Math.round((positive / total) * 100) : null,
+    by_query_type: byQueryType,
+  }
+}
+
+/**
+ * Convex-only replica of the POST handler's Supabase writes (and the reads they
+ * depend on). In DATA_WRITE_MODE=convex the Supabase admin client is unreachable
+ * (`.from()` throws), so every step — message ownership verification, existing
+ * feedback lookup, and the insert/update — must run against the Convex bridge.
+ *
+ * Mirrors the Supabase path exactly:
+ *  - chat_messages -> chat_sessions join (verify message exists + caller owns the session)
+ *  - ai_feedback existing lookup by (message_id, user_id)
+ *  - update existing row (rating/comment/query_type) -> { data } 200
+ *  - or insert a new ai_feedback row -> { data } 201
+ *
+ * The Supabase ai_feedback table has only created_at (no updated_at), so the
+ * update path touches no timestamp and the insert stamps created_at explicitly
+ * (Convex has no Postgres column defaults).
+ */
+async function submitFeedbackInConvex(
+  clinicId: string,
+  userId: string,
+  input: z.infer<typeof feedbackSchema>
+): Promise<NextResponse> {
+  // Verify message exists and belongs to the caller's session.
+  const message = (await getConvexDocumentByLegacyId(
+    'chat_messages',
+    input.message_id
+  )) as ImportedRecord | null
+  if (!message) {
+    return NextResponse.json({ error: 'Message not found' }, { status: 404 })
+  }
+
+  const sessionId = message.session_id ? String(message.session_id) : null
+  const messageSession = sessionId
+    ? ((await getConvexDocumentByLegacyId('chat_sessions', sessionId)) as ImportedRecord | null)
+    : null
+  if (!messageSession || messageSession.user_id !== userId) {
+    return NextResponse.json(
+      { error: 'Not authorized to provide feedback on this message' },
+      { status: 403 }
+    )
+  }
+
+  // Check for existing feedback by (message_id, user_id).
+  const feedbackRows = (await listConvexDocumentsByClinic('ai_feedback', clinicId, 10000) as ImportedRecord[])
+  const existing = feedbackRows.find(
+    (row) => row.message_id === input.message_id && row.user_id === userId
+  )
+
+  if (existing) {
+    const patch = {
+      rating: input.rating,
+      comment: input.comment,
+      query_type: input.query_type,
+    }
+    const existingId = String(existing.id ?? existing.legacyId)
+    await patchConvexDocumentByLegacyId('ai_feedback', existingId, patch)
+    return NextResponse.json({ data: { ...normalizeConvexRecord(existing), ...patch } })
+  }
+
+  const now = new Date().toISOString()
+  const id = crypto.randomUUID()
+  const row = {
+    id,
+    message_id: input.message_id,
+    clinic_id: clinicId,
+    user_id: userId,
+    rating: input.rating,
+    comment: input.comment,
+    query_type: input.query_type,
+    created_at: now,
+  }
+  await upsertConvexDocumentByLegacyId('ai_feedback', id, row)
+  return NextResponse.json({ data: row }, { status: 201 })
+}
 
 async function forbiddenIfMissingAnyLaraAccess(userId: string, clinicId: string) {
   const [canEntry, canQuery] = await Promise.all([
@@ -86,6 +206,19 @@ export async function POST(request: NextRequest) {
 
     const forbidden = await forbiddenIfMissingAnyLaraAccess(session.user.id, clinicContext.clinicId)
     if (forbidden) return forbidden
+
+    // Convex-only write branch (flag-gated). Placed AFTER auth (getSession),
+    // clinic-access verification (resolveClinicContext) and the Lara permission
+    // check, and BEFORE the first Supabase access, because in DATA_WRITE_MODE=convex
+    // the Supabase admin client is unreachable (`.from()` throws). The helper
+    // replicates the message-ownership reads + the insert/update with identical shape.
+    if (shouldUseConvexOnlyWritePath('ai_feedback')) {
+      return await submitFeedbackInConvex(
+        clinicContext.clinicId,
+        session.user.id,
+        validation.data
+      )
+    }
 
     // Verify message exists and belongs to user's session
     const { data: message, error: msgError } = await supabaseAdmin
@@ -214,6 +347,16 @@ export async function GET(request: NextRequest) {
       'lara.use_query_mode'
     )
     if (forbidden) return forbidden
+
+    // Convex read branch (flag-gated). Placed AFTER auth (getSession),
+    // clinic-access verification (resolveClinicContext enforces a 403 when
+    // the user is not a member of the requested clinic) and the Lara
+    // permission check, so the Convex bridge (which has no RLS) is reached
+    // with the same authorization guarantees as the Supabase path.
+    if (shouldReturnConvexData('ai_feedback')) {
+      const data = await getFeedbackStatsFromConvex(clinicContext.clinicId)
+      return NextResponse.json({ data })
+    }
 
     // Get feedback stats
     const { data: feedback, error } = await supabaseAdmin

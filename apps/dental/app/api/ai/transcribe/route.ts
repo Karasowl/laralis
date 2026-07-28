@@ -8,6 +8,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { aiService } from '@/lib/ai'
 import { hasAIConfig, validateAIConfig } from '@/lib/ai/config'
+import { withAnyPermission } from '@/lib/middleware/with-permission'
+import { LARA_ANY_MODE_PERMISSIONS, MAX_TRANSCRIBE_AUDIO_BYTES } from '@/lib/ai/route-guards'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30 // 30 seconds max for transcription
@@ -25,7 +27,15 @@ function isQaStage() {
   return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL?.includes(QA_STAGE_SUPABASE_REF))
 }
 
-export async function POST(request: NextRequest) {
+/**
+ * Auth gate: this route used to be fully public. It forwards audio to the paid STT
+ * provider on the project's own API key, so an unauthenticated endpoint is an
+ * uncapped billing hole for anyone who finds the URL. The only callers are
+ * components/ai-assistant/VoiceRecorder.tsx (inside the Lara assistant), which only
+ * renders on authenticated screens, so requiring a session plus either Lara mode
+ * permission costs the real user nothing.
+ */
+export const POST = withAnyPermission(LARA_ANY_MODE_PERMISSIONS, async (request) => {
   try {
     const qaMode = qaAiMode(request)
     const qaMockRequested = qaMode === 'mock'
@@ -66,6 +76,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No audio file provided' }, { status: 400 })
     }
 
+    // Cap the upload: the provider bills by audio length, and the route had no
+    // size limit at all, so one caller could send arbitrarily large files.
+    if (audioFile.size > MAX_TRANSCRIBE_AUDIO_BYTES) {
+      return NextResponse.json(
+        {
+          error: 'Audio file too large',
+          message: `Maximum size is ${Math.floor(MAX_TRANSCRIBE_AUDIO_BYTES / (1024 * 1024))}MB`,
+        },
+        { status: 413 }
+      )
+    }
+
     if (qaFailureRequested) {
       return NextResponse.json(
         {
@@ -104,4 +126,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
-}
+})

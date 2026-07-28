@@ -29,6 +29,9 @@ import { AIProviderFactory } from './factory'
 import { ClinicSnapshotService } from './ClinicSnapshotService'
 import { ACTION_FUNCTIONS, isActionFunction } from './actions-functions'
 import { snapshotCache } from './cache/snapshot-cache'
+import { createMirroredSupabaseClient } from '@/lib/convex/supabase-runtime-mirror'
+import { upsertConvexDocumentByLegacyId } from '@/lib/convex/server'
+import { shouldUseConvexOnlyWritePath } from '@/lib/data-backend'
 
 // Prompts
 import { buildEntrySystemPrompt } from './prompts/entry-prompt'
@@ -419,11 +422,15 @@ export class AIService implements ActionExecutor {
     params: ActionParams[T],
     context: ActionContext
   ): Promise<ActionResult> {
-    const { clinicId, userId, supabase, dryRun = false } = context
+    const mirroredContext: ActionContext = {
+      ...context,
+      supabase: createMirroredSupabaseClient(context.supabase),
+    }
+    const { clinicId, userId, dryRun = false } = mirroredContext
 
     try {
       // Validate parameters first
-      const validation = await this.validate(action, params, context)
+      const validation = await this.validate(action, params, mirroredContext)
       if (!validation.valid) {
         return {
           success: false,
@@ -447,35 +454,35 @@ export class AIService implements ActionExecutor {
         case 'update_service_price':
           result = await executeUpdateServicePrice(
             params as ActionParams['update_service_price'],
-            context
+            mirroredContext
           )
           break
 
         case 'adjust_service_margin':
           result = await executeAdjustServiceMargin(
             params as ActionParams['adjust_service_margin'],
-            context
+            mirroredContext
           )
           break
 
         case 'simulate_price_change':
           result = await executeSimulatePriceChange(
             params as ActionParams['simulate_price_change'],
-            context
+            mirroredContext
           )
           break
 
         case 'create_expense':
           result = await executeCreateExpense(
             params as ActionParams['create_expense'],
-            context
+            mirroredContext
           )
           break
 
         case 'update_time_settings':
           result = await executeUpdateTimeSettings(
             params as ActionParams['update_time_settings'],
-            context
+            mirroredContext
           )
           break
 
@@ -483,35 +490,35 @@ export class AIService implements ActionExecutor {
         case 'bulk_update_prices':
           result = await executeBulkUpdatePrices(
             params as ActionParams['bulk_update_prices'],
-            context
+            mirroredContext
           )
           break
 
         case 'forecast_revenue':
           result = await executeForecastRevenue(
             params as ActionParams['forecast_revenue'],
-            context
+            mirroredContext
           )
           break
 
         case 'identify_underperforming_services':
           result = await executeIdentifyUnderperformingServices(
             params as ActionParams['identify_underperforming_services'],
-            context
+            mirroredContext
           )
           break
 
         case 'analyze_patient_retention':
           result = await executeAnalyzePatientRetention(
             params as ActionParams['analyze_patient_retention'],
-            context
+            mirroredContext
           )
           break
 
         case 'optimize_inventory':
           result = await executeOptimizeInventory(
             params as ActionParams['optimize_inventory'],
-            context
+            mirroredContext
           )
           break
 
@@ -522,7 +529,7 @@ export class AIService implements ActionExecutor {
         case 'compare_periods':
           result = await executeComparePeriods(
             params as ActionParams['compare_periods'],
-            context
+            mirroredContext
           )
           break
 
@@ -542,7 +549,7 @@ export class AIService implements ActionExecutor {
 
       // Log action and invalidate cache if not dry run
       if (!dryRun && result.success) {
-        await this.logAction(result, context)
+        await this.logAction(result, mirroredContext)
         // Invalidate snapshot cache since data has changed
         snapshotCache.invalidate(clinicId)
         console.log(`[AIService] Cache invalidated for clinic ${clinicId} after action ${action}`)
@@ -868,7 +875,40 @@ export class AIService implements ActionExecutor {
    * Log action execution to database for audit trail
    */
   private async logAction(result: ActionResult, context: ActionContext): Promise<void> {
-    const { supabase, clinicId, userId, dryRun } = context
+    const { clinicId, userId, dryRun } = context
+
+    // Convex-only write path: Supabase is unreachable (supabaseAdmin.from() fails at
+    // use-time against the placeholder client), so the insert below would be lost.
+    // Replicate the SAME action_logs row directly against Convex. Postgres-default
+    // columns (id, dry_run, created_at) are set explicitly since Convex has no defaults.
+    // Best-effort: a logging failure must not break action execution (matches the
+    // Supabase path swallowing it). This mirrors the inline port in
+    // app/api/actions/update-service-price/route.ts (executeUpdateServicePriceInConvex).
+    if (shouldUseConvexOnlyWritePath('action_logs')) {
+      try {
+        const logId = crypto.randomUUID()
+        await upsertConvexDocumentByLegacyId('action_logs', logId, {
+          id: logId,
+          clinic_id: clinicId,
+          user_id: userId,
+          action_type: result.action,
+          success: result.success,
+          params: result.params,
+          result: result.result ?? null,
+          error_code: result.error?.code ?? null,
+          error_message: result.error?.message ?? null,
+          error_details: result.error?.details ?? null,
+          dry_run: dryRun || false,
+          executed_at: result.executed_at,
+          created_at: new Date().toISOString(),
+        })
+      } catch (error) {
+        console.error('[AIService] Failed to log action to Convex:', error)
+      }
+      return
+    }
+
+    const supabase = createMirroredSupabaseClient(context.supabase)
 
     try {
       const logEntry = {

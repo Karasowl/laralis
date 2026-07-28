@@ -3,9 +3,98 @@ import { cookies } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { resolveClinicContext } from '@/lib/clinic'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
+import { listConvexDocumentsByClinic } from '@/lib/convex/server'
+import { shouldReturnConvexData } from '@/lib/data-backend'
 
 export const dynamic = 'force-dynamic'
 
+type ImportedRecord = Record<string, any>
+
+function normalizeConvexRecord(row: ImportedRecord) {
+  const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row
+  return rest
+}
+
+type CostPerMinuteInputs = {
+  time: { work_days: number; hours_per_day: number; real_pct: number } | null
+  fixedCosts: Array<{ amount_cents?: number }>
+  assets: Array<{ purchase_price_cents?: number; depreciation_months?: number }>
+}
+
+// Pure calc shared by both the Supabase and Convex read paths.
+function computeCostPerMinute({ time, fixedCosts, assets }: CostPerMinuteInputs) {
+  const monthlyFixedCostsCents = (fixedCosts || []).reduce((sum, c: any) => sum + (c.amount_cents || 0), 0)
+    + (assets || []).reduce((sum, a: any) => {
+      if (!a.depreciation_months || a.depreciation_months <= 0) return sum
+      return sum + Math.round(a.purchase_price_cents / a.depreciation_months)
+    }, 0)
+
+  let perMinute = 0
+  let effectiveMinutes = 0
+  let minutesMonth = 0
+  let realPctMode: 'decimal' | 'percent' | 'unknown' = 'unknown'
+
+  if (time) {
+    minutesMonth = (time.work_days || 0) * (time.hours_per_day || 0) * 60
+    let rp = Number(time.real_pct ?? 0)
+    if (rp > 1) { realPctMode = 'percent'; rp = rp / 100 } else { realPctMode = 'decimal' }
+    if (rp < 0) rp = 0
+    if (rp > 1) rp = 1
+    effectiveMinutes = Math.round(minutesMonth * rp)
+    if (effectiveMinutes > 0 && monthlyFixedCostsCents > 0) {
+      perMinute = Math.round(monthlyFixedCostsCents / effectiveMinutes)
+    }
+  }
+
+  return {
+    data: {
+      per_minute_cents: perMinute,
+      per_hour_cents: perMinute * 60,
+      monthly_fixed_cents: monthlyFixedCostsCents,
+      effective_minutes_per_month: effectiveMinutes,
+      inputs: time ? {
+        work_days: time.work_days,
+        hours_per_day: time.hours_per_day,
+        real_pct: Number(time.real_pct),
+        real_pct_mode: realPctMode,
+        minutes_per_month: minutesMonth,
+      } : null
+    }
+  }
+}
+
+async function getCostPerMinuteInputsFromConvex(clinicId: string): Promise<CostPerMinuteInputs> {
+  const [timeRowsRaw, fixedRowsRaw, assetRowsRaw] = await Promise.all([
+    listConvexDocumentsByClinic('settings_time', clinicId, 10000) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('fixed_costs', clinicId, 10000) as Promise<ImportedRecord[]>,
+    listConvexDocumentsByClinic('assets', clinicId, 10000) as Promise<ImportedRecord[]>,
+  ])
+
+  // Mirror supabase: pick the most recently updated settings_time row (order by real_pct source columns).
+  const timeRows = (timeRowsRaw || []).map(normalizeConvexRecord)
+  const sortedTime = timeRows.sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')))
+  const timeRow = sortedTime[0]
+
+  const time = timeRow
+    ? {
+        // Supabase stores short column names work_days/hours_per_day/real_pct; rows are 1:1 in Convex.
+        work_days: timeRow.work_days ?? timeRow.working_days_per_month,
+        hours_per_day: timeRow.hours_per_day,
+        real_pct: timeRow.real_pct ?? timeRow.real_hours_percentage,
+      }
+    : null
+
+  const fixedCosts = (fixedRowsRaw || []).map(normalizeConvexRecord).map((row) => ({
+    amount_cents: row.amount_cents,
+  }))
+
+  const assets = (assetRowsRaw || []).map(normalizeConvexRecord).map((row) => ({
+    purchase_price_cents: row.purchase_price_cents,
+    depreciation_months: row.depreciation_months,
+  }))
+
+  return { time, fixedCosts, assets }
+}
 
 export async function GET(_req: NextRequest) {
   try {
@@ -16,6 +105,12 @@ export async function GET(_req: NextRequest) {
     const { clinicId, userId } = ctx
     const forbidden = await forbiddenIfMissingPermission(userId, clinicId, 'break_even.view')
     if (forbidden) return forbidden
+
+    // Flag-gated Convex read path. Defaults to Supabase, so production is unaffected until flipped.
+    if (shouldReturnConvexData('settings_time')) {
+      const inputs = await getCostPerMinuteInputsFromConvex(clinicId)
+      return NextResponse.json(computeCostPerMinute(inputs))
+    }
 
     // Time settings
     const { data: time, error: timeErr } = await supabaseAdmin
@@ -45,44 +140,11 @@ export async function GET(_req: NextRequest) {
 
     if (assetsErr) console.error('cost-per-minute: assets error', assetsErr)
 
-    const monthlyFixedCostsCents = (fixedCosts || []).reduce((sum, c: any) => sum + (c.amount_cents || 0), 0)
-      + (assets || []).reduce((sum, a: any) => {
-        if (!a.depreciation_months || a.depreciation_months <= 0) return sum
-        return sum + Math.round(a.purchase_price_cents / a.depreciation_months)
-      }, 0)
-
-    let perMinute = 0
-    let effectiveMinutes = 0
-    let minutesMonth = 0
-    let realPctMode: 'decimal' | 'percent' | 'unknown' = 'unknown'
-
-    if (time) {
-      minutesMonth = (time.work_days || 0) * (time.hours_per_day || 0) * 60
-      let rp = Number(time.real_pct ?? 0)
-      if (rp > 1) { realPctMode = 'percent'; rp = rp / 100 } else { realPctMode = 'decimal' }
-      if (rp < 0) rp = 0
-      if (rp > 1) rp = 1
-      effectiveMinutes = Math.round(minutesMonth * rp)
-      if (effectiveMinutes > 0 && monthlyFixedCostsCents > 0) {
-        perMinute = Math.round(monthlyFixedCostsCents / effectiveMinutes)
-      }
-    }
-
-    return NextResponse.json({
-      data: {
-        per_minute_cents: perMinute,
-        per_hour_cents: perMinute * 60,
-        monthly_fixed_cents: monthlyFixedCostsCents,
-        effective_minutes_per_month: effectiveMinutes,
-        inputs: time ? {
-          work_days: time.work_days,
-          hours_per_day: time.hours_per_day,
-          real_pct: Number(time.real_pct),
-          real_pct_mode: realPctMode,
-          minutes_per_month: minutesMonth,
-        } : null
-      }
-    })
+    return NextResponse.json(computeCostPerMinute({
+      time: time ?? null,
+      fixedCosts: fixedCosts || [],
+      assets: assets || [],
+    }))
   } catch (e) {
     console.error('GET /api/time/cost-per-minute error', e)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

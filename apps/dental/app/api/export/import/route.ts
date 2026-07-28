@@ -10,6 +10,8 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { WorkspaceBundleImporter } from '@/lib/export/importer';
+import { upsertConvexDocumentByLegacyId } from '@/lib/convex/server';
+import { shouldUseConvexOnlyWritePath } from '@/lib/data-backend';
 import type { ImportOptions } from '@/lib/export/types';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
@@ -152,7 +154,7 @@ export async function POST(request: NextRequest) {
 
     // Log import activity if successful
     if (result.success && result.workspaceId) {
-      await supabaseAdmin.from('workspace_activity').insert({
+      const importActivity = {
         workspace_id: result.workspaceId,
         user_id: user.id,
         user_email: user.email,
@@ -166,7 +168,17 @@ export async function POST(request: NextRequest) {
           clinicsCreated: result.clinicIds?.length || 0,
           duration: result.duration,
         },
-      });
+      };
+      if (shouldUseConvexOnlyWritePath('workspace_activity')) {
+        const activityId = crypto.randomUUID();
+        await upsertConvexDocumentByLegacyId('workspace_activity', activityId, {
+          id: activityId,
+          ...importActivity,
+          created_at: new Date().toISOString(),
+        });
+      } else {
+        await supabaseAdmin.from('workspace_activity').insert(importActivity);
+      }
     }
 
     // Return result

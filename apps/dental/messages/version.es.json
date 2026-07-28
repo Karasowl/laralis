@@ -15,6 +15,22 @@
       "documentation": "Documentación"
     },
     "releases": {
+      "v0_7_0": {
+        "date": "2026-07-28",
+        "title": "Cierre de accesos no autenticados",
+        "security": [
+          "La base de datos de Convex exponia nueve consultas publicas sin autenticacion que permitian volcar cualquier tabla, incluidos pacientes, tratamientos y recetas, a quien conociera la URL del backend. Ahora exigen el secreto de servidor y no son alcanzables desde fuera.",
+          "Los endpoints de transcripcion y sintesis de voz de Lara no pedian sesion. Cualquiera podia usarlos como servicio gratuito de voz facturado a la clinica. Ahora exigen sesion y permiso de Lara, y la transcripcion limita el audio a 25MB.",
+          "El agendamiento publico enviaba email, SMS y WhatsApp al contacto que viniera en la peticion, lo que permitia usar la cuenta de la clinica para mandar mensajes a destinos arbitrarios. El aviso al paciente ahora sale cuando el personal confirma la cita.",
+          "Se activaron limites de peticiones en el firewall para el agendamiento publico, los endpoints de IA, el login y el resto de la API."
+        ],
+        "fixed": [
+          "Confirmar una solicitud de agendamiento creaba la cita en silencio, sin avisar al paciente ni al personal, a diferencia de crear una cita desde el panel. Ahora ambas rutas notifican igual."
+        ],
+        "removed": [
+          "Codigo de limitacion de peticiones que nunca llego a estar activo, junto con sus dos dependencias."
+        ]
+      },
       "v0_6_1": {
         "date": "2026-05-12",
         "title": "Dashboard: 'Pacientes Atendidos' vs 'Nuevos Pacientes' por día",

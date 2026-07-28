@@ -3,6 +3,9 @@ import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
+import { shouldUseConvexOnlyWritePath, shouldWriteConvexData } from '@/lib/data-backend';
+import { seedClinicDefaultsInConvex } from '@/lib/convex/clinic-seed';
+import { upsertConvexDocumentByLegacyId } from '@/lib/convex/server';
 
 export const dynamic = 'force-dynamic'
 
@@ -89,6 +92,105 @@ export async function POST(request: NextRequest) {
     // Create workspace (handle slug conflicts gracefully)
     const baseSlug = generateSlug(workspace.name);
     const now = new Date().toISOString();
+
+    // Convex-only write path (DATA_WRITE_MODE_CLINICS=convex). Supabase is unreachable
+    // so every insert the handler performs below (workspaces, clinics, workspace_users,
+    // workspace_members, clinic_users + the after_clinic_insert seed) must be replicated
+    // to Convex here BEFORE the first Supabase write. We generate the ids/timestamps that
+    // Postgres would otherwise default. The trailing supabase.auth.updateUser() metadata
+    // write is a no-op under the convex-auth client shim, so we skip it. Mirror the
+    // Supabase response shape exactly: { success, workspace, clinic } with the full rows.
+    if (shouldUseConvexOnlyWritePath('clinics')) {
+      const workspaceId = crypto.randomUUID();
+      const workspaceData = {
+        id: workspaceId,
+        name: workspace.name,
+        slug: baseSlug,
+        description: workspace.description ?? null,
+        owner_id: user.id,
+        onboarding_completed: false,
+        onboarding_step: 3,
+        status: 'draft',
+        setup_started_at: now,
+        setup_last_seen_at: now,
+        is_active: true,
+        created_at: now,
+        updated_at: now,
+      };
+      await upsertConvexDocumentByLegacyId('workspaces', workspaceId, workspaceData);
+
+      const clinicId = crypto.randomUUID();
+      const clinicData = {
+        id: clinicId,
+        name: clinic.name,
+        address: clinic.address || null,
+        phone: clinic.phone || null,
+        email: clinic.email || null,
+        workspace_id: workspaceId,
+        is_active: true,
+        created_at: now,
+      };
+      await upsertConvexDocumentByLegacyId('clinics', clinicId, clinicData);
+
+      // Replicate the after_clinic_insert triggers (patient_sources / custom_categories /
+      // whatsapp_templates). Best-effort + idempotent; never blocks clinic creation.
+      await seedClinicDefaultsInConvex(clinicId);
+
+      const workspaceUserId = crypto.randomUUID();
+      await upsertConvexDocumentByLegacyId('workspace_users', workspaceUserId, {
+        id: workspaceUserId,
+        workspace_id: workspaceId,
+        user_id: user.id,
+        role: 'owner',
+        custom_permissions: {},
+        custom_role_id: null,
+        allowed_clinics: [clinicId],
+        is_active: true,
+        joined_at: now,
+        created_at: now,
+        updated_at: now,
+      });
+
+      const workspaceMemberId = crypto.randomUUID();
+      await upsertConvexDocumentByLegacyId('workspace_members', workspaceMemberId, {
+        id: workspaceMemberId,
+        workspace_id: workspaceId,
+        user_id: user.id,
+        role: 'owner',
+        permissions: {},
+        allowed_clinics: [clinicId],
+        clinic_ids: [clinicId],
+        invitation_status: 'accepted',
+        accepted_at: now,
+        is_active: true,
+        created_at: now,
+        updated_at: now,
+      });
+
+      const clinicUserId = crypto.randomUUID();
+      await upsertConvexDocumentByLegacyId('clinic_users', clinicUserId, {
+        id: clinicUserId,
+        clinic_id: clinicId,
+        user_id: user.id,
+        role: 'admin',
+        custom_permissions: {},
+        custom_role_id: null,
+        is_active: true,
+        joined_at: now,
+        can_access_all_patients: true,
+        assigned_chair: null,
+        schedule: {},
+        created_at: now,
+        updated_at: now,
+      });
+
+      return NextResponse.json({
+        success: true,
+        workspace: workspaceData,
+        clinic: clinicData,
+      });
+    }
+
     const attemptInsert = async (slug: string) => {
       return await supabase
         .from('workspaces')
@@ -179,6 +281,14 @@ export async function POST(request: NextRequest) {
         },
         { status: 500 }
       );
+    }
+
+    // Seed clinic defaults into Convex (port of the after_clinic_insert triggers) so
+    // dual/convex write mode gets the patient_sources / custom_categories /
+    // whatsapp_templates the Postgres triggers create. Idempotent + best-effort;
+    // default Supabase => no-op (the clinic row itself mirrors via the wrapped client).
+    if (shouldWriteConvexData('clinics')) {
+      await seedClinicDefaultsInConvex(clinicData.id);
     }
 
     const rollbackOnMembershipError = async (message: string, details: string) => {

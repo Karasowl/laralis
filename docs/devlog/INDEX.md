@@ -17,6 +17,23 @@ Cada entrada sigue la estructura:
 
 ## Entradas
 
+### 2026-07-28
+
+- **[2026-07-28-close-unauthenticated-access.md](2026-07-28-close-unauthenticated-access.md)** - Seguridad P0: la base de Convex exponía nueve queries públicas sin auth que permitían volcar cualquier tabla (verificado en vivo: 251 pacientes y 442 tratamientos sin credenciales); los endpoints de voz de Lara no pedían sesión; el booking público despachaba WhatsApp y SMS a destinos arbitrarios con la cuenta de la clínica; y el rate limiting nunca estuvo activo. Cierre con secreto de servidor y rollout expand-and-contract sin downtime, permisos en las rutas de IA, notificación diferida a la confirmación (que además ya no era silenciosa) y cuatro reglas de rate limit en el Firewall de Vercel. Bump 0.7.0.
+
+### 2026-06-08
+
+- **[2026-06-08-prod-convex-live-verification.md](2026-06-08-prod-convex-live-verification.md)** - Verificación automatizada contra el sitio vivo (`https://laralis.vercel.app`) de que producción lee y escribe en **Convex**, no a mano: read smoke **58/58** sin 5xx, write-lifecycle **9/9** (incl. cadena insumo→servicio→receta→paciente→tratamiento), features **4/4**. Sin tocar la cuenta real de la doctora — se usó la cuenta de prueba `adventismael` (password reseteado vía admin API; prod login sigue Supabase `dual` por diseño). Tres specs parametrizados por env (`prod-convex-{read-smoke,write-lifecycle,write-features}.cy.ts`) + runbook reusable `docs/IMPORTANT/PROD-CONVEX-VERIFICATION-RUNBOOK.md`. Alcance: capa de datos (API routes) en el deploy real; no render React ni login convex-auth.
+
+### 2026-06-07
+
+- **[2026-06-07-convex-only-write-cutover.md](2026-06-07-convex-only-write-cutover.md)** - Cutover de ESCRITURAS convex-only. El runtime mirror no salva escrituras → cada ruta necesita rama `shouldUseConvexOnlyWritePath`. 10 entidades CRUD core (lifecycle 9/9) + 26 rutas secundarias (settings/features feature-smoke 4/4; onboarding/team/invitations multi-tabla). Verificación adversarial 22/24 PASS + 2 bugs reales corregidos. Incidente: `git reset --hard` repetido por el dev server — mitigado commiteando por oleada.
+- **[2026-06-07-convex-only-api-smoke-fixes.md](2026-06-07-convex-only-api-smoke-fixes.md)** - Smoke convex-only de los 58 GET pasa sin 5xx. Auditoría multi-agente (ultracode) + smoke real en `C:\dev\laralis`: 10 hallazgos "auth_not_convex_aware" eran falsos positivos (el shim convex-aware de `createClient`), 3 bugs reales (access-check `supabaseAdmin` inline antes de la rama Convex en `team/clinic-members`, `team/workspace-members`, `invitations`) y 2 falsos negativos cazados solo por el smoke (`dashboard/supplies`, `getWhatsAppConfig`). Helper `userHasActiveWorkspaceMembershipFromConvex` con parity estricta `is_active === true`. Typecheck baseline (197), cero nuevos.
+
+### 2026-06-06
+
+- **[2026-06-06-convex-decommission-phases-bcde-a.md](2026-06-06-convex-decommission-phases-bcde-a.md)** - Decomisión Supabase→Convex: Fases B (RPCs `process_recurring_expenses` + `check_booking_slot_availability` portados, con math de fechas PG-fiel y tests), C (lectura Convex de blobs de snapshot), D (schema discovery sin `information_schema`), E (triggers de seed de clínica / `is_paid` / recordatorios al write-path convex) y scaffold de **Convex Auth** (A1 + seed reset-on-cutover + runbook del operador). Todo flag-gated, default Supabase, typecheck en baseline (cero errores nuevos), 19 tests nuevos. Verificación adversarial multi-agente (ultracode): 2 bugs de paridad corregidos.
+
 ### 2026-05-12
 
 - **[2026-05-12-fix-dashboard-patients-seen-vs-new.md](2026-05-12-fix-dashboard-patients-seen-vs-new.md)** - Fix P0: el card "Pacientes Actuales" del dashboard mostraba la tasa de adquisición (nuevos pacientes/día) en vez de pacientes atendidos/día, generando alarmas falsas contra la meta de break-even en clínicas con pacientes recurrentes. Cálculo corregido + nuevo card separado "Nuevos Pacientes" + oracle Cypress en spec 19 para detectar regresión.
@@ -147,6 +164,6 @@ Cada entrada sigue la estructura:
 
 ## Stats
 
-- **Total entradas**: 27
-- **Ultima actualizacion**: 2026-02-05
+- **Total entradas**: 28
+- **Ultima actualizacion**: 2026-07-28
 - **Archivos documentados**: 235+
