@@ -1,8 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 import type { NextRequest, NextFetchEvent } from 'next/server';
-import { Ratelimit } from '@upstash/ratelimit';
-import { Redis } from '@upstash/redis';
 import {
   convexAuthNextjsMiddleware,
   nextjsMiddlewareRedirect,
@@ -29,51 +27,20 @@ const PUBLIC_PATHS = [
   '/book', // Public booking pages
 ];
 
-type RateLimitResult = Awaited<ReturnType<Ratelimit['limit']>>;
-
-let cachedRateLimiter: Ratelimit | null | undefined;
-
-function getRateLimiter(): Ratelimit | null {
-  if (cachedRateLimiter !== undefined) {
-    return cachedRateLimiter;
-  }
-
-  const hasEnv = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!hasEnv) {
-    cachedRateLimiter = null;
-    return cachedRateLimiter;
-  }
-
-  try {
-    const redis = Redis.fromEnv();
-    cachedRateLimiter = new Ratelimit({
-      redis,
-      limiter: Ratelimit.slidingWindow(100, '1 m'),
-      analytics: true,
-      prefix: 'laralis:ratelimit',
-    });
-  } catch (error) {
-    console.error('Rate limiter initialization failed', error);
-    cachedRateLimiter = null;
-  }
-
-  return cachedRateLimiter;
-}
-
-function setRateLimitHeaders(
-  response: NextResponse,
-  result: RateLimitResult,
-  options: { includeRetryAfter?: boolean } = {}
-) {
-  response.headers.set('X-RateLimit-Limit', String(result.limit));
-  response.headers.set('X-RateLimit-Remaining', String(result.remaining));
-  response.headers.set('X-RateLimit-Reset', String(result.reset));
-
-  if (options.includeRetryAfter) {
-    const retryAfterSeconds = Math.max(0, Math.ceil((result.reset - Date.now()) / 1000));
-    response.headers.set('Retry-After', retryAfterSeconds.toString());
-  }
-}
+/**
+ * Rate limiting lives in the Vercel Firewall, not here.
+ *
+ * The previous implementation used @upstash/ratelimit inside supabaseMiddleware,
+ * and it never protected anything: the matcher below excludes /api (so login,
+ * public booking and the AI routes were never covered), the convex branch never
+ * called the limiter at all, and UPSTASH_REDIS_REST_URL was not set in any
+ * environment, so getRateLimiter() always returned null. Keeping that code around
+ * only advertised a protection that did not exist.
+ *
+ * Firewall rules are declared in scripts/firewall/rules.sh and cut traffic at the
+ * edge, before a function is invoked, so they cover /api regardless of auth backend
+ * and blocked requests are not billed.
+ */
 
 async function supabaseMiddleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -87,34 +54,8 @@ async function supabaseMiddleware(request: NextRequest) {
 
   const isStaticAsset = pathname.startsWith('/_next') || pathname.includes('.') || pathname === '/test-auth';
 
-  const limiter = getRateLimiter();
-  let rateLimitResult: RateLimitResult | null = null;
-
-  if (!isStaticAsset && limiter) {
-    const ip = request.ip || request.headers.get('x-forwarded-for') || 'unknown';
-    const identifier = `${ip}:${request.method}:${pathname}`;
-    rateLimitResult = await limiter.limit(identifier);
-
-    if (!rateLimitResult.success) {
-      const limitedResponse = NextResponse.json(
-        { message: 'Demasiadas peticiones, intenta nuevamente en unos segundos.' },
-        { status: 429 }
-      );
-      setRateLimitHeaders(limitedResponse, rateLimitResult, { includeRetryAfter: true });
-      return limitedResponse;
-    }
-  }
-
   if (isStaticAsset) {
     return NextResponse.next();
-  }
-
-  if (pathname.startsWith('/api')) {
-    const apiResponse = NextResponse.next();
-    if (rateLimitResult) {
-      setRateLimitHeaders(apiResponse, rateLimitResult);
-    }
-    return apiResponse;
   }
 
   // Create a single response object that will be modified and returned
@@ -357,10 +298,6 @@ async function supabaseMiddleware(request: NextRequest) {
 
   // Keep onboarding accessible even if a workspace already exists.
   // The app itself decides when onboarding is completed.
-
-  if (rateLimitResult) {
-    setRateLimitHeaders(response, rateLimitResult);
-  }
 
   return response;
 }
