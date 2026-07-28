@@ -13,6 +13,11 @@
 # and Vercel does not bill requests it rate-limits. The previous @upstash/ratelimit
 # code in middleware.ts covered none of that (see the comment at the top of that file).
 #
+# Status: these four rules are ALREADY applied to the `laralis` project (firewall
+# config version 2, all active). They were created through the REST API because the
+# CLI was not authenticated on the machine at the time. This script is the
+# reproducible definition — re-run it to recreate them on a fresh project.
+#
 # Usage:
 #   vercel login                         # once per machine
 #   cd apps/dental && bash scripts/firewall/rules.sh
@@ -25,15 +30,6 @@ set -euo pipefail
 
 cd "$(dirname "$0")/../.."
 
-vercel firewall rules add "rate-limit-api" \
-  --condition '{"type":"path","op":"pre","value":"/api"}' \
-  --action rate_limit \
-  --rate-limit-window 60 \
-  --rate-limit-requests 120 \
-  --rate-limit-keys ip \
-  --rate-limit-action deny \
-  --description "General ceiling on the API surface" \
-  --yes
 
 # Public booking creates rows and, once confirmed, sends messages. It is
 # unauthenticated, so it gets the tightest limit of the four.
@@ -67,6 +63,17 @@ vercel firewall rules add "rate-limit-auth" \
   --rate-limit-keys ip \
   --rate-limit-action deny \
   --description "Auth endpoints: 20 per 5 minutes per IP" \
+  --yes
+
+# Evaluation stops at the first matching rule, so the broad /api ceiling goes LAST.
+vercel firewall rules add "rate-limit-api" \
+  --condition '{"type":"path","op":"pre","value":"/api"}' \
+  --action rate_limit \
+  --rate-limit-window 60 \
+  --rate-limit-requests 120 \
+  --rate-limit-keys ip \
+  --rate-limit-action deny \
+  --description "General ceiling on the API surface" \
   --yes
 
 echo
