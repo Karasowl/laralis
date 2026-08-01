@@ -47,6 +47,13 @@
 - [ ] TASK-20260425-marketing-attribution-dashboard - Dashboard /marketing con desglose CTWA → revenue (gasto en ads / lead / paciente / treatment.price_cents)
 - [ ] TASK-20260425-whatsapp-cloudapi-referral - Cuando una clínica use 360dialog raw passthrough, parsear `entry[0].changes[0].value.messages[0].referral` además de los campos `Referral*` de Twilio
 
+## Caída de producción por Supabase muerto (2026-07-31)
+
+Ver `docs/devlog/2026-07-31-fix-middleware-timeout-dead-supabase.md`.
+
+- [ ] TASK-20260731-dual-login-order - En modo `dual` el login intenta Supabase primero y solo cae al bridge de Convex cuando falla, arrastrando el retraso del intento fallido. Invertir el orden es un cambio de comportamiento de autenticación y necesita decisión explícita.
+- [ ] TASK-20260731-supabase-dependency-sweep - Registro, recuperación de contraseña, borrado de cuenta y export/import siguen apoyados en Supabase y hoy están rotos. Se solapa con TASK-20260728-supabase-raw-clients.
+
 ## Auditoría de seguridad y arquitectura (2026-07-28)
 
 Hallazgos que NO entraron en el cierre P0 del 2026-07-28. Ver

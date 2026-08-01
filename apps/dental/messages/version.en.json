@@ -15,6 +15,14 @@
       "documentation": "Documentation"
     },
     "releases": {
+      "v0_7_1": {
+        "date": "2026-07-31",
+        "title": "Fixed the 504 error when opening the app",
+        "fixed": [
+          "Opening the app while signed in returned a 504 GATEWAY_TIMEOUT and no screen loaded. One of the external services the startup path depended on stopped responding, and the app waited on it with no limit on every page load until the request expired.",
+          "The session is now validated locally first, without any network call, and every request to that service has a maximum wait time. If it goes down again, the app still opens."
+        ]
+      },
       "v0_7_0": {
         "date": "2026-07-28",
         "title": "Closing unauthenticated access",

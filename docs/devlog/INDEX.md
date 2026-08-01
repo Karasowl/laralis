@@ -17,6 +17,10 @@ Cada entrada sigue la estructura:
 
 ## Entradas
 
+### 2026-07-31
+
+- **[2026-07-31-fix-middleware-timeout-dead-supabase.md](2026-07-31-fix-middleware-timeout-dead-supabase.md)** - Fix P0: producción devolvía `504 MIDDLEWARE_INVOCATION_TIMEOUT` en cada carga a los usuarios con sesión iniciada. El proyecto de Supabase dejó de existir en DNS (NXDOMAIN) y el middleware, con `AUTH_BACKEND=dual`, lo esperaba sin límite en `getUser()` hasta pasar los 25 s de Vercel. Los datos llevaban 54 días en Convex, así que la dependencia ya era innecesaria. Ahora la sesión de Convex se resuelve primero (HMAC local, cero red), toda llamada a Supabase tiene techo de 2.5 s y un fallo al resolver workspaces ya no expulsa a onboarding a un usuario válido. Verificado contra un backend que acepta y nunca responde: de más de 120 s a 2.5 s. Bump 0.7.1.
+
 ### 2026-07-28
 
 - **[2026-07-28-close-unauthenticated-access.md](2026-07-28-close-unauthenticated-access.md)** - Seguridad P0: la base de Convex exponía nueve queries públicas sin auth que permitían volcar cualquier tabla (verificado en vivo: 251 pacientes y 442 tratamientos sin credenciales); los endpoints de voz de Lara no pedían sesión; el booking público despachaba WhatsApp y SMS a destinos arbitrarios con la cuenta de la clínica; y el rate limiting nunca estuvo activo. Cierre con secreto de servidor y rollout expand-and-contract sin downtime, permisos en las rutas de IA, notificación diferida a la confirmación (que además ya no era silenciosa) y cuatro reglas de rate limit en el Firewall de Vercel. Bump 0.7.0.
@@ -164,6 +168,6 @@ Cada entrada sigue la estructura:
 
 ## Stats
 
-- **Total entradas**: 28
-- **Ultima actualizacion**: 2026-07-28
+- **Total entradas**: 29
+- **Ultima actualizacion**: 2026-07-31
 - **Archivos documentados**: 235+

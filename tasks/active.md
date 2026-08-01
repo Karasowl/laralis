@@ -2,6 +2,21 @@
 
 ## En Progreso
 
+- [x] TASK-20260731-middleware-supabase-timeout - Quitar del camino crítico la espera sin límite a Supabase ✅ COMPLETADO 2026-07-31
+  - **Priority**: P0 | **Estimate**: S | **Area**: infra/seguridad
+  - **Status**: ✅ Producción devolvía `504 MIDDLEWARE_INVOCATION_TIMEOUT` en cada carga a los usuarios con sesión. El proyecto de Supabase dejó de resolver en DNS (NXDOMAIN) y `middleware.ts`, con `AUTH_BACKEND=dual`, esperaba a `getUser()` hasta pasar los 25 s de límite de Vercel.
+  - La sesión de Convex se resuelve primero (HMAC local, sin red) y corta el paso por Supabase. Techo de 2.5 s en toda llamada a Supabase. `getAccessibleWorkspacesOrUnknown` distingue "sin workspace" de "no se pudo averiguar" para no expulsar a onboarding a un usuario válido.
+  - **Verificado**: reproducido con un backend que acepta y nunca responde. De más de 120 s (curl abortó) a 307 en 2.5 s con sesión de Supabase, y 200 en 25 ms con sesión de Convex. Typecheck limpio en el archivo.
+  - Ver: `docs/devlog/2026-07-31-fix-middleware-timeout-dead-supabase.md`
+
+- [ ] TASK-20260731-supabase-project-status - Confirmar si el proyecto de Supabase está pausado o eliminado
+  - **Priority**: P0 | **Estimate**: XS | **Area**: infra
+  - **Bloquea**: decidir entre restaurarlo o cerrar el cutover de autenticación a Convex. Si está eliminado, lo único perdido es `auth.users`: datos, escrituras y storage llevan 54 días en Convex, y las credenciales están espejadas (`authBridge:credentialByEmail` devuelve `scrypt:v1` para la cuenta de la doctora).
+
+- [ ] TASK-20260731-middleware-timeout-test - Test automatizado del caso "backend de auth no responde"
+  - **Priority**: P1 | **Estimate**: S | **Area**: testing
+  - Hoy el arreglo del 504 solo está verificado a mano contra un servidor TCP que no contesta. Debe cubrirlo un test que falle si alguien reintroduce una llamada sin techo en el middleware.
+
 - [x] TASK-20260728-close-public-convex-queries - Cerrar las 9 queries publicas de Convex ✅ COMPLETADO 2026-07-28
   - **Priority**: P0 | **Estimate**: M | **Area**: infra/seguridad
   - **Status**: ✅ Desplegado y verificado en prod. `convex/migration.ts` exportaba 9 `query` sin secreto ni `ctx.auth`; con la URL del bundle cualquiera volcaba cualquiera de las 67 tablas espejo. Verificado en vivo antes del fix: 251 pacientes y 442 tratamientos sin credenciales.

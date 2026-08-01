@@ -15,6 +15,14 @@
       "documentation": "Documentación"
     },
     "releases": {
+      "v0_7_1": {
+        "date": "2026-07-31",
+        "title": "Corregido el error 504 al abrir la aplicación",
+        "fixed": [
+          "Entrar a la aplicación con la sesión iniciada devolvía un error 504 GATEWAY_TIMEOUT y no cargaba ninguna pantalla. Uno de los servicios externos de los que dependía el arranque dejó de responder, y la aplicación lo esperaba sin límite en cada carga de página hasta que la petición caducaba.",
+          "Ahora la sesión se valida primero de forma local, sin salir a la red, y cualquier consulta a ese servicio tiene un tiempo máximo de espera. Si vuelve a caerse, la aplicación sigue abriendo."
+        ]
+      },
       "v0_7_0": {
         "date": "2026-07-28",
         "title": "Cierre de accesos no autenticados",
