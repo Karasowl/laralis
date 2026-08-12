@@ -130,6 +130,7 @@ export default function TreatmentsPage() {
     summary,
     filteredSummary,
     pagination,
+    paginationReady,
   } = useTreatments({
     clinicId: currentClinic?.id,
     patientId: patientFilter || undefined,
@@ -162,10 +163,10 @@ export default function TreatmentsPage() {
   const filteredCount = pagination.total
 
   useEffect(() => {
-    if (!loading && pageIndex >= pagination.pageCount) {
+    if (paginationReady && !loading && pageIndex >= pagination.pageCount) {
       setPageIndex(Math.max(0, pagination.pageCount - 1))
     }
-  }, [loading, pageIndex, pagination.pageCount])
+  }, [loading, pageIndex, pagination.pageCount, paginationReady])
 
   // Filter configurations
   const filterConfigs: FilterConfig[] = useMemo(() => [
