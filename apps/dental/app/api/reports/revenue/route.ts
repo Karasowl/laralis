@@ -8,6 +8,8 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { withPermission } from '@/lib/middleware/with-permission'
 import { listConvexDocumentsByClinic } from '@/lib/convex/server'
 import { shouldReturnConvexData } from '@/lib/data-backend'
+import { collectedRevenueCents } from '@/lib/calc/metrics'
+import { formatDateToISO, parseLocalDate } from '@/lib/date-utils'
 
 type ImportedRecord = Record<string, any>
 
@@ -37,7 +39,7 @@ function startOfYear(date: Date) {
 }
 
 function formatISO(date: Date) {
-  return date.toISOString().split('T')[0]
+  return formatDateToISO(date)
 }
 
 export const GET = withPermission('financial_reports.view', async (request, context) => {
@@ -58,8 +60,8 @@ export const GET = withPermission('financial_reports.view', async (request, cont
     let rangeEnd: Date
 
     if (from && to) {
-      rangeStart = new Date(from)
-      rangeEnd = new Date(to)
+      rangeStart = parseLocalDate(from)
+      rangeEnd = parseLocalDate(to)
     } else {
       switch (period) {
         case 'quarter':
@@ -97,13 +99,9 @@ export const GET = withPermission('financial_reports.view', async (request, cont
         return row.status === 'completed' && treatmentDate >= startISO && treatmentDate <= endISO
       })
 
-      const completedPaid = completed.filter((row: any) => {
-        const price = Number(row.price_cents || 0)
-        const paid = Number(row.amount_paid_cents || 0)
-        return price > 0 && (row.is_paid === true || paid >= price)
-      })
+      const completedPaid = completed.filter((row: any) => collectedRevenueCents(row) > 0)
 
-      const totalCents = completedPaid.reduce((sum, row: any) => sum + Number(row.price_cents || 0), 0)
+      const totalCents = completedPaid.reduce((sum, row: any) => sum + collectedRevenueCents(row), 0)
       const count = completedPaid.length
       const averageDailyCents = Math.round(totalCents / days)
 
@@ -134,13 +132,9 @@ export const GET = withPermission('financial_reports.view', async (request, cont
     }
 
     const completed = Array.isArray(treatments) ? treatments : []
-    const completedPaid = completed.filter((row: any) => {
-      const price = Number(row.price_cents || 0)
-      const paid = Number(row.amount_paid_cents || 0)
-      return price > 0 && (row.is_paid === true || paid >= price)
-    })
+    const completedPaid = completed.filter((row: any) => collectedRevenueCents(row) > 0)
 
-    const totalCents = completedPaid.reduce((sum, row: any) => sum + Number(row.price_cents || 0), 0)
+    const totalCents = completedPaid.reduce((sum, row: any) => sum + collectedRevenueCents(row), 0)
     const count = completedPaid.length
 
     const averageDailyCents = Math.round(totalCents / days)

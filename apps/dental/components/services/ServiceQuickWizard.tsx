@@ -152,7 +152,7 @@ export function ServiceQuickWizard({ onDone, onCancel }: WizardProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ work_days: Number(workDays), hours_per_day: Number(hoursPerDay), real_pct: Number(realPct) / 100 })
+        body: JSON.stringify({ work_days: Number(workDays), hours_per_day: Number(hoursPerDay), real_pct: Number(realPct) })
       })
       if (!res.ok) {
         const txt = await res.text()
@@ -405,7 +405,7 @@ export function ServiceQuickWizard({ onDone, onCancel }: WizardProps) {
               <Input type="number" value={minutes} onChange={e => setMinutes(Math.max(1, Number(e.target.value || 0)))} />
             </div>
             <div className="grid gap-2">
-              <Label>Margen %</Label>
+              <Label>Recargo sobre costo %</Label>
               <Input type="number" value={margin} onChange={e => setMargin(Math.max(0, Number(e.target.value || 0)))} />
             </div>
           </div>
@@ -524,7 +524,7 @@ export function ServiceQuickWizard({ onDone, onCancel }: WizardProps) {
             <div className="flex justify-between"><span>Minutos</span><span className="font-medium">{minutes}</span></div>
             <div className="flex justify-between"><span>Costo fijo</span><span className="font-medium">{formatCurrency(fixedCostCents)}</span></div>
             <div className="flex justify-between"><span>Costo variable</span><span className="font-medium">{formatCurrency(variableCostCents)}</span></div>
-            <div className="flex justify-between"><span>Margen</span><span className="font-medium">{margin}%</span></div>
+            <div className="flex justify-between"><span>Recargo sobre costo</span><span className="font-medium">{margin}%</span></div>
             <div className="flex justify-between"><span>Redondeo</span><span className="font-medium">{roundTo}</span></div>
             <div className="flex justify-between text-base"><span>Precio</span><span className="font-semibold">{formatCurrency(priceCents)}</span></div>
           </div>

@@ -5,7 +5,7 @@ import { TrendingUp, TrendingDown } from 'lucide-react'
 
 interface ComparisonIndicatorProps {
   change: number | null
-  trend: 'up' | 'down' | null
+  trend: 'up' | 'down' | 'flat' | null
   comparisonType: 'previous' | 'last-year'
   lowerIsBetter?: boolean
   className?: string
@@ -22,10 +22,13 @@ export function ComparisonIndicator({
 
   if (change === null || trend === null) return null
 
+  const isFlat = trend === 'flat'
   const isPositive = lowerIsBetter ? trend === 'down' : trend === 'up'
   const colorClass = isPositive
     ? 'text-emerald-600 dark:text-emerald-500'
-    : 'text-red-600 dark:text-red-500'
+    : isFlat
+      ? 'text-muted-foreground'
+      : 'text-red-600 dark:text-red-500'
 
   const comparisonLabel = comparisonType === 'last-year'
     ? t('vs_previous_year')
@@ -35,9 +38,9 @@ export function ComparisonIndicator({
     <div className={`flex items-center gap-1 text-sm ${colorClass} ${className}`}>
       {trend === 'up' ? (
         <TrendingUp className="h-4 w-4" />
-      ) : (
+      ) : trend === 'down' ? (
         <TrendingDown className="h-4 w-4" />
-      )}
+      ) : null}
       <span className="font-medium">
         {change >= 0 ? '+' : ''}{change.toFixed(1)}%
       </span>

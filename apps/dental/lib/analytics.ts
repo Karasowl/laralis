@@ -1,3 +1,5 @@
+import { parseLocalDate } from '@/lib/date-utils';
+
 // Lightweight analytics with sendBeacon fallback
 
 export type AnalyticsEventName = 'guard.open' | 'autofix.triggered' | 'unblocked' | 'drawer.open' | 'drawer.apply';
@@ -108,6 +110,8 @@ export interface TreatmentData {
   patient_id: string;
   treatment_date: string;
   price_cents: number;
+  amount_paid_cents?: number;
+  is_paid?: boolean;
   variable_cost_cents: number;
   fixed_per_minute_cents: number;
   minutes: number;
@@ -127,12 +131,14 @@ export interface RevenuePrediction {
   trend: 'increasing' | 'decreasing' | 'stable';
   confidence: number;
   confidence_interval: [number, number];
+  available: boolean;
+  monthsOfData: number;
 }
 
 export interface ServicePerformance {
   service_id: string;
   frequency: number;
-  roi: number;
+  roi: number | null;
   average_margin: number;
 }
 
@@ -158,6 +164,13 @@ export interface PatientInsights {
 export interface OperationalMetrics {
   capacity_utilization: number;
   average_minutes_per_day: number;
+  available_minutes_per_day: number;
+  average_treatment_minutes: number;
+}
+
+export interface BusinessInsightOptions {
+  workingDaysInPeriod?: number;
+  hoursPerDay?: number;
 }
 
 export interface BusinessInsights {
@@ -180,7 +193,9 @@ function toMonthKey(date: Date): string {
 }
 
 function normaliseDate(value: string): Date {
-  const parsed = new Date(value);
+  const parsed = /^\d{4}-\d{2}-\d{2}(?:$|T)/.test(value)
+    ? parseLocalDate(value.slice(0, 10))
+    : new Date(value);
   return Number.isNaN(parsed.getTime()) ? new Date(0) : parsed;
 }
 
@@ -194,8 +209,10 @@ function emptyPrediction(): RevenuePrediction {
   return {
     predictedValue: 0,
     trend: 'stable',
-    confidence: 0.5,
+    confidence: 0,
     confidence_interval: [0, 0],
+    available: false,
+    monthsOfData: 0,
   };
 }
 
@@ -223,6 +240,11 @@ function calculateRevenuePredictions(treatments: TreatmentData[]): BusinessInsig
     .map(([key, stats]) => ({ key, ...stats, date: new Date(`${key}-01`) }))
     .sort((a, b) => a.date.getTime() - b.date.getTime());
 
+  if (ordered.length < 3) {
+    const unavailable = { ...emptyPrediction(), monthsOfData: ordered.length };
+    return { next_month: unavailable, next_quarter: unavailable, year_end: unavailable };
+  }
+
   const latest = ordered.at(-1);
   const previous = ordered.at(-2);
   const trend = (() => {
@@ -233,7 +255,6 @@ function calculateRevenuePredictions(treatments: TreatmentData[]): BusinessInsig
   })();
 
   const latestRevenue = latest?.revenue ?? 0;
-  const previousRevenue = previous?.revenue ?? latestRevenue;
   const avgRevenue = ordered.reduce((sum, row) => sum + row.revenue, 0) / Math.max(1, ordered.length);
   const totalCount = ordered.reduce((sum, row) => sum + row.count, 0);
   const confidence = clampPercentage(0.4 + Math.min(totalCount, 50) / 100);
@@ -246,6 +267,8 @@ function calculateRevenuePredictions(treatments: TreatmentData[]): BusinessInsig
       Math.max(0, Math.round((latestRevenue || avgRevenue) - baseInterval)),
       Math.round((latestRevenue || avgRevenue) + baseInterval),
     ],
+    available: true,
+    monthsOfData: ordered.length,
   };
 
   const quarterlyRevenue = Math.round(avgRevenue * 3);
@@ -258,6 +281,8 @@ function calculateRevenuePredictions(treatments: TreatmentData[]): BusinessInsig
       Math.max(0, quarterlyRevenue - quarterlyInterval),
       quarterlyRevenue + quarterlyInterval,
     ],
+    available: true,
+    monthsOfData: ordered.length,
   };
 
   const currentMonth = latest?.date ?? new Date();
@@ -272,6 +297,8 @@ function calculateRevenuePredictions(treatments: TreatmentData[]): BusinessInsig
       Math.max(0, yearEndRevenue - yearInterval),
       yearEndRevenue + yearInterval,
     ],
+    available: true,
+    monthsOfData: ordered.length,
   };
 
   return {
@@ -292,9 +319,10 @@ function calculateServiceInsights(treatments: TreatmentData[]): BusinessInsights
     lastDate?: Date;
   }>();
 
-  const now = new Date();
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+  const validDates = treatments.map(treatment => normaliseDate(treatment.treatment_date)).filter(date => date.getTime() > 0);
+  const periodStart = validDates.length ? new Date(Math.min(...validDates.map(date => date.getTime()))) : new Date(0);
+  const periodEnd = validDates.length ? new Date(Math.max(...validDates.map(date => date.getTime()))) : new Date(0);
+  const periodMidpoint = new Date(periodStart.getTime() + ((periodEnd.getTime() - periodStart.getTime()) / 2));
 
   for (const treatment of treatments) {
     const date = normaliseDate(treatment.treatment_date);
@@ -316,9 +344,9 @@ function calculateServiceInsights(treatments: TreatmentData[]): BusinessInsights
     entry.cost += cost;
     entry.profit += profit;
     entry.frequency += 1;
-    if (date >= thirtyDaysAgo) {
+    if (date > periodMidpoint) {
       entry.recent += 1;
-    } else if (date >= sixtyDaysAgo) {
+    } else {
       entry.previous += 1;
     }
     entry.lastDate = entry.lastDate && entry.lastDate > date ? entry.lastDate : date;
@@ -327,19 +355,18 @@ function calculateServiceInsights(treatments: TreatmentData[]): BusinessInsights
 
   const mostProfitable: ServicePerformance[] = Array.from(byService.entries())
     .map(([service_id, stats]) => {
-      const roiBase = stats.cost <= 0 ? (stats.profit > 0 ? 1 : 0) : stats.profit / stats.cost;
-      const roi = Math.round(roiBase * 1000) / 10;
+      const roi = stats.cost > 0 ? Math.round((stats.profit / stats.cost) * 1000) / 10 : null;
       const averageMargin = stats.frequency ? Math.round((stats.profit / stats.frequency)) : 0;
       return { service_id, frequency: stats.frequency, roi, average_margin: averageMargin };
     })
-    .sort((a, b) => b.roi - a.roi)
+    .sort((a, b) => (b.roi ?? Number.NEGATIVE_INFINITY) - (a.roi ?? Number.NEGATIVE_INFINITY))
     .slice(0, 10);
 
   const growthOpportunities: ServiceGrowthOpportunity[] = Array.from(byService.entries())
     .filter(([, stats]) => stats.profit > 0)
     .map(([service_id, stats]) => ({
       service_id,
-      potential_revenue: Math.max(0, Math.round((stats.profit / Math.max(1, stats.frequency)) * 5)),
+      potential_revenue: Math.max(0, Math.round(stats.profit / Math.max(1, stats.frequency))),
       frequency: stats.frequency,
       average_margin: stats.frequency ? Math.round(stats.profit / stats.frequency) : 0,
     }))
@@ -384,13 +411,7 @@ function calculatePatientInsights(treatments: TreatmentData[], patients: Patient
   const repeatPatients = Array.from(byPatient.values()).filter(patient => patient.treatments > 1).length;
   const retentionRate = clampPercentage(repeatPatients / Math.max(1, byPatient.size));
 
-  const now = new Date();
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  let newPatients = 0;
-  for (const patient of byPatient.values()) {
-    if (patient.firstDate >= thirtyDaysAgo) newPatients += 1;
-  }
-  const acquisitionRate = newPatients;
+  const acquisitionRate = patients.length;
 
   return {
     lifetime_value: lifetimeValue,
@@ -399,9 +420,18 @@ function calculatePatientInsights(treatments: TreatmentData[], patients: Patient
   };
 }
 
-function calculateOperationalMetrics(treatments: TreatmentData[]): OperationalMetrics {
+function calculateOperationalMetrics(
+  treatments: TreatmentData[],
+  options: BusinessInsightOptions = {}
+): OperationalMetrics {
+  const availableMinutesPerDay = Math.max(0, Number(options.hoursPerDay || 0) * 60);
   if (!treatments.length) {
-    return { capacity_utilization: 0, average_minutes_per_day: 0 };
+    return {
+      capacity_utilization: 0,
+      average_minutes_per_day: 0,
+      available_minutes_per_day: availableMinutesPerDay,
+      average_treatment_minutes: 0,
+    };
   }
   const minutesByDay = new Map<string, number>();
   for (const treatment of treatments) {
@@ -411,20 +441,23 @@ function calculateOperationalMetrics(treatments: TreatmentData[]): OperationalMe
     minutesByDay.set(key, current + (treatment.minutes || 0));
   }
   const totalMinutes = Array.from(minutesByDay.values()).reduce((sum, minutes) => sum + minutes, 0);
-  const activeDays = Math.max(1, minutesByDay.size);
-  const averageMinutesPerDay = totalMinutes / activeDays;
-  const theoreticalCapacityPerDay = 8 * 60;
-  const utilization = clampPercentage(averageMinutesPerDay / theoreticalCapacityPerDay);
+  const workingDays = Math.max(1, Number(options.workingDaysInPeriod || minutesByDay.size));
+  const averageMinutesPerDay = totalMinutes / workingDays;
+  const utilization = availableMinutesPerDay > 0
+    ? clampPercentage(totalMinutes / (workingDays * availableMinutesPerDay))
+    : 0;
   return {
     capacity_utilization: utilization,
     average_minutes_per_day: Math.round(averageMinutesPerDay),
+    available_minutes_per_day: availableMinutesPerDay,
+    average_treatment_minutes: Math.round(totalMinutes / treatments.length),
   };
 }
 
 export function calculateKPIs(
   treatments: TreatmentData[],
   patients: PatientData[],
-  options?: { daysInPeriod?: number; totalPatients?: number }
+  options?: { daysInPeriod?: number; workingDaysInPeriod?: number; totalPatients?: number }
 ): {
   avgTreatmentValue: number;
   avgMargin: number;
@@ -433,23 +466,14 @@ export function calculateKPIs(
   treatmentCount: number;
   totalTreatments: number;
 } {
-  if (!treatments.length) {
-    return {
-      avgTreatmentValue: 0,
-      avgMargin: 0,
-      avgPatientsPerDay: 0,
-      avgNewPatientsPerDay: 0,
-      treatmentCount: 0,
-      totalTreatments: 0
-    };
-  }
-
   const completed = treatments.filter(treatment => treatment.status === 'completed');
   const totalRevenue = completed.reduce((sum, treatment) => sum + (treatment.price_cents || 0), 0);
-  const totalMargin = completed.reduce((sum, treatment) => sum + (treatment.margin_pct || 0), 0);
+  const totalCost = completed.reduce((sum, treatment) => sum
+    + (treatment.variable_cost_cents || 0)
+    + ((treatment.fixed_per_minute_cents || 0) * (treatment.minutes || 0)), 0);
   const treatmentCount = completed.length;
   const avgTreatmentValue = Math.round(totalRevenue / Math.max(1, treatmentCount));
-  const avgMargin = treatmentCount ? totalMargin / treatmentCount : 0;
+  const avgMargin = totalRevenue > 0 ? ((totalRevenue - totalCost) / totalRevenue) * 100 : 0;
 
   // avgPatientsPerDay = unique patients SEEN (with completed treatment) in the period / days
   // This is the ratio the break-even comparison expects and matches the card label "Current Patients / Pacientes Actuales".
@@ -459,10 +483,11 @@ export function calculateKPIs(
   let avgPatientsPerDay = 0;
   let avgNewPatientsPerDay = 0;
 
-  if (options?.daysInPeriod && options.daysInPeriod > 0) {
-    avgPatientsPerDay = uniqueSeenPatients.size / options.daysInPeriod;
+  const divisorDays = options?.workingDaysInPeriod || options?.daysInPeriod;
+  if (divisorDays && divisorDays > 0) {
+    avgPatientsPerDay = uniqueSeenPatients.size / divisorDays;
     const newPatientsInPeriod = options.totalPatients ?? patients.length;
-    avgNewPatientsPerDay = newPatientsInPeriod / options.daysInPeriod;
+    avgNewPatientsPerDay = newPatientsInPeriod / divisorDays;
   } else {
     const activeDays = new Set<string>();
     for (const treatment of completed) {
@@ -483,7 +508,11 @@ export function calculateKPIs(
   };
 }
 
-export function generateBusinessInsights(treatments: TreatmentData[], patients: PatientData[]): BusinessInsights {
+export function generateBusinessInsights(
+  treatments: TreatmentData[],
+  patients: PatientData[],
+  options: BusinessInsightOptions = {}
+): BusinessInsights {
   if (!treatments.length) {
     return {
       revenue_predictions: {
@@ -496,8 +525,13 @@ export function generateBusinessInsights(treatments: TreatmentData[], patients: 
         growth_opportunities: [],
         declining_services: [],
       },
-      patient_insights: { lifetime_value: 0, retention_rate: 0, acquisition_rate: 0 },
-      operational_metrics: { capacity_utilization: 0, average_minutes_per_day: 0 },
+      patient_insights: calculatePatientInsights([], patients),
+      operational_metrics: {
+        capacity_utilization: 0,
+        average_minutes_per_day: 0,
+        available_minutes_per_day: Math.max(0, Number(options.hoursPerDay || 0) * 60),
+        average_treatment_minutes: 0,
+      },
     };
   }
 
@@ -507,6 +541,6 @@ export function generateBusinessInsights(treatments: TreatmentData[], patients: 
     revenue_predictions: calculateRevenuePredictions(completedTreatments),
     service_analysis: calculateServiceInsights(completedTreatments),
     patient_insights: calculatePatientInsights(completedTreatments, patients),
-    operational_metrics: calculateOperationalMetrics(completedTreatments),
+    operational_metrics: calculateOperationalMetrics(completedTreatments, options),
   };
 }

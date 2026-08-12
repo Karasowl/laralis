@@ -35,6 +35,8 @@ export interface ProfitBenchmarks {
 
 export interface ProfitAnalysisData {
   revenue_cents: number
+  billed_revenue_cents: number
+  accounts_receivable_cents: number
   costs: ProfitCosts
   profits: ProfitMetrics
   benchmarks: ProfitBenchmarks

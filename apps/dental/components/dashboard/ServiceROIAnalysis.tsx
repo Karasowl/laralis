@@ -1,6 +1,5 @@
 'use client'
 
-import { useMemo } from 'react'
 import { useTranslations } from 'next-intl'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -18,6 +17,7 @@ interface ServiceROIAnalysisProps {
 
 export function ServiceROIAnalysis({ data, loading = false }: ServiceROIAnalysisProps) {
   const t = useTranslations('dashboardComponents.serviceROI')
+  const formatRoi = (value: number | null) => value === null ? t('noCostBasis') : `${value}%`
 
   const getCategoryIcon = (category: ServiceROI['category']) => {
     switch (category) {
@@ -131,7 +131,7 @@ export function ServiceROIAnalysis({ data, loading = false }: ServiceROIAnalysis
                 {t('summary.avgROI')}
               </p>
             </MetricTooltip>
-            <p className="text-base sm:text-lg lg:text-2xl font-bold tabular-nums">{data.totals.avg_roi_percentage}%</p>
+            <p className="text-base sm:text-lg lg:text-2xl font-bold tabular-nums">{formatRoi(data.totals.avg_roi_percentage)}</p>
           </CardContent>
         </Card>
 
@@ -143,7 +143,7 @@ export function ServiceROIAnalysis({ data, loading = false }: ServiceROIAnalysis
             <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide mb-1">
               {t('summary.period')}
             </p>
-            <p className="text-xs sm:text-sm font-semibold">{t('summary.lastDays', { days: 30 })}</p>
+            <p className="text-xs sm:text-sm font-semibold">{data.period_start} a {data.period_end}</p>
           </CardContent>
         </Card>
       </div>
@@ -211,7 +211,7 @@ export function ServiceROIAnalysis({ data, loading = false }: ServiceROIAnalysis
                             {formatCurrency(service.total_profit_cents)}
                           </span>
                           <Badge variant="outline" className="text-xs">
-                            ROI: {service.roi_percentage}%
+                            ROI: {formatRoi(service.roi_percentage)}
                           </Badge>
                         </div>
                       </div>
@@ -367,7 +367,7 @@ export function ServiceROIAnalysis({ data, loading = false }: ServiceROIAnalysis
                     <div key={service.service_id} className="text-sm">
                       <p className="font-semibold">{service.service_name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {service.total_sales} {t('matrix.sales')} • ROI: {service.roi_percentage}%
+                        {service.total_sales} {t('matrix.sales')} • ROI: {formatRoi(service.roi_percentage)}
                       </p>
                     </div>
                   ))}
@@ -427,7 +427,7 @@ export function ServiceROIAnalysis({ data, loading = false }: ServiceROIAnalysis
                             {service.service_name}
                           </p>
                           <div className="space-y-1 text-sm text-red-800 dark:text-red-400">
-                            <p>• ROI: {service.roi_percentage}% ({t('opportunities.belowExpected')})</p>
+                            <p>• ROI: {service.roi_percentage === null ? t('noCostBasis') : `${service.roi_percentage}% (${t('opportunities.belowExpected')})`}</p>
                             <p>• {t('opportunities.profitPerSale')}: {formatCurrency(service.avg_profit_per_sale_cents)}</p>
                             <p className="font-semibold mt-2">💡 {t('opportunities.suggestion')}: {t('opportunities.reviewPricing')}</p>
                           </div>

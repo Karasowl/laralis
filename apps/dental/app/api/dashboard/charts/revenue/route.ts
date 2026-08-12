@@ -4,7 +4,8 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { resolveClinicContext } from '@/lib/clinic'
 import { startOfWeek, format, addDays } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { parseLocalDate } from '@/lib/date-utils'
+import { formatDateToISO, parseLocalDate } from '@/lib/date-utils'
+import { collectedRevenueCents } from '@/lib/calc/metrics'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
 import { listConvexDocumentsByClinic } from '@/lib/convex/server';
 import { shouldReturnConvexData } from '@/lib/data-backend';
@@ -37,10 +38,10 @@ function monthLabelEs(monthIndex: number) {
 
 function formatLabel(key: string, granularity: string): string {
   if (granularity === 'day') {
-    const date = new Date(key)
+    const date = parseLocalDate(key)
     return format(date, 'd MMM', { locale: es })
   } else if (granularity === 'week') {
-    const date = new Date(key)
+    const date = parseLocalDate(key)
     const endDate = addDays(date, 6)
     return `${format(date, 'd MMM', { locale: es })}`
   } else if (granularity === 'biweek') {
@@ -86,8 +87,8 @@ export async function GET(request: NextRequest) {
     let start: Date
     let end: Date
     if (dateFrom && dateTo) {
-      start = new Date(dateFrom)
-      end = new Date(dateTo)
+      start = parseLocalDate(dateFrom)
+      end = parseLocalDate(dateTo)
       end.setHours(23, 59, 59, 999)
     } else if (granularity === 'day') {
       // Last 30 days for daily view
@@ -112,8 +113,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch completed treatments (revenue)
-    const startISO = start.toISOString().split('T')[0]
-    const endISO = end.toISOString().split('T')[0]
+    const startISO = formatDateToISO(start)
+    const endISO = formatDateToISO(end)
 
     let treatments: any[] = []
     let expenses: any[] = []
@@ -134,7 +135,7 @@ export async function GET(request: NextRequest) {
     } else {
       const { data: treatmentRows, error: tErr } = await supabaseAdmin
         .from('treatments')
-        .select('price_cents, treatment_date, status')
+        .select('price_cents, amount_paid_cents, is_paid, treatment_date, status')
         .eq('clinic_id', clinicId)
         .eq('status', 'completed')
         .gte('treatment_date', startISO)
@@ -146,8 +147,8 @@ export async function GET(request: NextRequest) {
         .from('expenses')
         .select('amount_cents, expense_date')
         .eq('clinic_id', clinicId)
-        .gte('expense_date', start.toISOString().split('T')[0])
-        .lte('expense_date', end.toISOString().split('T')[0])
+        .gte('expense_date', startISO)
+        .lte('expense_date', endISO)
 
       if (eErr) throw eErr
       treatments = treatmentRows || []
@@ -203,7 +204,7 @@ export async function GET(request: NextRequest) {
       const d = parseLocalDate(t.treatment_date as string)
       if (Number.isNaN(d.getTime())) continue
       const k = getKeyForDate(d)
-      if (k in revenueByPeriod) revenueByPeriod[k] += (t.price_cents || 0)
+      if (k in revenueByPeriod) revenueByPeriod[k] += collectedRevenueCents(t)
     }
 
     for (const ex of expenses) {

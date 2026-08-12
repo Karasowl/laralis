@@ -26,7 +26,7 @@ interface ApiCampaign {
   investmentCents: number;
   revenueCents: number;
   patientsCount: number;
-  roi: number;
+  roi: number | null;
   avgRevenuePerPatientCents: number;
   status: 'active' | 'inactive' | 'archived';
 }

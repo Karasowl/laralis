@@ -17,7 +17,7 @@ describe('DashboardAggregator patient metrics', () => {
       new: 3,
       attended: 27,
       active: 44,
-      change: 0,
+      change: null,
     })
   })
 

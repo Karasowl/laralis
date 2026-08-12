@@ -11,7 +11,7 @@ import Link from 'next/link'
 
 interface ChannelData {
   channel: string
-  roi: number // ROI percentage
+  roi: number | null // ROI percentage, null without investment basis
   spent_cents: number
   revenue_cents: number
   patients: number
@@ -67,10 +67,13 @@ export function ChannelROIChart({ data, loading, isEmpty }: ChannelROIChartProps
   }
 
   // Sort by ROI descending
-  const sortedData = [...data].sort((a, b) => b.roi - a.roi)
+  const sortedData = [...data].sort(
+    (a, b) => (b.roi ?? Number.NEGATIVE_INFINITY) - (a.roi ?? Number.NEGATIVE_INFINITY)
+  )
 
   // Get color based on ROI performance
-  const getBarColor = (roi: number) => {
+  const getBarColor = (roi: number | null) => {
+    if (roi === null) return 'hsl(var(--muted-foreground))'
     if (roi >= 200) return 'hsl(142 76% 36%)' // Emerald - excellent
     if (roi >= 100) return 'hsl(217 91% 60%)' // Blue - good
     if (roi >= 50) return 'hsl(38 92% 50%)' // Amber - acceptable
@@ -78,8 +81,11 @@ export function ChannelROIChart({ data, loading, isEmpty }: ChannelROIChartProps
   }
 
   // Find best and worst channels
-  const bestChannel = sortedData[0]
-  const worstChannel = sortedData[sortedData.length - 1]
+  const comparableChannels = sortedData.filter(
+    (channel): channel is ChannelData & { roi: number } => channel.roi !== null
+  )
+  const bestChannel = comparableChannels[0]
+  const worstChannel = comparableChannels[comparableChannels.length - 1]
 
   return (
     <Card data-testid="channel-roi-chart-card">
@@ -127,7 +133,7 @@ export function ChannelROIChart({ data, loading, isEmpty }: ChannelROIChartProps
                       <div data-testid="channel-roi-tooltip" className="bg-card p-3 border border-border rounded-lg shadow-lg">
                         <p className="font-medium text-foreground mb-2">{label}</p>
                         <div className="space-y-1">
-                          <p className="text-sm font-medium">ROI: {payload[0].value.toFixed(0)}%</p>
+                          <p className="text-sm font-medium">ROI: {payload[0].value === null ? tCommon('notAvailable') : `${payload[0].value.toFixed(0)}%`}</p>
                           <p className="text-xs text-muted-foreground">{t('spent')}: {formatCurrency(channel.spent_cents)}</p>
                           <p className="text-xs text-muted-foreground">{t('revenue')}: {formatCurrency(channel.revenue_cents)}</p>
                           <p className="text-xs text-muted-foreground">{t('patients')}: {channel.patients}</p>
@@ -176,10 +182,10 @@ export function ChannelROIChart({ data, loading, isEmpty }: ChannelROIChartProps
                 </div>
                 <div className="text-right">
                   <Badge
-                    variant={channel.roi >= 100 ? "default" : "outline"}
-                    className={channel.roi >= 200 ? 'bg-emerald-500' : ''}
+                    variant={channel.roi !== null && channel.roi >= 100 ? "default" : "outline"}
+                    className={channel.roi !== null && channel.roi >= 200 ? 'bg-emerald-500' : ''}
                   >
-                    {channel.roi.toFixed(0)}% ROI
+                    {channel.roi === null ? tCommon('notAvailable') : `${channel.roi.toFixed(0)}% ROI`}
                   </Badge>
                 </div>
               </div>
@@ -188,7 +194,7 @@ export function ChannelROIChart({ data, loading, isEmpty }: ChannelROIChartProps
         </div>
 
         {/* Insights */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t">
+        {bestChannel && worstChannel && <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t">
           <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20">
             <div className="flex items-center gap-2 mb-2">
               <TrendingUp className="h-4 w-4 text-emerald-600" />
@@ -218,7 +224,7 @@ export function ChannelROIChart({ data, loading, isEmpty }: ChannelROIChartProps
               {worstChannel.roi.toFixed(0)}% ROI · {t('optimize_message')}
             </p>
           </div>
-        </div>
+        </div>}
       </CardContent>
     </Card>
   )

@@ -21,7 +21,7 @@ export interface ChannelROIData {
   revenueCents: number
   investmentCents: number
   roi: {
-    value: number
+    value: number | null
     formatted: string
   }
 }

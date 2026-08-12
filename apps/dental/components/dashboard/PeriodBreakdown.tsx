@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { calculatePercentageChange } from '@/lib/calc/metrics'
 import { Granularity } from './DateFilterBar'
 
 interface PeriodData {
@@ -133,9 +134,7 @@ export function PeriodBreakdown({
         <div className="space-y-3">
           {data.current.map((item, index) => {
             const previousValue = data.previous?.[index]?.value || 0
-            const itemChange = previousValue > 0
-              ? ((item.value - previousValue) / previousValue) * 100
-              : 0
+            const itemChange = calculatePercentageChange(item.value, previousValue)
 
             return (
               <div key={item.date} className="space-y-1">
@@ -143,7 +142,7 @@ export function PeriodBreakdown({
                   <span className="font-medium text-foreground">{item.label}</span>
                   <div className="flex items-center gap-2">
                     <span className="font-bold">{valueFormatter(item.value)}</span>
-                    {showComparison && previousValue > 0 && itemChange !== 0 && (
+                    {showComparison && itemChange !== null && itemChange !== 0 && (
                       <Badge
                         variant="outline"
                         className={cn(

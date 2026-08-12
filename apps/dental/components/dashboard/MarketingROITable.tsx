@@ -29,7 +29,7 @@ export interface CampaignROI {
   investmentCents: number
   revenueCents: number
   patientsCount: number
-  roi: number // Percentage
+  roi: number | null // Percentage, null without investment basis
   avgRevenuePerPatientCents: number
   status: 'active' | 'paused' | 'completed'
 }
@@ -54,7 +54,7 @@ export function MarketingROITable({
       return {
         totalInvestment: 0,
         totalRevenue: 0,
-        totalROI: 0,
+        totalROI: null,
         bestCampaign: null,
         worstCampaign: null
       }
@@ -62,9 +62,12 @@ export function MarketingROITable({
 
     const investment = campaigns.reduce((sum, c) => sum + c.investmentCents, 0)
     const revenue = campaigns.reduce((sum, c) => sum + c.revenueCents, 0)
-    const roi = investment > 0 ? ((revenue - investment) / investment) * 100 : 0
+    const roi = investment > 0 ? ((revenue - investment) / investment) * 100 : null
 
-    const sorted = [...campaigns].sort((a, b) => b.roi - a.roi)
+    const comparableCampaigns = campaigns.filter(
+      (campaign): campaign is CampaignROI & { roi: number } => campaign.roi !== null
+    )
+    const sorted = [...comparableCampaigns].sort((a, b) => b.roi - a.roi)
 
     return {
       totalInvestment: investment,
@@ -75,14 +78,16 @@ export function MarketingROITable({
     }
   }, [campaigns])
 
-  const getROIColor = (roi: number) => {
+  const getROIColor = (roi: number | null) => {
+    if (roi === null) return 'text-muted-foreground'
     if (roi >= 200) return 'text-emerald-600'
     if (roi >= 100) return 'text-green-600'
     if (roi >= 0) return 'text-blue-600'
     return 'text-red-600'
   }
 
-  const getROIBadgeVariant = (roi: number) => {
+  const getROIBadgeVariant = (roi: number | null) => {
+    if (roi === null) return 'outline'
     if (roi >= 200) return 'default'
     if (roi >= 100) return 'secondary'
     return 'outline'
@@ -170,7 +175,7 @@ export function MarketingROITable({
               {t('totalROI')}
             </div>
             <p className={cn('text-lg font-bold', getROIColor(totalROI))}>
-              {totalROI.toFixed(1)}%
+              {totalROI === null ? t('noInvestmentBasis') : `${totalROI.toFixed(1)}%`}
             </p>
           </div>
         </div>
@@ -216,12 +221,12 @@ export function MarketingROITable({
                       variant={getROIBadgeVariant(campaign.roi)}
                       className={cn('gap-1', getROIColor(campaign.roi))}
                     >
-                      {campaign.roi > 0 ? (
+                      {campaign.roi === null ? null : campaign.roi > 0 ? (
                         <TrendingUp className="h-3 w-3" />
                       ) : (
                         <TrendingDown className="h-3 w-3" />
                       )}
-                      {campaign.roi.toFixed(0)}%
+                      {campaign.roi === null ? t('noInvestmentBasis') : `${campaign.roi.toFixed(0)}%`}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -271,12 +276,12 @@ export function MarketingROITable({
                     variant={getROIBadgeVariant(campaign.roi)}
                     className={cn('text-[10px] gap-0.5', getROIColor(campaign.roi))}
                   >
-                    {campaign.roi > 0 ? (
+                    {campaign.roi === null ? null : campaign.roi > 0 ? (
                       <TrendingUp className="h-2.5 w-2.5" />
                     ) : (
                       <TrendingDown className="h-2.5 w-2.5" />
                     )}
-                    {campaign.roi.toFixed(0)}%
+                    {campaign.roi === null ? t('noInvestmentBasis') : `${campaign.roi.toFixed(0)}%`}
                   </Badge>
                 </div>
               </div>

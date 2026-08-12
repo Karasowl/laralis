@@ -356,7 +356,13 @@ export default function InsightsPage() {
     }
   }, [filterPeriod, t])
 
-  const isLoading = (dashboardLoading && !mounted) || reportsLoading
+  const isLoading = dashboardLoading || reportsLoading || equilibriumLoading || profitAnalysisLoading || plannedVsActualLoading
+  const isCurrentCalendarMonth = useMemo(() => {
+    const now = new Date()
+    const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
+    const monthEnd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()).padStart(2, '0')}`
+    return currentRange?.from === monthStart && currentRange?.to === monthEnd
+  }, [currentRange?.from, currentRange?.to])
 
   // Dashboard filter configurations for SmartFilters
   const dashboardFilterConfigs: FilterConfig[] = useMemo(() => [
@@ -583,7 +589,7 @@ export default function InsightsPage() {
                 )}
 
                 {/* Break-Even Progress - Compact hero card at top */}
-                {!equilibriumLoading && equilibriumData && equilibriumData.monthlyTargetCents > 0 && (
+                {isCurrentCalendarMonth && equilibriumData && equilibriumData.monthlyTargetCents > 0 && (
                   <BreakEvenProgress
                     monthlyTargetCents={equilibriumData.monthlyTargetCents}
                     monthlyGoalCents={timeSettings?.monthly_goal_cents}
@@ -606,11 +612,8 @@ export default function InsightsPage() {
                       title={getPeriodLabels.revenue}
                       value={formatCurrency(metrics.revenue.current)}
                       valueInCents={metrics.revenue.current}
-                      change={metrics.revenue.change}
-                      changeType={metrics.revenue.change > 0 ? 'increase' : metrics.revenue.change < 0 ? 'decrease' : 'neutral'}
                       icon={DollarSign}
                       color="text-green-600"
-                      subtitle={getPeriodLabels.comparison}
                     />
                     {comparisonData?.revenue && (
                       <ComparisonIndicator
@@ -627,12 +630,9 @@ export default function InsightsPage() {
                       title={getPeriodLabels.expenses}
                       value={formatCurrency(metrics.expenses.current)}
                       valueInCents={metrics.expenses.current}
-                      change={metrics.expenses.change}
-                      changeType={metrics.expenses.change > 0 ? 'increase' : metrics.expenses.change < 0 ? 'decrease' : 'neutral'}
                       lowerIsBetter
                       icon={Receipt}
                       color="text-destructive"
-                      subtitle={getPeriodLabels.comparison}
                     />
                     {comparisonData?.expenses && (
                       <ComparisonIndicator
@@ -649,8 +649,6 @@ export default function InsightsPage() {
                     <MetricCard
                       title={t('attended_patients')}
                       value={metrics.patients.attended}
-                      change={metrics.patients.change}
-                      changeType={metrics.patients.change > 0 ? 'increase' : metrics.patients.change < 0 ? 'decrease' : 'neutral'}
                       icon={Users}
                       color="text-primary"
                       subtitle={`${metrics.patients.new} ${getPeriodLabels.newPatients}`}
@@ -733,7 +731,7 @@ export default function InsightsPage() {
                     pacientesActualesPorDia={kpis.avgPatientsPerDay || 0}
                     nuevosPacientesPorDia={kpis.avgNewPatientsPerDay ?? 0}
                     gananciaNetaCents={profitAnalysis?.profits.net_profit_cents || (metrics.revenue.current - metrics.expenses.current)}
-                    gananciaNetaChange={profitAnalysis ? undefined : (metrics.revenue.change - metrics.expenses.change)}
+                    gananciaNetaChange={undefined}
                     workDays={equilibriumData.workDays}
                     monthlyTargetCents={equilibriumData.monthlyTargetCents}
                     daysElapsed={equilibriumData.elapsedDays}
@@ -759,6 +757,8 @@ export default function InsightsPage() {
                   {!profitAnalysisLoading && profitAnalysis && (
                     <ProfitBreakdownCard
                       revenueCents={profitAnalysis.revenue_cents}
+                      billedRevenueCents={profitAnalysis.billed_revenue_cents}
+                      accountsReceivableCents={profitAnalysis.accounts_receivable_cents}
                       expensesCents={profitAnalysis.costs.expenses_cents}
                       netProfitCents={profitAnalysis.profits.real_profit_cents}
                       netMarginPct={profitAnalysis.profits.real_margin_pct}

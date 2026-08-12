@@ -20,6 +20,8 @@ import { cn } from '@/lib/utils'
 
 interface ProfitBreakdownCardProps {
   revenueCents: number
+  billedRevenueCents?: number
+  accountsReceivableCents?: number
   expensesCents: number           // Registered expenses from expenses table
   netProfitCents: number          // Real profit = revenue - expenses
   netMarginPct?: number
@@ -141,6 +143,8 @@ function BreakdownLine({
 
 export function ProfitBreakdownCard({
   revenueCents,
+  billedRevenueCents = revenueCents,
+  accountsReceivableCents = 0,
   expensesCents,
   netProfitCents,
   netMarginPct,
@@ -176,11 +180,11 @@ export function ProfitBreakdownCard({
   const isBreakEven = netProfitCents === 0
 
   // Calculate gross profit (revenue - variable costs only)
-  const grossProfitCents = revenueCents - variableCostsCents
+  const grossProfitCents = billedRevenueCents - variableCostsCents
 
   // Calculate theoretical total costs
   const theoreticalTotalCostsCents = variableCostsCents + fixedCostsCents + depreciationCents
-  const calculatedTheoreticalProfitCents = revenueCents - theoreticalTotalCostsCents
+  const calculatedTheoreticalProfitCents = billedRevenueCents - theoreticalTotalCostsCents
 
   return (
     <Card className={cn(
@@ -233,6 +237,15 @@ export function ProfitBreakdownCard({
           amountCents={revenueCents}
           icon={<DollarSign className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
         />
+
+        {accountsReceivableCents > 0 && (
+          <BreakdownLine
+            label={t('accountsReceivable')}
+            subtitle={t('accountsReceivableSubtitle')}
+            amountCents={accountsReceivableCents}
+            icon={<AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />}
+          />
+        )}
 
         {/* Variable Costs (if available) */}
         {variableCostsCents > 0 && (

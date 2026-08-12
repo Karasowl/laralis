@@ -240,7 +240,7 @@ export interface ExpenseStats {
     planned: number
     actual: number
     variance: number
-    variance_percentage: number
+    variance_percentage: number | null
   }
 }
 

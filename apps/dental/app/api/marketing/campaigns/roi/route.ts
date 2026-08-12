@@ -6,6 +6,7 @@ import { forbiddenIfMissingPermission } from '@/lib/permissions';
 import { verifyClinicAccess } from '@/lib/auth/verify-clinic-access';
 import { listConvexDocumentsByClinic, listConvexTable } from '@/lib/convex/server';
 import { shouldReturnConvexData } from '@/lib/data-backend';
+import { collectedRevenueCents } from '@/lib/calc/metrics';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +25,7 @@ interface CampaignROI {
   investmentCents: number;
   revenueCents: number;
   patientsCount: number;
-  roi: number;
+  roi: number | null;
   avgRevenuePerPatientCents: number;
   status: 'active' | 'inactive' | 'archived';
 }
@@ -35,7 +36,7 @@ interface CampaignROIResponse {
     totalInvestmentCents: number;
     totalRevenueCents: number;
     totalPatientsCount: number;
-    averageROI: number;
+    averageROI: number | null;
     totalCampaigns: number;
   };
 }
@@ -74,7 +75,7 @@ async function getCampaignROIFromConvex(
         totalInvestmentCents: 0,
         totalRevenueCents: 0,
         totalPatientsCount: 0,
-        averageROI: 0,
+        averageROI: null,
         totalCampaigns: 0,
       },
     };
@@ -127,7 +128,7 @@ async function getCampaignROIFromConvex(
     if (!revenueByCampaign[patient.campaign_id]) {
       revenueByCampaign[patient.campaign_id] = 0;
     }
-    revenueByCampaign[patient.campaign_id] += treatment.price_cents || 0;
+    revenueByCampaign[patient.campaign_id] += collectedRevenueCents(treatment);
 
     if (!patientsWithTreatmentsByCampaign[patient.campaign_id]) {
       patientsWithTreatmentsByCampaign[patient.campaign_id] = new Set();
@@ -162,10 +163,9 @@ async function getCampaignROIFromConvex(
     const revenueCents = revenueByCampaign[campaign.id] || 0;
     const patientsCount = patientsWithTreatmentsByCampaign[campaign.id]?.size || 0;
 
-    let roi = 0;
-    if (investmentCents > 0) {
-      roi = ((revenueCents - investmentCents) / investmentCents) * 100;
-    }
+    const roi = investmentCents > 0
+      ? ((revenueCents - investmentCents) / investmentCents) * 100
+      : null;
 
     const avgRevenuePerPatientCents =
       patientsCount > 0 ? Math.round(revenueCents / patientsCount) : 0;
@@ -198,10 +198,11 @@ async function getCampaignROIFromConvex(
     totalInvestmentCents: campaignROIs.reduce((sum, c) => sum + c.investmentCents, 0),
     totalRevenueCents: campaignROIs.reduce((sum, c) => sum + c.revenueCents, 0),
     totalPatientsCount: campaignROIs.reduce((sum, c) => sum + c.patientsCount, 0),
-    averageROI:
-      campaignROIs.length > 0
-        ? campaignROIs.reduce((sum, c) => sum + c.roi, 0) / campaignROIs.length
-        : 0,
+    averageROI: (() => {
+      const totalInvestment = campaignROIs.reduce((sum, c) => sum + c.investmentCents, 0);
+      const totalRevenue = campaignROIs.reduce((sum, c) => sum + c.revenueCents, 0);
+      return totalInvestment > 0 ? ((totalRevenue - totalInvestment) / totalInvestment) * 100 : null;
+    })(),
     totalCampaigns: campaignROIs.length,
   };
 
@@ -312,7 +313,7 @@ export async function GET(request: NextRequest) {
           totalInvestmentCents: 0,
           totalRevenueCents: 0,
           totalPatientsCount: 0,
-          averageROI: 0,
+          averageROI: null,
           totalCampaigns: 0,
         },
       });
@@ -355,7 +356,7 @@ export async function GET(request: NextRequest) {
     if (allPatientIds.length > 0) {
       let treatmentsQuery = supabaseAdmin
         .from('treatments')
-        .select('patient_id, price_cents, treatment_date')
+        .select('patient_id, price_cents, amount_paid_cents, is_paid, status, treatment_date')
         .eq('clinic_id', clinicId)
         .eq('status', 'completed')
         .in('patient_id', allPatientIds);
@@ -389,7 +390,7 @@ export async function GET(request: NextRequest) {
       if (!revenueByCampaign[patient.campaign_id]) {
         revenueByCampaign[patient.campaign_id] = 0;
       }
-      revenueByCampaign[patient.campaign_id] += treatment.price_cents || 0;
+      revenueByCampaign[patient.campaign_id] += collectedRevenueCents(treatment);
 
       // Unique patients with treatments in period
       if (!patientsWithTreatmentsByCampaign[patient.campaign_id]) {
@@ -443,10 +444,9 @@ export async function GET(request: NextRequest) {
       // Use patients with treatments in period (filtered), not all patients
       const patientsCount = patientsWithTreatmentsByCampaign[campaign.id]?.size || 0;
 
-      let roi = 0;
-      if (investmentCents > 0) {
-        roi = ((revenueCents - investmentCents) / investmentCents) * 100;
-      }
+      const roi = investmentCents > 0
+        ? ((revenueCents - investmentCents) / investmentCents) * 100
+        : null;
 
       const avgRevenuePerPatientCents =
         patientsCount > 0 ? Math.round(revenueCents / patientsCount) : 0;
@@ -484,10 +484,11 @@ export async function GET(request: NextRequest) {
       ),
       totalRevenueCents: campaignROIs.reduce((sum, c) => sum + c.revenueCents, 0),
       totalPatientsCount: campaignROIs.reduce((sum, c) => sum + c.patientsCount, 0),
-      averageROI:
-        campaignROIs.length > 0
-          ? campaignROIs.reduce((sum, c) => sum + c.roi, 0) / campaignROIs.length
-          : 0,
+      averageROI: (() => {
+        const totalInvestment = campaignROIs.reduce((sum, c) => sum + c.investmentCents, 0);
+        const totalRevenue = campaignROIs.reduce((sum, c) => sum + c.revenueCents, 0);
+        return totalInvestment > 0 ? ((totalRevenue - totalInvestment) / totalInvestment) * 100 : null;
+      })(),
       totalCampaigns: campaignROIs.length,
     };
 

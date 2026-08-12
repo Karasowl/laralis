@@ -7,14 +7,14 @@ export interface CategoryVariance {
   planned_cents: number
   actual_cents: number
   variance_cents: number
-  variance_pct: number
+  variance_pct: number | null
 }
 
 export interface PlannedVsActualData {
   total_planned_cents: number
   total_actual_cents: number
   total_variance_cents: number
-  total_variance_pct: number
+  total_variance_pct: number | null
   category_breakdown: CategoryVariance[]
   period: {
     start: string | null

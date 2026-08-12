@@ -16,6 +16,7 @@ import { assertClinicAccess } from '@/lib/auth/verify-clinic-access'
 import { forbiddenIfMissingPermissions } from '@/lib/permissions'
 import { shouldReturnConvexData } from '@/lib/data-backend'
 import { listConvexDocumentsByClinic } from '@/lib/convex/server'
+import { calculatePercentageChange, collectedRevenueCents } from '@/lib/calc/metrics'
 
 const comparePeriodsSchema = z.object({
   period1_start: z.string().min(1),
@@ -75,10 +76,10 @@ async function comparePeriodsInConvex(
     }
 
     const treatments1 = allTreatments.filter((t) =>
-      inRange(t.treatment_date, period1_start, period1_end)
+      t.status !== 'cancelled' && inRange(t.treatment_date, period1_start, period1_end)
     )
     const treatments2 = allTreatments.filter((t) =>
-      inRange(t.treatment_date, period2_start, period2_end)
+      t.status !== 'cancelled' && inRange(t.treatment_date, period2_start, period2_end)
     )
     const expenses1 = allExpenses.filter((e) =>
       inRange(e.expense_date, period1_start, period1_end)
@@ -95,17 +96,17 @@ async function comparePeriodsInConvex(
 
     const comparison: Record<
       string,
-      { period1: number; period2: number; change: number; changePct: number }
+      { period1: number; period2: number; change: number; changePct: number | null }
     > = {}
 
     if (metrics.includes('revenue')) {
-      const rev1 = treatments1.reduce((sum, t) => sum + (Number(t.price_cents) || 0), 0)
-      const rev2 = treatments2.reduce((sum, t) => sum + (Number(t.price_cents) || 0), 0)
+      const rev1 = treatments1.reduce((sum, treatment) => sum + collectedRevenueCents(treatment), 0)
+      const rev2 = treatments2.reduce((sum, treatment) => sum + collectedRevenueCents(treatment), 0)
       comparison.revenue = {
         period1: rev1,
         period2: rev2,
         change: rev2 - rev1,
-        changePct: rev1 > 0 ? ((rev2 - rev1) / rev1) * 100 : 0,
+        changePct: calculatePercentageChange(rev2, rev1),
       }
     }
 
@@ -116,7 +117,7 @@ async function comparePeriodsInConvex(
         period1: exp1,
         period2: exp2,
         change: exp2 - exp1,
-        changePct: exp1 > 0 ? ((exp2 - exp1) / exp1) * 100 : 0,
+        changePct: calculatePercentageChange(exp2, exp1),
       }
     }
 
@@ -127,7 +128,7 @@ async function comparePeriodsInConvex(
         period1: count1,
         period2: count2,
         change: count2 - count1,
-        changePct: count1 > 0 ? ((count2 - count1) / count1) * 100 : 0,
+        changePct: calculatePercentageChange(count2, count1),
       }
     }
 
@@ -138,7 +139,7 @@ async function comparePeriodsInConvex(
         period1: pat1,
         period2: pat2,
         change: pat2 - pat1,
-        changePct: pat1 > 0 ? ((pat2 - pat1) / pat1) * 100 : 0,
+        changePct: calculatePercentageChange(pat2, pat1),
       }
     }
 
@@ -150,7 +151,7 @@ async function comparePeriodsInConvex(
     ]
 
     Object.entries(comparison).forEach(([metric, data]) => {
-      const icon = data.changePct > 0 ? '📈' : data.changePct < 0 ? '📉' : '➖'
+      const icon = data.changePct === null ? 'ℹ️' : data.changePct > 0 ? '📈' : data.changePct < 0 ? '📉' : '➖'
       const format =
         metric === 'revenue' || metric === 'expenses'
           ? formatCurrency
@@ -158,7 +159,7 @@ async function comparePeriodsInConvex(
       changes.push(
         `**${metric.charAt(0).toUpperCase() + metric.slice(1)}** ${icon}`,
         `  Period 1: ${format(data.period1)} → Period 2: ${format(data.period2)}`,
-        `  Change: ${data.change > 0 ? '+' : ''}${format(data.change)} (${data.changePct > 0 ? '+' : ''}${data.changePct.toFixed(1)}%)`,
+        `  Change: ${data.change > 0 ? '+' : ''}${format(data.change)} (${data.changePct === null ? 'no comparison baseline' : `${data.changePct > 0 ? '+' : ''}${data.changePct.toFixed(1)}%`})`,
         ''
       )
     })

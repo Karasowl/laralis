@@ -241,12 +241,12 @@ describe('Marketing Calculations', () => {
       expect(calculateGrowthRate(80, 100)).toBe(-20)
     })
 
-    it('should return 0 when no previous patients', () => {
-      expect(calculateGrowthRate(50, 0)).toBe(0)
+    it('should return null when no previous patients establish a baseline', () => {
+      expect(calculateGrowthRate(50, 0)).toBeNull()
     })
 
-    it('should return 0 when previous patients negative', () => {
-      expect(calculateGrowthRate(50, -10)).toBe(0)
+    it('should return null when previous patients are invalid', () => {
+      expect(calculateGrowthRate(50, -10)).toBeNull()
     })
 
     it('should handle zero growth', () => {

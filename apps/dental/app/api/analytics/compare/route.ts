@@ -10,6 +10,7 @@ import { createClient } from '@/lib/supabase/server'
 import { listConvexDocumentsByClinic } from '@/lib/convex/server'
 import { shouldReturnConvexData } from '@/lib/data-backend'
 import { verifyClinicAccess } from '@/lib/auth/verify-clinic-access'
+import { calculatePercentageChange, collectedRevenueCents } from '@/lib/calc/metrics'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -35,34 +36,19 @@ type PeriodResult = PeriodStats & { start: string; end: string }
  * Keeps the Supabase and Convex branches byte-identical in shape and numbers.
  */
 function buildComparisonResponse(period1: PeriodResult, period2: PeriodResult) {
-  const revenueChange =
-    period1.revenue_cents > 0
-      ? ((period2.revenue_cents - period1.revenue_cents) / period1.revenue_cents) * 100
-      : 0
-
-  const expensesChange =
-    period1.expenses_cents > 0
-      ? ((period2.expenses_cents - period1.expenses_cents) / period1.expenses_cents) * 100
-      : 0
-
-  const profitChange =
-    period1.profit_cents !== 0
-      ? ((period2.profit_cents - period1.profit_cents) / Math.abs(period1.profit_cents)) * 100
-      : 0
-
-  const treatmentsChange =
-    period1.treatments_count > 0
-      ? ((period2.treatments_count - period1.treatments_count) / period1.treatments_count) * 100
-      : 0
+  const revenueChange = calculatePercentageChange(period2.revenue_cents, period1.revenue_cents)
+  const expensesChange = calculatePercentageChange(period2.expenses_cents, period1.expenses_cents)
+  const profitChange = calculatePercentageChange(period2.profit_cents, period1.profit_cents)
+  const treatmentsChange = calculatePercentageChange(period2.treatments_count, period1.treatments_count)
 
   return {
     period1,
     period2,
     changes: {
-      revenue_pct: Math.round(revenueChange * 10) / 10,
-      expenses_pct: Math.round(expensesChange * 10) / 10,
-      profit_pct: Math.round(profitChange * 10) / 10,
-      treatments_pct: Math.round(treatmentsChange * 10) / 10,
+      revenue_pct: revenueChange,
+      expenses_pct: expensesChange,
+      profit_pct: profitChange,
+      treatments_pct: treatmentsChange,
     },
   }
 }
@@ -92,10 +78,13 @@ async function getComparisonFromConvex(
   return periods.map(({ start, end }) => {
     const periodTreatments = treatmentRows.filter((t) => {
       const date = String(t.treatment_date || '')
-      return date >= start && date <= end
+      return date >= start && date <= end && t.status !== 'cancelled'
     })
 
-    const revenue = periodTreatments.reduce((sum, t) => sum + (t.price_cents || 0), 0)
+    const revenue = periodTreatments.reduce(
+      (sum, treatment) => sum + collectedRevenueCents(treatment),
+      0
+    )
 
     const totalExpenses = expenseRows.reduce((sum, e) => {
       const date = String(e.expense_date || '')
@@ -167,12 +156,23 @@ export async function GET(request: NextRequest) {
       // Revenue
       const { data: treatments } = await supabase
         .from('treatments')
-        .select('price_cents')
+        .select('price_cents, amount_paid_cents, is_paid, status')
         .eq('clinic_id', clinicId)
         .gte('treatment_date', startDate)
         .lte('treatment_date', endDate)
 
-      const revenue = treatments?.reduce((sum, t) => sum + (t.price_cents || 0), 0) || 0
+      const activeTreatments = treatments?.filter(
+        (t: { status?: string | null }) => t.status !== 'cancelled'
+      ) || []
+      const revenue = activeTreatments.reduce(
+        (sum: number, treatment: {
+          status?: string | null
+          price_cents?: number | null
+          amount_paid_cents?: number | null
+          is_paid?: boolean | null
+        }) => sum + collectedRevenueCents(treatment),
+        0
+      )
 
       // Expenses
       const { data: expenses } = await supabase
@@ -182,13 +182,16 @@ export async function GET(request: NextRequest) {
         .gte('expense_date', startDate)
         .lte('expense_date', endDate)
 
-      const totalExpenses = expenses?.reduce((sum, e) => sum + (e.amount_cents || 0), 0) || 0
+      const totalExpenses = expenses?.reduce(
+        (sum: number, e: { amount_cents?: number | null }) => sum + (e.amount_cents || 0),
+        0
+      ) || 0
 
       return {
         revenue_cents: revenue,
         expenses_cents: totalExpenses,
         profit_cents: revenue - totalExpenses,
-        treatments_count: treatments?.length || 0,
+        treatments_count: activeTreatments.length,
       }
     }
 

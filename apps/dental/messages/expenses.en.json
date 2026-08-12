@@ -1,5 +1,6 @@
 {
   "expenses": {
+    "no_reference": "No baseline",
     "entity": "expense",
     "title": "Expenses",
     "subtitle": "Track and analyse every peso spent across your clinics.",
@@ -11,6 +12,7 @@
       "totalSpentSubtitle": "{count, plural, one {# entry} other {# entries}} recorded",
       "varianceTitle": "Variance vs plan (fixed only)",
       "varianceSubtitle": "{percentage}% difference",
+      "varianceNoReference": "No comparable budget for this period",
       "planNotConfiguredTitle": "Budget not configured",
       "planNotConfiguredValue": "Set up your budget",
       "planNotConfiguredSubtitle": "Open Fixed costs to define your monthly budget and compare it against your real spend.",

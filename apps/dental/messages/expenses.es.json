@@ -1,5 +1,6 @@
 {
   "expenses": {
+    "no_reference": "Sin base",
     "entity": "gasto",
     "title": "Gastos",
     "subtitle": "Controla y analiza cada peso que sale de la clínica.",
@@ -11,6 +12,7 @@
       "totalSpentSubtitle": "{count, plural, one {# movimiento} other {# movimientos}} registrados",
       "varianceTitle": "Variación vs. plan (solo fijos)",
       "varianceSubtitle": "{percentage}% de diferencia",
+      "varianceNoReference": "Sin presupuesto comparable para este período",
       "planNotConfiguredTitle": "Plan sin configurar",
       "planNotConfiguredValue": "Configura tu presupuesto",
       "planNotConfiguredSubtitle": "Ve a Costos fijos para establecer un presupuesto mensual.",

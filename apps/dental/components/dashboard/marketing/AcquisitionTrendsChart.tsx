@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { TrendingUp, Users, AlertCircle } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts'
 import { Badge } from '@/components/ui/badge'
+import { calculatePercentageChange } from '@/lib/calc/metrics'
 
 interface MonthlyData {
   month: string
@@ -55,28 +56,18 @@ export function AcquisitionTrendsChart({ data, loading }: AcquisitionTrendsChart
     )
   }
 
-  // Calculate trend - simple linear regression
   const historicalData = data.filter(d => !d.projection)
-  const n = historicalData.length
-  const sumX = historicalData.reduce((sum, _, i) => sum + i, 0)
-  const sumY = historicalData.reduce((sum, d) => sum + d.patients, 0)
-  const sumXY = historicalData.reduce((sum, d, i) => sum + (i * d.patients), 0)
-  const sumX2 = historicalData.reduce((sum, _, i) => sum + (i * i), 0)
-
-  const slope = n > 1 ? (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX) : 0
-  const intercept = (sumY - slope * sumX) / n
-
   // Calculate growth rate
   const firstMonth = historicalData[0]?.patients || 0
   const lastMonth = historicalData[historicalData.length - 1]?.patients || 0
-  const growthRate = firstMonth > 0 ? ((lastMonth - firstMonth) / firstMonth) * 100 : 0
+  const growthRate = calculatePercentageChange(lastMonth, firstMonth)
 
   // Determine trend status
-  const trendStatus = growthRate > 10
+  const trendStatus = growthRate !== null && growthRate > 10
     ? { label: t('strong_growth'), color: 'bg-emerald-500', icon: TrendingUp, iconColor: 'text-emerald-600' }
-    : growthRate > 0
+    : growthRate !== null && growthRate > 0
     ? { label: t('moderate_growth'), color: 'bg-blue-500', icon: TrendingUp, iconColor: 'text-blue-600' }
-    : growthRate > -10
+    : growthRate === null || growthRate > -10
     ? { label: t('stable'), color: 'bg-gray-500', icon: Users, iconColor: 'text-gray-600' }
     : { label: t('declining'), color: 'bg-red-500', icon: AlertCircle, iconColor: 'text-red-600' }
 
@@ -167,7 +158,7 @@ export function AcquisitionTrendsChart({ data, loading }: AcquisitionTrendsChart
           <div className="text-center">
             <p className="text-sm text-muted-foreground">{t('growth_rate')}</p>
             <p className={`text-2xl font-bold ${trendStatus.iconColor}`}>
-              {growthRate > 0 ? '+' : ''}{growthRate.toFixed(1)}%
+              {growthRate === null ? tCommon('notAvailable') : `${growthRate > 0 ? '+' : ''}${growthRate.toFixed(1)}%`}
             </p>
           </div>
           <div className="text-center">
@@ -181,7 +172,7 @@ export function AcquisitionTrendsChart({ data, loading }: AcquisitionTrendsChart
         </div>
 
         {/* Insight */}
-        {growthRate > 10 && (
+        {growthRate !== null && growthRate > 10 && (
           <div className="flex items-start gap-2 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20">
             <TrendingUp className="h-4 w-4 text-emerald-600 mt-0.5 flex-shrink-0" />
             <p className="text-sm text-emerald-900 dark:text-emerald-100">
@@ -191,7 +182,7 @@ export function AcquisitionTrendsChart({ data, loading }: AcquisitionTrendsChart
           </div>
         )}
 
-        {growthRate < -10 && (
+        {growthRate !== null && growthRate < -10 && (
           <div className="flex items-start gap-2 p-3 rounded-lg bg-red-50 dark:bg-red-950/20">
             <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
             <p className="text-sm text-red-900 dark:text-red-100">

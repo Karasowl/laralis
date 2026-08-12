@@ -5,6 +5,8 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
 import { listConvexDocumentsByClinic } from '@/lib/convex/server';
 import { shouldReturnConvexData } from '@/lib/data-backend';
+import { getPreviousPeriodRange } from '@/lib/calc/metrics'
+import { formatDateToISO, parseLocalDate } from '@/lib/date-utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,20 +41,21 @@ const endOfDay = (date: Date) => {
   return d
 }
 
-const toDateParam = (date: Date) => date.toISOString().split('T')[0]
+const toDateParam = formatDateToISO
 
 function computeRanges(period: SupportedPeriod, from?: string | null, to?: string | null): RangeResult {
   const now = new Date()
 
   if (period === 'custom' && from && to) {
-    const start = startOfDay(new Date(from))
-    const end = endOfDay(new Date(to))
-    const durationMs = Math.max(end.getTime() - start.getTime(), 24 * 60 * 60 * 1000)
-    const prevEnd = new Date(start.getTime() - 1)
-    const prevStart = new Date(prevEnd.getTime() - durationMs)
+    const start = startOfDay(parseLocalDate(from))
+    const end = endOfDay(parseLocalDate(to))
+    const previousRange = getPreviousPeriodRange(from, to)
     return {
       current: { start, end },
-      previous: { start: startOfDay(prevStart), end: endOfDay(prevEnd) },
+      previous: {
+        start: startOfDay(parseLocalDate(previousRange.from)),
+        end: endOfDay(parseLocalDate(previousRange.to)),
+      },
       label: 'custom',
     }
   }

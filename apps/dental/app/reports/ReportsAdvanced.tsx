@@ -119,6 +119,7 @@ export function ReportsAdvanced({ insights, kpis, loading, services = [] }: Repo
                     {getTrendIcon(prediction.trend)}
                   </div>
                   
+                  {prediction.available ? (
                   <div className="space-y-2">
                     <p className="text-2xl font-bold">
                       {formatCurrency(prediction.predictedValue)}
@@ -137,6 +138,11 @@ export function ReportsAdvanced({ insights, kpis, loading, services = [] }: Repo
                       {t('advanced.revenuePredictions.range')}: {formatCurrency(prediction.confidence_interval[0])} - {formatCurrency(prediction.confidence_interval[1])}
                     </div>
                   </div>
+                  ) : (
+                    <div className="rounded-md bg-muted/50 p-3 text-sm text-muted-foreground">
+                      {t('advanced.revenuePredictions.insufficientData', { months: prediction.monthsOfData })}
+                    </div>
+                  )}
                 </div>
               )
             })}
@@ -167,8 +173,10 @@ export function ReportsAdvanced({ insights, kpis, loading, services = [] }: Repo
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-green-600">{service.roi.toFixed(1)}% ROI</p>
-                    <Progress value={Math.min(service.roi, 100)} className="w-16 h-2" />
+                    <p className="font-bold text-green-600">
+                      {service.roi === null ? t('advanced.services.noCostBasis') : `${service.roi.toFixed(1)}% ROI`}
+                    </p>
+                    {service.roi !== null && <Progress value={Math.min(service.roi, 100)} className="w-16 h-2" />}
                   </div>
                 </div>
               ))}
@@ -237,9 +245,9 @@ export function ReportsAdvanced({ insights, kpis, loading, services = [] }: Repo
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-orange-600">
-                      -{(service.decline_rate * 100).toFixed(1)}%
+                      {(service.decline_rate * 100).toFixed(1)}%
                     </p>
-                    <p className="text-xs text-muted-foreground">{t('advanced.alerts.monthlyDecline')}</p>
+                    <p className="text-xs text-muted-foreground">{t('advanced.alerts.periodDecline')}</p>
                   </div>
                 </div>
               ))}

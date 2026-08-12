@@ -14,6 +14,15 @@ import {
 } from '@/lib/analytics'
 import { listConvexDocumentsByClinic } from '@/lib/convex/server'
 import { shouldReturnConvexData } from '@/lib/data-backend'
+import { collectedRevenueCents } from '@/lib/calc/metrics'
+import { parseLocalDate, formatDateToISO } from '@/lib/date-utils'
+import {
+  calculateWorkingDaysInRange,
+  estimateConfiguredWorkingDaysInRange,
+  getEffectivePattern,
+  type WorkingDaysConfig,
+} from '@/lib/calc/dates'
+import { getFirstTreatmentDateByPatient } from '@/lib/calc/patient-acquisition'
 
 const querySchema = z.object({
   clinicId: z.string().optional(),
@@ -30,24 +39,6 @@ function normalizeConvexRecord(row: ImportedRecord | null | undefined) {
   if (!row) return null
   const { _id, _creationTime, legacyId, legacyTable, convex_created_at, convex_updated_at, convex_snapshot_source, ...rest } = row
   return rest
-}
-
-function normaliseDateString(value: string | undefined, fallback: Date): string {
-  if (!value) {
-    return fallback.toISOString().split('T')[0]
-  }
-
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) {
-    return fallback.toISOString().split('T')[0]
-  }
-
-  return parsed.toISOString().split('T')[0]
-}
-
-function patientDate(row: { first_visit_date?: string | null; acquisition_date?: string | null; created_at?: string | null }) {
-  const value = row.first_visit_date || row.acquisition_date || row.created_at || ''
-  return value.slice(0, 10)
 }
 
 /**
@@ -79,6 +70,16 @@ async function getReportsSummaryRows(clinicId: string, startISO: string, endISO:
       return date >= startISO && date <= endISO
     })
 
+  const firstTreatmentByPatient = new Map<string, string>()
+  for (const raw of treatmentsRaw || []) {
+    const row = normalizeConvexRecord(raw) as ImportedRecord
+    if (!row.patient_id || row.status === 'cancelled') continue
+    const date = String(row.treatment_date || '').slice(0, 10)
+    if (!date) continue
+    const current = firstTreatmentByPatient.get(String(row.patient_id))
+    if (!current || date < current) firstTreatmentByPatient.set(String(row.patient_id), date)
+  }
+
   // Mirror Supabase: .filter(row => row.patient_id) then map to the same TreatmentData shape.
   const treatments: TreatmentData[] = treatmentRowsInRange
     .filter((row) => row.patient_id)
@@ -101,14 +102,14 @@ async function getReportsSummaryRows(clinicId: string, startISO: string, endISO:
   const patients: PatientData[] = (patientsRaw || [])
     .map((row) => normalizeConvexRecord(row) as ImportedRecord)
     .filter((row) => {
-      const date = patientDate(row)
+      const date = firstTreatmentByPatient.get(String(row.id)) || ''
       return date >= startISO && date <= endISO
     })
     .map((row) => ({
       id: row.id,
       first_name: row.first_name || '',
       last_name: row.last_name || '',
-      created_at: patientDate(row) || new Date().toISOString(),
+      created_at: firstTreatmentByPatient.get(String(row.id)) || '',
     }))
 
   return { treatments, patients }
@@ -130,12 +131,12 @@ export const GET = withPermission('financial_reports.view', async (request, cont
     const today = new Date()
     const defaultRangeEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0)
 
-    const endDate = to ? new Date(to) : defaultRangeEnd
+    const endDate = to ? parseLocalDate(to) : defaultRangeEnd
     if (Number.isNaN(endDate.getTime())) {
       endDate.setTime(defaultRangeEnd.getTime())
     }
 
-    const startDate = from ? new Date(from) : new Date(endDate)
+    const startDate = from ? parseLocalDate(from) : new Date(endDate)
     if (Number.isNaN(startDate.getTime())) {
       startDate.setTime(endDate.getTime())
     }
@@ -145,8 +146,8 @@ export const GET = withPermission('financial_reports.view', async (request, cont
       startDate.setDate(1)
     }
 
-    const startISO = normaliseDateString(startDate.toISOString(), startDate)
-    const endISO = normaliseDateString(endDate.toISOString(), endDate)
+    const startISO = formatDateToISO(startDate)
+    const endISO = formatDateToISO(endDate)
 
     let treatments: TreatmentData[]
     let patients: PatientData[]
@@ -206,16 +207,17 @@ export const GET = withPermission('financial_reports.view', async (request, cont
           status: row.status || 'pending',
         })) as TreatmentData[]
 
+      const firstTreatmentByPatient = await getFirstTreatmentDateByPatient(clinicId)
       patients = (patientsResult.data || [])
         .filter(row => {
-          const date = patientDate(row)
+          const date = firstTreatmentByPatient.get(String(row.id)) || ''
           return date >= startISO && date <= endISO
         })
         .map(row => ({
           id: row.id,
           first_name: row.first_name || '',
           last_name: row.last_name || '',
-          created_at: patientDate(row) || new Date().toISOString(),
+          created_at: firstTreatmentByPatient.get(String(row.id)) || '',
         }))
     }
 
@@ -223,15 +225,18 @@ export const GET = withPermission('financial_reports.view', async (request, cont
     const periodTreatments = treatments
     const periodPatients = patients
 
-    const completedPaidPeriod = periodTreatments.filter(t => {
-      const price = Number(t.price_cents || 0)
-      const paid = Number((t as any).amount_paid_cents || 0)
-      return t.status === 'completed' && price > 0 && ((t as any).is_paid === true || paid >= price)
-    })
-    const revenuePeriod = completedPaidPeriod.reduce((sum, t) => sum + (t.price_cents || 0), 0)
-    const margins = completedPaidPeriod.map(t => t.margin_pct || 0)
-    const averageMargin = margins.length > 0
-      ? margins.reduce((a, b) => a + b, 0) / margins.length
+    const completedPaidPeriod = periodTreatments.filter(t => collectedRevenueCents(t) > 0)
+    const revenuePeriod = completedPaidPeriod.reduce((sum, t) => sum + collectedRevenueCents(t), 0)
+    const completedPeriod = periodTreatments.filter(t => t.status === 'completed')
+    const billedPeriod = completedPeriod.reduce((sum, treatment) => sum + Math.max(0, treatment.price_cents || 0), 0)
+    const costPeriod = completedPeriod.reduce(
+      (sum, treatment) => sum
+        + Math.max(0, treatment.variable_cost_cents || 0)
+        + Math.max(0, treatment.fixed_per_minute_cents || 0) * Math.max(0, treatment.minutes || 0),
+      0
+    )
+    const averageMargin = billedPeriod > 0
+      ? ((billedPeriod - costPeriod) / billedPeriod) * 100
       : 0
 
     const dashboardData = {
@@ -244,9 +249,40 @@ export const GET = withPermission('financial_reports.view', async (request, cont
     // Calculate days in the selected period for accurate avgPatientsPerDay
     const periodDays = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1)
 
-    const insights = generateBusinessInsights(treatments, patients)
+    let timeSettings: ImportedRecord | null = null
+    if (shouldReturnConvexData('settings_time')) {
+      const settingsRows = await listConvexDocumentsByClinic('settings_time', clinicId, 10) as ImportedRecord[]
+      timeSettings = settingsRows
+        .map(row => normalizeConvexRecord(row))
+        .filter(Boolean)
+        .sort((a, b) => String(b?.updated_at || '').localeCompare(String(a?.updated_at || '')))[0] || null
+    } else {
+      const { data: settingsRow, error: settingsError } = await supabaseAdmin
+        .from('settings_time')
+        .select('work_days, hours_per_day, working_days_config')
+        .eq('clinic_id', clinicId)
+        .maybeSingle()
+      if (settingsError) {
+        console.warn('[reports/summary] Failed to load time settings', settingsError.message)
+      }
+      timeSettings = settingsRow
+    }
+
+    const configuredWorkDays = Math.max(1, Number(timeSettings?.work_days || 20))
+    const hoursPerDay = Math.max(0, Number(timeSettings?.hours_per_day || 0))
+    const workingDaysConfig = timeSettings?.working_days_config as WorkingDaysConfig | undefined
+    const workingDaysResult = workingDaysConfig
+      ? calculateWorkingDaysInRange(startDate, endDate, getEffectivePattern(workingDaysConfig))
+      : estimateConfiguredWorkingDaysInRange(startDate, endDate, configuredWorkDays)
+    const workingDaysInPeriod = Math.max(1, workingDaysResult.workingDays)
+
+    const insights = generateBusinessInsights(treatments, patients, {
+      workingDaysInPeriod,
+      hoursPerDay,
+    })
     const kpis = calculateKPIs(treatments, patients, {
       daysInPeriod: periodDays,
+      workingDaysInPeriod,
       totalPatients: periodPatients.length
     })
 
