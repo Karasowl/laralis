@@ -33,6 +33,7 @@ interface SwrCrudConfig<T> {
 
 interface SwrCrudState<T> {
   items: T[]
+  response: any
   loading: boolean
   isValidating: boolean
   isSubmitting: boolean
@@ -72,7 +73,7 @@ const fetcher = async (url: string) => {
     throw new Error(errorMsg)
   }
   const result = await response.json()
-  return result.data || result || []
+  return result || []
 }
 
 export function useSwrCrud<T extends { id: string; name?: string }>(
@@ -138,7 +139,7 @@ export function useSwrCrud<T extends { id: string; name?: string }>(
   }, [config.endpoint, config.includeClinicId, config.staticParams, config.searchParam, clinicId, debouncedSearch])
 
   // SWR for data fetching
-  const { data, error, isLoading, isValidating, mutate } = useSWR<T[]>(
+  const { data, error, isLoading, isValidating, mutate } = useSWR<any>(
     swrKey,
     fetcher,
     {
@@ -153,7 +154,8 @@ export function useSwrCrud<T extends { id: string; name?: string }>(
   // Transform data if needed
   const items = useMemo(() => {
     if (!data) return []
-    return config.transformData ? data.map(config.transformData) : data
+    const list = Array.isArray(data) ? data : (data.data ?? [])
+    return config.transformData ? list.map(config.transformData) : list
   }, [data, config.transformData])
 
   // Refresh function
@@ -301,6 +303,7 @@ export function useSwrCrud<T extends { id: string; name?: string }>(
   return {
     // State
     items,
+    response: data,
     loading: isLoading,
     isValidating,
     isSubmitting,

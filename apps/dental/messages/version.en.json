@@ -15,6 +15,15 @@
       "documentation": "Documentation"
     },
     "releases": {
+      "v0_7_3": {
+        "date": "2026-08-12",
+        "title": "Faster treatment lists and immediate interactions",
+        "performance": [
+          "The treatments screen now mounts only the active desktop or mobile layout and limits the visible list to 50 records per page.",
+          "Treatment pages are filtered and paginated on the server while keeping totals and summaries for the full result set.",
+          "Moving across rows and opening or closing action menus no longer rerenders the entire treatment table."
+        ]
+      },
       "v0_7_2": {
         "date": "2026-08-12",
         "title": "Treatments, payments, recurring expenses, and patients seen",

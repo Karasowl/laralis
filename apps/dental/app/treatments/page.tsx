@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { useState, useRef, useEffect, useMemo, useDeferredValue } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
@@ -17,7 +17,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { ActionDropdown, createEditAction, createDeleteAction, createRefundAction } from '@/components/ui/ActionDropdown'
 import { RefundDialog } from '@/components/ui/RefundDialog'
 import { SummaryCards } from '@/components/ui/summary-cards'
-import { SmartFilters, useSmartFilter, FilterConfig, FilterValues, detectPreset } from '@/components/ui/smart-filters'
+import { SmartFilters, FilterConfig, FilterValues, detectPreset } from '@/components/ui/smart-filters'
 import { TreatmentForm } from './components/TreatmentForm'
 import { useCurrentClinic } from '@/hooks/use-current-clinic'
 import { useRequirementsGuard } from '@/lib/requirements/useGuard'
@@ -32,8 +32,6 @@ import { Calendar, User, DollarSign, FileText, Activity, Clock, Plus, StickyNote
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { calcularPrecioFinal } from '@/lib/calc/tarifa'
-import { useFilteredSummary } from '@/hooks/use-filtered-summary'
-import { treatmentSummaryConfig } from '@/lib/calc/summary-configs'
 import {
   canRegisterTreatmentPayment,
   getTreatmentOutstandingBalanceCents,
@@ -101,6 +99,22 @@ export default function TreatmentsPage() {
   const { currentClinic } = useCurrentClinic()
   const searchParams = useSearchParams()
   const patientFilter = searchParams?.get('patient_id') || searchParams?.get('patient') || ''
+
+  // Server-driven list state. Summary calculations remain over the full filtered set.
+  const [filterValues, setFilterValues] = useState<FilterValues>({
+    treatment_date: { from: '', to: '' },
+    status: [],
+    service_id: [],
+    patient_id: [],
+    price_cents: { from: '', to: '' }
+  })
+  const [typeFilter, setTypeFilter] = useState<'all' | 'appointments' | 'treatments'>('all')
+  const [searchTerm, setSearchTerm] = useState('')
+  const deferredSearchTerm = useDeferredValue(searchTerm)
+  const [pageIndex, setPageIndex] = useState(0)
+  const pageSize = 50
+  const dateFilter = filterValues.treatment_date || {}
+  const priceFilter = filterValues.price_cents || {}
   const {
     treatments,
     patients,
@@ -113,27 +127,43 @@ export default function TreatmentsPage() {
     fetchTreatments,
     loadRelatedData,
     registerPayment,
-    summary
-  } = useTreatments({ clinicId: currentClinic?.id, patientId: patientFilter || undefined })
+    summary,
+    filteredSummary,
+    pagination,
+  } = useTreatments({
+    clinicId: currentClinic?.id,
+    patientId: patientFilter || undefined,
+    listQuery: {
+      page: pageIndex,
+      pageSize,
+      dateFrom: dateFilter.from || undefined,
+      dateTo: dateFilter.to || undefined,
+      statuses: filterValues.status || [],
+      serviceIds: filterValues.service_id || [],
+      patientIds: filterValues.patient_id || [],
+      priceFrom: priceFilter.from !== '' && priceFilter.from != null
+        ? Number(priceFilter.from) * 100
+        : undefined,
+      priceTo: priceFilter.to !== '' && priceFilter.to != null
+        ? Number(priceFilter.to) * 100
+        : undefined,
+      hasBalance: filterValues.has_balance === true,
+      typeFilter,
+      today: getLocalDateISO(),
+      search: deferredSearchTerm,
+    },
+  })
 
   // Keep a ref of services to use immediately after refresh
   const servicesRef = useRef<Service[]>(services as Service[])
   useEffect(() => { servicesRef.current = services as Service[] }, [services])
 
   const filteredPatient = (patients || []).find((p: Patient) => p.id === patientFilter)
-  const filteredCount = (treatments || []).length
+  const filteredCount = pagination.total
 
-  // Filter state
-  const [filterValues, setFilterValues] = useState<FilterValues>({
-    treatment_date: { from: '', to: '' },
-    status: [],
-    service_id: [],
-    patient_id: [],
-    price_cents: { from: '', to: '' }
-  })
-
-  // Type filter: all, appointments (future), treatments (past/completed)
-  const [typeFilter, setTypeFilter] = useState<'all' | 'appointments' | 'treatments'>('all')
+  useEffect(() => {
+    if (pagination.page !== pageIndex) setPageIndex(pagination.page)
+  }, [pageIndex, pagination.page])
 
   // Filter configurations
   const filterConfigs: FilterConfig[] = useMemo(() => [
@@ -180,69 +210,19 @@ export default function TreatmentsPage() {
     }
   ], [t, services, patients])
 
-  // Apply filters to treatments
-  const smartFilteredTreatments = useSmartFilter(treatments, filterValues, filterConfigs)
-
-  // Apply balance filter (including legacy records without an explicit balance)
-  const balanceFilteredTreatments = useMemo(() => {
-    if (!filterValues.has_balance) return smartFilteredTreatments
-    return smartFilteredTreatments.filter((treatment: Treatment) =>
-      canRegisterTreatmentPayment(treatment)
-    )
-  }, [smartFilteredTreatments, filterValues.has_balance])
-
-  // Search state
-  const [searchTerm, setSearchTerm] = useState('')
-
-  // Apply type filter (all, appointments, treatments)
-  const typeFilteredTreatments = useMemo(() => {
-    if (typeFilter === 'all') return balanceFilteredTreatments
-
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-
-    return balanceFilteredTreatments.filter((treatment: Treatment) => {
-      const treatmentDate = new Date(treatment.treatment_date + 'T12:00:00')
-      treatmentDate.setHours(0, 0, 0, 0)
-      const isCompleted = treatment.status === 'completed' || treatment.status === 'cancelled'
-      const isPast = treatmentDate < today
-
-      if (typeFilter === 'appointments') {
-        // Appointments: future dates AND not completed
-        return !isPast && !isCompleted
-      } else {
-        // Treatments: past dates OR completed
-        return isPast || isCompleted
-      }
-    })
-  }, [balanceFilteredTreatments, typeFilter])
-
-  // Apply text search filter
-  const filteredTreatments = useMemo(() => {
-    if (!searchTerm || searchTerm.trim() === '') return typeFilteredTreatments
-
-    const query = searchTerm.toLowerCase().trim()
-
-    return typeFilteredTreatments.filter((treatment: Treatment) => {
-      // Search in patient name
-      const patient = patients.find((p: Patient) => p.id === treatment.patient_id)
-      const patientName = patient
-        ? `${patient.first_name} ${patient.last_name}`.toLowerCase()
-        : ''
-      if (patientName.includes(query)) return true
-
-      // Search in service name
-      const service = services.find((s: Service) => s.id === treatment.service_id)
-      const serviceName = service?.name?.toLowerCase() || ''
-      if (serviceName.includes(query)) return true
-
-      // Search in notes
-      const notes = treatment.notes?.toLowerCase() || ''
-      if (notes.includes(query)) return true
-
-      return false
-    })
-  }, [typeFilteredTreatments, searchTerm, patients, services])
+  const filteredTreatments = treatments
+  const handleFilterChange = (values: FilterValues) => {
+    setFilterValues(values)
+    setPageIndex(0)
+  }
+  const handleTypeFilterChange = (value: 'all' | 'appointments' | 'treatments') => {
+    setTypeFilter(value)
+    setPageIndex(0)
+  }
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value)
+    setPageIndex(0)
+  }
 
   // Get active date period label for summary cards
   const activeDatePeriod = useMemo(() => {
@@ -253,9 +233,6 @@ export default function TreatmentsPage() {
     // Return the preset key to be translated in the render
     return preset
   }, [filterValues.treatment_date])
-
-  // Calculate summary from FILTERED treatments using generic hook
-  const filteredSummary = useFilteredSummary(filteredTreatments, treatmentSummaryConfig)
 
   // Modal states
   const [createOpen, setCreateOpen] = useState(false)
@@ -849,7 +826,7 @@ export default function TreatmentsPage() {
           {/* Type Filter Tabs */}
           <div className="flex items-center gap-1 p-1 bg-muted rounded-lg">
             <button
-              onClick={() => setTypeFilter('all')}
+              onClick={() => handleTypeFilterChange('all')}
               className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
                 typeFilter === 'all'
                   ? 'bg-background shadow-sm text-foreground font-medium'
@@ -859,7 +836,7 @@ export default function TreatmentsPage() {
               {t('settings.calendar.filterAll')}
             </button>
             <button
-              onClick={() => setTypeFilter('appointments')}
+              onClick={() => handleTypeFilterChange('appointments')}
               className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
                 typeFilter === 'appointments'
                   ? 'bg-background shadow-sm text-foreground font-medium'
@@ -870,7 +847,7 @@ export default function TreatmentsPage() {
               {t('settings.calendar.filterAppointments')}
             </button>
             <button
-              onClick={() => setTypeFilter('treatments')}
+              onClick={() => handleTypeFilterChange('treatments')}
               className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1.5 ${
                 typeFilter === 'treatments'
                   ? 'bg-background shadow-sm text-foreground font-medium'
@@ -959,7 +936,7 @@ export default function TreatmentsPage() {
         <SmartFilters
           filters={filterConfigs}
           values={filterValues}
-          onChange={setFilterValues}
+          onChange={handleFilterChange}
           className="mb-4"
         />
 
@@ -968,10 +945,13 @@ export default function TreatmentsPage() {
             <Button
               type="button"
               variant={filterValues.has_balance ? 'default' : 'outline'}
-              onClick={() => setFilterValues((current) => ({
-                ...current,
-                has_balance: !current.has_balance,
-              }))}
+              onClick={() => {
+                setFilterValues((current) => ({
+                  ...current,
+                  has_balance: !current.has_balance,
+                }))
+                setPageIndex(0)
+              }}
             >
               <Wallet className="mr-2 h-4 w-4" />
               {t('treatments.payment.pendingPayments', { count: summary.treatmentsWithBalance })}
@@ -1000,9 +980,15 @@ export default function TreatmentsPage() {
           data={filteredTreatments}
           loading={loading}
           searchPlaceholder={t('treatments.searchPlaceholder')}
-          onSearch={setSearchTerm}
+          onSearch={handleSearchChange}
           showCount={true}
           countLabel={t('treatments.title').toLowerCase()}
+          serverPagination={{
+            pageIndex: pagination.page,
+            pageCount: pagination.pageCount,
+            totalCount: pagination.total,
+            onPageChange: setPageIndex,
+          }}
           emptyState={{
             icon: FileText,
             title: t('treatments.emptyTitle'),

@@ -18,9 +18,10 @@ import { readJson } from '@/lib/validation';
 import { forbiddenIfMissingPermission } from '@/lib/permissions';
 import { checkScheduleConflicts } from '@/lib/calendar/server-conflicts';
 import { getPushNotificationServiceForRequest } from '@/lib/notifications/qa';
-import { listConvexDocumentsByClinic, listConvexTable, upsertConvexDocumentByLegacyId, patchConvexDocumentByLegacyId, getConvexDocumentByLegacyId } from '@/lib/convex/server';
+import { listConvexDocumentsByClinic, listConvexTable, upsertConvexDocumentByLegacyId, patchConvexDocumentByLegacyId, getConvexDocumentByLegacyId, getConvexTreatmentsPage } from '@/lib/convex/server';
 import { shouldReturnConvexData, shouldUseConvexOnlyWritePath, shouldWriteConvexData } from '@/lib/data-backend';
 import { deriveTreatmentPaymentState } from '@/lib/calc/treatment-payment';
+import { createTreatmentListPage, type TreatmentListFilters } from '@/convex/treatmentList';
 
 export const dynamic = 'force-dynamic'
 
@@ -62,6 +63,18 @@ function byId(rows: ImportedRecord[]) {
       return ids.map((id) => [id, row] as const);
     })
   );
+}
+
+function optionalNumber(value: string | null) {
+  if (value === null || value.trim() === '') return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function csvValues(value: string | null) {
+  if (!value) return undefined;
+  const values = value.split(',').map((item) => item.trim()).filter(Boolean);
+  return values.length > 0 ? values : undefined;
 }
 
 function calculateFixedCostPerMinute(
@@ -366,8 +379,42 @@ export async function GET(request: NextRequest) {
     const hasBalance = searchParams.get('has_balance') === 'true';
     const dateFrom = searchParams.get('start_date') || searchParams.get('date_from') || searchParams.get('from');
     const dateTo = searchParams.get('end_date') || searchParams.get('date_to') || searchParams.get('to');
+    const paginated = searchParams.get('paginated') === 'true';
+    const page = Math.max(0, Math.floor(optionalNumber(searchParams.get('page')) ?? 0));
+    const pageSize = Math.max(1, Math.min(100, Math.floor(optionalNumber(searchParams.get('page_size')) ?? 50)));
+    const requestedType = searchParams.get('type_filter');
+    const typeFilter = requestedType === 'appointments' || requestedType === 'treatments'
+      ? requestedType
+      : 'all';
+    const listFilters: TreatmentListFilters = {
+      patientId: patientId || undefined,
+      dateFrom: dateFrom || undefined,
+      dateTo: dateTo || undefined,
+      statuses: csvValues(searchParams.get('statuses')),
+      serviceIds: csvValues(searchParams.get('service_ids')),
+      patientIds: csvValues(searchParams.get('patient_ids')),
+      priceFrom: optionalNumber(searchParams.get('price_from')),
+      priceTo: optionalNumber(searchParams.get('price_to')),
+      hasBalance,
+      typeFilter,
+      today: searchParams.get('today') || new Date().toISOString().slice(0, 10),
+      search: searchParams.get('search') || undefined,
+    };
 
     if (shouldReturnConvexData('treatments')) {
+      if (paginated) {
+        const result = await getConvexTreatmentsPage({
+          clinicId,
+          page,
+          pageSize,
+          ...listFilters,
+        }) as any;
+        return NextResponse.json({
+          ...result,
+          data: (result?.data || []).map(normalizeConvexRecord),
+        });
+      }
+
       const data = await getTreatmentsFromConvex(clinicId, {
         patientId,
         hasBalance,
@@ -391,16 +438,16 @@ export async function GET(request: NextRequest) {
       query = query.eq('patient_id', patientId);
     }
 
-    if (dateFrom) {
+    if (dateFrom && !paginated) {
       query = query.gte('treatment_date', dateFrom);
     }
 
-    if (dateTo) {
+    if (dateTo && !paginated) {
       query = query.lte('treatment_date', dateTo);
     }
 
     // Filter treatments with explicit pending balance (user-marked)
-    if (hasBalance) {
+    if (hasBalance && !paginated) {
       query = query.gt('pending_balance_cents', 0);
     }
 
@@ -425,6 +472,15 @@ export async function GET(request: NextRequest) {
       // Map status from DB to UI ('scheduled'|'in_progress' -> 'pending')
       status: (row.status === 'scheduled' || row.status === 'in_progress') ? 'pending' : (row.status || 'pending'),
     }));
+
+    if (paginated) {
+      return NextResponse.json(createTreatmentListPage({
+        rows: mapped,
+        filters: listFilters,
+        page,
+        pageSize,
+      }));
+    }
 
     return NextResponse.json({ data: mapped });
   } catch (error) {

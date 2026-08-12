@@ -1,6 +1,7 @@
 import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
 import { MIRRORED_TABLE_NAMES } from './mirroredTables'
+import { createTreatmentListPage } from './treatmentList'
 
 const MIGRATED_TABLES = MIRRORED_TABLE_NAMES
 
@@ -197,6 +198,90 @@ export const listByClinic = query({
     return docs
       .filter((doc) => doc.clinic_id === args.clinicId || doc.clinicId === args.clinicId)
       .slice(0, limit)
+  },
+})
+
+export const treatmentsPageByClinic = query({
+  args: {
+    secret: v.optional(v.string()),
+    clinicId: v.string(),
+    page: v.number(),
+    pageSize: v.number(),
+    patientId: v.optional(v.string()),
+    dateFrom: v.optional(v.string()),
+    dateTo: v.optional(v.string()),
+    statuses: v.optional(v.array(v.string())),
+    serviceIds: v.optional(v.array(v.string())),
+    patientIds: v.optional(v.array(v.string())),
+    priceFrom: v.optional(v.number()),
+    priceTo: v.optional(v.number()),
+    hasBalance: v.optional(v.boolean()),
+    typeFilter: v.optional(
+      v.union(v.literal('all'), v.literal('appointments'), v.literal('treatments'))
+    ),
+    today: v.string(),
+    search: v.optional(v.string()),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    assertQueryAuth(args.secret)
+    const maxTreatments = 2000
+    const normalizedSearch = args.search?.trim().toLowerCase()
+    const [rows, patients, services] = await Promise.all([
+      (ctx.db as any)
+        .query('treatments')
+        .withIndex('by_clinic', (q: any) => q.eq('clinic_id', args.clinicId))
+        .take(maxTreatments + 1) as Promise<ImportedDocument[]>,
+      normalizedSearch
+        ? (ctx.db as any)
+            .query('patients')
+            .withIndex('by_clinic', (q: any) => q.eq('clinic_id', args.clinicId))
+            .take(1000) as Promise<ImportedDocument[]>
+        : Promise.resolve([]),
+      normalizedSearch
+        ? (ctx.db as any)
+            .query('services')
+            .withIndex('by_clinic', (q: any) => q.eq('clinic_id', args.clinicId))
+            .take(1000) as Promise<ImportedDocument[]>
+        : Promise.resolve([]),
+    ])
+    const matchingPatientIds = normalizedSearch
+      ? patients
+          .filter((patient) =>
+            `${String(patient.first_name ?? '')} ${String(patient.last_name ?? '')}`
+              .toLowerCase()
+              .includes(normalizedSearch)
+          )
+          .flatMap((patient) => [patient.id, patient.legacyId].filter(Boolean).map(String))
+      : undefined
+    const matchingServiceIds = normalizedSearch
+      ? services
+          .filter((service) => String(service.name ?? '').toLowerCase().includes(normalizedSearch))
+          .flatMap((service) => [service.id, service.legacyId].filter(Boolean).map(String))
+      : undefined
+
+    return createTreatmentListPage({
+      rows: rows.slice(0, maxTreatments),
+      page: args.page,
+      pageSize: args.pageSize,
+      truncated: rows.length > maxTreatments,
+      filters: {
+        patientId: args.patientId,
+        dateFrom: args.dateFrom,
+        dateTo: args.dateTo,
+        statuses: args.statuses,
+        serviceIds: args.serviceIds,
+        patientIds: args.patientIds,
+        priceFrom: args.priceFrom,
+        priceTo: args.priceTo,
+        hasBalance: args.hasBalance,
+        typeFilter: args.typeFilter,
+        today: args.today,
+        search: args.search,
+        matchingPatientIds,
+        matchingServiceIds,
+      },
+    })
   },
 })
 
