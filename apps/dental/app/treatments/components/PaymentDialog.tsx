@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import {
   Dialog,
@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { formatCurrency } from '@/lib/money'
 import { DollarSign, CreditCard } from 'lucide-react'
+import { getTreatmentOutstandingBalanceCents } from '@/lib/calc/treatment-payment'
 
 interface PaymentDialogProps {
   open: boolean
@@ -23,6 +24,7 @@ interface PaymentDialogProps {
     id: string
     price_cents: number
     amount_paid_cents: number
+    pending_balance_cents?: number | null
     service?: { name: string }
     patient?: { first_name: string; last_name: string }
   } | null
@@ -39,10 +41,18 @@ export function PaymentDialog({
   const [amount, setAmount] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  if (!treatment) return null
-
-  const balanceCents = (treatment.price_cents || 0) - (treatment.amount_paid_cents || 0)
+  const balanceCents = treatment
+    ? getTreatmentOutstandingBalanceCents(treatment)
+    : 0
   const balancePesos = balanceCents / 100
+
+  useEffect(() => {
+    if (open && treatment) {
+      setAmount((getTreatmentOutstandingBalanceCents(treatment) / 100).toString())
+    }
+  }, [open, treatment])
+
+  if (!treatment) return null
 
   const handlePayFull = () => {
     setAmount(balancePesos.toString())
@@ -100,8 +110,8 @@ export function PaymentDialog({
               </span>
             </div>
             <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-              <span>Total: {formatCurrency(treatment.price_cents)}</span>
-              <span>Pagado: {formatCurrency(treatment.amount_paid_cents)}</span>
+              <span>{t('total')}: {formatCurrency(treatment.price_cents)}</span>
+              <span>{t('paid')}: {formatCurrency(treatment.amount_paid_cents)}</span>
             </div>
           </div>
 
@@ -120,7 +130,7 @@ export function PaymentDialog({
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   className="pl-9"
-                  placeholder="0.00"
+                  placeholder={t('amountPlaceholder')}
                 />
               </div>
               <Button
@@ -134,7 +144,7 @@ export function PaymentDialog({
             </div>
             {amountCents > balanceCents && (
               <p className="text-sm text-destructive">
-                El monto excede el saldo pendiente
+                {t('amountExceedsBalance')}
               </p>
             )}
           </div>
@@ -152,7 +162,7 @@ export function PaymentDialog({
             onClick={handleSubmit}
             disabled={!isValid || isSubmitting}
           >
-            {isSubmitting ? '...' : t('registerPayment')}
+            {isSubmitting ? t('saving') : t('registerPayment')}
           </Button>
         </DialogFooter>
       </DialogContent>

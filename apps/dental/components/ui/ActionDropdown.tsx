@@ -22,12 +22,14 @@ interface ActionDropdownProps {
   actions: ActionItem[]
   align?: 'start' | 'center' | 'end'
   triggerSize?: 'sm' | 'default' | 'lg'
+  triggerLabel?: string
 }
 
 export function ActionDropdown({ 
   actions, 
   align = 'end',
-  triggerSize = 'sm'
+  triggerSize = 'sm',
+  triggerLabel
 }: ActionDropdownProps) {
   return (
     <DropdownMenu>
@@ -36,6 +38,7 @@ export function ActionDropdown({
           variant="ghost" 
           size={triggerSize}
           className="w-8 h-8 p-0 shrink-0"
+          aria-label={triggerLabel}
         >
           <MoreHorizontal className="h-4 w-4" />
         </Button>

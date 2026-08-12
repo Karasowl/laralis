@@ -510,7 +510,7 @@ export default function InsightsPage() {
               subtitle={getPeriodLabels.comparison}
             />
             <MetricCard
-              title={t('active_patients')}
+              title={t('attended_patients')}
               value={maskedValue}
               icon={Users}
               color="text-primary"
@@ -647,8 +647,8 @@ export default function InsightsPage() {
 
                   <div className="space-y-2">
                     <MetricCard
-                      title={t('active_patients')}
-                      value={metrics.patients.total}
+                      title={t('attended_patients')}
+                      value={metrics.patients.attended}
                       change={metrics.patients.change}
                       changeType={metrics.patients.change > 0 ? 'increase' : metrics.patients.change < 0 ? 'decrease' : 'neutral'}
                       icon={Users}
@@ -891,4 +891,3 @@ export default function InsightsPage() {
     </AppLayout>
   )
 }
-
