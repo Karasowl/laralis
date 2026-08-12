@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useRef, useEffect, useMemo, useDeferredValue } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useState, useRef, useEffect, useMemo, useDeferredValue, useCallback } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useForm, useWatch } from 'react-hook-form'
@@ -97,6 +97,7 @@ export default function TreatmentsPage() {
   const t = useTranslations()
   const tCommon = useTranslations('common')
   const { currentClinic } = useCurrentClinic()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const patientFilter = searchParams?.get('patient_id') || searchParams?.get('patient') || ''
 
@@ -111,7 +112,20 @@ export default function TreatmentsPage() {
   const [typeFilter, setTypeFilter] = useState<'all' | 'appointments' | 'treatments'>('all')
   const [searchTerm, setSearchTerm] = useState('')
   const deferredSearchTerm = useDeferredValue(searchTerm)
-  const [pageIndex, setPageIndex] = useState(0)
+  const requestedPage = Number(searchParams?.get('page') || '1')
+  const pageIndex = Number.isFinite(requestedPage) && requestedPage > 0
+    ? Math.floor(requestedPage) - 1
+    : 0
+  const setPageIndex = useCallback((nextPageIndex: number) => {
+    const params = new URLSearchParams(searchParams?.toString() || '')
+    if (nextPageIndex > 0) {
+      params.set('page', String(nextPageIndex + 1))
+    } else {
+      params.delete('page')
+    }
+    const query = params.toString()
+    router.replace(query ? `/treatments?${query}` : '/treatments', { scroll: false })
+  }, [router, searchParams])
   const pageSize = 50
   const dateFilter = filterValues.treatment_date || {}
   const priceFilter = filterValues.price_cents || {}
