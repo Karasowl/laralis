@@ -268,6 +268,7 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
     pageCount: 1,
     truncated: false,
   }
+  const paginationReady = Boolean(crud.response?.pagination)
 
   // Load all related data in parallel
   const loadRelatedData = useCallback(async () => {
@@ -544,6 +545,7 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
     summary,
     filteredSummary,
     pagination,
+    paginationReady,
 
     // Operations
     fetchTreatments: crud.refresh, // SWR uses refresh instead of fetchItems
