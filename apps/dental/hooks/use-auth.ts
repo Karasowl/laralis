@@ -72,34 +72,43 @@ export function useAuth(): UseAuthReturn {
     setError(null)
 
     try {
-      if (getAuthBackend() === 'convex') {
-        // Prefer @convex-dev/auth when its provider is mounted; otherwise fall back
-        // to the hand-rolled convex-login bridge.
-        if (convexAuthActions) {
-          try {
-            await convexAuthActions.signIn('password', {
-              email: credentials.email,
-              password: credentials.password,
-              flow: 'signIn',
-            })
-            toast.success(t('login_success'))
-            router.refresh()
-            setTimeout(() => {
-              window.location.href = '/'
-            }, 500)
-            return true
-          } catch (err) {
+      const authBackend = getAuthBackend()
+
+      // In dual mode, both Convex Auth and the HMAC credential bridge are tried
+      // before the legacy Supabase fallback. A migrated user therefore never waits
+      // for Supabase just to discover an already valid Convex credential.
+      if (authBackend !== 'supabase' && convexAuthActions) {
+        try {
+          await convexAuthActions.signIn('password', {
+            email: credentials.email,
+            password: credentials.password,
+            flow: 'signIn',
+          })
+          toast.success(t('login_success'))
+          router.refresh()
+          setTimeout(() => {
+            window.location.href = '/'
+          }, 500)
+          return true
+        } catch (err) {
+          if (authBackend === 'convex') {
             const message = err instanceof Error ? err.message : 'Login failed'
             setError(message)
             toast.error(message)
             return false
           }
         }
-        return await loginWithConvexCredentials(credentials, {
+      }
+
+      if (authBackend !== 'supabase') {
+        const convexLogin = await loginWithConvexCredentials(credentials, {
           setError,
           t,
           router,
+          silent: authBackend === 'dual',
         })
+        if (convexLogin) return true
+        if (authBackend === 'convex') return false
       }
 
       const { error: signInError, data } = await supabase.auth.signInWithPassword({
@@ -108,16 +117,6 @@ export function useAuth(): UseAuthReturn {
       })
 
       if (signInError) {
-        if (getAuthBackend() === 'dual') {
-          const convexLogin = await loginWithConvexCredentials(credentials, {
-            setError,
-            t,
-            router,
-            silent: true,
-          })
-          if (convexLogin) return true
-        }
-
         setError(signInError.message)
         toast.error(signInError.message)
         return false
@@ -129,7 +128,16 @@ export function useAuth(): UseAuthReturn {
         return false
       }
 
-      await bridgeConvexPasswordCredential(credentials)
+      const bridged = await bridgeConvexPasswordCredential(credentials)
+      if (authBackend === 'dual' && bridged) {
+        const convexLogin = await loginWithConvexCredentials(credentials, {
+          setError,
+          t,
+          router,
+          silent: true,
+        })
+        if (convexLogin) return true
+      }
 
       const preferredLanguage = (data.user.user_metadata as Record<string, any> | null)?.preferred_language as string | undefined
       if (preferredLanguage) {
@@ -186,7 +194,13 @@ export function useAuth(): UseAuthReturn {
 
       // Convex Auth sign-up: Password.verify=ResendOTP emails a code; go to the
       // verify-email page to enter it (verifyEmailCode below completes the flow).
-      if (getAuthBackend() === 'convex' && convexAuthActions) {
+      if (getAuthBackend() !== 'supabase') {
+        if (!convexAuthActions) {
+          const message = t('errors.signUpError')
+          setError(message)
+          toast.error(message)
+          return false
+        }
         try {
           await convexAuthActions.signIn('password', {
             email: credentials.email,
@@ -282,11 +296,16 @@ export function useAuth(): UseAuthReturn {
     setLoading(true)
     
     try {
+      const authBackend = getAuthBackend()
       if (convexAuthActions) {
         await convexAuthActions.signOut().catch(() => null)
       }
-      await supabase.auth.signOut()
-      await fetch('/api/auth/convex-logout', { method: 'POST' }).catch(() => null)
+      if (authBackend !== 'supabase') {
+        await fetch('/api/auth/convex-logout', { method: 'POST' }).catch(() => null)
+        clearSupabaseBrowserCookies()
+      } else {
+        await supabase.auth.signOut()
+      }
       toast.success(t('logout_success'))
       router.push('/auth/login')
     } catch (err) {
@@ -295,7 +314,7 @@ export function useAuth(): UseAuthReturn {
     } finally {
       setLoading(false)
     }
-  }, [supabase, router, t, persistLocalePreference, convexAuthActions])
+  }, [supabase, router, t, convexAuthActions])
 
   const resetPassword = useCallback(async (email: string): Promise<boolean> => {
     setLoading(true)
@@ -304,17 +323,23 @@ export function useAuth(): UseAuthReturn {
     try {
       // Convex Auth reset: Password.reset=ResendOTPPasswordReset emails a code; go to
       // the reset page (convex mode) to enter the code + new password.
-      if (getAuthBackend() === 'convex' && convexAuthActions) {
+      const authBackend = getAuthBackend()
+      if (authBackend !== 'supabase' && convexAuthActions) {
         try {
           await convexAuthActions.signIn('password', { email, flow: 'reset' })
           toast.success(t('reset_email_sent'))
           router.push(`/auth/reset-password?email=${encodeURIComponent(email)}&convex=1`)
           return true
         } catch (err) {
-          const message = err instanceof Error ? err.message : 'Reset failed'
-          setError(message)
-          toast.error(message)
-          return false
+          if (authBackend === 'dual') {
+            // Legacy accounts that have not yet been migrated can still use the
+            // Supabase reset flow when no Convex credential exists.
+          } else {
+            const message = err instanceof Error ? err.message : 'Reset failed'
+            setError(message)
+            toast.error(message)
+            return false
+          }
         }
       }
 
@@ -406,10 +431,10 @@ export function useAuth(): UseAuthReturn {
 }
 
 async function bridgeConvexPasswordCredential(credentials: AuthCredentials) {
-  if (process.env.NEXT_PUBLIC_CONVEX_AUTH_BRIDGE !== '1') return
+  if (process.env.NEXT_PUBLIC_CONVEX_AUTH_BRIDGE !== '1') return false
 
   try {
-    await fetch('/api/auth/convex-bridge', {
+    const response = await fetch('/api/auth/convex-bridge', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
@@ -417,8 +442,19 @@ async function bridgeConvexPasswordCredential(credentials: AuthCredentials) {
         password: credentials.password,
       }),
     })
+    return response.ok
   } catch (error) {
     console.error('[useAuth] Convex auth bridge failed', error)
+    return false
+  }
+}
+
+function clearSupabaseBrowserCookies() {
+  if (typeof document === 'undefined') return
+  for (const cookie of document.cookie.split(';')) {
+    const name = cookie.split('=')[0]?.trim()
+    if (!name?.startsWith('sb-')) continue
+    document.cookie = `${name}=; path=/; max-age=0; samesite=lax`
   }
 }
 

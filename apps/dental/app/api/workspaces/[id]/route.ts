@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { readJson, validateSchema } from '@/lib/validation';
 import { forbiddenIfMissingWorkspacePermission } from '@/lib/workspace-access';
@@ -155,23 +155,7 @@ export async function PUT(
   try {
     const cookieStore = cookies();
     
-    // Crear cliente de Supabase para el servidor
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, options);
-            });
-          },
-        },
-      }
-    );
+    const supabase = createClient(cookieStore);
 
     // Verificar autenticación
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -297,23 +281,7 @@ export async function DELETE(
   try {
     const cookieStore = cookies();
 
-    // Crear cliente de Supabase para el servidor
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, options);
-            });
-          },
-        },
-      }
-    );
+    const supabase = createClient(cookieStore);
 
     // Verificar autenticación
     const { data: { user }, error: authError } = await supabase.auth.getUser();

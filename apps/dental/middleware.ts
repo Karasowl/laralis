@@ -376,14 +376,18 @@ async function supabaseMiddleware(request: NextRequest) {
 // Convex Auth path: convexAuthNextjsMiddleware owns the request (refreshes tokens,
 // proxies the /api/auth auth route) and our handler does the route gating. Workspace
 // destination redirects are deferred to the page layer in convex mode (follow-up).
-const convexMiddleware = convexAuthNextjsMiddleware(async (request, { convexAuth }) => {
+async function gateConvexAuthenticatedRoute(
+  request: NextRequest,
+  convexAuth: { isAuthenticated: () => Promise<boolean> },
+  knownAuthenticated?: boolean
+) {
   const { pathname } = request.nextUrl;
   // Let the auth proxy + API/asset routes through.
   if (pathname.startsWith('/api') || pathname.startsWith('/_next') || pathname.includes('.')) {
     return;
   }
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
-  const authed = await convexAuth.isAuthenticated();
+  const authed = knownAuthenticated ?? await convexAuth.isAuthenticated();
 
   if (!authed && !isPublic) {
     return nextjsMiddlewareRedirect(request, '/auth/login');
@@ -400,12 +404,29 @@ const convexMiddleware = convexAuthNextjsMiddleware(async (request, { convexAuth
   ) {
     return nextjsMiddlewareRedirect(request, '/');
   }
+}
+
+const convexMiddleware = convexAuthNextjsMiddleware(async (request, { convexAuth }) => {
+  return gateConvexAuthenticatedRoute(request, convexAuth);
+});
+
+// Dual mode accepts three session states in order: @convex-dev/auth, the HMAC
+// Convex cookie handled by supabaseMiddleware, and finally Supabase. Wrapping the
+// dual path with Convex Auth prevents a valid modern Convex session from ever
+// reaching the Supabase middleware branch.
+const dualMiddleware = convexAuthNextjsMiddleware(async (request, { convexAuth }) => {
+  const convexAuthenticated = await convexAuth.isAuthenticated();
+  if (convexAuthenticated) {
+    return gateConvexAuthenticatedRoute(request, convexAuth, true);
+  }
+  return supabaseMiddleware(request);
 });
 
 export default function middleware(request: NextRequest, event: NextFetchEvent) {
-  return getAuthBackend() === 'convex'
-    ? convexMiddleware(request, event)
-    : supabaseMiddleware(request);
+  const authBackend = getAuthBackend();
+  if (authBackend === 'convex') return convexMiddleware(request, event);
+  if (authBackend === 'dual') return dualMiddleware(request, event);
+  return supabaseMiddleware(request);
 }
 
 export const config = {

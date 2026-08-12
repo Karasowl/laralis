@@ -105,7 +105,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   const authBackend = getClientAuthBackend();
-  const shouldUseSupabaseAuth = authBackend !== 'convex';
+  const shouldUseSupabaseAuth = authBackend === 'supabase';
 
   const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
   const getSupabaseClient = useCallback(() => {
@@ -127,6 +127,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
       await fetch('/api/auth/convex-logout', { method: 'POST' }).catch(() => null);
 
+      if (authBackend !== 'supabase') {
+        for (const cookie of document.cookie.split(';')) {
+          const name = cookie.split('=')[0]?.trim();
+          if (!name?.startsWith('sb-')) continue;
+          document.cookie = `${name}=; path=/; max-age=0; samesite=lax`;
+        }
+      }
+
       // Limpiar estado local
       setUser(null);
       setWorkspace(null);
@@ -147,7 +155,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       sessionStorage.clear();
       window.location.href = '/auth/login';
     }
-  }, [getSupabaseClient]);
+  }, [authBackend, getSupabaseClient]);
 
   // PERFORMANCE: Memoize refreshWorkspaces to prevent recreating on every render
   const refreshWorkspaces = useCallback(async () => {

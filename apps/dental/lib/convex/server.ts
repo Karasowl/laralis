@@ -219,11 +219,12 @@ export async function userHasActiveWorkspaceMembershipFromConvex(
 }
 
 /**
- * Resolve the Supabase UUID (legacyId) of the currently-authenticated Convex Auth
- * user by reading the @convex-dev/auth token and querying
- * authMigration:currentUserLegacyId. Returns null when not signed in via Convex Auth.
- * Only meaningful under AUTH_BACKEND=convex; callers gate on that. The dynamic import
- * keeps @convex-dev/auth out of the Supabase-mode module graph.
+ * Resolve the application user id of the currently-authenticated Convex Auth user
+ * by reading the @convex-dev/auth token and querying authMigration:currentUserLegacyId.
+ * Migrated users retain their Supabase UUID. Native Convex registrations use the
+ * Convex user id embedded in the already-verified access token.
+ * Meaningful under AUTH_BACKEND=convex or dual. Callers gate on Convex auth being
+ * enabled. The dynamic import keeps @convex-dev/auth out of the Supabase-only graph.
  */
 export async function getConvexAuthUserLegacyId(): Promise<{
   legacyId: string | null
@@ -240,7 +241,24 @@ export async function getConvexAuthUserLegacyId(): Promise<{
     legacyId: string | null
     email: string | null
   } | null
-  return result ?? null
+  if (!result) return null
+  return {
+    legacyId: result.legacyId ?? extractConvexAuthUserId(token),
+    email: result.email,
+  }
+}
+
+export function extractConvexAuthUserId(token: string): string | null {
+  try {
+    const payloadPart = token.split('.')[1]
+    if (!payloadPart) return null
+    const payload = JSON.parse(Buffer.from(payloadPart, 'base64url').toString('utf8')) as { sub?: unknown }
+    if (typeof payload.sub !== 'string') return null
+    const userId = payload.sub.split('|')[0]
+    return userId || null
+  } catch {
+    return null
+  }
 }
 
 /**

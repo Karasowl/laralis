@@ -1,5 +1,4 @@
 import { cookies } from 'next/headers'
-import { getConvexSessionFromCookieStore, isConvexAuthEnabled } from '@/lib/auth/convex-session'
 import { createClient } from '@/lib/supabase/server'
 
 export type CurrentUser = {
@@ -10,7 +9,7 @@ export type CurrentUser = {
 
 export async function getCurrentUser(cookieStore: ReturnType<typeof cookies> = cookies()) {
   try {
-    const supabase = createClient()
+    const supabase = createClient(cookieStore)
     const {
       data: { user },
       error,
@@ -26,25 +25,8 @@ export async function getCurrentUser(cookieStore: ReturnType<typeof cookies> = c
         error: null,
       }
     }
+    return { user: null, error: error ?? new Error('Unauthorized') }
   } catch (error) {
-    if (!isConvexAuthEnabled()) {
-      return { user: null, error }
-    }
+    return { user: null, error }
   }
-
-  if (isConvexAuthEnabled()) {
-    const session = await getConvexSessionFromCookieStore(cookieStore)
-    if (session) {
-      return {
-        user: {
-          id: session.sub,
-          email: session.email,
-          user_metadata: session.userMetadata ?? {},
-        } satisfies CurrentUser,
-        error: null,
-      }
-    }
-  }
-
-  return { user: null, error: new Error('Unauthorized') }
 }

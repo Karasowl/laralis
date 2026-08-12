@@ -1,20 +1,32 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { getAuthBackend, getConvexSessionFromCookieStore } from '@/lib/auth/convex-session'
+import { getAuthBackend } from '@/lib/auth/convex-session'
+import { resolveServerAuthUser, type ServerAuthResolution } from '@/lib/auth/server-auth'
 import { createMirroredSupabaseClient } from '@/lib/convex/supabase-runtime-mirror'
-import { getConvexAuthUserLegacyId, getConvexDocumentByLegacyId } from '@/lib/convex/server'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-export function createClient() {
-  const cookieStore = cookies()
+export function createClient(cookieStore = cookies()) {
+  const authBackend = getAuthBackend()
 
-  if (getAuthBackend() === 'convex') {
+  if (authBackend === 'convex') {
     return createConvexOnlyServerClient(cookieStore) as any
   }
-  
-  const client = createServerClient(
+
+  const client = createSupabaseServerClient(cookieStore)
+  const authAwareClient = createConvexFirstAuthClient(client as any, cookieStore, authBackend)
+
+  return createMirroredSupabaseClient(authAwareClient as any)
+}
+
+/**
+ * Raw Supabase protocol client. Keep this explicit and rare. It is only for flows
+ * that must talk to Supabase itself, such as PKCE exchange, Supabase OTP, or
+ * mirroring a user immediately after a Supabase metadata mutation.
+ */
+export function createSupabaseServerClient(cookieStore = cookies()) {
+  return createServerClient(
     supabaseUrl,
     supabaseAnonKey,
     {
@@ -43,54 +55,29 @@ export function createClient() {
       },
     }
   )
-
-  return createMirroredSupabaseClient(client as any)
 }
 
 function createConvexOnlyServerClient(cookieStore: ReturnType<typeof cookies>) {
-  // Resolve the current user from the hand-rolled HMAC session first; if absent and
-  // running @convex-dev/auth, fall back to the Convex Auth token (mapped to the
-  // Supabase UUID via legacyId).
-  async function resolveUser() {
-    const session = await getConvexSessionFromCookieStore(cookieStore)
-    if (session) {
-      return { id: session.sub, email: session.email, user_metadata: session.userMetadata ?? {} }
-    }
-    if (getAuthBackend() === 'convex') {
-      const identity = await getConvexAuthUserLegacyId()
-      if (identity?.legacyId) {
-        // Enrich the @convex-dev/auth token identity with the user's profile metadata
-        // (full_name/name/avatar) from the mirrored supabase_auth_users row, so the UI
-        // shows the real name instead of the "DefaultUser" fallback.
-        let userMetadata: Record<string, unknown> = {}
-        try {
-          const authRow = (await getConvexDocumentByLegacyId('supabase_auth_users', identity.legacyId)) as
-            | { user_metadata?: Record<string, unknown>; raw_user_meta_data?: Record<string, unknown> }
-            | null
-          userMetadata = authRow?.user_metadata ?? authRow?.raw_user_meta_data ?? {}
-        } catch {
-          /* non-fatal — fall back to empty metadata */
-        }
-        return { id: identity.legacyId, email: identity.email ?? '', user_metadata: userMetadata }
-      }
-    }
-    return null
+  let resolution: Promise<ServerAuthResolution> | null = null
+  const resolveUser = () => {
+    resolution ??= resolveServerAuthUser({ cookieStore, authBackend: 'convex' })
+    return resolution
   }
 
   return {
     auth: {
       async getUser() {
-        const user = await resolveUser()
+        const { user, error } = await resolveUser()
         return {
           data: { user },
-          error: user ? null : new Error('Auth session missing'),
+          error,
         }
       },
       async getSession() {
-        const user = await resolveUser()
+        const { user, error } = await resolveUser()
         return {
-          data: { session: user ? { user } : null },
-          error: null,
+          data: { session: user ? createConvexCompatibleSession(user) : null },
+          error,
         }
       },
       async setSession() {
@@ -109,5 +96,69 @@ function createConvexOnlyServerClient(cookieStore: ReturnType<typeof cookies>) {
     rpc() {
       throw new Error('Supabase RPC is disabled in Convex auth mode')
     },
+  }
+}
+
+function createConvexFirstAuthClient(
+  client: any,
+  cookieStore: ReturnType<typeof cookies>,
+  authBackend: ReturnType<typeof getAuthBackend>
+) {
+  let resolution: Promise<ServerAuthResolution> | null = null
+  const resolveUser = () => {
+    resolution ??= resolveServerAuthUser({
+      cookieStore,
+      authBackend,
+      getSupabaseUser: () => client.auth.getUser(),
+    })
+    return resolution
+  }
+
+  const auth = new Proxy(client.auth, {
+    get(target, prop, receiver) {
+      if (prop === 'getUser') {
+        return async (...args: unknown[]) => {
+          if (args.length > 0) return target.getUser(...args)
+          const { user, error } = await resolveUser()
+          return { data: { user }, error }
+        }
+      }
+
+      if (prop === 'getSession') {
+        return async () => {
+          const resolved = await resolveUser()
+          if (resolved.source === 'supabase') {
+            return target.getSession()
+          }
+          return {
+            data: {
+              session: resolved.user ? createConvexCompatibleSession(resolved.user) : null,
+            },
+            error: resolved.error,
+          }
+        }
+      }
+
+      const value = Reflect.get(target, prop, receiver)
+      return typeof value === 'function' ? value.bind(target) : value
+    },
+  })
+
+  return new Proxy(client, {
+    get(target, prop, receiver) {
+      if (prop === 'auth') return auth
+      const value = Reflect.get(target, prop, receiver)
+      return typeof value === 'function' ? value.bind(target) : value
+    },
+  })
+}
+
+function createConvexCompatibleSession(user: Record<string, unknown>) {
+  return {
+    access_token: '',
+    refresh_token: '',
+    expires_in: 0,
+    token_type: 'bearer',
+    user,
   }
 }
