@@ -23,3 +23,35 @@ export function deriveTreatmentPaymentState(params: {
   const clamped = raw == null || raw < 0 ? 0 : raw
   return { pendingBalanceCents: clamped, isPaid }
 }
+
+export interface TreatmentPaymentSnapshot {
+  price_cents?: number | null
+  amount_paid_cents?: number | null
+  pending_balance_cents?: number | null
+  status?: string | null
+  is_refunded?: boolean | null
+}
+
+/**
+ * Returns the outstanding amount recorded for a treatment.
+ * Newer records use pending_balance_cents as the source of truth. The price
+ * fallback keeps legacy records payable without manufacturing a negative debt.
+ */
+export function getTreatmentOutstandingBalanceCents(
+  treatment: TreatmentPaymentSnapshot
+): number {
+  if (treatment.pending_balance_cents !== undefined) {
+    return Math.max(0, Math.round(treatment.pending_balance_cents ?? 0))
+  }
+
+  const priceCents = Math.round(treatment.price_cents ?? 0)
+  const amountPaidCents = Math.round(treatment.amount_paid_cents ?? 0)
+  return Math.max(0, priceCents - amountPaidCents)
+}
+
+export function canRegisterTreatmentPayment(
+  treatment: TreatmentPaymentSnapshot
+): boolean {
+  if (treatment.is_refunded || treatment.status === 'cancelled') return false
+  return getTreatmentOutstandingBalanceCents(treatment) > 0
+}

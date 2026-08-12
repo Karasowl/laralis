@@ -15,6 +15,18 @@
       "documentation": "Documentation"
     },
     "releases": {
+      "v0_7_2": {
+        "date": "2026-08-12",
+        "title": "Treatments, payments, recurring expenses, and patients seen",
+        "fixed": [
+          "Treatment edit actions remain visible on desktop even when the table is wider than the screen.",
+          "Marking an expense as recurring no longer crashes the application. Monthly frequency and its day are filled safely.",
+          "The dashboard shows the number of unique patients with completed treatments in the selected period."
+        ],
+        "improved": [
+          "Treatments with an outstanding balance show Register payment directly in the list, include a pending payments filter, and open with the full outstanding amount ready to confirm."
+        ]
+      },
       "v0_7_1": {
         "date": "2026-07-31",
         "title": "Fixed the 504 error when opening the app",

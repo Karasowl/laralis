@@ -19,6 +19,8 @@ export interface DashboardMetrics {
   patients: {
     total: number
     new: number
+    attended: number
+    active: number
     change: number
   }
   treatments: {
@@ -115,6 +117,8 @@ export class DashboardAggregator {
       patients: {
         total: (data[2]?.patients?.total ?? data[2]?.total ?? 0),
         new: (data[2]?.patients?.new ?? data[2]?.new ?? 0),
+        attended: (data[2]?.patients?.attended ?? data[2]?.attended ?? 0),
+        active: (data[2]?.patients?.active ?? data[2]?.active ?? 0),
         change: 0
       },
       treatments: {
@@ -219,7 +223,7 @@ export function useDashboard(options: UseDashboardOptions = {}): DashboardState 
     metrics: {
       revenue: { current: 0, previous: 0, change: 0 },
       expenses: { current: 0, previous: 0, change: 0 },
-      patients: { total: 0, new: 0, change: 0 },
+      patients: { total: 0, new: 0, attended: 0, active: 0, change: 0 },
       treatments: { total: 0, completed: 0, pending: 0 },
       supplies: { lowStock: 0, totalValue: 0 },
       appointments: { today: 0, week: 0 }
@@ -410,7 +414,9 @@ export function useDashboard(options: UseDashboardOptions = {}): DashboardState 
         const prevRevenue = comparisonResults[0]?.total || comparisonResults[0]?.total_cents || 0
         const prevExpenses = comparisonResults[1]?.total || comparisonResults[1]?.total_cents || 0
         const prevTreatments = comparisonResults[2]?.total || 0
-        const prevPatients = comparisonResults[3]?.total || 0
+        const prevPatients = comparisonResults[3]?.patients?.attended
+          ?? comparisonResults[3]?.attended
+          ?? 0
 
         // Calculate changes and trends
         const calculateChangeAndTrend = (current: number, previous: number) => {
@@ -430,7 +436,7 @@ export function useDashboard(options: UseDashboardOptions = {}): DashboardState 
         const revenueComparison = calculateChangeAndTrend(metrics.revenue.current, prevRevenue)
         const expensesComparison = calculateChangeAndTrend(metrics.expenses.current, prevExpenses)
         const treatmentsComparison = calculateChangeAndTrend(metrics.treatments.total, prevTreatments)
-        const patientsComparison = calculateChangeAndTrend(metrics.patients.new, prevPatients)
+        const patientsComparison = calculateChangeAndTrend(metrics.patients.attended, prevPatients)
 
         comparison = {
           revenue: {
@@ -449,7 +455,7 @@ export function useDashboard(options: UseDashboardOptions = {}): DashboardState 
             ...treatmentsComparison
           },
           patients: {
-            current: metrics.patients.new,
+            current: metrics.patients.attended,
             previous: prevPatients,
             ...patientsComparison
           }

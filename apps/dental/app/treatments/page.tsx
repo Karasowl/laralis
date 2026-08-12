@@ -34,6 +34,10 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { calcularPrecioFinal } from '@/lib/calc/tarifa'
 import { useFilteredSummary } from '@/hooks/use-filtered-summary'
 import { treatmentSummaryConfig } from '@/lib/calc/summary-configs'
+import {
+  canRegisterTreatmentPayment,
+  getTreatmentOutstandingBalanceCents,
+} from '@/lib/calc/treatment-payment'
 
 // Helper to check if a date is in the future (for appointment vs treatment distinction)
 function isFutureDate(dateStr: string): boolean {
@@ -179,11 +183,11 @@ export default function TreatmentsPage() {
   // Apply filters to treatments
   const smartFilteredTreatments = useSmartFilter(treatments, filterValues, filterConfigs)
 
-  // Apply balance filter (treatments with explicit pending balance)
+  // Apply balance filter (including legacy records without an explicit balance)
   const balanceFilteredTreatments = useMemo(() => {
     if (!filterValues.has_balance) return smartFilteredTreatments
-    return smartFilteredTreatments.filter((t: Treatment) =>
-      t.pending_balance_cents && t.pending_balance_cents > 0
+    return smartFilteredTreatments.filter((treatment: Treatment) =>
+      canRegisterTreatmentPayment(treatment)
     )
   }, [smartFilteredTreatments, filterValues.has_balance])
 
@@ -596,7 +600,7 @@ export default function TreatmentsPage() {
                 {hasPendingBalance && (
                   <Badge variant="warning" className="gap-1 text-xs">
                     <Wallet className="h-3 w-3" />
-                    {formatCurrency(treatment.pending_balance_cents)}
+                    {formatCurrency(getTreatmentOutstandingBalanceCents(treatment))}
                   </Badge>
                 )}
                 {hasNotes && (
@@ -614,7 +618,7 @@ export default function TreatmentsPage() {
                         {t('treatments.pendingBalance.label')}
                       </p>
                       <p className="text-lg font-bold text-amber-700 dark:text-amber-300">
-                        {formatCurrency(treatment.pending_balance_cents)}
+                        {formatCurrency(getTreatmentOutstandingBalanceCents(treatment))}
                       </p>
                     </div>
                   </div>
@@ -654,10 +658,28 @@ export default function TreatmentsPage() {
       key: 'actions',
       label: t('common.actions'),
       sortable: false,
-      render: (_value: any, treatment: Treatment) => (
-        <div className="md:flex md:justify-end">
-          <ActionDropdown
-            actions={[
+      sticky: 'right' as const,
+      minWidth: '190px',
+      render: (_value: any, treatment: Treatment) => {
+        const canRegisterPayment = canRegisterTreatmentPayment(treatment)
+
+        return (
+          <div className="flex items-center justify-end gap-1.5">
+            {canRegisterPayment && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 whitespace-nowrap"
+                onClick={() => setPaymentTreatment(treatment)}
+              >
+                <CreditCard className="mr-1.5 h-4 w-4" />
+                {t('treatments.payment.registerPayment')}
+              </Button>
+            )}
+            <ActionDropdown
+              triggerLabel={t('common.actions')}
+              actions={[
               createEditAction(() => {
                 // Use the actual saved price
                 const actualPricePesos = Math.round((treatment?.price_cents || 0) / 100)
@@ -688,8 +710,8 @@ export default function TreatmentsPage() {
                 })
                 setEditTreatment(treatment)
               }, tCommon('edit')),
-              // Only show payment action for treatments with explicit pending balance
-              ...(treatment?.pending_balance_cents && treatment.pending_balance_cents > 0
+              // Keep payment in the overflow menu too for compact/mobile use
+              ...(canRegisterPayment
                 ? [{
                     icon: <CreditCard className="h-4 w-4" />,
                     label: t('treatments.payment.registerPayment'),
@@ -701,10 +723,11 @@ export default function TreatmentsPage() {
                 ? [createRefundAction(() => setRefundTreatmentData(treatment), t('treatments.refund.button'))]
                 : []),
               createDeleteAction(() => setDeleteTreatmentData(treatment), tCommon('delete'))
-            ]}
-          />
-        </div>
-      )
+              ]}
+            />
+          </div>
+        )
+      }
     }
   ]
 
@@ -939,6 +962,22 @@ export default function TreatmentsPage() {
           onChange={setFilterValues}
           className="mb-4"
         />
+
+        {summary.treatmentsWithBalance > 0 && (
+          <div className="mb-4 flex justify-end">
+            <Button
+              type="button"
+              variant={filterValues.has_balance ? 'default' : 'outline'}
+              onClick={() => setFilterValues((current) => ({
+                ...current,
+                has_balance: !current.has_balance,
+              }))}
+            >
+              <Wallet className="mr-2 h-4 w-4" />
+              {t('treatments.payment.pendingPayments', { count: summary.treatmentsWithBalance })}
+            </Button>
+          </div>
+        )}
 
         <DataTable
           columns={columns}

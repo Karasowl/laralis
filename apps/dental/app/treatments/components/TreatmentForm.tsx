@@ -435,7 +435,10 @@ export function TreatmentForm({
       </FormSection>
 
       {/* Pending Balance Section - Explicit user-marked pending payments */}
-      <FormSection title={t('treatments.pendingBalance.title')}>
+      <FormSection
+        title={t('treatments.pendingBalance.title')}
+        description={t('treatments.pendingBalance.description')}
+      >
         <div className="space-y-4">
           <div className="flex items-center space-x-3">
             <Checkbox

@@ -5,6 +5,7 @@ import { resolveClinicContext } from '@/lib/clinic'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
 import { listConvexDocumentsByClinic } from '@/lib/convex/server';
 import { shouldReturnConvexData } from '@/lib/data-backend';
+import { countUniqueCompletedPatientsInRange } from '@/lib/calc/patient-metrics'
 
 export const dynamic = 'force-dynamic'
 
@@ -54,15 +55,11 @@ export async function GET(request: NextRequest) {
       activeStart.setDate(activeStart.getDate() - 90)
       const activeStartDate = activeStart.toISOString().split('T')[0]
 
-      const attendedCount = new Set(
-        treatments
-          .filter((treatment: any) => {
-            const treatmentDate = String(treatment.treatment_date || '')
-            return treatmentDate >= startDate && treatmentDate <= endDate
-          })
-          .map((treatment: any) => treatment.patient_id)
-          .filter(Boolean)
-      ).size
+      const attendedCount = countUniqueCompletedPatientsInRange(
+        treatments,
+        startDate,
+        endDate
+      )
 
       const activeCount = new Set(
         treatments
@@ -100,6 +97,7 @@ export async function GET(request: NextRequest) {
       .from('treatments')
       .select('patient_id')
       .eq('clinic_id', clinicId)
+      .eq('status', 'completed')
       .gte('treatment_date', start.toISOString().split('T')[0])
       .lte('treatment_date', end.toISOString().split('T')[0])
     if (treatedErr) throw treatedErr

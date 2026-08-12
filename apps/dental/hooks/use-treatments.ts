@@ -5,6 +5,10 @@ import { useSwrCrud } from './use-swr-crud'
 import { useApi } from './use-api'
 import { useParallelApi } from './use-api'
 import { useTranslations } from 'next-intl'
+import {
+  canRegisterTreatmentPayment,
+  getTreatmentOutstandingBalanceCents,
+} from '@/lib/calc/treatment-payment'
 import { toast } from 'sonner'
 
 // Calendar sync result from API
@@ -144,13 +148,10 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
     const pendingTreatments = nonCancelled.filter(t => t.status === 'pending').length
     const averagePrice = completedTreatments > 0 ? totalRevenue / completedTreatments : 0
 
-    // Explicit pending balance tracking (user-marked)
-    const treatmentsWithBalance = uniqueTreatments.filter(t =>
-      t.pending_balance_cents && t.pending_balance_cents > 0
-    ).length
+    const treatmentsWithBalance = uniqueTreatments.filter(canRegisterTreatmentPayment).length
     const pendingBalanceCents = uniqueTreatments
-      .filter(t => t.pending_balance_cents && t.pending_balance_cents > 0)
-      .reduce((sum, t) => sum + (t.pending_balance_cents || 0), 0)
+      .filter(canRegisterTreatmentPayment)
+      .reduce((sum, treatment) => sum + getTreatmentOutstandingBalanceCents(treatment), 0)
 
     return {
       totalRevenue,

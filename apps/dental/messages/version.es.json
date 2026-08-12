@@ -15,6 +15,18 @@
       "documentation": "Documentación"
     },
     "releases": {
+      "v0_7_2": {
+        "date": "2026-08-12",
+        "title": "Tratamientos, pagos, gastos recurrentes y pacientes atendidos",
+        "fixed": [
+          "Las acciones para editar tratamientos permanecen visibles en escritorio aunque la tabla sea más ancha que la pantalla.",
+          "Marcar un gasto como recurrente ya no provoca un error de la aplicación. La frecuencia mensual y su día se completan de forma segura.",
+          "El dashboard muestra el número de pacientes únicos con tratamientos completados dentro del período seleccionado."
+        ],
+        "improved": [
+          "Los tratamientos con saldo pendiente muestran Registrar pago directamente en la lista, incluyen un filtro de pagos pendientes y abren el monto total pendiente listo para confirmar."
+        ]
+      },
       "v0_7_1": {
         "date": "2026-07-31",
         "title": "Corregido el error 504 al abrir la aplicación",

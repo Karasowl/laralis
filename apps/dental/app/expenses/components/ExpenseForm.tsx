@@ -1,12 +1,16 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, type ChangeEvent } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { FormGrid, FormSection, InputField, SelectField } from '@/components/ui/form-field'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { type ExpenseFormData, ALL_EXPENSE_CATEGORIES } from '@/lib/types/expenses'
+import {
+  getDefaultRecurrenceDay,
+  RECURRENCE_INTERVAL_VALUES,
+} from '@/lib/calc/expense-recurrence'
 
 interface Option {
   value: string
@@ -179,11 +183,20 @@ export function ExpenseForm({
                 id="expense-is-recurring"
                 checked={field.value}
                 onCheckedChange={(checked) => {
-                  field.onChange(Boolean(checked))
+                  const nextChecked = Boolean(checked)
+                  field.onChange(nextChecked)
                   // Clear recurrence fields when unchecking
-                  if (!checked) {
+                  if (!nextChecked) {
                     form.setValue('recurrence_interval', undefined)
                     form.setValue('recurrence_day', undefined)
+                  } else if (!recurrenceInterval) {
+                    const defaultInterval = 'monthly'
+                    form.setValue('recurrence_interval', defaultInterval, { shouldValidate: true })
+                    form.setValue(
+                      'recurrence_day',
+                      getDefaultRecurrenceDay(form.getValues('expense_date'), defaultInterval),
+                      { shouldValidate: true }
+                    )
                   }
                 }}
               />
@@ -197,28 +210,41 @@ export function ExpenseForm({
           <FormGrid columns={2}>
             <SelectField
               label={t('form.fields.recurrenceInterval')}
-              value={recurrenceInterval || ''}
-              onChange={(value) => form.setValue('recurrence_interval', value === '' ? undefined : value as 'weekly' | 'monthly' | 'yearly')}
-              options={[
-                { value: '', label: t('form.fields.recurrenceIntervalNone') },
-                { value: 'weekly', label: t('form.fields.recurrenceIntervalWeekly') },
-                { value: 'monthly', label: t('form.fields.recurrenceIntervalMonthly') },
-                { value: 'yearly', label: t('form.fields.recurrenceIntervalYearly') },
-              ]}
+              value={recurrenceInterval || 'monthly'}
+              onChange={(value) => {
+                const interval = value as 'weekly' | 'monthly' | 'yearly'
+                form.setValue('recurrence_interval', interval, { shouldValidate: true })
+                const currentDay = form.getValues('recurrence_day')
+                if (!currentDay || (interval === 'weekly' && currentDay > 7)) {
+                  form.setValue(
+                    'recurrence_day',
+                    getDefaultRecurrenceDay(form.getValues('expense_date'), interval),
+                    { shouldValidate: true }
+                  )
+                }
+              }}
+              options={RECURRENCE_INTERVAL_VALUES.map((value) => ({
+                value,
+                label: t(`form.fields.recurrenceInterval${value[0].toUpperCase()}${value.slice(1)}`),
+              }))}
             />
             <Controller
               control={form.control}
               name="recurrence_day"
-              render={({ field }) => (
+              render={({ field, fieldState }) => (
                 <InputField
                   type="number"
                   label={t('form.fields.recurrenceDay')}
                   value={field.value ?? ''}
-                  onChange={(value) => field.onChange(value === '' ? undefined : Number(value))}
+                  onChange={(value: string | number | ChangeEvent<HTMLInputElement>) => {
+                    const rawValue = typeof value === 'object' ? value.target.value : value
+                    field.onChange(rawValue === '' ? undefined : Number(rawValue))
+                  }}
                   min={1}
                   max={recurrenceInterval === 'weekly' ? 7 : 31}
                   step={1}
                   helperText={t('form.fields.recurrenceDayHelp')}
+                  error={fieldState.error?.message}
                   disabled={!recurrenceInterval}
                 />
               )}

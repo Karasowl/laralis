@@ -14,6 +14,8 @@ export interface Column<T> {
   hideOnMobile?: boolean;
   /** Minimum width for this column (e.g., '120px', '10rem') */
   minWidth?: string;
+  /** Keep an important column visible while the desktop table scrolls horizontally */
+  sticky?: 'left' | 'right';
 }
 
 export interface DataTableProps<T> extends React.HTMLAttributes<HTMLDivElement> {
@@ -282,6 +284,8 @@ function DataTable<T extends { id?: string | number }>({
                           isSortable && "cursor-pointer hover:text-foreground hover:bg-muted/30",
                           // Hide on tablet (md) but show on large (lg) screens
                           column.hideOnTablet && "hidden lg:table-cell",
+                          column.sticky === 'right' && "sticky right-0 z-30 bg-muted shadow-[-8px_0_12px_-12px_hsl(var(--foreground))]",
+                          column.sticky === 'left' && "sticky left-0 z-30 bg-muted shadow-[8px_0_12px_-12px_hsl(var(--foreground))]",
                           column.className
                         )}
                         style={column.minWidth ? { minWidth: column.minWidth } : undefined}
@@ -338,6 +342,8 @@ function DataTable<T extends { id?: string | number }>({
                             "group-hover:text-foreground",
                             // Hide on tablet (md) but show on large (lg) screens
                             column.hideOnTablet && "hidden lg:table-cell",
+                            column.sticky === 'right' && "sticky right-0 z-20 bg-card group-hover:bg-muted shadow-[-8px_0_12px_-12px_hsl(var(--foreground))]",
+                            column.sticky === 'left' && "sticky left-0 z-20 bg-card group-hover:bg-muted shadow-[8px_0_12px_-12px_hsl(var(--foreground))]",
                             column.className
                           )}
                           style={column.minWidth ? { minWidth: column.minWidth } : undefined}
