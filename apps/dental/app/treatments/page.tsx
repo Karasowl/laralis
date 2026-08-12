@@ -980,13 +980,13 @@ export default function TreatmentsPage() {
             columns[10]
           ]}
           data={filteredTreatments}
-          loading={loading}
+          loading={loading || pagination.page !== pageIndex}
           searchPlaceholder={t('treatments.searchPlaceholder')}
           onSearch={handleSearchChange}
           showCount={true}
           countLabel={t('treatments.title').toLowerCase()}
           serverPagination={{
-            pageIndex: pagination.page,
+            pageIndex,
             pageCount: pagination.pageCount,
             totalCount: pagination.total,
             onPageChange: setPageIndex,
