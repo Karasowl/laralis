@@ -115,9 +115,24 @@ describe('resolveClinicContext auth backend selection', () => {
 
     expect(result).toEqual({ clinicId: CLINIC_ID, userId: USER_ID })
     expect(mocks.getConvexSessionFromCookieStore).toHaveBeenCalledOnce()
+    expect(mocks.getConvexAuthUserLegacyId).toHaveBeenCalledOnce()
     expect(mocks.createClient).toHaveBeenCalledOnce()
     expect(mocks.authGetUser).toHaveBeenCalledOnce()
     expect(mocks.rpc).toHaveBeenCalledWith('user_has_clinic_access', { clinic_id: CLINIC_ID })
+  })
+
+  it('uses a valid @convex-dev/auth identity in dual mode without Supabase', async () => {
+    const cookieStore = createCookieStore()
+    mocks.getConvexAuthUserLegacyId.mockResolvedValue({ legacyId: USER_ID, email: 'qa@example.test' })
+    mockAccessibleConvexClinic()
+
+    const result = await resolveClinicContext({ requestedClinicId: CLINIC_ID, cookieStore })
+
+    expect(result).toEqual({ clinicId: CLINIC_ID, userId: USER_ID })
+    expect(mocks.getConvexSessionFromCookieStore).toHaveBeenCalledOnce()
+    expect(mocks.getConvexAuthUserLegacyId).toHaveBeenCalledOnce()
+    expect(mocks.createClient).not.toHaveBeenCalled()
+    expect(mocks.authGetUser).not.toHaveBeenCalled()
   })
 
   it('keeps pure Supabase mode independent from Convex session lookup', async () => {

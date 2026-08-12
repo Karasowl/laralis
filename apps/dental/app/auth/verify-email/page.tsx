@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 
-const CONVEX_AUTH_MODE = process.env.NEXT_PUBLIC_AUTH_BACKEND === 'convex'
+const CONVEX_AUTH_MODE = process.env.NEXT_PUBLIC_AUTH_BACKEND !== 'supabase'
 
 export default function VerifyEmailPage() {
   const t = useTranslations('auth.verifyEmail')
@@ -33,6 +33,8 @@ export default function VerifyEmailPage() {
   }
 
   useEffect(() => {
+    if (CONVEX_AUTH_MODE) return
+
     let cancelled = false
 
     supabase.auth.getUser().then(({ data }) => {

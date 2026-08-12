@@ -16,7 +16,7 @@ import { toast } from 'sonner'
 import { Lock, CheckCircle, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-const CONVEX_AUTH_MODE = process.env.NEXT_PUBLIC_AUTH_BACKEND === 'convex'
+const CONVEX_ONLY_AUTH_MODE = process.env.NEXT_PUBLIC_AUTH_BACKEND === 'convex'
 
 // Convex Auth reset: enter the emailed OTP + a new password (reset-verification flow).
 function ConvexResetForm() {
@@ -92,7 +92,8 @@ const resetPasswordSchema = z.object({
 type ResetPasswordForm = z.infer<typeof resetPasswordSchema>
 
 function ResetPasswordContent() {
-  if (CONVEX_AUTH_MODE) {
+  const searchParams = useSearchParams()
+  if (CONVEX_ONLY_AUTH_MODE || searchParams.get('convex') === '1') {
     return <ConvexResetForm />
   }
   return <SupabaseResetPasswordContent />

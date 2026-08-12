@@ -6,8 +6,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { createClient } from '@/lib/supabase/server';
 import { WorkspaceExporter, ExportError } from '@/lib/export/exporter';
 import { upsertConvexDocumentByLegacyId } from '@/lib/convex/server';
 import { shouldUseConvexOnlyWritePath } from '@/lib/data-backend';
@@ -48,24 +48,8 @@ export async function POST(request: NextRequest) {
     }
     const { workspaceId, options = {} } = parsed.data;
 
-    // Create Supabase client
     const cookieStore = cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, options);
-            });
-          },
-        },
-      }
-    );
+    const supabase = createClient(cookieStore);
 
     // Verify authentication
     const {

@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server'
 import { upsertConvexDocumentByLegacyId } from '@/lib/convex/server'
-import { createClient } from '@/lib/supabase/server'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
 
 export async function POST() {
   if (!process.env.NEXT_PUBLIC_CONVEX_URL || !process.env.CONVEX_AUTH_BRIDGE_SECRET) {
     return NextResponse.json({ ok: true, enabled: false })
   }
 
-  const supabase = createClient()
+  // This endpoint mirrors the freshly-mutated Supabase user record. Reading a
+  // Convex identity here would only write the old mirror back to itself.
+  const supabase = createSupabaseServerClient()
   const {
     data: { user },
     error,

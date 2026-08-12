@@ -38,33 +38,14 @@ export async function POST(request: NextRequest) {
     }
     const { workspace, clinic } = parsed.data;
 
-    // Try to refresh session first
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-    if (sessionError) {
-      console.error('[onboarding] Session error:', sessionError);
-    }
-
-    // If we have a session, try to refresh it
-    if (session) {
-      const { error: refreshError } = await supabase.auth.setSession({
-        access_token: session.access_token,
-        refresh_token: session.refresh_token
-      });
-
-      if (refreshError) {
-        console.error('[onboarding] Refresh error:', refreshError);
-      }
-    }
-
-    // Get current user
+    // The shared server client resolves either Convex session form before the
+    // Supabase fallback. Do not refresh a Supabase session before identifying the
+    // caller, because Convex-authenticated onboarding does not need one.
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (userError || !user) {
       console.error('[onboarding] Auth error:', {
         userError,
-        hasSession: !!session,
-        sessionUserId: session?.user?.id,
         errorMessage: userError?.message
       });
       return NextResponse.json(

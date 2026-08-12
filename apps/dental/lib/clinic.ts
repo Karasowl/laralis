@@ -289,9 +289,9 @@ export async function resolveClinicContext({
     }
   }
 
-  // Pure Convex Auth mode can also use the @convex-dev/auth identity. Do not
-  // fall through to Supabase when that mode has no hand-rolled session cookie.
-  if (authBackend === 'convex') {
+  // @convex-dev/auth is a second valid Convex session form in both dual and pure
+  // Convex modes. Resolve it before Supabase just like the HMAC cookie above.
+  if (isConvexAuthEnabled()) {
     const identity = await getConvexAuthUserLegacyId();
     if (identity?.legacyId) {
       return resolveConvexClinicContext({
@@ -300,6 +300,9 @@ export async function resolveClinicContext({
         cookieStore,
       });
     }
+  }
+
+  if (authBackend === 'convex') {
     return { error: { status: 401, message: 'Unauthorized' } };
   }
 
