@@ -162,8 +162,10 @@ export default function TreatmentsPage() {
   const filteredCount = pagination.total
 
   useEffect(() => {
-    if (pagination.page !== pageIndex) setPageIndex(pagination.page)
-  }, [pageIndex, pagination.page])
+    if (!loading && pageIndex >= pagination.pageCount) {
+      setPageIndex(Math.max(0, pagination.pageCount - 1))
+    }
+  }, [loading, pageIndex, pagination.pageCount])
 
   // Filter configurations
   const filterConfigs: FilterConfig[] = useMemo(() => [
