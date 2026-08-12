@@ -15,6 +15,15 @@
       "documentation": "Documentación"
     },
     "releases": {
+      "v0_7_3": {
+        "date": "2026-08-12",
+        "title": "Listas de tratamientos más rápidas e interacciones inmediatas",
+        "performance": [
+          "La pantalla de tratamientos ahora monta únicamente el diseño activo de escritorio o móvil y limita la lista visible a 50 registros por página.",
+          "Las páginas de tratamientos se filtran y paginan en el servidor, conservando los totales y resúmenes del conjunto completo.",
+          "Moverse entre filas y abrir o cerrar los menús de acciones ya no vuelve a renderizar toda la tabla de tratamientos."
+        ]
+      },
       "v0_7_2": {
         "date": "2026-08-12",
         "title": "Tratamientos, pagos, gastos recurrentes y pacientes atendidos",

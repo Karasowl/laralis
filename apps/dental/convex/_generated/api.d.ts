@@ -20,6 +20,7 @@ import type * as migration from "../migration.js";
 import type * as mirroredTables from "../mirroredTables.js";
 import type * as recurringExpenses from "../recurringExpenses.js";
 import type * as testHelpers from "../testHelpers.js";
+import type * as treatmentList from "../treatmentList.js";
 
 import type {
   ApiFromModules,
@@ -40,6 +41,7 @@ declare const fullApi: ApiFromModules<{
   mirroredTables: typeof mirroredTables;
   recurringExpenses: typeof recurringExpenses;
   testHelpers: typeof testHelpers;
+  treatmentList: typeof treatmentList;
 }>;
 
 /**

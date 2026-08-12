@@ -57,6 +57,9 @@ export interface Service {
   id: string
   name: string
   variable_cost_cents: number
+  total_cost_cents?: number
+  base_price_cents?: number
+  price_cents?: number
   est_minutes?: number
 }
 
@@ -96,26 +99,104 @@ interface UseTreatmentsOptions {
   clinicId?: string
   autoLoad?: boolean
   patientId?: string
+  listQuery?: {
+    page: number
+    pageSize: number
+    dateFrom?: string
+    dateTo?: string
+    statuses?: string[]
+    serviceIds?: string[]
+    patientIds?: string[]
+    priceFrom?: number
+    priceTo?: number
+    hasBalance?: boolean
+    typeFilter?: 'all' | 'appointments' | 'treatments'
+    today: string
+    search?: string
+  }
 }
 
 export function useTreatments(options: UseTreatmentsOptions = {}) {
-  const { clinicId, autoLoad = true, patientId } = options
+  const { clinicId, autoLoad = true, patientId, listQuery } = options
   const t = useTranslations()
-
-  // Use SWR-based CRUD for treatments with caching
-  const crud = useSwrCrud<Treatment>({
-    endpoint: '/api/treatments',
-    entityName: 'Treatment',
-    includeClinicId: true,
-    staticParams: patientId ? { patient_id: patientId } : undefined,
-    revalidateOnFocus: true,
-  })
 
   // Use API hooks for related data
   // Algunos endpoints devuelven { data: [...] }. Normalizamos a arrays.
   const patientsApi = useApi<any>('/api/patients')
   const servicesApi = useApi<any>('/api/services')
   const timeSettingsApi = useApi<{ data: { fixed_per_minute_cents: number } }>('/api/settings/time')
+  const patients = useMemo<Patient[]>(
+    () => Array.isArray(patientsApi.data)
+      ? patientsApi.data as Patient[]
+      : ((patientsApi.data as any)?.data ?? []),
+    [patientsApi.data]
+  )
+  const services = useMemo<Service[]>(
+    () => Array.isArray(servicesApi.data)
+      ? servicesApi.data as Service[]
+      : ((servicesApi.data as any)?.data ?? []),
+    [servicesApi.data]
+  )
+  const normalizedSearch = listQuery?.search?.trim().toLowerCase() || ''
+  const hasListQuery = listQuery !== undefined
+  const listPage = listQuery?.page ?? 0
+  const listPageSize = listQuery?.pageSize ?? 50
+  const listToday = listQuery?.today ?? ''
+  const listDateFrom = listQuery?.dateFrom ?? ''
+  const listDateTo = listQuery?.dateTo ?? ''
+  const listStatuses = listQuery?.statuses?.join(',') ?? ''
+  const listServiceIds = listQuery?.serviceIds?.join(',') ?? ''
+  const listPatientIds = listQuery?.patientIds?.join(',') ?? ''
+  const listPriceFrom = listQuery?.priceFrom
+  const listPriceTo = listQuery?.priceTo
+  const listHasBalance = listQuery?.hasBalance === true
+  const listTypeFilter = listQuery?.typeFilter ?? 'all'
+  const staticParams = useMemo(() => {
+    const params: Record<string, string> = {}
+    if (patientId) params.patient_id = patientId
+    if (!hasListQuery) return Object.keys(params).length > 0 ? params : undefined
+
+    params.paginated = 'true'
+    params.page = String(listPage)
+    params.page_size = String(listPageSize)
+    params.today = listToday
+    if (listDateFrom) params.date_from = listDateFrom
+    if (listDateTo) params.date_to = listDateTo
+    if (listStatuses) params.statuses = listStatuses
+    if (listServiceIds) params.service_ids = listServiceIds
+    if (listPatientIds) params.patient_ids = listPatientIds
+    if (listPriceFrom !== undefined) params.price_from = String(listPriceFrom)
+    if (listPriceTo !== undefined) params.price_to = String(listPriceTo)
+    if (listHasBalance) params.has_balance = 'true'
+    if (listTypeFilter !== 'all') params.type_filter = listTypeFilter
+    if (normalizedSearch) params.search = normalizedSearch
+    return params
+  }, [
+    patientId,
+    hasListQuery,
+    listPage,
+    listPageSize,
+    listToday,
+    listDateFrom,
+    listDateTo,
+    listStatuses,
+    listServiceIds,
+    listPatientIds,
+    listPriceFrom,
+    listPriceTo,
+    listHasBalance,
+    listTypeFilter,
+    normalizedSearch,
+  ])
+
+  // Use SWR-based CRUD for treatments with caching
+  const crud = useSwrCrud<Treatment>({
+    endpoint: '/api/treatments',
+    entityName: 'Treatment',
+    includeClinicId: true,
+    staticParams,
+    revalidateOnFocus: true,
+  })
 
   // Use parallel API for initial load
   const { fetchAll } = useParallelApi()
@@ -132,12 +213,25 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
 
   // Calculate summary statistics using memoization
   const uniqueTreatments = useMemo(() => {
+    const patientsById = new Map<string, Patient>(
+      patients.map((patient: Patient) => [patient.id, patient] as const)
+    )
+    const servicesById = new Map<string, Service>(
+      services.map((service: Service) => [service.id, service] as const)
+    )
     const map = new Map<string, Treatment>();
-    (crud.items || []).forEach(item => { if (item?.id) map.set(item.id, item); });
+    (crud.items || []).forEach(item => {
+      if (!item?.id) return
+      map.set(item.id, {
+        ...item,
+        patient: item.patient || patientsById.get(item.patient_id),
+        service: item.service || servicesById.get(item.service_id),
+      })
+    });
     return Array.from(map.values());
-  }, [crud.items]);
+  }, [crud.items, patients, services]);
 
-  const summary = useMemo(() => {
+  const localSummary = useMemo(() => {
     const treatments = uniqueTreatments || []
     const nonCancelled = treatments.filter(t => t.status !== 'cancelled')
     const completed = nonCancelled.filter(t => t.status === 'completed')
@@ -165,6 +259,15 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
       pendingBalanceCents,
     }
   }, [uniqueTreatments])
+  const summary = crud.response?.overallSummary || localSummary
+  const filteredSummary = crud.response?.filteredSummary || localSummary
+  const pagination = crud.response?.pagination || {
+    page: 0,
+    pageSize: uniqueTreatments.length || 1,
+    total: uniqueTreatments.length,
+    pageCount: 1,
+    truncated: false,
+  }
 
   // Load all related data in parallel
   const loadRelatedData = useCallback(async () => {
@@ -433,16 +536,14 @@ export function useTreatments(options: UseTreatmentsOptions = {}) {
     error: null,
 
     // Related data
-    patients: Array.isArray(patientsApi.data)
-      ? (patientsApi.data as Patient[])
-      : ((patientsApi.data as any)?.data ?? []),
-    services: Array.isArray(servicesApi.data)
-      ? (servicesApi.data as Service[])
-      : ((servicesApi.data as any)?.data ?? []),
+    patients,
+    services,
     timeSettings: timeSettingsApi.data?.data || { fixed_per_minute_cents: 0 },
 
     // Calculated data
     summary,
+    filteredSummary,
+    pagination,
 
     // Operations
     fetchTreatments: crud.refresh, // SWR uses refresh instead of fetchItems

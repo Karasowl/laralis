@@ -107,6 +107,29 @@ export async function listConvexDocumentsByClinic(table: string, clinicId: strin
   })
 }
 
+export async function getConvexTreatmentsPage(args: {
+  clinicId: string
+  page: number
+  pageSize: number
+  patientId?: string
+  dateFrom?: string
+  dateTo?: string
+  statuses?: string[]
+  serviceIds?: string[]
+  patientIds?: string[]
+  priceFrom?: number
+  priceTo?: number
+  hasBalance?: boolean
+  typeFilter?: 'all' | 'appointments' | 'treatments'
+  today: string
+  search?: string
+}) {
+  return getConvexHttpClient().query(api.migration.treatmentsPageByClinic, {
+    secret: getConvexBridgeSecret(),
+    ...args,
+  })
+}
+
 export async function listConvexTable(table: string, limit = 10000) {
   return getConvexHttpClient().query(api.migration.listTable, {
     secret: getConvexBridgeSecret(),

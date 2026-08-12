@@ -1,6 +1,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { Search, ChevronUp, ChevronDown, ArrowUpDown } from "lucide-react";
+import { Search, ChevronUp, ChevronDown, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
 
 export interface Column<T> {
   key: keyof T | string;
@@ -36,6 +36,15 @@ export interface DataTableProps<T> extends React.HTMLAttributes<HTMLDivElement> 
   // Show count badge with total records
   showCount?: boolean;
   countLabel?: string; // e.g., "patients", "treatments"
+  /** Maximum records mounted per page. Keeps large lists responsive. */
+  pageSize?: number;
+  /** Controlled pagination for lists already paginated by the server. */
+  serverPagination?: {
+    pageIndex: number;
+    pageCount: number;
+    totalCount: number;
+    onPageChange: (pageIndex: number) => void;
+  };
 }
 
 function getValue<T>(item: T, key: keyof T | string): any {
@@ -58,22 +67,38 @@ function DataTable<T extends { id?: string | number }>({
   emptyState,
   showCount = false,
   countLabel,
+  pageSize = 50,
+  serverPagination,
   ...props
 }: DataTableProps<T>) {
   const [searchValue, setSearchValue] = React.useState("");
+  const [pageIndex, setPageIndex] = React.useState(0);
+  const [isMobile, setIsMobile] = React.useState(false);
   const [sortConfig, setSortConfig] = React.useState<{
     key: string;
     direction: 'asc' | 'desc';
   } | null>(null);
-  const [hoveredRow, setHoveredRow] = React.useState<number | null>(null);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+
+    const mediaQuery = window.matchMedia('(max-width: 767px)');
+    const updateLayout = () => setIsMobile(mediaQuery.matches);
+    updateLayout();
+    mediaQuery.addEventListener?.('change', updateLayout);
+
+    return () => mediaQuery.removeEventListener?.('change', updateLayout);
+  }, []);
   
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchValue(value);
+    setPageIndex(0);
     onSearch?.(value);
   };
 
   const handleSort = (key: string) => {
+    setPageIndex(0);
     setSortConfig(current => {
       if (!current || current.key !== key) {
         return { key, direction: 'asc' };
@@ -115,9 +140,32 @@ function DataTable<T extends { id?: string | number }>({
   }, [filteredData, sortConfig]);
   
   // Calculate counts for display
-  const totalCount = Array.isArray(data) ? data.length : 0;
-  const filteredCount = sortedData.length;
+  const isServerPaginated = serverPagination !== undefined;
+  const localTotalCount = Array.isArray(data) ? data.length : 0;
+  const totalCount = serverPagination?.totalCount ?? localTotalCount;
+  const filteredCount = serverPagination?.totalCount ?? sortedData.length;
   const isFiltered = searchValue && filteredCount !== totalCount;
+  const safePageSize = Math.max(1, pageSize);
+  const pageCount = serverPagination?.pageCount
+    ?? Math.max(1, Math.ceil(filteredCount / safePageSize));
+  const safePageIndex = Math.min(serverPagination?.pageIndex ?? pageIndex, pageCount - 1);
+  const pageStart = safePageIndex * safePageSize;
+  const visibleData = React.useMemo(
+    () => isServerPaginated ? sortedData : sortedData.slice(pageStart, pageStart + safePageSize),
+    [sortedData, pageStart, safePageSize, isServerPaginated]
+  );
+
+  React.useEffect(() => {
+    if (!isServerPaginated && pageIndex >= pageCount) setPageIndex(pageCount - 1);
+  }, [pageCount, pageIndex, isServerPaginated]);
+
+  const changePage = (nextPage: number) => {
+    if (serverPagination) {
+      serverPagination.onPageChange(nextPage);
+    } else {
+      setPageIndex(nextPage);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -131,13 +179,17 @@ function DataTable<T extends { id?: string | number }>({
               type="text"
               placeholder={searchPlaceholder || "Search..."}
               value={searchValue}
-              onChange={onSearch ? handleSearch : (e) => setSearchValue(e.target.value)}
+              onChange={onSearch ? handleSearch : (e) => {
+                setSearchValue(e.target.value);
+                setPageIndex(0);
+              }}
               className="w-full rounded-lg border border-input bg-background px-10 py-2.5 text-sm shadow-sm transition-all duration-200 placeholder:text-muted-foreground hover:border-primary/50 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
             />
             {searchValue && (
               <button
                 onClick={() => {
                   setSearchValue("");
+                  setPageIndex(0);
                   onSearch?.("");
                 }}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
@@ -206,9 +258,11 @@ function DataTable<T extends { id?: string | number }>({
         </div>
       ) : (
         <div className={cn("rounded-xl border bg-card shadow-sm overflow-hidden", className)} {...props}>
-          {/* Mobile cards - Professional mobile-first design */}
-          <div className="md:hidden divide-y divide-border">
-            {sortedData.map((item, rowIndex) => {
+          {/* Mount only the active responsive layout. Rendering both doubles large lists. */}
+          {isMobile ? (
+          <div className="divide-y divide-border">
+            {visibleData.map((item, visibleIndex) => {
+              const rowIndex = pageStart + visibleIndex;
               const cols = mobileColumns && mobileColumns.length > 0
                 ? mobileColumns
                 : columns.slice(0, Math.min(4, columns.length));
@@ -264,8 +318,8 @@ function DataTable<T extends { id?: string | number }>({
               );
             })}
           </div>
-
-          {/* Desktop/tablet table - scrollable on smaller screens */}
+          ) : (
+          /* Desktop/tablet table - scrollable on smaller screens */
           <div className="hidden md:block overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
             <table className="w-full min-w-[700px] lg:min-w-0">
               <thead>
@@ -273,7 +327,7 @@ function DataTable<T extends { id?: string | number }>({
                   {/* Placeholder header cell for hover indicator column to keep alignment */}
                   <th className="w-1 p-0" aria-hidden="true"></th>
                   {columns.map((column, index) => {
-                    const isSortable = column.sortable !== false;
+                    const isSortable = column.sortable !== false && !isServerPaginated;
                     const isSorted = sortConfig?.key === column.key;
 
                     return (
@@ -311,24 +365,23 @@ function DataTable<T extends { id?: string | number }>({
                 </tr>
               </thead>
               <tbody>
-                {sortedData.map((item, rowIndex) => (
+                {visibleData.map((item, visibleIndex) => {
+                  const rowIndex = pageStart + visibleIndex;
+                  return (
                   <tr
                     key={item.id || rowIndex}
                     className={cn(
-                      "border-b transition-all duration-200",
+                      "border-b transition-colors duration-200",
                       "hover:bg-gradient-to-r hover:from-primary/5 hover:to-transparent",
-                      "group relative",
-                      hoveredRow === rowIndex && "bg-muted/30"
+                      "group relative"
                     )}
-                    onMouseEnter={() => setHoveredRow(rowIndex)}
-                    onMouseLeave={() => setHoveredRow(null)}
                   >
                     {/* Hover indicator */}
                     <td className="w-1 p-0 relative">
                       <div
                         className={cn(
                           "absolute left-0 top-0 bottom-0 w-1 bg-primary transition-all duration-200",
-                          hoveredRow === rowIndex ? "opacity-100" : "opacity-0"
+                          "opacity-0 group-hover:opacity-100"
                         )}
                       />
                     </td>
@@ -348,7 +401,7 @@ function DataTable<T extends { id?: string | number }>({
                           )}
                           style={column.minWidth ? { minWidth: column.minWidth } : undefined}
                         >
-                          <div className="animate-in fade-in-0 duration-200">
+                          <div>
                             {column.render
                               ? column.render(value, item, rowIndex)
                               : String(value ?? "")}
@@ -357,10 +410,43 @@ function DataTable<T extends { id?: string | number }>({
                       );
                     })}
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
+          )}
+
+          {pageCount > 1 && (
+            <div className="flex items-center justify-between gap-3 border-t px-4 py-3 text-sm text-muted-foreground">
+              <span>
+                {pageStart + 1}-{Math.min(pageStart + safePageSize, filteredCount)} / {filteredCount}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  aria-label="Previous page"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border bg-background transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+                  disabled={safePageIndex === 0}
+                  onClick={() => changePage(Math.max(0, safePageIndex - 1))}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <span className="min-w-12 text-center text-foreground">
+                  {safePageIndex + 1} / {pageCount}
+                </span>
+                <button
+                  type="button"
+                  aria-label="Next page"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border bg-background transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+                  disabled={safePageIndex >= pageCount - 1}
+                  onClick={() => changePage(Math.min(pageCount - 1, safePageIndex + 1))}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
