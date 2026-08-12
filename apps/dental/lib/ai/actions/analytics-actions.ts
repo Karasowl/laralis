@@ -9,6 +9,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ActionParams, ActionResult } from '../types'
 import { listConvexDocumentsByClinic, decodeConvexValue } from '@/lib/convex/server'
 import { shouldReturnConvexData } from '@/lib/data-backend'
+import { calculatePercentageChange, collectedRevenueCents } from '@/lib/calc/metrics'
 
 interface ActionContext {
   supabase: SupabaseClient
@@ -233,14 +234,14 @@ export async function executeGetTopServices(
     }
 
     // Aggregate by service
-    const serviceStats = new Map<string, { name: string; revenue: number; count: number; margin: number }>()
+    const serviceStats = new Map<string, { name: string; revenue: number; count: number; margin: number | null }>()
 
     services.forEach(s => {
       serviceStats.set(s.id, {
         name: s.name,
         revenue: 0,
         count: 0,
-        margin: 0,
+        margin: null,
       })
     })
 
@@ -258,7 +259,7 @@ export async function executeGetTopServices(
       if (stats && stats.count > 0) {
         const totalCost = (s.variable_cost_cents || 0) + (s.fixed_cost_cents || 0)
         const price = s.price_cents || 0
-        stats.margin = totalCost > 0 ? ((price - totalCost) / totalCost) * 100 : 0
+        stats.margin = totalCost > 0 ? ((price - totalCost) / totalCost) * 100 : null
       }
     })
 
@@ -268,19 +269,19 @@ export async function executeGetTopServices(
       .sort((a, b) => {
         if (sortBy === 'revenue') return b.revenue - a.revenue
         if (sortBy === 'count') return b.count - a.count
-        return b.margin - a.margin
+        return (b.margin ?? Number.NEGATIVE_INFINITY) - (a.margin ?? Number.NEGATIVE_INFINITY)
       })
       .slice(0, limit)
 
     const changes = [
-      `🏆 Top ${limit} Services by ${sortBy === 'revenue' ? 'Revenue' : sortBy === 'count' ? 'Count' : 'Margin'} (${periodDays} days)`,
+      `🏆 Top ${limit} Services by ${sortBy === 'revenue' ? 'Revenue' : sortBy === 'count' ? 'Count' : 'Markup on cost'} (${periodDays} days)`,
       '',
     ]
 
     sortedServices.forEach((s, i) => {
       changes.push(
         `${i + 1}. **${s.name}**`,
-        `   Revenue: ${formatCurrency(s.revenue)} | Count: ${s.count} | Margin: ${s.margin.toFixed(0)}%`
+        `   Revenue: ${formatCurrency(s.revenue)} | Count: ${s.count} | Markup on cost: ${s.margin === null ? 'no cost basis' : `${s.margin.toFixed(0)}%`}`
       )
     })
 
@@ -455,7 +456,7 @@ export async function executeGetServiceProfitability(
       const revenue = serviceTreatments.reduce((sum, t) => sum + (t.price_cents || 0), 0)
       const totalCost = (s.variable_cost_cents || 0) + (s.fixed_cost_cents || 0)
       const profit = s.price_cents - totalCost
-      const margin = totalCost > 0 ? (profit / totalCost) * 100 : 0
+      const margin = totalCost > 0 ? (profit / totalCost) * 100 : null
 
       return {
         id: s.id,
@@ -472,7 +473,7 @@ export async function executeGetServiceProfitability(
 
     // Sort
     const sorted = profitability.sort((a, b) => {
-      if (sortBy === 'margin') return b.margin_pct - a.margin_pct
+      if (sortBy === 'margin') return (b.margin_pct ?? Number.NEGATIVE_INFINITY) - (a.margin_pct ?? Number.NEGATIVE_INFINITY)
       if (sortBy === 'revenue') return b.total_revenue_cents - a.total_revenue_cents
       return b.count - a.count
     })
@@ -480,10 +481,10 @@ export async function executeGetServiceProfitability(
     const changes = [`📈 Service Profitability (${periodDays} days)`, '']
 
     sorted.forEach(s => {
-      const marginIcon = s.margin_pct >= 50 ? '🟢' : s.margin_pct >= 30 ? '🟡' : '🔴'
+      const marginIcon = s.margin_pct === null ? 'ℹ️' : s.margin_pct >= 50 ? '🟢' : s.margin_pct >= 30 ? '🟡' : '🔴'
       changes.push(
         `**${s.name}** ${marginIcon}`,
-        `  Price: ${formatCurrency(s.price_cents)} | Cost: ${formatCurrency(s.cost_cents)} | Margin: ${s.margin_pct.toFixed(0)}%`,
+        `  Price: ${formatCurrency(s.price_cents)} | Cost: ${formatCurrency(s.cost_cents)} | Markup on cost: ${s.margin_pct === null ? 'no cost basis' : `${s.margin_pct.toFixed(0)}%`}`,
         `  Count: ${s.count} | Revenue: ${formatCurrency(s.total_revenue_cents)} | Profit: ${formatCurrency(s.total_profit_cents)}`,
         ''
       )
@@ -551,7 +552,7 @@ export async function executeIdentifyUnderperformingServices(
       .map(s => {
         const totalCost = (s.variable_cost_cents || 0) + (s.fixed_cost_cents || 0)
         const profit = s.price_cents - totalCost
-        const margin = totalCost > 0 ? (profit / totalCost) * 100 : 0
+        const margin = totalCost > 0 ? (profit / totalCost) * 100 : null
         const suggestedPrice = totalCost > 0 ? Math.round(totalCost * (1 + minMargin / 100)) : s.price_cents
 
         return {
@@ -564,17 +565,17 @@ export async function executeIdentifyUnderperformingServices(
           price_increase_needed: suggestedPrice - s.price_cents,
         }
       })
-      .filter(s => s.margin_pct < minMargin)
+      .filter((service): service is typeof service & { margin_pct: number } => service.margin_pct !== null && service.margin_pct < minMargin)
       .sort((a, b) => a.margin_pct - b.margin_pct)
 
-    const changes = [`⚠️ Services with margin below ${minMargin}%`, '']
+    const changes = [`⚠️ Services with markup below ${minMargin}%`, '']
 
     if (underperforming.length === 0) {
-      changes.push(`✅ All services have margins above ${minMargin}%!`)
+      changes.push(`✅ All services with a cost basis have markup above ${minMargin}%!`)
     } else {
       underperforming.forEach(s => {
         changes.push(
-          `**${s.name}** - Margin: ${s.margin_pct.toFixed(0)}%`,
+          `**${s.name}** - Markup on cost: ${s.margin_pct.toFixed(0)}%`,
           `  Current: ${formatCurrency(s.price_cents)} | Cost: ${formatCurrency(s.cost_cents)}`
         )
         if (includeSuggestions && s.price_increase_needed > 0) {
@@ -636,8 +637,8 @@ export async function executeComparePeriods(
         listClinicTableFromConvex('expenses', clinicId),
         listClinicTableFromConvex('patients', clinicId),
       ])
-      treatments1Data = allTreatments.filter((t) => withinRange(t.treatment_date, period1_start, period1_end))
-      treatments2Data = allTreatments.filter((t) => withinRange(t.treatment_date, period2_start, period2_end))
+      treatments1Data = allTreatments.filter((t) => t.status !== 'cancelled' && withinRange(t.treatment_date, period1_start, period1_end))
+      treatments2Data = allTreatments.filter((t) => t.status !== 'cancelled' && withinRange(t.treatment_date, period2_start, period2_end))
       expenses1Data = allExpenses.filter((e) => withinRange(e.expense_date, period1_start, period1_end))
       expenses2Data = allExpenses.filter((e) => withinRange(e.expense_date, period2_start, period2_end))
       patients1Data = allPatients.filter((p) => withinRange(p.created_at, period1_start, period1_end))
@@ -646,14 +647,16 @@ export async function executeComparePeriods(
       const [treatments1, treatments2, expenses1, expenses2, patients1, patients2] = await Promise.all([
         supabase
           .from('treatments')
-          .select('price_cents')
+          .select('price_cents, amount_paid_cents, is_paid, status')
           .eq('clinic_id', clinicId)
+          .neq('status', 'cancelled')
           .gte('treatment_date', period1_start)
           .lte('treatment_date', period1_end),
         supabase
           .from('treatments')
-          .select('price_cents')
+          .select('price_cents, amount_paid_cents, is_paid, status')
           .eq('clinic_id', clinicId)
+          .neq('status', 'cancelled')
           .gte('treatment_date', period2_start)
           .lte('treatment_date', period2_end),
         supabase
@@ -689,16 +692,16 @@ export async function executeComparePeriods(
       patients2Data = patients2.data || []
     }
 
-    const comparison: Record<string, { period1: number; period2: number; change: number; changePct: number }> = {}
+    const comparison: Record<string, { period1: number; period2: number; change: number; changePct: number | null }> = {}
 
     if (metrics.includes('revenue')) {
-      const rev1 = treatments1Data.reduce((sum, t) => sum + (t.price_cents || 0), 0) || 0
-      const rev2 = treatments2Data.reduce((sum, t) => sum + (t.price_cents || 0), 0) || 0
+      const rev1 = treatments1Data.reduce((sum, treatment) => sum + collectedRevenueCents(treatment), 0)
+      const rev2 = treatments2Data.reduce((sum, treatment) => sum + collectedRevenueCents(treatment), 0)
       comparison.revenue = {
         period1: rev1,
         period2: rev2,
         change: rev2 - rev1,
-        changePct: rev1 > 0 ? ((rev2 - rev1) / rev1) * 100 : 0,
+        changePct: calculatePercentageChange(rev2, rev1),
       }
     }
 
@@ -709,7 +712,7 @@ export async function executeComparePeriods(
         period1: exp1,
         period2: exp2,
         change: exp2 - exp1,
-        changePct: exp1 > 0 ? ((exp2 - exp1) / exp1) * 100 : 0,
+        changePct: calculatePercentageChange(exp2, exp1),
       }
     }
 
@@ -720,7 +723,7 @@ export async function executeComparePeriods(
         period1: count1,
         period2: count2,
         change: count2 - count1,
-        changePct: count1 > 0 ? ((count2 - count1) / count1) * 100 : 0,
+        changePct: calculatePercentageChange(count2, count1),
       }
     }
 
@@ -731,7 +734,7 @@ export async function executeComparePeriods(
         period1: pat1,
         period2: pat2,
         change: pat2 - pat1,
-        changePct: pat1 > 0 ? ((pat2 - pat1) / pat1) * 100 : 0,
+        changePct: calculatePercentageChange(pat2, pat1),
       }
     }
 
@@ -743,12 +746,12 @@ export async function executeComparePeriods(
     ]
 
     Object.entries(comparison).forEach(([metric, data]) => {
-      const icon = data.changePct > 0 ? '📈' : data.changePct < 0 ? '📉' : '➖'
+      const icon = data.changePct === null ? 'ℹ️' : data.changePct > 0 ? '📈' : data.changePct < 0 ? '📉' : '➖'
       const format = metric === 'revenue' || metric === 'expenses' ? formatCurrency : (v: number) => v.toString()
       changes.push(
         `**${metric.charAt(0).toUpperCase() + metric.slice(1)}** ${icon}`,
         `  Period 1: ${format(data.period1)} → Period 2: ${format(data.period2)}`,
-        `  Change: ${data.change > 0 ? '+' : ''}${format(data.change)} (${data.changePct > 0 ? '+' : ''}${data.changePct.toFixed(1)}%)`,
+        `  Change: ${data.change > 0 ? '+' : ''}${format(data.change)} (${data.changePct === null ? 'no comparison baseline' : `${data.changePct > 0 ? '+' : ''}${data.changePct.toFixed(1)}%`})`,
         ''
       )
     })

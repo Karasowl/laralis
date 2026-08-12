@@ -6,6 +6,8 @@ import { forbiddenIfMissingPermission } from '@/lib/permissions'
 import { listConvexDocumentsByClinic } from '@/lib/convex/server';
 import { shouldReturnConvexData } from '@/lib/data-backend';
 import { countUniqueCompletedPatientsInRange } from '@/lib/calc/patient-metrics'
+import { getFirstTreatmentDateByPatient, patientsAcquiredInRange } from '@/lib/calc/patient-acquisition'
+import { formatDateToISO, parseLocalDate } from '@/lib/date-utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,8 +34,8 @@ export async function GET(request: NextRequest) {
     let end: Date
     if (dateFrom && dateTo) {
       // Use explicit dates when provided (regardless of period)
-      start = new Date(dateFrom)
-      end = new Date(dateTo)
+      start = parseLocalDate(dateFrom)
+      end = parseLocalDate(dateTo)
       end.setHours(23, 59, 59, 999)
     } else {
       start = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -44,13 +46,17 @@ export async function GET(request: NextRequest) {
       const patients = await listConvexDocumentsByClinic('patients', clinicId)
       const treatments = await listConvexDocumentsByClinic('treatments', clinicId)
 
-      const newly = patients.filter((patient: any) => {
-        const createdAt = typeof patient.created_at === 'string' ? patient.created_at : ''
-        return createdAt >= start.toISOString() && createdAt <= end.toISOString()
-      }).length
-
-      const startDate = start.toISOString().split('T')[0]
-      const endDate = end.toISOString().split('T')[0]
+      const startDate = formatDateToISO(start)
+      const endDate = formatDateToISO(end)
+      const firstTreatmentByPatient = new Map<string, string>()
+      for (const treatment of treatments as any[]) {
+        if (!treatment.patient_id || treatment.status === 'cancelled') continue
+        const treatmentDate = String(treatment.treatment_date || '').slice(0, 10)
+        if (!treatmentDate) continue
+        const current = firstTreatmentByPatient.get(treatment.patient_id)
+        if (!current || treatmentDate < current) firstTreatmentByPatient.set(treatment.patient_id, treatmentDate)
+      }
+      const newly = patientsAcquiredInRange(firstTreatmentByPatient, startDate, endDate).size
       const activeStart = new Date()
       activeStart.setDate(activeStart.getDate() - 90)
       const activeStartDate = activeStart.toISOString().split('T')[0]
@@ -84,13 +90,10 @@ export async function GET(request: NextRequest) {
       .eq('clinic_id', clinicId)
     if (totalErr) throw totalErr
 
-    const { count: newly, error: newErr } = await supabaseAdmin
-      .from('patients')
-      .select('id', { count: 'exact', head: true })
-      .eq('clinic_id', clinicId)
-      .gte('created_at', start.toISOString())
-      .lte('created_at', end.toISOString())
-    if (newErr) throw newErr
+    const startISO = formatDateToISO(start)
+    const endISO = formatDateToISO(end)
+    const firstTreatmentByPatient = await getFirstTreatmentDateByPatient(clinicId)
+    const newly = patientsAcquiredInRange(firstTreatmentByPatient, startISO, endISO).size
 
     // Pacientes ATENDIDOS en el periodo (con tratamiento) - ISSUE-004
     const { data: treatedPatients, error: treatedErr } = await supabaseAdmin
@@ -98,8 +101,8 @@ export async function GET(request: NextRequest) {
       .select('patient_id')
       .eq('clinic_id', clinicId)
       .eq('status', 'completed')
-      .gte('treatment_date', start.toISOString().split('T')[0])
-      .lte('treatment_date', end.toISOString().split('T')[0])
+      .gte('treatment_date', startISO)
+      .lte('treatment_date', endISO)
     if (treatedErr) throw treatedErr
 
     // Contar pacientes únicos atendidos

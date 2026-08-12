@@ -18,6 +18,11 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { withPermission } from '@/lib/middleware/with-permission'
 import { listConvexDocumentsByClinic } from '@/lib/convex/server'
 import { shouldReturnConvexData } from '@/lib/data-backend'
+import {
+  collectedRevenueCents,
+  completedBilledRevenueCents,
+  prorateMonthlyAmountForRange,
+} from '@/lib/calc/metrics'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -70,10 +75,8 @@ async function getProfitAnalysisFromConvex(
       return true
     })
 
-  const revenueCents = treatments.reduce(
-    (sum, t) => sum + (t.price_cents || 0),
-    0
-  )
+  const revenueCents = treatments.reduce((sum, t) => sum + collectedRevenueCents(t), 0)
+  const billedRevenueCents = treatments.reduce((sum, t) => sum + completedBilledRevenueCents(t), 0)
 
   const variableCostsCents = treatments.reduce(
     (sum, t) => sum + (t.variable_cost_cents || 0),
@@ -101,9 +104,9 @@ async function getProfitAnalysisFromConvex(
     0
   )
 
-  const fixedCostsConfiguredCents = Math.round(
-    monthlyConfiguredFixedCents * periodDays / daysInMonth
-  )
+  const fixedCostsConfiguredCents = startDate && endDate
+    ? prorateMonthlyAmountForRange(monthlyConfiguredFixedCents, startDate, endDate)
+    : monthlyConfiguredFixedCents
 
   // ===== 5. Asset depreciation (all rows for the clinic) =====
   const monthlyDepreciationCents = assetsRaw.reduce((sum, asset) => {
@@ -112,12 +115,13 @@ async function getProfitAnalysisFromConvex(
     return sum + monthlyDepreciation
   }, 0)
 
-  const depreciationCents = Math.round(
-    monthlyDepreciationCents * periodDays / daysInMonth
-  )
+  const depreciationCents = startDate && endDate
+    ? prorateMonthlyAmountForRange(monthlyDepreciationCents, startDate, endDate)
+    : monthlyDepreciationCents
 
   return buildProfitResponse({
     revenueCents,
+    billedRevenueCents,
     variableCostsCents,
     fixedCostsRealCents,
     fixedCostsConfiguredCents,
@@ -140,6 +144,7 @@ async function getProfitAnalysisFromConvex(
  */
 function buildProfitResponse(input: {
   revenueCents: number
+  billedRevenueCents: number
   variableCostsCents: number
   fixedCostsRealCents: number
   fixedCostsConfiguredCents: number
@@ -155,6 +160,7 @@ function buildProfitResponse(input: {
 }) {
   const {
     revenueCents,
+    billedRevenueCents,
     variableCostsCents,
     fixedCostsRealCents,
     fixedCostsConfiguredCents,
@@ -175,16 +181,16 @@ function buildProfitResponse(input: {
     : 0
 
   const theoreticalCostsCents = variableCostsCents + fixedCostsConfiguredCents + depreciationCents
-  const theoreticalProfitCents = revenueCents - theoreticalCostsCents
-  const theoreticalMarginPct = revenueCents > 0
-    ? (theoreticalProfitCents / revenueCents) * 100
+  const theoreticalProfitCents = billedRevenueCents - theoreticalCostsCents
+  const theoreticalMarginPct = billedRevenueCents > 0
+    ? (theoreticalProfitCents / billedRevenueCents) * 100
     : 0
 
   const differenceCents = realProfitCents - theoreticalProfitCents
 
-  const grossProfitCents = revenueCents - variableCostsCents
-  const grossMarginPct = revenueCents > 0
-    ? (grossProfitCents / revenueCents) * 100
+  const grossProfitCents = billedRevenueCents - variableCostsCents
+  const grossMarginPct = billedRevenueCents > 0
+    ? (grossProfitCents / billedRevenueCents) * 100
     : 0
 
   const netProfitCents = realProfitCents
@@ -194,6 +200,8 @@ function buildProfitResponse(input: {
 
   return NextResponse.json({
     revenue_cents: revenueCents,
+    billed_revenue_cents: billedRevenueCents,
+    accounts_receivable_cents: Math.max(0, billedRevenueCents - revenueCents),
     costs: {
       expenses_cents: fixedCostsRealCents,
       variable_cents: variableCostsCents,
@@ -228,8 +236,8 @@ function buildProfitResponse(input: {
     metadata: {
       monthly_configured_fixed_cents: monthlyConfiguredFixedCents,
       monthly_depreciation_cents: monthlyDepreciationCents,
-      proration_factor: periodDays / daysInMonth,
-      explanation: 'Real profit = Revenue - Registered Expenses. Theoretical = Revenue - Variable - Configured Fixed - Depreciation.'
+      proration_factor: monthlyConfiguredFixedCents > 0 ? fixedCostsConfiguredCents / monthlyConfiguredFixedCents : 0,
+      explanation: 'Real profit = collected revenue - registered expenses. Gross and theoretical profit use completed billed revenue.'
     }
   })
 }
@@ -280,7 +288,7 @@ export const GET = withPermission('financial_reports.view', async (request, cont
     // Include variable_cost_cents for accurate gross profit calculation
     let treatmentsQuery = supabaseAdmin
       .from('treatments')
-      .select('price_cents, variable_cost_cents')
+      .select('price_cents, amount_paid_cents, is_paid, status, variable_cost_cents')
       .eq('clinic_id', clinicId)
       .eq('status', 'completed')
 
@@ -297,10 +305,8 @@ export const GET = withPermission('financial_reports.view', async (request, cont
       throw treatmentsError
     }
 
-    const revenueCents = treatments?.reduce(
-      (sum, t) => sum + (t.price_cents || 0),
-      0
-    ) || 0
+    const revenueCents = treatments?.reduce((sum, t) => sum + collectedRevenueCents(t), 0) || 0
+    const billedRevenueCents = treatments?.reduce((sum, t) => sum + completedBilledRevenueCents(t), 0) || 0
 
     // ===== 2. Get Variable Costs from treatments (materials/supplies used) =====
     // IMPORTANT: Variable costs come from treatments.variable_cost_cents, NOT from expenses
@@ -352,9 +358,9 @@ export const GET = withPermission('financial_reports.view', async (request, cont
     ) || 0
 
     // Prorate to the selected period
-    const fixedCostsConfiguredCents = Math.round(
-      monthlyConfiguredFixedCents * periodDays / daysInMonth
-    )
+    const fixedCostsConfiguredCents = startDate && endDate
+      ? prorateMonthlyAmountForRange(monthlyConfiguredFixedCents, startDate, endDate)
+      : monthlyConfiguredFixedCents
 
     // ===== 5. Get Assets for depreciation calculation =====
     const { data: assets, error: assetsError } = await supabaseAdmin
@@ -374,9 +380,9 @@ export const GET = withPermission('financial_reports.view', async (request, cont
     }, 0) || 0
 
     // Prorate depreciation to the selected period
-    const depreciationCents = Math.round(
-      monthlyDepreciationCents * periodDays / daysInMonth
-    )
+    const depreciationCents = startDate && endDate
+      ? prorateMonthlyAmountForRange(monthlyDepreciationCents, startDate, endDate)
+      : monthlyDepreciationCents
 
     // ===== 6. Calculate Profit Metrics =====
     // KEY CHANGE: Use REGISTERED EXPENSES for real profit calculation
@@ -392,18 +398,18 @@ export const GET = withPermission('financial_reports.view', async (request, cont
     // Theoretical Profit = Revenue - Variable Costs - Configured Fixed Costs - Depreciation
     // This tells you: "Am I pricing my services correctly?"
     const theoreticalCostsCents = variableCostsCents + fixedCostsConfiguredCents + depreciationCents
-    const theoreticalProfitCents = revenueCents - theoreticalCostsCents
-    const theoreticalMarginPct = revenueCents > 0
-      ? (theoreticalProfitCents / revenueCents) * 100
+    const theoreticalProfitCents = billedRevenueCents - theoreticalCostsCents
+    const theoreticalMarginPct = billedRevenueCents > 0
+      ? (theoreticalProfitCents / billedRevenueCents) * 100
       : 0
 
     // Difference shows if you're spending more or less than expected
     const differenceCents = realProfitCents - theoreticalProfitCents
 
     // Legacy metrics kept for backward compatibility
-    const grossProfitCents = revenueCents - variableCostsCents
-    const grossMarginPct = revenueCents > 0
-      ? (grossProfitCents / revenueCents) * 100
+    const grossProfitCents = billedRevenueCents - variableCostsCents
+    const grossMarginPct = billedRevenueCents > 0
+      ? (grossProfitCents / billedRevenueCents) * 100
       : 0
 
     // Use real profit as the "net profit" (what actually matters)
@@ -416,6 +422,8 @@ export const GET = withPermission('financial_reports.view', async (request, cont
     // ===== 7. Return Response =====
     return NextResponse.json({
       revenue_cents: revenueCents,
+      billed_revenue_cents: billedRevenueCents,
+      accounts_receivable_cents: Math.max(0, billedRevenueCents - revenueCents),
       costs: {
         // Registered expenses (what you actually paid)
         expenses_cents: fixedCostsRealCents,
@@ -457,8 +465,8 @@ export const GET = withPermission('financial_reports.view', async (request, cont
       metadata: {
         monthly_configured_fixed_cents: monthlyConfiguredFixedCents,
         monthly_depreciation_cents: monthlyDepreciationCents,
-        proration_factor: periodDays / daysInMonth,
-        explanation: 'Real profit = Revenue - Registered Expenses. Theoretical = Revenue - Variable - Configured Fixed - Depreciation.'
+        proration_factor: monthlyConfiguredFixedCents > 0 ? fixedCostsConfiguredCents / monthlyConfiguredFixedCents : 0,
+        explanation: 'Real profit = collected revenue - registered expenses. Gross and theoretical profit use completed billed revenue.'
       }
     })
 

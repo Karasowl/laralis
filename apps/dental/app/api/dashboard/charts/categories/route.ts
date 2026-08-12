@@ -5,6 +5,8 @@ import { resolveClinicContext } from '@/lib/clinic'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
 import { listConvexDocumentsByClinic } from '@/lib/convex/server';
 import { shouldReturnConvexData } from '@/lib/data-backend';
+import { collectedRevenueCents } from '@/lib/calc/metrics'
+import { formatDateToISO, parseLocalDate } from '@/lib/date-utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,16 +31,16 @@ export async function GET(request: NextRequest) {
     let start: Date
     let end: Date
     if (dateFrom && dateTo) {
-      start = new Date(dateFrom)
-      end = new Date(dateTo)
+      start = parseLocalDate(dateFrom)
+      end = parseLocalDate(dateTo)
       end.setHours(23, 59, 59, 999)
     } else {
       start = new Date(now.getFullYear(), now.getMonth(), 1)
       end = new Date(now)
     }
 
-    const startISO = start.toISOString().split('T')[0]
-    const endISO = end.toISOString().split('T')[0]
+    const startISO = formatDateToISO(start)
+    const endISO = formatDateToISO(end)
 
     if (shouldReturnConvexData('dashboard')) {
       const [allTreatments, services] = await Promise.all([
@@ -60,7 +62,7 @@ export async function GET(request: NextRequest) {
         if (!t.service_id) continue
         const info = serviceInfo.get(t.service_id)
         const label = info?.name || info?.category || 'Servicio sin nombre'
-        sums[label] = (sums[label] || 0) + (t.price_cents || 0)
+        sums[label] = (sums[label] || 0) + collectedRevenueCents(t)
       }
 
       return NextResponse.json({
@@ -71,7 +73,7 @@ export async function GET(request: NextRequest) {
     // Fetch completed treatments within period
     const { data: treatments, error: tErr } = await supabaseAdmin
       .from('treatments')
-      .select('price_cents, treatment_date, status, service_id')
+      .select('price_cents, amount_paid_cents, is_paid, treatment_date, status, service_id')
       .eq('clinic_id', clinicId)
       .eq('status', 'completed')
       .gte('treatment_date', startISO)
@@ -102,7 +104,7 @@ export async function GET(request: NextRequest) {
       if (!t.treatment_date || Number.isNaN(new Date(t.treatment_date as string).getTime())) continue
       const info = serviceInfo.get(t.service_id)
       const label = info?.name || info?.category || 'Servicio sin nombre'
-      sums[label] = (sums[label] || 0) + (t.price_cents || 0)
+      sums[label] = (sums[label] || 0) + collectedRevenueCents(t)
     }
 
     const categories = Object.entries(sums).map(([name, value]) => ({ name, value }))

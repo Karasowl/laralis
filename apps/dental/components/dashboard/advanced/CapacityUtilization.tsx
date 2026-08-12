@@ -9,6 +9,8 @@ import { Badge } from '@/components/ui/badge'
 interface OperationalMetrics {
   capacity_utilization: number
   average_minutes_per_day: number
+  available_minutes_per_day: number
+  average_treatment_minutes: number
 }
 
 interface CapacityUtilizationProps {
@@ -18,8 +20,6 @@ interface CapacityUtilizationProps {
 
 export function CapacityUtilization({ metrics, loading }: CapacityUtilizationProps) {
   const t = useTranslations('dashboard.advanced')
-  const tCommon = useTranslations('common')
-
   if (loading) {
     return (
       <Card>
@@ -35,14 +35,14 @@ export function CapacityUtilization({ metrics, loading }: CapacityUtilizationPro
   }
 
   const utilizationPercentage = metrics.capacity_utilization * 100
-  const theoreticalCapacity = 8 * 60 // 8 hours = 480 minutes
-  const remainingMinutes = theoreticalCapacity - metrics.average_minutes_per_day
+  const theoreticalCapacity = metrics.available_minutes_per_day
+  const remainingMinutes = Math.max(0, theoreticalCapacity - metrics.average_minutes_per_day)
   const remainingHours = Math.floor(remainingMinutes / 60)
   const remainingMins = Math.round(remainingMinutes % 60)
 
-  // Calculate potential additional patients
-  const avgMinutesPerPatient = 60 // Assumption: 60 min per patient
-  const potentialAdditionalPatients = Math.floor(remainingMinutes / avgMinutesPerPatient)
+  const potentialAdditionalPatients = metrics.average_treatment_minutes > 0
+    ? Math.floor(remainingMinutes / metrics.average_treatment_minutes)
+    : 0
 
   // Determine status
   const status = utilizationPercentage >= 85

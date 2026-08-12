@@ -44,7 +44,7 @@ function computeEquilibrium(
     : 0;
 
   const dailyTargetCents = workDays > 0 ? Math.round(breakEvenRevenueCents / workDays) : 0;
-  const safetyMarginCents = Math.round(breakEvenRevenueCents * 1.2);
+  const safetyMarginCents = Math.round(breakEvenRevenueCents * 0.2);
 
   return {
     fixed_costs_cents: totalFixedCostsCents,

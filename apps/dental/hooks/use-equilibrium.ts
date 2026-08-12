@@ -3,9 +3,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParallelApi } from '@/hooks/use-api'
 import {
-  calculateCurrentMonthWorkingDays,
+  calculateWorkingDaysInRange,
+  estimateConfiguredWorkingDaysInRange,
+  getEffectivePattern,
   type WorkingDaysConfig
 } from '@/lib/calc/dates'
+import { parseLocalDate } from '@/lib/date-utils'
+import { prorateMonthlyAmountForRange } from '@/lib/calc/metrics'
 
 export interface EquilibriumData {
   fixedCostsCents: number
@@ -256,7 +260,10 @@ export function useEquilibrium(options: UseEquilibriumOptions = {}): IEquilibriu
           0
       )
 
-      const totalFixedCents = manualFixedCents + assetsDepreciation
+      const monthlyFixedCents = manualFixedCents + assetsDepreciation
+      const totalFixedCents = startDate && endDate
+        ? prorateMonthlyAmountForRange(monthlyFixedCents, startDate, endDate)
+        : monthlyFixedCents
       const timeSettings = toObject(timeRes)
       const workDays =
         Number(timeSettings?.work_days ?? defaultWorkDays) || defaultWorkDays
@@ -275,25 +282,20 @@ export function useEquilibrium(options: UseEquilibriumOptions = {}): IEquilibriu
       }
 
       if (workingDaysConfig) {
-        // Use detailed config to calculate actual calendar-based working days
-        workingDaysResult = calculateCurrentMonthWorkingDays(workingDaysConfig)
+        const rangeStart = startDate ? parseLocalDate(startDate) : new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+        const rangeEnd = endDate ? parseLocalDate(endDate) : new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0)
+        workingDaysResult = calculateWorkingDaysInRange(
+          rangeStart,
+          rangeEnd,
+          getEffectivePattern(workingDaysConfig)
+        )
       } else {
-        // Fallback: Use the configured work_days value directly
-        // This respects the user's simple "20 days per month" setting
-        const today = new Date()
-        const totalDaysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
-        const elapsedDays = today.getDate()
-
-        // Estimate elapsed working days proportionally
-        const elapsedWorkingDays = Math.round((elapsedDays / totalDaysInMonth) * workDays)
-        const remainingWorkingDays = Math.max(0, workDays - elapsedWorkingDays)
-
-        workingDaysResult = {
-          workingDays: workDays,
-          elapsedWorkingDays,
-          elapsedDays,
-          remainingWorkingDays
-        }
+        const now = new Date()
+        workingDaysResult = estimateConfiguredWorkingDaysInRange(
+          startDate ? parseLocalDate(startDate) : new Date(now.getFullYear(), now.getMonth(), 1),
+          endDate ? parseLocalDate(endDate) : new Date(now.getFullYear(), now.getMonth() + 1, 0),
+          workDays
+        )
       }
 
       const revenuePayload = toObject(revenueRes)
@@ -321,7 +323,7 @@ export function useEquilibrium(options: UseEquilibriumOptions = {}): IEquilibriu
       const calculations = EquilibriumCalculator.calculate(
         totalFixedCents,
         autoVariableCostPercentage,
-        workDays,
+        workingDaysResult.workingDays,
         safetyMarginPercentage
       )
 
@@ -345,8 +347,8 @@ export function useEquilibrium(options: UseEquilibriumOptions = {}): IEquilibriu
         safetyMarginCents: calculations.safetyMarginCents ?? 0,
         safetyMarginPercentage: calculations.safetyMarginPercentage ?? 0,
         customSafetyMarginPercentage: safetyMarginPercentage,
-        workDays,
-        baseWorkDays: workDays,
+        workDays: workingDaysResult.workingDays,
+        baseWorkDays: workingDaysResult.workingDays,
         baseSafetyMarginPercentage: safetyMarginPercentage,
         monthlyTargetCents: calculations.monthlyTargetCents ?? 0,
         manualMonthlyTargetCents: 0,

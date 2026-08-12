@@ -4,24 +4,26 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParallelApi } from '@/hooks/use-api'
 import { ActivityItem } from '@/components/dashboard/RecentActivity'
 import { parseISO } from 'date-fns'
+import { collectedRevenueCents, compareValues } from '@/lib/calc/metrics'
+import { parseLocalDate } from '@/lib/date-utils'
 
 export interface DashboardMetrics {
   revenue: {
     current: number
     previous: number
-    change: number
+    change: number | null
   }
   expenses: {
     current: number
     previous: number
-    change: number
+    change: number | null
   }
   patients: {
     total: number
     new: number
     attended: number
     active: number
-    change: number
+    change: number | null
   }
   treatments: {
     total: number
@@ -61,25 +63,25 @@ export interface ComparisonData {
     current: number
     previous: number
     change: number | null
-    trend: 'up' | 'down' | null
+    trend: 'up' | 'down' | 'flat' | null
   }
   expenses: {
     current: number
     previous: number
     change: number | null
-    trend: 'up' | 'down' | null
+    trend: 'up' | 'down' | 'flat' | null
   }
   treatments: {
     current: number
     previous: number
     change: number | null
-    trend: 'up' | 'down' | null
+    trend: 'up' | 'down' | 'flat' | null
   }
   patients: {
     current: number
     previous: number
     change: number | null
-    trend: 'up' | 'down' | null
+    trend: 'up' | 'down' | 'flat' | null
   }
 }
 
@@ -94,11 +96,6 @@ interface DashboardState {
 
 // Single Responsibility: Dashboard data aggregation
 export class DashboardAggregator {
-  static calculateChange(current: number, previous: number): number {
-    if (previous === 0) return current > 0 ? 100 : 0
-    return Math.round(((current - previous) / previous) * 100)
-  }
-
   static aggregateMetrics(data: any[]): DashboardMetrics {
     // This would process raw API data into metrics
     // Simplified for example
@@ -107,19 +104,19 @@ export class DashboardAggregator {
         // Accept multiple shapes: {revenue:{current}}, {total}, {total_cents}
         current: (data[0]?.revenue?.current ?? data[0]?.total ?? data[0]?.total_cents ?? 0),
         previous: (data[0]?.revenue?.previous ?? data[0]?.previous ?? 0),
-        change: 0
+        change: null
       },
       expenses: {
         current: (data[1]?.expenses?.current ?? data[1]?.total ?? 0),
         previous: (data[1]?.expenses?.previous ?? data[1]?.previous ?? 0),
-        change: 0
+        change: null
       },
       patients: {
         total: (data[2]?.patients?.total ?? data[2]?.total ?? 0),
         new: (data[2]?.patients?.new ?? data[2]?.new ?? 0),
         attended: (data[2]?.patients?.attended ?? data[2]?.attended ?? 0),
         active: (data[2]?.patients?.active ?? data[2]?.active ?? 0),
-        change: 0
+        change: null
       },
       treatments: {
         total: (data[3]?.treatments?.total ?? data[3]?.total ?? 0),
@@ -221,9 +218,9 @@ export function useDashboard(options: UseDashboardOptions = {}): DashboardState 
 
   const [state, setState] = useState<DashboardState>({
     metrics: {
-      revenue: { current: 0, previous: 0, change: 0 },
-      expenses: { current: 0, previous: 0, change: 0 },
-      patients: { total: 0, new: 0, attended: 0, active: 0, change: 0 },
+      revenue: { current: 0, previous: 0, change: null },
+      expenses: { current: 0, previous: 0, change: null },
+      patients: { total: 0, new: 0, attended: 0, active: 0, change: null },
       treatments: { total: 0, completed: 0, pending: 0 },
       supplies: { lowStock: 0, totalValue: 0 },
       appointments: { today: 0, week: 0 }
@@ -333,8 +330,8 @@ export function useDashboard(options: UseDashboardOptions = {}): DashboardState 
               let currentEnd = endOfDay(now)
 
               if (period === 'custom' && from && to) {
-                currentStart = startOfDay(new Date(from))
-                currentEnd = endOfDay(new Date(to))
+                currentStart = startOfDay(parseLocalDate(from))
+                currentEnd = endOfDay(parseLocalDate(to))
               } else if (period === 'day') {
                 currentStart = startOfDay(now)
                 currentEnd = endOfDay(now)
@@ -369,13 +366,13 @@ export function useDashboard(options: UseDashboardOptions = {}): DashboardState 
                 return dt >= previousStart && dt <= previousEnd
               })
 
-              const currentSum = inCurrent.reduce((sum: number, t: any) => sum + (t.price_cents || 0), 0)
-              const previousSum = inPrevious.reduce((sum: number, t: any) => sum + (t.price_cents || 0), 0)
+              const currentSum = inCurrent.reduce((sum: number, t: any) => sum + collectedRevenueCents(t), 0)
+              const previousSum = inPrevious.reduce((sum: number, t: any) => sum + collectedRevenueCents(t), 0)
 
               metrics.revenue = {
                 current: currentSum,
                 previous: previousSum,
-                change: 0
+                change: null
               }
             }
           }
@@ -383,20 +380,6 @@ export function useDashboard(options: UseDashboardOptions = {}): DashboardState 
       } catch (e) {
         console.warn('[Dashboard] fallback metrics calc failed', e)
       }
-
-      // Recalculate changes after applying fallbacks
-      metrics.revenue.change = DashboardAggregator.calculateChange(
-        metrics.revenue.current,
-        metrics.revenue.previous
-      )
-      metrics.expenses.change = DashboardAggregator.calculateChange(
-        metrics.expenses.current,
-        metrics.expenses.previous
-      )
-      metrics.patients.change = DashboardAggregator.calculateChange(
-        metrics.patients.new,
-        metrics.patients.total - metrics.patients.new
-      )
 
       // Process chart data
       const chartData = results.slice(6, 9)
@@ -411,32 +394,25 @@ export function useDashboard(options: UseDashboardOptions = {}): DashboardState 
         const comparisonResults = results.slice(10) // Comparison results start at index 10
 
         // Extract previous period data
-        const prevRevenue = comparisonResults[0]?.total || comparisonResults[0]?.total_cents || 0
-        const prevExpenses = comparisonResults[1]?.total || comparisonResults[1]?.total_cents || 0
-        const prevTreatments = comparisonResults[2]?.total || 0
+        const prevRevenue = comparisonResults[0]?.revenue?.current
+          ?? comparisonResults[0]?.total
+          ?? comparisonResults[0]?.total_cents
+          ?? 0
+        const prevExpenses = comparisonResults[1]?.expenses?.current
+          ?? comparisonResults[1]?.total
+          ?? comparisonResults[1]?.total_cents
+          ?? 0
+        const prevTreatments = comparisonResults[2]?.treatments?.total
+          ?? comparisonResults[2]?.total
+          ?? 0
         const prevPatients = comparisonResults[3]?.patients?.attended
           ?? comparisonResults[3]?.attended
           ?? 0
 
-        // Calculate changes and trends
-        const calculateChangeAndTrend = (current: number, previous: number) => {
-          if (previous === 0) {
-            return {
-              change: current > 0 ? 100 : null,
-              trend: current > 0 ? 'up' as const : null
-            }
-          }
-          const change = ((current - previous) / previous) * 100
-          return {
-            change: Math.round(change * 10) / 10, // Round to 1 decimal
-            trend: change >= 0 ? 'up' as const : 'down' as const
-          }
-        }
-
-        const revenueComparison = calculateChangeAndTrend(metrics.revenue.current, prevRevenue)
-        const expensesComparison = calculateChangeAndTrend(metrics.expenses.current, prevExpenses)
-        const treatmentsComparison = calculateChangeAndTrend(metrics.treatments.total, prevTreatments)
-        const patientsComparison = calculateChangeAndTrend(metrics.patients.attended, prevPatients)
+        const revenueComparison = compareValues(metrics.revenue.current, prevRevenue)
+        const expensesComparison = compareValues(metrics.expenses.current, prevExpenses)
+        const treatmentsComparison = compareValues(metrics.treatments.total, prevTreatments)
+        const patientsComparison = compareValues(metrics.patients.attended, prevPatients)
 
         comparison = {
           revenue: {

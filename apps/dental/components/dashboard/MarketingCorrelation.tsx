@@ -35,7 +35,7 @@ export function MarketingCorrelation({
     const totalInvestment = campaigns.reduce((sum, c) => sum + c.investmentCents, 0)
     const totalRevenue = campaigns.reduce((sum, c) => sum + c.revenueCents, 0)
     const totalPatients = campaigns.reduce((sum, c) => sum + c.patientsCount, 0)
-    const avgROI = totalInvestment > 0 ? ((totalRevenue - totalInvestment) / totalInvestment) * 100 : 0
+    const avgROI = totalInvestment > 0 ? ((totalRevenue - totalInvestment) / totalInvestment) * 100 : null
 
     // Cost per patient
     const costPerPatient = totalPatients > 0 ? totalInvestment / totalPatients : 0
@@ -61,19 +61,27 @@ export function MarketingCorrelation({
 
     const platforms = Object.entries(platformPerformance).map(([name, data]) => ({
       name,
-      roi: data.investment > 0 ? ((data.revenue - data.investment) / data.investment) * 100 : 0,
+      roi: data.investment > 0 ? ((data.revenue - data.investment) / data.investment) * 100 : null,
       revenue: data.revenue,
       patients: data.patients
-    })).sort((a, b) => b.roi - a.roi)
+    }))
+    const comparablePlatforms = platforms
+      .filter((platform): platform is typeof platform & { roi: number } => platform.roi !== null)
+      .sort((a, b) => b.roi - a.roi)
 
-    const bestPlatform = platforms[0]
-    const worstPlatform = platforms[platforms.length - 1]
+    const bestPlatform = comparablePlatforms[0]
+    const worstPlatform = comparablePlatforms[comparablePlatforms.length - 1]
 
     // Active campaigns performance
     const activeCampaigns = campaigns.filter(c => c.status === 'active')
-    const avgActiveROI = activeCampaigns.length > 0
-      ? activeCampaigns.reduce((sum, c) => sum + c.roi, 0) / activeCampaigns.length
-      : 0
+    const comparableActiveCampaigns = activeCampaigns.filter(
+      (campaign): campaign is CampaignROI & { roi: number } => campaign.roi !== null
+    )
+    const activeInvestment = comparableActiveCampaigns.reduce((sum, campaign) => sum + campaign.investmentCents, 0)
+    const activeRevenue = comparableActiveCampaigns.reduce((sum, campaign) => sum + campaign.revenueCents, 0)
+    const avgActiveROI = activeInvestment > 0
+      ? ((activeRevenue - activeInvestment) / activeInvestment) * 100
+      : null
 
     return {
       totalInvestment,
@@ -149,9 +157,9 @@ export function MarketingCorrelation({
             </p>
             <p className={cn(
               'text-2xl font-bold',
-              insights.avgROI >= 100 ? 'text-emerald-600' : 'text-blue-600'
+              insights.avgROI !== null && insights.avgROI >= 100 ? 'text-emerald-600' : 'text-blue-600'
             )}>
-              {insights.avgROI.toFixed(0)}%
+              {insights.avgROI === null ? 'N/D' : `${insights.avgROI.toFixed(0)}%`}
             </p>
           </CardContent>
         </Card>
@@ -165,7 +173,7 @@ export function MarketingCorrelation({
               {t('overview.costPerPatient')}
             </p>
             <p className="text-2xl font-bold">
-              {formatCurrency(insights.costPerPatient * 100)}
+              {formatCurrency(insights.costPerPatient)}
             </p>
           </CardContent>
         </Card>
@@ -179,7 +187,7 @@ export function MarketingCorrelation({
               {t('overview.revenuePerPatient')}
             </p>
             <p className="text-2xl font-bold">
-              {formatCurrency(insights.revenuePerPatient * 100)}
+              {formatCurrency(insights.revenuePerPatient)}
             </p>
           </CardContent>
         </Card>

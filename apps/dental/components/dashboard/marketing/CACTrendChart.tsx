@@ -6,6 +6,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { useClinicCurrency } from '@/hooks/use-clinic-currency'
 import { DollarSign, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { calculatePercentageChange } from '@/lib/calc/metrics'
 
 interface CACMonthlyData {
   month: string
@@ -60,7 +61,7 @@ export function CACTrendChart({ data, targetCAC, loading }: CACTrendChartProps) 
   // Calculate statistics
   const currentCAC = data[data.length - 1]?.cac_cents || 0
   const previousCAC = data[data.length - 2]?.cac_cents || currentCAC
-  const changePercent = previousCAC > 0 ? ((currentCAC - previousCAC) / previousCAC) * 100 : 0
+  const changePercent = calculatePercentageChange(currentCAC, previousCAC)
 
   const avgCAC = data.reduce((sum, d) => sum + d.cac_cents, 0) / data.length
 
@@ -68,10 +69,10 @@ export function CACTrendChart({ data, targetCAC, loading }: CACTrendChartProps) 
   // If current CAC is ABOVE target → bad (need attention)
   // If current CAC is BELOW target → good (optimal/excellent)
   const isAboveTarget = currentCAC > targetCAC
-  const targetDiff = ((currentCAC - targetCAC) / targetCAC) * 100
+  const targetDiff = calculatePercentageChange(currentCAC, targetCAC)
 
   // Determine trend - Lower CAC is better
-  const isImproving = changePercent < 0 // Negative change = improvement
+  const isImproving = changePercent !== null && changePercent < 0
 
   // FIXED: Inverted status logic - lower CAC is better
   const trendStatus = isAboveTarget
@@ -194,7 +195,7 @@ export function CACTrendChart({ data, targetCAC, loading }: CACTrendChartProps) 
                 <TrendingUp className="h-3 w-3 text-red-600" />
               )}
               <span className={`text-xs ${isImproving ? 'text-emerald-600' : 'text-red-600'}`}>
-                {Math.abs(changePercent).toFixed(1)}%
+                {changePercent === null ? tCommon('notAvailable') : `${Math.abs(changePercent).toFixed(1)}%`}
               </span>
             </div>
           </div>
@@ -205,7 +206,9 @@ export function CACTrendChart({ data, targetCAC, loading }: CACTrendChartProps) 
               {formatCurrency(targetCAC)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              {isAboveTarget ? t('above') : t('below')} {Math.abs(targetDiff).toFixed(0)}%
+              {targetDiff === null
+                ? tCommon('notAvailable')
+                : `${isAboveTarget ? t('above') : t('below')} ${Math.abs(targetDiff).toFixed(0)}%`}
             </p>
           </div>
 
@@ -217,7 +220,7 @@ export function CACTrendChart({ data, targetCAC, loading }: CACTrendChartProps) 
         </div>
 
         {/* Alert - FIXED: Show warning when CAC is ABOVE target (bad) */}
-        {isAboveTarget && (
+        {isAboveTarget && targetDiff !== null && (
           <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20">
             <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
             <div className="flex-1">

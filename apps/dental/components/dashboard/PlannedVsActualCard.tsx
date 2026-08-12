@@ -70,8 +70,9 @@ export function PlannedVsActualCard({ data }: PlannedVsActualCardProps) {
             </CardDescription>
           </div>
           <Badge variant={isOverBudget ? 'destructive' : 'default'} className="gap-1 self-start sm:self-auto">
-            {data.total_variance_pct > 0 ? '+' : ''}
-            {data.total_variance_pct.toFixed(1)}%
+            {data.total_variance_pct === null
+              ? t('noReference')
+              : `${data.total_variance_pct > 0 ? '+' : ''}${data.total_variance_pct.toFixed(1)}%`}
           </Badge>
         </div>
       </CardHeader>

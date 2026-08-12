@@ -5,6 +5,7 @@ import { forbiddenIfMissingPermission } from '@/lib/permissions'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { listConvexDocumentsByClinic } from '@/lib/convex/server';
 import { shouldReturnConvexData } from '@/lib/data-backend';
+import { formatDateToISO, parseLocalDate } from '@/lib/date-utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,8 +31,8 @@ export async function GET(request: NextRequest) {
     let start: Date | null = null
     let end: Date | null = null
     if (dateFrom && dateTo) {
-      start = new Date(dateFrom)
-      end = new Date(dateTo)
+      start = parseLocalDate(dateFrom)
+      end = parseLocalDate(dateTo)
       end.setHours(23, 59, 59, 999)
     } else if (period === 'month') {
       start = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -41,8 +42,8 @@ export async function GET(request: NextRequest) {
       end = new Date(now)
     }
 
-    const startISO = start && !Number.isNaN(start.getTime()) ? start.toISOString().split('T')[0] : null
-    const endISO = end && !Number.isNaN(end.getTime()) ? end.toISOString().split('T')[0] : null
+    const startISO = start && !Number.isNaN(start.getTime()) ? formatDateToISO(start) : null
+    const endISO = end && !Number.isNaN(end.getTime()) ? formatDateToISO(end) : null
 
     let treatments: any[] = []
     const serviceNames = new Map<string, string>()
@@ -54,7 +55,9 @@ export async function GET(request: NextRequest) {
       ])
       treatments = convexTreatments.filter((treatment: any) => {
         const treatmentDate = String(treatment.treatment_date || '')
-        return (!startISO || treatmentDate >= startISO) && (!endISO || treatmentDate <= endISO)
+        return treatment.status !== 'cancelled'
+          && (!startISO || treatmentDate >= startISO)
+          && (!endISO || treatmentDate <= endISO)
       })
       for (const service of convexServices as any[]) {
         serviceNames.set(service.id, service.name || 'Servicio sin nombre')
@@ -64,8 +67,9 @@ export async function GET(request: NextRequest) {
       // silently empty embedded relation results in chart/report contexts.
       let query = supabaseAdmin
         .from('treatments')
-        .select('service_id, treatment_date')
+        .select('service_id, treatment_date, status')
         .eq('clinic_id', clinicId)
+        .neq('status', 'cancelled')
 
       if (startISO) query = query.gte('treatment_date', startISO)
       if (endISO) query = query.lte('treatment_date', endISO)
@@ -94,15 +98,6 @@ export async function GET(request: NextRequest) {
       const serviceName = treatment.service_id ? serviceNames.get(treatment.service_id) || 'Servicio sin nombre' : 'Sin servicio'
       serviceCounts[serviceName] = (serviceCounts[serviceName] || 0) + 1
     })
-
-    // If no data, provide mock services
-    if (Object.keys(serviceCounts).length === 0 && !dateFrom && !dateTo) {
-      serviceCounts['Limpieza Dental'] = 25
-      serviceCounts['Extracción'] = 15
-      serviceCounts['Empaste'] = 20
-      serviceCounts['Ortodoncia'] = 10
-      serviceCounts['Blanqueamiento'] = 8
-    }
 
     // Sort by count and take top 5
     const sorted = Object.entries(serviceCounts)

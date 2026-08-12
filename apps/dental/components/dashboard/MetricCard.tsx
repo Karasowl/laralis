@@ -7,7 +7,7 @@ import { ArrowUp, ArrowDown, LucideIcon } from 'lucide-react'
 export interface MetricCardProps {
   title: string
   value: string | number
-  change?: number
+  change?: number | null
   changeType?: 'increase' | 'decrease' | 'neutral'
   // When true, a decrease is treated as positive (e.g., lower expenses).
   lowerIsBetter?: boolean
@@ -36,7 +36,7 @@ export function MetricCard({
   const MINIMUM_SIGNIFICANT_VALUE_CENTS = 10000 // $100 MXN
 
   const shouldShowChange = () => {
-    if (change === undefined) return false
+    if (change === undefined || change === null) return false
     // If we have the raw value, check if it's significant
     if (valueInCents !== undefined) {
       return valueInCents >= MINIMUM_SIGNIFICANT_VALUE_CENTS
@@ -87,7 +87,7 @@ export function MetricCard({
             <span className="text-muted-foreground ml-1">{t('vs_previous_month')}</span>
           </div>
         )}
-        {change !== undefined && !shouldShowChange() && valueInCents !== undefined && (
+        {change !== undefined && change !== null && !shouldShowChange() && valueInCents !== undefined && (
           <p className="text-xs text-muted-foreground mt-2">
             {t('insufficient_data')}
           </p>

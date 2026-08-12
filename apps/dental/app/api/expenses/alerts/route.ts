@@ -5,6 +5,8 @@ import { withRouteContext } from '@/lib/api/route-handler'
 import { createRouteLogger } from '@/lib/api/logger'
 import { listConvexDocumentsByClinic } from '@/lib/convex/server';
 import { shouldReturnConvexData } from '@/lib/data-backend';
+import { calculatePercentageChange, prorateMonthlyAmountForRange } from '@/lib/calc/metrics'
+import { formatDateToISO } from '@/lib/date-utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -75,7 +77,7 @@ export const GET = withPermission('expenses.view', async (request, context) =>
       // Budget alert: compare current month expenses vs fixed costs
       const now = new Date()
       const start = new Date(now.getFullYear(), now.getMonth(), 1)
-      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+      const end = now
 
       if (!shouldReturnConvexData('expenses')) {
         const { data: fixedCostRows, error: fcError } = await supabaseAdmin
@@ -90,7 +92,7 @@ export const GET = withPermission('expenses.view', async (request, context) =>
 
         const { data: expenseRows, error: expError } = await supabaseAdmin
           .from('expenses')
-          .select('amount_cents,expense_date')
+          .select('amount_cents,expense_date,is_variable')
           .eq('clinic_id', clinicId)
           .gte('expense_date', start.toISOString().slice(0, 10))
           .lte('expense_date', end.toISOString().slice(0, 10))
@@ -108,13 +110,16 @@ export const GET = withPermission('expenses.view', async (request, context) =>
         })
       }
 
-      const planned = (fixedCosts || []).reduce((sum, r: AmountRow) => sum + (r.amount_cents || 0), 0)
-      const actual = (expenses || []).reduce((sum, r: AmountRow) => sum + (r.amount_cents || 0), 0)
+      const monthlyPlanned = (fixedCosts || []).reduce((sum, r: AmountRow) => sum + (r.amount_cents || 0), 0)
+      const planned = prorateMonthlyAmountForRange(monthlyPlanned, formatDateToISO(start), formatDateToISO(end))
+      const actual = (expenses || [])
+        .filter((expense: any) => expense.is_variable === false || expense.is_variable === 0 || expense.is_variable === 'false')
+        .reduce((sum, r: AmountRow) => sum + (r.amount_cents || 0), 0)
       const variance = actual - planned
-      const variancePct = planned > 0 ? Math.round((variance / planned) * 100) : 0
+      const variancePct = calculatePercentageChange(actual, planned)
 
       const budget_alerts: Array<{ type: string; message: string; severity: Severity; details: { planned: number; actual: number; variance: number; percentage: number } }> = []
-      if (planned > 0) {
+      if (planned > 0 && variancePct !== null) {
         if (variance > 0) {
           budget_alerts.push({
             type: 'budget',
@@ -156,4 +161,3 @@ export const GET = withPermission('expenses.view', async (request, context) =>
     }
   })
 )
-

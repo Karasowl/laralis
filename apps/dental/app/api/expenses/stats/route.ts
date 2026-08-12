@@ -5,6 +5,7 @@ import { withRouteContext } from '@/lib/api/route-handler'
 import { createRouteLogger } from '@/lib/api/logger'
 import { listConvexDocumentsByClinic } from '@/lib/convex/server';
 import { shouldReturnConvexData } from '@/lib/data-backend';
+import { calculatePercentageChange, prorateMonthlyAmountForRange } from '@/lib/calc/metrics'
 
 export const dynamic = 'force-dynamic'
 
@@ -107,16 +108,19 @@ export const GET = withPermission('expenses.view', async (request, context) =>
         .map(([month, v]) => ({ month, amount: Math.round(v.amount), count: v.count }))
         .sort((a, b) => a.month.localeCompare(b.month))
 
-      const plannedCents = (fixedCosts || []).reduce((sum, f) => sum + (f.amount_cents || 0), 0)
+      const monthlyPlannedCents = (fixedCosts || []).reduce((sum, f) => sum + (f.amount_cents || 0), 0)
+      const plannedCents = startDate && endDate
+        ? prorateMonthlyAmountForRange(monthlyPlannedCents, startDate, endDate)
+        : monthlyPlannedCents
 
       // CRITICAL: Only compare FIXED expenses against planned fixed costs
       // Variable expenses are excluded because they are tied to treatments.
       const fixedExpensesCents = expenses
-        .filter(e => !e.is_variable)
+        .filter(e => e.is_variable === false || e.is_variable === 0 || e.is_variable === 'false')
         .reduce((sum, e) => sum + (e.amount_cents || 0), 0)
 
       const varianceCents = fixedExpensesCents - plannedCents
-      const variancePct = plannedCents > 0 ? (varianceCents / plannedCents) * 100 : 0
+      const variancePct = calculatePercentageChange(fixedExpensesCents, plannedCents)
 
       return NextResponse.json({
         data: {
@@ -133,7 +137,7 @@ export const GET = withPermission('expenses.view', async (request, context) =>
             planned: Math.round(plannedCents),
             actual: Math.round(fixedExpensesCents),
             variance: Math.round(varianceCents),
-            variance_percentage: Math.round(variancePct),
+            variance_percentage: variancePct,
           },
         },
       })
@@ -145,4 +149,3 @@ export const GET = withPermission('expenses.view', async (request, context) =>
     }
   })
 )
-

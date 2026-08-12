@@ -21,6 +21,11 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { withPermission } from '@/lib/middleware/with-permission'
 import { listConvexDocumentsByClinic } from '@/lib/convex/server'
 import { shouldReturnConvexData } from '@/lib/data-backend'
+import {
+  calculatePercentageChange,
+  normalizeCostCategory,
+  prorateMonthlyAmountForRange,
+} from '@/lib/calc/metrics'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -41,7 +46,7 @@ interface CategoryVariance {
   planned_cents: number
   actual_cents: number
   variance_cents: number
-  variance_pct: number
+  variance_pct: number | null
 }
 
 type ImportedRecord = Record<string, any>
@@ -76,8 +81,14 @@ async function getPlannedVsActualFromConvex(
 
   // ===== 1. PLANNED fixed costs (configured for pricing) =====
   const fixedCosts = (fixedCostsRows || []).map(normalizeConvexRecord) as PlannedCost[]
+  const plannedCosts = fixedCosts.map(cost => ({
+    ...cost,
+    amount_cents: startDate && endDate
+      ? prorateMonthlyAmountForRange(cost.amount_cents || 0, startDate, endDate)
+      : cost.amount_cents || 0,
+  }))
 
-  const totalPlannedCents = fixedCosts.reduce(
+  const totalPlannedCents = plannedCosts.reduce(
     (sum, cost) => sum + (cost.amount_cents || 0),
     0
   )
@@ -108,20 +119,18 @@ async function getPlannedVsActualFromConvex(
 
   // ===== 3. Calculate variance =====
   const totalVarianceCents = totalActualCents - totalPlannedCents
-  const totalVariancePct = totalPlannedCents > 0
-    ? (totalVarianceCents / totalPlannedCents) * 100
-    : 0
+  const totalVariancePct = calculatePercentageChange(totalActualCents, totalPlannedCents)
 
   // ===== 4. Breakdown by category =====
   const plannedByCategory: Record<string, number> = {}
-  fixedCosts.forEach((cost) => {
-    const category = cost.concept || 'Other'
+  plannedCosts.forEach((cost) => {
+    const category = normalizeCostCategory(cost.concept)
     plannedByCategory[category] = (plannedByCategory[category] || 0) + (cost.amount_cents || 0)
   })
 
   const actualByCategory: Record<string, number> = {}
   expenses.forEach((exp) => {
-    const category = exp.subcategory || exp.category || 'other'
+    const category = normalizeCostCategory(exp.subcategory || exp.category)
     actualByCategory[category] = (actualByCategory[category] || 0) + (exp.amount_cents || 0)
   })
 
@@ -134,14 +143,14 @@ async function getPlannedVsActualFromConvex(
     const planned = plannedByCategory[category] || 0
     const actual = actualByCategory[category] || 0
     const variance = actual - planned
-    const variancePct = planned > 0 ? (variance / planned) * 100 : 0
+    const variancePct = calculatePercentageChange(actual, planned)
 
     return {
       category,
       planned_cents: planned,
       actual_cents: actual,
       variance_cents: variance,
-      variance_pct: Math.round(variancePct * 10) / 10
+      variance_pct: variancePct
     }
   })
 
@@ -153,13 +162,13 @@ async function getPlannedVsActualFromConvex(
     total_planned_cents: totalPlannedCents,
     total_actual_cents: totalActualCents,
     total_variance_cents: totalVarianceCents,
-    total_variance_pct: Math.round(totalVariancePct * 10) / 10,
+    total_variance_pct: totalVariancePct,
     category_breakdown: categoryBreakdown,
     period: {
       start: startDate || null,
       end: endDate || null,
     },
-    planned_count: fixedCosts.length || 0,
+    planned_count: plannedCosts.length || 0,
     actual_count: expenses.length || 0,
     metadata: {
       description: 'Planned (fixed_costs for pricing) vs Actual (expenses where is_variable=false)',
@@ -197,7 +206,14 @@ export const GET = withPermission('financial_reports.view', async (request, cont
       throw fixedCostsError
     }
 
-    const totalPlannedCents = (fixedCosts as PlannedCost[])?.reduce(
+    const plannedCosts = ((fixedCosts as PlannedCost[]) || []).map(cost => ({
+      ...cost,
+      amount_cents: startDate && endDate
+        ? prorateMonthlyAmountForRange(cost.amount_cents || 0, startDate, endDate)
+        : cost.amount_cents || 0,
+    }))
+
+    const totalPlannedCents = plannedCosts.reduce(
       (sum, cost) => sum + (cost.amount_cents || 0),
       0
     ) || 0
@@ -229,22 +245,20 @@ export const GET = withPermission('financial_reports.view', async (request, cont
 
     // ===== 3. Calculate variance =====
     const totalVarianceCents = totalActualCents - totalPlannedCents
-    const totalVariancePct = totalPlannedCents > 0
-      ? (totalVarianceCents / totalPlannedCents) * 100
-      : 0
+    const totalVariancePct = calculatePercentageChange(totalActualCents, totalPlannedCents)
 
     // ===== 4. Breakdown by category =====
     // Group planned costs by concept
     const plannedByCategory: Record<string, number> = {}
-      ; (fixedCosts as PlannedCost[])?.forEach((cost) => {
-        const category = cost.concept || 'Other'
+      ; plannedCosts.forEach((cost) => {
+        const category = normalizeCostCategory(cost.concept)
         plannedByCategory[category] = (plannedByCategory[category] || 0) + (cost.amount_cents || 0)
       })
 
     // Group actual expenses by subcategory (or fallback to category)
     const actualByCategory: Record<string, number> = {}
       ; (expenses as ActualExpense[])?.forEach((exp) => {
-        const category = exp.subcategory || exp.category || 'other'
+        const category = normalizeCostCategory(exp.subcategory || exp.category)
         actualByCategory[category] = (actualByCategory[category] || 0) + (exp.amount_cents || 0)
       })
 
@@ -258,14 +272,14 @@ export const GET = withPermission('financial_reports.view', async (request, cont
       const planned = plannedByCategory[category] || 0
       const actual = actualByCategory[category] || 0
       const variance = actual - planned
-      const variancePct = planned > 0 ? (variance / planned) * 100 : 0
+      const variancePct = calculatePercentageChange(actual, planned)
 
       return {
         category,
         planned_cents: planned,
         actual_cents: actual,
         variance_cents: variance,
-        variance_pct: Math.round(variancePct * 10) / 10
+        variance_pct: variancePct
       }
     })
 
@@ -279,13 +293,13 @@ export const GET = withPermission('financial_reports.view', async (request, cont
       total_planned_cents: totalPlannedCents,
       total_actual_cents: totalActualCents,
       total_variance_cents: totalVarianceCents,
-      total_variance_pct: Math.round(totalVariancePct * 10) / 10,
+      total_variance_pct: totalVariancePct,
       category_breakdown: categoryBreakdown,
       period: {
         start: startDate || null,
         end: endDate || null,
       },
-      planned_count: fixedCosts?.length || 0,
+      planned_count: plannedCosts.length,
       actual_count: expenses?.length || 0,
       metadata: {
         description: 'Planned (fixed_costs for pricing) vs Actual (expenses where is_variable=false)',

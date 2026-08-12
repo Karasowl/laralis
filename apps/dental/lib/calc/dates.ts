@@ -219,6 +219,61 @@ export function calculateWorkingDaysInRange(
 }
 
 /**
+ * Estimate working days for a range when a clinic configured only a monthly
+ * count and no weekday pattern. Each covered month is prorated independently.
+ */
+export function estimateConfiguredWorkingDaysInRange(
+  fromDate: Date,
+  toDate: Date,
+  monthlyWorkingDays: number,
+  referenceDate: Date = new Date()
+): WorkingDaysResult {
+  const start = toCivilDateStart(fromDate)
+  const end = toCivilDateStart(toDate)
+  const today = toCivilDateStart(referenceDate)
+  if (end < start) {
+    return { totalDays: 0, workingDays: 0, elapsedDays: 0, elapsedWorkingDays: 0, remainingDays: 0, remainingWorkingDays: 0 }
+  }
+
+  const totalDays = Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1
+  let workingDaysExact = 0
+  let elapsedWorkingDaysExact = 0
+  const elapsedEnd = today < end ? today : end
+  const cursor = new Date(start.getFullYear(), start.getMonth(), 1)
+
+  while (cursor <= end) {
+    const monthStart = new Date(cursor.getFullYear(), cursor.getMonth(), 1)
+    const monthEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0)
+    const overlapStart = start > monthStart ? start : monthStart
+    const overlapEnd = end < monthEnd ? end : monthEnd
+    const daysInMonth = monthEnd.getDate()
+    const coveredDays = Math.round((overlapEnd.getTime() - overlapStart.getTime()) / 86_400_000) + 1
+    workingDaysExact += monthlyWorkingDays * (coveredDays / daysInMonth)
+
+    if (elapsedEnd >= overlapStart) {
+      const coveredElapsedEnd = elapsedEnd < overlapEnd ? elapsedEnd : overlapEnd
+      const elapsedCoveredDays = Math.round((coveredElapsedEnd.getTime() - overlapStart.getTime()) / 86_400_000) + 1
+      elapsedWorkingDaysExact += monthlyWorkingDays * (elapsedCoveredDays / daysInMonth)
+    }
+    cursor.setMonth(cursor.getMonth() + 1)
+  }
+
+  const elapsedDays = today < start
+    ? 0
+    : Math.min(totalDays, Math.round((elapsedEnd.getTime() - start.getTime()) / 86_400_000) + 1)
+  const workingDays = Math.max(0, Math.round(workingDaysExact))
+  const elapsedWorkingDays = Math.min(workingDays, Math.max(0, Math.round(elapsedWorkingDaysExact)))
+  return {
+    totalDays,
+    workingDays,
+    elapsedDays,
+    elapsedWorkingDays,
+    remainingDays: Math.max(0, totalDays - elapsedDays),
+    remainingWorkingDays: Math.max(0, workingDays - elapsedWorkingDays),
+  }
+}
+
+/**
  * Estimate average monthly working days based on pattern
  * Useful for simulations and projections
  */

@@ -205,7 +205,7 @@ export function calculateTargetCAC(
  *
  * @param currentPatients - Pacientes actuales
  * @param previousPatients - Pacientes periodo anterior
- * @returns Porcentaje de crecimiento (puede ser negativo)
+ * @returns Porcentaje de crecimiento, o null cuando no existe una base válida
  *
  * @example
  * calculateGrowthRate(120, 100) // (120 - 100) / 100 × 100
@@ -214,8 +214,8 @@ export function calculateTargetCAC(
 export function calculateGrowthRate(
   currentPatients: number,
   previousPatients: number
-): number {
-  if (previousPatients <= 0) return 0
+): number | null {
+  if (previousPatients <= 0) return currentPatients === 0 ? 0 : null
 
   const growth = ((currentPatients - previousPatients) / previousPatients) * 100
 

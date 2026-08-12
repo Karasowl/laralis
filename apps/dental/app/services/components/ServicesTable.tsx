@@ -41,9 +41,9 @@ function getCategoryLabel(
 // Helper to calculate margin status
 function getMarginStatus(costBase: number, finalPrice: number) {
   const profit = finalPrice - costBase
-  const realMarginPct = costBase > 0 ? ((profit / costBase) * 100) : 0
-  const hasLoss = realMarginPct < 0
-  const hasLowMargin = realMarginPct >= 0 && realMarginPct < 10
+  const realMarginPct = costBase > 0 ? ((profit / costBase) * 100) : null
+  const hasLoss = profit < 0
+  const hasLowMargin = realMarginPct !== null && realMarginPct >= 0 && realMarginPct < 10
   return { profit, realMarginPct, hasLoss, hasLowMargin }
 }
 
@@ -309,7 +309,7 @@ export function ServicesTable({
                       hasLowMargin && !hasLoss && "text-amber-600 dark:text-amber-400",
                       !hasLoss && !hasLowMargin && "text-emerald-600 dark:text-emerald-400"
                     )}>
-                      {realMarginPct.toFixed(1)}%
+                      {realMarginPct === null ? tCommon('notAvailable') : `${realMarginPct.toFixed(1)}%`}
                     </span>
                   </div>
                   <div className="flex justify-between gap-4 text-xs">
@@ -542,7 +542,7 @@ export function ServicesTable({
                           hasLoss && "text-destructive",
                           hasLowMargin && !hasLoss && "text-amber-600 dark:text-amber-400",
                           !hasLoss && !hasLowMargin && "text-emerald-600 dark:text-emerald-400"
-                        )}>{realMarginPct.toFixed(1)}%</span>
+                        )}>{realMarginPct === null ? tCommon('notAvailable') : `${realMarginPct.toFixed(1)}%`}</span>
                       </div>
                     </div>
                     <div className={cn(
@@ -644,7 +644,7 @@ export function ServicesTable({
             hasLowMargin && !hasLoss && "border-amber-500/50 text-amber-700 dark:text-amber-300",
             !hasLoss && !hasLowMargin && "border-emerald-500/50 text-emerald-700 dark:text-emerald-300"
           )}>
-            {realMarginPct.toFixed(0)}% {t('margin_label_short')}
+            {realMarginPct === null ? tCommon('notAvailable') : `${realMarginPct.toFixed(0)}% ${t('margin_label_short')}`}
           </Badge>
         </div>
       </div>

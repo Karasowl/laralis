@@ -39,7 +39,7 @@ function countByDate(rows: Array<{ appointment_date: string | null }>, targetDat
 
 function trendFromCounts(current: number, previous: number): { trend: AppointmentTrend; trendValue: number } {
   if (previous <= 0 && current <= 0) return { trend: 'stable', trendValue: 0 }
-  if (previous <= 0) return { trend: 'up', trendValue: 100 }
+  if (previous <= 0) return { trend: 'up', trendValue: 0 }
 
   const delta = current - previous
   if (delta === 0) return { trend: 'stable', trendValue: 0 }

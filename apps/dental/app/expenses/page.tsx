@@ -187,8 +187,8 @@ export default function ExpensesPage() {
 
   // Planned vs actual from backend
   const planned = stats?.vs_fixed_costs?.planned ?? 0
-  const variance = totalSpent - planned
-  const variancePct = planned > 0 ? Math.round((variance / planned) * 100) : 0
+  const variance = stats?.vs_fixed_costs?.variance ?? 0
+  const variancePct = stats?.vs_fixed_costs?.variance_percentage ?? null
 
   type CardColor = 'default' | 'primary' | 'success' | 'warning' | 'danger' | 'info'
 
@@ -213,7 +213,9 @@ export default function ExpensesPage() {
       cards.push({
         label: t('summary.varianceTitle'),
         value: formatCurrency(variance),
-        subtitle: t('summary.varianceSubtitle', { percentage: Math.abs(variancePct) }),
+        subtitle: variancePct === null
+          ? t('summary.varianceNoReference')
+          : t('summary.varianceSubtitle', { percentage: Math.abs(variancePct) }),
         icon: TrendingUp,
         color: variance > 0 ? 'danger' : 'success',
       })

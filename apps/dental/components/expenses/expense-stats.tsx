@@ -68,7 +68,10 @@ export default function ExpenseStats({ detailed = false }: ExpenseStatsProps) {
     )
   }
 
-  const variancePercentage = Math.abs(stats.vs_fixed_costs.variance_percentage)
+  const hasBudgetReference = stats.vs_fixed_costs.variance_percentage !== null
+  const variancePercentage = hasBudgetReference
+    ? Math.abs(stats.vs_fixed_costs.variance_percentage as number)
+    : null
   const isOverBudget = stats.vs_fixed_costs.variance > 0
 
   return (
@@ -109,10 +112,12 @@ export default function ExpenseStats({ detailed = false }: ExpenseStatsProps) {
             "text-2xl font-bold",
             isOverBudget ? "text-destructive" : "text-green-600"
           )}>
-            {isOverBudget ? "+" : ""}{variancePercentage}%
+            {hasBudgetReference ? `${isOverBudget ? "+" : ""}${variancePercentage}%` : t('no_reference')}
           </div>
           <div className="flex items-center text-xs text-muted-foreground">
-            {isOverBudget ? (
+            {!hasBudgetReference ? (
+              <Target className="h-3 w-3 mr-1 text-muted-foreground" />
+            ) : isOverBudget ? (
               <TrendingUp className="h-3 w-3 mr-1 text-destructive" />
             ) : (
               <TrendingDown className="h-3 w-3 mr-1 text-green-600" />

@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatCurrency } from '@/lib/format'
-import { Users, Repeat, UserPlus, TrendingUp, TrendingDown } from 'lucide-react'
+import { Users, Repeat, UserPlus } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 
@@ -20,7 +20,6 @@ interface PatientAnalysisProps {
 
 export function PatientAnalysis({ insights, loading }: PatientAnalysisProps) {
   const t = useTranslations('dashboard.advanced')
-  const tCommon = useTranslations('common')
 
   if (loading) {
     return (
@@ -43,13 +42,6 @@ export function PatientAnalysis({ insights, loading }: PatientAnalysisProps) {
   const retentionPercentage = insights.retention_rate * 100
   const churnRate = (1 - insights.retention_rate) * 100
 
-  // Determine retention status
-  const retentionStatus = retentionPercentage >= 70
-    ? { label: t('excellent'), color: 'text-emerald-600', bgColor: 'bg-emerald-50 dark:bg-emerald-950/20' }
-    : retentionPercentage >= 50
-    ? { label: t('good'), color: 'text-blue-600', bgColor: 'bg-blue-50 dark:bg-blue-950/20' }
-    : { label: t('needs_improvement'), color: 'text-amber-600', bgColor: 'bg-amber-50 dark:bg-amber-950/20' }
-
   return (
     <Card>
       <CardHeader>
@@ -61,8 +53,8 @@ export function PatientAnalysis({ insights, loading }: PatientAnalysisProps) {
             </CardTitle>
             <CardDescription>{t('patient_analysis_description')}</CardDescription>
           </div>
-          <Badge variant="outline" className={retentionStatus.color}>
-            {retentionStatus.label}
+          <Badge variant="outline" className="text-muted-foreground">
+            {t('period_metric')}
           </Badge>
         </div>
       </CardHeader>
@@ -107,25 +99,8 @@ export function PatientAnalysis({ insights, loading }: PatientAnalysisProps) {
           </div>
           <div className="pl-10 space-y-2">
             <Progress value={retentionPercentage} className="h-2" />
-            <div className={`p-3 rounded-lg ${retentionStatus.bgColor}`}>
-              <p className="text-sm">
-                {retentionPercentage >= 70 ? (
-                  <>
-                    <span className="font-medium">{t('retention_excellent')}</span>
-                    {' '}{t('retention_excellent_desc')}
-                  </>
-                ) : retentionPercentage >= 50 ? (
-                  <>
-                    <span className="font-medium">{t('retention_good')}</span>
-                    {' '}{t('retention_good_desc')}
-                  </>
-                ) : (
-                  <>
-                    <span className="font-medium">{t('retention_low')}</span>
-                    {' '}{t('retention_low_desc')}
-                  </>
-                )}
-              </p>
+            <div className="p-3 rounded-lg bg-muted/50">
+              <p className="text-sm">{t('repeat_rate_explanation')}</p>
             </div>
           </div>
         </div>
@@ -151,49 +126,12 @@ export function PatientAnalysis({ insights, loading }: PatientAnalysisProps) {
             <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/50">
               <Lightbulb className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
               <div className="flex-1">
-                <p className="text-sm">
-                  {insights.acquisition_rate > 10 ? (
-                    <>
-                      <span className="font-medium">{t('acquisition_strong')}</span>
-                      {' '}{t('acquisition_strong_desc')}
-                    </>
-                  ) : insights.acquisition_rate > 5 ? (
-                    <>
-                      <span className="font-medium">{t('acquisition_moderate')}</span>
-                      {' '}{t('acquisition_moderate_desc')}
-                    </>
-                  ) : (
-                    <>
-                      <span className="font-medium">{t('acquisition_low')}</span>
-                      {' '}{t('acquisition_low_desc')}
-                    </>
-                  )}
-                </p>
+                <p className="text-sm">{t('acquisition_period_explanation')}</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Action Summary */}
-        {(retentionPercentage < 70 || insights.acquisition_rate < 10) && (
-          <div className="pt-4 border-t">
-            <p className="text-sm font-medium mb-2">{t('recommended_actions')}</p>
-            <ul className="space-y-1 text-sm text-muted-foreground">
-              {retentionPercentage < 70 && (
-                <li className="flex items-start gap-2">
-                  <TrendingUp className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                  <span>{t('action_retention')}</span>
-                </li>
-              )}
-              {insights.acquisition_rate < 10 && (
-                <li className="flex items-start gap-2">
-                  <UserPlus className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                  <span>{t('action_acquisition')}</span>
-                </li>
-              )}
-            </ul>
-          </div>
-        )}
       </CardContent>
     </Card>
   )

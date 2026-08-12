@@ -5,6 +5,8 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
 import { listConvexDocumentsByClinic } from '@/lib/convex/server';
 import { shouldReturnConvexData } from '@/lib/data-backend';
+import { collectedRevenueCents, getPreviousPeriodRange } from '@/lib/calc/metrics'
+import { parseLocalDate } from '@/lib/date-utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -45,14 +47,15 @@ function computeRanges(period: SupportedPeriod, from?: string | null, to?: strin
   const clone = (date: Date) => new Date(date.getTime())
 
   if (period === 'custom' && from && to) {
-    const start = startOfDay(new Date(from))
-    const end = endOfDay(new Date(to))
-    const durationMs = Math.max(end.getTime() - start.getTime(), 24 * 60 * 60 * 1000)
-    const previousEnd = new Date(start.getTime() - 1)
-    const previousStart = new Date(previousEnd.getTime() - durationMs)
+    const start = startOfDay(parseLocalDate(from))
+    const end = endOfDay(parseLocalDate(to))
+    const previousRange = getPreviousPeriodRange(from, to)
     return {
       current: { start, end },
-      previous: { start: startOfDay(previousStart), end: endOfDay(previousEnd) },
+      previous: {
+        start: startOfDay(parseLocalDate(previousRange.from)),
+        end: endOfDay(parseLocalDate(previousRange.to)),
+      },
       label: 'custom'
     }
   }
@@ -109,8 +112,8 @@ function computeRanges(period: SupportedPeriod, from?: string | null, to?: strin
 
 const toDateParam = (date: Date) => date.toISOString().split('T')[0]
 
-const sumRevenue = (rows: Array<{ price_cents?: number | null }>) =>
-  rows.reduce((acc, row) => acc + (row.price_cents ?? 0), 0)
+const sumRevenue = (rows: Array<Record<string, any>>) =>
+  rows.reduce((acc, row) => acc + collectedRevenueCents(row), 0)
 
 export async function GET(request: NextRequest) {
   try {
@@ -145,19 +148,15 @@ export async function GET(request: NextRequest) {
       const previousStart = toDateParam(ranges.previous.start)
       const previousEnd = toDateParam(ranges.previous.end)
 
-      const completedPaid = (row: any) => {
-        const price = Number(row.price_cents || 0)
-        const paid = Number(row.amount_paid_cents || 0)
-        return row.status === 'completed' && price > 0 && (row.is_paid === true || paid >= price)
-      }
+      const hasCollectedRevenue = (row: any) => collectedRevenueCents(row) > 0
 
       const currentPaidTreatments = treatments.filter((row: any) => {
         const treatmentDate = String(row.treatment_date || '')
-        return treatmentDate >= currentStart && treatmentDate <= currentEnd && completedPaid(row)
+        return treatmentDate >= currentStart && treatmentDate <= currentEnd && hasCollectedRevenue(row)
       })
       const previousPaidTreatments = treatments.filter((row: any) => {
         const treatmentDate = String(row.treatment_date || '')
-        return treatmentDate >= previousStart && treatmentDate <= previousEnd && completedPaid(row)
+        return treatmentDate >= previousStart && treatmentDate <= previousEnd && hasCollectedRevenue(row)
       })
 
       return NextResponse.json({
@@ -206,16 +205,8 @@ export async function GET(request: NextRequest) {
 
     console.info('[revenue] Found previous treatments:', previousTreatments?.length || 0)
 
-    const currentPaidTreatments = (currentTreatments || []).filter(row => {
-      const price = Number(row.price_cents || 0)
-      const paid = Number((row as any).amount_paid_cents || 0)
-      return price > 0 && ((row as any).is_paid === true || paid >= price)
-    })
-    const previousPaidTreatments = (previousTreatments || []).filter(row => {
-      const price = Number(row.price_cents || 0)
-      const paid = Number((row as any).amount_paid_cents || 0)
-      return price > 0 && ((row as any).is_paid === true || paid >= price)
-    })
+    const currentPaidTreatments = (currentTreatments || []).filter(row => collectedRevenueCents(row) > 0)
+    const previousPaidTreatments = (previousTreatments || []).filter(row => collectedRevenueCents(row) > 0)
 
     const currentTotal = sumRevenue(currentPaidTreatments)
     const previousTotal = sumRevenue(previousPaidTreatments)

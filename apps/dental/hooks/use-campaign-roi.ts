@@ -11,7 +11,7 @@ export interface CampaignROI {
   investmentCents: number;
   revenueCents: number;
   patientsCount: number;
-  roi: number;
+  roi: number | null;
   avgRevenuePerPatientCents: number;
   status: 'active' | 'inactive' | 'archived';
 }
@@ -20,7 +20,7 @@ export interface CampaignROISummary {
   totalInvestmentCents: number;
   totalRevenueCents: number;
   totalPatientsCount: number;
-  averageROI: number;
+  averageROI: number | null;
   totalCampaigns: number;
 }
 
@@ -41,7 +41,7 @@ const EMPTY_SUMMARY: CampaignROISummary = {
   totalInvestmentCents: 0,
   totalRevenueCents: 0,
   totalPatientsCount: 0,
-  averageROI: 0,
+  averageROI: null,
   totalCampaigns: 0,
 };
 

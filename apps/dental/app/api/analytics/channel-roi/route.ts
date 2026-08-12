@@ -3,7 +3,7 @@ import { cookies } from 'next/headers'
 import { resolveClinicContext } from '@/lib/clinic'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
-import { calculateROI } from '@/lib/calc/marketing'
+import { collectedRevenueCents, normalizeCostCategory } from '@/lib/calc/metrics'
 import { getFirstTreatmentDateByPatient } from '@/lib/calc/patient-acquisition'
 import { listConvexDocumentsByClinic, listConvexTable } from '@/lib/convex/server'
 import { shouldReturnConvexData } from '@/lib/data-backend'
@@ -118,8 +118,20 @@ async function getChannelRoiFromConvex(
   const patientIdSet = new Set(patients.map((p) => String(p.id)))
   const treatments = patientIdSet.size > 0
     ? (treatmentsRaw || [])
-        .filter((t) => t.status === 'completed' && patientIdSet.has(String(t.patient_id)))
-        .map((t) => ({ patient_id: t.patient_id, price_cents: t.price_cents }))
+        .filter((t) => {
+          const date = String(t.treatment_date || '')
+          return t.status === 'completed'
+            && patientIdSet.has(String(t.patient_id))
+            && date >= startDateStr
+            && date <= endDateStr
+        })
+        .map((t) => ({
+          patient_id: t.patient_id,
+          price_cents: t.price_cents,
+          amount_paid_cents: t.amount_paid_cents,
+          is_paid: t.is_paid,
+          status: t.status,
+        }))
     : []
 
   // 4. Marketing expenses directly linked to campaigns within the date range.
@@ -137,7 +149,7 @@ async function getChannelRoiFromConvex(
   // `.from('categories').eq('name','marketing')` query.
   const categories = await listConvexTable('categories', 10000) as ImportedRecord[]
   const marketingCategoryIds = (categories || [])
-    .filter((c) => c.name === 'marketing')
+    .filter((c) => normalizeCostCategory(c.name) === 'Marketing')
     .map((c) => String(c.id))
   const marketingCategoryIdSet = new Set(marketingCategoryIds)
 
@@ -161,7 +173,7 @@ async function getChannelRoiFromConvex(
 
     const campaignRevenue = treatments
       .filter((t) => campaignPatientIds.includes(t.patient_id))
-      .reduce((sum, t) => sum + (t.price_cents || 0), 0)
+      .reduce((sum, treatment) => sum + collectedRevenueCents(treatment), 0)
 
     const directExpenses = campaignExpenses
       .filter((e) => e.campaign_id === campaign.id)
@@ -173,7 +185,9 @@ async function getChannelRoiFromConvex(
         ? Math.round((campaignPatientCount / totalPatients) * totalMarketingExpenses)
         : 0
 
-    const roi = calculateROI(campaignRevenue, campaignInvestment)
+    const roi = campaignInvestment > 0
+      ? ((campaignRevenue - campaignInvestment) / campaignInvestment) * 100
+      : null
 
     return {
       campaign: {
@@ -187,14 +201,15 @@ async function getChannelRoiFromConvex(
       investmentCents: campaignInvestment,
       roi: {
         value: roi,
-        formatted: `${roi.toFixed(1)}%`,
+        formatted: roi === null ? 'No investment basis' : `${roi.toFixed(1)}%`,
       },
     }
   })
 
-  const sortedChannels = channelMetrics.sort((a, b) => b.roi.value - a.roi.value)
-  const bestChannel = sortedChannels.find((c) => c.patients > 0) || sortedChannels[0]
-  const worstChannel = [...sortedChannels].reverse().find((c) => c.patients > 0) || sortedChannels[sortedChannels.length - 1]
+  const sortedChannels = channelMetrics.sort((a, b) => (b.roi.value ?? Number.NEGATIVE_INFINITY) - (a.roi.value ?? Number.NEGATIVE_INFINITY))
+  const comparableChannels = sortedChannels.filter((channel) => channel.roi.value !== null)
+  const bestChannel = comparableChannels.find((c) => c.patients > 0) || comparableChannels[0]
+  const worstChannel = [...comparableChannels].reverse().find((c) => c.patients > 0) || comparableChannels[comparableChannels.length - 1]
 
   return {
     period,
@@ -368,9 +383,11 @@ export async function GET(request: NextRequest) {
     const { data: treatments, error: treatmentsError } = patientIds.length > 0
       ? await supabaseAdmin
           .from('treatments')
-          .select('patient_id, price_cents')
+          .select('patient_id, price_cents, amount_paid_cents, is_paid, status, treatment_date')
           .eq('clinic_id', clinicId)
           .eq('status', 'completed')
+          .gte('treatment_date', startDateStr)
+          .lte('treatment_date', endDateStr)
           .in('patient_id', patientIds)
       : { data: [], error: null }
 
@@ -400,14 +417,15 @@ export async function GET(request: NextRequest) {
     // endpoint to 500. Two explicit queries are both safer and easier to debug.
     const { data: marketingCategories, error: marketingCatError } = await supabaseAdmin
       .from('categories')
-      .select('id')
-      .eq('name', 'marketing')
+      .select('id, name')
 
     if (marketingCatError) {
       console.error('[channel-roi] Error fetching marketing category:', marketingCatError)
     }
 
-    const marketingCategoryIds = (marketingCategories || []).map((c: any) => c.id)
+    const marketingCategoryIds = (marketingCategories || [])
+      .filter((category: any) => normalizeCostCategory(category.name) === 'Marketing')
+      .map((category: any) => category.id)
 
     let totalMarketingExpenses = 0
     if (marketingCategoryIds.length > 0) {
@@ -442,7 +460,7 @@ export async function GET(request: NextRequest) {
       // Revenue from this campaign's patients
       const campaignRevenue = (treatments || [])
         .filter((t: any) => campaignPatientIds.includes(t.patient_id))
-        .reduce((sum: number, t: any) => sum + (t.price_cents || 0), 0)
+        .reduce((sum: number, treatment: any) => sum + collectedRevenueCents(treatment), 0)
 
       // Investment: prefer direct expense link, fallback to proportional distribution
       const directExpenses = (campaignExpenses || [])
@@ -456,7 +474,9 @@ export async function GET(request: NextRequest) {
           : 0
 
       // Calculate ROI
-      const roi = calculateROI(campaignRevenue, campaignInvestment)
+      const roi = campaignInvestment > 0
+        ? ((campaignRevenue - campaignInvestment) / campaignInvestment) * 100
+        : null
 
       return {
         campaign: {
@@ -470,17 +490,18 @@ export async function GET(request: NextRequest) {
         investmentCents: campaignInvestment,
         roi: {
           value: roi,
-          formatted: `${roi.toFixed(1)}%`
+          formatted: roi === null ? 'No investment basis' : `${roi.toFixed(1)}%`
         }
       }
     })
 
     // Sort by ROI descending
-    const sortedChannels = channelMetrics.sort((a, b) => b.roi.value - a.roi.value)
+    const sortedChannels = channelMetrics.sort((a, b) => (b.roi.value ?? Number.NEGATIVE_INFINITY) - (a.roi.value ?? Number.NEGATIVE_INFINITY))
 
     // Identify best and worst campaigns
-    const bestChannel = sortedChannels.find(c => c.patients > 0) || sortedChannels[0]
-    const worstChannel = [...sortedChannels].reverse().find(c => c.patients > 0) || sortedChannels[sortedChannels.length - 1]
+    const comparableChannels = sortedChannels.filter(channel => channel.roi.value !== null)
+    const bestChannel = comparableChannels.find(c => c.patients > 0) || comparableChannels[0]
+    const worstChannel = [...comparableChannels].reverse().find(c => c.patients > 0) || comparableChannels[comparableChannels.length - 1]
 
     console.info('[channel-roi] Best campaign:', bestChannel?.campaign.name, bestChannel?.roi.value)
     console.info('[channel-roi] Worst campaign:', worstChannel?.campaign.name, worstChannel?.roi.value)

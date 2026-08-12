@@ -41,7 +41,7 @@ export interface ServiceROI {
   // Eficiencia
   total_minutes: number              // Total de minutos trabajados
   profit_per_hour_cents: number      // Ganancia/hora trabajada
-  roi_percentage: number             // ROI real
+  roi_percentage: number | null      // ROI real, null without a cost basis
 
   // Clasificación automática
   category: 'star' | 'gem' | 'volume' | 'review'
@@ -56,7 +56,7 @@ export interface ROIAnalysis {
     total_profit_cents: number
     total_revenue_cents: number
     total_sales: number
-    avg_roi_percentage: number
+    avg_roi_percentage: number | null
   }
   insights: {
     top_profit_service: ServiceROI | null
@@ -112,7 +112,7 @@ function buildRoiAnalysis(
         total_profit_cents: 0,
         total_revenue_cents: 0,
         total_sales: 0,
-        avg_roi_percentage: 0
+        avg_roi_percentage: null
       },
       insights: {
         top_profit_service: null,
@@ -171,9 +171,9 @@ function buildRoiAnalysis(
     const profitPerHourCents = service.total_minutes > 0
       ? Math.round((totalProfitCents / service.total_minutes) * 60)
       : 0
-    const roiPercentage = totalCostCents > 0
+    const roiPercentage: number | null = totalCostCents > 0
       ? Math.round((totalProfitCents / totalCostCents) * 100)
-      : 0
+      : null
 
     return {
       service_id: service.service_id,
@@ -214,9 +214,10 @@ function buildRoiAnalysis(
   const totalProfitCents = services.reduce((sum, s) => sum + s.total_profit_cents, 0)
   const totalRevenueCents = services.reduce((sum, s) => sum + s.total_revenue_cents, 0)
   const totalSales = services.reduce((sum, s) => sum + s.total_sales, 0)
-  const avgRoiPercentage = services.length > 0
-    ? Math.round(services.reduce((sum, s) => sum + s.roi_percentage, 0) / services.length)
-    : 0
+  const totalCostCents = services.reduce((sum, s) => sum + s.total_cost_cents, 0)
+  const avgRoiPercentage: number | null = totalCostCents > 0
+    ? Math.round((totalProfitCents / totalCostCents) * 100)
+    : null
 
   const topProfitService = services[0] || null
   const topProfitPerSaleService = [...services].sort((a, b) =>

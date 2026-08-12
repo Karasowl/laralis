@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { formatDateToISO, parseLocalDate } from '@/lib/date-utils'
+import { getPreviousPeriodRange } from '@/lib/calc/metrics'
 
 // Types moved here to avoid circular dependency with DateFilterBar
 export type DatePeriod = 'today' | 'week' | 'month' | 'quarter' | 'year' | 'allTime' | 'custom'
@@ -142,23 +144,12 @@ export function useDateFilter(): UseDateFilterReturn {
       return undefined
     }
 
-    const from = new Date(currentRange.from)
-    const to = new Date(currentRange.to)
-    const diff = to.getTime() - from.getTime()
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24)) + 1
+    const from = parseLocalDate(currentRange.from)
+    const to = parseLocalDate(currentRange.to)
 
     if (comparison === 'previous') {
       // Previous period of same length
-      const prevTo = new Date(from)
-      prevTo.setDate(prevTo.getDate() - 1)
-
-      const prevFrom = new Date(prevTo)
-      prevFrom.setDate(prevFrom.getDate() - days + 1)
-
-      return {
-        from: formatDate(prevFrom),
-        to: formatDate(prevTo)
-      }
+      return getPreviousPeriodRange(currentRange.from, currentRange.to)
     }
 
     if (comparison === 'last-year') {
@@ -170,8 +161,8 @@ export function useDateFilter(): UseDateFilterReturn {
       prevTo.setFullYear(prevTo.getFullYear() - 1)
 
       return {
-        from: formatDate(prevFrom),
-        to: formatDate(prevTo)
+        from: formatDateToISO(prevFrom),
+        to: formatDateToISO(prevTo)
       }
     }
 
@@ -198,4 +189,3 @@ function formatDate(date: Date): string {
   const day = String(date.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
 }
-

@@ -5,6 +5,7 @@ import { resolveClinicContext } from '@/lib/clinic'
 import { forbiddenIfMissingPermission } from '@/lib/permissions'
 import { listConvexDocumentsByClinic } from '@/lib/convex/server';
 import { shouldReturnConvexData } from '@/lib/data-backend';
+import { formatDateToISO, parseLocalDate } from '@/lib/date-utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,15 +32,15 @@ export async function GET(request: NextRequest) {
     let end: Date
     if (dateFrom && dateTo) {
       // Use explicit dates when provided (regardless of period)
-      start = new Date(dateFrom)
-      end = new Date(dateTo)
+      start = parseLocalDate(dateFrom)
+      end = parseLocalDate(dateTo)
     } else {
       start = new Date(now.getFullYear(), now.getMonth(), 1)
       end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
     }
 
-    const startISO = start.toISOString().split('T')[0]
-    const endISO = end.toISOString().split('T')[0]
+    const startISO = formatDateToISO(start)
+    const endISO = formatDateToISO(end)
 
     if (shouldReturnConvexData('dashboard')) {
       const treatments = await listConvexDocumentsByClinic('treatments', clinicId)
