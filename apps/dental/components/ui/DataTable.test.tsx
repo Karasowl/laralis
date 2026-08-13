@@ -115,4 +115,21 @@ describe('DataTable sticky actions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
     expect(onPageChange).toHaveBeenCalledWith(2)
   })
+
+  it('reserves the mobile floating-assistant area beside pagination', () => {
+    render(
+      <DataTable
+        data={Array.from({ length: 2 }, (_, index) => ({
+          id: `treatment-${index + 1}`,
+          patient: `Patient ${index + 1}`,
+        }))}
+        columns={[{ key: 'patient', label: 'Patient' }]}
+        pageSize={1}
+      />
+    )
+
+    const pagination = screen.getByTestId('data-table-pagination')
+    expect(pagination.classList.contains('pr-24')).toBe(true)
+    expect(pagination.classList.contains('sm:pr-4')).toBe(true)
+  })
 })
