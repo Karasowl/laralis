@@ -418,7 +418,10 @@ function DataTable<T extends { id?: string | number }>({
           )}
 
           {pageCount > 1 && (
-            <div className="flex items-center justify-between gap-3 border-t px-4 py-3 text-sm text-muted-foreground">
+            <div
+              className="flex items-center justify-between gap-3 border-t py-3 pl-4 pr-24 text-sm text-muted-foreground sm:pr-4"
+              data-testid="data-table-pagination"
+            >
               <span>
                 {pageStart + 1}-{Math.min(pageStart + safePageSize, filteredCount)} / {filteredCount}
               </span>

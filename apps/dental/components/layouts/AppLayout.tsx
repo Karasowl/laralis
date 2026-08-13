@@ -193,7 +193,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         </header>
 
       {/* Page Content */}
-      <main className="min-h-[calc(100vh-4rem)] overflow-x-hidden" data-testid="app-main-content">
+      <main className="min-h-[calc(100vh-4rem)] overflow-x-hidden pb-24 sm:pb-0" data-testid="app-main-content">
         {children}
       </main>
     </div>
